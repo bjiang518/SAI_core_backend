@@ -1,0 +1,22 @@
+# Railway Project Configuration
+# railway.json - Railway platform configuration
+
+{
+  "build": {
+    "builder": "dockerfile",
+    "dockerfilePath": "Dockerfile.railway"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "sleepApplication": false,
+    "restartPolicyType": "always"
+  },
+  "environments": {
+    "production": {
+      "name": "studyai-core-backend-prod"
+    },
+    "staging": {
+      "name": "studyai-core-backend-staging"
+    }
+  }
+}

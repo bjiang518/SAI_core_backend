@@ -1,0 +1,216 @@
+# StudyAI Production Alert Rules
+# Prometheus alerting rules for production monitoring
+
+groups:
+  - name: studyai.api.rules
+    rules:
+      # =====================================
+      # API Gateway Health Alerts
+      # =====================================
+      - alert: APIGatewayDown
+        expr: up{job="studyai-gateway"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: api-gateway
+        annotations:
+          summary: "StudyAI API Gateway is down"
+          description: "API Gateway has been down for more than 1 minute"
+          runbook_url: "https://docs.studyai.com/runbooks/api-gateway-down"
+
+      - alert: HighErrorRate
+        expr: rate(studyai_http_requests_total{status_code=~"5.."}[5m]) / rate(studyai_http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          component: api-gateway
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+      - alert: CriticalErrorRate
+        expr: rate(studyai_http_requests_total{status_code=~"5.."}[5m]) / rate(studyai_http_requests_total[5m]) > 0.10
+        for: 1m
+        labels:
+          severity: critical
+          component: api-gateway
+        annotations:
+          summary: "Critical error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+      - alert: SlowResponseTime
+        expr: histogram_quantile(0.95, rate(studyai_http_request_duration_seconds_bucket[5m])) > 1.0
+        for: 3m
+        labels:
+          severity: warning
+          component: api-gateway
+        annotations:
+          summary: "Slow API response times"
+          description: "95th percentile response time is {{ $value }}s"
+
+      - alert: VerySlowResponseTime
+        expr: histogram_quantile(0.95, rate(studyai_http_request_duration_seconds_bucket[5m])) > 2.0
+        for: 2m
+        labels:
+          severity: critical
+          component: api-gateway
+        annotations:
+          summary: "Very slow API response times"
+          description: "95th percentile response time is {{ $value }}s"
+
+      # =====================================
+      # Resource Usage Alerts
+      # =====================================
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total{job="studyai-gateway"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: api-gateway
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}% for the last 5 minutes"
+
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes{job="studyai-gateway"} / process_virtual_memory_max_bytes{job="studyai-gateway"}) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: api-gateway
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value }}%"
+
+      - alert: OutOfMemory
+        expr: (process_resident_memory_bytes{job="studyai-gateway"} / process_virtual_memory_max_bytes{job="studyai-gateway"}) * 100 > 95
+        for: 1m
+        labels:
+          severity: critical
+          component: api-gateway
+        annotations:
+          summary: "Application near out of memory"
+          description: "Memory usage is {{ $value }}%"
+
+      # =====================================
+      # Redis Cache Alerts
+      # =====================================
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: redis
+        annotations:
+          summary: "Redis cache is down"
+          description: "Redis has been down for more than 1 minute"
+
+      - alert: LowCacheHitRate
+        expr: studyai_cache_hit_rate < 70
+        for: 10m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value }}% for the last 10 minutes"
+
+      - alert: HighRedisMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is {{ $value }}%"
+
+      # =====================================
+      # Business Logic Alerts
+      # =====================================
+      - alert: LowAIProcessingSuccess
+        expr: rate(studyai_ai_processing_total{status="success"}[10m]) / rate(studyai_ai_processing_total[10m]) < 0.95
+        for: 5m
+        labels:
+          severity: warning
+          component: ai-processing
+        annotations:
+          summary: "Low AI processing success rate"
+          description: "AI processing success rate is {{ $value | humanizePercentage }}"
+
+      - alert: HighAIProcessingLatency
+        expr: histogram_quantile(0.95, rate(studyai_ai_processing_duration_seconds_bucket[5m])) > 10
+        for: 3m
+        labels:
+          severity: warning
+          component: ai-processing
+        annotations:
+          summary: "High AI processing latency"
+          description: "95th percentile AI processing time is {{ $value }}s"
+
+      # =====================================
+      # Infrastructure Alerts
+      # =====================================
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 20
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is {{ $value }}% available"
+
+      - alert: DiskSpaceCritical
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 10
+        for: 1m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "Critical disk space"
+          description: "Disk space is {{ $value }}% available"
+
+      - alert: TooManyOpenFiles
+        expr: process_open_fds{job="studyai-gateway"} / process_max_fds{job="studyai-gateway"} > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: api-gateway
+        annotations:
+          summary: "Too many open file descriptors"
+          description: "{{ $value | humanizePercentage }} of file descriptors are in use"
+
+  # =====================================
+  # Security Alerts
+  # =====================================
+  - name: studyai.security.rules
+    rules:
+      - alert: HighFailedAuthRate
+        expr: rate(studyai_validation_errors_total{validation_type="auth"}[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "{{ $value }} authentication failures per second"
+
+      - alert: SuspiciousTrafficSpike
+        expr: rate(studyai_http_requests_total[1m]) > rate(studyai_http_requests_total[1h]) * 5
+        for: 1m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Suspicious traffic spike detected"
+          description: "Traffic is {{ $value }}x higher than normal"
+
+      - alert: TooManyValidationErrors
+        expr: rate(studyai_validation_errors_total[5m]) > 50
+        for: 3m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High validation error rate"
+          description: "{{ $value }} validation errors per second"

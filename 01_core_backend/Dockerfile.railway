@@ -1,0 +1,44 @@
+# Railway Deployment Configuration
+# Optimized Dockerfile for Railway platform deployment
+
+FROM node:20-alpine AS base
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    curl
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy application code
+COPY . .
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S studyai -u 1001 -G nodejs
+
+# Create directories for logs and reports
+RUN mkdir -p logs reports && \
+    chown -R studyai:nodejs logs reports /app
+
+# Switch to non-root user
+USER studyai
+
+# Expose port (Railway will assign PORT env variable)
+EXPOSE $PORT
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:$PORT/health || exit 1
+
+# Start command
+CMD ["node", "src/gateway/index.js"]
