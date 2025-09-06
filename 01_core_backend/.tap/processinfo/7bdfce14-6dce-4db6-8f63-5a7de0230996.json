@@ -1,0 +1,244 @@
+{
+  "date": "2025-09-06T20:15:42.439Z",
+  "argv": [
+    "/Users/bojiang/.nvm/versions/node/v22.17.1/bin/node",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/tests/gateway-proxy.test.js"
+  ],
+  "execArgv": [
+    "--import=file:///Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@isaacs/ts-node-temp-fork-for-pr-2009/import.mjs",
+    "--import=file:///Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/import.mjs",
+    "--enable-source-maps",
+    "--import=file:///Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/processinfo/dist/esm/import.mjs"
+  ],
+  "NODE_OPTIONS": "\"--import=file:///Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/processinfo/dist/esm/import.mjs\"",
+  "cwd": "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend",
+  "pid": 49972,
+  "ppid": 49971,
+  "parent": null,
+  "uuid": "7bdfce14-6dce-4db6-8f63-5a7de0230996",
+  "files": [
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/tests/gateway-proxy.test.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@isaacs/ts-node-temp-fork-for-pr-2009/import.mjs",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@isaacs/ts-node-temp-fork-for-pr-2009/import-loader.mjs",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/import.mjs",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/mock-service.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/stack/dist/esm/index.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/index.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/is-relative-require.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/export-line.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/munge-mocks.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/resolve-mock-entry-point.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/service-key.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/stack/dist/esm/call-site-like.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/stack/dist/esm/require-resolve.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/get-all-conditional-values.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/get-all-conditions.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/get-unique-condition-sets.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-all-exports.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-all-local-imports.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-conditional-value.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-import.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/is-windows.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/get-conditional-values-list.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/errors.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/get-named-exports-list.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/read-pkg.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-export.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/star-glob.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/to-path.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/stack/dist/esm/parse.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/file-exists.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/find-dep-package.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/to-file-url.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-dependency-export.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-package-import.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/read-json.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/find-star-match.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/index.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/walk-up-path/dist/mjs/index.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/dist/esm/index.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/glob.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/has-magic.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/ignore.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/dist/esm/assert-valid-pattern.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/dist/esm/ast.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/dist/esm/unescape.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/dist/esm/escape.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/path-scurry/dist/esm/index.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/pattern.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/walker.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/path-scurry/node_modules/lru-cache/dist/esm/index.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/minipass/dist/esm/index.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/dist/esm/brace-expressions.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/processor.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/loader.mjs",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/hooks.mjs",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/mock-service-client.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/tests/helper.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/src/gateway/config/services.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/src/gateway/routes/ai-proxy.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/src/gateway/services/ai-client.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/src/gateway/routes/health.js",
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/src/gateway/middleware/health-check.js"
+  ],
+  "sources": {
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/import.mjs": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/src/import.mts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/mock-service.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/src/mock-service.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/stack/dist/esm/index.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/stack/src/index.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/index.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/index.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/is-relative-require.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/is-relative-require.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/export-line.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/src/export-line.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/munge-mocks.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/src/munge-mocks.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/resolve-mock-entry-point.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/src/resolve-mock-entry-point.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/dist/esm/service-key.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/mock/src/service-key.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/stack/dist/esm/call-site-like.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/stack/src/call-site-like.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/stack/dist/esm/require-resolve.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/stack/src/require-resolve.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/get-all-conditional-values.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/get-all-conditional-values.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/get-all-conditions.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/get-all-conditions.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/get-unique-condition-sets.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/get-unique-condition-sets.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-all-exports.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/resolve-all-exports.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-all-local-imports.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/resolve-all-local-imports.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-conditional-value.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/resolve-conditional-value.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-import.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/resolve-import.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/is-windows.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/is-windows.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/get-conditional-values-list.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/get-conditional-values-list.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/errors.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/errors.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/get-named-exports-list.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/get-named-exports-list.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/read-pkg.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/read-pkg.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-export.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/resolve-export.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/star-glob.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/star-glob.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/to-path.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/to-path.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/stack/dist/esm/parse.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/@tapjs/stack/src/parse.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/file-exists.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/file-exists.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/find-dep-package.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/find-dep-package.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/to-file-url.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/to-file-url.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-dependency-export.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/resolve-dependency-export.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/resolve-package-import.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/resolve-package-import.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/read-json.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/read-json.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/dist/esm/find-star-match.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/src/find-star-match.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/index.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/src/index.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/walk-up-path/dist/mjs/index.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/walk-up-path/src/index.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/dist/esm/index.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/src/index.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/glob.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/src/glob.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/has-magic.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/src/has-magic.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/ignore.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/src/ignore.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/dist/esm/assert-valid-pattern.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/src/assert-valid-pattern.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/dist/esm/ast.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/src/ast.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/dist/esm/unescape.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/src/unescape.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/dist/esm/escape.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/src/escape.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/path-scurry/dist/esm/index.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/path-scurry/src/index.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/pattern.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/src/pattern.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/walker.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/src/walker.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/path-scurry/node_modules/lru-cache/dist/esm/index.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/path-scurry/node_modules/lru-cache/src/index.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/minipass/dist/esm/index.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/minipass/src/index.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/dist/esm/brace-expressions.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/minimatch/src/brace-expressions.ts"
+    ],
+    "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/dist/esm/processor.js": [
+      "/Users/bojiang/StudyAI_Workspace_GitHub/01_core_backend/node_modules/resolve-import/node_modules/glob/src/processor.ts"
+    ]
+  },
+  "root": "7bdfce14-6dce-4db6-8f63-5a7de0230996",
+  "externalID": "tests/gateway-proxy.test.js",
+  "code": null,
+  "signal": "SIGINT",
+  "runtime": 8164.784208
+}
