@@ -106,20 +106,19 @@ class PerformanceAnalyzer {
       const startTime = performance.now();
       request.performanceStart = startTime;
       
-      reply.addHook('onSend', async (request, reply, payload) => {
-        const endTime = performance.now();
-        const duration = endTime - request.performanceStart;
-        
-        this.recordRequest({
-          method: request.method,
-          url: request.url,
-          statusCode: reply.statusCode,
-          duration,
-          timestamp: Date.now(),
-          payloadSize: payload ? payload.length : 0,
-          userAgent: request.headers['user-agent'],
-          ip: request.ip
-        });
+      // Hook will be handled by the preHandler/onResponse hooks in the main application
+      const endTime = performance.now();
+      const duration = endTime - request.performanceStart;
+      
+      this.recordRequest({
+        method: request.method,
+        url: request.url,
+        statusCode: reply.statusCode || 200,
+        duration,
+        timestamp: Date.now(),
+        payloadSize: 0, // Will be updated in response hook
+        userAgent: request.headers['user-agent'],
+        ip: request.ip
       });
     };
   }

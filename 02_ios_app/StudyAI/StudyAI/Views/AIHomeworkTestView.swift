@@ -353,28 +353,45 @@ struct AIHomeworkTestView: View {
         processingStatus = "Sending to improved AI backend for enhanced parsing..."
         parsingError = nil
         
+        print("🚀 === HOMEWORK IMAGE PROCESSING DEBUG ===")
+        print("📊 Original image size: \(image.size)")
+        print("📱 Original image scale: \(image.scale)")
+        
         Task {
             let startTime = Date()
             
-            // Convert image to base64
-            guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+            // Compress image to ensure it's under API limits
+            print("🔄 Starting image compression for API...")
+            guard let imageData = compressImageForAPI(image) else {
+                print("❌ Image compression failed completely")
                 await MainActor.run {
-                    parsingError = "Failed to process image data"
-                    processingStatus = "❌ Failed to process image"
+                    parsingError = "Failed to compress image to acceptable size"
+                    processingStatus = "❌ Image too large to process"
                     showingErrorAlert = true
                     isProcessing = false
                 }
                 return
             }
             
+            let imageSizeMB = Double(imageData.count) / (1024 * 1024)
+            print("✅ Final compressed image size: \(String(format: "%.2f", imageSizeMB))MB")
+            
             let base64Image = imageData.base64EncodedString()
+            let base64SizeMB = Double(base64Image.count) / (1024 * 1024)
+            print("📦 Base64 encoded size: \(String(format: "%.2f", base64SizeMB))MB")
+            print("📄 Base64 length: \(base64Image.count) characters")
+            
             let prompt = createHomeworkParsingPrompt()
+            print("📝 Created homework parsing prompt")
             
             // Generate a temporary URL for the image
             await MainActor.run {
                 originalImageUrl = "temp://homework-image-\(UUID().uuidString)"
                 processingStatus = "🤖 AI analyzing homework content..."
             }
+            
+            print("📡 Sending to NetworkService.processHomeworkImageWithSubjectDetection...")
+            print("🔗 Using backend: https://sai-backend-production.up.railway.app")
             
             // Use enhanced NetworkService method with subject detection
             let result = await NetworkService.shared.processHomeworkImageWithSubjectDetection(
@@ -383,15 +400,26 @@ struct AIHomeworkTestView: View {
             )
             
             let processingTime = Date().timeIntervalSince(startTime)
+            print("⏱️ Total processing time: \(String(format: "%.2f", processingTime))s")
             
             await MainActor.run {
                 if result.success, let response = result.response {
+                    print("🎉 === SUCCESS: AI PARSING COMPLETED ===")
+                    print("📈 Response length: \(response.count) characters")
+                    print("🔍 Response preview: \(String(response.prefix(200)))")
                     processSuccessfulResponse(response, processingTime: processingTime)
                 } else {
+                    print("❌ === FAILURE: AI PARSING FAILED ===")
+                    if let errorMsg = result.response {
+                        print("💬 Error message: \(errorMsg)")
+                    } else {
+                        print("💬 No error message provided")
+                    }
                     processFailedResponse(result, processingTime: processingTime)
                 }
                 isProcessing = false
             }
+            print("🏁 === END HOMEWORK IMAGE PROCESSING DEBUG ===")
         }
     }
     
@@ -659,6 +687,94 @@ struct AIHomeworkTestView: View {
         print("🔧 === END PARSING BLOCK ===")
         
         return result
+    }
+    
+    // MARK: - Image Compression Helper
+    
+    private func compressImageForAPI(_ image: UIImage) -> Data? {
+        print("🔧 === IMAGE COMPRESSION DEBUG ===")
+        print("📊 Original image size: \(image.size)")
+        print("📱 Original image scale: \(image.scale)")
+        
+        let originalPixels = Int(image.size.width * image.size.height)
+        print("🖼️ Original pixels: \(originalPixels) (\(originalPixels / 1_000_000)MP)")
+        
+        // First, resize if the image is too large - more aggressive resize
+        let maxDimension: CGFloat = 800 // Even smaller than 1200px for better compression
+        print("📐 Max dimension target: \(maxDimension)px")
+        
+        let resizedImage = resizeImage(image, maxDimension: maxDimension)
+        print("✂️ Resized to: \(resizedImage.size)")
+        
+        let resizedPixels = Int(resizedImage.size.width * resizedImage.size.height)
+        print("🖼️ Resized pixels: \(resizedPixels) (\(String(format: "%.1f", Double(resizedPixels) / 1_000_000))MP)")
+        
+        let compressionRatio = Double(resizedPixels) / Double(originalPixels)
+        print("📉 Pixel reduction ratio: \(String(format: "%.2f", compressionRatio)) (\(String(format: "%.1f", (1-compressionRatio) * 100))% smaller)")
+        
+        // Try different compression levels until we get under 1MB (more aggressive limit)
+        let maxSizeBytes = 1 * 1024 * 1024 // 1MB limit (even more aggressive)
+        print("🎯 Target size limit: \(String(format: "%.1f", Double(maxSizeBytes) / (1024 * 1024)))MB")
+        
+        let compressionLevels: [CGFloat] = [0.6, 0.4, 0.3, 0.2, 0.15, 0.1]
+        print("🔄 Trying compression levels: \(compressionLevels)")
+        
+        for (index, quality) in compressionLevels.enumerated() {
+            print("🔍 Attempt \(index + 1)/\(compressionLevels.count): Testing quality \(quality)...")
+            
+            if let data = resizedImage.jpegData(compressionQuality: quality) {
+                let dataSizeMB = Double(data.count) / (1024 * 1024)
+                let dataSizeKB = Double(data.count) / 1024
+                
+                print("📊 Quality \(quality) result: \(String(format: "%.2f", dataSizeMB))MB (\(String(format: "%.0f", dataSizeKB))KB)")
+                
+                if data.count <= maxSizeBytes {
+                    print("✅ SUCCESS: Image compressed to \(String(format: "%.2f", dataSizeMB))MB")
+                    print("🎉 Selected compression quality: \(quality)")
+                    
+                    // Calculate base64 size estimation
+                    let estimatedBase64Size = Double(data.count) * 1.33 // Base64 adds ~33% overhead
+                    let estimatedBase64MB = estimatedBase64Size / (1024 * 1024)
+                    print("📦 Estimated base64 size: \(String(format: "%.2f", estimatedBase64MB))MB")
+                    
+                    print("🔧 === IMAGE COMPRESSION SUCCESS ===")
+                    return data
+                } else {
+                    let overage = Double(data.count - maxSizeBytes) / (1024 * 1024)
+                    print("❌ Still too large by \(String(format: "%.2f", overage))MB, trying next level...")
+                }
+            } else {
+                print("❌ Failed to create JPEG data at quality \(quality)")
+            }
+        }
+        
+        print("💥 === IMAGE COMPRESSION FAILED ===")
+        print("❌ Could not compress image to acceptable size after \(compressionLevels.count) attempts")
+        return nil
+    }
+    
+    private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let size = image.size
+        print("🔧 Resize function - Input: \(size)")
+        
+        if size.width <= maxDimension && size.height <= maxDimension {
+            print("✅ Image already within size limits, no resize needed")
+            return image
+        }
+        
+        let ratio = maxDimension / max(size.width, size.height)
+        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        
+        print("📐 Resize ratio: \(String(format: "%.3f", ratio))")
+        print("📏 New size: \(newSize)")
+        
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let resizedImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        
+        print("✅ Resize completed successfully")
+        return resizedImage
     }
     
     private func calculateOverallConfidence(_ questions: [ParsedQuestion]) -> Float {

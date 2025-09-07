@@ -1,30 +1,35 @@
 # Railway Deployment Configuration
-# Optimized Dockerfile for Railway platform deployment
+# Using non-Alpine image to fix npm issues
+# Force rebuild timestamp: 1757230981
 
-FROM node:20-alpine AS base
+FROM node:18-slim AS base
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apk add --no-cache \
+# Install system dependencies for Debian
+RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
-    curl
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy package files
+# Copy package files (cache bust)
 COPY package*.json ./
+RUN echo "Build timestamp: $(date)" > /tmp/build-info
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies (simple approach to avoid npm ci issues)
+RUN rm -rf node_modules package-lock.json
+RUN npm install --no-optional --no-audit --no-fund
+RUN npm cache clean --force
 
 # Copy application code
 COPY . .
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S studyai -u 1001 -G nodejs
+# Create non-root user for security (Debian syntax)
+RUN groupadd -g 1001 nodejs && \
+    useradd -r -u 1001 -g nodejs studyai
 
 # Create directories for logs and reports
 RUN mkdir -p logs reports && \

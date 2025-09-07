@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 
 class RailwayArchiveService: ObservableObject {
     static let shared = RailwayArchiveService()
@@ -37,9 +38,9 @@ class RailwayArchiveService: ObservableObject {
         
         let requestData: [String: Any] = [
             "subject": request.subject.isEmpty ? "General" : request.subject,
-            "title": request.customTitle,
-            "originalImageUrl": request.originalImageUrl ?? "temp://local-image",
-            "thumbnailUrl": request.thumbnailUrl,
+            "title": generateTitle(request.homeworkResult, request.subject),
+            "originalImageUrl": request.originalImageUrl,
+            "thumbnailUrl": nil as String?,
             "aiParsingResult": [
                 "questions": request.homeworkResult.questions.map { question in
                     [
@@ -86,7 +87,7 @@ class RailwayArchiveService: ObservableObject {
                     id: sessionId,
                     userId: userId,
                     subject: request.subject,
-                    title: request.customTitle,
+                    title: generateTitle(request.homeworkResult, request.subject),
                     originalImageUrl: request.originalImageUrl,
                     aiParsingResult: request.homeworkResult,
                     processingTime: request.homeworkResult.processingTime,
@@ -421,6 +422,21 @@ class RailwayArchiveService: ObservableObject {
             thisMonthSessions: thisMonthSessions,
             subjectBreakdown: subjectBreakdown
         )
+    }
+    
+    // MARK: - Helper Functions
+    
+    private func generateTitle(_ homeworkResult: HomeworkParsingResult, _ subject: String) -> String {
+        let questionCount = homeworkResult.questionCount
+        let date = Date().formatted(date: .abbreviated, time: .omitted)
+        
+        if questionCount == 1 {
+            return "\(subject) - 1 Question (\(date))"
+        } else if questionCount > 1 {
+            return "\(subject) - \(questionCount) Questions (\(date))"
+        } else {
+            return "\(subject) Study Session (\(date))"
+        }
     }
 }
 

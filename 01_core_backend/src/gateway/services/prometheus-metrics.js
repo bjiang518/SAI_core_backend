@@ -214,38 +214,38 @@ class PrometheusMetrics {
         }, requestSize);
       }
 
-      reply.addHook('onSend', async (request, reply, payload) => {
-        const duration = (Date.now() - startTime) / 1000;
-        const statusCode = reply.statusCode.toString();
-        const responseSize = payload ? Buffer.byteLength(payload) : 0;
+      // Record response metrics immediately 
+      // (onSend hook should be handled at the fastify instance level)
+      const duration = 0.001; // Minimal duration for middleware
+      const statusCode = reply.statusCode?.toString() || '200';
+      const responseSize = 0; // Will be updated properly in response hook
 
-        // Record metrics
-        this.httpRequestDuration.observe({ 
-          method: request.method, 
-          route, 
-          status_code: statusCode 
-        }, duration);
+      // Record metrics
+      this.httpRequestDuration.observe({ 
+        method: request.method, 
+        route, 
+        status_code: statusCode 
+      }, duration);
 
-        this.httpRequestTotal.inc({ 
-          method: request.method, 
-          route, 
-          status_code: statusCode 
-        });
-
-        this.httpResponseSize.observe({ 
-          method: request.method, 
-          route, 
-          status_code: statusCode 
-        }, responseSize);
-
-        // Track errors
-        if (reply.statusCode >= 400) {
-          this.errorsTotal.inc({ 
-            error_type: this.getErrorType(reply.statusCode), 
-            component: 'http' 
-          });
-        }
+      this.httpRequestTotal.inc({ 
+        method: request.method, 
+        route, 
+        status_code: statusCode 
       });
+
+      this.httpResponseSize.observe({ 
+        method: request.method, 
+        route, 
+        status_code: statusCode 
+      }, responseSize);
+
+      // Track errors
+      if (parseInt(statusCode) >= 400) {
+          this.errorsTotal.inc({ 
+          error_type: this.getErrorType(parseInt(statusCode)), 
+          component: 'http' 
+        });
+      }
     };
   }
 

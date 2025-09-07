@@ -1,6 +1,3 @@
-# Railway Project Configuration
-# railway.json - Railway platform configuration
-
 {
   "build": {
     "builder": "dockerfile",
