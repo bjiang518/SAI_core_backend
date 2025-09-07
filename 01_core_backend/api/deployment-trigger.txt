@@ -1,3 +1,0 @@
-// Force deployment update - increment version
-// This comment change will trigger a new deployment
-// Updated: 2025-08-31 - Testing Automatic Deployment Fix

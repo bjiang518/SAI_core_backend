@@ -11,12 +11,8 @@ import Combine
 class NetworkService: ObservableObject {
     static let shared = NetworkService()
     
-    // Primary: Production Vercel backend with OpenAI integration
-    private let baseURL = "https://study-ai-backend-p6mrjcsou-bj518s-projects.vercel.app"
-    private let vercelBypassToken = "7k0rA56ZhsUQSKJQ4SJlHndqHoA4Xhn2"
-    
-    // Local AI Engine (deployed on Railway)
-    private let localAIEngineURL = "https://studyai-ai-engine-production.up.railway.app"
+    // Primary: Production Railway backend with integrated AI proxy
+    private let baseURL = "https://sai-backend-production.up.railway.app"
     
     // Session Management
     @Published var currentSessionId: String?
@@ -24,18 +20,12 @@ class NetworkService: ObservableObject {
     
     private init() {}
     
-    // Helper function to add bypass token to URL
-    private func addBypassToken(to url: String) -> String {
-        let separator = url.contains("?") ? "&" : "?"
-        return "\(url)\(separator)x-vercel-protection-bypass=\(vercelBypassToken)"
-    }
-    
     // MARK: - Health Check
     func testHealthCheck() async -> (success: Bool, message: String) {
-        print("🔍 Testing Vercel backend connectivity...")
+        print("🔍 Testing Railway backend connectivity...")
         
-        let healthURL = addBypassToken(to: "\(baseURL)/health")
-        print("🔗 Using Vercel backend URL: \(healthURL)")
+        let healthURL = "\(baseURL)/health"
+        print("🔗 Using Railway backend URL: \(healthURL)")
         
         guard let url = URL(string: healthURL) else {
             let errorMsg = "❌ Invalid URL"
@@ -58,9 +48,9 @@ class NetworkService: ObservableObject {
                             if let aiInfo = json["ai"] as? [String: Any] {
                                 let aiStatus = aiInfo["status"] as? String ?? "unknown"
                                 let aiMessage = aiInfo["message"] as? String ?? "No message"
-                                return (true, "Vercel Backend connected! AI: \(aiStatus) - \(aiMessage)")
+                                return (true, "Railway Backend connected! AI: \(aiStatus) - \(aiMessage)")
                             } else {
-                                return (true, "Vercel Backend connected successfully")
+                                return (true, "Railway Backend connected successfully")
                             }
                         } else {
                             let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
@@ -76,12 +66,12 @@ class NetworkService: ObservableObject {
                 } else {
                     let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
                     print("❌ HTTP \(httpResponse.statusCode) Response: \(rawResponse)")
-                    return (false, "Vercel Backend HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(100)))")
+                    return (false, "Railway Backend HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(100)))")
                 }
             }
-            return (false, "No HTTP response from Vercel Backend")
+            return (false, "No HTTP response from Railway Backend")
         } catch {
-            let errorMsg = "❌ Vercel Backend connection failed: \(error.localizedDescription)"
+            let errorMsg = "❌ Railway Backend connection failed: \(error.localizedDescription)"
             print(errorMsg)
             return (false, errorMsg)
         }
@@ -91,8 +81,8 @@ class NetworkService: ObservableObject {
     func login(email: String, password: String) async -> (success: Bool, message: String, token: String?) {
         print("🔐 Testing login functionality...")
         
-        let loginURL = addBypassToken(to: "\(baseURL)/api/auth/login")
-        print("🔗 Using login URL with bypass token")
+        let loginURL = "\(baseURL)/api/auth/login"
+        print("🔗 Using Railway backend for login")
         
         guard let url = URL(string: loginURL) else {
             return (false, "Invalid URL", nil)
@@ -140,7 +130,7 @@ class NetworkService: ObservableObject {
     func submitQuestion(question: String, subject: String = "general") async -> (success: Bool, answer: String?) {
         print("🚀 === StudyAI DEBUG INFO ===")
         print("🤖 Processing question with AI Engine (improved LaTeX prompts)...")
-        print("🔗 AI Engine URL: \(localAIEngineURL)")
+        print("🔗 AI Proxy URL: \(baseURL)/api/ai")
         print("📝 Question: \(question)")
         print("📚 Subject: \(subject)")
         print("🌐 Using LOCAL AI Engine with advanced LaTeX formatting")
@@ -152,17 +142,17 @@ class NetworkService: ObservableObject {
             return aiEngineResult
         }
         
-        // Fallback to Vercel backend if AI Engine is unavailable
-        print("⚠️ AI Engine unavailable, falling back to Vercel backend...")
-        return await tryVercelBackend(question: question, subject: subject)
+        // Fallback to Railway backend if AI Engine is unavailable
+        print("⚠️ AI Engine unavailable, falling back to Railway backend...")
+        return await tryRailwayBackend(question: question, subject: subject)
     }
     
     // MARK: - AI Engine (Primary)
     private func tryAIEngine(question: String, subject: String) async -> (success: Bool, answer: String?) {
-        let aiEngineURL = "\(localAIEngineURL)/api/v1/process-question"
-        print("🔗 AI Engine URL: \(aiEngineURL)")
+        let aiProcessURL = "\(baseURL)/api/ai/process-question"
+        print("🔗 AI Proxy URL: \(aiProcessURL)")
         
-        guard let url = URL(string: aiEngineURL) else {
+        guard let url = URL(string: aiProcessURL) else {
             print("❌ Invalid AI Engine URL")
             return (false, nil)
         }
@@ -219,18 +209,18 @@ class NetworkService: ObservableObject {
         }
     }
     
-    // MARK: - Vercel Backend (Fallback)
-    private func tryVercelBackend(question: String, subject: String) async -> (success: Bool, answer: String?) {
-        print("🔄 Trying Vercel backend as fallback...")
+    // MARK: - Railway Backend (Fallback)
+    private func tryRailwayBackend(question: String, subject: String) async -> (success: Bool, answer: String?) {
+        print("🔄 Trying Railway backend as fallback...")
         print("🔗 Backend URL: \(baseURL)")
-        print("🌐 Using PRODUCTION Vercel backend fallback")
-        print("⚡ This will call OpenAI through Vercel backend (basic prompting)")
+        print("🌐 Using PRODUCTION Railway backend fallback")
+        print("⚡ This will call OpenAI through Railway backend (basic prompting)")
         
-        let questionURL = addBypassToken(to: "\(baseURL)/api/questions")
-        print("🔗 Full Vercel URL: \(questionURL)")
+        let questionURL = "\(baseURL)/api/questions"
+        print("🔗 Full Railway URL: \(questionURL)")
         
         guard let url = URL(string: questionURL) else {
-            print("❌ Invalid Vercel URL generated")
+            print("❌ Invalid Railway URL generated")
             return (false, nil)
         }
         
@@ -246,16 +236,16 @@ class NetworkService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: questionData)
             
-            print("📡 Sending request to Vercel backend...")
+            print("📡 Sending request to Railway backend...")
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Vercel Backend Response Status: \(httpResponse.statusCode)")
+                print("✅ Railway Backend Response Status: \(httpResponse.statusCode)")
                 
                 if httpResponse.statusCode == 200 {
                     do {
                         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                            print("🎉 === VERCEL BACKEND SUCCESS ===")
+                            print("🎉 === RAILWAY BACKEND SUCCESS ===")
                             print("✅ Raw AI Response: \(json)")
                             
                             let answer = json["answer"] as? String
@@ -272,7 +262,7 @@ class NetworkService: ObservableObject {
                             print("🔍 Answer Preview: \(String(answer?.prefix(100) ?? "No answer"))")
                             
                             if aiPowered && !isMock {
-                                print("🎉 SUCCESS: Using REAL OpenAI through Vercel backend!")
+                                print("🎉 SUCCESS: Using REAL OpenAI through Railway backend!")
                             } else {
                                 print("⚠️ WARNING: Using mock/fallback response")
                             }
@@ -296,9 +286,9 @@ class NetworkService: ObservableObject {
                 }
             }
             
-            return (false, "No HTTP response from Vercel Backend")
+            return (false, "No HTTP response from Railway Backend")
         } catch {
-            print("❌ Vercel Backend request failed: \(error.localizedDescription)")
+            print("❌ Railway Backend request failed: \(error.localizedDescription)")
             return (false, nil)
         }
     }
@@ -307,7 +297,7 @@ class NetworkService: ObservableObject {
     func getProgress() async -> (success: Bool, progress: [String: Any]?) {
         print("📊 Testing progress tracking...")
         
-        let progressURL = addBypassToken(to: "\(baseURL)/api/progress")
+        let progressURL = "\(baseURL)/api/progress"
         print("🔗 Using progress URL with bypass token")
         
         guard let url = URL(string: progressURL) else {
@@ -337,7 +327,7 @@ class NetworkService: ObservableObject {
     func debugOpenAI() async -> (success: Bool, debug: [String: Any]?) {
         print("🐛 Testing OpenAI debug endpoint...")
         
-        let debugURL = addBypassToken(to: "\(baseURL)/debug/openai")
+        let debugURL = "\(baseURL)/debug/openai"
         print("🔗 Using debug URL with bypass token")
         
         guard let url = URL(string: debugURL) else {
@@ -366,11 +356,11 @@ class NetworkService: ObservableObject {
     // MARK: - Image Upload and Analysis
     func uploadImageForAnalysis(imageData: Data, subject: String = "general") async -> (success: Bool, result: [String: Any]?) {
         print("📷 === IMAGE UPLOAD FOR ANALYSIS ===")
-        print("🔗 AI Engine URL: \(localAIEngineURL)")
+        print("🔗 AI Proxy URL: \(baseURL)/api/ai")
         print("📊 Image data size: \(imageData.count) bytes")
         print("📚 Subject: \(subject)")
         
-        let imageUploadURL = "\(localAIEngineURL)/api/v1/analyze-image"
+        let imageUploadURL = "\(baseURL)/api/ai/analyze-image"
         print("🔗 Full upload URL: \(imageUploadURL)")
         
         guard let url = URL(string: imageUploadURL) else {
@@ -456,7 +446,7 @@ class NetworkService: ObservableObject {
         print("👤 Student ID: \(studentId)")
         print("📚 Subject: \(subject)")
         
-        let sessionURL = "\(localAIEngineURL)/api/v1/sessions/create"
+        let sessionURL = "\(baseURL)/api/ai/sessions/create"
         print("🔗 Session URL: \(sessionURL)")
         
         guard let url = URL(string: sessionURL) else {
@@ -518,7 +508,7 @@ class NetworkService: ObservableObject {
         print("🆔 Session ID: \(sessionId.prefix(8))...")
         print("📝 Message: \(message.prefix(100))...")
         
-        let messageURL = "\(localAIEngineURL)/api/v1/sessions/\(sessionId)/message"
+        let messageURL = "\(baseURL)/api/ai/sessions/\(sessionId)/message"
         print("🔗 Message URL: \(messageURL)")
         
         guard let url = URL(string: messageURL) else {
@@ -582,7 +572,7 @@ class NetworkService: ObservableObject {
         print("📊 Getting session info...")
         print("🆔 Session ID: \(sessionId.prefix(8))...")
         
-        let infoURL = "\(localAIEngineURL)/api/v1/sessions/\(sessionId)"
+        let infoURL = "\(baseURL)/api/ai/sessions/\(sessionId)"
         print("🔗 Info URL: \(infoURL)")
         
         guard let url = URL(string: infoURL) else {
@@ -625,12 +615,12 @@ class NetworkService: ObservableObject {
     // MARK: - Process Image with Question Context
     func processImageWithQuestion(imageData: Data, question: String = "", subject: String = "general") async -> (success: Bool, result: [String: Any]?) {
         print("📷 === IMAGE PROCESSING WITH QUESTION CONTEXT ===")
-        print("🔗 AI Engine URL: \(localAIEngineURL)")
+        print("🔗 AI Proxy URL: \(baseURL)/api/ai")
         print("📊 Image data size: \(imageData.count) bytes") 
         print("❓ Question: \(question)")
         print("📚 Subject: \(subject)")
         
-        let imageProcessURL = "\(localAIEngineURL)/api/v1/process-image-question"
+        let imageProcessURL = "\(baseURL)/api/ai/process-image-question"
         print("🔗 Full process URL: \(imageProcessURL)")
         
         guard let url = URL(string: imageProcessURL) else {
@@ -733,7 +723,7 @@ class NetworkService: ObservableObject {
         print("📄 Base64 Image Length: \(base64Image.count) characters")
         print("🤖 Using enhanced AI parsing with subject detection")
         
-        guard let url = URL(string: "\(localAIEngineURL)/api/v1/process-homework-image") else {
+        guard let url = URL(string: "\(baseURL)/api/ai/process-homework-image-json") else {
             print("❌ Invalid homework parsing URL")
             return (false, nil)
         }
@@ -806,7 +796,7 @@ class NetworkService: ObservableObject {
         print("📄 Base64 Image Length: \(base64Image.count) characters")
         print("🤖 Using structured AI parsing with deterministic format")
         
-        guard let url = URL(string: "\(localAIEngineURL)/api/v1/process-homework-image") else {
+        guard let url = URL(string: "\(baseURL)/api/ai/process-homework-image-json") else {
             print("❌ Invalid homework parsing URL")
             return (false, nil)
         }

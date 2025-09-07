@@ -24,6 +24,23 @@ class AIProxyRoutes {
       }
     }, this.processHomeworkImage.bind(this));
 
+    // Process homework image with base64 JSON - for iOS app
+    this.fastify.post('/api/ai/process-homework-image-json', {
+      schema: {
+        description: 'Process homework image with base64 JSON data',
+        tags: ['AI'],
+        body: {
+          type: 'object',
+          required: ['base64_image'],
+          properties: {
+            base64_image: { type: 'string' },
+            prompt: { type: 'string' },
+            student_id: { type: 'string' }
+          }
+        }
+      }
+    }, this.processHomeworkImageJSON.bind(this));
+
     // Process individual question
     this.fastify.post('/api/ai/process-question', {
       schema: {
@@ -35,7 +52,12 @@ class AIProxyRoutes {
           properties: {
             question: { type: 'string' },
             subject: { type: 'string' },
-            context: { type: 'string' }
+            context: { 
+              type: 'object',
+              additionalProperties: true
+            },
+            student_id: { type: 'string' },
+            include_followups: { type: 'boolean' }
           }
         }
       }
@@ -153,6 +175,39 @@ class AIProxyRoutes {
       this.fastify.log.error('Error processing homework image:', error);
       return reply.status(500).send({
         error: 'Internal server error processing image',
+        code: 'PROCESSING_ERROR'
+      });
+    }
+  }
+
+  async processHomeworkImageJSON(request, reply) {
+    const startTime = Date.now();
+    
+    try {
+      // Proxy JSON request directly to AI Engine
+      const result = await this.aiClient.proxyRequest(
+        'POST',
+        '/api/v1/process-homework-image',
+        request.body,
+        { 'Content-Type': 'application/json' }
+      );
+
+      if (result.success) {
+        const duration = Date.now() - startTime;
+        return reply.send({
+          ...result.data,
+          _gateway: {
+            processTime: duration,
+            service: 'ai-engine'
+          }
+        });
+      } else {
+        return this.handleProxyError(reply, result.error);
+      }
+    } catch (error) {
+      this.fastify.log.error('Error processing homework image JSON:', error);
+      return reply.status(500).send({
+        error: 'Internal server error processing image JSON',
         code: 'PROCESSING_ERROR'
       });
     }
