@@ -1,24 +1,28 @@
 /**
- * StudyAI API Gateway
+ * StudyAI API Gateway  
  * Enhanced gateway with proper service management, health checks, and monitoring
  */
 
-require('dotenv').config();
+// Only load dotenv in development
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    require('dotenv').config();
+  } catch (e) {
+    console.log('dotenv not available, using environment variables directly');
+  }
+}
 const fastify = require('fastify')({
   logger: process.env.NODE_ENV === 'production' ? true : {
-    level: process.env.LOG_LEVEL || 'info',
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        colorize: true
-      }
-    }
-  }
+    level: process.env.LOG_LEVEL || 'info'
+  },
+  bodyLimit: 15 * 1024 * 1024, // 15MB body limit for large image uploads
+  requestTimeout: 120000 // 2 minute timeout for AI processing
 });
 
 // Import our enhanced components
 const { features } = require('./config/services');
 const AIProxyRoutes = require('./routes/ai-proxy');
+const ArchiveRoutes = require('./routes/archive-routes');
 const HealthRoutes = require('./routes/health');
 const { serviceAuth } = require('./middleware/service-auth');
 const { requestValidator } = require('./middleware/request-validation');
@@ -33,7 +37,11 @@ const { secretsManager } = require('./services/secrets-manager');
 // Register multipart support for file uploads
 fastify.register(require('@fastify/multipart'), {
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 15 * 1024 * 1024, // 15MB limit to match bodyLimit
+    files: 1,
+    fieldNameSize: 100,
+    fieldSize: 15 * 1024 * 1024, // Allow large base64 fields
+    fields: 10
   }
 });
 
@@ -170,6 +178,9 @@ if (features.useGateway) {
   
   // AI Engine proxy routes
   new AIProxyRoutes(fastify);
+  
+  // Archive routes for session management
+  new ArchiveRoutes(fastify);
   
   fastify.log.info('✅ API Gateway enabled with enhanced routing and performance optimization');
 } else {

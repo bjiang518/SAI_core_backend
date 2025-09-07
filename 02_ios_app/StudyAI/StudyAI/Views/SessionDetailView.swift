@@ -9,7 +9,7 @@ import SwiftUI
 
 struct SessionDetailView: View {
     let sessionId: String
-    @StateObject private var supabaseService = SupabaseService.shared
+    @StateObject private var railwayService = RailwayArchiveService.shared
     @State private var session: ArchivedSession?
     @State private var isLoading = true
     @State private var errorMessage = ""
@@ -66,7 +66,7 @@ struct SessionDetailView: View {
         errorMessage = ""
         
         do {
-            let loadedSession = try await supabaseService.getSessionDetails(sessionId: sessionId)
+            let loadedSession = try await railwayService.getSessionDetails(sessionId: sessionId)
             await MainActor.run {
                 session = loadedSession
                 isLoading = false

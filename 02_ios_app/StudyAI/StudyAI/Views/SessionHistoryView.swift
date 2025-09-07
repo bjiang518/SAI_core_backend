@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SessionHistoryView: View {
-    @StateObject private var supabaseService = SupabaseService.shared
+    @StateObject private var railwayService = RailwayArchiveService.shared
     @State private var sessions: [SessionSummary] = []
     @State private var isLoading = false
     @State private var errorMessage = ""
@@ -130,7 +130,7 @@ struct SessionHistoryView: View {
         errorMessage = ""
         
         do {
-            let loadedSessions = try await supabaseService.fetchArchivedSessions()
+            let loadedSessions = try await railwayService.fetchArchivedSessions()
             await MainActor.run {
                 sessions = loadedSessions
                 isLoading = false
