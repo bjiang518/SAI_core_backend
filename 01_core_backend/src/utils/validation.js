@@ -48,6 +48,33 @@ const authSchemas = {
   })
 };
 
+// Archive validation schemas
+const archiveSchemas = {
+  createSession: Joi.object({
+    subject: Joi.string().min(1).max(100).required(),
+    title: Joi.string().max(200).optional(),
+    originalImageUrl: Joi.string().uri().required(),
+    thumbnailUrl: Joi.string().uri().optional(),
+    aiParsingResult: Joi.object({
+      questions: Joi.array().items(Joi.object({
+        questionNumber: Joi.number().optional(),
+        questionText: Joi.string().required(),
+        answerText: Joi.string().required(),
+        confidence: Joi.number().min(0).max(1).required(),
+        hasVisualElements: Joi.boolean().optional()
+      })).required(),
+      questionCount: Joi.number().integer().min(0).required(),
+      parsingMethod: Joi.string().optional(),
+      processingTime: Joi.number().optional(),
+      overallConfidence: Joi.number().min(0).max(1).optional()
+    }).required(),
+    processingTime: Joi.number().min(0).required(),
+    overallConfidence: Joi.number().min(0).max(1).required(),
+    studentAnswers: Joi.object().pattern(Joi.string(), Joi.string()).optional(),
+    notes: Joi.string().max(1000).optional()
+  })
+};
+
 const questionSchemas = {
   uploadQuestion: Joi.object({
     questionText: Joi.string().optional(),
@@ -110,6 +137,7 @@ module.exports = {
   validate,
   schemas: {
     auth: authSchemas,
+    archive: archiveSchemas,
     question: questionSchemas,
     session: sessionSchemas,
     evaluation: evaluationSchemas
