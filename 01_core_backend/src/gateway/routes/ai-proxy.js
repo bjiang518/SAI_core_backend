@@ -403,24 +403,122 @@ class AIProxyRoutes {
   }
 
   async createSession(request, reply) {
-    const result = await this.aiClient.proxyRequest(
-      'POST',
-      '/api/v1/sessions/create',
-      request.body,
-      { 'Content-Type': 'application/json' }
-    );
-
-    return this.handleProxyResponse(reply, result);
+    const startTime = Date.now();
+    const { subject } = request.body;
+    
+    try {
+      // Get authenticated user ID from token
+      const userId = await this.getUserIdFromToken(request);
+      
+      if (!userId) {
+        return reply.status(401).send({
+          error: 'Authentication required to create session',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+      
+      this.fastify.log.info(`🆕 Creating new session for authenticated user: ${userId}, subject: ${subject}`);
+      
+      // Generate a new session ID
+      const { v4: uuidv4 } = require('uuid');
+      const sessionId = uuidv4();
+      
+      // Get database connection
+      const { db } = require('../../utils/railway-database');
+      
+      // Create session in our database with authenticated user ID
+      const sessionQuery = `
+        INSERT INTO sessions (id, user_id, session_type, subject, title, status, start_time)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        RETURNING *
+      `;
+      
+      const sessionValues = [
+        sessionId,
+        userId, // Use authenticated user ID
+        'conversation',
+        subject || 'general',
+        `${subject || 'General'} Study Session`,
+        'active'
+      ];
+      
+      const result = await db.query(sessionQuery, sessionValues);
+      const createdSession = result.rows[0];
+      
+      this.fastify.log.info(`✅ Session created in database: ${sessionId} for user: ${userId}`);
+      
+      const duration = Date.now() - startTime;
+      
+      return reply.send({
+        success: true,
+        session_id: sessionId,
+        user_id: userId, // Return actual user ID
+        subject: subject || 'general',
+        session_type: 'conversation',
+        status: 'active',
+        created_at: createdSession.created_at,
+        _gateway: {
+          processTime: duration,
+          service: 'gateway-database'
+        }
+      });
+      
+    } catch (error) {
+      this.fastify.log.error('Session creation error:', error);
+      return reply.status(500).send({
+        error: 'Failed to create session',
+        code: 'SESSION_CREATION_ERROR',
+        details: error.message
+      });
+    }
   }
 
   async getSession(request, reply) {
     const { sessionId } = request.params;
-    const result = await this.aiClient.proxyRequest(
-      'GET',
-      `/api/v1/sessions/${sessionId}`
-    );
-
-    return this.handleProxyResponse(reply, result);
+    
+    try {
+      this.fastify.log.info(`📊 Getting session info for: ${sessionId}`);
+      
+      // Get session from our database
+      const sessionInfo = await this.getSessionFromDatabase(sessionId);
+      
+      if (!sessionInfo) {
+        return reply.status(404).send({
+          error: 'Session not found',
+          code: 'SESSION_NOT_FOUND'
+        });
+      }
+      
+      // Get conversation history for this session
+      const { db } = require('../../utils/railway-database');
+      const conversationHistory = await db.getConversationHistory(sessionId, 50);
+      
+      return reply.send({
+        success: true,
+        session: {
+          id: sessionInfo.id,
+          user_id: sessionInfo.user_id,
+          session_type: sessionInfo.session_type,
+          subject: sessionInfo.subject,
+          title: sessionInfo.title,
+          status: sessionInfo.status,
+          start_time: sessionInfo.start_time,
+          end_time: sessionInfo.end_time,
+          created_at: sessionInfo.created_at,
+          updated_at: sessionInfo.updated_at
+        },
+        conversation_history: conversationHistory || [],
+        message_count: conversationHistory?.length || 0
+      });
+      
+    } catch (error) {
+      this.fastify.log.error('Get session error:', error);
+      return reply.status(500).send({
+        error: 'Failed to retrieve session',
+        code: 'SESSION_RETRIEVAL_ERROR',
+        details: error.message
+      });
+    }
   }
 
   async sendSessionMessage(request, reply) {
@@ -429,12 +527,22 @@ class AIProxyRoutes {
     const { message, context } = request.body;
 
     try {
-      this.fastify.log.info(`💬 Processing session message: ${sessionId.substring(0, 8)}...`);
+      // Get authenticated user ID from token
+      const authenticatedUserId = await this.getUserIdFromToken(request);
+      
+      if (!authenticatedUserId) {
+        return reply.status(401).send({
+          error: 'Authentication required to send messages',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      this.fastify.log.info(`💬 Processing session message: ${sessionId.substring(0, 8)}... for user: ${authenticatedUserId}`);
 
       // Get database connection
       const { db } = require('../../utils/railway-database');
       
-      // Get session info to validate it exists
+      // Get session info and verify ownership
       const sessionInfo = await this.getSessionFromDatabase(sessionId);
       if (!sessionInfo) {
         return reply.status(404).send({
@@ -443,25 +551,128 @@ class AIProxyRoutes {
         });
       }
 
+      // Verify session belongs to authenticated user
+      if (sessionInfo.user_id !== authenticatedUserId) {
+        return reply.status(403).send({
+          error: 'Access denied - session belongs to different user',
+          code: 'ACCESS_DENIED'
+        });
+      }
+
       // Get conversation history for context
-      const conversationHistory = await db.getConversationHistory(sessionId, 10);
+      const rawConversationHistory = await db.getConversationHistory(sessionId, 10);
+      
+      // Transform conversation history into the format expected by AI
+      // Database format: {message_type: 'user'|'assistant', message_text: '...', created_at: ...}
+      // AI format: [{role: 'user', content: '...'}, {role: 'assistant', content: '...'}]
+      const conversationHistory = (rawConversationHistory || [])
+        .slice(-10) // Last 10 messages for context
+        .map(msg => ({
+          role: msg.message_type === 'user' ? 'user' : 'assistant',
+          content: msg.message_text || ''
+        }))
+        .filter(msg => msg.content && msg.content.trim().length > 0); // Remove empty messages
+
+      this.fastify.log.info(`📚 Conversation history: ${conversationHistory.length} messages loaded for context`);
+      
+      // Build comprehensive prompt with conversation history for AI Engine
+      let enhancedQuestion = message;
+      
+      if (conversationHistory.length > 0) {
+        // Create a conversation context string
+        const conversationContext = conversationHistory
+          .map(msg => `${msg.role === 'user' ? 'Student' : 'AI Tutor'}: ${msg.content}`)
+          .join('\n\n');
+        
+        // Build enhanced prompt with full conversation context
+        enhancedQuestion = `You are an AI tutor helping a student in ${sessionInfo.subject || 'general studies'}. Here is our previous conversation:
+
+${conversationContext}
+
+Student: ${message}
+
+Please provide a helpful response that takes into account our previous conversation. Be consistent with what we've discussed before and build upon previous topics when relevant.
+
+CRITICAL MATHEMATICAL FORMATTING RULES:
+You MUST use backslash delimiters for ALL mathematical expressions. Here are EXACT examples:
+
+CORRECT EXAMPLES (copy this format exactly):
+1. Inline math: "Consider the function \\(f(x) = 2x^2 - 4x + 1\\). The vertex is at \\(x = 1\\)."
+2. Display math: "The quadratic formula is: \\[x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\\]"
+3. Multiple expressions: "We have \\(a = 2\\), \\(b = -4\\), and \\(c = 1\\). Substituting: \\[x = \\frac{4 \\pm \\sqrt{16 - 8}}{4} = \\frac{4 \\pm \\sqrt{8}}{4}\\]"
+
+WRONG EXAMPLES (never do this):
+- "Consider the function $f$(x) = 2x$^2 - 4x + 1$" ❌
+- "The solution is $x = 3$" ❌  
+- "$$x^2 + 1 = 0$$" ❌
+
+FORMATTING RULES:
+- Inline math: \\(expression\\) 
+- Display math: \\[expression\\]
+- Variables: \\(x\\), \\(y\\), \\(f(x)\\)
+- Exponents: \\(x^2\\), \\(2^n\\)
+- Fractions: \\(\\frac{a}{b}\\)
+- Square roots: \\(\\sqrt{x}\\)
+- NEVER use $ or $$ anywhere
+- ALWAYS wrap math expressions in \\( \\) or \\[ \\]`;
+
+        this.fastify.log.info(`📝 Enhanced question with conversation context (${conversationHistory.length} previous messages)`);
+      } else {
+        // No conversation history, but still include LaTeX formatting instructions
+        enhancedQuestion = `You are an AI tutor helping a student in ${sessionInfo.subject || 'general studies'}.
+
+Student: ${message}
+
+Please provide a helpful response to the student's question.
+
+CRITICAL MATHEMATICAL FORMATTING RULES:
+You MUST use backslash delimiters for ALL mathematical expressions. Here are EXACT examples:
+
+CORRECT EXAMPLES (copy this format exactly):
+1. Inline math: "Consider the function \\(f(x) = 2x^2 - 4x + 1\\). The vertex is at \\(x = 1\\)."
+2. Display math: "The quadratic formula is: \\[x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\\]"
+3. Multiple expressions: "We have \\(a = 2\\), \\(b = -4\\), and \\(c = 1\\). Substituting: \\[x = \\frac{4 \\pm \\sqrt{16 - 8}}{4} = \\frac{4 \\pm \\sqrt{8}}{4}\\]"
+
+WRONG EXAMPLES (never do this):
+- "Consider the function $f$(x) = 2x$^2 - 4x + 1$" ❌
+- "The solution is $x = 3$" ❌  
+- "$$x^2 + 1 = 0$$" ❌
+
+FORMATTING RULES:
+- Inline math: \\(expression\\) 
+- Display math: \\[expression\\]
+- Variables: \\(x\\), \\(y\\), \\(f(x)\\)
+- Exponents: \\(x^2\\), \\(2^n\\)
+- Fractions: \\(\\frac{a}{b}\\)
+- Square roots: \\(\\sqrt{x}\\)
+- NEVER use $ or $$ anywhere
+- ALWAYS wrap math expressions in \\( \\) or \\[ \\]`;
+
+        this.fastify.log.info(`📝 Enhanced question with LaTeX formatting instructions (no conversation history)`);
+      }
       
       // Process the message using the same logic as processQuestion
-      // but with session context and conversation history
+      // but with session context and conversation history embedded in the prompt
       const aiRequestPayload = {
-        question: message,
+        question: enhancedQuestion, // Enhanced with conversation history
         subject: sessionInfo.subject || 'general',
-        student_id: sessionInfo.user_id || 'unknown',
+        student_id: authenticatedUserId, // Use authenticated user ID
         context: {
           session_id: sessionId,
-          conversation_history: conversationHistory?.slice(-5) || [], // Last 5 messages
           session_type: 'conversation',
+          has_conversation_history: conversationHistory.length > 0,
           ...context
         },
         include_followups: false // Don't need follow-ups for chat
       };
 
-      this.fastify.log.info(`📤 Processing session message as question: ${JSON.stringify(aiRequestPayload, null, 2)}`);
+      this.fastify.log.info(`📤 Processing session message as question with enhanced prompt:`)
+      this.fastify.log.info(`🔍 === COMPLETE AI ENGINE REQUEST DEBUG ===`)
+      this.fastify.log.info(`📝 Original user message: "${message}"`)
+      this.fastify.log.info(`📋 Enhanced prompt being sent to AI:`)
+      this.fastify.log.info(`"${enhancedQuestion}"`)
+      this.fastify.log.info(`📦 Full AI request payload: ${JSON.stringify(aiRequestPayload, null, 2)}`)
+      this.fastify.log.info(`===============================================`);
 
       // Use the existing AI processing pipeline
       const result = await this.aiClient.proxyRequest(
@@ -488,8 +699,8 @@ class AIProxyRoutes {
         this.fastify.log.info(`🔍 Extracted AI response: ${aiResponse?.substring(0, 100)}...`);
         
         if (aiResponse && aiResponse.trim().length > 0) {
-          // Store conversation in database
-          await this.storeConversation(sessionId, sessionInfo.user_id, message, {
+          // Store conversation in database with authenticated user ID
+          await this.storeConversation(sessionId, authenticatedUserId, message, {
             response: aiResponse,
             tokensUsed: tokensUsed,
             service: 'ai-gateway'
@@ -501,8 +712,10 @@ class AIProxyRoutes {
           
           return reply.send({
             success: true,
-            aiResponse: aiResponse,
-            tokensUsed: tokensUsed,
+            ai_response: aiResponse,  // iOS app expects 'ai_response'
+            aiResponse: aiResponse,   // Keep both for compatibility
+            tokens_used: tokensUsed,  // iOS app expects 'tokens_used'  
+            tokensUsed: tokensUsed,   // Keep both for compatibility
             compressed: false,
             conversationId: sessionId,
             _gateway: {
@@ -548,9 +761,10 @@ class AIProxyRoutes {
       
       // Fallback: create minimal session info if not found
       // This handles cases where sessions are created via AI Engine but not in our DB
+      // Use a valid UUID format for user_id to avoid database errors
       return {
         id: sessionId,
-        user_id: 'unknown',
+        user_id: '00000000-0000-0000-0000-000000000000', // Valid UUID format for unknown user
         session_type: 'conversation',
         subject: 'general',
         created_at: new Date()
@@ -744,7 +958,7 @@ class AIProxyRoutes {
 
       // Archive the conversation using the NEW method
       const archivedConversation = await db.archiveConversation({
-        userId: sessionInfo.user_id || 'unknown',
+        userId: sessionInfo.user_id && sessionInfo.user_id !== 'unknown' ? sessionInfo.user_id : '00000000-0000-0000-0000-000000000000',
         sessionId: sessionId,
         subject: subject || sessionInfo.subject || 'General Discussion',
         title: title || `Conversation - ${new Date().toLocaleDateString()}`,
@@ -786,7 +1000,7 @@ class AIProxyRoutes {
       const { db } = require('../../utils/railway-database');
       
       // Try to find as archived conversation first (NEW approach)
-      const archivedConversation = await db.getConversationDetails(sessionId, 'unknown'); // TODO: Get actual user ID
+      const archivedConversation = await db.getConversationDetails(sessionId, '00000000-0000-0000-0000-000000000000'); // TODO: Get actual user ID
       
       if (archivedConversation) {
         return reply.send({
@@ -812,7 +1026,7 @@ class AIProxyRoutes {
       }
 
       // Fallback: Try archived session (homework/questions)
-      const archivedSession = await db.getSessionDetails(sessionId, 'unknown');
+      const archivedSession = await db.getSessionDetails(sessionId, '00000000-0000-0000-0000-000000000000');
       
       if (archivedSession) {
         return reply.send({
@@ -934,11 +1148,38 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
     };
   }
 
+  // Helper method to extract user ID from authorization token
+  async getUserIdFromToken(request) {
+    try {
+      const authHeader = request.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        this.fastify.log.warn('No valid authorization header provided');
+        return null;
+      }
+
+      const token = authHeader.substring(7);
+      const { db } = require('../../utils/railway-database');
+      const sessionData = await db.verifyUserSession(token);
+      
+      if (sessionData && sessionData.user_id) {
+        this.fastify.log.info(`✅ Authenticated user: ${sessionData.user_id}`);
+        return sessionData.user_id;
+      }
+      
+      this.fastify.log.warn('Invalid or expired token');
+      return null;
+    } catch (error) {
+      this.fastify.log.error('Token verification error:', error);
+      return null;
+    }
+  }
+
   // NEW: Separate retrieval methods for different archive types
   async getUserConversations(request, reply) {
     try {
       const { db } = require('../../utils/railway-database');
-      const userId = 'unknown'; // TODO: Extract from auth token
+      const userId = '00000000-0000-0000-0000-000000000000'; // TODO: Extract from auth token
       
       const filters = {
         subject: request.query.subject,
@@ -978,7 +1219,7 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
   async getUserSessions(request, reply) {
     try {
       const { db } = require('../../utils/railway-database');
-      const userId = 'unknown'; // TODO: Extract from auth token
+      const userId = '00000000-0000-0000-0000-000000000000'; // TODO: Extract from auth token
       
       const filters = {
         subject: request.query.subject,
@@ -1016,7 +1257,7 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
   async searchUserArchives(request, reply) {
     try {
       const { db } = require('../../utils/railway-database');
-      const userId = 'unknown'; // TODO: Extract from auth token
+      const userId = '00000000-0000-0000-0000-000000000000'; // TODO: Extract from auth token
       const searchTerm = request.query.q;
       const archiveType = request.query.type || 'all';
       const searchType = request.query.searchType || 'hybrid';
@@ -1097,7 +1338,7 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
   async getConversationsByDatePattern(request, reply) {
     try {
       const { db } = require('../../utils/railway-database');
-      const userId = 'unknown'; // TODO: Extract from auth token
+      const userId = '00000000-0000-0000-0000-000000000000'; // TODO: Extract from auth token
       
       const datePattern = {
         type: request.query.datePattern,
@@ -1140,7 +1381,7 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
   async semanticSearchConversations(request, reply) {
     try {
       const { db } = require('../../utils/railway-database');
-      const userId = 'unknown'; // TODO: Extract from auth token
+      const userId = '00000000-0000-0000-0000-000000000000'; // TODO: Extract from auth token
       const searchQuery = request.body.query;
 
       // Generate embedding for the search query

@@ -18,6 +18,17 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Insert placeholder user for anonymous sessions
+INSERT INTO users (id, email, name, auth_provider, is_active, email_verified)
+VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    'anonymous@studyai.local',
+    'Anonymous User',
+    'anonymous',
+    true,
+    false
+) ON CONFLICT (id) DO NOTHING;
+
 -- Create user sessions table for token management
 CREATE TABLE IF NOT EXISTS user_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
