@@ -1,10 +1,150 @@
 -- StudyAI Railway PostgreSQL Schema
 -- Optimized for Railway deployment with performance indexes
 
+-- Create users table for authentication
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    profile_image_url TEXT,
+    auth_provider VARCHAR(50) NOT NULL DEFAULT 'email', -- 'email', 'google', 'apple'
+    google_id VARCHAR(255),
+    apple_id VARCHAR(255),
+    password_hash VARCHAR(255), -- Only for email auth
+    is_active BOOLEAN DEFAULT true,
+    email_verified BOOLEAN DEFAULT false,
+    last_login_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create user sessions table for token management
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    device_info JSONB,
+    ip_address INET,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create profiles table (equivalent to users but for compatibility)
+CREATE TABLE IF NOT EXISTS profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    role VARCHAR(50) DEFAULT 'student',
+    parent_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    grade_level INTEGER,
+    school VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create sessions table for study sessions
+CREATE TABLE IF NOT EXISTS sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    parent_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    session_type VARCHAR(50) NOT NULL DEFAULT 'homework',
+    title VARCHAR(255),
+    description TEXT,
+    subject VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'active',
+    start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    end_time TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create questions table for question storage and AI processing
+CREATE TABLE IF NOT EXISTS questions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    session_id UUID REFERENCES sessions(id) ON DELETE SET NULL,
+    image_data BYTEA, -- Store image binary data
+    image_url TEXT, -- Alternative image storage URL
+    question_text TEXT,
+    subject VARCHAR(100),
+    topic VARCHAR(100),
+    difficulty_level INTEGER DEFAULT 3,
+    ai_solution JSONB,
+    explanation TEXT,
+    confidence_score FLOAT DEFAULT 0.0,
+    processing_time FLOAT DEFAULT 0.0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create conversations table for AI chat history
+CREATE TABLE IF NOT EXISTS conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
+    session_id UUID REFERENCES sessions(id) ON DELETE SET NULL,
+    message_type VARCHAR(20) NOT NULL, -- 'user', 'ai', 'system'
+    message_text TEXT NOT NULL,
+    message_data JSONB,
+    tokens_used INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create evaluations table for answer evaluation and scoring
+CREATE TABLE IF NOT EXISTS evaluations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID REFERENCES sessions(id) ON DELETE SET NULL,
+    question_id UUID NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    student_answer TEXT NOT NULL,
+    ai_feedback JSONB,
+    score FLOAT,
+    max_score FLOAT DEFAULT 100.0,
+    time_spent INTEGER, -- seconds
+    is_correct BOOLEAN,
+    rubric JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create progress table for learning progress tracking
+CREATE TABLE IF NOT EXISTS progress (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subject VARCHAR(100) NOT NULL,
+    topic VARCHAR(100),
+    skill_level FLOAT DEFAULT 0.0,
+    mastery_level FLOAT DEFAULT 0.0,
+    questions_attempted INTEGER DEFAULT 0,
+    questions_correct INTEGER DEFAULT 0,
+    total_time_spent INTEGER DEFAULT 0, -- seconds
+    last_practiced_at TIMESTAMP WITH TIME ZONE,
+    streak_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create sessions_summaries table for session analytics
+CREATE TABLE IF NOT EXISTS sessions_summaries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    total_questions INTEGER DEFAULT 0,
+    questions_correct INTEGER DEFAULT 0,
+    total_time_spent INTEGER DEFAULT 0, -- seconds
+    average_score FLOAT DEFAULT 0.0,
+    subjects_covered TEXT[],
+    key_topics TEXT[],
+    areas_for_improvement TEXT[],
+    summary_data JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create archived_sessions table
 CREATE TABLE IF NOT EXISTS archived_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id TEXT NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     subject VARCHAR(100) NOT NULL,
     session_date DATE NOT NULL DEFAULT CURRENT_DATE,
     title VARCHAR(200),
@@ -29,7 +169,108 @@ CREATE TABLE IF NOT EXISTS archived_sessions (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create archived_conversations table (NEW - for session chat conversations)
+CREATE TABLE IF NOT EXISTS archived_conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT NOT NULL, -- Matches archived_sessions format for compatibility
+    session_id UUID NOT NULL, -- Reference to original session
+    
+    -- Content metadata
+    subject VARCHAR(100) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    summary TEXT, -- AI-generated summary of the conversation
+    
+    -- Conversation metrics
+    message_count INTEGER NOT NULL DEFAULT 0,
+    total_tokens INTEGER DEFAULT 0,
+    duration_minutes INTEGER DEFAULT 0,
+    
+    -- Structured conversation data
+    conversation_history JSONB NOT NULL, -- Full conversation with messages
+    key_topics TEXT[], -- Array of key topics discussed
+    learning_outcomes TEXT[], -- Array of learning outcomes achieved
+    
+    -- Semantic search support (NEW) - will be added dynamically if pgvector is available
+    content_embedding TEXT, -- Stores embedding as JSON array if pgvector not available
+    
+    -- User interaction
+    notes TEXT,
+    review_count INTEGER DEFAULT 0,
+    last_reviewed_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Archival metadata
+    archived_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Note: Semantic search will use JSON similarity instead of pgvector
+-- since pgvector extension is not available on Railway
+
 -- Create performance indexes
+-- User table indexes
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_auth_provider ON users(auth_provider);
+CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
+CREATE INDEX IF NOT EXISTS idx_users_apple_id ON users(apple_id);
+CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login_at DESC);
+
+-- Profiles table indexes
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
+CREATE INDEX IF NOT EXISTS idx_profiles_parent_id ON profiles(parent_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
+CREATE INDEX IF NOT EXISTS idx_profiles_grade_level ON profiles(grade_level);
+
+-- User sessions indexes
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(token_hash);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
+
+-- Sessions table indexes
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_parent_id ON sessions(parent_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_type_subject ON sessions(session_type, subject);
+CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
+CREATE INDEX IF NOT EXISTS idx_sessions_start_time ON sessions(start_time DESC);
+
+-- Questions table indexes
+CREATE INDEX IF NOT EXISTS idx_questions_user_id ON questions(user_id);
+CREATE INDEX IF NOT EXISTS idx_questions_session_id ON questions(session_id);
+CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject);
+CREATE INDEX IF NOT EXISTS idx_questions_topic ON questions(topic);
+CREATE INDEX IF NOT EXISTS idx_questions_difficulty ON questions(difficulty_level);
+CREATE INDEX IF NOT EXISTS idx_questions_created_at ON questions(created_at DESC);
+
+-- Conversations table indexes
+CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_question_id ON conversations(question_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_message_type ON conversations(message_type);
+CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON conversations(created_at DESC);
+
+-- Evaluations table indexes
+CREATE INDEX IF NOT EXISTS idx_evaluations_session_id ON evaluations(session_id);
+CREATE INDEX IF NOT EXISTS idx_evaluations_question_id ON evaluations(question_id);
+CREATE INDEX IF NOT EXISTS idx_evaluations_user_id ON evaluations(user_id);
+CREATE INDEX IF NOT EXISTS idx_evaluations_score ON evaluations(score);
+CREATE INDEX IF NOT EXISTS idx_evaluations_is_correct ON evaluations(is_correct);
+CREATE INDEX IF NOT EXISTS idx_evaluations_created_at ON evaluations(created_at DESC);
+
+-- Progress table indexes
+CREATE INDEX IF NOT EXISTS idx_progress_user_id ON progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_progress_subject ON progress(subject);
+CREATE INDEX IF NOT EXISTS idx_progress_topic ON progress(topic);
+CREATE INDEX IF NOT EXISTS idx_progress_skill_level ON progress(skill_level);
+CREATE INDEX IF NOT EXISTS idx_progress_mastery_level ON progress(mastery_level);
+CREATE INDEX IF NOT EXISTS idx_progress_last_practiced ON progress(last_practiced_at DESC);
+
+-- Sessions summaries table indexes
+CREATE INDEX IF NOT EXISTS idx_sessions_summaries_session_id ON sessions_summaries(session_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_summaries_user_id ON sessions_summaries(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_summaries_average_score ON sessions_summaries(average_score);
+CREATE INDEX IF NOT EXISTS idx_sessions_summaries_created_at ON sessions_summaries(created_at DESC);
+
+-- Archived sessions indexes (for homework/questions)
 CREATE INDEX IF NOT EXISTS idx_archived_sessions_user_date 
     ON archived_sessions(user_id, session_date DESC);
 
@@ -42,12 +283,46 @@ CREATE INDEX IF NOT EXISTS idx_archived_sessions_review
 CREATE INDEX IF NOT EXISTS idx_archived_sessions_created 
     ON archived_sessions(user_id, created_at DESC);
 
--- JSONB indexes for AI parsing result queries
-CREATE INDEX IF NOT EXISTS idx_ai_parsing_result_questions 
-    ON archived_sessions USING GIN ((ai_parsing_result->'questions'));
+-- Archived conversations indexes (NEW - for session chat conversations)
+CREATE INDEX IF NOT EXISTS idx_archived_conversations_user_archived 
+    ON archived_conversations(user_id, archived_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_ai_parsing_result_question_count 
-    ON archived_sessions ((ai_parsing_result->>'questionCount'));
+CREATE INDEX IF NOT EXISTS idx_archived_conversations_session_id 
+    ON archived_conversations(session_id);
+
+CREATE INDEX IF NOT EXISTS idx_archived_conversations_subject 
+    ON archived_conversations(user_id, subject);
+
+CREATE INDEX IF NOT EXISTS idx_archived_conversations_message_count 
+    ON archived_conversations(user_id, message_count DESC);
+
+CREATE INDEX IF NOT EXISTS idx_archived_conversations_review 
+    ON archived_conversations(user_id, last_reviewed_at DESC);
+
+-- Full-text search index for conversation summaries and topics (using PostgreSQL built-in)
+CREATE INDEX IF NOT EXISTS idx_archived_conversations_summary_search 
+    ON archived_conversations USING gin(to_tsvector('english', title || ' ' || COALESCE(summary, '')));
+
+CREATE INDEX IF NOT EXISTS idx_archived_conversations_topics_search 
+    ON archived_conversations USING gin(key_topics);
+
+-- Note: Semantic search will use JSON array similarity calculations
+-- since pgvector is not available on Railway
+
+-- Hybrid search indexes for optimized multi-criteria queries
+CREATE INDEX IF NOT EXISTS idx_archived_conversations_hybrid_search 
+    ON archived_conversations(user_id, archived_at DESC, subject, message_count);
+
+-- Date-based indexes for flexible date queries (using simple date columns)
+CREATE INDEX IF NOT EXISTS idx_archived_conversations_date_user 
+    ON archived_conversations(user_id, archived_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_archived_conversations_date_subject 
+    ON archived_conversations(user_id, archived_at DESC, subject);
+
+-- JSONB indexes for AI parsing result queries (using GIN for JSON content)
+CREATE INDEX IF NOT EXISTS idx_ai_parsing_result_json 
+    ON archived_sessions USING GIN (ai_parsing_result);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

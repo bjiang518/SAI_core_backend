@@ -4,6 +4,22 @@
  */
 
 const { db, initializeDatabase } = require('../../utils/railway-database');
+const { authPreHandler } = require('../middleware/railway-auth');
+
+// Initialize database once when module loads
+let dbInitialized = false;
+async function ensureDbInitialized() {
+  if (!dbInitialized) {
+    try {
+      await initializeDatabase();
+      console.log('✅ Archive database initialized');
+      dbInitialized = true;
+    } catch (error) {
+      console.error('❌ Archive database initialization failed:', error);
+      throw error;
+    }
+  }
+}
 
 class ArchiveRoutes {
   constructor(fastify) {
@@ -13,17 +29,13 @@ class ArchiveRoutes {
   }
 
   async initializeDB() {
-    try {
-      await initializeDatabase();
-      this.fastify.log.info('✅ Archive database initialized');
-    } catch (error) {
-      this.fastify.log.error('❌ Archive database initialization failed:', error);
-    }
+    await ensureDbInitialized();
   }
 
   setupRoutes() {
     // Archive session
     this.fastify.post('/api/archive/sessions', {
+      preHandler: authPreHandler,
       schema: {
         description: 'Archive a homework session',
         tags: ['Archive'],
@@ -47,6 +59,7 @@ class ArchiveRoutes {
 
     // Get archived sessions
     this.fastify.get('/api/archive/sessions', {
+      preHandler: authPreHandler,
       schema: {
         description: 'Get user archived sessions',
         tags: ['Archive'],
@@ -65,6 +78,7 @@ class ArchiveRoutes {
 
     // Get session details
     this.fastify.get('/api/archive/sessions/:id', {
+      preHandler: authPreHandler,
       schema: {
         description: 'Get full session details',
         tags: ['Archive'],
@@ -201,17 +215,24 @@ class ArchiveRoutes {
       const sessions = await db.fetchUserSessions(userId, limit, offset, filters);
 
       // Transform for client response
-      const transformedSessions = sessions.map(session => ({
-        id: session.id,
-        subject: session.subject,
-        sessionDate: session.session_date,
-        title: session.title,
-        questionCount: session.ai_parsing_result?.questionCount || 0,
-        overallConfidence: session.overall_confidence,
-        thumbnailUrl: session.thumbnail_url,
-        reviewCount: session.review_count,
-        createdAt: session.created_at
-      }));
+      const transformedSessions = sessions.map(session => {
+        // Parse JSON fields if they're strings
+        const aiParsingResult = typeof session.ai_parsing_result === 'string' 
+          ? JSON.parse(session.ai_parsing_result) 
+          : session.ai_parsing_result;
+          
+        return {
+          id: session.id,
+          subject: session.subject,
+          sessionDate: session.session_date,
+          title: session.title,
+          questionCount: aiParsingResult?.questionCount || 0,
+          overallConfidence: session.overall_confidence,
+          thumbnailUrl: session.thumbnail_url,
+          reviewCount: session.review_count,
+          createdAt: session.created_at
+        };
+      });
 
       return reply.send({
         success: true,
@@ -245,6 +266,15 @@ class ArchiveRoutes {
         });
       }
 
+      // Parse JSON fields if they're strings
+      const aiParsingResult = typeof session.ai_parsing_result === 'string' 
+        ? JSON.parse(session.ai_parsing_result) 
+        : session.ai_parsing_result;
+      
+      const studentAnswers = typeof session.student_answers === 'string' 
+        ? JSON.parse(session.student_answers) 
+        : session.student_answers;
+
       return reply.send({
         success: true,
         data: {
@@ -255,10 +285,10 @@ class ArchiveRoutes {
           title: session.title,
           originalImageUrl: session.original_image_url,
           thumbnailUrl: session.thumbnail_url,
-          aiParsingResult: session.ai_parsing_result,
+          aiParsingResult: aiParsingResult,
           processingTime: session.processing_time,
           overallConfidence: session.overall_confidence,
-          studentAnswers: session.student_answers,
+          studentAnswers: studentAnswers,
           notes: session.notes,
           reviewCount: session.review_count,
           lastReviewedAt: session.last_reviewed_at,

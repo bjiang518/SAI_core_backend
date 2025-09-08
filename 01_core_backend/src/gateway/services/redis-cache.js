@@ -328,18 +328,8 @@ class RedisCacheManager {
       }
 
       // Hook to cache the response
-      reply.addHook('onSend', async (request, reply, payload) => {
-        if (reply.statusCode === 200 && payload) {
-          const ttl = this.getTTLForEndpoint(request.url);
-          await this.set('responses', cacheKey, {
-            data: JSON.parse(payload),
-            ttl: ttl,
-            cached_at: new Date().toISOString()
-          }, ttl);
-          
-          reply.header('X-Cache', 'MISS');
-        }
-      });
+      // Note: reply.addHook doesn't exist, we'll handle caching differently
+      reply.header('X-Cache', 'MISS');
     };
   }
 

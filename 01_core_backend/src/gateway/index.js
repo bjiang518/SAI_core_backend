@@ -23,6 +23,7 @@ const fastify = require('fastify')({
 const { features } = require('./config/services');
 const AIProxyRoutes = require('./routes/ai-proxy');
 const ArchiveRoutes = require('./routes/archive-routes');
+const AuthRoutes = require('./routes/auth-routes');
 const HealthRoutes = require('./routes/health');
 const { serviceAuth } = require('./middleware/service-auth');
 const { requestValidator } = require('./middleware/request-validation');
@@ -175,6 +176,9 @@ if (features.useGateway) {
   
   // Health and monitoring routes
   new HealthRoutes(fastify);
+  
+  // Authentication routes
+  new AuthRoutes(fastify);
   
   // AI Engine proxy routes
   new AIProxyRoutes(fastify);
