@@ -68,7 +68,7 @@ class HistoryViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    func loadConversations() async {
+    func loadConversations(forceRefresh: Bool = false) async {
         guard isAuthenticated else {
             errorMessage = "Please sign in to view your study history"
             conversations = []
@@ -83,7 +83,8 @@ class HistoryViewModel: ObservableObject {
             let fetchedConversations = await conversationStore.listConversations(
                 filter: filter,
                 query: query,
-                dateRange: dateRange
+                dateRange: dateRange,
+                forceRefresh: forceRefresh
             )
             
             conversations = fetchedConversations
@@ -107,7 +108,7 @@ class HistoryViewModel: ObservableObject {
     
     func refreshConversations() {
         Task {
-            await loadConversations()
+            await loadConversations(forceRefresh: true)
         }
     }
     

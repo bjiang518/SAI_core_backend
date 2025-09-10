@@ -22,9 +22,32 @@ class NetworkService: ObservableObject {
     @Published var currentSessionId: String?
     @Published var conversationHistory: [[String: String]] = []
     
+    // MARK: - Caching for Archive Data
+    private var cachedSessions: [[String: Any]]?
+    private var lastCacheTime: Date?
+    private let cacheValidityInterval: TimeInterval = 300 // 5 minutes cache validity
+    
     private init() {
         // Load saved token from UserDefaults on init
         loadSavedAuth()
+    }
+    
+    // MARK: - Cache Management
+    private func isCacheValid() -> Bool {
+        guard let lastCacheTime = lastCacheTime else { return false }
+        return Date().timeIntervalSince(lastCacheTime) < cacheValidityInterval
+    }
+    
+    private func invalidateCache() {
+        cachedSessions = nil
+        lastCacheTime = nil
+        print("🗑️ Archive cache invalidated")
+    }
+    
+    private func updateCache(with sessions: [[String: Any]]) {
+        cachedSessions = sessions
+        lastCacheTime = Date()
+        print("💾 Archive cache updated with \(sessions.count) sessions")
     }
     
     // MARK: - Authentication Management
@@ -112,6 +135,9 @@ class NetworkService: ObservableObject {
             self.currentUser = nil
             self.currentSessionId = nil
             self.conversationHistory.removeAll()
+            
+            // Clear cache when user logs out
+            self.invalidateCache()
         }
     }
     
@@ -1277,19 +1303,59 @@ class NetworkService: ObservableObject {
     }
     
     /// Get archived sessions list with query parameters for server-side filtering
-    func getArchivedSessionsWithParams(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?, message: String) {
-        print("📦 === GET ARCHIVED SESSIONS WITH SEARCH ===")
+    func getArchivedSessionsWithParams(_ queryParams: [String: String], forceRefresh: Bool = false) async -> (success: Bool, sessions: [[String: Any]]?, message: String) {
+        print("📦 === GET ARCHIVED SESSIONS WITH CACHING ==")
         print("📄 Query Params: \(queryParams)")
+        print("🔄 Force Refresh: \(forceRefresh)")
         
-        // Build URL with query parameters
+        // Check cache first (unless force refresh is requested or search parameters are present)
+        let hasSearchParams = queryParams.keys.contains { ["search", "subject", "startDate", "endDate"].contains($0) }
+        
+        if !forceRefresh && !hasSearchParams && isCacheValid(), let cached = cachedSessions {
+            print("⚡ Using cached data with \(cached.count) sessions")
+            return (true, cached, "Loaded from cache")
+        }
+        
+        print("🌐 Fetching fresh data from server...")
+        
+        // For now, only fetch from homework sessions endpoint which has proper auth
+        // This will at least show homework/question archives
+        let homeworkResult = await fetchHomeworkSessions(queryParams)
+        
+        // TODO: Add conversation fetching once backend user ID issue is resolved
+        // let conversationResult = await fetchConversationSessions(queryParams)
+        
+        var allSessions: [[String: Any]] = []
+        
+        if homeworkResult.success, let homeworkSessions = homeworkResult.sessions {
+            print("📚 Found \(homeworkSessions.count) homework sessions")
+            allSessions.append(contentsOf: homeworkSessions)
+        }
+        
+        // Update cache only if no search parameters (cache general list, not searches)
+        if !hasSearchParams && homeworkResult.success {
+            updateCache(with: allSessions)
+        }
+        
+        // Log what we're returning for debugging
+        print("📦 Total archived items: \(allSessions.count)")
+        if allSessions.isEmpty {
+            print("ℹ️ No archives found. Try using 'AI Homework' feature to create some content.")
+        }
+        
+        return (true, allSessions, "Successfully loaded \(allSessions.count) archived items")
+    }
+    
+    private func fetchHomeworkSessions(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
+        // Build URL with query parameters for homework sessions
         var urlComponents = URLComponents(string: "\(baseURL)/api/archive/sessions")!
         urlComponents.queryItems = queryParams.map { URLQueryItem(name: $0.key, value: $0.value) }
         
         guard let url = urlComponents.url else {
-            return (false, nil, "Invalid URL")
+            return (false, nil)
         }
         
-        print("🔗 Full URL: \(url.absoluteString)")
+        print("🔗 Homework URL: \(url.absoluteString)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -1303,38 +1369,102 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Archived Sessions Status: \(httpResponse.statusCode)")
+                print("✅ Homework Sessions Status: \(httpResponse.statusCode)")
                 
-                do {
-                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                        print("✅ Archived Sessions Response: \(json)")
-                        
-                        let success = json["success"] as? Bool ?? false
-                        
-                        if success, let sessions = json["data"] as? [[String: Any]] {
-                            print("📦 Found \(sessions.count) archived sessions")
-                            return (true, sessions, "Successfully loaded archived sessions")
-                        } else {
-                            let error = json["error"] as? String ?? "Failed to load archived sessions"
-                            return (false, nil, error)
-                        }
-                    }
-                } catch {
-                    print("❌ JSON parsing error: \(error)")
-                    let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                    print("📄 Raw response: \(rawResponse)")
-                    return (false, nil, "Invalid response format")
+                if httpResponse.statusCode == 200,
+                   let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                   let success = json["success"] as? Bool, success,
+                   let sessions = json["data"] as? [[String: Any]] {
+                    return (true, sessions)
                 }
             }
-            
         } catch {
-            print("❌ Get archived sessions request failed: \(error.localizedDescription)")
-            return (false, nil, "Network error: \(error.localizedDescription)")
+            print("❌ Homework sessions request failed: \(error.localizedDescription)")
         }
         
-        return (false, nil, "Unknown error occurred")
+        return (false, nil)
     }
-
+    
+    private func fetchConversationSessions(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
+        // Try the search endpoint instead of the direct conversations endpoint
+        // This might have better user ID handling
+        var urlComponents = URLComponents(string: "\(baseURL)/api/ai/archives/search")!
+        
+        // Add search query parameters - use empty search to get all
+        var searchParams = queryParams
+        searchParams["q"] = searchParams["search"] ?? " " // Use space as minimal search query
+        searchParams["type"] = "conversations" // Only get conversations
+        
+        urlComponents.queryItems = searchParams.map { URLQueryItem(name: $0.key, value: $0.value) }
+        
+        guard let url = urlComponents.url else {
+            return (false, nil)
+        }
+        
+        print("🔗 Conversations Search URL: \(url.absoluteString)")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        // Add authentication if available
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("✅ Conversation Search Status: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 200,
+                   let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                    
+                    print("📄 Search response: \(json)")
+                    
+                    let success = json["success"] as? Bool ?? false
+                    if success {
+                        // Handle search results format
+                        if let results = json["results"] as? [String: Any],
+                           let conversations = results["conversations"] as? [[String: Any]] {
+                            print("🔍 Found \(conversations.count) conversations via search")
+                            return (true, conversations)
+                        }
+                    }
+                }
+                
+                // Log response for debugging
+                if let rawResponse = String(data: data, encoding: .utf8) {
+                    print("📄 Conversations search response: \(rawResponse)")
+                }
+            }
+        } catch {
+            print("❌ Conversation search request failed: \(error.localizedDescription)")
+        }
+        
+        return (false, nil)
+    }
+    
+    private func extractDate(from session: [String: Any]) -> Date {
+        // Try different date fields
+        let dateFormatter = ISO8601DateFormatter()
+        
+        if let sessionDateString = session["sessionDate"] as? String {
+            return dateFormatter.date(from: sessionDateString) ?? Date()
+        }
+        
+        if let archivedAtString = session["archived_at"] as? String ?? session["archivedAt"] as? String {
+            return dateFormatter.date(from: archivedAtString) ?? Date()
+        }
+        
+        if let createdAtString = session["created_at"] as? String ?? session["createdAt"] as? String {
+            return dateFormatter.date(from: createdAtString) ?? Date()
+        }
+        
+        return Date()
+    }
+    
+    
     /// Get archived sessions list
     func getArchivedSessions(limit: Int = 20, offset: Int = 0) async -> (success: Bool, sessions: [[String: Any]]?, message: String) {
         print("📦 === GET ARCHIVED SESSIONS ===")

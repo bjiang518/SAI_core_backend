@@ -12,7 +12,9 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
+  connectionTimeoutMillis: 5000, // Reduced timeout for faster failure detection
+  statement_timeout: 25000, // 25 second query timeout to prevent hanging
+  query_timeout: 25000, // 25 second query timeout
 });
 
 // Test connection on startup
@@ -163,26 +165,42 @@ const db = {
    * Verify user session token
    */
   async verifyUserSession(token) {
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    
-    const query = `
-      SELECT 
-        us.id as session_id,
-        us.user_id,
-        us.expires_at,
-        u.email,
-        u.name,
-        u.profile_image_url,
-        u.auth_provider
-      FROM user_sessions us
-      JOIN users u ON us.user_id = u.id
-      WHERE us.token_hash = $1 
-        AND us.expires_at > NOW()
-        AND u.is_active = true
-    `;
+    const startTime = Date.now();
+    try {
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      
+      const query = `
+        SELECT 
+          us.id as session_id,
+          us.user_id,
+          us.expires_at,
+          u.email,
+          u.name,
+          u.profile_image_url,
+          u.auth_provider
+        FROM user_sessions us
+        JOIN users u ON us.user_id = u.id
+        WHERE us.token_hash = $1 
+          AND us.expires_at > NOW()
+          AND u.is_active = true
+      `;
 
-    const result = await this.query(query, [tokenHash]);
-    return result.rows[0];
+      console.log(`🔍 Starting token verification for hash: ${tokenHash.substring(0, 8)}...`);
+      const result = await this.query(query, [tokenHash]);
+      const duration = Date.now() - startTime;
+      
+      if (result.rows.length > 0) {
+        console.log(`✅ Token verification successful in ${duration}ms for user: ${result.rows[0].user_id}`);
+        return result.rows[0];
+      } else {
+        console.log(`❌ Token verification failed in ${duration}ms - no matching session found`);
+        return null;
+      }
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`❌ Token verification error after ${duration}ms:`, error);
+      throw error;
+    }
   },
 
   /**

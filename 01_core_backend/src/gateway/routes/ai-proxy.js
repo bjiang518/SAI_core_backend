@@ -1156,6 +1156,7 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
 
   // Helper method to extract user ID from authorization token
   async getUserIdFromToken(request) {
+    const startTime = Date.now();
     try {
       const authHeader = request.headers.authorization;
       
@@ -1165,18 +1166,29 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       }
 
       const token = authHeader.substring(7);
+      this.fastify.log.info(`🔐 Starting authentication for token: ${token.substring(0, 8)}...`);
+      
       const { db } = require('../../utils/railway-database');
-      const sessionData = await db.verifyUserSession(token);
+      
+      // Add timeout wrapper to prevent hanging
+      const sessionDataPromise = db.verifyUserSession(token);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Token verification timeout')), 20000) // 20 second timeout
+      );
+      
+      const sessionData = await Promise.race([sessionDataPromise, timeoutPromise]);
+      const duration = Date.now() - startTime;
       
       if (sessionData && sessionData.user_id) {
-        this.fastify.log.info(`✅ Authenticated user: ${sessionData.user_id}`);
+        this.fastify.log.info(`✅ Authentication successful in ${duration}ms for user: ${sessionData.user_id}`);
         return sessionData.user_id;
       }
       
-      this.fastify.log.warn('Invalid or expired token');
+      this.fastify.log.warn(`❌ Authentication failed in ${duration}ms - invalid or expired token`);
       return null;
     } catch (error) {
-      this.fastify.log.error('Token verification error:', error);
+      const duration = Date.now() - startTime;
+      this.fastify.log.error(`❌ Token verification error after ${duration}ms:`, error);
       return null;
     }
   }

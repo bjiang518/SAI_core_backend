@@ -8,9 +8,9 @@ class ConversationStore: ObservableObject {
     
     private init() {}
     
-    func listConversations(filter: ConversationFilter = .all, query: String? = nil, dateRange: DateInterval? = nil) async -> [Conversation] {
+    func listConversations(filter: ConversationFilter = .all, query: String? = nil, dateRange: DateInterval? = nil, forceRefresh: Bool = false) async -> [Conversation] {
         print("📚 Fetching conversations from server...")
-        print("🔍 Filter: \(filter), Query: \(query ?? "none")")
+        print("🔍 Filter: \(filter), Query: \(query ?? "none"), Force Refresh: \(forceRefresh)")
         
         // Build query parameters for server-side filtering
         var queryParams: [String: String] = [
@@ -31,46 +31,77 @@ class ConversationStore: ObservableObject {
             queryParams["endDate"] = dateFormatter.string(from: dateRange.end)
         }
         
-        // Fetch archived sessions from server
-        let result = await networkService.getArchivedSessionsWithParams(queryParams)
+        // Fetch archived sessions from server with caching support
+        let result = await networkService.getArchivedSessionsWithParams(queryParams, forceRefresh: forceRefresh)
         
         guard result.success, let sessions = result.sessions else {
             print("❌ Failed to fetch sessions: \(result.message)")
             return []
         }
         
-        // Convert server sessions to Conversation model
+        // Convert server sessions/conversations to Conversation model
         var conversations: [Conversation] = []
         
         for session in sessions {
             guard let id = session["id"] as? String,
-                  let title = session["title"] as? String,
-                  let subject = session["subject"] as? String,
-                  let sessionDateString = session["sessionDate"] as? String else {
+                  let title = session["title"] as? String else {
                 continue
             }
             
-            // Parse session date
-            let dateFormatter = ISO8601DateFormatter()
-            let sessionDate = dateFormatter.date(from: sessionDateString) ?? Date()
+            // Handle both conversation archives and homework session archives
+            let isConversationArchive = session["message_count"] != nil || session["messageCount"] != nil
             
-            // Extract additional info
-            let questionCount = session["questionCount"] as? Int ?? 0
-            let confidence = session["overallConfidence"] as? Double ?? 0.0
-            let reviewCount = session["reviewCount"] as? Int ?? 0
+            var sessionDate: Date
+            var lastMessage: String
+            var subject = "General"
             
-            // Create last message summary
-            let lastMessage = "Subject: \(subject) | Questions: \(questionCount) | Confidence: \(Int(confidence * 100))%"
+            if isConversationArchive {
+                // This is a conversation archive
+                subject = session["subject"] as? String ?? "General Discussion"
+                
+                // Parse archived date for conversations
+                if let archivedAtString = session["archived_at"] as? String ?? session["archivedAt"] as? String {
+                    let dateFormatter = ISO8601DateFormatter()
+                    sessionDate = dateFormatter.date(from: archivedAtString) ?? Date()
+                } else {
+                    sessionDate = Date()
+                }
+                
+                // Extract conversation info
+                let messageCount = session["message_count"] as? Int ?? session["messageCount"] as? Int ?? 0
+                let summary = session["summary"] as? String ?? "Conversation archived"
+                
+                // Create last message summary for conversations
+                lastMessage = "\(messageCount) messages | \(summary)"
+                
+            } else {
+                // This is a homework session archive
+                subject = session["subject"] as? String ?? "General"
+                
+                // Parse session date for homework
+                if let sessionDateString = session["sessionDate"] as? String {
+                    let dateFormatter = ISO8601DateFormatter()
+                    sessionDate = dateFormatter.date(from: sessionDateString) ?? Date()
+                } else {
+                    sessionDate = Date()
+                }
+                
+                // Extract homework session info
+                let questionCount = session["questionCount"] as? Int ?? 0
+                let confidence = session["overallConfidence"] as? Double ?? 0.0
+                
+                // Create last message summary for homework
+                lastMessage = "Subject: \(subject) | Questions: \(questionCount) | Confidence: \(Int(confidence * 100))%"
+            }
             
-            // Determine if archived (for homework sessions, they are all considered "archived" in the history context)
-            // We'll use the filter to determine display logic
+            // Determine if archived (both types are considered archived in history context)
             let isArchivedState = filter == .archived
             
             let conversation = Conversation(
                 id: UUID(uuidString: id) ?? UUID(),
                 title: title,
                 lastMessage: lastMessage,
-                participants: [], // Homework sessions don't have participants
+                participants: [], // Neither type has participants displayed
                 tags: [subject] // Use subject as tag
             )
             
