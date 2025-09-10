@@ -17,9 +17,9 @@ class QuestionArchiveService: ObservableObject {
     
     private init() {}
     
-    // Get current user ID from existing auth system
+    // Get current user ID from AuthenticationService
     private var currentUserId: String? {
-        return UserDefaults.standard.string(forKey: "user_email")
+        return AuthenticationService.shared.currentUser?.id
     }
     
     // MARK: - Archive Individual Questions

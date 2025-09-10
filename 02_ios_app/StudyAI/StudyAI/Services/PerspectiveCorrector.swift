@@ -6,7 +6,7 @@
 //
 
 import UIKit
-import Vision
+@preconcurrency import Vision
 import CoreImage
 import VisionKit
 import AVFoundation

@@ -674,27 +674,33 @@ FORMATTING RULES:
       this.fastify.log.info(`📦 Full AI request payload: ${JSON.stringify(aiRequestPayload, null, 2)}`)
       this.fastify.log.info(`===============================================`);
 
-      // Use the existing AI processing pipeline
+      // Use the specialized session conversation endpoint (NEW)
       const result = await this.aiClient.proxyRequest(
         'POST',
-        '/api/v1/process-question',
-        aiRequestPayload,
+        `/api/v1/sessions/${sessionId}/message`,
+        {
+          message: enhancedQuestion, // Send the enhanced prompt as the message
+          image_data: null // No image support in session conversations yet
+        },
         { 'Content-Type': 'application/json' }
       );
 
       this.fastify.log.info(`📥 AI processing result: ${JSON.stringify(result, null, 2)}`);
 
       if (result.success && result.data) {
-        // Extract the response from the AI processing result
-        // The response structure is: result.data.response.answer
+        // Extract the response from the session conversation result
+        // Session endpoint returns: { session_id, ai_response, tokens_used, compressed }
         let aiResponse;
-        if (result.data.response && result.data.response.answer) {
-          aiResponse = result.data.response.answer;
+        if (result.data.ai_response) {
+          aiResponse = result.data.ai_response;
+        } else if (result.data.aiResponse) {
+          aiResponse = result.data.aiResponse;
         } else {
-          aiResponse = result.data.response || result.data.answer || result.data.aiResponse;
+          // Fallback to old structure if needed
+          aiResponse = result.data.response?.answer || result.data.answer || result.data.response;
         }
         
-        const tokensUsed = result.data.tokensUsed || result.data.tokens_used || 0;
+        const tokensUsed = result.data.tokens_used || result.data.tokensUsed || 0;
         
         this.fastify.log.info(`🔍 Extracted AI response: ${aiResponse?.substring(0, 100)}...`);
         

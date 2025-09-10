@@ -1,0 +1,392 @@
+//
+//  VoiceInteractionService.swift
+//  StudyAI
+//
+//  Created by Claude Code on 9/8/25.
+//
+
+import Foundation
+import Combine
+import AVFoundation
+
+class VoiceInteractionService: ObservableObject {
+    
+    // MARK: - Published Properties
+    
+    @Published var interactionState: VoiceInteractionState = .idle
+    @Published var voiceSettings = VoiceSettings.load()
+    @Published var permissionStatus: VoicePermissionStatus = .notDetermined
+    @Published var isVoiceEnabled = true
+    @Published var lastRecognizedText = ""
+    @Published var errorMessage: String?
+    @Published var isPaused = false
+    @Published var currentSpeakingMessageId: String? = nil
+    
+    // MARK: - Services
+    
+    private let speechRecognitionService = SpeechRecognitionService()
+    private let textToSpeechService = TextToSpeechService()
+    private let enhancedTTSService = EnhancedTTSService()
+    
+    // MARK: - Private Properties
+    
+    private var cancellables = Set<AnyCancellable>()
+    private var currentVoiceInputCompletion: ((String) -> Void)?
+    
+    // MARK: - Singleton
+    
+    static let shared = VoiceInteractionService()
+    
+    private init() {
+        setupBindings()
+        setupAudioNotifications()
+        
+        // Load saved settings
+        voiceSettings = VoiceSettings.load()
+        textToSpeechService.updateVoiceSettings(voiceSettings)
+        enhancedTTSService.updateVoiceSettings(voiceSettings)
+        
+        // Request permissions on initialization
+        Task {
+            await requestPermissions()
+        }
+    }
+    
+    // MARK: - Setup
+    
+    private func setupBindings() {
+        // Bind speech recognition state
+        speechRecognitionService.$isListening
+            .sink { [weak self] isListening in
+                DispatchQueue.main.async {
+                    if isListening {
+                        self?.interactionState = .listening
+                    } else if self?.interactionState == .listening {
+                        self?.interactionState = .processing
+                    }
+                }
+            }
+            .store(in: &cancellables)
+        
+        // Bind permission status
+        speechRecognitionService.$permissionStatus
+            .sink { [weak self] status in
+                DispatchQueue.main.async {
+                    self?.permissionStatus = status
+                }
+            }
+            .store(in: &cancellables)
+        
+        // Bind TTS state - prioritize enhanced TTS when speaking
+        Publishers.CombineLatest(
+            textToSpeechService.$isSpeaking,
+            enhancedTTSService.$isSpeaking
+        )
+        .sink { [weak self] (systemTTSSpeaking, enhancedTTSSpeaking) in
+            DispatchQueue.main.async {
+                let anySpeaking = systemTTSSpeaking || enhancedTTSSpeaking
+                if anySpeaking {
+                    self?.interactionState = .speaking
+                } else if self?.interactionState == .speaking {
+                    self?.interactionState = .idle
+                    // Clear current speaking message when TTS finishes
+                    self?.clearCurrentSpeakingMessage()
+                }
+            }
+        }
+        .store(in: &cancellables)
+        
+        // Bind TTS paused state - combine both services
+        Publishers.CombineLatest(
+            textToSpeechService.$isPaused,
+            enhancedTTSService.$isPaused
+        )
+        .sink { [weak self] (systemPaused, enhancedPaused) in
+            DispatchQueue.main.async {
+                self?.isPaused = systemPaused || enhancedPaused
+            }
+        }
+        .store(in: &cancellables)
+        
+        // Bind error messages from all services
+        Publishers.Merge3(
+            speechRecognitionService.$errorMessage,
+            textToSpeechService.$errorMessage,
+            enhancedTTSService.$errorMessage
+        )
+        .compactMap { $0 }
+        .sink { [weak self] errorMessage in
+            DispatchQueue.main.async {
+                self?.errorMessage = errorMessage
+                self?.interactionState = .error(errorMessage)
+            }
+        }
+        .store(in: &cancellables)
+    }
+    
+    private func setupAudioNotifications() {
+        // Handle audio interruptions (calls, other apps)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioInterruption),
+            name: AVAudioSession.interruptionNotification,
+            object: nil
+        )
+        
+        // Handle route changes (headphones, speaker)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioRouteChange),
+            name: AVAudioSession.routeChangeNotification,
+            object: nil
+        )
+    }
+    
+    // MARK: - Public Methods
+    
+    func requestPermissions() async {
+        await speechRecognitionService.requestPermissions()
+    }
+    
+    func startVoiceInput(completion: @escaping (String) -> Void) {
+        guard isVoiceEnabled && permissionStatus.canUseVoice else {
+            completion("")
+            errorMessage = permissionStatus.displayMessage
+            return
+        }
+        
+        // Stop any current TTS
+        textToSpeechService.stopSpeech()
+        
+        // Store completion handler
+        currentVoiceInputCompletion = completion
+        
+        // Start listening
+        speechRecognitionService.startListening { [weak self] result in
+            DispatchQueue.main.async {
+                self?.handleVoiceInputResult(result)
+            }
+        }
+    }
+    
+    func stopVoiceInput() {
+        print("🎙️ VoiceInteractionService: stopVoiceInput called")
+        
+        // Don't clear completion handler yet - let the speech service finish processing
+        speechRecognitionService.stopListening()
+        
+        DispatchQueue.main.async {
+            self.interactionState = .idle
+        }
+    }
+    
+    func speakResponse(_ text: String, autoSpeak: Bool = true) {
+        guard isVoiceEnabled else { return }
+        
+        // Check if auto-speak is enabled or explicitly requested
+        if voiceSettings.autoSpeakResponses || autoSpeak {
+            speakTextWithBestService(text)
+        }
+    }
+    
+    func speakText(_ text: String) {
+        print("🎙️ VoiceInteractionService: speakText() called with: '\(text)'")
+        print("🎙️ VoiceInteractionService: isVoiceEnabled = \(isVoiceEnabled)")
+        guard isVoiceEnabled else { 
+            print("🎙️ VoiceInteractionService: Voice is disabled, not speaking")
+            return 
+        }
+        
+        print("🎙️ VoiceInteractionService: Using premium TTS service for enhanced voice quality")
+        speakTextWithBestService(text)
+    }
+    
+    private func speakTextWithBestService(_ text: String) {
+        // Use enhanced TTS for premium voice types (Elsa, friendly, professional)
+        if shouldUseEnhancedTTS(for: voiceSettings.voiceType) {
+            print("🎙️ VoiceInteractionService: Using EnhancedTTSService for premium voice: \(voiceSettings.voiceType)")
+            enhancedTTSService.speak(text, with: voiceSettings)
+        } else {
+            print("🎙️ VoiceInteractionService: Using system TTS for voice: \(voiceSettings.voiceType)")
+            textToSpeechService.speakWithQueue(text, with: voiceSettings)
+        }
+    }
+    
+    func shouldUseEnhancedTTS(for voiceType: VoiceType) -> Bool {
+        // Use enhanced TTS for character voices and premium educational voices
+        switch voiceType {
+        // Character voices - always use enhanced TTS for best character experience
+        case .elsa, .optimusPrime, .spiderman, .groot, .yoda, .ironMan:
+            return true
+        // Premium educational voices
+        case .friendly, .teacher:
+            return true
+        // Standard voices - use system TTS for cost efficiency
+        case .encouraging, .playful:
+            return false
+        }
+    }
+    
+    func pauseSpeech() {
+        textToSpeechService.pauseSpeech()
+        enhancedTTSService.pauseSpeech()
+    }
+    
+    func resumeSpeech() {
+        textToSpeechService.resumeSpeech()
+        enhancedTTSService.resumeSpeech()
+    }
+    
+    func stopSpeech() {
+        textToSpeechService.stopSpeech()
+        enhancedTTSService.stopSpeech()
+    }
+    
+    func updateVoiceSettings(_ settings: VoiceSettings) {
+        voiceSettings = settings
+        settings.save()
+        textToSpeechService.updateVoiceSettings(settings)
+        enhancedTTSService.updateVoiceSettings(settings)
+    }
+    
+    // MARK: - Message Tracking
+    
+    func setCurrentSpeakingMessage(_ messageId: String) {
+        print("🎙️ VoiceInteractionService: Setting current speaking message: \(messageId)")
+        currentSpeakingMessageId = messageId
+    }
+    
+    func clearCurrentSpeakingMessage() {
+        print("🎙️ VoiceInteractionService: Clearing current speaking message")
+        currentSpeakingMessageId = nil
+    }
+    
+    func isMessageCurrentlySpeaking(_ messageId: String) -> Bool {
+        return currentSpeakingMessageId == messageId && interactionState == .speaking
+    }
+    
+    func toggleVoiceEnabled() {
+        isVoiceEnabled.toggle()
+        
+        if !isVoiceEnabled {
+            stopVoiceInput()
+            stopSpeech()
+        }
+    }
+    
+    func previewVoiceSettings() {
+        let previewText = "Hello! This is how I sound with these voice settings. I'm here to help you learn!"
+        
+        // Use the best service for preview too
+        if shouldUseEnhancedTTS(for: voiceSettings.voiceType) {
+            enhancedTTSService.previewVoice(text: previewText)
+        } else {
+            textToSpeechService.speak(previewText, with: voiceSettings)
+        }
+    }
+    
+    // MARK: - Private Methods
+    
+    private func handleVoiceInputResult(_ result: VoiceInputResult) {
+        print("🎙️ VoiceInteractionService: handleVoiceInputResult called")
+        print("🎙️ Result text: '\(result.recognizedText)'")
+        print("🎙️ Is final: \(result.isFinal)")
+        
+        lastRecognizedText = result.recognizedText
+        
+        if result.isFinal {
+            print("🎙️ VoiceInteractionService: Calling completion handler with: '\(result.recognizedText)'")
+            // Call completion handler
+            currentVoiceInputCompletion?(result.recognizedText)
+            currentVoiceInputCompletion = nil
+            
+            // Update state
+            interactionState = .idle
+            // Clear current speaking message when speech input ends
+            clearCurrentSpeakingMessage()
+        }
+    }
+    
+    @objc private func handleAudioInterruption(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+            return
+        }
+        
+        switch type {
+        case .began:
+            // Audio interruption began - pause voice activities
+            stopVoiceInput()
+            textToSpeechService.pauseSpeech()
+            
+        case .ended:
+            // Audio interruption ended - optionally resume
+            if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+                let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                if options.contains(.shouldResume) {
+                    textToSpeechService.resumeSpeech()
+                }
+            }
+            
+        @unknown default:
+            break
+        }
+    }
+    
+    @objc private func handleAudioRouteChange(_ notification: Notification) {
+        // Handle route changes (e.g., headphones plugged/unplugged)
+        // You could adjust voice settings based on the audio output route
+    }
+    
+    // MARK: - Utility Methods
+    
+    func isAvailable() -> Bool {
+        return speechRecognitionService.isAvailable() && permissionStatus.canUseVoice
+    }
+    
+    func getSupportedLanguages() -> [String] {
+        // Get intersection of languages supported by both services
+        let speechLanguages = Set(speechRecognitionService.getSupportedLanguages())
+        let ttsLanguages = Set(textToSpeechService.getSupportedLanguages())
+        return Array(speechLanguages.intersection(ttsLanguages)).sorted()
+    }
+    
+    func getVoicePreview(for voiceType: VoiceType) -> String {
+        switch voiceType {
+        // Classic educational voices
+        case .friendly:
+            return "Hi there! I'm your friendly AI helper. I'm here to make learning fun and easy for you!"
+        case .teacher:
+            return "Good day, student. I am your AI teacher, ready to guide you through your educational journey with patience and clarity."
+        case .encouraging:
+            return "Hey superstar! You're doing amazing! I'm here to cheer you on and help you succeed in your studies!"
+        case .playful:
+            return "Woohoo! Let's have some fun while we learn together! I'm your playful AI buddy, ready for an adventure!"
+            
+        // Character voices with personality-specific previews
+        case .elsa:
+            return "Hello there! Let me guide you through your learning journey with clarity and grace. The magic of knowledge awaits!"
+        case .optimusPrime:
+            return "Greetings, young scholar. I am here to help you learn and grow stronger in your knowledge. Together, we shall overcome any challenge."
+        case .spiderman:
+            return "Hey there, true believer! Your friendly neighborhood AI is here to help with your homework. With great power comes great responsibility to learn!"
+        case .groot:
+            return "I am Groot. I am here to help you learn and grow, just like a strong tree. We will take it slow and steady, together."
+        case .yoda:
+            return "Young padawan, much to learn you have. Patient we must be. Strong in knowledge you will become, if willing to learn you are."
+        case .ironMan:
+            return "FRIDAY? No, it's your genius AI tutor here. Let's upgrade your brain with some serious knowledge. Ready to level up your education?"
+        }
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    // MARK: - Public Accessors
+    
+    var speechServiceErrorMessage: String? {
+        return speechRecognitionService.errorMessage
+    }
+}

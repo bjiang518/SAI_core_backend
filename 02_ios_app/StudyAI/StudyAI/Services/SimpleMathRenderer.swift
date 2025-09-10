@@ -7,9 +7,157 @@
 
 import SwiftUI
 
-/// A simpler math renderer that doesn't require WebKit
-/// Uses Unicode math symbols and proper formatting
-struct SimpleMathText: View {
+/// LaTeX Post-Processing Service for AI Output
+class LaTeXPostProcessor {
+    static let shared = LaTeXPostProcessor()
+    
+    private init() {}
+    
+    /// Post-process AI output to convert backslash delimiters to readable math
+    /// AI uses \( \) and \[ \] (safer), we convert them to more readable format
+    func processAIOutput(_ input: String) -> String {
+        var processed = input
+        
+        print("🔧 === LaTeX POST-PROCESSING DEBUG ===")
+        print("📄 Input length: \(input.count)")
+        print("📄 Raw input: '\(input)'")
+        
+        // Step 1: Handle mixed dollar sign format (legacy cleanup)
+        // Fix cases like: "function$f$(x) = 2x$^2" → "function \\(f(x) = 2x^2\\)"
+        let beforeLegacyFix = processed
+        
+        // First, handle isolated dollar signs with variables/expressions
+        processed = processed.replacingOccurrences(
+            of: "\\$([a-zA-Z0-9_]+)\\$",
+            with: "\\\\($1\\\\)",
+            options: .regularExpression
+        )
+        
+        // Handle dollar signs with exponents like $^2
+        processed = processed.replacingOccurrences(
+            of: "\\$\\^([0-9]+)",
+            with: "^$1",
+            options: .regularExpression
+        )
+        
+        // Handle complex mixed cases like "function$f$(x) = 2x$^2"
+        processed = processed.replacingOccurrences(
+            of: "([a-zA-Z]+)\\$([a-zA-Z]+)\\$\\(([^)]+)\\)\\s*=\\s*([^$]+)\\$\\^([0-9]+)",
+            with: "$1 \\\\($2($3) = $4^$5\\\\)",
+            options: .regularExpression
+        )
+        
+        if beforeLegacyFix != processed {
+            print("🔄 Step 1a - Legacy dollar sign fix:")
+            print("   Before: '\(beforeLegacyFix)'")
+            print("   After:  '\(processed)'")
+        }
+        
+        // Step 1b: Convert display math \[ ... \] to clean format with line breaks
+        let beforeDisplayMath = processed
+        processed = processed.replacingOccurrences(
+            of: "\\\\\\[([\\s\\S]*?)\\\\\\]",
+            with: "\n\n$1\n\n",
+            options: .regularExpression
+        )
+        if beforeDisplayMath != processed {
+            print("🔄 Step 1 - Display math conversion:")
+            print("   Before: '\(beforeDisplayMath)'")
+            print("   After:  '\(processed)'")
+        }
+        
+        // Step 2: Convert inline math \( ... \) to clean format
+        let beforeInlineMath = processed
+        processed = processed.replacingOccurrences(
+            of: "\\\\\\(([^\\)]*?)\\\\\\)",
+            with: "$1",
+            options: .regularExpression
+        )
+        if beforeInlineMath != processed {
+            print("🔄 Step 2 - Inline math conversion:")
+            print("   Before: '\(beforeInlineMath)'")
+            print("   After:  '\(processed)'")
+        }
+        
+        // Step 3: Convert common LaTeX symbols to Unicode equivalents
+        let mathSymbols: [String: String] = [
+            "\\\\frac\\{([^}]+)\\}\\{([^}]+)\\}": "($1)/($2)",
+            "\\\\sqrt\\{([^}]+)\\}": "√($1)",
+            "\\\\pm": "±",
+            "\\\\cdot": "·",
+            "\\\\times": "×",
+            "\\\\div": "÷",
+            "\\\\leq": "≤",
+            "\\\\geq": "≥",
+            "\\\\neq": "≠",
+            "\\\\approx": "≈",
+            "\\\\infty": "∞",
+            "x\\^2": "x²",
+            "x\\^3": "x³",
+            "\\^2": "²",
+            "\\^3": "³"
+        ]
+        
+        for (pattern, replacement) in mathSymbols {
+            let beforeSymbol = processed
+            processed = processed.replacingOccurrences(
+                of: pattern,
+                with: replacement,
+                options: .regularExpression
+            )
+            if beforeSymbol != processed {
+                print("🔄 Step 3 - Symbol conversion (\(pattern)):")
+                print("   Before: '\(beforeSymbol)'")
+                print("   After:  '\(processed)'")
+            }
+        }
+        
+        // Clean up remaining braces and backslashes
+        let beforeCleanup = processed
+        processed = processed.replacingOccurrences(of: "\\{", with: "")
+        processed = processed.replacingOccurrences(of: "\\}", with: "")
+        processed = processed.replacingOccurrences(of: "\\\\", with: "")
+        if beforeCleanup != processed {
+            print("🔄 Step 4 - Cleanup braces and backslashes:")
+            print("   Before: '\(beforeCleanup)'")
+            print("   After:  '\(processed)'")
+        }
+        
+        print("✅ Post-processing complete")
+        print("📄 Final output: '\(processed)'")
+        print("📏 Final length: \(processed.count)")
+        print("🎯 === MATH RENDERING TOOL: Plain Text with LaTeX Post-Processing ===")
+        print("🛠️ Tool Details:")
+        print("   - Renderer: SwiftUI Text view")
+        print("   - Post-processor: LaTeXPostProcessor")
+        print("   - Math symbols: Unicode conversion")
+        print("   - Layout: .fixedSize(horizontal: false, vertical: true)")
+        print("   - Selection: .textSelection(.enabled)")
+        print("=======================================================")
+        
+        return processed
+    }
+    
+    /// Detect if text contains LaTeX that needs post-processing
+    func needsPostProcessing(_ text: String) -> Bool {
+        let patterns = [
+            "\\\\\\[", "\\\\\\]", // Display math \[ \]
+            "\\\\\\(", "\\\\\\)", // Inline math \( \)
+            "\\\\\\\\frac", "\\\\\\\\sqrt", // Double-escaped commands
+        ]
+        
+        for pattern in patterns {
+            if text.range(of: pattern, options: .regularExpression) != nil {
+                return true
+            }
+        }
+        
+        return false
+    }
+}
+
+/// Enhanced math renderer using AttributedString for better formatting
+struct EnhancedMathText: View {
     let text: String
     let fontSize: CGFloat
     
@@ -19,53 +167,94 @@ struct SimpleMathText: View {
     }
     
     var body: some View {
-        Text(formatMathText(text))
-            .font(.system(size: fontSize, design: .monospaced))
+        Text(createAttributedText())
             .multilineTextAlignment(.leading)
+    }
+    
+    private func createAttributedText() -> AttributedString {
+        var attributedText = AttributedString(formatMathText(text))
+        
+        // Apply base font to entire text
+        attributedText.font = .system(size: fontSize)
+        
+        // Simple enhancement: make the entire text slightly larger if it contains math symbols
+        let mathSymbols = ["√", "±", "≤", "≥", "≠", "≈", "∞", "π", "α", "β", "γ", "θ", "="]
+        let containsMath = mathSymbols.contains { symbol in
+            attributedText.characters.contains(symbol)
+        }
+        
+        if containsMath {
+            // Apply math styling to entire text if it contains math
+            attributedText.font = .system(size: fontSize + 1, weight: .medium, design: .monospaced)
+            attributedText.foregroundColor = .primary
+        }
+        
+        return attributedText
     }
     
     private func formatMathText(_ input: String) -> String {
         var formatted = input
         
-        // Convert common math symbols
-        formatted = formatted.replacingOccurrences(of: "+-", with: "±")
-        formatted = formatted.replacingOccurrences(of: "<=", with: "≤")
-        formatted = formatted.replacingOccurrences(of: ">=", with: "≥")
-        formatted = formatted.replacingOccurrences(of: "!=", with: "≠")
-        formatted = formatted.replacingOccurrences(of: "sqrt", with: "√")
-        formatted = formatted.replacingOccurrences(of: "pi", with: "π")
-        formatted = formatted.replacingOccurrences(of: "alpha", with: "α")
-        formatted = formatted.replacingOccurrences(of: "beta", with: "β")
-        formatted = formatted.replacingOccurrences(of: "gamma", with: "γ")
-        formatted = formatted.replacingOccurrences(of: "theta", with: "θ")
-        formatted = formatted.replacingOccurrences(of: "infinity", with: "∞")
+        // Better LaTeX conversion
+        formatted = formatted.replacingOccurrences(of: "\\[", with: "\n\n")
+        formatted = formatted.replacingOccurrences(of: "\\]", with: "\n\n")
+        formatted = formatted.replacingOccurrences(of: "\\(", with: "")
+        formatted = formatted.replacingOccurrences(of: "\\)", with: "")
         
-        // Format fractions (a/b -> a/b with better spacing)
+        // Improved fraction handling
         formatted = formatted.replacingOccurrences(
-            of: "(\\d+)/(\\d+)",
-            with: "$1⁄$2",
+            of: "\\\\frac\\{([^}]+)\\}\\{([^}]+)\\}",
+            with: "($1)/($2)",
             options: .regularExpression
         )
         
-        // Format exponents (basic superscript)
-        formatted = formatted.replacingOccurrences(of: "^2", with: "²")
-        formatted = formatted.replacingOccurrences(of: "^3", with: "³")
-        formatted = formatted.replacingOccurrences(of: "^n", with: "ⁿ")
+        // Better square root handling
+        formatted = formatted.replacingOccurrences(
+            of: "\\\\sqrt\\{([^}]+)\\}",
+            with: "√($1)",
+            options: .regularExpression
+        )
         
-        // Format subscripts
-        formatted = formatted.replacingOccurrences(of: "_1", with: "₁")
-        formatted = formatted.replacingOccurrences(of: "_2", with: "₂")
-        formatted = formatted.replacingOccurrences(of: "_n", with: "ₙ")
+        // LaTeX symbols to Unicode
+        let latexToUnicode = [
+            "\\\\pm": "±",
+            "\\\\cdot": "·",
+            "\\\\times": "×",
+            "\\\\div": "÷",
+            "\\\\leq": "≤",
+            "\\\\geq": "≥",
+            "\\\\neq": "≠",
+            "\\\\approx": "≈",
+            "\\\\infty": "∞",
+            "\\\\pi": "π",
+            "\\\\alpha": "α",
+            "\\\\beta": "β",
+            "\\\\gamma": "γ",
+            "\\\\theta": "θ"
+        ]
+        
+        for (latex, unicode) in latexToUnicode {
+            formatted = formatted.replacingOccurrences(of: latex, with: unicode)
+        }
+        
+        // Clean up remaining braces
+        formatted = formatted.replacingOccurrences(of: "{", with: "")
+        formatted = formatted.replacingOccurrences(of: "}", with: "")
+        
+        // Superscript conversion
+        let superscripts = ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"]
+        for (index, sup) in superscripts.enumerated() {
+            formatted = formatted.replacingOccurrences(of: "^\\(index)", with: sup)
+        }
         
         return formatted
     }
 }
 
-/// Enhanced version that combines WebKit rendering with fallback
-struct SmartMathText: View {
+/// Smart Math Text with post-processing and reliable rendering
+struct SmartMathRenderer: View {
     let content: String
     let fontSize: CGFloat
-    @State private var useSimpleRenderer = false
     
     init(_ content: String, fontSize: CGFloat = 16) {
         self.content = content
@@ -73,20 +262,15 @@ struct SmartMathText: View {
     }
     
     var body: some View {
-        Group {
-            if useSimpleRenderer || !MathFormattingService.shared.containsMathExpressions(content) {
-                SimpleMathText(content, fontSize: fontSize)
-            } else {
-                MathFormattedText(content, fontSize: fontSize)
-                    .onAppear {
-                        // Fallback to simple renderer if WebKit fails
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            // This is a simple heuristic - in practice you'd detect WebKit failures
-                            // For now, we'll use the WebKit version
-                        }
-                    }
+        let processedContent = LaTeXPostProcessor.shared.processAIOutput(content)
+        
+        // Use the original MathFormattedText with post-processed content
+        MathFormattedText(processedContent, fontSize: fontSize)
+            .onAppear {
+                if LaTeXPostProcessor.shared.needsPostProcessing(content) {
+                    print("🔄 Applied LaTeX post-processing to message")
+                }
             }
-        }
     }
 }
 
@@ -111,5 +295,80 @@ extension MathFormattingService {
         }
         
         return containsMathExpressions(text)
+    }
+}
+
+/// Simple Math Renderer for reliable math display without WebView dependencies
+class SimpleMathRenderer {
+    static func renderMathText(_ input: String) -> String {
+        print("🧮 === SIMPLE MATH RENDERER DEBUG ===")
+        print("📄 Input: '\(input)'")
+        
+        var rendered = input
+        
+        // Remove LaTeX delimiters first
+        rendered = rendered.replacingOccurrences(of: "\\[", with: "")
+        rendered = rendered.replacingOccurrences(of: "\\]", with: "")
+        rendered = rendered.replacingOccurrences(of: "\\(", with: "")
+        rendered = rendered.replacingOccurrences(of: "\\)", with: "")
+        
+        // Convert LaTeX commands to Unicode
+        let conversions: [String: String] = [
+            // Fractions
+            "\\\\frac\\{([^}]+)\\}\\{([^}]+)\\}": "($1)/($2)",
+            
+            // Square roots
+            "\\\\sqrt\\{([^}]+)\\}": "√($1)",
+            
+            // Math operators
+            "\\\\cdot": "·",
+            "\\\\times": "×",
+            "\\\\div": "÷",
+            "\\\\pm": "±",
+            
+            // Inequalities
+            "\\\\leq": "≤",
+            "\\\\geq": "≥",
+            "\\\\neq": "≠",
+            "\\\\approx": "≈",
+            
+            // Special symbols
+            "\\\\infty": "∞",
+            "\\\\pi": "π",
+            "\\\\alpha": "α",
+            "\\\\beta": "β",
+            "\\\\gamma": "γ",
+            "\\\\theta": "θ",
+            
+            // Exponents (convert to superscript)
+            "\\^2": "²",
+            "\\^3": "³",
+            "\\^\\{2\\}": "²",
+            "\\^\\{3\\}": "³",
+            "\\^\\{([0-9])\\}": "^$1",
+            
+            // Clean up remaining braces and backslashes
+            "\\{": "",
+            "\\}": "",
+            "\\\\": ""
+        ]
+        
+        for (pattern, replacement) in conversions {
+            let beforeConversion = rendered
+            rendered = rendered.replacingOccurrences(
+                of: pattern,
+                with: replacement,
+                options: .regularExpression
+            )
+            if beforeConversion != rendered {
+                print("🔄 Converted '\(pattern)' -> '\(replacement)'")
+                print("   Result: '\(rendered)'")
+            }
+        }
+        
+        print("✅ Final rendered text: '\(rendered)'")
+        print("=====================================")
+        
+        return rendered
     }
 }

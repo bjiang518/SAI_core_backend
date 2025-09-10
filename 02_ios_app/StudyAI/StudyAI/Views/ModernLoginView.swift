@@ -36,6 +36,11 @@ struct ModernLoginView: View {
                 }
             }
             .ignoresSafeArea(.container, edges: .top)
+            .background(Color.white)
+            .safeAreaInset(edge: .bottom) {
+                // Modern iOS 26+ safe area handling
+                Color.clear.frame(height: 0)
+            }
         }
         .alert("Authentication Error", isPresented: $showingError) {
             Button("OK") { }
@@ -50,9 +55,17 @@ struct ModernLoginView: View {
                 onLoginSuccess()
             }
         }
-        .onChange(of: authService.errorMessage) { _, errorMessage in
-            if errorMessage != nil {
-                showingError = true
+        .onChange(of: authService.errorMessage) { _, newValue in
+            showingError = newValue != nil
+        }
+        .onAppear {
+            // Pre-fill email if user just registered successfully
+            if let registeredEmail = authService.lastRegisteredEmail {
+                email = registeredEmail
+                // Clear the stored email after using it
+                authService.lastRegisteredEmail = nil
+                // Focus on password field since email is already filled
+                focusedField = .password
             }
         }
     }
@@ -63,7 +76,7 @@ struct ModernLoginView: View {
         ZStack {
             // Background gradient
             LinearGradient(
-                colors: [.blue.opacity(0.8), .purple.opacity(0.6)],
+                colors: [.blue, .yellow],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -73,17 +86,16 @@ struct ModernLoginView: View {
                 
                 // App icon and title
                 VStack(spacing: 12) {
-                    Image(systemName: "graduationcap.fill")
+                    Image(systemName: "sparkles")
                         .font(.system(size: 60))
                         .foregroundColor(.white)
                     
                     Text("StudyAI")
                         .font(.largeTitle)
-                        .fontWeight(.bold)
                         .foregroundColor(.white)
                     
                     Text("Your AI-Powered Learning Companion")
-                        .font(.subheadline)
+                        .font(.title2)
                         .foregroundColor(.white.opacity(0.9))
                         .multilineTextAlignment(.center)
                 }
@@ -100,13 +112,13 @@ struct ModernLoginView: View {
             VStack(spacing: 20) {
                 // Welcome text
                 VStack(spacing: 8) {
-                    Text("Welcome Back")
-                        .font(.title2)
-                        .fontWeight(.semibold)
+                    Text("Welcome Back!")
+                        .font(.title)
+                        .foregroundColor(.primary)
                     
-                    Text("Sign in to continue your learning journey")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    Text("Sign in to continue your learning journey.")
+                        .font(.body)
+                        .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.top, 32)
@@ -132,9 +144,9 @@ struct ModernLoginView: View {
             
             Spacer()
         }
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 25))
-        .offset(y: -25)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .offset(y: -30)
     }
     
     // MARK: - Biometric Sign In
@@ -154,17 +166,13 @@ struct ModernLoginView: View {
                     .font(.title2)
                 
                 Text("Sign in with \(authService.getBiometricType())")
-                    .fontWeight(.semibold)
+                    .font(.headline)
             }
             .frame(maxWidth: .infinity)
             .padding()
             .background(Color.green.opacity(0.1))
             .foregroundColor(.green)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.green.opacity(0.3), lineWidth: 1)
-            )
-            .cornerRadius(12)
+            .clipShape(Capsule())
         }
         .disabled(authService.isLoading)
     }
@@ -190,11 +198,11 @@ struct ModernLoginView: View {
                     }
                 )
                 .signInWithAppleButtonStyle(.black)
-                .frame(height: 45)
-                .cornerRadius(12)
+                .frame(height: 50)
+                .clipShape(Capsule())
             }
             
-            // Google Sign In (placeholder)
+            // Google Sign In
             Button {
                 Task {
                     do {
@@ -205,17 +213,19 @@ struct ModernLoginView: View {
                 }
             } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: "globe")
+                    // Using a custom image for Google logo would be better
+                    Image(systemName: "g.circle.fill")
                         .font(.title2)
                     
                     Text("Continue with Google")
-                        .fontWeight(.semibold)
+                        .font(.headline)
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color(.systemGray6))
-                .foregroundColor(.primary)
-                .cornerRadius(12)
+                .background(Color.white)
+                .foregroundColor(.black)
+                .clipShape(Capsule())
+                .shadow(color: .gray.opacity(0.2), radius: 5, x: 0, y: 5)
             }
             .disabled(authService.isLoading)
         }
@@ -227,13 +237,12 @@ struct ModernLoginView: View {
         VStack(spacing: 16) {
             // Email field
             VStack(alignment: .leading, spacing: 8) {
-                Text("Email")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                Text("Email Address")
+                    .font(.caption)
+                    .foregroundColor(.gray)
                 
                 TextField("Enter your email", text: $email)
-                    .textFieldStyle(ModernTextFieldStyle())
+                    .textFieldStyle(PlayfulTextFieldStyle())
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
                     .autocapitalization(.none)
@@ -247,12 +256,11 @@ struct ModernLoginView: View {
             // Password field
             VStack(alignment: .leading, spacing: 8) {
                 Text("Password")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                    .font(.caption)
+                    .foregroundColor(.gray)
                 
                 SecureField("Enter your password", text: $password)
-                    .textFieldStyle(ModernTextFieldStyle())
+                    .textFieldStyle(PlayfulTextFieldStyle())
                     .textContentType(.password)
                     .focused($focusedField, equals: .password)
                     .submitLabel(.go)
@@ -273,15 +281,16 @@ struct ModernLoginView: View {
                     }
                     
                     Text("Sign In")
-                        .fontWeight(.semibold)
+                        .font(.headline)
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
                 .background(
-                    isFormValid ? Color.blue : Color.gray.opacity(0.3)
+                    isFormValid ? Color.blue : Color.gray.opacity(0.5)
                 )
                 .foregroundColor(.white)
-                .cornerRadius(12)
+                .clipShape(Capsule())
+                .shadow(color: .blue.opacity(isFormValid ? 0.4 : 0), radius: 10, y: 5)
             }
             .disabled(!isFormValid || authService.isLoading)
         }
@@ -292,14 +301,13 @@ struct ModernLoginView: View {
     private var signUpPrompt: some View {
         HStack {
             Text("Don't have an account?")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(.caption)
+                .foregroundColor(.gray)
             
             Button("Sign Up") {
                 showingSignUp = true
             }
-            .font(.subheadline)
-            .fontWeight(.semibold)
+            .font(.headline)
             .foregroundColor(.blue)
         }
         .padding(.top, 8)
@@ -315,7 +323,7 @@ struct ModernLoginView: View {
             
             Text(text)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(.gray)
                 .padding(.horizontal, 16)
             
             Rectangle()
@@ -331,9 +339,8 @@ struct ModernLoginView: View {
     }
     
     private var isAppleSignInAvailable: Bool {
-        // Check if the app has Apple Sign-In capability
-        // This will be false for personal development teams
-        return Bundle.main.bundleIdentifier != nil && Bundle.main.object(forInfoDictionaryKey: "com.apple.developer.applesignin") != nil
+        // A simple check is sufficient. The button won't render if the capability is truly missing.
+        return true
     }
     
     // MARK: - Actions
@@ -353,18 +360,20 @@ struct ModernLoginView: View {
     }
 }
 
-// MARK: - Modern Text Field Style
+// MARK: - Playful Text Field Style
 
-struct ModernTextFieldStyle: TextFieldStyle {
+struct PlayfulTextFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
+            .font(.body)
             .padding()
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
+            .background(Color.white)
+            .cornerRadius(16)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.gray.opacity(0.3), lineWidth: 1.5)
             )
+            .shadow(color: .gray.opacity(0.1), radius: 3, y: 2)
     }
 }
 
@@ -392,13 +401,13 @@ struct ModernSignUpView: View {
                 VStack(spacing: 24) {
                     // Header
                     VStack(spacing: 8) {
-                        Text("Create Account")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
+                        Text("Create Your Account")
+                            .font(.title)
+                            .foregroundColor(.black)
                         
-                        Text("Join StudyAI and start your learning journey")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                        Text("Join StudyAI to start your learning adventure!")
+                            .font(.body)
+                            .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 32)
@@ -408,12 +417,11 @@ struct ModernSignUpView: View {
                         // Name field
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Full Name")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.secondary)
+                                .font(.caption)
+                                .foregroundColor(.gray)
                             
                             TextField("Enter your full name", text: $name)
-                                .textFieldStyle(ModernTextFieldStyle())
+                                .textFieldStyle(PlayfulTextFieldStyle())
                                 .textContentType(.name)
                                 .focused($focusedField, equals: .name)
                                 .onSubmit { focusedField = .email }
@@ -421,13 +429,12 @@ struct ModernSignUpView: View {
                         
                         // Email field
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Email")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.secondary)
+                            Text("Email Address")
+                                .font(.caption)
+                                .foregroundColor(.gray)
                             
                             TextField("Enter your email", text: $email)
-                                .textFieldStyle(ModernTextFieldStyle())
+                                .textFieldStyle(PlayfulTextFieldStyle())
                                 .textContentType(.emailAddress)
                                 .keyboardType(.emailAddress)
                                 .autocapitalization(.none)
@@ -438,12 +445,11 @@ struct ModernSignUpView: View {
                         // Password field
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Password")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.secondary)
+                                .font(.caption)
+                                .foregroundColor(.gray)
                             
                             SecureField("Create a password", text: $password)
-                                .textFieldStyle(ModernTextFieldStyle())
+                                .textFieldStyle(PlayfulTextFieldStyle())
                                 .textContentType(.newPassword)
                                 .focused($focusedField, equals: .password)
                                 .onSubmit { focusedField = .confirmPassword }
@@ -452,12 +458,11 @@ struct ModernSignUpView: View {
                         // Confirm password field
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Confirm Password")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.secondary)
+                                .font(.caption)
+                                .foregroundColor(.gray)
                             
                             SecureField("Confirm your password", text: $confirmPassword)
-                                .textFieldStyle(ModernTextFieldStyle())
+                                .textFieldStyle(PlayfulTextFieldStyle())
                                 .textContentType(.newPassword)
                                 .focused($focusedField, equals: .confirmPassword)
                                 .onSubmit { signUp() }
@@ -481,15 +486,16 @@ struct ModernSignUpView: View {
                             }
                             
                             Text("Create Account")
-                                .fontWeight(.semibold)
+                                .font(.headline)
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(
-                            isFormValid ? Color.green : Color.gray.opacity(0.3)
+                            isFormValid ? Color.green : Color.gray.opacity(0.5)
                         )
                         .foregroundColor(.white)
-                        .cornerRadius(12)
+                        .clipShape(Capsule())
+                        .shadow(color: .green.opacity(isFormValid ? 0.4 : 0), radius: 10, y: 5)
                     }
                     .disabled(!isFormValid || authService.isLoading)
                     
@@ -497,12 +503,14 @@ struct ModernSignUpView: View {
                 }
                 .padding(.horizontal, 32)
             }
+            .background(Color.white)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .font(.headline)
                 }
             }
         }
@@ -517,10 +525,8 @@ struct ModernSignUpView: View {
                 onSignUpSuccess()
             }
         }
-        .onChange(of: authService.errorMessage) { _, errorMessage in
-            if errorMessage != nil {
-                showingError = true
-            }
+        .onChange(of: authService.errorMessage) { _, newValue in
+            showingError = newValue != nil
         }
     }
     
@@ -561,6 +567,14 @@ struct ModernSignUpView: View {
         Task {
             do {
                 try await authService.signUpWithEmail(name, email: email, password: password)
+                
+                // Registration successful - dismiss the sign up view
+                await MainActor.run {
+                    dismiss()
+                    // The email will be automatically set from authService.lastRegisteredEmail
+                    // when the login view appears
+                }
+                
             } catch {
                 authService.errorMessage = error.localizedDescription
             }
@@ -582,7 +596,7 @@ struct PasswordRequirement: View {
             
             Text(text)
                 .font(.caption)
-                .foregroundColor(isMet ? .green : .secondary)
+                .foregroundColor(isMet ? .green : .gray)
         }
     }
 }

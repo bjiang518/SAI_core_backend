@@ -529,20 +529,39 @@ struct MathFormattedText: View {
                         Text(text)
                             .font(.system(size: fontSize))
                             .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 case .math(let equation):
-                    MathEquationView(equation, fontSize: fontSize)
+                    // Use fallback text rendering instead of WebView for better reliability
+                    Text(SimpleMathRenderer.renderMathText(equation))
+                        .font(.system(size: fontSize, design: .monospaced))
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(8)
                         .frame(minHeight: 40)
+                        .onAppear {
+                            print("🧮 Rendering math: '\(equation)' -> '\(SimpleMathRenderer.renderMathText(equation))'")
+                        }
                 }
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
         .onAppear {
-            // Debug: Test a few sample LaTeX expressions when view appears
-            if content.contains("\\") {
-                print("🧪 === RUNNING DEBUG TESTS ===")
-                MathFormattingService.shared.debugMathDetection("\\[ 1 < \\sqrt{3} < 2 \\]")
-                MathFormattingService.shared.debugMathDetection("1.5^2 = 2.25")
-                MathFormattingService.shared.debugMathDetection("Now, try 1.7:")
+            // Debug: Show the actual content being processed for this message
+            if content.contains("\\") || content.contains("equation") || content.contains("=") {
+                print("🧪 === MATH RENDERING DEBUG FOR CURRENT MESSAGE ===")
+                print("📄 Message content: '\(content)'")
+                print("📊 Components created: \(components.count)")
+                for (index, component) in components.enumerated() {
+                    switch component {
+                    case .text(let text):
+                        print("📝 Component \(index): TEXT - '\(text.prefix(50))'")
+                    case .math(let equation):
+                        print("🧮 Component \(index): MATH - '\(equation.prefix(50))'")
+                    }
+                }
+                print("================================================")
             }
         }
     }

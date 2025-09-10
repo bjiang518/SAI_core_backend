@@ -16,17 +16,22 @@ class RailwayArchiveService: ObservableObject {
     
     private init() {}
     
-    // Get current user ID (same logic as before)
-    private var currentUserId: String? {
-        return UserDefaults.standard.string(forKey: "user_email")
+    // Get authentication token from AuthenticationService
+    private var authToken: String? {
+        return AuthenticationService.shared.getAuthToken()
     }
     
     // MARK: - Archive Session
     
     func archiveSession(_ request: ArchiveSessionRequest) async throws -> ArchivedSession {
-        guard let userId = currentUserId else {
+        guard let token = authToken else {
             throw ArchiveError.notAuthenticated
         }
+        
+        guard let currentUser = AuthenticationService.shared.currentUser else {
+            throw ArchiveError.notAuthenticated
+        }
+        let userId = currentUser.id
         
         print("📁 Archiving session via Railway backend...")
         print("📚 Subject: \(request.subject)")
@@ -65,7 +70,7 @@ class RailwayArchiveService: ObservableObject {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue(userId, forHTTPHeaderField: "X-User-ID") // Send user ID in header
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestData)
         
@@ -106,7 +111,7 @@ class RailwayArchiveService: ObservableObject {
     // MARK: - Fetch Archived Sessions
     
     func fetchArchivedSessions(limit: Int = 50, offset: Int = 0) async throws -> [SessionSummary] {
-        guard let userId = currentUserId else {
+        guard let token = authToken else {
             throw ArchiveError.notAuthenticated
         }
         
@@ -125,7 +130,7 @@ class RailwayArchiveService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(userId, forHTTPHeaderField: "X-User-ID")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -152,7 +157,7 @@ class RailwayArchiveService: ObservableObject {
     // MARK: - Fetch by Subject
     
     func fetchSessionsBySubject(_ subject: String) async throws -> [SessionSummary] {
-        guard let userId = currentUserId else {
+        guard let token = authToken else {
             throw ArchiveError.notAuthenticated
         }
         
@@ -169,7 +174,7 @@ class RailwayArchiveService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(userId, forHTTPHeaderField: "X-User-ID")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -191,7 +196,7 @@ class RailwayArchiveService: ObservableObject {
     // MARK: - Get Full Session Details
     
     func getSessionDetails(sessionId: String) async throws -> ArchivedSession {
-        guard let userId = currentUserId else {
+        guard let token = authToken else {
             throw ArchiveError.notAuthenticated
         }
         
@@ -202,7 +207,7 @@ class RailwayArchiveService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(userId, forHTTPHeaderField: "X-User-ID")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -227,7 +232,7 @@ class RailwayArchiveService: ObservableObject {
     // MARK: - Update Review Count
     
     func incrementReviewCount(sessionId: String) async throws {
-        guard let userId = currentUserId else {
+        guard let token = authToken else {
             throw ArchiveError.notAuthenticated
         }
         
@@ -238,7 +243,7 @@ class RailwayArchiveService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "PATCH"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(userId, forHTTPHeaderField: "X-User-ID")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let (_, response) = try await URLSession.shared.data(for: request)
         
@@ -251,7 +256,7 @@ class RailwayArchiveService: ObservableObject {
     // MARK: - Get Statistics
     
     func getArchiveStatistics() async throws -> ArchiveStatistics {
-        guard let userId = currentUserId else {
+        guard let token = authToken else {
             throw ArchiveError.notAuthenticated
         }
         
@@ -262,7 +267,7 @@ class RailwayArchiveService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(userId, forHTTPHeaderField: "X-User-ID")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         

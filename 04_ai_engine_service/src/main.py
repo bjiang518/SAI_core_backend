@@ -349,6 +349,72 @@ async def get_personalization_profile(student_id: str):
         "recent_topics": ["quadratic_equations", "force_analysis"]
     }
 
+# Session Conversation Endpoint - NEW
+@app.post("/api/v1/sessions/{session_id}/message", response_model=SessionMessageResponse)
+async def process_session_message(
+    session_id: str, 
+    request: SessionMessageRequest, 
+    service_info = optional_service_auth()
+):
+    """
+    Process session-based conversation messages with conversation memory and advanced prompting.
+    
+    This endpoint is specifically designed for conversational AI tutoring sessions with:
+    - Conversation context and memory
+    - Session-specific personalization
+    - Enhanced prompting for educational conversations
+    - Consistent LaTeX formatting for iOS post-processing
+    - Conversation flow optimization
+    
+    Features different from simple question processing:
+    - Maintains conversation context across messages
+    - Uses conversational prompting strategies
+    - Optimized for back-and-forth tutoring sessions
+    - Enhanced mathematical formatting for mobile rendering
+    """
+    
+    import time
+    start_time = time.time()
+    
+    try:
+        # For now, we'll use a simplified approach since the gateway handles conversation history
+        # The gateway sends us the enhanced prompt with conversation context already included
+        
+        # Process the session message using our specialized session service
+        result = await ai_service.process_session_conversation(
+            session_id=session_id,
+            message=request.message,
+            image_data=request.image_data
+        )
+        
+        print(f"🔍 Session AI Service Result: {result}")
+        
+        if not result["success"]:
+            error_msg = result.get("error", "Session AI processing failed")
+            print(f"❌ Session AI Service Error: '{error_msg}'")
+            print(f"🔍 Full session result: {result}")
+            raise HTTPException(status_code=500, detail=error_msg if error_msg else "Session AI processing failed")
+        
+        # Calculate processing time
+        processing_time = int((time.time() - start_time) * 1000)
+        
+        return SessionMessageResponse(
+            session_id=session_id,
+            ai_response=result["answer"],
+            tokens_used=result.get("tokens_used", 0),
+            compressed=result.get("compressed", False)
+        )
+        
+    except Exception as e:
+        import traceback
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
+        print(f"❌ Session AI Engine Error: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Session AI Engine processing error: {str(e)} (Type: {type(e).__name__})")
+
 # Image Upload and Analysis Endpoint
 @app.post("/api/v1/analyze-image", response_model=ImageAnalysisResponse)
 async def analyze_image_content(

@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		7BAC87492E6ACD7A00AA148F /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 7BAC87482E6ACD7A00AA148F /* GoogleSignIn */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		7B9EC47B2E61663E005E4BFB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,31 +23,98 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXBuildFile section */
+		809124D3E9CF44C6A623DE31 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685F5AB0784E4EAEB6B58C7E /* ContentView.swift */; };
+		47661FA6102F43AE9462714A /* HomeworkModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06624CDF338947F0A3F8838D /* HomeworkModels.swift */; };
+		D87DBC4B66CF4F958C156B26 /* QuestionArchiveModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E2AD38EF0CF492393C1C87D /* QuestionArchiveModels.swift */; };
+		EF7FC57F2FF9428F9F262123 /* SessionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B496CCDDC9B5477581971035 /* SessionModels.swift */; };
+		6AAA1280DC3B4E05B19E67B6 /* VoiceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 740D132F82A14ABAA94D79CC /* VoiceModels.swift */; };
+		C42D5B1E2F9F422F898D739B /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ECE095FF4DB41A3B76FBE4F /* NetworkService.swift */; };
+		3CAC0FF7EDE94A0B9ACDC78F /* AuthenticationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBB6C78FB23E45A9AF19ECC9 /* AuthenticationService.swift */; };
+		8659331C2BF143DBB36C245F /* EnhancedHomeworkParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C87EE23BC3FC415E8AFB5C0A /* EnhancedHomeworkParser.swift */; };
+		0B6A2DF7A9ED4CCEBEABDB0A /* EnhancedTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC15A890FCE4881A878DD17 /* EnhancedTTSService.swift */; };
+		61B870B5050040DB9CEFA635 /* ImageEnhancer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5DB8369296B47A1A5BC7BF1 /* ImageEnhancer.swift */; };
+		6CBE355CB94942A4BCE01308 /* ImageProcessingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32BB536B35E943F1A8FB9571 /* ImageProcessingService.swift */; };
+		3A80D5B52F8146A1B97E0CC4 /* MathRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CECFC862D6EF46829F4A05A3 /* MathRenderer.swift */; };
+		D10DEB4AEF7548A0BC7A194F /* PerspectiveCorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D2C1B0980334724B73CC227 /* PerspectiveCorrector.swift */; };
+		495A344A96B74E8DA4253A7F /* QuestionArchiveService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AB173EA95EE4D1FBEAED03D /* QuestionArchiveService.swift */; };
+		DB5CF3C197754361B71BF918 /* QuestionSegmenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8357641D6957415C8C814D59 /* QuestionSegmenter.swift */; };
+		368449B00EC0466B89F7AFF6 /* RailwayArchiveService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A9A6742CCE4F3DB87AA7FD /* RailwayArchiveService.swift */; };
+		BBC5F8E4CA694EABAD6955A2 /* SimpleMathRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0011C726DB944E1CBD5D9102 /* SimpleMathRenderer.swift */; };
+		D3FB6347F13948AB873BE1F8 /* SpeechRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8405427D871C4C278BB1D075 /* SpeechRecognitionService.swift */; };
+		F650D062B9BD47CF8FB56CA7 /* SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D90BE85B6E443D192306734 /* SupabaseService.swift */; };
+		B67097AEC09C4CA4B5C82F10 /* TextToSpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18BF91BCEE9B4980BC643CB2 /* TextToSpeechService.swift */; };
+		9FF8A1F6F34E4BF786B5EAC3 /* VoiceInteractionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEAD0FA974974B559BA7B6B7 /* VoiceInteractionService.swift */; };
+		17B3328E16B94A21AFE789F7 /* StudyAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2372BC21FDF74404A73B6D30 /* StudyAIApp.swift */; };
+		5DD635C39794474298FD4766 /* AIHomeworkTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C5B92FDE0224FCA9F3A87CD /* AIHomeworkTestView.swift */; };
+		A823C26E80984911960B4AA1 /* ArchivedQuestionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D08428900147788147829E /* ArchivedQuestionsView.swift */; };
+		CBC9A72B2BBE4D5DB9556A4C /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 885943542F6749ACA3543873 /* CameraView.swift */; };
+		51E8895014244637989DCA32 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3007D1E356704A0C864FBEED /* HomeView.swift */; };
+		44D8DB9D1B4C4CFA8A59EB3D /* HomeworkResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C75C2233B72490A8E27CDEB /* HomeworkResultsView.swift */; };
+		73BEB15D842A4FB3B7E6B147 /* ImageCropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84F4782308454D1A98C2741E /* ImageCropView.swift */; };
+		E892C474DD7F4C22968FF06B /* ModernLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 377AB348C798453AB804B3A9 /* ModernLoginView.swift */; };
+		9176ED5BC1F44B7AB46499C4 /* NativeImageEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 311043C016B54E4B8B6BA163 /* NativeImageEditView.swift */; };
+		BBA36652115E4F419FE4EEEA /* ProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA451132738F4C03AC421E7D /* ProgressView.swift */; };
+		04A8227E20B44E2A9BB27336 /* QuestionArchiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4624BD01A8D5462385D269DE /* QuestionArchiveView.swift */; };
+		41384D26DC5E427FA23BC317 /* QuestionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47128702183F4DCBB17F067E /* QuestionView.swift */; };
+		762793B2FEB2456CA1FFD512 /* ScannedImageActionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8B9760D87F648899A6633CB /* ScannedImageActionView.swift */; };
+		E50F5FB6D0B84192B07AC6D4 /* SessionChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C25B8960EFF470BBE31F73A /* SessionChatView.swift */; };
+		A6AAD8B3B1CF457696752650 /* SessionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E13D4A8943284F528CD3C3C1 /* SessionDetailView.swift */; };
+		8F1EBFF4298743058E934595 /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3318992F2294A6DA7A14EB3 /* SessionHistoryView.swift */; };
+		C278552EF36F41E59A51F0FC /* UserProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D724DD29C2CD4B3AAC9114B6 /* UserProfileView.swift */; };
+		7DCD4D51FBF64F74AEA6A5C3 /* VoiceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03DB96F217C9458693CF5BDA /* VoiceSettingsView.swift */; };
+		2F704A14D92440C2A18F02EC /* ZoomedRegionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2575218B86324529B227C931 /* ZoomedRegionView.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		7B9EC46D2E61663B005E4BFB /* StudyAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StudyAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B9EC47A2E61663E005E4BFB /* StudyAITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StudyAITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B9EC4842E61663E005E4BFB /* StudyAIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StudyAIUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		
+		/* Swift Source Files */
+		685F5AB0784E4EAEB6B58C7E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/ContentView.swift; sourceTree = "<group>"; };
+		06624CDF338947F0A3F8838D /* HomeworkModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Models/HomeworkModels.swift; sourceTree = "<group>"; };
+		3E2AD38EF0CF492393C1C87D /* QuestionArchiveModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Models/QuestionArchiveModels.swift; sourceTree = "<group>"; };
+		B496CCDDC9B5477581971035 /* SessionModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Models/SessionModels.swift; sourceTree = "<group>"; };
+		740D132F82A14ABAA94D79CC /* VoiceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Models/VoiceModels.swift; sourceTree = "<group>"; };
+		1ECE095FF4DB41A3B76FBE4F /* NetworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/NetworkService.swift; sourceTree = "<group>"; };
+		DBB6C78FB23E45A9AF19ECC9 /* AuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/AuthenticationService.swift; sourceTree = "<group>"; };
+		C87EE23BC3FC415E8AFB5C0A /* EnhancedHomeworkParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/EnhancedHomeworkParser.swift; sourceTree = "<group>"; };
+		0AC15A890FCE4881A878DD17 /* EnhancedTTSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/EnhancedTTSService.swift; sourceTree = "<group>"; };
+		E5DB8369296B47A1A5BC7BF1 /* ImageEnhancer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/ImageEnhancer.swift; sourceTree = "<group>"; };
+		32BB536B35E943F1A8FB9571 /* ImageProcessingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/ImageProcessingService.swift; sourceTree = "<group>"; };
+		CECFC862D6EF46829F4A05A3 /* MathRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/MathRenderer.swift; sourceTree = "<group>"; };
+		9D2C1B0980334724B73CC227 /* PerspectiveCorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/PerspectiveCorrector.swift; sourceTree = "<group>"; };
+		0AB173EA95EE4D1FBEAED03D /* QuestionArchiveService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/QuestionArchiveService.swift; sourceTree = "<group>"; };
+		8357641D6957415C8C814D59 /* QuestionSegmenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/QuestionSegmenter.swift; sourceTree = "<group>"; };
+		E2A9A6742CCE4F3DB87AA7FD /* RailwayArchiveService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/RailwayArchiveService.swift; sourceTree = "<group>"; };
+		0011C726DB944E1CBD5D9102 /* SimpleMathRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/SimpleMathRenderer.swift; sourceTree = "<group>"; };
+		8405427D871C4C278BB1D075 /* SpeechRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/SpeechRecognitionService.swift; sourceTree = "<group>"; };
+		5D90BE85B6E443D192306734 /* SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/SupabaseService.swift; sourceTree = "<group>"; };
+		18BF91BCEE9B4980BC643CB2 /* TextToSpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/TextToSpeechService.swift; sourceTree = "<group>"; };
+		EEAD0FA974974B559BA7B6B7 /* VoiceInteractionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/VoiceInteractionService.swift; sourceTree = "<group>"; };
+		2372BC21FDF74404A73B6D30 /* StudyAIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/StudyAIApp.swift; sourceTree = "<group>"; };
+		1C5B92FDE0224FCA9F3A87CD /* AIHomeworkTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/AIHomeworkTestView.swift; sourceTree = "<group>"; };
+		27D08428900147788147829E /* ArchivedQuestionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/ArchivedQuestionsView.swift; sourceTree = "<group>"; };
+		885943542F6749ACA3543873 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/CameraView.swift; sourceTree = "<group>"; };
+		3007D1E356704A0C864FBEED /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/HomeView.swift; sourceTree = "<group>"; };
+		4C75C2233B72490A8E27CDEB /* HomeworkResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/HomeworkResultsView.swift; sourceTree = "<group>"; };
+		84F4782308454D1A98C2741E /* ImageCropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/ImageCropView.swift; sourceTree = "<group>"; };
+		377AB348C798453AB804B3A9 /* ModernLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/ModernLoginView.swift; sourceTree = "<group>"; };
+		311043C016B54E4B8B6BA163 /* NativeImageEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/NativeImageEditView.swift; sourceTree = "<group>"; };
+		EA451132738F4C03AC421E7D /* ProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/ProgressView.swift; sourceTree = "<group>"; };
+		4624BD01A8D5462385D269DE /* QuestionArchiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/QuestionArchiveView.swift; sourceTree = "<group>"; };
+		47128702183F4DCBB17F067E /* QuestionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/QuestionView.swift; sourceTree = "<group>"; };
+		A8B9760D87F648899A6633CB /* ScannedImageActionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/ScannedImageActionView.swift; sourceTree = "<group>"; };
+		6C25B8960EFF470BBE31F73A /* SessionChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/SessionChatView.swift; sourceTree = "<group>"; };
+		E13D4A8943284F528CD3C3C1 /* SessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/SessionDetailView.swift; sourceTree = "<group>"; };
+		B3318992F2294A6DA7A14EB3 /* SessionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/SessionHistoryView.swift; sourceTree = "<group>"; };
+		D724DD29C2CD4B3AAC9114B6 /* UserProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/UserProfileView.swift; sourceTree = "<group>"; };
+		03DB96F217C9458693CF5BDA /* VoiceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/VoiceSettingsView.swift; sourceTree = "<group>"; };
+		2575218B86324529B227C931 /* ZoomedRegionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/ZoomedRegionView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		7BAC874B2E6ACE0200AA148F /* Exceptions for "StudyAI" folder in "StudyAI" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 7B9EC46C2E61663B005E4BFB /* StudyAI */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		7B9EC46F2E61663B005E4BFB /* StudyAI */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				7BAC874B2E6ACE0200AA148F /* Exceptions for "StudyAI" folder in "StudyAI" target */,
-			);
-			path = StudyAI;
-			sourceTree = "<group>";
-		};
 		7B9EC47D2E61663E005E4BFB /* StudyAITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = StudyAITests;
@@ -69,7 +132,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7BAC87492E6ACD7A00AA148F /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -93,10 +155,8 @@
 		7B9EC4642E61663B005E4BFB = {
 			isa = PBXGroup;
 			children = (
-				7B9EC46F2E61663B005E4BFB /* StudyAI */,
 				7B9EC47D2E61663E005E4BFB /* StudyAITests */,
 				7B9EC4872E61663E005E4BFB /* StudyAIUITests */,
-				7BAC87472E6ACD7A00AA148F /* Frameworks */,
 				7B9EC46E2E61663B005E4BFB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -109,13 +169,6 @@
 				7B9EC4842E61663E005E4BFB /* StudyAIUITests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		7BAC87472E6ACD7A00AA148F /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -133,12 +186,8 @@
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				7B9EC46F2E61663B005E4BFB /* StudyAI */,
-			);
 			name = StudyAI;
 			packageProductDependencies = (
-				7BAC87482E6ACD7A00AA148F /* GoogleSignIn */,
 			);
 			productName = StudyAI;
 			productReference = 7B9EC46D2E61663B005E4BFB /* StudyAI.app */;
@@ -222,9 +271,6 @@
 			);
 			mainGroup = 7B9EC4642E61663B005E4BFB;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				7BAC87422E6AC82C00AA148F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
-			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7B9EC46E2E61663B005E4BFB /* Products */;
 			projectDirPath = "";
@@ -266,6 +312,46 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				809124D3E9CF44C6A623DE31 /* ContentView.swift in Sources */,
+				47661FA6102F43AE9462714A /* HomeworkModels.swift in Sources */,
+				D87DBC4B66CF4F958C156B26 /* QuestionArchiveModels.swift in Sources */,
+				EF7FC57F2FF9428F9F262123 /* SessionModels.swift in Sources */,
+				6AAA1280DC3B4E05B19E67B6 /* VoiceModels.swift in Sources */,
+				C42D5B1E2F9F422F898D739B /* NetworkService.swift in Sources */,
+				3CAC0FF7EDE94A0B9ACDC78F /* AuthenticationService.swift in Sources */,
+				8659331C2BF143DBB36C245F /* EnhancedHomeworkParser.swift in Sources */,
+				0B6A2DF7A9ED4CCEBEABDB0A /* EnhancedTTSService.swift in Sources */,
+				61B870B5050040DB9CEFA635 /* ImageEnhancer.swift in Sources */,
+				6CBE355CB94942A4BCE01308 /* ImageProcessingService.swift in Sources */,
+				3A80D5B52F8146A1B97E0CC4 /* MathRenderer.swift in Sources */,
+				D10DEB4AEF7548A0BC7A194F /* PerspectiveCorrector.swift in Sources */,
+				495A344A96B74E8DA4253A7F /* QuestionArchiveService.swift in Sources */,
+				DB5CF3C197754361B71BF918 /* QuestionSegmenter.swift in Sources */,
+				368449B00EC0466B89F7AFF6 /* RailwayArchiveService.swift in Sources */,
+				BBC5F8E4CA694EABAD6955A2 /* SimpleMathRenderer.swift in Sources */,
+				D3FB6347F13948AB873BE1F8 /* SpeechRecognitionService.swift in Sources */,
+				F650D062B9BD47CF8FB56CA7 /* SupabaseService.swift in Sources */,
+				B67097AEC09C4CA4B5C82F10 /* TextToSpeechService.swift in Sources */,
+				9FF8A1F6F34E4BF786B5EAC3 /* VoiceInteractionService.swift in Sources */,
+				17B3328E16B94A21AFE789F7 /* StudyAIApp.swift in Sources */,
+				5DD635C39794474298FD4766 /* AIHomeworkTestView.swift in Sources */,
+				A823C26E80984911960B4AA1 /* ArchivedQuestionsView.swift in Sources */,
+				CBC9A72B2BBE4D5DB9556A4C /* CameraView.swift in Sources */,
+				51E8895014244637989DCA32 /* HomeView.swift in Sources */,
+				44D8DB9D1B4C4CFA8A59EB3D /* HomeworkResultsView.swift in Sources */,
+				73BEB15D842A4FB3B7E6B147 /* ImageCropView.swift in Sources */,
+				E892C474DD7F4C22968FF06B /* ModernLoginView.swift in Sources */,
+				9176ED5BC1F44B7AB46499C4 /* NativeImageEditView.swift in Sources */,
+				BBA36652115E4F419FE4EEEA /* ProgressView.swift in Sources */,
+				04A8227E20B44E2A9BB27336 /* QuestionArchiveView.swift in Sources */,
+				41384D26DC5E427FA23BC317 /* QuestionView.swift in Sources */,
+				762793B2FEB2456CA1FFD512 /* ScannedImageActionView.swift in Sources */,
+				E50F5FB6D0B84192B07AC6D4 /* SessionChatView.swift in Sources */,
+				A6AAD8B3B1CF457696752650 /* SessionDetailView.swift in Sources */,
+				8F1EBFF4298743058E934595 /* SessionHistoryView.swift in Sources */,
+				C278552EF36F41E59A51F0FC /* UserProfileView.swift in Sources */,
+				7DCD4D51FBF64F74AEA6A5C3 /* VoiceSettingsView.swift in Sources */,
+				2F704A14D92440C2A18F02EC /* ZoomedRegionView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -352,7 +438,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -410,7 +496,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -425,28 +511,25 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 67ZCWLHZMX;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = StudyAI/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "StudyAI needs camera access to scan homework questions and documents";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "StudyAI uses Face ID to provide secure and convenient access to your account.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "StudyAI needs access to your photo library to let you upload homework images for AI analysis.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.bo-jiang-SAI";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.bo-jiang-StudyAI";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -463,28 +546,25 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 67ZCWLHZMX;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = StudyAI/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "StudyAI needs camera access to scan homework questions and documents";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "StudyAI uses Face ID to provide secure and convenient access to your account.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "StudyAI needs access to your photo library to let you upload homework images for AI analysis.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.bo-jiang-SAI";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.bo-jiang-StudyAI";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -504,7 +584,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 67ZCWLHZMX;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.StudyAITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -526,7 +606,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 67ZCWLHZMX;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.StudyAITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -620,25 +700,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		7BAC87422E6AC82C00AA148F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 9.0.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		7BAC87482E6ACD7A00AA148F /* GoogleSignIn */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 7BAC87422E6AC82C00AA148F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
-			productName = GoogleSignIn;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 7B9EC4652E61663B005E4BFB /* Project object */;
 }

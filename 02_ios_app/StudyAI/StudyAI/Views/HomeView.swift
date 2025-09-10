@@ -9,17 +9,19 @@ import SwiftUI
 
 struct HomeView: View {
     @StateObject private var networkService = NetworkService.shared
+    @StateObject private var voiceService = VoiceInteractionService.shared
     @State private var userName = UserDefaults.standard.string(forKey: "user_name") ?? "Student"
     @State private var todayProgress: [String: Any]?
     @State private var isLoadingProgress = false
     @State private var navigateToSession = false
+    @State private var showingProfile = false
     
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Welcome Header
-                    VStack(alignment: .leading, spacing: 8) {
+                    // Welcome Header with AI Assistant
+                    VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             VStack(alignment: .leading) {
                                 Text("Welcome back,")
@@ -30,14 +32,53 @@ struct HomeView: View {
                                     .fontWeight(.bold)
                             }
                             Spacer()
-                            Image(systemName: "graduationcap.fill")
-                                .font(.title)
-                                .foregroundColor(.blue)
+                            
+                            // Settings Button
+                            Button(action: { showingProfile = true }) {
+                                Image(systemName: "gearshape.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        
+                        // AI Assistant Status
+                        HStack(spacing: 12) {
+                            CharacterAvatar(
+                                voiceType: voiceService.voiceSettings.voiceType,
+                                isAnimating: voiceService.interactionState == .speaking,
+                                size: 40
+                            )
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("AI Assistant: \\(voiceService.voiceSettings.voiceType.displayName)")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                
+                                Text(voiceService.interactionState.displayText)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            if voiceService.isVoiceEnabled {
+                                Image(systemName: "speaker.wave.2.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                            } else {
+                                Image(systemName: "speaker.slash.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                         .padding()
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(16)
+                        .background(voiceService.voiceSettings.voiceType == .elsa ? 
+                                   Color.blue.opacity(0.1) : getCharacterColor().opacity(0.1))
+                        .cornerRadius(12)
                     }
+                    .padding()
+                    .background(Color.blue.opacity(0.05))
+                    .cornerRadius(16)
                     
                     // Quick Actions
                     VStack(alignment: .leading, spacing: 16) {
@@ -155,6 +196,9 @@ struct HomeView: View {
             .task {
                 loadTodayProgress()
             }
+            .sheet(isPresented: $showingProfile) {
+                UserProfileView()
+            }
             .background {
                 // Use NavigationLink without isActive (modern approach)
                 if navigateToSession {
@@ -185,6 +229,21 @@ struct HomeView: View {
                     todayProgress = result.progress
                 }
             }
+        }
+    }
+    
+    private func getCharacterColor() -> Color {
+        switch voiceService.voiceSettings.voiceType {
+        case .elsa: return .blue
+        case .optimusPrime: return .blue
+        case .spiderman: return .red
+        case .groot: return .green
+        case .yoda: return .green
+        case .ironMan: return .red
+        case .friendly: return .pink
+        case .teacher: return .indigo
+        case .encouraging: return .orange
+        case .playful: return .purple
         }
     }
 }

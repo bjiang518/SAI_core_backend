@@ -513,7 +513,84 @@ class EducationalAIService:
             student_context=student_context
         )
     
-    # Keep all existing methods for backward compatibility
+    async def process_session_conversation(
+        self, 
+        session_id: str,
+        message: str, 
+        image_data: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Process session-based conversation messages with specialized prompting for tutoring sessions.
+        
+        This method is specifically designed for conversational AI tutoring sessions, different from
+        simple question processing. It uses specialized prompting strategies optimized for:
+        - Back-and-forth educational conversations
+        - Consistent LaTeX formatting for iOS post-processing  
+        - Conversational flow and engagement
+        - Session-specific context handling
+        """
+        
+        try:
+            # Use specialized conversational prompting
+            system_prompt = self.prompt_service.create_session_conversation_prompt(
+                message=message,
+                session_id=session_id
+            )
+            
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message}
+            ]
+            
+            # Add image analysis if provided
+            if image_data:
+                # For session conversations with images, add image content to the message
+                messages[-1]["content"] = [
+                    {"type": "text", "text": message},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_data}",
+                            "detail": "high"
+                        }
+                    }
+                ]
+            
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.4,  # Slightly higher for more conversational responses
+                max_tokens=1200,  # Shorter responses for conversations
+                presence_penalty=0.1,
+                frequency_penalty=0.1
+            )
+            
+            raw_answer = response.choices[0].message.content
+            
+            # Apply session-specific optimization (focuses on conversational flow)
+            optimized_answer = self.prompt_service.optimize_session_response(raw_answer)
+            
+            return {
+                "success": True,
+                "answer": optimized_answer,
+                "tokens_used": response.usage.total_tokens if response.usage else 0,
+                "compressed": False,
+                "session_id": session_id,
+                "processing_details": {
+                    "model_used": self.model,
+                    "prompt_optimization": True,
+                    "response_optimization": True,
+                    "conversation_mode": True,
+                    "session_specific": True
+                }
+            }
+        
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Session conversation processing failed: {str(e)}",
+                "session_id": session_id
+            }
     async def process_educational_question(
         self, 
         question: str, 

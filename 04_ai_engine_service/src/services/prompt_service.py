@@ -246,29 +246,29 @@ class AdvancedPromptService:
         if subject in self.math_subjects:
             system_prompt_parts.extend([
                 "",
-                "CRITICAL MATHEMATICAL FORMATTING REQUIREMENTS:",
-                "- ALL mathematical expressions MUST use simple $ delimiters only",
-                "- Inline math: $expression$ (single dollar signs)",
-                "- Display math: $$expression$$ (double dollar signs)",
-                "- NEVER use \\(...\\) or \\[...\\] delimiters",
-                "- NEVER split mathematical expressions across multiple $ pairs",
+                "CRITICAL MATHEMATICAL FORMATTING FOR iOS POST-PROCESSING:",
+                "- ALL mathematical expressions MUST use backslash delimiters ONLY",
+                "- Inline math: \\(expression\\) (backslash parentheses)",
+                "- Display math: \\[expression\\] (backslash brackets)",
+                "- NEVER use $ or $$ delimiters - these will be handled by iOS",
+                "- NEVER split mathematical expressions across multiple delimiter pairs",
                 "- NO markdown headers (###), bold (**), or bullet points (-)",
                 "- NO plain text math notation like 'x^2' or '3/4'",
-                "- Use \\frac{}{}, \\sqrt{}, x^{} consistently",
+                "- Use \\frac{}{}, \\sqrt{}, x^{} consistently inside delimiters",
                 "- Write complete sentences between mathematical expressions",
                 "- Separate solution steps with blank lines for clarity",
                 "",
-                "EXAMPLES OF CORRECT FORMATTING:",
-                "✅ For every $\\epsilon > 0$, there exists $\\delta > 0$",
-                "✅ $$\\lim_{x \\to c} f(x) = L$$",
-                "✅ We need $0 < |x - c| < \\delta$ to ensure $|f(x) - L| < \\epsilon$",
-                "✅ The quadratic formula is $x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$",
+                "EXAMPLES OF CORRECT FORMATTING FOR iOS:",
+                "✅ For every \\(\\epsilon > 0\\), there exists \\(\\delta > 0\\)",
+                "✅ \\[\\lim_{x \\to c} f(x) = L\\]", 
+                "✅ We need \\(0 < |x - c| < \\delta\\) to ensure \\(|f(x) - L| < \\epsilon\\)",
+                "✅ The quadratic formula is \\[x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}\\]",
                 "",
                 "❌ NEVER USE:",
-                "❌ \\(\\epsilon > 0\\), \\[\\lim_{x \\to c} f(x) = L\\]",
-                "❌ $\\epsilon$>$0$ (split expressions)",
-                "❌ $\\lim_{x \\to c} f$(x) =$L$ (broken across dollars)",
-                "❌ $0$< |x - c| <$\\delta$ (comparison operators outside math)"
+                "❌ $\\epsilon > 0$, $$\\lim_{x \\to c} f(x) = L$$ (dollar signs)",
+                "❌ \\(\\epsilon\\)>\\(0\\) (split expressions)",
+                "❌ \\(\\lim_{x \\to c} f\\)(x) =\\(L\\) (broken across delimiters)",
+                "❌ \\(0\\)< |x - c| <\\(\\delta\\) (comparison operators outside math)"
             ])
         
         system_prompt_parts.extend([
@@ -368,10 +368,10 @@ class AdvancedPromptService:
                 (r'\$([a-zA-Z]+)\s+([a-z])', r'$\1$ \2'),
                 
                 # "0 < |x - c| < \delta$" → "$0 < |x - c| < \delta$"
-                (r'([0-9<>=|x\-c\s]+)\\([a-zA-Z]+)\$', r'$\1\\\2$'),
+                (r'([0-9<>=|x\-c\s]+)\\\\([a-zA-Z]+)\$', r'$\1\\\\\2$'),
                 
                 # Fix broken expression starts: "expression 0 < |x|" → "$0 < |x|$"
-                (r'(?<!\$)([0-9<>=|x\-c\s\(\)]+\s*[<>=]\s*[0-9<>=|x\-c\s\(\)\\a-zA-Z]+)(?!\$)', r'$\1$'),
+                (r'(?<!\$)([0-9<>=|xc\s\(\)]+\s*[<>=]\s*[0-9<>=|xc\s\(\)\\\\a-zA-Z]+)(?!\$)', r'$\1$'),
             ]
             
             for pattern, replacement in patterns_to_fix:
@@ -408,25 +408,27 @@ class AdvancedPromptService:
             text = re.sub(r'\$([^$]+?)\$\s*([><=]+)\s*\$([^$]+?)\$', r'$\1 \2 \3$', text)
             text = re.sub(r'\$([^$]+?)\$\s*([+\-*/])\s*\$([^$]+?)\$', r'$\1 \2 \3$', text)
             
-            # Convert ChatGPT delimiters to standard $ format
-            text = re.sub(r'\\\\?\\\[', '$$', text)  # \[ → $$
-            text = re.sub(r'\\\\?\\\]', '$$', text)  # \] → $$
-            text = re.sub(r'\\\\?\\\(', '$', text)  # \( → $
-            text = re.sub(r'\\\\?\\\)', '$', text)  # \) → $
+            # Convert ChatGPT delimiters to consistent backslash format
+            # Keep backslash delimiters for iOS post-processing
+            text = re.sub(r'\$\$', '\\]\\[', text)  # $$ → \]\[ (temporary)
+            text = re.sub(r'\$', '\\)\\(', text)    # $ → \)\( (temporary)
+            text = re.sub(r'\\]\\[', '\\]\\n\\n\\[', text)  # Add line breaks for display math
+            text = re.sub(r'\\)\\(', '\\) \\(', text)       # Add space between inline math
             
-            # Fix broken mixed patterns like "\(content$ > 0\)$"
-            text = re.sub(r'\\\(([^$]*?)\$([^$]*?)\\\)\$', r'$\1\2$', text)
-            text = re.sub(r'\$([^$]*?)\\\)', r'$\1$', text)
-            text = re.sub(r'\\\(([^$]*?)\$', r'$\1$', text)
+            # Fix broken mixed patterns with backslash delimiters
+            text = re.sub(r'\\\(([^\\]*?)\$([^$]*?)\\\)\$', r'\\(\1\2\\)', text)
+            text = re.sub(r'\$([^$]*?)\\\)', r'\\(\1\\)', text)
+            text = re.sub(r'\\\(([^$]*?)\$', r'\\(\1\\)', text)
             
-            # Clean up multiple dollar signs and normalize spacing
-            text = re.sub(r'\$\$+', '$$', text)  # $$$ → $$
-            text = re.sub(r'\$\s+', '$', text)   # $ content → $content
-            text = re.sub(r'\s+\$', '$', text)   # content $ → content$
+            # Clean up multiple delimiters and normalize spacing
+            text = re.sub(r'\\]\s*\\]', '\\]', text)  # \]\] → \]
+            text = re.sub(r'\\\[\s*\\\[', '\\[', text)  # \[\[ → \[
+            text = re.sub(r'\\\)\s*\\\)', '\\)', text)  # \)\) → \)
+            text = re.sub(r'\\\(\s*\\\(', '\\(', text)  # \(\( → \(
             
             # Final cleanup: ensure proper spacing in math expressions
-            text = re.sub(r'\$([^$]*?)\$', lambda m: '$' + ' '.join(m.group(1).split()) + '$', text)
-            text = re.sub(r'\$\$([^$]*?)\$\$', lambda m: '$$' + ' '.join(m.group(1).split()) + '$$', text)
+            text = re.sub(r'\\\(([^\\]*?)\\\)', lambda m: '\\(' + ' '.join(m.group(1).split()) + '\\)', text)
+            text = re.sub(r'\\\[([^\\]*?)\\\]', lambda m: '\\[' + ' '.join(m.group(1).split()) + '\\]', text)
             
             return text
         
@@ -434,14 +436,50 @@ class AdvancedPromptService:
         optimized = comprehensive_latex_repair(optimized)
         
         # Ensure proper spacing around operators (but preserve LaTeX)
-        # Only apply to non-LaTeX content (outside of $ delimiters)
+        # Only apply to non-LaTeX content (outside of \(...\) and \[...\] delimiters)
         def fix_spacing_outside_latex(text):
-            parts = re.split(r'(\$.*?\$)', text)
-            for i in range(0, len(parts), 2):  # Process non-LaTeX parts
-                if parts[i]:
-                    parts[i] = re.sub(r'([a-zA-Z0-9])=([a-zA-Z0-9])', r'\1 = \2', parts[i])
-                    parts[i] = re.sub(r'([0-9])\+([0-9])', r'\1 + \2', parts[i])
-                    parts[i] = re.sub(r'([0-9])-([0-9])', r'\1 - \2', parts[i])
+            parts = []
+            i = 0
+            while i < len(text):
+                # Find next LaTeX delimiter
+                inline_start = text.find('\\(', i)
+                display_start = text.find('\\[', i)
+                
+                # Determine which delimiter comes first
+                next_delimiter = min(
+                    [d for d in [inline_start, display_start] if d != -1],
+                    default=len(text)
+                )
+                
+                # Process non-LaTeX content before delimiter
+                if next_delimiter > i:
+                    non_latex = text[i:next_delimiter]
+                    non_latex = re.sub(r'([a-zA-Z0-9])=([a-zA-Z0-9])', r'\1 = \2', non_latex)
+                    non_latex = re.sub(r'([0-9])\+([0-9])', r'\1 + \2', non_latex)
+                    non_latex = re.sub(r'([0-9])-([0-9])', r'\1 - \2', non_latex)
+                    parts.append(non_latex)
+                
+                # Find and include LaTeX content
+                if next_delimiter < len(text):
+                    if text[next_delimiter:next_delimiter+2] == '\\(':
+                        end_pos = text.find('\\)', next_delimiter + 2)
+                        if end_pos != -1:
+                            parts.append(text[next_delimiter:end_pos + 2])
+                            i = end_pos + 2
+                        else:
+                            parts.append(text[next_delimiter:])
+                            break
+                    elif text[next_delimiter:next_delimiter+2] == '\\[':
+                        end_pos = text.find('\\]', next_delimiter + 2)
+                        if end_pos != -1:
+                            parts.append(text[next_delimiter:end_pos + 2])
+                            i = end_pos + 2
+                        else:
+                            parts.append(text[next_delimiter:])
+                            break
+                else:
+                    break
+            
             return ''.join(parts)
         
         optimized = fix_spacing_outside_latex(optimized)
@@ -707,3 +745,262 @@ RESPONSE INSTRUCTIONS:
 Remember: Your goal is to help the student learn and understand both the image content and their specific question."""
 
         return combined_prompt
+    
+    def create_session_conversation_prompt(self, message: str, session_id: str, context: Optional[Dict] = None) -> str:
+        """
+        Create specialized prompts for session-based conversations.
+        
+        This method is specifically designed for conversational AI tutoring sessions, different from
+        simple question processing. It uses specialized prompting strategies optimized for:
+        - Back-and-forth educational conversations
+        - Consistent LaTeX formatting for iOS post-processing  
+        - Conversational flow and engagement
+        - Session-specific context handling
+        
+        Args:
+            message: The student's message in the conversation
+            session_id: Unique session identifier for context
+            context: Optional context information
+            
+        Returns:
+            Specialized conversation prompt optimized for tutoring sessions
+        """
+        
+        # Detect subject from context or message content
+        subject_hint = "general"
+        if context and context.get('subject'):
+            subject_hint = context['subject']
+        
+        subject = self.detect_subject(subject_hint)
+        
+        # Build session-specific system prompt
+        system_prompt_parts = [
+            "You are StudyAI, an expert AI tutor engaged in a conversational learning session.",
+            "",
+            "CONVERSATION OBJECTIVES:",
+            "- Maintain engaging, back-and-forth educational dialogue",
+            "- Build upon previous conversation context when available",
+            "- Provide clear, step-by-step explanations appropriate for the student's level",
+            "- Encourage questions and deeper exploration of topics",
+            "- Use a warm, supportive, and encouraging tone",
+            "",
+            "CONVERSATIONAL GUIDELINES:",
+            "- Keep responses conversational and engaging (not formal lecture style)",
+            "- Ask follow-up questions to assess understanding",
+            "- Connect new concepts to previously discussed topics when relevant",
+            "- Provide specific examples and real-world applications",
+            "- Acknowledge when students make good observations or ask thoughtful questions",
+            "- Break complex topics into digestible chunks",
+            "",
+        ]
+        
+        # Add subject-specific conversation guidance
+        if subject in self.math_subjects:
+            system_prompt_parts.extend([
+                "MATHEMATICAL CONVERSATION SPECIFICS:",
+                "- Work through problems step-by-step in a conversational manner",
+                "- Check student understanding after each major step",
+                "- Use visual descriptions for geometric concepts",
+                "- Connect abstract concepts to concrete examples",
+                "- Encourage students to explain their reasoning",
+                "",
+                "CRITICAL iOS MATHEMATICAL FORMATTING - CONVERSATION MODE:",
+                "Since this is a conversation that will be displayed on iOS devices, follow these LaTeX rules:",
+                "",
+                "✅ CORRECT FORMATTING (use these patterns exactly):",
+                "- Inline math: \"The function \\\\(f(x) = 2x^2 - 4x + 1\\\\) has a vertex at \\\\(x = 1\\\\).\"",
+                "- Display math: \"The quadratic formula is: \\\\[x = \\\\frac{-b \\\\pm \\\\sqrt{b^2 - 4ac}}{2a}\\\\]\"", 
+                "- Multiple expressions: \"Since \\\\(a = 2\\\\), \\\\(b = -4\\\\), and \\\\(c = 1\\\\), we get: \\\\[x = \\\\frac{4 \\\\pm \\\\sqrt{8}}{4}\\\\]\"",
+                "",
+                "❌ NEVER USE (these break iOS rendering):",
+                "- Dollar signs: $x^2$ or $$x = 5$$ ❌",
+                "- Mixed delimiters: \\\\(x^2$ or $y\\\\) ❌", 
+                "- Split expressions: \\\\(x\\\\) = \\\\(5\\\\) ❌",
+                "",
+                "FORMATTING RULES:",
+                "- Inline math: \\\\(expression\\\\) for variables, simple equations, short expressions",
+                "- Display math: \\\\[expression\\\\] for complex formulas, large fractions, multi-step equations",
+                "- Variables: \\\\(x\\\\), \\\\(y\\\\), \\\\(f(x)\\\\), \\\\(\\\\theta\\\\)",
+                "- Operations: \\\\(a + b\\\\), \\\\(x^2\\\\), \\\\(\\\\frac{a}{b}\\\\), \\\\(\\\\sqrt{x}\\\\)",
+                "- Greek letters: \\\\(\\\\alpha\\\\), \\\\(\\\\beta\\\\), \\\\(\\\\pi\\\\), \\\\(\\\\theta\\\\)",
+                "- Functions: \\\\(\\\\sin(x)\\\\), \\\\(\\\\log(x)\\\\), \\\\(\\\\lim_{x \\\\to 0}\\\\)",
+                "",
+            ])
+        else:
+            system_prompt_parts.extend([
+                f"SUBJECT-SPECIFIC CONVERSATION ({subject.value.title()}):",
+                f"- Focus conversation on {subject.value} concepts and applications",
+                "- Use subject-appropriate terminology and examples",
+                "- Connect topics to real-world applications in this field",
+                "- Encourage exploration of related concepts within the subject",
+                "",
+            ])
+        
+        # Add context-specific instructions
+        if context:
+            system_prompt_parts.extend([
+                "SESSION CONTEXT:",
+                f"- Session ID: {session_id}",
+            ])
+            
+            if context.get('student_id'):
+                system_prompt_parts.append(f"- Student: {context['student_id']}")
+            
+            if context.get('conversation_history'):
+                system_prompt_parts.append("- This conversation has previous context - build upon it naturally")
+            
+            system_prompt_parts.append("")
+        
+        system_prompt_parts.extend([
+            "RESPONSE STYLE:",
+            "- Write in a conversational, engaging tone (like talking to a student in person)",
+            "- Keep responses focused but not overly long (2-4 paragraphs typically)",
+            "- End with a question or invitation for the student to engage further",
+            "- Show enthusiasm for learning and discovery",
+            "",
+            "Remember: You're having a conversation with a student, not giving a lecture. Make it interactive and engaging!"
+        ])
+        
+        return "\n".join(system_prompt_parts)
+    
+    def optimize_session_response(self, response: str, context: Optional[Dict] = None) -> str:
+        """
+        Optimize AI response for session-based conversations.
+        
+        This focuses on conversational flow optimization rather than general response formatting.
+        Designed specifically for back-and-forth tutoring sessions.
+        
+        Args:
+            response: Raw AI response from the conversation
+            context: Optional session context
+            
+        Returns:
+            Optimized response for conversational flow
+        """
+        
+        if not response or not response.strip():
+            return response
+        
+        optimized = response.strip()
+        
+        # Apply conversation-specific optimizations
+        optimized = self._optimize_conversational_flow(optimized)
+        
+        # For session conversations, use simpler LaTeX processing to avoid regex errors
+        # Apply basic LaTeX formatting for mathematical content (simplified version)
+        optimized = self._apply_basic_latex_fixes(optimized)
+        
+        # Ensure conversational ending (question or engagement prompt)
+        optimized = self._ensure_conversational_ending(optimized)
+        
+        return optimized
+    
+    def _optimize_conversational_flow(self, response: str) -> str:
+        """Optimize response for natural conversational flow."""
+        
+        # Remove overly formal language patterns
+        conversational_replacements = [
+            (r'\bLet us\b', "Let's"),
+            (r'\bWe shall\b', "We'll"),  
+            (r'\bI shall\b', "I'll"),
+            (r'\bYou will find that\b', "You'll see that"),
+            (r'\bIt is important to note that\b', 'Notice that'),
+            (r'\bFurthermore,\b', 'Also,'),
+            (r'\bIn conclusion,\b', 'So,'),
+            (r'\bTherefore,\b', 'So,'),
+        ]
+        
+        for pattern, replacement in conversational_replacements:
+            response = re.sub(pattern, replacement, response, flags=re.IGNORECASE)
+        
+        return response
+    
+    def _ensure_conversational_ending(self, response: str) -> str:
+        """Ensure response ends with engagement prompt or question."""
+        
+        # Check if response already ends with a question or engagement
+        if re.search(r'[?!]\s*$', response.strip()):
+            return response
+        
+        # Check if it ends with a suggestion or invitation
+        engagement_endings = [
+            'try', 'practice', 'think about', 'consider', 'explore',
+            'work on', 'attempt', 'see if you can', 'give it a shot'
+        ]
+        
+        response_lower = response.lower()
+        if any(ending in response_lower[-100:] for ending in engagement_endings):
+            return response
+        
+        # Add a gentle engagement prompt
+        engagement_prompts = [
+            "What do you think about this approach?",
+            "Does this make sense so far?", 
+            "Would you like to try a similar problem?",
+            "Any questions about this step?",
+            "How does this look to you?",
+            "Ready to move on to the next part?"
+        ]
+        
+        # Choose prompt based on content
+        if 'step' in response_lower or 'solve' in response_lower:
+            prompt = "Does this step-by-step approach make sense?"
+        elif 'formula' in response_lower or 'equation' in response_lower:
+            prompt = "How does this formula look to you?"
+        elif 'example' in response_lower:
+            prompt = "Would you like to try a similar example?"
+        else:
+            prompt = "What do you think about this?"
+        
+        return f"{response.rstrip()}\n\n{prompt}"
+    
+    def _apply_basic_latex_fixes(self, response: str) -> str:
+        """Apply basic LaTeX fixes for session conversations without complex regex."""
+        
+        # Handle common LaTeX edge cases for better iOS rendering
+        latex_text_fixes = [
+            # LaTeX spacing commands to regular spaces
+            (r'\\quad', '  '),           # \quad → double space
+            (r'\\qquad', '    '),        # \qquad → quad space
+            (r'\\,', ' '),               # \, → thin space
+            (r'\\;', '  '),              # \; → medium space
+            (r'\\:', '  '),              # \: → medium space
+            (r'\\!', ''),                # \! → negative space (remove)
+            
+            # LaTeX text commands
+            (r'\\text\{([^}]+)\}', r'\1'),           # \text{hello} → hello
+            (r'\\textbf\{([^}]+)\}', r'**\1**'),     # \textbf{bold} → **bold**
+            (r'\\textit\{([^}]+)\}', r'*\1*'),       # \textit{italic} → *italic*
+            (r'\\textrm\{([^}]+)\}', r'\1'),         # \textrm{text} → text
+            (r'\\mathrm\{([^}]+)\}', r'\1'),         # \mathrm{text} → text
+            
+            # Common LaTeX phrases that should be plain text
+            (r'\\text\{and\}', ' and '),
+            (r'\\text\{or\}', ' or '),
+            (r'\\text\{where\}', ' where '),
+            (r'\\text\{so\}', ' so '),
+            (r'\\text\{therefore\}', ' therefore '),
+            (r'\\text\{since\}', ' since '),
+            
+            # LaTeX line breaks
+            (r'\\\\', '\n'),             # \\ → line break
+            (r'\\newline', '\n'),        # \newline → line break
+        ]
+        
+        # Apply all LaTeX text fixes
+        for pattern, replacement in latex_text_fixes:
+            response = re.sub(pattern, replacement, response)
+        
+        # Clean up multiple spaces
+        response = re.sub(r' +', ' ', response)
+        
+        # Clean up multiple newlines
+        response = re.sub(r'\n\s*\n\s*\n', '\n\n', response)
+        
+        # Clean up spaces around math delimiters
+        response = re.sub(r'\s+\\\(', ' \\(', response)  # Space before \(
+        response = re.sub(r'\\\)\s+', '\\) ', response)  # Space after \)
+        response = re.sub(r'\s+\\\[', '\n\\[', response) # Line break before \[
+        response = re.sub(r'\\\]\s+', '\\]\n', response) # Line break after \]
+        
+        return response.strip()

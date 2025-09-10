@@ -24,6 +24,7 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: authService.isAuthenticated)
+        .ignoresSafeArea(.keyboard, edges: .bottom) // Modern keyboard handling
     }
 }
 
@@ -32,37 +33,47 @@ struct MainTabView: View {
     
     var body: some View {
         TabView {
-            HomeView()
-                .tabItem {
-                    Image(systemName: "house.fill")
-                    Text("Home")
-                }
+            NavigationView {
+                HomeView()
+            }
+            .tabItem {
+                Image(systemName: "house.fill")
+                Text("Home")
+            }
             
-            QuestionView()
-                .tabItem {
-                    Image(systemName: "questionmark.circle.fill")
-                    Text("Ask AI")
-                }
+            NavigationView {
+                QuestionView()
+            }
+            .tabItem {
+                Image(systemName: "questionmark.circle.fill")
+                Text("Ask AI")
+            }
             
-            LearningProgressView()
-                .tabItem {
-                    Image(systemName: "chart.bar.fill")
-                    Text("Progress")
-                }
+            NavigationView {
+                LearningProgressView()
+            }
+            .tabItem {
+                Image(systemName: "chart.bar.fill")
+                Text("Progress")
+            }
             
-            SessionHistoryView()
-                .tabItem {
-                    Image(systemName: "clock.fill")
-                    Text("History")
-                }
+            NavigationView {
+                SessionHistoryView()
+            }
+            .tabItem {
+                Image(systemName: "clock.fill")
+                Text("History")
+            }
             
-            ModernProfileView(onLogout: onLogout)
-                .tabItem {
-                    Image(systemName: "person.fill")
-                    Text("Profile")
-                }
+            NavigationView {
+                ModernProfileView(onLogout: onLogout)
+            }
+            .tabItem {
+                Image(systemName: "person.fill")
+                Text("Profile")
+            }
         }
-        .accentColor(.blue)
+        .tint(.blue) // Modern iOS 26+ accent color
     }
 }
 
