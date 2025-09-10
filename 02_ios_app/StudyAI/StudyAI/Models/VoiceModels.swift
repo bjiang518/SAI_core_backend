@@ -12,7 +12,7 @@ import AVFoundation
 
 struct VoiceSettings: Codable {
     var voiceType: VoiceType = .elsa  // Default to Elsa voice
-    var speakingRate: Float = 0.55 // Normal pace that works well with character multipliers
+    var speakingRate: Float = 0.75 // Faster default pace - was 0.55, now 0.75
     var voicePitch: Float = 1.0
     var autoSpeakResponses: Bool = true
     var language: String = "en-US"
@@ -158,7 +158,7 @@ enum VoiceType: String, CaseIterable, Codable {
             
         // Character voices with personality-matched pacing
         case .elsa:
-            return 0.96 // Clear, measured pace (0.43 base * 0.96 ≈ 0.41)
+            return 1.1 // Faster, clear pace - was 0.96, now 1.1 for better flow
         case .optimusPrime:
             return 0.78 // Slow, commanding, thoughtful leader
         case .spiderman:

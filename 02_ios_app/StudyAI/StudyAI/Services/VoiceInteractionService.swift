@@ -189,16 +189,31 @@ class VoiceInteractionService: ObservableObject {
         }
     }
     
-    func speakText(_ text: String) {
-        print("🎙️ VoiceInteractionService: speakText() called with: '\(text)'")
+    func speakText(_ text: String, autoSpeak: Bool = false) {
+        print("🎙️ VoiceInteractionService: speakText() called with: '\(text)', autoSpeak: \(autoSpeak)")
         print("🎙️ VoiceInteractionService: isVoiceEnabled = \(isVoiceEnabled)")
         guard isVoiceEnabled else { 
             print("🎙️ VoiceInteractionService: Voice is disabled, not speaking")
             return 
         }
         
+        // Always stop previous speech when starting new speech (interruption behavior)
+        if interactionState == .speaking {
+            print("🎙️ VoiceInteractionService: Interrupting current speech to start new message")
+            stopSpeech()
+        }
+        
+        // Update state to speaking
+        DispatchQueue.main.async {
+            self.interactionState = .speaking
+        }
+        
         print("🎙️ VoiceInteractionService: Using premium TTS service for enhanced voice quality")
         speakTextWithBestService(text)
+    }
+    
+    func speakText(_ text: String) {
+        speakText(text, autoSpeak: false)
     }
     
     private func speakTextWithBestService(_ text: String) {
@@ -238,13 +253,36 @@ class VoiceInteractionService: ObservableObject {
     }
     
     func stopSpeech() {
+        print("🎙️ VoiceInteractionService: Stopping all speech")
         textToSpeechService.stopSpeech()
         enhancedTTSService.stopSpeech()
+        
+        // Update interaction state to idle
+        DispatchQueue.main.async {
+            self.interactionState = .idle
+            self.currentSpeakingMessageId = nil
+        }
     }
     
     func updateVoiceSettings(_ settings: VoiceSettings) {
+        let previousVoiceType = voiceSettings.voiceType
+        
         voiceSettings = settings
         settings.save()
+        
+        // Stop current speech if voice character changed
+        if previousVoiceType != settings.voiceType {
+            print("🎙️ VoiceInteractionService: Voice character changed from \(previousVoiceType.displayName) to \(settings.voiceType.displayName), stopping current speech")
+            stopSpeech()
+            
+            // Update interaction state to reflect the change
+            DispatchQueue.main.async {
+                self.interactionState = .idle
+                self.currentSpeakingMessageId = nil
+            }
+        }
+        
+        // Update services with new settings
         textToSpeechService.updateVoiceSettings(settings)
         enhancedTTSService.updateVoiceSettings(settings)
     }

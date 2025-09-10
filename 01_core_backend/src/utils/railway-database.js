@@ -1405,7 +1405,7 @@ async function initializeDatabase() {
     // Check if critical tables exist (users table is required for authentication)
     const tableCheck = await db.query(`
       SELECT tablename FROM pg_tables 
-      WHERE schemaname = 'public' AND tablename IN ('users', 'profiles', 'sessions', 'questions')
+      WHERE schemaname = 'public' AND tablename IN ('users', 'user_sessions', 'profiles', 'sessions', 'questions')
     `);
     
     if (tableCheck.rows.length === 0) {
@@ -1429,7 +1429,7 @@ async function initializeDatabase() {
       
       // Check if we need to add missing tables
       const existingTables = tableCheck.rows.map(r => r.tablename);
-      const requiredTables = ['users', 'profiles', 'sessions', 'questions', 'conversations', 'evaluations', 'progress', 'sessions_summaries', 'archived_sessions'];
+      const requiredTables = ['users', 'user_sessions', 'profiles', 'sessions', 'questions', 'conversations', 'evaluations', 'progress', 'sessions_summaries', 'archived_sessions', 'archived_conversations'];
       const missingTables = requiredTables.filter(table => !existingTables.includes(table));
       
       if (missingTables.length > 0) {
@@ -1453,9 +1453,150 @@ async function initializeDatabase() {
 
 async function createInlineSchema() {
   const schema = `
+    -- Users table for authentication
+    CREATE TABLE IF NOT EXISTS users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email VARCHAR(255) UNIQUE NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      password_hash VARCHAR(255), -- For email/password auth
+      profile_image_url TEXT,
+      auth_provider VARCHAR(50) DEFAULT 'email', -- 'email', 'google', 'apple'
+      google_id VARCHAR(255) UNIQUE,
+      apple_id VARCHAR(255) UNIQUE,
+      email_verified BOOLEAN DEFAULT false,
+      is_active BOOLEAN DEFAULT true,
+      last_login_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- User sessions table for authentication tokens
+    CREATE TABLE IF NOT EXISTS user_sessions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash VARCHAR(64) NOT NULL UNIQUE,
+      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      device_info JSONB,
+      ip_address INET,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Profiles table for extended user information
+    CREATE TABLE IF NOT EXISTS profiles (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email VARCHAR(255) UNIQUE NOT NULL,
+      role VARCHAR(50) DEFAULT 'student',
+      parent_id UUID REFERENCES users(id),
+      first_name VARCHAR(255),
+      last_name VARCHAR(255),
+      grade_level VARCHAR(50),
+      school VARCHAR(255),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Sessions table for study sessions
+    CREATE TABLE IF NOT EXISTS sessions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      parent_id UUID REFERENCES users(id),
+      session_type VARCHAR(50) DEFAULT 'homework',
+      title VARCHAR(200),
+      description TEXT,
+      subject VARCHAR(100),
+      status VARCHAR(50) DEFAULT 'active',
+      start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      end_time TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Questions table
+    CREATE TABLE IF NOT EXISTS questions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+      image_data BYTEA,
+      image_url TEXT,
+      question_text TEXT,
+      subject VARCHAR(100),
+      topic VARCHAR(255),
+      difficulty_level INTEGER DEFAULT 3,
+      ai_solution JSONB,
+      explanation TEXT,
+      confidence_score FLOAT DEFAULT 0.0,
+      processing_time FLOAT DEFAULT 0.0,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Conversations table for chat history
+    CREATE TABLE IF NOT EXISTS conversations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
+      session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+      message_type VARCHAR(50) NOT NULL, -- 'user' or 'assistant'
+      message_text TEXT NOT NULL,
+      message_data JSONB,
+      tokens_used INTEGER DEFAULT 0,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Evaluations table
+    CREATE TABLE IF NOT EXISTS evaluations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+      question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      student_answer TEXT,
+      ai_feedback JSONB,
+      score FLOAT,
+      max_score FLOAT DEFAULT 100.0,
+      time_spent INTEGER, -- in seconds
+      is_correct BOOLEAN,
+      rubric JSONB,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Progress table
+    CREATE TABLE IF NOT EXISTS progress (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      subject VARCHAR(100) NOT NULL,
+      topic VARCHAR(255) NOT NULL,
+      skill_level INTEGER DEFAULT 1,
+      mastery_level FLOAT DEFAULT 0.0,
+      questions_attempted INTEGER DEFAULT 0,
+      questions_correct INTEGER DEFAULT 0,
+      total_time_spent INTEGER DEFAULT 0, -- in seconds
+      last_practiced_at TIMESTAMP WITH TIME ZONE,
+      streak_count INTEGER DEFAULT 0,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      UNIQUE(user_id, subject, topic)
+    );
+
+    -- Sessions summaries table
+    CREATE TABLE IF NOT EXISTS sessions_summaries (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      session_id UUID UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      total_questions INTEGER DEFAULT 0,
+      questions_correct INTEGER DEFAULT 0,
+      total_time_spent INTEGER DEFAULT 0, -- in seconds
+      average_score FLOAT DEFAULT 0.0,
+      subjects_covered TEXT[],
+      key_topics TEXT[],
+      areas_for_improvement TEXT[],
+      summary_data JSONB,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Archived sessions table (for homework sessions)
     CREATE TABLE IF NOT EXISTS archived_sessions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id TEXT NOT NULL,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       subject VARCHAR(100) NOT NULL,
       session_date DATE NOT NULL DEFAULT CURRENT_DATE,
       title VARCHAR(200),
@@ -1476,18 +1617,48 @@ async function createInlineSchema() {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
 
-    CREATE INDEX IF NOT EXISTS idx_archived_sessions_user_date 
-        ON archived_sessions(user_id, session_date DESC);
+    -- Archived conversations table (for chat sessions)
+    CREATE TABLE IF NOT EXISTS archived_conversations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      session_id UUID,
+      subject VARCHAR(100),
+      title VARCHAR(200) NOT NULL,
+      summary TEXT,
+      message_count INTEGER DEFAULT 0,
+      total_tokens INTEGER DEFAULT 0,
+      conversation_history JSONB NOT NULL,
+      key_topics TEXT[],
+      learning_outcomes TEXT[],
+      notes TEXT,
+      duration_minutes INTEGER DEFAULT 0,
+      content_embedding TEXT, -- JSON array since pgvector not available
+      review_count INTEGER DEFAULT 0,
+      last_reviewed_at TIMESTAMP WITH TIME ZONE,
+      archived_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
 
-    CREATE INDEX IF NOT EXISTS idx_archived_sessions_subject 
-        ON archived_sessions(user_id, subject);
+    -- Indexes for performance
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
+    CREATE INDEX IF NOT EXISTS idx_users_apple_id ON users(apple_id);
+    CREATE INDEX IF NOT EXISTS idx_user_sessions_token_hash ON user_sessions(token_hash);
+    CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_questions_user_id ON questions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_questions_session_id ON questions(session_id);
+    CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
+    CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id);
+    CREATE INDEX IF NOT EXISTS idx_archived_sessions_user_date ON archived_sessions(user_id, session_date DESC);
+    CREATE INDEX IF NOT EXISTS idx_archived_sessions_subject ON archived_sessions(user_id, subject);
+    CREATE INDEX IF NOT EXISTS idx_archived_sessions_review ON archived_sessions(user_id, last_reviewed_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_archived_sessions_created ON archived_sessions(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_archived_conversations_user_id ON archived_conversations(user_id);
+    CREATE INDEX IF NOT EXISTS idx_archived_conversations_archived_at ON archived_conversations(user_id, archived_at DESC);
 
-    CREATE INDEX IF NOT EXISTS idx_archived_sessions_review 
-        ON archived_sessions(user_id, last_reviewed_at DESC);
-
-    CREATE INDEX IF NOT EXISTS idx_archived_sessions_created 
-        ON archived_sessions(user_id, created_at DESC);
-
+    -- Triggers for updated_at columns
     CREATE OR REPLACE FUNCTION update_updated_at_column()
     RETURNS TRIGGER AS $$
     BEGIN
@@ -1495,6 +1666,31 @@ async function createInlineSchema() {
         RETURN NEW;
     END;
     $$ language 'plpgsql';
+
+    CREATE TRIGGER IF NOT EXISTS update_users_updated_at 
+        BEFORE UPDATE ON users 
+        FOR EACH ROW 
+        EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE TRIGGER IF NOT EXISTS update_profiles_updated_at 
+        BEFORE UPDATE ON profiles 
+        FOR EACH ROW 
+        EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE TRIGGER IF NOT EXISTS update_sessions_updated_at 
+        BEFORE UPDATE ON sessions 
+        FOR EACH ROW 
+        EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE TRIGGER IF NOT EXISTS update_questions_updated_at 
+        BEFORE UPDATE ON questions 
+        FOR EACH ROW 
+        EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE TRIGGER IF NOT EXISTS update_progress_updated_at 
+        BEFORE UPDATE ON progress 
+        FOR EACH ROW 
+        EXECUTE FUNCTION update_updated_at_column();
 
     CREATE TRIGGER IF NOT EXISTS update_archived_sessions_updated_at 
         BEFORE UPDATE ON archived_sessions 

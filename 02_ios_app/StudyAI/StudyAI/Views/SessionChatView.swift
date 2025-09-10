@@ -207,23 +207,72 @@ struct MessageVoiceControls: View {
     let text: String
     let autoSpeak: Bool
     
-    @State private var isSpeaking = false
+    @StateObject private var voiceService = VoiceInteractionService.shared
     
     var body: some View {
-        Button(action: toggleSpeech) {
-            Image(systemName: isSpeaking ? "speaker.wave.2.fill" : "speaker.wave.2")
-                .font(.caption)
-                .foregroundColor(isSpeaking ? .blue : .secondary)
+        HStack(spacing: 12) {
+            // Enhanced speaker button with better visibility
+            Button(action: toggleSpeech) {
+                HStack(spacing: 8) {
+                    Image(systemName: voiceService.interactionState == .speaking ? "speaker.wave.3.fill" : "speaker.wave.2")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(voiceService.interactionState == .speaking ? .orange : .white.opacity(0.7))
+                    
+                    if voiceService.interactionState == .speaking {
+                        Text("Playing")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.orange.opacity(0.9))
+                    } else {
+                        Text("Listen")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(voiceService.interactionState == .speaking ? Color.orange.opacity(0.15) : Color.white.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(voiceService.interactionState == .speaking ? Color.orange.opacity(0.4) : Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                )
+                .scaleEffect(voiceService.interactionState == .speaking ? 1.02 : 1.0)
+                .animation(.easeInOut(duration: 0.2), value: voiceService.interactionState == .speaking)
+            }
+            .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            
+            // Progress indicator when speaking
+            if voiceService.interactionState == .speaking {
+                VStack(spacing: 4) {
+                    // Simple progress indicator (since we're using shared service)
+                    HStack {
+                        Image(systemName: voiceService.voiceSettings.voiceType.icon)
+                            .font(.system(size: 12))
+                            .foregroundColor(.orange.opacity(0.8))
+                        
+                        Text("\(voiceService.voiceSettings.voiceType.displayName) speaking...")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.white.opacity(0.6))
+                        
+                        Spacer()
+                    }
+                }
+                .frame(maxWidth: 150)
+            }
         }
         .onAppear {
-            if autoSpeak {
-                startSpeaking()
+            if autoSpeak && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    startSpeaking()
+                }
             }
         }
     }
     
     private func toggleSpeech() {
-        if isSpeaking {
+        if voiceService.interactionState == .speaking {
             stopSpeaking()
         } else {
             startSpeaking()
@@ -231,15 +280,17 @@ struct MessageVoiceControls: View {
     }
     
     private func startSpeaking() {
-        isSpeaking = true
-        // Simulate speech duration
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            stopSpeaking()
-        }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        
+        print("🔊 MessageVoiceControls: Starting TTS with character voice: \(voiceService.voiceSettings.voiceType.displayName)")
+        
+        // Use VoiceInteractionService which handles interruption automatically
+        voiceService.speakText(text, autoSpeak: false) // Force speak this message
     }
     
     private func stopSpeaking() {
-        isSpeaking = false
+        print("🔊 MessageVoiceControls: Stopping TTS")
+        voiceService.stopSpeech()
     }
 }
 
@@ -1485,6 +1536,8 @@ struct ModernAIMessageView: View {
     let voiceType: VoiceType
     let isStreaming: Bool
     
+    @StateObject private var voiceService = VoiceInteractionService.shared
+    
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Character avatar - ChatGPT style
@@ -1517,11 +1570,12 @@ struct ModernAIMessageView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
-                // Voice controls - smaller and subtle
+                // Voice controls - enhanced for character interaction with automatic speaking
                 HStack {
                     MessageVoiceControls(
                         text: message,
-                        autoSpeak: false
+                        autoSpeak: voiceService.isVoiceEnabled && 
+                                   (voiceType == .elsa || voiceService.voiceSettings.autoSpeakResponses)
                     )
                     
                     Spacer()

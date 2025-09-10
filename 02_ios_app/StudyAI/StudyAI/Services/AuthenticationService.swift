@@ -12,7 +12,7 @@ import LocalAuthentication
 import Security
 import Combine
 import UIKit
-// import GoogleSignIn // TODO: Add GoogleSignIn SPM dependency
+import GoogleSignIn
 
 // MARK: - Authentication Models
 
@@ -700,13 +700,41 @@ class GoogleSignInService: NSObject {
             return
         }
         
-        // Real Google Sign-In implementation - now active!
-        // let config = GIDConfiguration(clientID: clientID) // TODO: Restore when GoogleSignIn is added
+        print("🔐 Configuring Google Sign-In with client ID: \(clientID.prefix(20))...")
         
-        // GIDSignIn.sharedInstance.configuration = config // TODO: Restore when GoogleSignIn is added
+        // Configure Google Sign-In
+        let config = GIDConfiguration(clientID: clientID)
+        GIDSignIn.sharedInstance.configuration = config
         
-        // TODO: Restore when GoogleSignIn SDK is properly added
-        continuation.resume(throwing: AuthError.providerError("Google Sign-In SDK not available. Please add GoogleSignIn framework to use this feature."))
+        // Perform Google Sign-In
+        GIDSignIn.sharedInstance.signIn(withPresenting: presentingViewController) { result, error in
+            if let error = error {
+                print("🔴 Google Sign-In Error: \(error.localizedDescription)")
+                continuation.resume(throwing: AuthError.providerError("Google Sign-In failed: \(error.localizedDescription)"))
+                return
+            }
+            
+            guard let result = result,
+                  let idToken = result.user.idToken?.tokenString else {
+                print("🔴 Google Sign-In: Missing user data or token")
+                continuation.resume(throwing: AuthError.providerError("Google Sign-In failed: Missing authentication data"))
+                return
+            }
+            
+            let user = result.user
+            
+            let googleUser = GoogleUser(
+                userID: user.userID ?? "",
+                email: user.profile?.email ?? "",
+                fullName: user.profile?.name,
+                profileImageURL: user.profile?.imageURL(withDimension: 120),
+                idToken: idToken,
+                accessToken: user.accessToken.tokenString
+            )
+            
+            print("✅ Google Sign-In Success: \(googleUser.email)")
+            continuation.resume(returning: googleUser)
+        }
     }
     
     private func showGoogleSignInSetupAlert(from presentingViewController: UIViewController, continuation: CheckedContinuation<GoogleUser, Error>) {

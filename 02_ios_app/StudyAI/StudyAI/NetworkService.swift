@@ -1276,6 +1276,65 @@ class NetworkService: ObservableObject {
         }
     }
     
+    /// Get archived sessions list with query parameters for server-side filtering
+    func getArchivedSessionsWithParams(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?, message: String) {
+        print("📦 === GET ARCHIVED SESSIONS WITH SEARCH ===")
+        print("📄 Query Params: \(queryParams)")
+        
+        // Build URL with query parameters
+        var urlComponents = URLComponents(string: "\(baseURL)/api/archive/sessions")!
+        urlComponents.queryItems = queryParams.map { URLQueryItem(name: $0.key, value: $0.value) }
+        
+        guard let url = urlComponents.url else {
+            return (false, nil, "Invalid URL")
+        }
+        
+        print("🔗 Full URL: \(url.absoluteString)")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        // Add authentication if available
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("✅ Archived Sessions Status: \(httpResponse.statusCode)")
+                
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                        print("✅ Archived Sessions Response: \(json)")
+                        
+                        let success = json["success"] as? Bool ?? false
+                        
+                        if success, let sessions = json["data"] as? [[String: Any]] {
+                            print("📦 Found \(sessions.count) archived sessions")
+                            return (true, sessions, "Successfully loaded archived sessions")
+                        } else {
+                            let error = json["error"] as? String ?? "Failed to load archived sessions"
+                            return (false, nil, error)
+                        }
+                    }
+                } catch {
+                    print("❌ JSON parsing error: \(error)")
+                    let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                    print("📄 Raw response: \(rawResponse)")
+                    return (false, nil, "Invalid response format")
+                }
+            }
+            
+        } catch {
+            print("❌ Get archived sessions request failed: \(error.localizedDescription)")
+            return (false, nil, "Network error: \(error.localizedDescription)")
+        }
+        
+        return (false, nil, "Unknown error occurred")
+    }
+
     /// Get archived sessions list
     func getArchivedSessions(limit: Int = 20, offset: Int = 0) async -> (success: Bool, sessions: [[String: Any]]?, message: String) {
         print("📦 === GET ARCHIVED SESSIONS ===")
