@@ -18,9 +18,9 @@ class SupabaseService: ObservableObject {
     
     private init() {}
     
-    // Get current user ID from existing auth system
+    // Get current user ID from centralized UserSessionManager  
     private var currentUserId: String? {
-        return UserDefaults.standard.string(forKey: "user_email") // Using email as user ID for now
+        return UserSessionManager.shared.currentUserId
     }
     
     // MARK: - Archive Session

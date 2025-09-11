@@ -8,13 +8,20 @@
 import SwiftUI
 
 struct SessionHistoryView: View {
-    @StateObject private var railwayService = RailwayArchiveService.shared
-    @State private var sessions: [SessionSummary] = []
+    @StateObject private var networkService = NetworkService.shared
+    @StateObject private var authService = AuthenticationService.shared
+    @StateObject private var questionArchiveService = QuestionArchiveService.shared
+    @State private var sessions: [[String: Any]] = []
     @State private var isLoading = false
     @State private var errorMessage = ""
     @State private var selectedViewMode: ViewMode = .list
-    @State private var selectedSubject: SubjectCategory?
+    @State private var selectedSubject: String?
     @State private var searchText = ""
+    @State private var showingArchiveDialog = false
+    @State private var selectedSessionForArchive: [String: Any]?
+    @State private var archiveTitle = ""
+    @State private var archiveNotes = ""
+    @State private var loadTask: Task<Void, Never>?
     
     private func colorForSubject(_ colorName: String) -> Color {
         switch colorName.lowercased() {
@@ -47,23 +54,45 @@ struct SessionHistoryView: View {
         }
     }
     
-    var filteredSessions: [SessionSummary] {
+    var filteredSessions: [[String: Any]] {
         var filtered = sessions
         
         // Filter by subject if selected
         if let selectedSubject = selectedSubject {
-            filtered = filtered.filter { $0.subject == selectedSubject.rawValue }
+            filtered = filtered.filter { 
+                let sessionSubject = $0["subject"] as? String ?? ""
+                return sessionSubject.lowercased() == selectedSubject.lowercased()
+            }
         }
         
         // Filter by search text
         if !searchText.isEmpty {
             filtered = filtered.filter { session in
-                session.title.localizedCaseInsensitiveContains(searchText) ||
-                session.subject.localizedCaseInsensitiveContains(searchText)
+                let title = session["title"] as? String ?? ""
+                let subject = session["subject"] as? String ?? ""
+                let searchContent = "\(title) \(subject)".lowercased()
+                return searchContent.contains(searchText.lowercased())
             }
         }
         
-        return filtered
+        return filtered.sorted { session1, session2 in
+            let date1 = getSessionDate(session1)
+            let date2 = getSessionDate(session2)
+            return date1 > date2
+        }
+    }
+    
+    private func getSessionDate(_ session: [String: Any]) -> Date {
+        let dateString = session["sessionDate"] as? String ?? 
+                        session["created_at"] as? String ?? 
+                        session["archived_at"] as? String ?? 
+                        session["archivedAt"] as? String
+        
+        if let dateString = dateString {
+            let dateFormatter = ISO8601DateFormatter()
+            return dateFormatter.date(from: dateString) ?? Date()
+        }
+        return Date()
     }
     
     var body: some View {
@@ -104,52 +133,149 @@ struct SessionHistoryView: View {
                             selectedSubject: $selectedSubject
                         )
                     case .calendar:
-                        SessionCalendarView(sessions: filteredSessions)
+                        // Temporarily disabled - needs data structure update
+                        VStack {
+                            Text("Calendar view is temporarily unavailable")
+                                .foregroundColor(.secondary)
+                            Text("Please use List view to see your sessions")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     case .subjects:
-                        SubjectCodebookView(sessions: sessions)
+                        // Temporarily disabled - needs data structure update  
+                        VStack {
+                            Text("Subject view is temporarily unavailable")
+                                .foregroundColor(.secondary)
+                            Text("Please use List view to see your sessions")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
             }
-            .navigationTitle("Mistake Notebook")
+            .navigationTitle("📚 My Study Library")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
+                print("🔄 Refresh triggered")
                 await loadSessions()
             }
             .onAppear {
-                if sessions.isEmpty {
+                print("👀 SessionHistoryView appeared, sessions count: \(sessions.count)")
+                if sessions.isEmpty && !isLoading {
                     Task {
                         await loadSessions()
                     }
                 }
             }
+            .onDisappear {
+                print("👋 SessionHistoryView disappeared, cancelling tasks")
+                loadTask?.cancel()
+            }
         }
     }
     
     private func loadSessions() async {
-        isLoading = true
-        errorMessage = ""
+        // Cancel any existing load task
+        loadTask?.cancel()
         
-        do {
-            let loadedSessions = try await railwayService.fetchArchivedSessions()
+        // Prevent multiple concurrent loads
+        if isLoading {
+            print("⚠️ Load already in progress, skipping...")
+            return
+        }
+        
+        print("🔄 === STARTING LOAD SESSIONS ===")
+        
+        guard authService.isAuthenticated else {
             await MainActor.run {
-                sessions = loadedSessions
+                errorMessage = "Please sign in to access your Study Library"
+                sessions = []
                 isLoading = false
             }
-        } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-                isLoading = false
+            return
+        }
+        
+        await MainActor.run {
+            isLoading = true
+            errorMessage = ""
+        }
+        
+        // Create a new task for this load operation
+        loadTask = Task { @MainActor in
+            var allSessions: [[String: Any]] = []
+            
+            // Try QuestionArchiveService first (this works and has 12 questions)
+            do {
+                print("📚 Fetching questions from QuestionArchiveService...")
+                let archivedQuestions = try await questionArchiveService.fetchArchivedQuestions()
+                print("📦 Found \(archivedQuestions.count) questions from QuestionArchiveService")
+                
+                // Convert QuestionSummary objects to dictionary format for unified display
+                let convertedSessions = archivedQuestions.map { summary -> [String: Any] in
+                    var session: [String: Any] = [:]
+                    session["id"] = summary.id
+                    session["title"] = "Homework Session - \(summary.subject)"
+                    session["subject"] = summary.subject
+                    session["questionCount"] = 1
+                    session["overallConfidence"] = summary.confidence
+                    session["reviewCount"] = summary.reviewCount
+                    session["sessionDate"] = ISO8601DateFormatter().string(from: summary.archivedAt)
+                    session["archived_at"] = ISO8601DateFormatter().string(from: summary.archivedAt)
+                    session["type"] = "question_archive"
+                    session["questionText"] = summary.questionText
+                    session["hasVisualElements"] = summary.hasVisualElements
+                    return session
+                }
+                
+                allSessions.append(contentsOf: convertedSessions)
+            } catch {
+                print("⚠️ QuestionArchiveService failed: \(error.localizedDescription)")
+            }
+            
+            // Check if task was cancelled
+            if Task.isCancelled {
+                print("⚠️ Load task cancelled, stopping...")
+                return
+            }
+            
+            // Now try NetworkService for conversation sessions (without concurrent requests)
+            print("💬 Fetching conversations from NetworkService...")
+            let networkResult = await networkService.getArchivedSessionsWithParams([:], forceRefresh: false)
+            if networkResult.success, let networkSessions = networkResult.sessions {
+                print("📦 Found \(networkSessions.count) sessions from NetworkService")
+                allSessions.append(contentsOf: networkSessions)
+            } else {
+                print("⚠️ NetworkService failed: \(networkResult.message)")
+            }
+            
+            // Check if task was cancelled again
+            if Task.isCancelled {
+                print("⚠️ Load task cancelled after network fetch, stopping...")
+                return
+            }
+            
+            // Update UI on main thread
+            sessions = allSessions
+            isLoading = false
+            print("✅ Total sessions loaded: \(allSessions.count)")
+            
+            if allSessions.isEmpty {
+                errorMessage = "No archived sessions found. Try creating some conversations or homework sessions first."
             }
         }
+        
+        await loadTask?.value
     }
 }
 
 // MARK: - Session List View
 
 struct SessionListView: View {
-    let sessions: [SessionSummary]
+    let sessions: [[String: Any]]
     @Binding var searchText: String
-    @Binding var selectedSubject: SubjectCategory?
+    @Binding var selectedSubject: String?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -183,11 +309,12 @@ struct SessionListView: View {
                             action: { selectedSubject = nil }
                         )
                         
-                        ForEach(SubjectCategory.allCases, id: \.self) { subject in
-                            let count = sessions.filter { $0.subject == subject.rawValue }.count
+                        let uniqueSubjects = Set(sessions.compactMap { $0["subject"] as? String }).sorted()
+                        ForEach(uniqueSubjects, id: \.self) { subject in
+                            let count = sessions.filter { ($0["subject"] as? String) == subject }.count
                             if count > 0 {
                                 SubjectFilterChip(
-                                    title: "\(subject.rawValue) (\(count))",
+                                    title: "\(subject) (\(count))",
                                     isSelected: selectedSubject == subject,
                                     action: { selectedSubject = subject }
                                 )
@@ -218,12 +345,15 @@ struct SessionListView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(sessions) { session in
-                    NavigationLink(destination: SessionDetailView(sessionId: session.id)) {
-                        SessionListCard(session: session)
+                List(sessions.indices, id: \.self) { index in
+                    let session = sessions[index]
+                    if let sessionId = session["id"] as? String {
+                        NavigationLink(destination: SessionDetailView(sessionId: sessionId)) {
+                            ModernSessionListCard(session: session)
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                     }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
                 }
                 .listStyle(PlainListStyle())
             }
@@ -231,7 +361,108 @@ struct SessionListView: View {
     }
 }
 
-// MARK: - Session List Card
+// MARK: - Modern Session List Card
+
+struct ModernSessionListCard: View {
+    let session: [String: Any]
+    
+    private func getSessionDate(_ session: [String: Any]) -> Date {
+        let dateString = session["sessionDate"] as? String ?? 
+                        session["created_at"] as? String ?? 
+                        session["archived_at"] as? String ?? 
+                        session["archivedAt"] as? String
+        
+        if let dateString = dateString {
+            let dateFormatter = ISO8601DateFormatter()
+            return dateFormatter.date(from: dateString) ?? Date()
+        }
+        return Date()
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(session["title"] as? String ?? "Study Session")
+                        .font(.headline)
+                        .foregroundColor(.black)
+                        .lineLimit(2)
+                    
+                    if let subject = session["subject"] as? String {
+                        Text(subject)
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.blue.opacity(0.1))
+                            .foregroundColor(.blue)
+                            .clipShape(Capsule())
+                    }
+                }
+                
+                Spacer()
+                
+                Text(getSessionDate(session), style: .date)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+            
+            // Content Preview
+            if let questionCount = session["questionCount"] as? Int, questionCount > 0 {
+                Text("Completed \(questionCount) questions")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            } else if let messageCount = session["message_count"] as? Int ?? session["messageCount"] as? Int {
+                Text("\(messageCount) messages in conversation")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            // Statistics
+            HStack(spacing: 20) {
+                if let questionCount = session["questionCount"] as? Int {
+                    StatItem(
+                        icon: "questionmark.circle",
+                        value: "\(questionCount)",
+                        label: "Questions"
+                    )
+                }
+                
+                if let confidence = session["overallConfidence"] as? Double {
+                    StatItem(
+                        icon: "checkmark.seal",
+                        value: "\(Int(confidence * 100))%",
+                        label: "Confidence"
+                    )
+                }
+                
+                // Status indicator
+                HStack {
+                    Image(systemName: session["archived_at"] != nil || session["archivedAt"] != nil ? "archivebox.fill" : "circle.fill")
+                        .font(.caption)
+                        .foregroundColor(session["archived_at"] != nil || session["archivedAt"] != nil ? .green : .blue)
+                    
+                    Text(session["archived_at"] != nil || session["archivedAt"] != nil ? "Archived" : "Active")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        )
+        .padding(.horizontal)
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Session List Card (Original - keep for compatibility)
 
 struct SessionListCard: View {
     let session: SessionSummary
@@ -368,20 +599,20 @@ struct StatItem: View {
 struct EmptySessionsView: View {
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "archivebox")
+            Image(systemName: "books.vertical")
                 .font(.system(size: 60))
                 .foregroundColor(.secondary)
             
-            Text("No Sessions Yet")
+            Text("Your Study Library is Empty")
                 .font(.title2)
                 .fontWeight(.bold)
             
-            Text("Your archived homework sessions will appear here")
+            Text("Your archived homework sessions and conversations will appear here")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
             
-            Text("Complete homework parsing and tap 'Save' to add sessions to your mistake notebook")
+            Text("Complete homework or start conversations to build your study library")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

@@ -115,13 +115,50 @@ final class AuthenticationService: ObservableObject {
     
     func checkAuthenticationStatus() {
         Task { @MainActor in
+            print("🔍 === CHECKING AUTH STATUS ON APP START ===")
+            
             if let userData = keychainService.getUser() {
+                print("📱 Found existing user in keychain:")
+                print("   👤 User ID: \(userData.id)")
+                print("   📧 Email: \(userData.email)")
+                print("   🔐 Provider: \(userData.authProvider.rawValue)")
+                print("   📅 Created: \(userData.createdAt)")
+                
+                let expectedServerUid = "81de989d-75ed-4c22-bbd3-146b8f6dcd26"
+                let isFirebaseUid = userData.id.contains("-") && userData.id.count > 30
+                
+                print("🚨 === STARTUP UID ANALYSIS ===")
+                print("📱 Loaded User ID: \(userData.id)")
+                print("🖥️ Expected Server UID: \(expectedServerUid)")
+                print("🔍 Is Firebase UID: \(isFirebaseUid)")
+                print("❌ UID MISMATCH: \(userData.id != expectedServerUid ? "YES - OLD DATA!" : "NO - Fixed!")")
+                
                 currentUser = userData
                 isAuthenticated = true
+                
+                // Auto-fix UID if it's still using Firebase UID
+                if userData.id != expectedServerUid && isFirebaseUid {
+                    print("🔧 === AUTO-FIXING UID ===")
+                    print("🚀 Attempting to fetch server UID using current token...")
+                    
+                    do {
+                        try await fixExistingUserUID()
+                        print("✅ UID auto-fix completed successfully!")
+                    } catch {
+                        print("❌ UID auto-fix failed: \(error.localizedDescription)")
+                        print("💡 User will need to log out and log back in")
+                    }
+                }
+                print("===============================")
+                
             } else {
+                print("📭 No existing user found in keychain")
                 isAuthenticated = false
                 currentUser = nil
             }
+            
+            print("✅ Auth status check complete. Authenticated: \(isAuthenticated)")
+            print("==============================================")
         }
     }
     
@@ -139,14 +176,38 @@ final class AuthenticationService: ObservableObject {
             }
         }
         
+        print("🔐 === EMAIL LOGIN DEBUG FLOW ===")
+        print("📧 Attempting login for: \(email)")
+        
         let result = await networkService.login(email: email, password: password)
         
         if result.success {
+            print("✅ Backend login successful!")
+            print("🔍 Backend Response Data: \(result.userData ?? [:])")
+            
+            // Extract server user ID from backend response
+            guard let userData = result.userData,
+                  let serverUserId = userData["id"] as? String ?? userData["userId"] as? String ?? userData["user_id"] as? String else {
+                print("❌ CRITICAL ERROR: Backend response missing user ID")
+                if let responseData = result.userData {
+                    print("📄 Available keys in userData: \(responseData.keys.sorted())")
+                } else {
+                    print("📄 userData is nil")
+                }
+                throw AuthError.serverError("Backend response missing user ID")
+            }
+            
+            print("🎯 === SERVER UID EXTRACTION SUCCESS ===")
+            print("🖥️ Server User ID Found: \(serverUserId)")
+            print("📧 Email: \(userData["email"] as? String ?? email)")
+            print("👤 Name: \(userData["name"] as? String ?? "N/A")")
+            print("==========================================")
+            
             let user = User(
-                id: UUID().uuidString,
-                email: email,
-                name: extractNameFromEmail(email),
-                profileImageURL: nil,
+                id: serverUserId,  // Use server UID instead of random UUID
+                email: userData["email"] as? String ?? email,
+                name: userData["name"] as? String ?? extractNameFromEmail(email),
+                profileImageURL: userData["profileImageURL"] as? String ?? userData["profileImageUrl"] as? String ?? userData["profile_image_url"] as? String,
                 authProvider: .email,
                 createdAt: Date(),
                 lastLoginAt: Date()
@@ -156,12 +217,22 @@ final class AuthenticationService: ObservableObject {
                 try keychainService.saveAuthToken(token)
                 try keychainService.saveUser(user)
                 
+                print("💾 === KEYCHAIN SAVE COMPLETE ===")
+                print("🔑 Token saved: \(String(token.prefix(20)))...")
+                print("👤 User saved with Server UID: \(user.id)")
+                print("================================")
+                
                 await MainActor.run {
                     currentUser = user
                     isAuthenticated = true
+                    print("🔄 === UI STATE UPDATED ===")
+                    print("✅ Authentication state set to true")
+                    print("👤 Current user ID now: \(user.id)")
+                    print("===========================")
                 }
             }
         } else {
+            print("❌ Backend login failed: \(result.message)")
             let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
             throw specificError
         }
@@ -271,11 +342,19 @@ final class AuthenticationService: ObservableObject {
         )
         
         if result.success {
+            // Extract server user ID from backend response
+            guard let userData = result.userData,
+                  let serverUserId = userData["id"] as? String ?? userData["userId"] as? String ?? userData["user_id"] as? String else {
+                throw AuthError.serverError("Backend response missing user ID")
+            }
+            
+            print("🔍 Google Login - Using server user ID: \(serverUserId)")
+            
             let user = User(
-                id: googleUser.userID,
-                email: googleUser.email,
-                name: googleUser.fullName ?? googleUser.email.components(separatedBy: "@").first?.capitalized ?? "Google User",
-                profileImageURL: googleUser.profileImageURL?.absoluteString,
+                id: serverUserId,  // Use server UID instead of Google UID
+                email: userData["email"] as? String ?? googleUser.email,
+                name: userData["name"] as? String ?? googleUser.fullName ?? googleUser.email.components(separatedBy: "@").first?.capitalized ?? "Google User",
+                profileImageURL: userData["profileImageURL"] as? String ?? userData["profileImageUrl"] as? String ?? userData["profile_image_url"] as? String ?? googleUser.profileImageURL?.absoluteString,
                 authProvider: .google,
                 createdAt: Date(),
                 lastLoginAt: Date()
@@ -346,6 +425,47 @@ final class AuthenticationService: ObservableObject {
     private func extractNameFromEmail(_ email: String) -> String {
         let username = email.components(separatedBy: "@").first ?? "User"
         return username.capitalized
+    }
+    
+    /// Fix existing user's UID by fetching server UID using current token
+    func fixExistingUserUID() async throws {
+        print("🔧 === FIXING EXISTING USER UID ===")
+        
+        guard getAuthToken() != nil else {
+            print("❌ No auth token available for UID fix")
+            throw AuthError.keychainError
+        }
+        
+        print("🔍 Using current token to fetch server user profile...")
+        let debugResult = await networkService.debugAuthTokenMapping()
+        
+        if debugResult.success, let serverUserId = debugResult.backendUserId {
+            print("🎯 === SERVER UID RETRIEVAL SUCCESS ===")
+            print("🖥️ Backend User ID: \(serverUserId)")
+            
+            // Update existing user with server UID
+            if let currentUser = currentUser {
+                let updatedUser = User(
+                    id: serverUserId,  // Replace with server UID
+                    email: currentUser.email,
+                    name: currentUser.name,
+                    profileImageURL: currentUser.profileImageURL,
+                    authProvider: currentUser.authProvider,
+                    createdAt: currentUser.createdAt,
+                    lastLoginAt: Date()  // Update last login
+                )
+                
+                try keychainService.saveUser(updatedUser)
+                
+                await MainActor.run {
+                    self.currentUser = updatedUser
+                    print("✅ User UID fixed! Old: \(currentUser.id) → New: \(serverUserId)")
+                }
+            }
+        } else {
+            print("❌ Failed to fetch server UID: \(debugResult.message)")
+            throw AuthError.networkError(debugResult.message)
+        }
     }
     
     func getBiometricType() -> String {

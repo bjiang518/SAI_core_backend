@@ -17,6 +17,7 @@ struct ImageSourceSelectionView: View {
     @State private var showingCamera = false
     @State private var showingPhotoPicker = false
     @State private var photoPermissionDenied = false
+    @State private var cameraPermissionDenied = false
     
     var body: some View {
         NavigationView {
@@ -28,7 +29,7 @@ struct ImageSourceSelectionView: View {
                 VStack(spacing: 16) {
                     // Camera Option
                     Button(action: {
-                        showingCamera = true
+                        requestCameraPermissionAndShow()
                     }) {
                         HStack {
                             Image(systemName: "camera")
@@ -126,6 +127,29 @@ struct ImageSourceSelectionView: View {
         } message: {
             Text("Please allow access to your photo library in Settings to select images.")
         }
+        .alert("Camera Access Required", isPresented: $cameraPermissionDenied) {
+            Button("Settings") {
+                if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(settingsUrl)
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Please allow camera access in Settings to take photos.")
+        }
+    }
+    
+    private func requestCameraPermissionAndShow() {
+        Task {
+            let hasPermission = await CameraPermissionManager.requestCameraPermission()
+            await MainActor.run {
+                if hasPermission {
+                    showingCamera = true
+                } else {
+                    cameraPermissionDenied = true
+                }
+            }
+        }
     }
     
     private func requestPhotoPermissionAndShow() {
@@ -168,12 +192,20 @@ struct PhotoLibraryPicker: UIViewControllerRepresentable {
         }
         
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            DispatchQueue.main.async {
+            // Ensure proper thread handling
+            Task { @MainActor in
                 if let image = info[.originalImage] as? UIImage {
                     print("✅ Selected image from photo library: \(image.size)")
+                    
+                    // First dismiss the picker
+                    self.parent.isPresented = false
+                    
+                    // Then set the image after a brief delay to avoid UI conflicts
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second delay
                     self.parent.selectedImage = image
+                } else {
+                    self.parent.isPresented = false
                 }
-                self.parent.isPresented = false
             }
         }
         
@@ -280,18 +312,19 @@ struct CameraView: UIViewControllerRepresentable {
         func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
             print("📸 Native document scan completed: \(scan.pageCount) pages")
             
-            if scan.pageCount > 0 {
-                let scannedImage = scan.imageOfPage(at: 0)
+            Task { @MainActor in
+                // First dismiss the scanner
+                self.parent.isPresented = false
                 
-                DispatchQueue.main.async {
+                if scan.pageCount > 0 {
+                    // Wait before setting image to avoid UI conflicts
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second delay
+                    
+                    let scannedImage = scan.imageOfPage(at: 0)
                     self.parent.selectedImage = scannedImage
-                    self.parent.isPresented = false
                     print("✅ Native scan result: \(scannedImage.size)")
-                }
-            } else {
-                print("❌ No pages scanned")
-                DispatchQueue.main.async {
-                    self.parent.isPresented = false
+                } else {
+                    print("❌ No pages scanned")
                 }
             }
         }
@@ -311,7 +344,13 @@ struct CameraView: UIViewControllerRepresentable {
         }
         
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            DispatchQueue.main.async {
+            Task { @MainActor in
+                // First dismiss the picker
+                self.parent.isPresented = false
+                
+                // Then process the image after a brief delay
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second delay
+                
                 if let editedImage = info[.editedImage] as? UIImage {
                     print("✅ Using edited image from camera")
                     self.parent.selectedImage = editedImage
@@ -319,7 +358,6 @@ struct CameraView: UIViewControllerRepresentable {
                     print("⚠️ Using original image from camera")
                     self.parent.selectedImage = originalImage
                 }
-                self.parent.isPresented = false
             }
         }
         

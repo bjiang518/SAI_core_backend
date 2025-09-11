@@ -73,7 +73,14 @@ struct AIHomeworkTestView: View {
         }
         .onChange(of: originalImage) { _, newImage in
             if let image = newImage {
-                processImage(image)
+                // Add delay to ensure view controller dismissal is complete
+                Task {
+                    // Wait for UI to settle before processing
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
+                    await MainActor.run {
+                        processImage(image)
+                    }
+                }
             }
         }
     }
@@ -358,20 +365,21 @@ struct AIHomeworkTestView: View {
         print("📱 Original image scale: \(image.scale)")
         
         Task {
-            let startTime = Date()
-            
-            // Compress image to ensure it's under API limits
-            print("🔄 Starting image compression for API...")
-            guard let imageData = compressImageForAPI(image) else {
-                print("❌ Image compression failed completely")
-                await MainActor.run {
-                    parsingError = "Failed to compress image to acceptable size"
-                    processingStatus = "❌ Image too large to process"
-                    showingErrorAlert = true
-                    isProcessing = false
+            do {
+                let startTime = Date()
+                
+                // Compress image to ensure it's under API limits
+                print("🔄 Starting image compression for API...")
+                guard let imageData = compressImageForAPI(image) else {
+                    print("❌ Image compression failed completely")
+                    await MainActor.run {
+                        parsingError = "Failed to compress image to acceptable size"
+                        processingStatus = "❌ Image too large to process"
+                        showingErrorAlert = true
+                        isProcessing = false
+                    }
+                    return
                 }
-                return
-            }
             
             let imageSizeMB = Double(imageData.count) / (1024 * 1024)
             print("✅ Final compressed image size: \(String(format: "%.2f", imageSizeMB))MB")
@@ -420,6 +428,19 @@ struct AIHomeworkTestView: View {
                 isProcessing = false
             }
             print("🏁 === END HOMEWORK IMAGE PROCESSING DEBUG ===")
+            
+            } catch {
+                // Catch any unexpected errors during processing
+                print("❌ === UNEXPECTED ERROR DURING PROCESSING ===")
+                print("💥 Error: \(error.localizedDescription)")
+                
+                await MainActor.run {
+                    parsingError = "Unexpected error during image processing: \(error.localizedDescription)"
+                    processingStatus = "❌ Processing failed unexpectedly"
+                    showingErrorAlert = true
+                    isProcessing = false
+                }
+            }
         }
     }
     

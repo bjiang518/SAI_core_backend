@@ -25,6 +25,7 @@ class PerspectiveCorrector {
         return VNDocumentCameraViewController.isSupported
     }
     
+    
     /// Present native document scanner (call from SwiftUI)
     /// Returns a configured VNDocumentCameraViewController
     func createNativeDocumentScanner(delegate: VNDocumentCameraViewControllerDelegate) -> VNDocumentCameraViewController? {

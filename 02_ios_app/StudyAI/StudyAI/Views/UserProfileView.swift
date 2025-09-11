@@ -10,6 +10,7 @@ import SwiftUI
 struct UserProfileView: View {
     @StateObject private var voiceService = VoiceInteractionService.shared
     @StateObject private var networkService = NetworkService.shared
+    @StateObject private var authService = AuthenticationService.shared
     @State private var userName = UserDefaults.standard.string(forKey: "user_name") ?? "Student"
     @State private var userEmail = UserDefaults.standard.string(forKey: "user_email") ?? ""
     @State private var isEditingName = false
@@ -284,7 +285,7 @@ struct UserProfileView: View {
             sectionHeader("Account", icon: "person.circle.fill")
             
             VStack(spacing: 1) {
-                if networkService.authToken != nil {
+                if authService.isAuthenticated {
                     settingsRow(
                         title: "Account Details",
                         subtitle: "View and edit your account information",
@@ -380,7 +381,7 @@ struct UserProfileView: View {
     }
     
     private func signOut() {
-        networkService.clearAuth()
+        authService.signOut()
         // TODO: Navigate back to login or main screen
         dismiss()
     }

@@ -14,9 +14,8 @@ class NetworkService: ObservableObject {
     // Primary: Production Railway backend with integrated AI proxy
     private let baseURL = "https://sai-backend-production.up.railway.app"
     
-    // Authentication
-    @Published var authToken: String?
-    @Published var currentUser: [String: Any]?
+    // Note: Authentication now managed by AuthenticationService only
+    // NetworkService no longer stores auth data independently
     
     // Session Management
     @Published var currentSessionId: String?
@@ -28,8 +27,8 @@ class NetworkService: ObservableObject {
     private let cacheValidityInterval: TimeInterval = 300 // 5 minutes cache validity
     
     private init() {
-        // Load saved token from UserDefaults on init
-        loadSavedAuth()
+        // NetworkService no longer manages independent authentication
+        // All auth is handled by AuthenticationService
     }
     
     // MARK: - Cache Management
@@ -50,100 +49,31 @@ class NetworkService: ObservableObject {
         print("💾 Archive cache updated with \(sessions.count) sessions")
     }
     
-    // MARK: - Authentication Management
-    private func saveAuth(token: String, user: [String: Any]) {
-        UserDefaults.standard.set(token, forKey: "studyai_auth_token")
-        
-        // Clean the user dictionary to ensure it's property list compatible
-        let cleanUser = cleanUserDictionary(user)
-        UserDefaults.standard.set(cleanUser, forKey: "studyai_current_user")
-        
-        DispatchQueue.main.async {
-            self.authToken = token
-            self.currentUser = cleanUser
-        }
-    }
-    
-    // Clean user dictionary to be property list compatible
-    private func cleanUserDictionary(_ user: [String: Any]) -> [String: Any] {
-        var cleanedUser: [String: Any] = [:]
-        
-        for (key, value) in user {
-            // Skip nil values entirely
-            if value is NSNull {
-                continue
-            }
-            
-            // Handle different value types
-            if let stringValue = value as? String {
-                // Handle string values, including "null" strings
-                if stringValue.lowercased() == "null" || stringValue == "<null>" {
-                    continue  // Skip null string representations
-                }
-                cleanedUser[key] = stringValue
-            } else if let numberValue = value as? NSNumber {
-                cleanedUser[key] = numberValue
-            } else if let boolValue = value as? Bool {
-                cleanedUser[key] = boolValue
-            } else if let dateValue = value as? Date {
-                cleanedUser[key] = dateValue
-            } else if let arrayValue = value as? [Any] {
-                // Clean arrays recursively (though we don't expect them in user data)
-                let cleanedArray = arrayValue.compactMap { item -> Any? in
-                    if item is NSNull { return nil }
-                    if let dict = item as? [String: Any] {
-                        return cleanUserDictionary(dict)
-                    }
-                    return item
-                }
-                cleanedUser[key] = cleanedArray
-            } else if let dictValue = value as? [String: Any] {
-                // Recursively clean nested dictionaries
-                let cleanedDict = cleanUserDictionary(dictValue)
-                if !cleanedDict.isEmpty {
-                    cleanedUser[key] = cleanedDict
-                }
-            } else {
-                // Convert other types to string representation, but check for null representations
-                let stringRep = String(describing: value)
-                if stringRep.lowercased() != "null" && stringRep != "<null>" && stringRep != "nil" {
-                    cleanedUser[key] = stringRep
-                }
-            }
-        }
-        
-        print("🧹 Cleaned user dictionary: \(cleanedUser)")
-        return cleanedUser
-    }
-    
-    private func loadSavedAuth() {
-        if let token = UserDefaults.standard.string(forKey: "studyai_auth_token"),
-           let userData = UserDefaults.standard.dictionary(forKey: "studyai_current_user") {
-            DispatchQueue.main.async {
-                self.authToken = token
-                self.currentUser = userData
-            }
-        }
-    }
-    
-    func clearAuth() {
-        UserDefaults.standard.removeObject(forKey: "studyai_auth_token")
-        UserDefaults.standard.removeObject(forKey: "studyai_current_user")
-        
-        DispatchQueue.main.async {
-            self.authToken = nil
-            self.currentUser = nil
-            self.currentSessionId = nil
-            self.conversationHistory.removeAll()
-            
-            // Clear cache when user logs out
-            self.invalidateCache()
-        }
-    }
-    
     private func addAuthHeader(to request: inout URLRequest) {
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        // Use AuthenticationService token exclusively
+        if let unifiedToken = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(unifiedToken)", forHTTPHeaderField: "Authorization")
+            
+            // CRITICAL DEBUG: Show UID mismatch issue
+            let currentUserId = UserSessionManager.shared.currentUserId ?? "unknown"
+            let expectedServerUid = "81de989d-75ed-4c22-bbd3-146b8f6dcd26"
+            let isFirebaseUid = currentUserId.contains("-") && currentUserId.count > 30
+            
+            print("🚨 === CRITICAL UID DEBUG ===")
+            print("📱 iOS Current User ID: \(currentUserId)")
+            print("🖥️ Expected Server UID: \(expectedServerUid)")
+            print("🔍 Is using Firebase UID: \(isFirebaseUid)")
+            print("❌ UID MISMATCH: \(currentUserId != expectedServerUid ? "YES - This is the bug!" : "NO - Fixed!")")
+            print("🔍 Token preview: \(String(unifiedToken.prefix(20)))...")
+            
+            // Add debug info about expected user
+            if let currentUser = AuthenticationService.shared.currentUser {
+                print("📱 iOS User Info: ID=\(currentUser.id), Email=\(currentUser.email), Provider=\(currentUser.authProvider.rawValue)")
+                print("🔍 User created at: \(currentUser.createdAt)")
+            }
+            print("===============================")
+        } else {
+            print("❌ No auth token available from AuthenticationService")
         }
     }
     
@@ -205,14 +135,17 @@ class NetworkService: ObservableObject {
     }
     
     // MARK: - Authentication
-    func login(email: String, password: String) async -> (success: Bool, message: String, token: String?, statusCode: Int?) {
+    // Note: Authentication is now handled exclusively by AuthenticationService
+    // These methods only interact with backend, do not store auth data locally
+    
+    func login(email: String, password: String) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
         print("🔐 Testing login functionality...")
         
         let loginURL = "\(baseURL)/api/auth/login"
         print("🔗 Using Railway backend for login")
         
         guard let url = URL(string: loginURL) else {
-            return (false, "Invalid URL", nil, nil)
+            return (false, "Invalid URL", nil, nil, nil)
         }
         
         let loginData = [
@@ -237,28 +170,24 @@ class NetworkService: ObservableObject {
                     print("✅ Login Response: \(json)")
                     
                     if statusCode == 200 {
-                        if let token = json["token"] as? String,
-                           let user = json["user"] as? [String: Any] {
-                            // Save authentication data
-                            saveAuth(token: token, user: user)
-                            return (true, "Login successful", token, statusCode)
-                        } else {
-                            let token = json["token"] as? String
-                            let message = json["message"] as? String ?? "Login successful"
-                            return (true, message, token, statusCode)
-                        }
+                        let token = json["token"] as? String
+                        let message = json["message"] as? String ?? "Login successful"
+                        let userData = json["user"] as? [String: Any] ?? json  // Try 'user' key first, fallback to full response
+                        print("🔍 Extracted user data: \(userData)")
+                        // NOTE: Do not save auth data here - AuthenticationService will handle it
+                        return (true, message, token, userData, statusCode)
                     } else {
                         let message = json["message"] as? String ?? "Login failed"
-                        return (false, message, nil, statusCode)
+                        return (false, message, nil, nil, statusCode)
                     }
                 }
             }
             
-            return (false, "Invalid response", nil, nil)
+            return (false, "Invalid response", nil, nil, nil)
         } catch {
             let errorMsg = "Login request failed: \(error.localizedDescription)"
             print("❌ \(errorMsg)")
-            return (false, errorMsg, nil, nil)
+            return (false, errorMsg, nil, nil, nil)
         }
     }
     
@@ -429,6 +358,57 @@ class NetworkService: ObservableObject {
         }
     }
     
+    // MARK: - Authentication Debugging
+    
+    /// Debug method to check what user ID the backend thinks we are based on our token
+    func debugAuthTokenMapping() async -> (success: Bool, backendUserId: String?, message: String) {
+        print("🔍 === DEBUGGING AUTH TOKEN MAPPING ===")
+        
+        guard let token = AuthenticationService.shared.getAuthToken() else {
+            return (false, nil, "No auth token available")
+        }
+        
+        print("📱 iOS Expected User: \(UserSessionManager.shared.currentUserId ?? "unknown")")
+        print("🔐 Token Preview: \(String(token.prefix(20)))...")
+        
+        // Try to get user info from backend using current token
+        let debugURL = "\(baseURL)/api/user/profile"
+        
+        guard let url = URL(string: debugURL) else {
+            return (false, nil, "Invalid debug URL")
+        }
+        
+        var request = URLRequest(url: url)
+        addAuthHeader(to: &request)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("✅ Debug Auth Status: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 200 {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let backendUserId = json["id"] as? String ?? json["userId"] as? String {
+                        print("🎯 Backend User ID: \(backendUserId)")
+                        print("📊 Full Backend Response: \(json)")
+                        return (true, backendUserId, "Backend maps token to user: \(backendUserId)")
+                    }
+                }
+                
+                let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                print("❌ Debug Auth Response: \(rawResponse)")
+                return (false, nil, "HTTP \(httpResponse.statusCode): \(rawResponse)")
+            }
+            
+        } catch {
+            print("❌ Debug auth request failed: \(error.localizedDescription)")
+            return (false, nil, "Network error: \(error.localizedDescription)")
+        }
+        
+        return (false, nil, "Unknown error")
+    }
+    
     // MARK: - Progress Tracking
     func getProgress() async -> (success: Bool, progress: [String: Any]?) {
         print("📊 Testing progress tracking...")
@@ -578,8 +558,8 @@ class NetworkService: ObservableObject {
     
     // MARK: - Session Management
     func createSession(subject: String) async -> (success: Bool, sessionId: String?, message: String) {
-        // Check authentication first
-        guard authToken != nil else {
+        // Check authentication first - use unified auth system
+        guard AuthenticationService.shared.getAuthToken() != nil else {
             print("❌ Authentication required to create session")
             return (false, nil, "Authentication required")
         }
@@ -633,8 +613,8 @@ class NetworkService: ObservableObject {
                         return (true, sessionId, "Session created successfully")
                     }
                 } else if httpResponse.statusCode == 401 {
-                    // Authentication failed - clear stored auth
-                    clearAuth()
+                    // Authentication failed - let AuthenticationService handle it
+                    print("❌ Authentication expired in createSession")
                     return (false, nil, "Authentication expired")
                 }
                 
@@ -651,8 +631,8 @@ class NetworkService: ObservableObject {
     }
     
     func sendSessionMessage(sessionId: String, message: String) async -> (success: Bool, aiResponse: String?, tokensUsed: Int?, compressed: Bool?) {
-        // Check authentication first
-        guard authToken != nil else {
+        // Check authentication first - use unified auth system
+        guard AuthenticationService.shared.getAuthToken() != nil else {
             print("❌ Authentication required to send messages")
             return (false, nil, nil, nil)
         }
@@ -725,8 +705,8 @@ class NetworkService: ObservableObject {
                         return (true, aiResponse, tokensUsed, compressed)
                     }
                 } else if httpResponse.statusCode == 401 {
-                    // Authentication failed - clear stored auth
-                    clearAuth()
+                    // Authentication failed - let AuthenticationService handle it
+                    print("❌ Authentication expired in sendSessionMessage")
                     return (false, "Authentication expired", nil, nil)
                 } else if httpResponse.statusCode == 403 {
                     return (false, "Access denied - session belongs to different user", nil, nil)
@@ -745,8 +725,8 @@ class NetworkService: ObservableObject {
     }
     
     func getSessionInfo(sessionId: String) async -> (success: Bool, sessionInfo: [String: Any]?) {
-        // Check authentication first
-        guard authToken != nil else {
+        // Check authentication first - use unified auth system
+        guard AuthenticationService.shared.getAuthToken() != nil else {
             print("❌ Authentication required to get session info")
             return (false, nil)
         }
@@ -780,8 +760,8 @@ class NetworkService: ObservableObject {
                         return (true, json)
                     }
                 } else if httpResponse.statusCode == 401 {
-                    // Authentication failed - clear stored auth
-                    clearAuth()
+                    // Authentication failed - let AuthenticationService handle it
+                    print("❌ Authentication expired in getSessionInfo")
                     return (false, nil)
                 } else if httpResponse.statusCode == 403 {
                     print("❌ Access denied - session belongs to different user")
@@ -996,7 +976,7 @@ class NetworkService: ObservableObject {
         
         let requestData: [String: Any] = [
             "base64_image": base64Image,
-            "prompt": prompt.isEmpty ? nil : prompt,
+            "prompt": prompt.isEmpty ? "" : prompt,
             "student_id": "ios_user"
         ]
         
@@ -1063,14 +1043,14 @@ class NetworkService: ObservableObject {
     }
     
     // MARK: - Registration
-    func register(name: String, email: String, password: String) async -> (success: Bool, message: String, token: String?, statusCode: Int?) {
+    func register(name: String, email: String, password: String) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
         print("📝 Testing registration functionality...")
         
         let registerURL = "\(baseURL)/api/auth/register"
         print("🔗 Using Railway backend for registration")
         
         guard let url = URL(string: registerURL) else {
-            return (false, "Invalid URL", nil, nil)
+            return (false, "Invalid URL", nil, nil, nil)
         }
         
         let registerData = [
@@ -1096,39 +1076,35 @@ class NetworkService: ObservableObject {
                     print("✅ Registration Response: \(json)")
                     
                     if statusCode == 201 {  // 201 Created for successful registration
-                        if let token = json["token"] as? String,
-                           let user = json["user"] as? [String: Any] {
-                            // Save authentication data
-                            saveAuth(token: token, user: user)
-                            return (true, "Registration successful", token, statusCode)
-                        } else {
-                            let token = json["token"] as? String
-                            return (true, "Registration successful", token, statusCode)
-                        }
+                        let token = json["token"] as? String
+                        let userData = json["user"] as? [String: Any] ?? json  // Try 'user' key first, fallback to full response
+                        print("🔍 Registration - Extracted user data: \(userData)")
+                        // NOTE: Do not save auth data here - AuthenticationService will handle it
+                        return (true, "Registration successful", token, userData, statusCode)
                     } else {
                         let message = json["message"] as? String ?? "Registration failed"
-                        return (false, message, nil, statusCode)
+                        return (false, message, nil, nil, statusCode)
                     }
                 }
             }
             
-            return (false, "Invalid response", nil, nil)
+            return (false, "Invalid response", nil, nil, nil)
         } catch {
             let errorMsg = "Registration request failed: \(error.localizedDescription)"
             print("❌ \(errorMsg)")
-            return (false, errorMsg, nil, nil)
+            return (false, errorMsg, nil, nil, nil)
         }
     }
     
     // MARK: - Google Authentication
-    func googleLogin(idToken: String, accessToken: String?, name: String, email: String, profileImageUrl: String?) async -> (success: Bool, message: String, token: String?, statusCode: Int?) {
+    func googleLogin(idToken: String, accessToken: String?, name: String, email: String, profileImageUrl: String?) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
         print("🔐 Google authentication with Railway backend...")
         
         let googleURL = "\(baseURL)/api/auth/google"
         print("🔗 Using Railway backend for Google auth")
         
         guard let url = URL(string: googleURL) else {
-            return (false, "Invalid URL", nil, nil)
+            return (false, "Invalid URL", nil, nil, nil)
         }
         
         let googleData: [String: Any] = [
@@ -1158,13 +1134,11 @@ class NetworkService: ObservableObject {
                         let success = json["success"] as? Bool ?? false
                         let message = json["message"] as? String ?? "Unknown error"
                         let token = json["token"] as? String
+                        let userData = json["user"] as? [String: Any] ?? json  // Try 'user' key first, fallback to full response
+                        print("🔍 Google Auth - Extracted user data: \(userData)")
                         
-                        if success, let token = token, let user = json["user"] as? [String: Any] {
-                            // Save authentication data
-                            saveAuth(token: token, user: user)
-                        }
-                        
-                        return (success, message, token, httpResponse.statusCode)
+                        // NOTE: Do not save auth data here - AuthenticationService will handle it
+                        return (success, message, token, userData, httpResponse.statusCode)
                     }
                 } catch {
                     print("❌ JSON parsing error: \(error)")
@@ -1173,10 +1147,10 @@ class NetworkService: ObservableObject {
             
         } catch {
             print("❌ Network error: \(error)")
-            return (false, "Network error: \(error.localizedDescription)", nil, nil)
+            return (false, "Network error: \(error.localizedDescription)", nil, nil, nil)
         }
         
-        return (false, "Unknown error", nil, nil)
+        return (false, "Unknown error", nil, nil, nil)
     }
     
     // MARK: - Session Archive Management
@@ -1188,10 +1162,11 @@ class NetworkService: ObservableObject {
         print("📝 Title: \(title ?? "Auto-generated")")
         print("📚 Subject: \(subject ?? "General")")
         print("💭 Notes: \(notes ?? "None")")
-        print("🔐 Auth Token Available: \(authToken != nil)")
+        print("🔐 Auth Token Available: \(AuthenticationService.shared.getAuthToken() != nil)")
         
-        // Check authentication first - CRITICAL FIX
-        guard let token = authToken else {
+        // Check authentication first - use unified auth system  
+        let token = AuthenticationService.shared.getAuthToken()
+        guard let token = token else {
             print("❌ Authentication required for archiving")
             return (false, "Authentication required. Please login first.")
         }
@@ -1259,6 +1234,18 @@ class NetworkService: ObservableObject {
                                 print("📁 Archive ID: \(archiveId)")
                                 print("💬 Messages archived: \(messageCount)")
                                 print("📦 Archive type: \(archiveType)")
+                                print("🔍 IMPORTANT: Archive endpoint used: /api/ai/sessions/\(sessionId)/archive")
+                                print("🔍 IMPORTANT: Response format: \(json)")
+                                print("🔍 IMPORTANT: To retrieve, try endpoints like:")
+                                print("   - /api/ai/sessions/archived")
+                                print("   - /api/ai/archives/conversations")
+                                print("   - /api/archive/conversations")
+                                if let currentUserId = AuthenticationService.shared.currentUser?.id {
+                                    print("   - /api/user/\(currentUserId)/conversations")
+                                }
+                                
+                                // Invalidate cache so fresh data is loaded
+                                invalidateCache()
                                 
                                 return (true, "Session archived successfully with \(messageCount) messages")
                             } else {
@@ -1268,7 +1255,7 @@ class NetworkService: ObservableObject {
                             }
                         } else if httpResponse.statusCode == 401 {
                             print("❌ Authentication failed during archive")
-                            clearAuth()
+                            // Let AuthenticationService handle auth state
                             return (false, "Authentication expired. Please login again.")
                         } else if httpResponse.statusCode == 404 {
                             print("❌ Session not found for archiving")
@@ -1318,12 +1305,11 @@ class NetworkService: ObservableObject {
         
         print("🌐 Fetching fresh data from server...")
         
-        // For now, only fetch from homework sessions endpoint which has proper auth
-        // This will at least show homework/question archives
+        // Fetch from both homework sessions and conversation sessions
         let homeworkResult = await fetchHomeworkSessions(queryParams)
         
-        // TODO: Add conversation fetching once backend user ID issue is resolved
-        // let conversationResult = await fetchConversationSessions(queryParams)
+        // Also try to fetch conversation sessions
+        let conversationResult = await fetchConversationSessions(queryParams)
         
         var allSessions: [[String: Any]] = []
         
@@ -1332,8 +1318,14 @@ class NetworkService: ObservableObject {
             allSessions.append(contentsOf: homeworkSessions)
         }
         
+        // Add conversation sessions if found
+        if conversationResult.success, let conversationSessions = conversationResult.sessions {
+            print("💬 Found \(conversationSessions.count) conversation sessions")
+            allSessions.append(contentsOf: conversationSessions)
+        }
+        
         // Update cache only if no search parameters (cache general list, not searches)
-        if !hasSearchParams && homeworkResult.success {
+        if !hasSearchParams && (homeworkResult.success || conversationResult.success) {
             updateCache(with: allSessions)
         }
         
@@ -1347,101 +1339,290 @@ class NetworkService: ObservableObject {
     }
     
     private func fetchHomeworkSessions(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
-        // Build URL with query parameters for homework sessions
-        var urlComponents = URLComponents(string: "\(baseURL)/api/archive/sessions")!
+        print("📊 === FETCHING HOMEWORK SESSIONS SEQUENTIALLY ===")
+        var allSessions: [[String: Any]] = []
+        
+        // First, fetch sessions from /api/archive/sessions (sequential, not concurrent)
+        print("🔗 Step 1: Trying archived sessions...")
+        let sessionsResult = await fetchArchivedSessions(queryParams)
+        if sessionsResult.success, let sessions = sessionsResult.sessions {
+            print("✅ Step 1: Found \(sessions.count) archived sessions")
+            allSessions.append(contentsOf: sessions)
+        } else {
+            print("⚠️ Step 1: No archived sessions found")
+        }
+        
+        // Then, fetch archived questions (sequential, not concurrent)
+        print("🔗 Step 2: Trying archived questions...")
+        let questionsResult = await fetchArchivedQuestions(queryParams)
+        if questionsResult.success, let questions = questionsResult.sessions {
+            print("✅ Step 2: Found \(questions.count) archived questions")
+            allSessions.append(contentsOf: questions)
+        } else {
+            print("⚠️ Step 2: No archived questions found")
+        }
+        
+        print("📊 Total homework sessions found: \(allSessions.count)")
+        return (allSessions.count > 0, allSessions)
+    }
+    
+    private func fetchArchivedSessions(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
+        // Try multiple endpoints for archived sessions/conversations
+        let endpoints = [
+            "\(baseURL)/api/archive/sessions",
+            "\(baseURL)/api/ai/archives/conversations", 
+            "\(baseURL)/api/user/conversations/archived"
+        ]
+        
+        for endpoint in endpoints {
+            let result = await tryFetchSessionsFrom(endpoint, queryParams: queryParams)
+            if result.success {
+                return result
+            }
+        }
+        
+        return (false, nil)
+    }
+    
+    private func tryFetchSessionsFrom(_ endpoint: String, queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
+        // Build URL with query parameters
+        var urlComponents = URLComponents(string: endpoint)!
         urlComponents.queryItems = queryParams.map { URLQueryItem(name: $0.key, value: $0.value) }
         
         guard let url = urlComponents.url else {
             return (false, nil)
         }
         
-        print("🔗 Homework URL: \(url.absoluteString)")
+        print("🔗 Trying Sessions URL: \(url.absoluteString)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         
-        // Add authentication if available
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
+        // Add authentication if available from AuthenticationService only
+        addAuthHeader(to: &request)
         
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Homework Sessions Status: \(httpResponse.statusCode)")
+                print("✅ Sessions Status (\(endpoint)): \(httpResponse.statusCode)")
                 
-                if httpResponse.statusCode == 200,
-                   let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
-                   let success = json["success"] as? Bool, success,
-                   let sessions = json["data"] as? [[String: Any]] {
-                    return (true, sessions)
+                if httpResponse.statusCode == 200 {
+                    if let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                       let success = json["success"] as? Bool, success,
+                       let sessions = json["data"] as? [[String: Any]] {
+                        print("📦 Found \(sessions.count) sessions from \(endpoint)")
+                        return (true, sessions)
+                    } else if let rawResponse = String(data: data, encoding: .utf8) {
+                        print("📄 Raw sessions response: \(String(rawResponse.prefix(200)))")
+                        // Try parsing as array directly
+                        if let sessions = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
+                            print("📦 Found \(sessions.count) sessions in direct array format from \(endpoint)")
+                            return (true, sessions)
+                        }
+                    }
+                } else if httpResponse.statusCode == 404 {
+                    print("ℹ️ Endpoint \(endpoint) not available (404)")
+                } else {
+                    print("⚠️ Endpoint \(endpoint) returned \(httpResponse.statusCode)")
+                    if let rawResponse = String(data: data, encoding: .utf8) {
+                        print("📄 Error response: \(String(rawResponse.prefix(200)))")
+                    }
                 }
             }
         } catch {
-            print("❌ Homework sessions request failed: \(error.localizedDescription)")
+            print("❌ Sessions request failed for \(endpoint): \(error.localizedDescription)")
+        }
+        
+        return (false, nil)
+    }
+    
+    private func fetchArchivedQuestions(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
+        // Try multiple endpoints for archived questions
+        let endpoints = [
+            "\(baseURL)/api/archive/questions",
+            "\(baseURL)/api/user/questions/archived",
+            "\(baseURL)/api/archive/homework"
+        ]
+        
+        for endpoint in endpoints {
+            let result = await tryFetchQuestionsFrom(endpoint, queryParams: queryParams)
+            if result.success {
+                return result
+            }
+        }
+        
+        // If no endpoint works, try to get from user's archived questions directly
+        print("ℹ️ No questions endpoints available, will show empty list")
+        return (true, [])
+    }
+    
+    private func tryFetchQuestionsFrom(_ endpoint: String, queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
+        var urlComponents = URLComponents(string: endpoint)!
+        var allQueryParams = queryParams
+        
+        // Add user ID from centralized UserSessionManager
+        if let userId = UserSessionManager.shared.currentUserId {
+            allQueryParams["userId"] = userId
+        }
+        
+        urlComponents.queryItems = allQueryParams.map { URLQueryItem(name: $0.key, value: $0.value) }
+        
+        guard let url = urlComponents.url else {
+            return (false, nil)
+        }
+        
+        print("🔗 Trying Questions URL: \(url.absoluteString)")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        // Add authentication if available from AuthenticationService only
+        addAuthHeader(to: &request)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("✅ Questions Status (\(endpoint)): \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 200 {
+                    if let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                       let success = json["success"] as? Bool, success,
+                       let questions = json["data"] as? [[String: Any]] {
+                        
+                        print("📚 Found \(questions.count) archived questions from \(endpoint)")
+                        
+                        // Convert questions to session format for unified display
+                        let convertedSessions = questions.map { question -> [String: Any] in
+                            var session = question
+                            // Ensure consistent format for display
+                            if session["title"] == nil {
+                                session["title"] = "Homework Session - \(session["subject"] as? String ?? "Study")"
+                            }
+                            if session["type"] == nil {
+                                session["type"] = "homework"
+                            }
+                            // Add question count
+                            if let questionsData = session["questions"] as? [[String: Any]] {
+                                session["questionCount"] = questionsData.count
+                            } else {
+                                session["questionCount"] = 1 // Single question
+                            }
+                            // Add a session date if missing
+                            if session["created_at"] == nil && session["sessionDate"] == nil {
+                                session["created_at"] = ISO8601DateFormatter().string(from: Date())
+                            }
+                            return session
+                        }
+                        
+                        return (true, convertedSessions)
+                    } else if let rawResponse = String(data: data, encoding: .utf8) {
+                        print("📄 Raw response: \(String(rawResponse.prefix(200)))")
+                        // Try parsing as array directly
+                        if let questions = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
+                            print("📚 Found \(questions.count) questions in direct array format")
+                            return (true, questions)
+                        }
+                    }
+                } else if httpResponse.statusCode == 404 {
+                    print("ℹ️ Endpoint \(endpoint) not available (404)")
+                    return (false, nil)
+                } else {
+                    print("⚠️ Endpoint \(endpoint) returned \(httpResponse.statusCode)")
+                }
+            }
+        } catch {
+            print("❌ Questions request failed for \(endpoint): \(error.localizedDescription)")
         }
         
         return (false, nil)
     }
     
     private func fetchConversationSessions(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
-        // Try the search endpoint instead of the direct conversations endpoint
-        // This might have better user ID handling
-        var urlComponents = URLComponents(string: "\(baseURL)/api/ai/archives/search")!
+        print("🔄 === FETCHING CONVERSATION SESSIONS ===")
+        print("📄 Input Query Params: \(queryParams)")
         
-        // Add search query parameters - use empty search to get all
-        var searchParams = queryParams
-        searchParams["q"] = searchParams["search"] ?? " " // Use space as minimal search query
-        searchParams["type"] = "conversations" // Only get conversations
+        // Try multiple endpoints for conversation sessions - AVOID /api/ai/sessions/archived due to routing conflict
+        let endpoints = [
+            "\(baseURL)/api/ai/archives/conversations",
+            "\(baseURL)/api/archive/conversations", 
+            "\(baseURL)/api/user/conversations",
+            "\(baseURL)/api/conversations/archived"
+        ]
         
-        urlComponents.queryItems = searchParams.map { URLQueryItem(name: $0.key, value: $0.value) }
+        // First try direct endpoints
+        for endpoint in endpoints {
+            print("🔗 Trying conversation endpoint: \(endpoint)")
+            let result = await tryFetchConversationsFrom(endpoint, queryParams: queryParams)
+            if result.success {
+                return result
+            }
+        }
+        
+        // Then try the search endpoint with corrected parameters
+        print("🔍 Trying search endpoint as fallback...")
+        return await tryConversationSearch(queryParams)
+    }
+    
+    private func tryFetchConversationsFrom(_ endpoint: String, queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
+        var urlComponents = URLComponents(string: endpoint)!
+        urlComponents.queryItems = queryParams.map { URLQueryItem(name: $0.key, value: $0.value) }
         
         guard let url = urlComponents.url else {
+            print("❌ Invalid URL for \(endpoint)")
             return (false, nil)
         }
         
-        print("🔗 Conversations Search URL: \(url.absoluteString)")
+        print("🔗 Conversation URL: \(url.absoluteString)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         
-        // Add authentication if available
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
+        // Add authentication if available from AuthenticationService only
+        addAuthHeader(to: &request)
         
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Conversation Search Status: \(httpResponse.statusCode)")
+                print("✅ Conversation Status (\(endpoint)): \(httpResponse.statusCode)")
                 
-                if httpResponse.statusCode == 200,
-                   let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                    
-                    print("📄 Search response: \(json)")
-                    
-                    let success = json["success"] as? Bool ?? false
-                    if success {
-                        // Handle search results format
-                        if let results = json["results"] as? [String: Any],
-                           let conversations = results["conversations"] as? [[String: Any]] {
-                            print("🔍 Found \(conversations.count) conversations via search")
-                            return (true, conversations)
-                        }
+                if httpResponse.statusCode == 200 {
+                    if let rawResponse = String(data: data, encoding: .utf8) {
+                        print("📄 Raw conversation response (\(endpoint)): \(String(rawResponse.prefix(300)))")
                     }
-                }
-                
-                // Log response for debugging
-                if let rawResponse = String(data: data, encoding: .utf8) {
-                    print("📄 Conversations search response: \(rawResponse)")
+                    
+                    if let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                       let success = json["success"] as? Bool, success,
+                       let conversations = json["data"] as? [[String: Any]] {
+                        print("💬 Found \(conversations.count) conversations from \(endpoint)")
+                        return (true, conversations)
+                    } else if let conversations = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
+                        print("💬 Found \(conversations.count) conversations in direct array format from \(endpoint)")
+                        return (true, conversations)
+                    }
+                } else if httpResponse.statusCode == 404 {
+                    print("ℹ️ Endpoint \(endpoint) not available (404)")
+                } else {
+                    print("⚠️ Endpoint \(endpoint) returned \(httpResponse.statusCode)")
+                    if let rawResponse = String(data: data, encoding: .utf8) {
+                        print("📄 Error response: \(String(rawResponse.prefix(200)))")
+                    }
                 }
             }
         } catch {
-            print("❌ Conversation search request failed: \(error.localizedDescription)")
+            print("❌ Conversation request failed for \(endpoint): \(error.localizedDescription)")
         }
         
+        return (false, nil)
+    }
+    
+    private func tryConversationSearch(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
+        // Skip search endpoint for now since it has validation issues
+        // The error "querystring/datePattern must be equal to one of the allowed values" 
+        // indicates the API expects specific date format parameters we don't have
+        print("⚠️ Skipping search endpoint due to datePattern validation requirements")
         return (false, nil)
     }
     
@@ -1479,10 +1660,8 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         
-        // Add authentication if available
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
+        // Add authentication if available from AuthenticationService only
+        addAuthHeader(to: &request)
         
         do {
             let (data, response) = try await URLSession.shared.data(for: request)

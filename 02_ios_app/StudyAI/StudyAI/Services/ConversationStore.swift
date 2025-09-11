@@ -132,11 +132,25 @@ class ConversationStore: ObservableObject {
         return filteredConversations.sorted { $0.updatedAt > $1.updatedAt }
     }
     
-    func archiveConversation(_ conversationId: UUID) async -> Bool {
-        // For homework sessions, "archiving" doesn't apply since they're already archived
-        // This would be used for chat sessions if implemented
-        print("📦 Archive functionality not applicable to homework sessions")
-        return true
+    func archiveConversation(_ conversationId: UUID, title: String? = nil, subject: String? = nil, notes: String? = nil) async -> Bool {
+        // Convert UUID to string for session ID
+        let sessionIdString = conversationId.uuidString
+        print("📦 Archiving conversation session: \(sessionIdString)")
+        
+        let result = await networkService.archiveSession(
+            sessionId: sessionIdString,
+            title: title,
+            subject: subject,
+            notes: notes
+        )
+        
+        if result.success {
+            print("✅ Session archived successfully: \(result.message)")
+            return true
+        } else {
+            print("❌ Session archive failed: \(result.message)")
+            return false
+        }
     }
     
     func unarchiveConversation(_ conversationId: UUID) async -> Bool {

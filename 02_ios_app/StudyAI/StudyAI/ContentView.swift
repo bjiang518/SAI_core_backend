@@ -50,7 +50,7 @@ struct MainTabView: View {
             }
             
             NavigationView {
-                LearningProgressView()
+                SessionHistoryView() // Placeholder - needs LearningProgressView added to project
             }
             .tabItem {
                 Image(systemName: "chart.bar.fill")
@@ -61,8 +61,8 @@ struct MainTabView: View {
                 SessionHistoryView()
             }
             .tabItem {
-                Image(systemName: "clock.fill")
-                Text("History")
+                Image(systemName: "books.vertical.fill")
+                Text("Library")
             }
             
             NavigationView {

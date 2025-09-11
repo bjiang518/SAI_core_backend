@@ -17,9 +17,9 @@ class QuestionArchiveService: ObservableObject {
     
     private init() {}
     
-    // Get current user ID from AuthenticationService
+    // Get current user ID from centralized UserSessionManager
     private var currentUserId: String? {
-        return AuthenticationService.shared.currentUser?.id
+        return UserSessionManager.shared.currentUserId
     }
     
     // MARK: - Archive Individual Questions

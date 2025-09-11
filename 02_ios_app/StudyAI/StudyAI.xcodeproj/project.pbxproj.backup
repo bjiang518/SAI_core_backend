@@ -52,9 +52,6 @@
 		E892C474DD7F4C22968FF06B /* StudyAI/Views/ModernLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 377AB348C798453AB804B3A9 /* StudyAI/Views/ModernLoginView.swift */; };
 		EF7FC57F2FF9428F9F262123 /* StudyAI/Models/SessionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B496CCDDC9B5477581971035 /* StudyAI/Models/SessionModels.swift */; };
 		F650D062B9BD47CF8FB56CA7 /* StudyAI/Services/SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D90BE85B6E443D192306734 /* StudyAI/Services/SupabaseService.swift */; };
-		12345678901234567890ABCD /* StudyAI/Services/UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCD123456789012EFGH3456 /* StudyAI/Services/UserSessionManager.swift */; };
-		23456789012345678901BCDE /* StudyAI/Services/LibraryDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCDE234567890123FGHI4567 /* StudyAI/Services/LibraryDataService.swift */; };
-		34567890123456789012CDEF /* StudyAI/Views/UnifiedLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDEF345678901234GHIJ5678 /* StudyAI/Views/UnifiedLibraryView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -119,9 +116,6 @@
 		E5DB8369296B47A1A5BC7BF1 /* StudyAI/Services/ImageEnhancer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/ImageEnhancer.swift; sourceTree = "<group>"; };
 		EA451132738F4C03AC421E7D /* StudyAI/Views/ProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/ProgressView.swift; sourceTree = "<group>"; };
 		EEAD0FA974974B559BA7B6B7 /* StudyAI/Services/VoiceInteractionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/VoiceInteractionService.swift; sourceTree = "<group>"; };
-		ABCD123456789012EFGH3456 /* StudyAI/Services/UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/UserSessionManager.swift; sourceTree = "<group>"; };
-		BCDE234567890123FGHI4567 /* StudyAI/Services/LibraryDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/LibraryDataService.swift; sourceTree = "<group>"; };
-		CDEF345678901234GHIJ5678 /* StudyAI/Views/UnifiedLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/UnifiedLibraryView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -410,8 +404,6 @@
 				F650D062B9BD47CF8FB56CA7 /* StudyAI/Services/SupabaseService.swift in Sources */,
 				B67097AEC09C4CA4B5C82F10 /* StudyAI/Services/TextToSpeechService.swift in Sources */,
 				9FF8A1F6F34E4BF786B5EAC3 /* StudyAI/Services/VoiceInteractionService.swift in Sources */,
-				12345678901234567890ABCD /* StudyAI/Services/UserSessionManager.swift in Sources */,
-				23456789012345678901BCDE /* StudyAI/Services/LibraryDataService.swift in Sources */,
 				17B3328E16B94A21AFE789F7 /* StudyAI/StudyAIApp.swift in Sources */,
 				5DD635C39794474298FD4766 /* StudyAI/Views/AIHomeworkTestView.swift in Sources */,
 				A823C26E80984911960B4AA1 /* StudyAI/Views/ArchivedQuestionsView.swift in Sources */,
@@ -431,7 +423,6 @@
 				C278552EF36F41E59A51F0FC /* StudyAI/Views/UserProfileView.swift in Sources */,
 				7DCD4D51FBF64F74AEA6A5C3 /* StudyAI/Views/VoiceSettingsView.swift in Sources */,
 				2F704A14D92440C2A18F02EC /* StudyAI/Views/ZoomedRegionView.swift in Sources */,
-				34567890123456789012CDEF /* StudyAI/Views/UnifiedLibraryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
