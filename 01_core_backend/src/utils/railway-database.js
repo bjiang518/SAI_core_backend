@@ -294,55 +294,115 @@ const db = {
     return result.rows[0];
   },
   /**
-   * Profile Management Functions (for compatibility with existing Supabase code)
+   * Enhanced Profile Management Functions (for upcoming profile management phase)
    */
 
   /**
-   * Create or update user profile
+   * Create or update comprehensive user profile
    */
-  async createOrUpdateProfile(profileData) {
+  async createOrUpdateUserProfile(profileData) {
     const {
+      userId,
       email,
       role = 'student',
       parentId,
       firstName,
       lastName,
+      displayName,
       gradeLevel,
-      school
+      school,
+      schoolDistrict,
+      academicYear,
+      dateOfBirth,
+      timezone = 'UTC',
+      languagePreference = 'en',
+      learningStyle,
+      difficultyPreference = 'adaptive',
+      favoriteSubjects = [],
+      accessibilityNeeds = [],
+      voiceEnabled = true,
+      autoSpeakResponses = false,
+      preferredVoiceType = 'friendly',
+      privacyLevel = 'standard',
+      parentalControlsEnabled = false,
+      dataSharingConsent = false,
+      onboardingCompleted = false
     } = profileData;
+
+    // Calculate profile completion percentage
+    const completionFields = [
+      firstName, lastName, gradeLevel, school, dateOfBirth, 
+      learningStyle, favoriteSubjects?.length > 0
+    ];
+    const completedFields = completionFields.filter(field => field).length;
+    const profileCompletionPercentage = Math.round((completedFields / completionFields.length) * 100);
 
     const query = `
       INSERT INTO profiles (
-        email, 
-        role, 
-        parent_id, 
-        first_name, 
-        last_name, 
-        grade_level, 
-        school
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        user_id, email, role, parent_id, first_name, last_name, display_name,
+        grade_level, school, school_district, academic_year, date_of_birth,
+        timezone, language_preference, learning_style, difficulty_preference,
+        favorite_subjects, accessibility_needs, voice_enabled, auto_speak_responses,
+        preferred_voice_type, privacy_level, parental_controls_enabled,
+        data_sharing_consent, profile_completion_percentage, onboarding_completed,
+        last_profile_update
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+        $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW()
+      )
       ON CONFLICT (email) 
       DO UPDATE SET 
+        role = EXCLUDED.role,
+        parent_id = EXCLUDED.parent_id,
         first_name = EXCLUDED.first_name,
         last_name = EXCLUDED.last_name,
+        display_name = EXCLUDED.display_name,
         grade_level = EXCLUDED.grade_level,
         school = EXCLUDED.school,
+        school_district = EXCLUDED.school_district,
+        academic_year = EXCLUDED.academic_year,
+        date_of_birth = EXCLUDED.date_of_birth,
+        timezone = EXCLUDED.timezone,
+        language_preference = EXCLUDED.language_preference,
+        learning_style = EXCLUDED.learning_style,
+        difficulty_preference = EXCLUDED.difficulty_preference,
+        favorite_subjects = EXCLUDED.favorite_subjects,
+        accessibility_needs = EXCLUDED.accessibility_needs,
+        voice_enabled = EXCLUDED.voice_enabled,
+        auto_speak_responses = EXCLUDED.auto_speak_responses,
+        preferred_voice_type = EXCLUDED.preferred_voice_type,
+        privacy_level = EXCLUDED.privacy_level,
+        parental_controls_enabled = EXCLUDED.parental_controls_enabled,
+        data_sharing_consent = EXCLUDED.data_sharing_consent,
+        profile_completion_percentage = EXCLUDED.profile_completion_percentage,
+        onboarding_completed = EXCLUDED.onboarding_completed,
+        last_profile_update = NOW(),
         updated_at = NOW()
       RETURNING *
     `;
 
-    const values = [email, role, parentId, firstName, lastName, gradeLevel, school];
+    const values = [
+      userId, email, role, parentId, firstName, lastName, displayName,
+      gradeLevel, school, schoolDistrict, academicYear, dateOfBirth,
+      timezone, languagePreference, learningStyle, difficultyPreference,
+      favoriteSubjects, accessibilityNeeds, voiceEnabled, autoSpeakResponses,
+      preferredVoiceType, privacyLevel, parentalControlsEnabled,
+      dataSharingConsent, profileCompletionPercentage, onboardingCompleted
+    ];
+
     const result = await this.query(query, values);
     return result.rows[0];
   },
 
   /**
-   * Get profile by email
+   * Get user profile by email
    */
-  async getProfileByEmail(email) {
+  async getUserProfile(email) {
     const query = `
-      SELECT * FROM profiles 
-      WHERE email = $1
+      SELECT p.*, u.name as user_name, u.profile_image_url, u.auth_provider
+      FROM profiles p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.email = $1 AND p.is_active = true
     `;
     
     const result = await this.query(query, [email]);
@@ -350,159 +410,314 @@ const db = {
   },
 
   /**
-   * Session Management Functions
+   * Get user profile by user ID
    */
+  async getUserProfileById(userId) {
+    const query = `
+      SELECT p.*, u.name as user_name, u.profile_image_url, u.auth_provider
+      FROM profiles p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.user_id = $1 AND p.is_active = true
+    `;
+    
+    const result = await this.query(query, [userId]);
+    return result.rows[0];
+  },
 
   /**
-   * Create new study session
+   * Update specific profile fields
    */
-  async createSession(sessionData) {
-    const {
-      userId,
-      parentId,
-      sessionType = 'homework',
-      title,
-      description,
-      subject
-    } = sessionData;
+  async updateProfileFields(userId, fields) {
+    const allowedFields = [
+      'first_name', 'last_name', 'display_name', 'grade_level', 'school',
+      'school_district', 'academic_year', 'date_of_birth', 'timezone',
+      'language_preference', 'learning_style', 'difficulty_preference',
+      'favorite_subjects', 'accessibility_needs', 'voice_enabled',
+      'auto_speak_responses', 'preferred_voice_type', 'privacy_level',
+      'parental_controls_enabled', 'data_sharing_consent', 'onboarding_completed'
+    ];
+
+    const updateFields = Object.keys(fields).filter(key => allowedFields.includes(key));
+    if (updateFields.length === 0) {
+      throw new Error('No valid fields to update');
+    }
+
+    const setClause = updateFields.map((field, index) => `${field} = $${index + 2}`).join(', ');
+    const values = [userId, ...updateFields.map(field => fields[field])];
 
     const query = `
-      INSERT INTO sessions (
-        user_id, 
-        parent_id, 
-        session_type, 
-        title, 
-        description, 
-        subject
-      ) VALUES ($1, $2, $3, $4, $5, $6)
+      UPDATE profiles 
+      SET ${setClause}, last_profile_update = NOW(), updated_at = NOW()
+      WHERE user_id = $1
       RETURNING *
     `;
 
-    const values = [userId, parentId, sessionType, title, description, subject];
     const result = await this.query(query, values);
     return result.rows[0];
   },
 
   /**
-   * Get sessions for user
+   * Get profiles by parent ID (for parental accounts)
    */
-  async getUserSessions(userId, limit = 20, offset = 0) {
+  async getChildrenProfiles(parentId) {
     const query = `
-      SELECT * FROM sessions 
-      WHERE user_id = $1 
-      ORDER BY created_at DESC 
-      LIMIT $2 OFFSET $3
+      SELECT p.*, u.name as user_name, u.profile_image_url
+      FROM profiles p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.parent_id = $1 AND p.is_active = true
+      ORDER BY p.first_name, p.last_name
     `;
     
-    const result = await this.query(query, [userId, limit, offset]);
+    const result = await this.query(query, [parentId]);
     return result.rows;
   },
 
   /**
-   * End session
+   * Check if profile setup is complete
    */
-  async endSession(sessionId) {
+  async isProfileComplete(userId) {
     const query = `
-      UPDATE sessions 
-      SET 
-        end_time = NOW(),
-        status = 'completed',
-        updated_at = NOW()
-      WHERE id = $1
-      RETURNING *
+      SELECT 
+        profile_completion_percentage,
+        onboarding_completed,
+        CASE 
+          WHEN profile_completion_percentage >= 80 AND onboarding_completed = true THEN true
+          ELSE false
+        END as is_complete
+      FROM profiles 
+      WHERE user_id = $1
     `;
     
-    const result = await this.query(query, [sessionId]);
+    const result = await this.query(query, [userId]);
     return result.rows[0];
   },
 
   /**
-   * Question Management Functions
+   * Archive a conversation (chat session) to archived_conversations_new
    */
-
-  /**
-   * Create new question
-   */
-  async createQuestion(questionData) {
+  async archiveConversation(conversationData) {
     const {
       userId,
-      sessionId,
-      imageData,
-      imageUrl,
-      questionText,
       subject,
       topic,
-      difficultyLevel = 3,
-      aiSolution,
-      explanation,
-      confidenceScore = 0.0,
-      processingTime = 0.0
+      conversationContent
+    } = conversationData;
+
+    const query = `
+      INSERT INTO archived_conversations_new (
+        user_id,
+        subject,
+        topic,
+        conversation_content
+      ) VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `;
+
+    const values = [userId, subject, topic, conversationContent];
+    const result = await this.query(query, values);
+    return result.rows[0];
+  },
+
+  /**
+   * Archive a question to questions table
+   */
+  async archiveQuestion(questionData) {
+    const {
+      userId,
+      subject,
+      questionText,
+      studentAnswer,
+      isCorrect,
+      aiAnswer,
+      confidenceScore = 0.0
     } = questionData;
 
     const query = `
       INSERT INTO questions (
-        user_id, 
-        session_id, 
-        image_data, 
-        image_url, 
-        question_text, 
-        subject, 
-        topic, 
-        difficulty_level, 
-        ai_solution, 
-        explanation, 
-        confidence_score, 
-        processing_time
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        user_id,
+        subject,
+        question_text,
+        student_answer,
+        is_correct,
+        ai_answer,
+        confidence_score
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
 
-    const values = [
-      userId, sessionId, imageData, imageUrl, questionText, 
-      subject, topic, difficultyLevel, JSON.stringify(aiSolution), 
-      explanation, confidenceScore, processingTime
-    ];
-    
+    const values = [userId, subject, questionText, studentAnswer, isCorrect, aiAnswer, confidenceScore];
     const result = await this.query(query, values);
     return result.rows[0];
   },
 
   /**
-   * Get questions for user
+   * Fetch user's archived conversations
    */
-  async getUserQuestions(userId, limit = 20, offset = 0) {
-    const query = `
-      SELECT * FROM questions 
-      WHERE user_id = $1 
-      ORDER BY created_at DESC 
-      LIMIT $2 OFFSET $3
+  async fetchUserConversations(userId, limit = 50, offset = 0, filters = {}) {
+    let query = `
+      SELECT 
+        id,
+        subject,
+        topic,
+        conversation_content,
+        archived_date,
+        created_at
+      FROM archived_conversations_new
+      WHERE user_id = $1
     `;
     
-    const result = await this.query(query, [userId, limit, offset]);
+    const values = [userId];
+    let paramIndex = 2;
+
+    if (filters.subject) {
+      query += ` AND subject = $${paramIndex}`;
+      values.push(filters.subject);
+      paramIndex++;
+    }
+
+    if (filters.startDate) {
+      query += ` AND archived_date >= $${paramIndex}`;
+      values.push(filters.startDate);
+      paramIndex++;
+    }
+
+    if (filters.endDate) {
+      query += ` AND archived_date <= $${paramIndex}`;
+      values.push(filters.endDate);
+      paramIndex++;
+    }
+
+    if (filters.search) {
+      query += ` AND (
+        topic ILIKE $${paramIndex} OR 
+        conversation_content ILIKE $${paramIndex}
+      )`;
+      values.push(`%${filters.search}%`);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY archived_date DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    values.push(limit, offset);
+
+    const result = await this.query(query, values);
     return result.rows;
   },
 
   /**
-   * Get question by ID
+   * Fetch user's archived questions
    */
-  async getQuestionById(questionId) {
-    const query = `
-      SELECT * FROM questions 
-      WHERE id = $1
+  async fetchUserQuestions(userId, limit = 50, offset = 0, filters = {}) {
+    let query = `
+      SELECT 
+        id,
+        subject,
+        question_text,
+        student_answer,
+        is_correct,
+        ai_answer,
+        confidence_score,
+        archived_date,
+        created_at
+      FROM questions
+      WHERE user_id = $1
     `;
     
-    const result = await this.query(query, [questionId]);
-    return result.rows[0];
+    const values = [userId];
+    let paramIndex = 2;
+
+    if (filters.subject) {
+      query += ` AND subject = $${paramIndex}`;
+      values.push(filters.subject);
+      paramIndex++;
+    }
+
+    if (filters.startDate) {
+      query += ` AND archived_date >= $${paramIndex}`;
+      values.push(filters.startDate);
+      paramIndex++;
+    }
+
+    if (filters.endDate) {
+      query += ` AND archived_date <= $${paramIndex}`;
+      values.push(filters.endDate);
+      paramIndex++;
+    }
+
+    if (filters.search) {
+      query += ` AND (
+        question_text ILIKE $${paramIndex} OR 
+        student_answer ILIKE $${paramIndex} OR
+        ai_answer ILIKE $${paramIndex}
+      )`;
+      values.push(`%${filters.search}%`);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY archived_date DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    values.push(limit, offset);
+
+    const result = await this.query(query, values);
+    return result.rows;
   },
 
   /**
-   * Delete question
+   * Get conversation details by ID
    */
-  async deleteQuestion(questionId, userId) {
+  async getConversationDetails(conversationId, userId) {
+    const startTime = Date.now();
+    
+    try {
+      console.log(`🔍 [DB] getConversationDetails called with conversationId: ${conversationId}, userId: ${userId}`);
+      
+      if (!conversationId) {
+        console.error(`❌ [DB] Missing conversationId parameter`);
+        throw new Error('Conversation ID is required');
+      }
+      
+      if (!userId) {
+        console.error(`❌ [DB] Missing userId parameter`);
+        throw new Error('User ID is required');
+      }
+      
+      const query = `
+        SELECT * FROM archived_conversations_new 
+        WHERE id = $1 AND user_id = $2
+      `;
+      
+      console.log(`📋 [DB] Executing query: ${query}`);
+      console.log(`📋 [DB] Parameters: [${conversationId}, ${userId}]`);
+      
+      const result = await this.query(query, [conversationId, userId]);
+      const duration = Date.now() - startTime;
+      
+      console.log(`📊 [DB] Query completed in ${duration}ms`);
+      console.log(`📊 [DB] Result rows count: ${result.rows.length}`);
+      
+      if (result.rows.length > 0) {
+        const conversation = result.rows[0];
+        console.log(`✅ [DB] Conversation found - ID: ${conversation.id}, Subject: ${conversation.subject}`);
+        console.log(`✅ [DB] Content length: ${conversation.conversation_content?.length || 0} characters`);
+        console.log(`✅ [DB] Archived date: ${conversation.archived_date}`);
+        return conversation;
+      } else {
+        console.log(`❌ [DB] No conversation found for ID: ${conversationId}, User: ${userId}`);
+        return null;
+      }
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`🚨 [DB] getConversationDetails error after ${duration}ms:`, error);
+      console.error(`🚨 [DB] Error stack:`, error.stack);
+      throw error;
+    }
+  },
+
+  /**
+   * Get question details by ID
+   */
+  async getQuestionDetails(questionId, userId) {
     const query = `
-      DELETE FROM questions 
+      SELECT * FROM questions 
       WHERE id = $1 AND user_id = $2
-      RETURNING id
     `;
     
     const result = await this.query(query, [questionId, userId]);
@@ -510,725 +725,82 @@ const db = {
   },
 
   /**
-   * Conversation Management Functions
-   */
-
-  /**
-   * Add conversation message
-   */
-  async addConversationMessage(messageData) {
-    const {
-      userId,
-      questionId,
-      sessionId,
-      messageType,
-      messageText,
-      messageData: msgData,
-      tokensUsed = 0
-    } = messageData;
-
-    const query = `
-      INSERT INTO conversations (
-        user_id, 
-        question_id, 
-        session_id, 
-        message_type, 
-        message_text, 
-        message_data, 
-        tokens_used
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *
-    `;
-
-    const values = [
-      userId, questionId, sessionId, messageType, 
-      messageText, msgData ? JSON.stringify(msgData) : null, tokensUsed
-    ];
-    
-    const result = await this.query(query, values);
-    return result.rows[0];
-  },
-
-  /**
-   * Get conversation history
-   */
-  async getConversationHistory(questionIdOrSessionId, limit = 50) {
-    // Support both question-based and session-based conversations
-    const query = `
-      SELECT * FROM conversations 
-      WHERE (question_id = $1 OR session_id = $1)
-      ORDER BY created_at ASC 
-      LIMIT $2
-    `;
-    
-    const result = await this.query(query, [questionIdOrSessionId, limit]);
-    return result.rows;
-  },
-
-  /**
-   * Evaluation Management Functions
-   */
-
-  /**
-   * Create evaluation
-   */
-  async createEvaluation(evaluationData) {
-    const {
-      sessionId,
-      questionId,
-      userId,
-      studentAnswer,
-      aiFeedback,
-      score,
-      maxScore = 100.0,
-      timeSpent,
-      isCorrect,
-      rubric
-    } = evaluationData;
-
-    const query = `
-      INSERT INTO evaluations (
-        session_id, 
-        question_id, 
-        user_id, 
-        student_answer, 
-        ai_feedback, 
-        score, 
-        max_score, 
-        time_spent, 
-        is_correct, 
-        rubric
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING *
-    `;
-
-    const values = [
-      sessionId, questionId, userId, studentAnswer, 
-      aiFeedback ? JSON.stringify(aiFeedback) : null, 
-      score, maxScore, timeSpent, isCorrect, 
-      rubric ? JSON.stringify(rubric) : null
-    ];
-    
-    const result = await this.query(query, values);
-    return result.rows[0];
-  },
-
-  /**
-   * Get evaluations for session
-   */
-  async getSessionEvaluations(sessionId) {
-    const query = `
-      SELECT * FROM evaluations 
-      WHERE session_id = $1 
-      ORDER BY created_at DESC
-    `;
-    
-    const result = await this.query(query, [sessionId]);
-    return result.rows;
-  },
-
-  /**
-   * Progress Management Functions
-   */
-
-  /**
-   * Update user progress
-   */
-  async updateProgress(progressData) {
-    const {
-      userId,
-      subject,
-      topic,
-      skillLevel,
-      masteryLevel,
-      questionsAttempted,
-      questionsCorrect,
-      timeSpent,
-      streakCount
-    } = progressData;
-
-    const query = `
-      INSERT INTO progress (
-        user_id, 
-        subject, 
-        topic, 
-        skill_level, 
-        mastery_level, 
-        questions_attempted, 
-        questions_correct, 
-        total_time_spent, 
-        last_practiced_at, 
-        streak_count
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9)
-      ON CONFLICT (user_id, subject, topic) 
-      DO UPDATE SET 
-        skill_level = EXCLUDED.skill_level,
-        mastery_level = EXCLUDED.mastery_level,
-        questions_attempted = progress.questions_attempted + EXCLUDED.questions_attempted,
-        questions_correct = progress.questions_correct + EXCLUDED.questions_correct,
-        total_time_spent = progress.total_time_spent + EXCLUDED.total_time_spent,
-        last_practiced_at = NOW(),
-        streak_count = EXCLUDED.streak_count,
-        updated_at = NOW()
-      RETURNING *
-    `;
-
-    const values = [
-      userId, subject, topic, skillLevel, masteryLevel, 
-      questionsAttempted, questionsCorrect, timeSpent, streakCount
-    ];
-    
-    const result = await this.query(query, values);
-    return result.rows[0];
-  },
-
-  /**
-   * Get user progress
-   */
-  async getUserProgress(userId, subject = null) {
-    let query = `
-      SELECT * FROM progress 
-      WHERE user_id = $1
-    `;
-    let values = [userId];
-
-    if (subject) {
-      query += ` AND subject = $2`;
-      values.push(subject);
-    }
-
-    query += ` ORDER BY last_practiced_at DESC`;
-    
-    const result = await this.query(query, values);
-    return result.rows;
-  },
-
-  /**
-   * Session Summary Management Functions
-   */
-
-  /**
-   * Create session summary
-   */
-  async createSessionSummary(summaryData) {
-    const {
-      sessionId,
-      userId,
-      totalQuestions,
-      questionsCorrect,
-      totalTimeSpent,
-      averageScore,
-      subjectsCovered,
-      keyTopics,
-      areasForImprovement,
-      summaryData: sumData
-    } = summaryData;
-
-    const query = `
-      INSERT INTO sessions_summaries (
-        session_id, 
-        user_id, 
-        total_questions, 
-        questions_correct, 
-        total_time_spent, 
-        average_score, 
-        subjects_covered, 
-        key_topics, 
-        areas_for_improvement, 
-        summary_data
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING *
-    `;
-
-    const values = [
-      sessionId, userId, totalQuestions, questionsCorrect, totalTimeSpent,
-      averageScore, subjectsCovered, keyTopics, areasForImprovement,
-      sumData ? JSON.stringify(sumData) : null
-    ];
-    
-    const result = await this.query(query, values);
-    return result.rows[0];
-  },
-
-  /**
-   * Get session summary
-   */
-  async getSessionSummary(sessionId) {
-    const query = `
-      SELECT * FROM sessions_summaries 
-      WHERE session_id = $1
-    `;
-    
-    const result = await this.query(query, [sessionId]);
-    return result.rows[0];
-  },
-
-  /**
-   * Archive Session Management (Legacy compatibility for homework/questions)
-   */
-  async archiveSession(sessionData) {
-    const {
-      userId,
-      subject,
-      title,
-      originalImageUrl,
-      thumbnailUrl,
-      aiParsingResult,
-      processingTime,
-      overallConfidence,
-      studentAnswers,
-      notes
-    } = sessionData;
-
-    const query = `
-      INSERT INTO archived_sessions (
-        user_id, 
-        subject, 
-        title, 
-        original_image_url, 
-        thumbnail_url,
-        ai_parsing_result, 
-        processing_time, 
-        overall_confidence,
-        student_answers,
-        notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING *
-    `;
-
-    const values = [
-      userId,
-      subject,
-      title,
-      originalImageUrl,
-      thumbnailUrl,
-      JSON.stringify(aiParsingResult),
-      processingTime,
-      overallConfidence,
-      JSON.stringify(studentAnswers),
-      notes
-    ];
-
-    const result = await this.query(query, values);
-    return result.rows[0];
-  },
-
-  /**
-   * Archive Conversation Management (NEW - for session conversations)
+   * Archive a conversation (chat session) to archived_conversations_new
    */
   async archiveConversation(conversationData) {
     const {
       userId,
-      sessionId,
       subject,
-      title,
-      summary,
-      messageCount,
-      totalTokens,
-      conversationHistory,
-      keyTopics,
-      learningOutcomes,
-      notes,
-      duration,
-      embedding // NEW: Semantic embedding vector
+      topic,
+      conversationContent
     } = conversationData;
 
     const query = `
-      INSERT INTO archived_conversations (
+      INSERT INTO archived_conversations_new (
         user_id,
-        session_id,
         subject,
-        title,
-        summary,
-        message_count,
-        total_tokens,
-        conversation_history,
-        key_topics,
-        learning_outcomes,
-        notes,
-        duration_minutes,
-        content_embedding
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        topic,
+        conversation_content
+      ) VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
 
-    const values = [
-      userId,
-      sessionId,
-      subject,
-      title,
-      summary,
-      messageCount,
-      totalTokens || 0,
-      JSON.stringify(conversationHistory),
-      keyTopics || [],
-      learningOutcomes || [],
-      notes,
-      duration || 0,
-      embedding ? JSON.stringify(embedding) : null // Store as JSON array since pgvector not available
-    ];
-
+    const values = [userId, subject, topic, conversationContent];
     const result = await this.query(query, values);
     return result.rows[0];
   },
 
   /**
-   * Enhanced semantic search for conversations using JSON array similarity
-   * (fallback implementation without pgvector)
+   * Archive a question to questions table
    */
-  async searchConversationsSemantic(userId, searchEmbedding, limit = 10, filters = {}) {
-    // Since pgvector is not available, we'll use a simpler approach
-    // Get all conversations with embeddings and calculate similarity in JavaScript
-    let query = `
-      SELECT 
-        *
-      FROM archived_conversations
-      WHERE user_id = $1
-        AND content_embedding IS NOT NULL
-    `;
-    
-    const values = [userId];
-    let paramIndex = 2;
-
-    // Add filters
-    if (filters.subject) {
-      query += ` AND subject = $${paramIndex}`;
-      values.push(filters.subject);
-      paramIndex++;
-    }
-
-    if (filters.startDate) {
-      query += ` AND archived_at >= $${paramIndex}`;
-      values.push(filters.startDate);
-      paramIndex++;
-    }
-
-    if (filters.endDate) {
-      query += ` AND archived_at <= $${paramIndex}`;
-      values.push(filters.endDate);
-      paramIndex++;
-    }
-
-    if (filters.minMessages) {
-      query += ` AND message_count >= $${paramIndex}`;
-      values.push(filters.minMessages);
-      paramIndex++;
-    }
-
-    query += ` ORDER BY archived_at DESC`;
-
-    const result = await this.query(query, values);
-    
-    // Calculate cosine similarity in JavaScript
-    const conversations = result.rows.map(row => {
-      try {
-        const embedding = JSON.parse(row.content_embedding);
-        const similarity = this.calculateCosineSimilarity(searchEmbedding, embedding);
-        return {
-          ...row,
-          similarity_distance: 1 - similarity // Convert to distance for consistency
-        };
-      } catch (error) {
-        // Skip rows with invalid embeddings
-        return null;
-      }
-    }).filter(Boolean);
-
-    // Sort by similarity and limit
-    return conversations
-      .sort((a, b) => a.similarity_distance - b.similarity_distance)
-      .slice(0, limit);
-  },
-
-  /**
-   * Calculate cosine similarity between two vectors
-   */
-  calculateCosineSimilarity(vecA, vecB) {
-    if (vecA.length !== vecB.length) return 0;
-    
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-    
-    for (let i = 0; i < vecA.length; i++) {
-      dotProduct += vecA[i] * vecB[i];
-      normA += vecA[i] * vecA[i];
-      normB += vecB[i] * vecB[i];
-    }
-    
-    const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
-    return magnitude === 0 ? 0 : dotProduct / magnitude;
-  },
-
-  /**
-   * Advanced date-based retrieval with flexible patterns
-   */
-  async searchConversationsByDatePattern(userId, datePattern, limit = 20, filters = {}) {
-    let query = `
-      SELECT *
-      FROM archived_conversations
-      WHERE user_id = $1
-    `;
-    
-    const values = [userId];
-    let paramIndex = 2;
-
-    // Apply date pattern matching
-    switch (datePattern.type) {
-      case 'today':
-        query += ` AND DATE(archived_at) = CURRENT_DATE`;
-        break;
-      case 'yesterday':
-        query += ` AND DATE(archived_at) = CURRENT_DATE - INTERVAL '1 day'`;
-        break;
-      case 'this_week':
-        query += ` AND archived_at >= DATE_TRUNC('week', CURRENT_DATE)`;
-        break;
-      case 'last_week':
-        query += ` AND archived_at >= DATE_TRUNC('week', CURRENT_DATE) - INTERVAL '1 week'
-                   AND archived_at < DATE_TRUNC('week', CURRENT_DATE)`;
-        break;
-      case 'this_month':
-        query += ` AND archived_at >= DATE_TRUNC('month', CURRENT_DATE)`;
-        break;
-      case 'last_month':
-        query += ` AND archived_at >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '1 month'
-                   AND archived_at < DATE_TRUNC('month', CURRENT_DATE)`;
-        break;
-      case 'last_n_days':
-        query += ` AND archived_at >= CURRENT_DATE - INTERVAL '${datePattern.days} days'`;
-        break;
-      case 'between':
-        query += ` AND archived_at BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
-        values.push(datePattern.startDate, datePattern.endDate);
-        paramIndex += 2;
-        break;
-      case 'on_date':
-        query += ` AND DATE(archived_at) = $${paramIndex}`;
-        values.push(datePattern.date);
-        paramIndex++;
-        break;
-      case 'day_of_week':
-        query += ` AND EXTRACT(DOW FROM archived_at) = $${paramIndex}`; // 0=Sunday, 1=Monday, etc.
-        values.push(datePattern.dayOfWeek);
-        paramIndex++;
-        break;
-    }
-
-    // Add other filters
-    if (filters.subject) {
-      query += ` AND subject = $${paramIndex}`;
-      values.push(filters.subject);
-      paramIndex++;
-    }
-
-    if (filters.search) {
-      query += ` AND (
-        title ILIKE $${paramIndex} OR 
-        summary ILIKE $${paramIndex} OR 
-        key_topics::text ILIKE $${paramIndex}
-      )`;
-      values.push(`%${filters.search}%`);
-      paramIndex++;
-    }
-
-    query += ` ORDER BY archived_at DESC LIMIT $${paramIndex}`;
-    values.push(limit);
-
-    const result = await this.query(query, values);
-    return result.rows;
-  },
-
-  /**
-   * Hybrid search combining keyword, semantic, and date relevance
-   * (without pgvector - simplified implementation)
-   */
-  async hybridSearchConversations(userId, searchParams, limit = 20) {
+  async archiveQuestion(questionData) {
     const {
-      query: searchQuery,
-      embedding,
-      datePattern,
+      userId,
       subject,
-      minMessages,
-      includeKeyword = true,
-      includeSemantic = true,
-      includeDate = true
-    } = searchParams;
+      questionText,
+      studentAnswer,
+      isCorrect,
+      aiAnswer,
+      confidenceScore = 0.0
+    } = questionData;
 
-    // Since we can't do complex scoring in SQL without pgvector,
-    // we'll get the data and score in JavaScript
-    let query = `
-      SELECT *
-      FROM archived_conversations
-      WHERE user_id = $1
-    `;
-    
-    const values = [userId];
-    let paramIndex = 2;
-
-    // Add filters
-    if (subject) {
-      query += ` AND subject = $${paramIndex}`;
-      values.push(subject);
-      paramIndex++;
-    }
-
-    if (minMessages) {
-      query += ` AND message_count >= $${paramIndex}`;
-      values.push(minMessages);
-      paramIndex++;
-    }
-
-    // Apply date pattern if specified
-    if (datePattern && includeDate) {
-      switch (datePattern.type) {
-        case 'recent':
-          query += ` AND archived_at >= CURRENT_DATE - INTERVAL '30 days'`;
-          break;
-        case 'this_week':
-          query += ` AND archived_at >= DATE_TRUNC('week', CURRENT_DATE)`;
-          break;
-        case 'this_month':
-          query += ` AND archived_at >= DATE_TRUNC('month', CURRENT_DATE)`;
-          break;
-      }
-    }
-
-    query += ` ORDER BY archived_at DESC`;
-
-    const result = await this.query(query, values);
-    
-    // Calculate hybrid scores in JavaScript
-    const scoredConversations = result.rows.map(row => {
-      let relevanceScore = 0;
-
-      // Keyword relevance (0-1) * 0.3
-      if (includeKeyword && searchQuery) {
-        const searchLower = searchQuery.toLowerCase();
-        if (row.title && row.title.toLowerCase().includes(searchLower)) {
-          relevanceScore += 1.0 * 0.3;
-        } else if (row.summary && row.summary.toLowerCase().includes(searchLower)) {
-          relevanceScore += 0.8 * 0.3;
-        } else if (row.key_topics && JSON.stringify(row.key_topics).toLowerCase().includes(searchLower)) {
-          relevanceScore += 0.6 * 0.3;
-        }
-      }
-
-      // Semantic similarity (0-1) * 0.4
-      if (includeSemantic && embedding && row.content_embedding) {
-        try {
-          const rowEmbedding = JSON.parse(row.content_embedding);
-          const similarity = this.calculateCosineSimilarity(embedding, rowEmbedding);
-          relevanceScore += similarity * 0.4;
-        } catch (error) {
-          // Skip semantic scoring if embedding is invalid
-        }
-      }
-
-      // Date recency (0-1) * 0.3
-      if (includeDate) {
-        const now = new Date();
-        const archivedAt = new Date(row.archived_at);
-        const daysDiff = (now - archivedAt) / (1000 * 60 * 60 * 24);
-        
-        if (daysDiff <= 7) {
-          relevanceScore += 1.0 * 0.3;
-        } else if (daysDiff <= 30) {
-          relevanceScore += 0.7 * 0.3;
-        } else if (daysDiff <= 90) {
-          relevanceScore += 0.4 * 0.3;
-        } else {
-          relevanceScore += 0.1 * 0.3;
-        }
-      }
-
-      return {
-        ...row,
-        relevance_score: relevanceScore
-      };
-    });
-
-    // Sort by relevance score and limit
-    return scoredConversations
-      .sort((a, b) => b.relevance_score - a.relevance_score)
-      .slice(0, limit);
-  },
-
-  /**
-   * Fetch archived homework sessions (questions/images)
-   */
-  async fetchUserSessions(userId, limit = 50, offset = 0, filters = {}) {
-    let query = `
-      SELECT 
-        id,
+    const query = `
+      INSERT INTO questions (
+        user_id,
         subject,
-        session_date,
-        title,
-        ai_parsing_result,
-        overall_confidence,
-        thumbnail_url,
-        review_count,
-        created_at
-      FROM archived_sessions 
-      WHERE user_id = $1
+        question_text,
+        student_answer,
+        is_correct,
+        ai_answer,
+        confidence_score
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
     `;
-    
-    const values = [userId];
-    let paramIndex = 2;
 
-    // Add optional filters
-    if (filters.subject) {
-      query += ` AND subject = $${paramIndex}`;
-      values.push(filters.subject);
-      paramIndex++;
-    }
-
-    if (filters.startDate) {
-      query += ` AND session_date >= $${paramIndex}`;
-      values.push(filters.startDate);
-      paramIndex++;
-    }
-
-    if (filters.endDate) {
-      query += ` AND session_date <= $${paramIndex}`;
-      values.push(filters.endDate);
-      paramIndex++;
-    }
-
-    query += ` ORDER BY session_date DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    values.push(limit, offset);
-
+    const values = [userId, subject, questionText, studentAnswer, isCorrect, aiAnswer, confidenceScore];
     const result = await this.query(query, values);
-    return result.rows;
+    return result.rows[0];
   },
 
   /**
-   * Fetch archived conversations (chat sessions)
+   * Fetch user's archived conversations
    */
   async fetchUserConversations(userId, limit = 50, offset = 0, filters = {}) {
     let query = `
       SELECT 
         id,
-        session_id,
         subject,
-        title,
-        summary,
-        message_count,
-        total_tokens,
-        key_topics,
-        learning_outcomes,
-        duration_minutes,
-        archived_at,
-        review_count,
-        last_reviewed_at
-      FROM archived_conversations
+        topic,
+        conversation_content,
+        archived_date,
+        created_at
+      FROM archived_conversations_new
       WHERE user_id = $1
     `;
     
     const values = [userId];
     let paramIndex = 2;
 
-    // Add optional filters
     if (filters.subject) {
       query += ` AND subject = $${paramIndex}`;
       values.push(filters.subject);
@@ -1236,35 +808,27 @@ const db = {
     }
 
     if (filters.startDate) {
-      query += ` AND archived_at >= $${paramIndex}`;
+      query += ` AND archived_date >= $${paramIndex}`;
       values.push(filters.startDate);
       paramIndex++;
     }
 
     if (filters.endDate) {
-      query += ` AND archived_at <= $${paramIndex}`;
+      query += ` AND archived_date <= $${paramIndex}`;
       values.push(filters.endDate);
       paramIndex++;
     }
 
-    if (filters.minMessages) {
-      query += ` AND message_count >= $${paramIndex}`;
-      values.push(filters.minMessages);
-      paramIndex++;
-    }
-
-    // Search in summary and topics
     if (filters.search) {
       query += ` AND (
-        title ILIKE $${paramIndex} OR 
-        summary ILIKE $${paramIndex} OR 
-        key_topics::text ILIKE $${paramIndex}
+        topic ILIKE $${paramIndex} OR 
+        conversation_content ILIKE $${paramIndex}
       )`;
       values.push(`%${filters.search}%`);
       paramIndex++;
     }
 
-    query += ` ORDER BY archived_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    query += ` ORDER BY archived_date DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     values.push(limit, offset);
 
     const result = await this.query(query, values);
@@ -1272,67 +836,64 @@ const db = {
   },
 
   /**
-   * Get full conversation details
+   * Fetch user's archived questions
    */
-  async getConversationDetails(conversationId, userId) {
-    const query = `
-      SELECT * FROM archived_conversations 
-      WHERE id = $1 AND user_id = $2
+  async fetchUserQuestions(userId, limit = 50, offset = 0, filters = {}) {
+    let query = `
+      SELECT 
+        id,
+        subject,
+        question_text,
+        student_answer,
+        is_correct,
+        ai_answer,
+        confidence_score,
+        archived_date,
+        created_at
+      FROM questions
+      WHERE user_id = $1
     `;
     
-    const result = await this.query(query, [conversationId, userId]);
-    return result.rows[0];
+    const values = [userId];
+    let paramIndex = 2;
+
+    if (filters.subject) {
+      query += ` AND subject = $${paramIndex}`;
+      values.push(filters.subject);
+      paramIndex++;
+    }
+
+    if (filters.startDate) {
+      query += ` AND archived_date >= $${paramIndex}`;
+      values.push(filters.startDate);
+      paramIndex++;
+    }
+
+    if (filters.endDate) {
+      query += ` AND archived_date <= $${paramIndex}`;
+      values.push(filters.endDate);
+      paramIndex++;
+    }
+
+    if (filters.search) {
+      query += ` AND (
+        question_text ILIKE $${paramIndex} OR 
+        student_answer ILIKE $${paramIndex} OR
+        ai_answer ILIKE $${paramIndex}
+      )`;
+      values.push(`%${filters.search}%`);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY archived_date DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    values.push(limit, offset);
+
+    const result = await this.query(query, values);
+    return result.rows;
   },
 
   /**
-   * Get full session details (homework/questions)
-   */
-  async getSessionDetails(sessionId, userId) {
-    const query = `
-      SELECT * FROM archived_sessions 
-      WHERE id = $1 AND user_id = $2
-    `;
-    
-    const result = await this.query(query, [sessionId, userId]);
-    return result.rows[0];
-  },
-
-  /**
-   * Update conversation review count
-   */
-  async incrementConversationReviewCount(conversationId, userId) {
-    const query = `
-      UPDATE archived_conversations 
-      SET 
-        review_count = review_count + 1,
-        last_reviewed_at = NOW()
-      WHERE id = $1 AND user_id = $2
-      RETURNING review_count
-    `;
-    
-    const result = await this.query(query, [conversationId, userId]);
-    return result.rows[0];
-  },
-
-  /**
-   * Update session review count (homework/questions)
-   */
-  async incrementReviewCount(sessionId, userId) {
-    const query = `
-      UPDATE archived_sessions 
-      SET 
-        review_count = review_count + 1,
-        last_reviewed_at = NOW()
-      WHERE id = $1 AND user_id = $2
-      RETURNING review_count
-    `;
-    
-    const result = await this.query(query, [sessionId, userId]);
-    return result.rows[0];
-  },
-
-  /**
-   * Combined search across both conversations and sessions
+   * Search both conversations and questions
    */
   async searchUserArchives(userId, searchTerm, filters = {}) {
     const conversationResults = await this.fetchUserConversations(userId, 25, 0, {
@@ -1340,78 +901,15 @@ const db = {
       search: searchTerm
     });
 
-    const sessionResults = await this.fetchUserSessions(userId, 25, 0, filters);
+    const questionResults = await this.fetchUserQuestions(userId, 25, 0, {
+      ...filters,
+      search: searchTerm
+    });
 
     return {
       conversations: conversationResults,
-      sessions: sessionResults.filter(session => 
-        session.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        session.ai_parsing_result?.summary?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      questions: questionResults
     };
-  },
-
-  /**
-   * Get user statistics
-   */
-  async getUserStatistics(userId) {
-    const query = `
-      SELECT 
-        COUNT(*) as total_sessions,
-        COUNT(DISTINCT subject) as subjects_studied,
-        AVG(overall_confidence) as avg_confidence,
-        SUM((ai_parsing_result->>'questionCount')::int) as total_questions,
-        COUNT(CASE WHEN session_date >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as this_week_sessions,
-        COUNT(CASE WHEN session_date >= DATE_TRUNC('month', CURRENT_DATE) THEN 1 END) as this_month_sessions
-      FROM archived_sessions 
-      WHERE user_id = $1
-    `;
-    
-    const result = await this.query(query, [userId]);
-    return result.rows[0];
-  },
-
-  /**
-   * Get subject breakdown
-   */
-  async getSubjectBreakdown(userId) {
-    const query = `
-      SELECT 
-        subject,
-        COUNT(*) as session_count,
-        AVG(overall_confidence) as avg_confidence,
-        SUM((ai_parsing_result->>'questionCount')::int) as total_questions
-      FROM archived_sessions 
-      WHERE user_id = $1
-      GROUP BY subject
-      ORDER BY session_count DESC
-    `;
-    
-    const result = await this.query(query, [userId]);
-    return result.rows;
-  },
-
-  /**
-   * Health check
-   */
-  async healthCheck() {
-    try {
-      const result = await this.query('SELECT NOW() as current_time');
-      return {
-        healthy: true,
-        timestamp: result.rows[0].current_time,
-        pool: {
-          totalCount: pool.totalCount,
-          idleCount: pool.idleCount,
-          waitingCount: pool.waitingCount
-        }
-      };
-    } catch (error) {
-      return {
-        healthy: false,
-        error: error.message
-      };
-    }
   }
 };
 
@@ -1447,7 +945,7 @@ async function initializeDatabase() {
       
       // Check if we need to add missing tables
       const existingTables = tableCheck.rows.map(r => r.tablename);
-      const requiredTables = ['users', 'user_sessions', 'profiles', 'sessions', 'questions', 'conversations', 'evaluations', 'progress', 'sessions_summaries', 'archived_sessions', 'archived_conversations'];
+      const requiredTables = ['users', 'user_sessions', 'profiles', 'questions', 'archived_conversations_new'];
       const missingTables = requiredTables.filter(table => !existingTables.includes(table));
       
       if (missingTables.length > 0) {
@@ -1462,10 +960,118 @@ async function initializeDatabase() {
           console.log('✅ Missing database tables added successfully');
         }
       }
+      
+      // Run migrations for existing databases
+      await runDatabaseMigrations();
     }
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
     throw error;
+  }
+}
+
+async function runDatabaseMigrations() {
+  try {
+    console.log('🔄 Checking for database migrations...');
+    
+    // Clean up legacy tables - only keep questions and archived_conversations_new
+    const legacyTables = [
+      'archived_conversations', 
+      'archived_sessions', 
+      'conversations', 
+      'sessions_summaries', 
+      'evaluations', 
+      'progress',
+      'sessions',
+      'archived_questions'  // Remove this too since we'll use questions table
+    ];
+    
+    for (const tableName of legacyTables) {
+      try {
+        await db.query(`DROP TABLE IF EXISTS ${tableName} CASCADE`);
+        console.log(`✅ Dropped legacy table: ${tableName}`);
+      } catch (error) {
+        console.log(`⚠️ Could not drop ${tableName}: ${error.message}`);
+      }
+    }
+    
+    // Ensure archived_conversations_new exists with correct structure
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS archived_conversations_new (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        subject VARCHAR(100) NOT NULL,
+        topic VARCHAR(200),
+        conversation_content TEXT NOT NULL,
+        archived_date DATE NOT NULL DEFAULT CURRENT_DATE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    
+    // Ensure questions table exists with correct structure for individual Q&A
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS questions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        subject VARCHAR(100) NOT NULL,
+        question_text TEXT NOT NULL,
+        student_answer TEXT,
+        is_correct BOOLEAN,
+        ai_answer TEXT,
+        confidence_score FLOAT DEFAULT 0.0,
+        archived_date DATE NOT NULL DEFAULT CURRENT_DATE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    
+    // Add missing columns if they don't exist
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS archived_date DATE DEFAULT CURRENT_DATE');
+      console.log('✅ Added archived_date column to questions table');
+    } catch (error) {
+      console.log(`⚠️ Could not add archived_date to questions: ${error.message}`);
+    }
+    
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS archived_date DATE DEFAULT CURRENT_DATE');
+      console.log('✅ Added archived_date column to archived_conversations_new table');
+    } catch (error) {
+      console.log(`⚠️ Could not add archived_date to archived_conversations_new: ${error.message}`);
+    }
+    
+    // Create indexes with proper error handling
+    try {
+      await db.query('CREATE INDEX IF NOT EXISTS idx_archived_conversations_new_user_date ON archived_conversations_new(user_id, archived_date DESC)');
+      console.log('✅ Created index: idx_archived_conversations_new_user_date');
+    } catch (error) {
+      console.log(`⚠️ Could not create index idx_archived_conversations_new_user_date: ${error.message}`);
+    }
+    
+    try {
+      await db.query('CREATE INDEX IF NOT EXISTS idx_archived_conversations_new_subject ON archived_conversations_new(user_id, subject)');
+      console.log('✅ Created index: idx_archived_conversations_new_subject');
+    } catch (error) {
+      console.log(`⚠️ Could not create index idx_archived_conversations_new_subject: ${error.message}`);
+    }
+    
+    try {
+      await db.query('CREATE INDEX IF NOT EXISTS idx_questions_user_date ON questions(user_id, archived_date DESC)');
+      console.log('✅ Created index: idx_questions_user_date');
+    } catch (error) {
+      console.log(`⚠️ Could not create index idx_questions_user_date: ${error.message}`);
+    }
+    
+    try {
+      await db.query('CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(user_id, subject)');
+      console.log('✅ Created index: idx_questions_subject');
+    } catch (error) {
+      console.log(`⚠️ Could not create index idx_questions_subject: ${error.message}`);
+    }
+    console.log('✅ Database cleanup and migrations completed successfully');
+    
+  } catch (error) {
+    console.error('❌ Database migration failed:', error);
+    // Don't throw - let the app continue with what it has
   }
 }
 
@@ -1499,18 +1105,61 @@ async function createInlineSchema() {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
 
-    -- Profiles table for extended user information
+    -- Enhanced profiles table for comprehensive user profile management
     CREATE TABLE IF NOT EXISTS profiles (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       email VARCHAR(255) UNIQUE NOT NULL,
-      role VARCHAR(50) DEFAULT 'student',
+      
+      -- Basic Information
+      role VARCHAR(50) DEFAULT 'student', -- 'student', 'parent', 'teacher', 'admin'
       parent_id UUID REFERENCES users(id),
       first_name VARCHAR(255),
       last_name VARCHAR(255),
+      display_name VARCHAR(255), -- Optional custom display name
+      
+      -- Academic Information
       grade_level VARCHAR(50),
       school VARCHAR(255),
+      school_district VARCHAR(255),
+      academic_year VARCHAR(20), -- e.g., '2024-2025'
+      
+      -- Personal Information
+      date_of_birth DATE,
+      timezone VARCHAR(50) DEFAULT 'UTC',
+      language_preference VARCHAR(10) DEFAULT 'en',
+      
+      -- Learning Preferences
+      learning_style VARCHAR(50), -- 'visual', 'auditory', 'kinesthetic', 'reading'
+      difficulty_preference VARCHAR(20) DEFAULT 'adaptive', -- 'easy', 'medium', 'hard', 'adaptive'
+      favorite_subjects TEXT[], -- Array of preferred subjects
+      
+      -- Accessibility & Preferences
+      accessibility_needs TEXT[], -- Array of accessibility requirements
+      voice_enabled BOOLEAN DEFAULT true,
+      auto_speak_responses BOOLEAN DEFAULT false,
+      preferred_voice_type VARCHAR(50) DEFAULT 'friendly',
+      
+      -- Privacy & Parental Controls
+      privacy_level VARCHAR(20) DEFAULT 'standard', -- 'minimal', 'standard', 'full'
+      parental_controls_enabled BOOLEAN DEFAULT false,
+      data_sharing_consent BOOLEAN DEFAULT false,
+      
+      -- Profile Completion & Status
+      profile_completion_percentage INTEGER DEFAULT 0,
+      onboarding_completed BOOLEAN DEFAULT false,
+      is_active BOOLEAN DEFAULT true,
+      
+      -- Metadata
+      last_profile_update TIMESTAMP WITH TIME ZONE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      
+      -- Constraints
+      CONSTRAINT valid_role CHECK (role IN ('student', 'parent', 'teacher', 'admin')),
+      CONSTRAINT valid_difficulty CHECK (difficulty_preference IN ('easy', 'medium', 'hard', 'adaptive')),
+      CONSTRAINT valid_privacy CHECK (privacy_level IN ('minimal', 'standard', 'full')),
+      CONSTRAINT valid_completion_percentage CHECK (profile_completion_percentage >= 0 AND profile_completion_percentage <= 100)
     );
 
     -- Sessions table for study sessions
@@ -1611,49 +1260,27 @@ async function createInlineSchema() {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
 
-    -- Archived sessions table (for homework sessions)
-    CREATE TABLE IF NOT EXISTS archived_sessions (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      subject VARCHAR(100) NOT NULL,
-      session_date DATE NOT NULL DEFAULT CURRENT_DATE,
-      title VARCHAR(200),
-      
-      original_image_url TEXT NOT NULL,
-      thumbnail_url TEXT,
-      
-      ai_parsing_result JSONB NOT NULL,
-      processing_time FLOAT NOT NULL DEFAULT 0,
-      overall_confidence FLOAT NOT NULL DEFAULT 0,
-      
-      student_answers JSONB,
-      notes TEXT,
-      review_count INTEGER DEFAULT 0,
-      last_reviewed_at TIMESTAMP WITH TIME ZONE,
-      
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );
-
-    -- Archived conversations table (for chat sessions)
+    -- Archived conversations table (for chat/conversation sessions)
     CREATE TABLE IF NOT EXISTS archived_conversations (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      session_id UUID,
-      subject VARCHAR(100),
-      title VARCHAR(200) NOT NULL,
-      summary TEXT,
-      message_count INTEGER DEFAULT 0,
-      total_tokens INTEGER DEFAULT 0,
-      conversation_history JSONB NOT NULL,
-      key_topics TEXT[],
-      learning_outcomes TEXT[],
-      notes TEXT,
-      duration_minutes INTEGER DEFAULT 0,
-      content_embedding TEXT, -- JSON array since pgvector not available
-      review_count INTEGER DEFAULT 0,
-      last_reviewed_at TIMESTAMP WITH TIME ZONE,
-      archived_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      subject VARCHAR(100) NOT NULL,
+      topic VARCHAR(200), -- User-defined or default topic summary
+      conversation_content TEXT NOT NULL, -- Full conversation as "User: ... AI: ..." format
+      archived_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Archived questions table (for individual Q&A pairs)
+    CREATE TABLE IF NOT EXISTS archived_questions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      subject VARCHAR(100) NOT NULL,
+      question_text TEXT NOT NULL,
+      student_answer TEXT,
+      is_correct BOOLEAN,
+      ai_answer TEXT, -- Optional AI provided answer
+      archived_date DATE NOT NULL DEFAULT CURRENT_DATE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
 
@@ -1669,12 +1296,20 @@ async function createInlineSchema() {
     CREATE INDEX IF NOT EXISTS idx_questions_session_id ON questions(session_id);
     CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
     CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id);
-    CREATE INDEX IF NOT EXISTS idx_archived_sessions_user_date ON archived_sessions(user_id, session_date DESC);
-    CREATE INDEX IF NOT EXISTS idx_archived_sessions_subject ON archived_sessions(user_id, subject);
-    CREATE INDEX IF NOT EXISTS idx_archived_sessions_review ON archived_sessions(user_id, last_reviewed_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_archived_sessions_created ON archived_sessions(user_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_archived_conversations_user_id ON archived_conversations(user_id);
-    CREATE INDEX IF NOT EXISTS idx_archived_conversations_archived_at ON archived_conversations(user_id, archived_at DESC);
+    
+    -- Enhanced profile table indexes
+    CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
+    CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
+    CREATE INDEX IF NOT EXISTS idx_profiles_parent_id ON profiles(parent_id);
+    CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
+    CREATE INDEX IF NOT EXISTS idx_profiles_completion ON profiles(profile_completion_percentage);
+    CREATE INDEX IF NOT EXISTS idx_profiles_onboarding ON profiles(onboarding_completed);
+    
+    -- Archive table indexes
+    CREATE INDEX IF NOT EXISTS idx_archived_conversations_user_date ON archived_conversations(user_id, archived_date DESC);
+    CREATE INDEX IF NOT EXISTS idx_archived_conversations_subject ON archived_conversations(user_id, subject);
+    CREATE INDEX IF NOT EXISTS idx_archived_questions_user_date ON archived_questions(user_id, archived_date DESC);
+    CREATE INDEX IF NOT EXISTS idx_archived_questions_subject ON archived_questions(user_id, subject);
 
     -- Triggers for updated_at columns
     CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -1707,11 +1342,6 @@ async function createInlineSchema() {
 
     CREATE TRIGGER IF NOT EXISTS update_progress_updated_at 
         BEFORE UPDATE ON progress 
-        FOR EACH ROW 
-        EXECUTE FUNCTION update_updated_at_column();
-
-    CREATE TRIGGER IF NOT EXISTS update_archived_sessions_updated_at 
-        BEFORE UPDATE ON archived_sessions 
         FOR EACH ROW 
         EXECUTE FUNCTION update_updated_at_column();
   `;

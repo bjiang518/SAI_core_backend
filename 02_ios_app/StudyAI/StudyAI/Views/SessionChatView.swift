@@ -308,6 +308,7 @@ struct SessionChatView: View {
     @State private var showingSessionInfo = false
     @State private var showingArchiveDialog = false
     @State private var archiveTitle = ""
+    @State private var archiveTopic = ""
     @State private var archiveNotes = ""
     @State private var isArchiving = false
     @State private var refreshTrigger = UUID() // Force UI refresh
@@ -397,6 +398,8 @@ struct SessionChatView: View {
                     Divider()
                     
                     Button("Archive Session") {
+                        // Set default topic to current subject
+                        archiveTopic = selectedSubject
                         showingArchiveDialog = true
                     }
                     .disabled(networkService.currentSessionId == nil || networkService.conversationHistory.isEmpty)
@@ -1136,6 +1139,15 @@ struct SessionChatView: View {
                         }
                         
                         VStack(alignment: .leading, spacing: 8) {
+                            Text("Topic")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            
+                            TextField("Enter topic (e.g., \(selectedSubject))...", text: $archiveTopic)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("Notes (Optional)")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
@@ -1196,6 +1208,7 @@ struct SessionChatView: View {
                     Button("Cancel") {
                         showingArchiveDialog = false
                         archiveTitle = ""
+                        archiveTopic = ""
                         archiveNotes = ""
                     }
                     .foregroundColor(.secondary)
@@ -1223,6 +1236,7 @@ struct SessionChatView: View {
                     Button("Cancel") {
                         showingArchiveDialog = false
                         archiveTitle = ""
+                        archiveTopic = ""
                         archiveNotes = ""
                     }
                 }
@@ -1408,6 +1422,7 @@ struct SessionChatView: View {
             let result = await networkService.archiveSession(
                 sessionId: sessionId,
                 title: archiveTitle.isEmpty ? nil : archiveTitle,
+                topic: archiveTopic.isEmpty ? nil : archiveTopic,
                 subject: selectedSubject,
                 notes: archiveNotes.isEmpty ? nil : archiveNotes
             )
@@ -1419,6 +1434,7 @@ struct SessionChatView: View {
                     // Archive successful - close dialog and show success
                     showingArchiveDialog = false
                     archiveTitle = ""
+                    archiveTopic = ""
                     archiveNotes = ""
                     
                     // Optionally start a new session or clear current session

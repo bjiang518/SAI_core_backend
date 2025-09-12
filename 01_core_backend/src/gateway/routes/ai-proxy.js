@@ -193,6 +193,20 @@ class AIProxyRoutes {
       }
     }, this.getUserConversations.bind(this));
 
+    // Get specific conversation (chat archive)
+    this.fastify.get('/api/ai/archives/conversations/:conversationId', {
+      schema: {
+        description: 'Get specific archived conversation (chat session)',
+        tags: ['AI', 'Archives'],
+        params: {
+          type: 'object',
+          properties: {
+            conversationId: { type: 'string' }
+          }
+        }
+      }
+    }, this.getSpecificConversation.bind(this));
+
     // Get user sessions (homework/question archives)
     this.fastify.get('/api/ai/archives/sessions', {
       schema: {
@@ -935,9 +949,19 @@ FORMATTING RULES:
 
   async archiveSession(request, reply) {
     const { sessionId } = request.params;
-    const { title, subject, notes } = request.body;
+    const { title, topic, subject, notes } = request.body;
 
     try {
+      // Get authenticated user ID from token
+      const userId = await this.getUserIdFromToken(request);
+      
+      if (!userId) {
+        return reply.status(401).send({
+          error: 'Authentication required to archive session',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
       const { db } = require('../../utils/railway-database');
       
       // Get session info
@@ -949,45 +973,29 @@ FORMATTING RULES:
         });
       }
 
-      // Get full conversation history
-      const conversationHistory = await db.getConversationHistory(sessionId, 100);
-      
-      if (conversationHistory.length === 0) {
-        return reply.status(400).send({
-          error: 'No conversation to archive',
-          code: 'EMPTY_SESSION'
+      // Verify session belongs to authenticated user
+      if (sessionInfo.user_id !== userId) {
+        return reply.status(403).send({
+          error: 'Access denied - session belongs to different user',
+          code: 'ACCESS_DENIED'
         });
       }
 
-      // Generate AI summary and extract topics
-      const analysisResult = await this.analyzeConversationForArchiving(conversationHistory, sessionInfo);
-
-      // Archive the conversation using the NEW method
+      // Archive the conversation using simplified method
       const archivedConversation = await db.archiveConversation({
-        userId: sessionInfo.user_id && sessionInfo.user_id !== 'unknown' ? sessionInfo.user_id : '00000000-0000-0000-0000-000000000000',
-        sessionId: sessionId,
-        subject: subject || sessionInfo.subject || 'General Discussion',
-        title: title || `Conversation - ${new Date().toLocaleDateString()}`,
-        summary: analysisResult.summary,
-        messageCount: conversationHistory.length,
-        totalTokens: analysisResult.totalTokens,
-        conversationHistory: conversationHistory,
-        keyTopics: analysisResult.keyTopics,
-        learningOutcomes: analysisResult.learningOutcomes,
-        notes: notes || '',
-        duration: analysisResult.estimatedDuration,
-        embedding: analysisResult.embedding // NEW: Store semantic embedding
+        userId: userId,
+        subject: subject || 'General Discussion',
+        topic: topic || title || `Conversation - ${new Date().toLocaleDateString()}`,
+        conversationContent: `Session archived by user on ${new Date().toISOString()}\n\nSubject: ${subject || 'General Discussion'}\nTopic: ${topic || title || 'User Conversation'}\nNotes: ${notes || 'No additional notes provided'}`
       });
 
       return reply.send({
         success: true,
-        type: 'conversation', // NEW: Identifies this as a conversation archive
+        type: 'conversation',
         archivedConversationId: archivedConversation.id,
-        summary: analysisResult.summary,
-        messageCount: conversationHistory.length,
-        keyTopics: analysisResult.keyTopics,
-        learningOutcomes: analysisResult.learningOutcomes,
-        archiveDate: archivedConversation.archived_at
+        topic: archivedConversation.topic,
+        subject: archivedConversation.subject,
+        archiveDate: archivedConversation.archived_date
       });
 
     } catch (error) {
@@ -1003,10 +1011,20 @@ FORMATTING RULES:
     const { sessionId } = request.params;
 
     try {
+      // Get authenticated user ID from token
+      const userId = await this.getUserIdFromToken(request);
+      
+      if (!userId) {
+        return reply.status(401).send({
+          error: 'Authentication required to retrieve archived session',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
       const { db } = require('../../utils/railway-database');
       
       // Try to find as archived conversation first (NEW approach)
-      const archivedConversation = await db.getConversationDetails(sessionId, '00000000-0000-0000-0000-000000000000'); // TODO: Get actual user ID
+      const archivedConversation = await db.getConversationDetails(sessionId, userId);
       
       if (archivedConversation) {
         return reply.send({
@@ -1032,7 +1050,7 @@ FORMATTING RULES:
       }
 
       // Fallback: Try archived session (homework/questions)
-      const archivedSession = await db.getSessionDetails(sessionId, '00000000-0000-0000-0000-000000000000');
+      const archivedSession = await db.getSessionDetails(sessionId, userId);
       
       if (archivedSession) {
         return reply.send({
@@ -1196,15 +1214,23 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
   // NEW: Separate retrieval methods for different archive types
   async getUserConversations(request, reply) {
     try {
+      // Get authenticated user ID from token
+      const userId = await this.getUserIdFromToken(request);
+      
+      if (!userId) {
+        return reply.status(401).send({
+          error: 'Authentication required to retrieve conversations',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
       const { db } = require('../../utils/railway-database');
-      const userId = '00000000-0000-0000-0000-000000000000'; // TODO: Extract from auth token
       
       const filters = {
         subject: request.query.subject,
         search: request.query.search,
         startDate: request.query.startDate,
-        endDate: request.query.endDate,
-        minMessages: request.query.minMessages
+        endDate: request.query.endDate
       };
 
       const conversations = await db.fetchUserConversations(
@@ -1214,15 +1240,25 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
         filters
       );
 
+      // Transform for client response
+      const transformedConversations = conversations.map(conversation => ({
+        id: conversation.id,
+        subject: conversation.subject,
+        topic: conversation.topic,
+        conversationContent: conversation.conversation_content,
+        archivedDate: conversation.archived_date,
+        createdAt: conversation.created_at
+      }));
+
       return reply.send({
         success: true,
         type: 'conversations',
-        count: conversations.length,
-        data: conversations,
+        count: transformedConversations.length,
+        data: transformedConversations,
         pagination: {
           limit: request.query.limit || 20,
           offset: request.query.offset || 0,
-          hasMore: conversations.length === (request.query.limit || 20)
+          hasMore: transformedConversations.length === (request.query.limit || 20)
         }
       });
     } catch (error) {
@@ -1234,39 +1270,118 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
     }
   }
 
+  async getSpecificConversation(request, reply) {
+    try {
+      // Get authenticated user ID from token
+      const userId = await this.getUserIdFromToken(request);
+      
+      if (!userId) {
+        return reply.status(401).send({
+          error: 'Authentication required to retrieve conversation',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      const { conversationId } = request.params;
+      const { db } = require('../../utils/railway-database');
+      
+      console.log(`🔍 Getting conversation ${conversationId} for user ${userId}`);
+      
+      // Get specific conversation by ID - use correct method name
+      const conversation = await db.getConversationDetails(conversationId, userId);
+      
+      console.log(`📋 Conversation result:`, conversation ? 'Found' : 'Not found');
+      if (conversation) {
+        console.log(`📋 Conversation data keys:`, Object.keys(conversation));
+      }
+      
+      if (!conversation) {
+        return reply.status(404).send({
+          error: 'Conversation not found',
+          code: 'CONVERSATION_NOT_FOUND'
+        });
+      }
+
+      return reply.send({
+        success: true,
+        type: 'conversation',
+        data: {
+          id: conversation.id,
+          user_id: conversation.user_id,
+          subject: conversation.subject,
+          topic: conversation.topic,
+          conversation_content: conversation.conversation_content,
+          archived_date: conversation.archived_date,
+          created_at: conversation.created_at
+        }
+      });
+    } catch (error) {
+      console.error('🚨 Get specific conversation error details:', error);
+      console.error('🚨 Error stack:', error.stack);
+      this.fastify.log.error('Get specific conversation error:', error);
+      return reply.status(500).send({
+        error: 'Failed to retrieve conversation',
+        code: 'RETRIEVAL_ERROR'
+      });
+    }
+  }
+
   async getUserSessions(request, reply) {
     try {
+      // Get authenticated user ID from token
+      const userId = await this.getUserIdFromToken(request);
+      
+      if (!userId) {
+        return reply.status(401).send({
+          error: 'Authentication required to retrieve questions',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
       const { db } = require('../../utils/railway-database');
-      const userId = '00000000-0000-0000-0000-000000000000'; // TODO: Extract from auth token
       
       const filters = {
         subject: request.query.subject,
+        search: request.query.search,
         startDate: request.query.startDate,
         endDate: request.query.endDate
       };
 
-      const sessions = await db.fetchUserSessions(
+      const questions = await db.fetchUserQuestions(
         userId,
         request.query.limit || 20,
         request.query.offset || 0,
         filters
       );
 
+      // Transform for client response
+      const transformedQuestions = questions.map(question => ({
+        id: question.id,
+        subject: question.subject,
+        questionText: question.question_text,
+        studentAnswer: question.student_answer,
+        isCorrect: question.is_correct,
+        aiAnswer: question.ai_answer,
+        confidenceScore: question.confidence_score,
+        archivedDate: question.archived_date,
+        createdAt: question.created_at
+      }));
+
       return reply.send({
         success: true,
-        type: 'sessions',
-        count: sessions.length,
-        data: sessions,
+        type: 'questions',
+        count: transformedQuestions.length,
+        data: transformedQuestions,
         pagination: {
           limit: request.query.limit || 20,
           offset: request.query.offset || 0,
-          hasMore: sessions.length === (request.query.limit || 20)
+          hasMore: transformedQuestions.length === (request.query.limit || 20)
         }
       });
     } catch (error) {
-      this.fastify.log.error('Get user sessions error:', error);
+      this.fastify.log.error('Get user questions error:', error);
       return reply.status(500).send({
-        error: 'Failed to retrieve sessions',
+        error: 'Failed to retrieve questions',
         code: 'RETRIEVAL_ERROR'
       });
     }
@@ -1274,8 +1389,17 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
 
   async searchUserArchives(request, reply) {
     try {
+      // Get authenticated user ID from token
+      const userId = await this.getUserIdFromToken(request);
+      
+      if (!userId) {
+        return reply.status(401).send({
+          error: 'Authentication required to search archives',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
       const { db } = require('../../utils/railway-database');
-      const userId = '00000000-0000-0000-0000-000000000000'; // TODO: Extract from auth token
       const searchTerm = request.query.q;
       const archiveType = request.query.type || 'all';
       const searchType = request.query.searchType || 'hybrid';
@@ -1355,8 +1479,17 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
   // NEW: Advanced date-based retrieval
   async getConversationsByDatePattern(request, reply) {
     try {
+      // Get authenticated user ID from token
+      const userId = await this.getUserIdFromToken(request);
+      
+      if (!userId) {
+        return reply.status(401).send({
+          error: 'Authentication required to retrieve conversations',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
       const { db } = require('../../utils/railway-database');
-      const userId = '00000000-0000-0000-0000-000000000000'; // TODO: Extract from auth token
       
       const datePattern = {
         type: request.query.datePattern,
@@ -1398,8 +1531,17 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
   // NEW: Pure semantic search
   async semanticSearchConversations(request, reply) {
     try {
+      // Get authenticated user ID from token
+      const userId = await this.getUserIdFromToken(request);
+      
+      if (!userId) {
+        return reply.status(401).send({
+          error: 'Authentication required to search conversations',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
       const { db } = require('../../utils/railway-database');
-      const userId = '00000000-0000-0000-0000-000000000000'; // TODO: Extract from auth token
       const searchQuery = request.body.query;
 
       // Generate embedding for the search query

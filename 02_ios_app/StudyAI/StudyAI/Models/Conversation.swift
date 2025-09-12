@@ -46,7 +46,7 @@ struct Conversation: Identifiable, Codable {
 
 enum ConversationFilter: String, CaseIterable {
     case all = "all"
-    case archived = "archived"
+    case archived = "archived" 
     case unarchived = "unarchived"
     
     var displayName: String {

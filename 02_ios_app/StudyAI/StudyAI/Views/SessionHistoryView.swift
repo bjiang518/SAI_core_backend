@@ -348,7 +348,8 @@ struct SessionListView: View {
                 List(sessions.indices, id: \.self) { index in
                     let session = sessions[index]
                     if let sessionId = session["id"] as? String {
-                        NavigationLink(destination: SessionDetailView(sessionId: sessionId)) {
+                        let isConversation = session["type"] as? String != "question_archive"
+                        NavigationLink(destination: SessionDetailView(sessionId: sessionId, isConversation: isConversation)) {
                             ModernSessionListCard(session: session)
                         }
                         .listRowSeparator(.hidden)
@@ -776,7 +777,7 @@ struct SessionCalendarView: View {
                     ScrollView {
                         LazyVStack(spacing: 8) {
                             ForEach(sessionsForSelectedDate) { session in
-                                NavigationLink(destination: SessionDetailView(sessionId: session.id)) {
+                                NavigationLink(destination: SessionDetailView(sessionId: session.id, isConversation: false)) {
                                     SessionListCard(session: session)
                                 }
                                 .buttonStyle(PlainButtonStyle())

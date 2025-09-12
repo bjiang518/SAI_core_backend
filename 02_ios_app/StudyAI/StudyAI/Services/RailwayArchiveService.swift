@@ -108,14 +108,104 @@ class RailwayArchiveService: ObservableObject {
         throw ArchiveError.archiveFailed(errorMessage)
     }
     
-    // MARK: - Fetch Archived Sessions
+    // MARK: - Fetch Combined Archives (Conversations + Questions)
     
     func fetchArchivedSessions(limit: Int = 50, offset: Int = 0) async throws -> [SessionSummary] {
         guard let token = authToken else {
             throw ArchiveError.notAuthenticated
         }
         
-        print("📚 Fetching archived sessions from Railway backend...")
+        print("📚 Fetching archived items from Railway backend...")
+        
+        // Fetch both conversations and questions
+        let conversations = try await fetchUserConversations(limit: limit/2, offset: offset)
+        let questions = try await fetchUserQuestions(limit: limit/2, offset: offset)
+        
+        // Convert to SessionSummary format for compatibility
+        var sessions: [SessionSummary] = []
+        
+        // Add conversations as sessions
+        for conversation in conversations {
+            let session = SessionSummary(
+                id: conversation.id,
+                subject: conversation.subject,
+                sessionDate: conversation.archivedDate,
+                title: conversation.topic ?? "Conversation",
+                questionCount: 1, // Conversations count as 1 item
+                overallConfidence: 1.0,
+                thumbnailUrl: nil,
+                reviewCount: 0
+            )
+            sessions.append(session)
+        }
+        
+        // Add questions as sessions  
+        for question in questions {
+            let session = SessionSummary(
+                id: question.id,
+                subject: question.subject,
+                sessionDate: question.archivedAt,
+                title: question.questionText.count > 50 ? String(question.questionText.prefix(50)) + "..." : question.questionText,
+                questionCount: 1,
+                overallConfidence: question.confidence,
+                thumbnailUrl: nil,
+                reviewCount: question.reviewCount
+            )
+            sessions.append(session)
+        }
+        
+        // Sort by date
+        sessions.sort { $0.sessionDate > $1.sessionDate }
+        
+        print("✅ Fetched \(sessions.count) items from Railway backend")
+        return sessions
+    }
+    
+    // MARK: - Fetch Conversations
+    
+    func fetchUserConversations(limit: Int = 25, offset: Int = 0) async throws -> [ArchivedConversation] {
+        guard let token = authToken else {
+            throw ArchiveError.notAuthenticated
+        }
+        
+        var urlComponents = URLComponents(string: "\(baseURL)/api/ai/conversations")
+        urlComponents?.queryItems = [
+            URLQueryItem(name: "limit", value: "\(limit)"),
+            URLQueryItem(name: "offset", value: "\(offset)")
+        ]
+        
+        guard let url = urlComponents?.url else {
+            throw ArchiveError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw ArchiveError.fetchFailed(errorMessage)
+        }
+        
+        if let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let conversationsData = jsonResponse["data"] as? [[String: Any]] {
+            
+            return try conversationsData.map { try convertToArchivedConversation($0) }
+        }
+        
+        throw ArchiveError.invalidData
+    }
+    
+    // MARK: - Fetch Questions
+    
+    func fetchUserQuestions(limit: Int = 25, offset: Int = 0) async throws -> [ArchivedQuestion] {
+        guard let token = authToken else {
+            throw ArchiveError.notAuthenticated
+        }
         
         var urlComponents = URLComponents(string: "\(baseURL)/api/archive/sessions")
         urlComponents?.queryItems = [
@@ -141,14 +231,9 @@ class RailwayArchiveService: ObservableObject {
         }
         
         if let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let sessionsData = jsonResponse["data"] as? [[String: Any]] {
+           let questionsData = jsonResponse["data"] as? [[String: Any]] {
             
-            let sessions = try sessionsData.map { sessionData in
-                try convertToSessionSummary(sessionData)
-            }
-            
-            print("✅ Fetched \(sessions.count) sessions from Railway backend")
-            return sessions
+            return try questionsData.map { try convertToArchivedQuestion($0) }
         }
         
         throw ArchiveError.invalidData
@@ -224,6 +309,42 @@ class RailwayArchiveService: ObservableObject {
            let sessionData = jsonResponse["data"] as? [String: Any] {
             
             return try convertToArchivedSession(sessionData)
+        }
+        
+        throw ArchiveError.invalidData
+    }
+    
+    // MARK: - Get Conversation Details (for archived chat sessions)
+    
+    func getConversationDetails(conversationId: String) async throws -> ArchivedConversation {
+        guard let token = authToken else {
+            throw ArchiveError.notAuthenticated
+        }
+        
+        guard let url = URL(string: "\(baseURL)/api/ai/archives/conversations/\(conversationId)") else {
+            throw ArchiveError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            if (response as? HTTPURLResponse)?.statusCode == 404 {
+                throw ArchiveError.sessionNotFound
+            }
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw ArchiveError.fetchFailed(errorMessage)
+        }
+        
+        if let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let conversationData = jsonResponse["data"] as? [String: Any] {
+            
+            return try convertToArchivedConversation(conversationData)
         }
         
         throw ArchiveError.invalidData
@@ -362,6 +483,34 @@ class RailwayArchiveService: ObservableObject {
         )
     }
     
+    private func convertToArchivedConversation(_ data: [String: Any]) throws -> ArchivedConversation {
+        guard let id = data["id"] as? String,
+              let userId = data["user_id"] as? String,
+              let subject = data["subject"] as? String,
+              let conversationContent = data["conversation_content"] as? String else {
+            throw ArchiveError.invalidData
+        }
+        
+        // Parse date
+        let archivedDate: Date
+        if let dateString = data["archived_date"] as? String {
+            let formatter = ISO8601DateFormatter()
+            archivedDate = formatter.date(from: dateString) ?? Date()
+        } else {
+            archivedDate = Date()
+        }
+        
+        return ArchivedConversation(
+            id: id,
+            userId: userId,
+            subject: subject,
+            topic: data["topic"] as? String,
+            conversationContent: conversationContent,
+            archivedDate: archivedDate,
+            createdAt: archivedDate
+        )
+    }
+    
     private func convertToHomeworkParsingResult(_ data: [String: Any]) throws -> HomeworkParsingResult {
         guard let questionsData = data["questions"] as? [[String: Any]],
               let questionCount = data["questionCount"] as? Int else {
@@ -430,6 +579,41 @@ class RailwayArchiveService: ObservableObject {
     }
     
     // MARK: - Helper Functions
+    
+    private func convertToArchivedQuestion(_ data: [String: Any]) throws -> ArchivedQuestion {
+        guard let id = data["id"] as? String,
+              let userId = data["userId"] as? String ?? data["user_id"] as? String,
+              let subject = data["subject"] as? String,
+              let questionText = data["questionText"] as? String ?? data["question_text"] as? String else {
+            throw ArchiveError.invalidData
+        }
+        
+        // Parse date
+        let archivedDate: Date
+        if let dateString = data["archivedDate"] as? String ?? data["archived_date"] as? String {
+            let formatter = ISO8601DateFormatter()
+            archivedDate = formatter.date(from: dateString) ?? Date()
+        } else {
+            archivedDate = Date()
+        }
+        
+        // Map backend question format to existing ArchivedQuestion structure
+        let answerText = data["aiAnswer"] as? String ?? data["ai_answer"] as? String ?? ""
+        let confidence = data["confidenceScore"] as? Float ?? data["confidence_score"] as? Float ?? 0.0
+        
+        return ArchivedQuestion(
+            userId: userId,
+            subject: subject,
+            questionText: questionText,
+            answerText: answerText,
+            confidence: confidence,
+            hasVisualElements: false, // Backend doesn't store this currently
+            originalImageUrl: nil,
+            questionImageUrl: nil,
+            processingTime: 0.0,
+            archivedAt: archivedDate
+        )
+    }
     
     private func generateTitle(_ homeworkResult: HomeworkParsingResult, _ subject: String) -> String {
         let questionCount = homeworkResult.questionCount

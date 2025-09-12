@@ -1156,10 +1156,11 @@ class NetworkService: ObservableObject {
     // MARK: - Session Archive Management
     
     /// Archive a session conversation to the backend database
-    func archiveSession(sessionId: String, title: String? = nil, subject: String? = nil, notes: String? = nil) async -> (success: Bool, message: String) {
+    func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil) async -> (success: Bool, message: String) {
         print("📦 === ARCHIVE CONVERSATION SESSION ===")
         print("📁 Session ID: \(sessionId)")
         print("📝 Title: \(title ?? "Auto-generated")")
+        print("🏷️ Topic: \(topic ?? "Auto-generated from subject")")
         print("📚 Subject: \(subject ?? "General")")
         print("💭 Notes: \(notes ?? "None")")
         print("🔐 Auth Token Available: \(AuthenticationService.shared.getAuthToken() != nil)")
@@ -1193,6 +1194,13 @@ class NetworkService: ObservableObject {
         
         if let subject = subject, !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             archiveData["subject"] = subject
+        }
+        
+        if let topic = topic, !topic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            archiveData["topic"] = topic
+        } else {
+            // Use subject as default topic if no topic provided
+            archiveData["topic"] = subject ?? "General Discussion"
         }
         
         if let notes = notes, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

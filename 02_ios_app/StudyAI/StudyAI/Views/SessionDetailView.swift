@@ -9,11 +9,18 @@ import SwiftUI
 
 struct SessionDetailView: View {
     let sessionId: String
+    let isConversation: Bool // Add parameter to distinguish between conversations and sessions
     @StateObject private var railwayService = RailwayArchiveService.shared
     @State private var session: ArchivedSession?
+    @State private var conversation: ArchivedConversation?
     @State private var isLoading = true
     @State private var errorMessage = ""
     @Environment(\.dismiss) private var dismiss
+    
+    init(sessionId: String, isConversation: Bool = false) {
+        self.sessionId = sessionId
+        self.isConversation = isConversation
+    }
     
     var body: some View {
         NavigationView {
@@ -21,7 +28,7 @@ struct SessionDetailView: View {
                 if isLoading {
                     VStack {
                         ProgressView()
-                        Text("Loading session...")
+                        Text("Loading...")
                             .foregroundColor(.gray)
                             .padding(.top)
                     }
@@ -30,7 +37,7 @@ struct SessionDetailView: View {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.largeTitle)
                             .foregroundColor(.red)
-                        Text("Error loading session")
+                        Text("Error loading content")
                             .font(.headline)
                         Text(errorMessage)
                             .foregroundColor(.gray)
@@ -39,12 +46,14 @@ struct SessionDetailView: View {
                     .padding()
                 } else if let session = session {
                     SessionDetailContent(session: session)
+                } else if let conversation = conversation {
+                    ConversationDetailContent(conversation: conversation)
                 } else {
-                    Text("Session not found")
+                    Text("Content not found")
                         .foregroundColor(.gray)
                 }
             }
-            .navigationTitle("Session Details")
+            .navigationTitle(isConversation ? "Conversation Details" : "Session Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -56,20 +65,28 @@ struct SessionDetailView: View {
         }
         .onAppear {
             Task {
-                await loadSessionDetails()
+                await loadDetails()
             }
         }
     }
     
-    private func loadSessionDetails() async {
+    private func loadDetails() async {
         isLoading = true
         errorMessage = ""
         
         do {
-            let loadedSession = try await railwayService.getSessionDetails(sessionId: sessionId)
-            await MainActor.run {
-                session = loadedSession
-                isLoading = false
+            if isConversation {
+                let loadedConversation = try await railwayService.getConversationDetails(conversationId: sessionId)
+                await MainActor.run {
+                    conversation = loadedConversation
+                    isLoading = false
+                }
+            } else {
+                let loadedSession = try await railwayService.getSessionDetails(sessionId: sessionId)
+                await MainActor.run {
+                    session = loadedSession
+                    isLoading = false
+                }
             }
         } catch {
             await MainActor.run {
@@ -257,6 +274,175 @@ struct InfoRow: View {
     }
 }
 
+struct ConversationDetailContent: View {
+    let conversation: ArchivedConversation
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Header Card
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "message.circle")
+                            .foregroundColor(.blue)
+                            .font(.title2)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(conversation.subject)
+                                .font(.headline)
+                            if let topic = conversation.topic {
+                                Text(topic)
+                                    .font(.subheadline)
+                                    .foregroundColor(.blue)
+                            }
+                            Text(conversation.archivedDate, style: .date)
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        
+                        Spacer()
+                    }
+                }
+                .padding()
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(12)
+                
+                // Conversation Content
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Conversation")
+                        .font(.headline)
+                    
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(parseConversation(conversation.conversationContent), id: \.offset) { messageItem in
+                                ConversationMessageView(
+                                    speaker: messageItem.element.speaker,
+                                    message: messageItem.element.message,
+                                    isUser: messageItem.element.speaker.lowercased().contains("user")
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                    .frame(maxHeight: 400)
+                }
+                
+                // Metadata Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Conversation Info")
+                        .font(.headline)
+                    
+                    VStack(spacing: 8) {
+                        InfoRow(label: "Subject", value: conversation.subject)
+                        if let topic = conversation.topic {
+                            InfoRow(label: "Topic", value: topic)
+                        }
+                        InfoRow(label: "Archived", value: conversation.archivedDate.formatted(date: .abbreviated, time: .omitted))
+                        InfoRow(label: "Created", value: conversation.createdAt.formatted(date: .abbreviated, time: .shortened))
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(8)
+                }
+            }
+            .padding()
+        }
+    }
+    
+    private func parseConversation(_ content: String) -> [(offset: Int, element: (speaker: String, message: String))] {
+        let lines = content.components(separatedBy: .newlines)
+        var messages: [(speaker: String, message: String)] = []
+        var currentMessage = ""
+        var currentSpeaker = ""
+        
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            if trimmedLine.contains(":") && (trimmedLine.hasPrefix("User:") || trimmedLine.hasPrefix("AI:") || trimmedLine.hasPrefix("Assistant:")) {
+                // Save previous message if exists
+                if !currentSpeaker.isEmpty && !currentMessage.isEmpty {
+                    messages.append((speaker: currentSpeaker, message: currentMessage.trimmingCharacters(in: .whitespacesAndNewlines)))
+                }
+                
+                // Start new message
+                let components = trimmedLine.components(separatedBy: ":")
+                if components.count >= 2 {
+                    currentSpeaker = components[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                    currentMessage = components.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            } else if !trimmedLine.isEmpty {
+                // Continue current message
+                if !currentMessage.isEmpty {
+                    currentMessage += "\n"
+                }
+                currentMessage += trimmedLine
+            }
+        }
+        
+        // Save final message
+        if !currentSpeaker.isEmpty && !currentMessage.isEmpty {
+            messages.append((speaker: currentSpeaker, message: currentMessage.trimmingCharacters(in: .whitespacesAndNewlines)))
+        }
+        
+        return Array(messages.enumerated())
+    }
+}
+
+struct ConversationMessageView: View {
+    let speaker: String
+    let message: String
+    let isUser: Bool
+    
+    var body: some View {
+        HStack {
+            if isUser {
+                Spacer(minLength: 50)
+                messageContent
+            } else {
+                messageContent
+                Spacer(minLength: 50)
+            }
+        }
+    }
+    
+    private var messageContent: some View {
+        VStack(alignment: isUser ? .trailing : .leading, spacing: 8) {
+            HStack {
+                if !isUser {
+                    Image(systemName: "brain.head.profile")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+                
+                Text(speaker)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                if isUser {
+                    Image(systemName: "person.fill")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+            }
+            
+            Text(message)
+                .font(.body)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+        }
+        .padding(12)
+        .background(isUser ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(isUser ? Color.blue.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
+        )
+    }
+}
+
 #Preview {
-    SessionDetailView(sessionId: "sample-id")
+    SessionDetailView(sessionId: "sample-id", isConversation: false)
 }

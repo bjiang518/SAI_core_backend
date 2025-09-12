@@ -232,6 +232,28 @@ enum SubjectCategory: String, CaseIterable, Codable {
     }
 }
 
+// MARK: - Archived Conversation Models
+
+struct ArchivedConversation: Codable, Identifiable {
+    let id: String
+    let userId: String
+    let subject: String
+    let topic: String?
+    let conversationContent: String
+    let archivedDate: Date
+    let createdAt: Date
+    
+    init(id: String, userId: String, subject: String, topic: String?, conversationContent: String, archivedDate: Date, createdAt: Date) {
+        self.id = id
+        self.userId = userId
+        self.subject = subject
+        self.topic = topic
+        self.conversationContent = conversationContent
+        self.archivedDate = archivedDate
+        self.createdAt = createdAt
+    }
+}
+
 // MARK: - Statistics Models
 
 struct ArchiveStatistics {
