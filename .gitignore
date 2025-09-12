@@ -158,6 +158,17 @@ config/local.py
 secrets/
 .secrets/
 
+# API Keys - DO NOT COMMIT
+**/OPENAI_API_KEY*
+**/API_KEY*
+**/SECRET_KEY*
+sk-*
+**/APIKeys.swift
+**/Config/secrets.*
+Info.plist.backup
+**/secrets.json
+**/config.json
+
 # AI Engine specific
 03_ai_engine/instance/
 03_ai_engine/*.log
