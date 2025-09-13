@@ -72,8 +72,7 @@ struct HomeView: View {
                             }
                         }
                         .padding()
-                        .background(voiceService.voiceSettings.voiceType == .elsa ? 
-                                   Color.blue.opacity(0.1) : getCharacterColor().opacity(0.1))
+                        .background(getCharacterColor().opacity(0.1))
                         .cornerRadius(12)
                     }
                     .padding()
@@ -242,16 +241,8 @@ struct HomeView: View {
     
     private func getCharacterColor() -> Color {
         switch voiceService.voiceSettings.voiceType {
-        case .elsa: return .blue
-        case .optimusPrime: return .blue
-        case .spiderman: return .red
-        case .groot: return .green
-        case .yoda: return .green
-        case .ironMan: return .red
-        case .friendly: return .pink
-        case .teacher: return .indigo
-        case .encouraging: return .orange
-        case .playful: return .purple
+        case .adam: return .blue      // Boy color
+        case .eva: return .pink       // Girl color
         }
     }
 }

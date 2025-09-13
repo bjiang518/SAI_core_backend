@@ -910,6 +910,122 @@ const db = {
       conversations: conversationResults,
       questions: questionResults
     };
+  },
+
+  /**
+   * Add a conversation message to the conversations table
+   */
+  async addConversationMessage(messageData) {
+    const {
+      userId,
+      questionId,
+      sessionId,
+      messageType,
+      messageText,
+      messageData: msgData,
+      tokensUsed = 0
+    } = messageData;
+
+    const query = `
+      INSERT INTO conversations (
+        user_id,
+        question_id,
+        session_id,
+        message_type,
+        message_text,
+        message_data,
+        tokens_used
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `;
+
+    const values = [userId, questionId, sessionId, messageType, messageText, msgData ? JSON.stringify(msgData) : null, tokensUsed];
+    const result = await this.query(query, values);
+    return result.rows[0];
+  },
+
+  /**
+   * Get conversation history for a session
+   */
+  async getConversationHistory(sessionId, limit = 50) {
+    const query = `
+      SELECT 
+        id,
+        user_id,
+        question_id,
+        session_id,
+        message_type,
+        message_text,
+        message_data,
+        tokens_used,
+        created_at
+      FROM conversations
+      WHERE session_id = $1
+      ORDER BY created_at ASC
+      LIMIT $2
+    `;
+
+    const result = await this.query(query, [sessionId, limit]);
+    return result.rows;
+  },
+
+  /**
+   * Get session details by ID (for homework/question sessions)
+   */
+  async getSessionDetails(sessionId, userId) {
+    const query = `
+      SELECT * FROM sessions 
+      WHERE id = $1 AND user_id = $2
+    `;
+    
+    const result = await this.query(query, [sessionId, userId]);
+    return result.rows[0];
+  },
+
+  /**
+   * Fetch user's sessions (homework/questions)
+   */
+  async fetchUserSessions(userId, limit = 50, offset = 0, filters = {}) {
+    let query = `
+      SELECT 
+        id,
+        title,
+        subject,
+        session_type,
+        status,
+        start_time,
+        end_time,
+        created_at
+      FROM sessions
+      WHERE user_id = $1
+    `;
+    
+    const values = [userId];
+    let paramIndex = 2;
+
+    if (filters.subject) {
+      query += ` AND subject = $${paramIndex}`;
+      values.push(filters.subject);
+      paramIndex++;
+    }
+
+    if (filters.startDate) {
+      query += ` AND start_time >= $${paramIndex}`;
+      values.push(filters.startDate);
+      paramIndex++;
+    }
+
+    if (filters.endDate) {
+      query += ` AND start_time <= $${paramIndex}`;
+      values.push(filters.endDate);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY start_time DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    values.push(limit, offset);
+
+    const result = await this.query(query, values);
+    return result.rows;
   }
 };
 
@@ -921,7 +1037,7 @@ async function initializeDatabase() {
     // Check if critical tables exist (users table is required for authentication)
     const tableCheck = await db.query(`
       SELECT tablename FROM pg_tables 
-      WHERE schemaname = 'public' AND tablename IN ('users', 'user_sessions', 'profiles', 'sessions', 'questions')
+      WHERE schemaname = 'public' AND tablename IN ('users', 'user_sessions', 'profiles', 'sessions', 'questions', 'archived_conversations_new', 'conversations')
     `);
     
     if (tableCheck.rows.length === 0) {
@@ -945,7 +1061,7 @@ async function initializeDatabase() {
       
       // Check if we need to add missing tables
       const existingTables = tableCheck.rows.map(r => r.tablename);
-      const requiredTables = ['users', 'user_sessions', 'profiles', 'questions', 'archived_conversations_new'];
+      const requiredTables = ['users', 'user_sessions', 'profiles', 'sessions', 'questions', 'archived_conversations_new', 'conversations'];
       const missingTables = requiredTables.filter(table => !existingTables.includes(table));
       
       if (missingTables.length > 0) {
@@ -974,7 +1090,7 @@ async function runDatabaseMigrations() {
   try {
     console.log('🔄 Checking for database migrations...');
     
-    // Clean up legacy tables - only keep questions and archived_conversations_new
+    // Clean up legacy tables - keep sessions, questions and archived_conversations_new
     const legacyTables = [
       'archived_conversations', 
       'archived_sessions', 
@@ -982,7 +1098,6 @@ async function runDatabaseMigrations() {
       'sessions_summaries', 
       'evaluations', 
       'progress',
-      'sessions',
       'archived_questions'  // Remove this too since we'll use questions table
     ];
     
@@ -1067,6 +1182,39 @@ async function runDatabaseMigrations() {
     } catch (error) {
       console.log(`⚠️ Could not create index idx_questions_subject: ${error.message}`);
     }
+    // Ensure sessions table exists for AI proxy functionality
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        parent_id UUID REFERENCES users(id),
+        session_type VARCHAR(50) DEFAULT 'homework',
+        title VARCHAR(200),
+        description TEXT,
+        subject VARCHAR(100),
+        status VARCHAR(50) DEFAULT 'active',
+        start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        end_time TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    
+    // Ensure conversations table exists for chat history
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS conversations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
+        session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+        message_type VARCHAR(50) NOT NULL, -- 'user' or 'assistant'
+        message_text TEXT NOT NULL,
+        message_data JSONB,
+        tokens_used INTEGER DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    
     console.log('✅ Database cleanup and migrations completed successfully');
     
   } catch (error) {

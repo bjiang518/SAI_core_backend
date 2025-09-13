@@ -195,8 +195,8 @@ class TextToSpeechService: NSObject, ObservableObject {
         // Apply volume - always respect user settings
         utterance.volume = settings.volume.clamped(to: 0.0...1.0)
         
-        // Enhanced pre/post utterance delays for Elsa voice type
-        if voiceType == .elsa {
+        // Enhanced pre/post utterance delays for Eva voice type
+        if voiceType == .eva {
             utterance.preUtteranceDelay = 0.0  // Immediate start for clarity
             utterance.postUtteranceDelay = 0.08 // Brief pause between sentences
         } else {
@@ -288,14 +288,26 @@ class TextToSpeechService: NSObject, ObservableObject {
         }
         
         if !enhancedVoices.isEmpty {
-            // For Elsa voice type, prefer female-sounding names
-            if voiceType == .elsa {
+            // For Eva voice type, prefer female-sounding names
+            if voiceType == .eva {
                 let femaleEnhancedVoices = enhancedVoices.filter { voice in
                     let femaleSoundingNames = ["Ava", "Samantha", "Victoria", "Karen", "Susan", "Emma", "Zoe"]
                     return femaleSoundingNames.contains { voice.name.contains($0) }
                 }
                 if let voice = femaleEnhancedVoices.first {
-                    print("🔊 TextToSpeechService: Found female enhanced voice for Elsa: \(voice.name)")
+                    print("🔊 TextToSpeechService: Found female enhanced voice for Eva: \(voice.name)")
+                    return voice
+                }
+            }
+            
+            // For Adam voice type, prefer male-sounding names
+            if voiceType == .adam {
+                let maleEnhancedVoices = enhancedVoices.filter { voice in
+                    let maleSoundingNames = ["Daniel", "Alex", "Tom", "Fred", "Ralph", "Oliver", "William"]
+                    return maleSoundingNames.contains { voice.name.contains($0) }
+                }
+                if let voice = maleEnhancedVoices.first {
+                    print("🔊 TextToSpeechService: Found male enhanced voice for Adam: \(voice.name)")
                     return voice
                 }
             }

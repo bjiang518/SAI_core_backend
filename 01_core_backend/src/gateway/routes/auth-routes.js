@@ -76,6 +76,20 @@ class AuthRoutes {
       }
     }, this.verify.bind(this));
 
+    // Get user profile endpoint (for iOS app compatibility)
+    this.fastify.get('/api/user/profile', {
+      schema: {
+        description: 'Get authenticated user profile',
+        tags: ['User'],
+        headers: {
+          type: 'object',
+          properties: {
+            authorization: { type: 'string' }
+          }
+        }
+      }
+    }, this.getUserProfile.bind(this));
+
     // Health check for auth service
     this.fastify.get('/api/auth/health', {
       schema: {
@@ -83,6 +97,20 @@ class AuthRoutes {
         tags: ['Authentication', 'Health']
       }
     }, this.healthCheck.bind(this));
+
+    // Config endpoint - get OpenAI API key for TTS
+    this.fastify.get('/api/config/openai-key', {
+      schema: {
+        description: 'Get OpenAI API key for TTS (authenticated users only)',
+        tags: ['Configuration'],
+        headers: {
+          type: 'object',
+          properties: {
+            authorization: { type: 'string' }
+          }
+        }
+      }
+    }, this.getOpenAIApiKey.bind(this));
   }
 
   async login(request, reply) {
@@ -301,12 +329,108 @@ class AuthRoutes {
     }
   }
 
+  async getUserProfile(request, reply) {
+    try {
+      const authHeader = request.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Authentication required',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      const token = authHeader.substring(7);
+      const sessionData = await db.verifyUserSession(token);
+      
+      if (sessionData) {
+        return reply.send({
+          success: true,
+          profile: {
+            id: sessionData.user_id,
+            email: sessionData.email,
+            name: sessionData.name,
+            profileImageUrl: sessionData.profile_image_url,
+            authProvider: sessionData.auth_provider
+          }
+        });
+      } else {
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid or expired token',
+          code: 'TOKEN_EXPIRED'
+        });
+      }
+    } catch (error) {
+      this.fastify.log.error('Get user profile error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to get user profile',
+        code: 'PROFILE_ERROR'
+      });
+    }
+  }
+
   async healthCheck(request, reply) {
     return reply.send({
       success: true,
       message: 'Authentication service is healthy',
       timestamp: new Date().toISOString()
     });
+  }
+
+  async getOpenAIApiKey(request, reply) {
+    try {
+      const authHeader = request.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Authentication required',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      const token = authHeader.substring(7);
+      const sessionData = await db.verifyUserSession(token);
+      
+      if (!sessionData) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid or expired token',
+          code: 'TOKEN_EXPIRED'
+        });
+      }
+
+      // Get OpenAI API key from environment
+      const openaiApiKey = process.env.OPENAI_API_KEY;
+      
+      if (!openaiApiKey) {
+        this.fastify.log.warn('⚠️ OpenAI API key not found in environment variables');
+        return reply.status(503).send({
+          success: false,
+          message: 'OpenAI API key not configured on server',
+          code: 'API_KEY_NOT_CONFIGURED'
+        });
+      }
+
+      this.fastify.log.info(`🔑 Providing OpenAI API key to authenticated user: ${sessionData.email}`);
+      
+      return reply.send({
+        success: true,
+        apiKey: openaiApiKey,
+        message: 'OpenAI API key retrieved successfully'
+      });
+      
+    } catch (error) {
+      this.fastify.log.error('Get OpenAI API key error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to get API key',
+        code: 'API_KEY_ERROR'
+      });
+    }
   }
 
   // Helper methods

@@ -228,17 +228,11 @@ class VoiceInteractionService: ObservableObject {
     }
     
     func shouldUseEnhancedTTS(for voiceType: VoiceType) -> Bool {
-        // Use enhanced TTS for character voices and premium educational voices
+        // Use enhanced TTS for character voices
         switch voiceType {
         // Character voices - always use enhanced TTS for best character experience
-        case .elsa, .optimusPrime, .spiderman, .groot, .yoda, .ironMan:
+        case .adam, .eva:
             return true
-        // Premium educational voices
-        case .friendly, .teacher:
-            return true
-        // Standard voices - use system TTS for cost efficiency
-        case .encouraging, .playful:
-            return false
         }
     }
     
@@ -392,29 +386,10 @@ class VoiceInteractionService: ObservableObject {
     
     func getVoicePreview(for voiceType: VoiceType) -> String {
         switch voiceType {
-        // Classic educational voices
-        case .friendly:
-            return "Hi there! I'm your friendly AI helper. I'm here to make learning fun and easy for you!"
-        case .teacher:
-            return "Good day, student. I am your AI teacher, ready to guide you through your educational journey with patience and clarity."
-        case .encouraging:
-            return "Hey superstar! You're doing amazing! I'm here to cheer you on and help you succeed in your studies!"
-        case .playful:
-            return "Woohoo! Let's have some fun while we learn together! I'm your playful AI buddy, ready for an adventure!"
-            
-        // Character voices with personality-specific previews
-        case .elsa:
-            return "Hello there! Let me guide you through your learning journey with clarity and grace. The magic of knowledge awaits!"
-        case .optimusPrime:
-            return "Greetings, young scholar. I am here to help you learn and grow stronger in your knowledge. Together, we shall overcome any challenge."
-        case .spiderman:
-            return "Hey there, true believer! Your friendly neighborhood AI is here to help with your homework. With great power comes great responsibility to learn!"
-        case .groot:
-            return "I am Groot. I am here to help you learn and grow, just like a strong tree. We will take it slow and steady, together."
-        case .yoda:
-            return "Young padawan, much to learn you have. Patient we must be. Strong in knowledge you will become, if willing to learn you are."
-        case .ironMan:
-            return "FRIDAY? No, it's your genius AI tutor here. Let's upgrade your brain with some serious knowledge. Ready to level up your education?"
+        case .adam:
+            return "Hi there! I'm Adam, your friendly learning buddy. I'm here to help you understand everything clearly and make studying fun!"
+        case .eva:
+            return "Hello! I'm Eva, your study companion. Let's explore knowledge together and make learning an amazing adventure!"
         }
     }
     

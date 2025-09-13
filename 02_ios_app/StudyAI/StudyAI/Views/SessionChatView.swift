@@ -35,16 +35,8 @@ struct CharacterAvatar: View {
     
     private var characterColor: Color {
         switch voiceType {
-        case .elsa: return .blue
-        case .optimusPrime: return .blue
-        case .spiderman: return .red
-        case .groot: return .green
-        case .yoda: return .green
-        case .ironMan: return .red
-        case .friendly: return .pink
-        case .teacher: return .indigo
-        case .encouraging: return .orange
-        case .playful: return .purple
+        case .adam: return .blue      // Boy color
+        case .eva: return .pink       // Girl color
         }
     }
 }
@@ -172,7 +164,7 @@ struct TypingIndicatorView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            CharacterAvatar(voiceType: .elsa, size: 40)
+            CharacterAvatar(voiceType: .eva, size: 40)
             
             VStack(alignment: .leading, spacing: 8) {
                 Text("AI Assistant")
@@ -1591,7 +1583,7 @@ struct ModernAIMessageView: View {
                     MessageVoiceControls(
                         text: message,
                         autoSpeak: voiceService.isVoiceEnabled && 
-                                   (voiceType == .elsa || voiceService.voiceSettings.autoSpeakResponses)
+                                   (voiceType == .eva || voiceService.voiceSettings.autoSpeakResponses)
                     )
                     
                     Spacer()
@@ -1607,16 +1599,8 @@ struct ModernAIMessageView: View {
     
     private var characterColor: Color {
         switch voiceType {
-        case .elsa: return .blue
-        case .optimusPrime: return .blue
-        case .spiderman: return .red
-        case .groot: return .green
-        case .yoda: return .green
-        case .ironMan: return .red
-        case .friendly: return .pink
-        case .teacher: return .indigo
-        case .encouraging: return .orange
-        case .playful: return .purple
+        case .adam: return .blue      // Boy color
+        case .eva: return .pink       // Girl color
         }
     }
 }
@@ -1725,7 +1709,7 @@ struct ModernTypingIndicatorView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            CharacterAvatar(voiceType: .elsa, size: 50)
+            CharacterAvatar(voiceType: .eva, size: 50)
             
             VStack(alignment: .leading, spacing: 8) {
                 Text("Elsa")

@@ -29,28 +29,6 @@ class EnhancedTTSService: NSObject, ObservableObject {
     private let networkService = NetworkService.shared
     private var progressTimer: Timer?
     
-    // OpenAI TTS Configuration
-    private var openAIAPIKey: String {
-        // Try to get from Info.plist first, then fall back to environment/config
-        if let apiKey = Bundle.main.object(forInfoDictionaryKey: "OPENAI_API_KEY") as? String,
-           !apiKey.isEmpty && apiKey != "your-openai-api-key" {
-            return apiKey
-        }
-        
-        // For testing, you can temporarily hardcode or use UserDefaults
-        // In production, store in Keychain or secure configuration
-        if let storedKey = UserDefaults.standard.string(forKey: "studyai_openai_api_key"),
-           !storedKey.isEmpty {
-            return storedKey
-        }
-        
-        // Return empty string - service will fall back to system TTS
-        print("⚠️ EnhancedTTSService: No OpenAI API key configured, falling back to system TTS")
-        return ""
-    }
-    
-    private let ttsAPIURL = "https://api.openai.com/v1/audio/speech"
-    
     // Cache for audio files
     private let audioCache = NSCache<NSString, NSData>()
     private let fileManager = FileManager.default
@@ -112,60 +90,15 @@ class EnhancedTTSService: NSObject, ObservableObject {
         
         // Add character-specific speech patterns and personality touches
         switch voiceType {
-        case .optimusPrime:
-            // Add heroic, noble speech patterns
-            processedText = processedText.replacingOccurrences(of: "Let's", with: "We shall")
-            processedText = processedText.replacingOccurrences(of: "can't", with: "cannot")
-            processedText = processedText.replacingOccurrences(of: "won't", with: "will not")
-            if processedText.contains("help") {
-                processedText = processedText.replacingOccurrences(of: "help", with: "assist in your noble quest for knowledge")
-            }
+        case .adam:
+            // Friendly, encouraging boy voice
+            processedText = processedText.replacingOccurrences(of: "Great!", with: "Awesome work, buddy!")
+            processedText = processedText.replacingOccurrences(of: "Good", with: "Really good")
             
-        case .spiderman:
-            // Add witty, energetic Spider-Man flair
-            if processedText.contains("problem") || processedText.contains("question") {
-                processedText += " Don't worry, your friendly neighborhood AI has got this covered!"
-            }
-            processedText = processedText.replacingOccurrences(of: "Great!", with: "Great job, true believer!")
-            processedText = processedText.replacingOccurrences(of: "Good", with: "Web-slinging good")
-            
-        case .groot:
-            // Keep it simple and gentle like Groot
-            processedText = processedText.replacingOccurrences(of: "I understand", with: "I am Groot. I understand")
-            processedText = processedText.replacingOccurrences(of: "Let me help", with: "I am Groot. Let Groot help")
-            if processedText.count > 100 {
-                // Groot speaks simply, so occasionally remind of his nature
-                let sentences = processedText.components(separatedBy: ". ")
-                if sentences.count > 2 {
-                    processedText = sentences.joined(separator: ". I am Groot. ")
-                }
-            }
-            
-        case .yoda:
-            // Add Yoda's distinctive speech pattern (occasionally)
-            processedText = processedText.replacingOccurrences(of: "You will learn", with: "Learn, you will")
-            processedText = processedText.replacingOccurrences(of: "You can do", with: "Do this, you can")
-            processedText = processedText.replacingOccurrences(of: "You should", with: "Important it is that you")
-            if processedText.contains("understand") {
-                processedText = processedText.replacingOccurrences(of: "understand", with: "understand, hmm")
-            }
-            
-        case .ironMan:
-            // Add Tony Stark's confident, tech-savvy personality
-            processedText = processedText.replacingOccurrences(of: "Let's solve", with: "Let's crack this problem with some Stark tech")
-            processedText = processedText.replacingOccurrences(of: "Good work", with: "Excellent work, genius level stuff")
-            if processedText.contains("calculate") || processedText.contains("compute") {
-                processedText += " FRIDAY would be proud of these calculations!"
-            }
-            
-        case .elsa:
-            // Add Elsa's graceful, magical tone
-            processedText = processedText.replacingOccurrences(of: "Let's learn", with: "Let's discover the magic of learning")
-            processedText = processedText.replacingOccurrences(of: "Good job", with: "Wonderfully done")
-            
-        default:
-            // No special processing for other voice types
-            break
+        case .eva:
+            // Kind, supportive girl voice
+            processedText = processedText.replacingOccurrences(of: "Great!", with: "That's wonderful!")
+            processedText = processedText.replacingOccurrences(of: "Let's", with: "Let's explore this together")
         }
         
         return processedText
@@ -214,29 +147,15 @@ class EnhancedTTSService: NSObject, ObservableObject {
     }
     
     private func shouldUseOpenAITTS(for voiceType: VoiceType) -> Bool {
-        // Use OpenAI for character voices and premium educational voices
+        // Use OpenAI for character voices
         switch voiceType {
         // Character voices - always use OpenAI for best character experience
-        case .elsa, .optimusPrime, .spiderman, .groot, .yoda, .ironMan:
+        case .adam, .eva:
             return true
-        // Premium educational voices
-        case .friendly, .teacher:
-            return true
-        // Standard voices - use system TTS for cost efficiency
-        case .encouraging, .playful:
-            return false
         }
     }
     
     private func generateOpenAIAudio(for request: TTSRequest) {
-        // Check if API key is available
-        let apiKey = openAIAPIKey
-        guard !apiKey.isEmpty else {
-            print("🎵 EnhancedTTSService: No OpenAI API key available, using fallback TTS")
-            useFallbackTTS(for: request)
-            return
-        }
-        
         isProcessing = true
         
         let cacheKey = createCacheKey(for: request)
@@ -248,10 +167,10 @@ class EnhancedTTSService: NSObject, ObservableObject {
             return
         }
         
-        // Generate new audio via OpenAI API
+        // Generate audio via server-side TTS endpoint
         Task {
             do {
-                let audioData = try await requestOpenAITTS(for: request, apiKey: apiKey)
+                let audioData = try await requestServerTTS(for: request)
                 
                 // Cache the audio data
                 audioCache.setObject(audioData as NSData, forKey: cacheKey as NSString)
@@ -260,7 +179,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
                     self.playAudioData(audioData, for: request)
                 }
             } catch {
-                print("🎵 EnhancedTTSService: OpenAI TTS failed: \(error)")
+                print("🎵 EnhancedTTSService: Server TTS failed: \(error)")
                 await MainActor.run {
                     self.useFallbackTTS(for: request)
                 }
@@ -268,48 +187,66 @@ class EnhancedTTSService: NSObject, ObservableObject {
         }
     }
     
-    private func requestOpenAITTS(for request: TTSRequest, apiKey: String) async throws -> Data {
-        print("🎵 EnhancedTTSService: Requesting OpenAI TTS")
+    private func requestServerTTS(for request: TTSRequest) async throws -> Data {
+        print("🎵 EnhancedTTSService: Requesting server-side TTS")
         
-        guard let url = URL(string: ttsAPIURL) else {
+        // Use same baseURL as NetworkService
+        let serverTTSURL = "https://sai-backend-production.up.railway.app/api/ai/tts/generate"
+        
+        guard let url = URL(string: serverTTSURL) else {
             throw TTSError.invalidURL
         }
         
         // Map voice type to OpenAI voice
         let openAIVoice = mapToOpenAIVoice(request.voiceSettings.voiceType)
         
-        // Calculate final speaking rate with voice type multipliers
+        // Calculate final speaking rate
         let baseRate = request.voiceSettings.speakingRate
         let voiceTypeMultiplier = request.voiceSettings.voiceType.speakingRateMultiplier
         let expressiveness = request.voiceSettings.expressiveness
         let finalRate = baseRate * voiceTypeMultiplier * expressiveness
         
-        let requestBody: [String: Any] = [
-            "model": "tts-1-hd", // Use high-definition model for best quality
-            "input": request.text,
+        let requestBody = [
+            "text": request.text,
             "voice": openAIVoice,
             "speed": finalRate.clamped(to: 0.25...4.0)
-        ]
+        ] as [String: Any]
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
-        urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.timeoutInterval = 60.0 // Increased timeout for TTS generation
+        
+        // Add authentication header
+        if let token = AuthenticationService.shared.getAuthToken() {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        urlRequest.timeoutInterval = 30.0
         
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
         
         if let httpResponse = response as? HTTPURLResponse {
-            print("🎵 EnhancedTTSService: OpenAI TTS Response: \(httpResponse.statusCode)")
+            print("🎵 EnhancedTTSService: Server TTS Response: \(httpResponse.statusCode)")
             
             if httpResponse.statusCode == 200 {
                 print("🎵 EnhancedTTSService: Received audio data: \(data.count) bytes")
                 return data
             } else {
                 let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
-                print("🎵 EnhancedTTSService: OpenAI API Error: \(errorString)")
-                throw TTSError.apiError(httpResponse.statusCode, errorString)
+                print("🎵 EnhancedTTSService: Server TTS Error (\(httpResponse.statusCode)): \(errorString)")
+                
+                // Provide specific error messages for common issues
+                switch httpResponse.statusCode {
+                case 503:
+                    throw TTSError.apiError(httpResponse.statusCode, "TTS service temporarily unavailable - using fallback voice")
+                case 401, 403:
+                    throw TTSError.apiError(httpResponse.statusCode, "Authentication failed - using fallback voice")
+                case 500:
+                    throw TTSError.apiError(httpResponse.statusCode, "Server configuration error - using fallback voice")
+                default:
+                    throw TTSError.apiError(httpResponse.statusCode, errorString)
+                }
             }
         }
         
@@ -319,29 +256,10 @@ class EnhancedTTSService: NSObject, ObservableObject {
     private func mapToOpenAIVoice(_ voiceType: VoiceType) -> String {
         // Map character voice types to OpenAI's available voices with personality matching
         switch voiceType {
-        // Classic voices
-        case .friendly:
-            return "shimmer" // Warm, friendly female voice
-        case .teacher:
-            return "alloy" // Clear, professional unisex voice
-        case .encouraging:
-            return "nova" // Uplifting, encouraging voice
-        case .playful:
-            return "fable" // Expressive, good for storytelling
-            
-        // Character voices with personality-matched OpenAI selection
-        case .elsa:
-            return "nova" // Sweet, engaging female voice - perfect for Elsa-like experience
-        case .optimusPrime:
-            return "onyx" // Deep, commanding, masculine voice perfect for heroic leader
-        case .spiderman:
-            return "echo" // Balanced, youthful, energetic voice
-        case .groot:
-            return "alloy" // Gentle, warm, tree-like resonance 
-        case .yoda:
-            return "fable" // Distinctive, wise, character-appropriate voice
-        case .ironMan:
-            return "echo" // Confident, tech-savvy, quick-witted voice
+        case .adam:
+            return "echo" // Clear, youthful male voice for Adam
+        case .eva:
+            return "nova" // Sweet, engaging female voice for Eva
         }
     }
     
