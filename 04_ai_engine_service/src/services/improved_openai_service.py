@@ -1,37 +1,118 @@
 """
-Improved AI Service with Strict JSON Schema and Fallback Parsing
+Enhanced AI Service with Streaming, Caching, and Optimized Performance
 
-This enhanced version solves the inconsistent parsing issues by:
-1. Enforcing strict JSON response format using OpenAI's response_format parameter
-2. Providing robust fallback text parsing when JSON fails
-3. Handling multiple questions properly (not just focusing on first one)
-4. Maintaining backward compatibility with existing iOS app format
+This optimized version provides:
+1. Response streaming for better UX
+2. Redis caching for frequent patterns  
+3. Connection pooling and retry logic
+4. Memory-efficient processing
+5. Batch request handling
+6. Response compression
 """
 
 import openai
 import asyncio
 import json
 import re
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, AsyncGenerator
 from .prompt_service import AdvancedPromptService, Subject
 import os
+import hashlib
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import gzip
+import time
 
 load_dotenv()
 
 
-class ImprovedEducationalAIService:
+class OptimizedEducationalAIService:
     """
-    Enhanced AI service with consistent JSON parsing and robust fallback mechanisms.
-    Solves the inconsistent separator problem (** vs ##) by enforcing strict formatting.
+    High-performance AI service with streaming, caching, and advanced optimization.
+    Designed for production-scale usage with memory efficiency and response speed.
     """
     
     def __init__(self):
+        # OpenAI client with connection pooling
         self.client = openai.AsyncOpenAI(
-            api_key=os.getenv('OPENAI_API_KEY')
+            api_key=os.getenv('OPENAI_API_KEY'),
+            max_retries=3,
+            timeout=60.0
         )
+        
         self.prompt_service = AdvancedPromptService()
-        self.model = "gpt-4o"  # Use full model for better JSON compliance
+        self.model = "gpt-4o-mini"  # Optimized for cost and speed
+        self.vision_model = "gpt-4o"  # Full model for vision tasks
+        
+        # In-memory cache (fallback if Redis not available)
+        self.memory_cache = {}
+        self.cache_size_limit = 1000
+        
+        # Request deduplication
+        self.pending_requests = {}
+        
+        # Performance metrics
+        self.request_count = 0
+        self.cache_hits = 0
+    
+    # MARK: - Caching System
+    
+    def _generate_cache_key(self, content: str, model: str) -> str:
+        """Generate cache key from request content."""
+        combined = f"{model}:{content}"
+        return hashlib.sha256(combined.encode()).hexdigest()[:16]
+    
+    def _get_cached_response(self, cache_key: str) -> Optional[Dict]:
+        """Get cached response if available."""
+        if cache_key in self.memory_cache:
+            cached_data = self.memory_cache[cache_key]
+            
+            # Check if expired (1 hour TTL)
+            if time.time() - cached_data['timestamp'] < 3600:
+                self.cache_hits += 1
+                return cached_data['response']
+            else:
+                # Remove expired entry
+                del self.memory_cache[cache_key]
+        
+        return None
+    
+    def _set_cached_response(self, cache_key: str, response: Dict):
+        """Cache response in memory."""
+        # Clean old entries if cache is full
+        if len(self.memory_cache) >= self.cache_size_limit:
+            # Remove oldest entries
+            oldest_keys = sorted(
+                self.memory_cache.keys(),
+                key=lambda k: self.memory_cache[k]['timestamp']
+            )[:100]
+            
+            for key in oldest_keys:
+                del self.memory_cache[key]
+        
+        self.memory_cache[cache_key] = {
+            'response': response,
+            'timestamp': time.time()
+        }
+    
+    # MARK: - Request Deduplication
+    
+    async def _deduplicate_request(self, cache_key: str, request_func):
+        """Prevent duplicate requests for same content."""
+        if cache_key in self.pending_requests:
+            # Wait for existing request to complete
+            return await self.pending_requests[cache_key]
+        
+        # Create new request
+        task = asyncio.create_task(request_func())
+        self.pending_requests[cache_key] = task
+        
+        try:
+            result = await task
+            return result
+        finally:
+            # Clean up pending request
+            self.pending_requests.pop(cache_key, None)
     
     async def parse_homework_image_json(
         self,

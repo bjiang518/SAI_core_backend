@@ -1,46 +1,181 @@
 /**
- * Railway PostgreSQL Database Configuration
- * Replaces Supabase with Railway-hosted PostgreSQL
+ * Optimized Railway PostgreSQL Database Configuration
+ * High-performance connection management with advanced caching
  */
 
 const { Pool } = require('pg');
 const crypto = require('crypto');
+const NodeCache = require('node-cache');
+const { promisify } = require('util');
 
-// Create PostgreSQL connection pool
+// Enhanced connection pool with optimization
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 5000, // Reduced timeout for faster failure detection
-  statement_timeout: 25000, // 25 second query timeout to prevent hanging
-  query_timeout: 25000, // 25 second query timeout
+  max: 30, // Increased pool size for better concurrency
+  min: 5,  // Minimum connections to maintain
+  idleTimeoutMillis: 60000, // Keep connections alive longer
+  connectionTimeoutMillis: 5000,
+  statement_timeout: 30000,
+  query_timeout: 30000,
+  application_name: 'StudyAI_Backend'
 });
 
-// Test connection on startup
+// Multi-level caching system
+const queryCache = new NodeCache({ 
+  stdTTL: 600, // 10 minutes default TTL
+  checkperiod: 120, // Check for expired keys every 2 minutes
+  maxKeys: 10000 // Maximum cached items
+});
+
+const sessionCache = new NodeCache({ 
+  stdTTL: 1800, // 30 minutes for sessions
+  checkperiod: 300 // Check every 5 minutes
+});
+
+const userCache = new NodeCache({ 
+  stdTTL: 3600, // 1 hour for user data
+  checkperiod: 600 // Check every 10 minutes
+});
+
+// Performance monitoring and metrics
+let queryMetrics = {
+  totalQueries: 0,
+  cacheHits: 0,
+  cacheMisses: 0,
+  averageQueryTime: 0,
+  slowQueries: []
+};
+
+// Connection monitoring with detailed logging
 pool.on('connect', (client) => {
-  console.log('✅ New PostgreSQL client connected');
+  console.log('✅ New PostgreSQL client connected - Pool size:', pool.totalCount);
+});
+
+pool.on('acquire', (client) => {
+  console.log('📊 Client acquired from pool - Active:', pool.idleCount, 'Idle:', pool.waitingCount, 'Waiting');
 });
 
 pool.on('error', (err, client) => {
   console.error('❌ Unexpected error on idle PostgreSQL client', err);
-  process.exit(-1);
+  // Don't exit - let the pool handle it
 });
 
-// Database utility functions
+// Query result preparation helper
+function generateCacheKey(text, params) {
+  const combined = text + (params ? JSON.stringify(params) : '');
+  return crypto.createHash('sha256').update(combined).digest('hex').substring(0, 16);
+}
+
+// Batch query processor for bulk operations
+class BatchProcessor {
+  constructor() {
+    this.batches = new Map();
+    this.batchSize = 100;
+    this.flushInterval = 1000; // 1 second
+    
+    // Auto-flush batches periodically
+    setInterval(() => this.flushAllBatches(), this.flushInterval);
+  }
+  
+  addToBatch(operation, query, params) {
+    if (!this.batches.has(operation)) {
+      this.batches.set(operation, []);
+    }
+    
+    this.batches.get(operation).push({ query, params, timestamp: Date.now() });
+    
+    // Auto-flush if batch is full
+    if (this.batches.get(operation).length >= this.batchSize) {
+      this.flushBatch(operation);
+    }
+  }
+  
+  async flushBatch(operation) {
+    const batch = this.batches.get(operation);
+    if (!batch || batch.length === 0) return;
+    
+    this.batches.set(operation, []); // Clear batch
+    
+    try {
+      await db.transaction(async (client) => {
+        for (const item of batch) {
+          await client.query(item.query, item.params);
+        }
+      });
+      
+      console.log(`📦 Flushed batch of ${batch.length} ${operation} operations`);
+    } catch (error) {
+      console.error(`❌ Batch flush error for ${operation}:`, error);
+    }
+  }
+  
+  async flushAllBatches() {
+    for (const operation of this.batches.keys()) {
+      await this.flushBatch(operation);
+    }
+  }
+}
+
+const batchProcessor = new BatchProcessor();
+
+// Enhanced database utility functions with caching and optimization
 const db = {
   /**
-   * Execute a query with parameters
+   * Execute a cached query with performance monitoring
    */
-  async query(text, params = []) {
+  async query(text, params = [], options = {}) {
     const start = Date.now();
+    const cacheKey = options.cache !== false ? generateCacheKey(text, params) : null;
+    
+    // Check cache first (for SELECT queries)
+    if (cacheKey && text.trim().toLowerCase().startsWith('select')) {
+      const cached = queryCache.get(cacheKey);
+      if (cached) {
+        queryMetrics.cacheHits++;
+        const duration = Date.now() - start;
+        console.log(`⚡ Cache hit in ${duration}ms: ${text.substring(0, 50)}...`);
+        return cached;
+      }
+      queryMetrics.cacheMisses++;
+    }
+    
     try {
+      queryMetrics.totalQueries++;
       const result = await pool.query(text, params);
       const duration = Date.now() - start;
+      
+      // Update performance metrics
+      queryMetrics.averageQueryTime = 
+        (queryMetrics.averageQueryTime * (queryMetrics.totalQueries - 1) + duration) / queryMetrics.totalQueries;
+      
+      // Track slow queries
+      if (duration > 1000) {
+        queryMetrics.slowQueries.push({
+          query: text.substring(0, 100),
+          duration,
+          timestamp: new Date()
+        });
+        
+        // Keep only last 100 slow queries
+        if (queryMetrics.slowQueries.length > 100) {
+          queryMetrics.slowQueries = queryMetrics.slowQueries.slice(-100);
+        }
+      }
+      
       console.log(`📊 Query executed in ${duration}ms: ${text.substring(0, 50)}...`);
+      
+      // Cache SELECT results
+      if (cacheKey && text.trim().toLowerCase().startsWith('select') && result.rows.length > 0) {
+        const ttl = options.cacheTTL || 600; // 10 minutes default
+        queryCache.set(cacheKey, result, ttl);
+      }
+      
       return result;
     } catch (error) {
       console.error('❌ Database query error:', error);
+      console.error('Query:', text.substring(0, 200));
+      console.error('Params:', params);
       throw error;
     }
   },

@@ -6,8 +6,10 @@
 //
 
 import SwiftUI
+import os.log
 
 struct HomeView: View {
+    let onSelectTab: (MainTab) -> Void
     @StateObject private var networkService = NetworkService.shared
     @StateObject private var voiceService = VoiceInteractionService.shared
     @State private var userName = UserDefaults.standard.string(forKey: "user_name") ?? "Student"
@@ -15,6 +17,8 @@ struct HomeView: View {
     @State private var isLoadingProgress = false
     @State private var navigateToSession = false
     @State private var showingProfile = false
+    
+    private let logger = Logger(subsystem: "com.studyai", category: "HomeView")
     
     var body: some View {
         NavigationView {
@@ -109,7 +113,9 @@ struct HomeView: View {
                                 )
                             }
                             
-                            NavigationLink(destination: AIHomeworkTestView()) {
+                            Button(action: {
+                                onSelectTab(.chat)
+                            }) {
                                 QuickActionCard(
                                     icon: "brain.head.profile.fill",
                                     title: "AI Homework",
@@ -117,6 +123,7 @@ struct HomeView: View {
                                     color: .purple
                                 )
                             }
+                            .buttonStyle(PlainButtonStyle())
                             
                             NavigationLink(destination: ArchivedQuestionsView()) {
                                 QuickActionCard(
@@ -127,7 +134,9 @@ struct HomeView: View {
                                 )
                             }
                             
-                            NavigationLink(destination: LearningProgressView()) {
+                            Button(action: {
+                                onSelectTab(.progress)
+                            }) {
                                 QuickActionCard(
                                     icon: "chart.bar.fill",
                                     title: "Progress",
@@ -135,6 +144,7 @@ struct HomeView: View {
                                     color: .indigo
                                 )
                             }
+                            .buttonStyle(PlainButtonStyle())
                             
                             NavigationLink(destination: SessionHistoryView()) {
                                 QuickActionCard(
@@ -194,6 +204,14 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
             .task {
                 loadTodayProgress()
+            }
+            .onAppear {
+                logger.info("🏠 === HOME VIEW BODY onAppear CALLED ===")
+                logger.info("🏠 HomeView main content is loading")
+            }
+            .onDisappear {
+                logger.info("🏠 === HOME VIEW BODY onDisappear CALLED ===")
+                logger.info("🏠 HomeView main content is disappearing")
             }
             .sheet(isPresented: $showingProfile) {
                 UserProfileView()
@@ -362,5 +380,5 @@ struct RecentActivityCard: View {
 }
 
 #Preview {
-    HomeView()
+    HomeView(onSelectTab: { _ in })
 }

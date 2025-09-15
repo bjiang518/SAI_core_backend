@@ -14,11 +14,14 @@
 		368449B00EC0466B89F7AFF6 /* StudyAI/Services/RailwayArchiveService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A9A6742CCE4F3DB87AA7FD /* StudyAI/Services/RailwayArchiveService.swift */; };
 		3A80D5B52F8146A1B97E0CC4 /* StudyAI/Services/MathRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CECFC862D6EF46829F4A05A3 /* StudyAI/Services/MathRenderer.swift */; };
 		3CAC0FF7EDE94A0B9ACDC78F /* StudyAI/Services/AuthenticationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBB6C78FB23E45A9AF19ECC9 /* StudyAI/Services/AuthenticationService.swift */; };
+		CAB7C1BE421684B5D6EBB59 /* StudyAI/Services/CameraSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAS43139063DB4892D6DA7D /* StudyAI/Services/CameraSessionManager.swift */; };
+		EIB7AB25DA9B4CE3E97F6F9 /* StudyAI/Services/EnhancedImageProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EIR3E31E87F78722E1F7AE5 /* StudyAI/Services/EnhancedImageProcessor.swift */; };
 		41384D26DC5E427FA23BC317 /* StudyAI/Views/QuestionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47128702183F4DCBB17F067E /* StudyAI/Views/QuestionView.swift */; };
 		44D8DB9D1B4C4CFA8A59EB3D /* StudyAI/Views/HomeworkResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C75C2233B72490A8E27CDEB /* StudyAI/Views/HomeworkResultsView.swift */; };
 		47661FA6102F43AE9462714A /* StudyAI/Models/HomeworkModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06624CDF338947F0A3F8838D /* StudyAI/Models/HomeworkModels.swift */; };
 		495A344A96B74E8DA4253A7F /* StudyAI/Services/QuestionArchiveService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AB173EA95EE4D1FBEAED03D /* StudyAI/Services/QuestionArchiveService.swift */; };
 		51E8895014244637989DCA32 /* StudyAI/Views/HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3007D1E356704A0C864FBEED /* StudyAI/Views/HomeView.swift */; };
+		2889F08A3B034FE5AC00739C /* StudyAI/Views/DirectAIHomeworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122549B3F87E417292C7874C /* StudyAI/Views/DirectAIHomeworkView.swift */; };
 		5DD635C39794474298FD4766 /* StudyAI/Views/AIHomeworkTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C5B92FDE0224FCA9F3A87CD /* StudyAI/Views/AIHomeworkTestView.swift */; };
 		61B870B5050040DB9CEFA635 /* StudyAI/Services/ImageEnhancer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5DB8369296B47A1A5BC7BF1 /* StudyAI/Services/ImageEnhancer.swift */; };
 		6AAA1280DC3B4E05B19E67B6 /* StudyAI/Models/VoiceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 740D132F82A14ABAA94D79CC /* StudyAI/Models/VoiceModels.swift */; };
@@ -55,6 +58,7 @@
 		12345678901234567890ABCD /* StudyAI/Services/UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCD123456789012EFGH3456 /* StudyAI/Services/UserSessionManager.swift */; };
 		23456789012345678901BCDE /* StudyAI/Services/LibraryDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCDE234567890123FGHI4567 /* StudyAI/Services/LibraryDataService.swift */; };
 		34567890123456789012CDEF /* StudyAI/Views/UnifiedLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDEF345678901234GHIJ5678 /* StudyAI/Views/UnifiedLibraryView.swift */; };
+		45678901234567890123DDEF /* StudyAI/ViewModels/CameraViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDEF456789012345HIJK6789 /* StudyAI/ViewModels/CameraViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,6 +91,7 @@
 		2575218B86324529B227C931 /* StudyAI/Views/ZoomedRegionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/ZoomedRegionView.swift; sourceTree = "<group>"; };
 		27D08428900147788147829E /* StudyAI/Views/ArchivedQuestionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/ArchivedQuestionsView.swift; sourceTree = "<group>"; };
 		3007D1E356704A0C864FBEED /* StudyAI/Views/HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/HomeView.swift; sourceTree = "<group>"; };
+		122549B3F87E417292C7874C /* StudyAI/Views/DirectAIHomeworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/DirectAIHomeworkView.swift; sourceTree = "<group>"; };
 		311043C016B54E4B8B6BA163 /* StudyAI/Views/NativeImageEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/NativeImageEditView.swift; sourceTree = "<group>"; };
 		32BB536B35E943F1A8FB9571 /* StudyAI/Services/ImageProcessingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/ImageProcessingService.swift; sourceTree = "<group>"; };
 		377AB348C798453AB804B3A9 /* StudyAI/Views/ModernLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/ModernLoginView.swift; sourceTree = "<group>"; };
@@ -114,6 +119,8 @@
 		CECFC862D6EF46829F4A05A3 /* StudyAI/Services/MathRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/MathRenderer.swift; sourceTree = "<group>"; };
 		D724DD29C2CD4B3AAC9114B6 /* StudyAI/Views/UserProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/UserProfileView.swift; sourceTree = "<group>"; };
 		DBB6C78FB23E45A9AF19ECC9 /* StudyAI/Services/AuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/AuthenticationService.swift; sourceTree = "<group>"; };
+		CAS43139063DB4892D6DA7D /* StudyAI/Services/CameraSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/CameraSessionManager.swift; sourceTree = "<group>"; };
+		EIR3E31E87F78722E1F7AE5 /* StudyAI/Services/EnhancedImageProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/EnhancedImageProcessor.swift; sourceTree = "<group>"; };
 		E13D4A8943284F528CD3C3C1 /* StudyAI/Views/SessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/SessionDetailView.swift; sourceTree = "<group>"; };
 		E2A9A6742CCE4F3DB87AA7FD /* StudyAI/Services/RailwayArchiveService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/RailwayArchiveService.swift; sourceTree = "<group>"; };
 		E5DB8369296B47A1A5BC7BF1 /* StudyAI/Services/ImageEnhancer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/ImageEnhancer.swift; sourceTree = "<group>"; };
@@ -122,6 +129,7 @@
 		ABCD123456789012EFGH3456 /* StudyAI/Services/UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/UserSessionManager.swift; sourceTree = "<group>"; };
 		BCDE234567890123FGHI4567 /* StudyAI/Services/LibraryDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/LibraryDataService.swift; sourceTree = "<group>"; };
 		CDEF345678901234GHIJ5678 /* StudyAI/Views/UnifiedLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/UnifiedLibraryView.swift; sourceTree = "<group>"; };
+		DDEF456789012345HIJK6789 /* StudyAI/ViewModels/CameraViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/ViewModels/CameraViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -174,6 +182,8 @@
 				740D132F82A14ABAA94D79CC /* StudyAI/Models/VoiceModels.swift */,
 				1ECE095FF4DB41A3B76FBE4F /* StudyAI/NetworkService.swift */,
 				DBB6C78FB23E45A9AF19ECC9 /* StudyAI/Services/AuthenticationService.swift */,
+				CAS43139063DB4892D6DA7D /* StudyAI/Services/CameraSessionManager.swift */,
+				EIR3E31E87F78722E1F7AE5 /* StudyAI/Services/EnhancedImageProcessor.swift */,
 				C87EE23BC3FC415E8AFB5C0A /* StudyAI/Services/EnhancedHomeworkParser.swift */,
 				0AC15A890FCE4881A878DD17 /* StudyAI/Services/EnhancedTTSService.swift */,
 				E5DB8369296B47A1A5BC7BF1 /* StudyAI/Services/ImageEnhancer.swift */,
@@ -188,10 +198,14 @@
 				5D90BE85B6E443D192306734 /* StudyAI/Services/SupabaseService.swift */,
 				18BF91BCEE9B4980BC643CB2 /* StudyAI/Services/TextToSpeechService.swift */,
 				EEAD0FA974974B559BA7B6B7 /* StudyAI/Services/VoiceInteractionService.swift */,
+				ABCD123456789012EFGH3456 /* StudyAI/Services/UserSessionManager.swift */,
+				BCDE234567890123FGHI4567 /* StudyAI/Services/LibraryDataService.swift */,
 				2372BC21FDF74404A73B6D30 /* StudyAI/StudyAIApp.swift */,
+				DDEF456789012345HIJK6789 /* StudyAI/ViewModels/CameraViewModel.swift */,
 				1C5B92FDE0224FCA9F3A87CD /* StudyAI/Views/AIHomeworkTestView.swift */,
 				27D08428900147788147829E /* StudyAI/Views/ArchivedQuestionsView.swift */,
 				885943542F6749ACA3543873 /* StudyAI/Views/CameraView.swift */,
+				122549B3F87E417292C7874C /* StudyAI/Views/DirectAIHomeworkView.swift */,
 				3007D1E356704A0C864FBEED /* StudyAI/Views/HomeView.swift */,
 				4C75C2233B72490A8E27CDEB /* StudyAI/Views/HomeworkResultsView.swift */,
 				84F4782308454D1A98C2741E /* StudyAI/Views/ImageCropView.swift */,
@@ -396,6 +410,8 @@
 				6AAA1280DC3B4E05B19E67B6 /* StudyAI/Models/VoiceModels.swift in Sources */,
 				C42D5B1E2F9F422F898D739B /* StudyAI/NetworkService.swift in Sources */,
 				3CAC0FF7EDE94A0B9ACDC78F /* StudyAI/Services/AuthenticationService.swift in Sources */,
+				CAB7C1BE421684B5D6EBB59 /* StudyAI/Services/CameraSessionManager.swift in Sources */,
+				EIB7AB25DA9B4CE3E97F6F9 /* StudyAI/Services/EnhancedImageProcessor.swift in Sources */,
 				8659331C2BF143DBB36C245F /* StudyAI/Services/EnhancedHomeworkParser.swift in Sources */,
 				0B6A2DF7A9ED4CCEBEABDB0A /* StudyAI/Services/EnhancedTTSService.swift in Sources */,
 				61B870B5050040DB9CEFA635 /* StudyAI/Services/ImageEnhancer.swift in Sources */,
@@ -416,6 +432,7 @@
 				5DD635C39794474298FD4766 /* StudyAI/Views/AIHomeworkTestView.swift in Sources */,
 				A823C26E80984911960B4AA1 /* StudyAI/Views/ArchivedQuestionsView.swift in Sources */,
 				CBC9A72B2BBE4D5DB9556A4C /* StudyAI/Views/CameraView.swift in Sources */,
+				2889F08A3B034FE5AC00739C /* StudyAI/Views/DirectAIHomeworkView.swift in Sources */,
 				51E8895014244637989DCA32 /* StudyAI/Views/HomeView.swift in Sources */,
 				44D8DB9D1B4C4CFA8A59EB3D /* StudyAI/Views/HomeworkResultsView.swift in Sources */,
 				73BEB15D842A4FB3B7E6B147 /* StudyAI/Views/ImageCropView.swift in Sources */,
@@ -432,6 +449,7 @@
 				7DCD4D51FBF64F74AEA6A5C3 /* StudyAI/Views/VoiceSettingsView.swift in Sources */,
 				2F704A14D92440C2A18F02EC /* StudyAI/Views/ZoomedRegionView.swift in Sources */,
 				34567890123456789012CDEF /* StudyAI/Views/UnifiedLibraryView.swift in Sources */,
+				45678901234567890123DDEF /* StudyAI/ViewModels/CameraViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

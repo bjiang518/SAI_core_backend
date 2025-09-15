@@ -7,6 +7,8 @@
 
 import Foundation
 import Combine
+import Network
+import UIKit
 
 class NetworkService: ObservableObject {
     static let shared = NetworkService()
@@ -14,24 +16,11 @@ class NetworkService: ObservableObject {
     // Primary: Production Railway backend with integrated AI proxy
     private let baseURL = "https://sai-backend-production.up.railway.app"
     
-    // Note: Authentication now managed by AuthenticationService only
-    // NetworkService no longer stores auth data independently
-    
-    // Session Management
-    @Published var currentSessionId: String?
-    @Published var conversationHistory: [[String: String]] = []
-    
-    // MARK: - Caching for Archive Data
+    // MARK: - Legacy Cache Management (backward compatibility)
     private var cachedSessions: [[String: Any]]?
     private var lastCacheTime: Date?
-    private let cacheValidityInterval: TimeInterval = 300 // 5 minutes cache validity
+    private let cacheValidityInterval: TimeInterval = 300 // 5 minutes
     
-    private init() {
-        // NetworkService no longer manages independent authentication
-        // All auth is handled by AuthenticationService
-    }
-    
-    // MARK: - Cache Management
     private func isCacheValid() -> Bool {
         guard let lastCacheTime = lastCacheTime else { return false }
         return Date().timeIntervalSince(lastCacheTime) < cacheValidityInterval
@@ -49,31 +38,288 @@ class NetworkService: ObservableObject {
         print("💾 Archive cache updated with \(sessions.count) sessions")
     }
     
-    private func addAuthHeader(to request: inout URLRequest) {
-        // Use AuthenticationService token exclusively
-        if let unifiedToken = AuthenticationService.shared.getAuthToken() {
-            request.setValue("Bearer \(unifiedToken)", forHTTPHeaderField: "Authorization")
-            
-            // CRITICAL DEBUG: Show UID mismatch issue
-            let currentUserId = UserSessionManager.shared.currentUserId ?? "unknown"
-            let expectedServerUid = "81de989d-75ed-4c22-bbd3-146b8f6dcd26"
-            let isFirebaseUid = currentUserId.contains("-") && currentUserId.count > 30
-            
-            print("🚨 === CRITICAL UID DEBUG ===")
-            print("📱 iOS Current User ID: \(currentUserId)")
-            print("🖥️ Expected Server UID: \(expectedServerUid)")
-            print("🔍 Is using Firebase UID: \(isFirebaseUid)")
-            print("❌ UID MISMATCH: \(currentUserId != expectedServerUid ? "YES - This is the bug!" : "NO - Fixed!")")
-            print("🔍 Token preview: \(String(unifiedToken.prefix(20)))...")
-            
-            // Add debug info about expected user
-            if let currentUser = AuthenticationService.shared.currentUser {
-                print("📱 iOS User Info: ID=\(currentUser.id), Email=\(currentUser.email), Provider=\(currentUser.authProvider.rawValue)")
-                print("🔍 User created at: \(currentUser.createdAt)")
+    // MARK: - Enhanced Cache Management
+    private let cache = URLCache(memoryCapacity: 50 * 1024 * 1024, diskCapacity: 200 * 1024 * 1024, diskPath: "StudyAI_Cache")
+    private var responseCache: [String: CachedResponse] = [:]
+    private let cacheQueue = DispatchQueue(label: "com.studyai.cache", qos: .utility)
+    
+    // MARK: - Circuit Breaker Pattern
+    private var failureCount = 0
+    private let maxFailures = 3
+    private var circuitBreakerOpenUntil: Date?
+    private let circuitBreakerTimeout: TimeInterval = 30
+    
+    // MARK: - Request Management
+    private var activeRequests: [String: URLSessionDataTask] = [:]
+    private let requestQueue = DispatchQueue(label: "com.studyai.network", qos: .userInitiated)
+    
+    // MARK: - Network Monitoring
+    private let networkMonitor = NWPathMonitor()
+    private let networkQueue = DispatchQueue(label: "NetworkMonitor")
+    @Published var isNetworkAvailable = true
+    
+    // Session Management (Optimized)
+    @Published var currentSessionId: String? {
+        willSet {
+            if newValue != currentSessionId {
+                clearConversationHistory()
             }
-            print("===============================")
-        } else {
-            print("❌ No auth token available from AuthenticationService")
+        }
+    }
+    
+    // Conversation History - Public for backward compatibility
+    private var internalConversationHistory: [ConversationMessage] = []
+    private let maxHistorySize = 50 // Prevent unlimited growth
+    
+    // Backward compatibility: Provide dictionary format for existing views
+    @Published var conversationHistory: [[String: String]] = []
+    
+    // Internal conversation management
+    private func addToConversationHistory(role: String, content: String) {
+        let message = ConversationMessage(role: role, content: content, timestamp: Date())
+        internalConversationHistory.append(message)
+        
+        // Update published dictionary format for backward compatibility
+        conversationHistory.append(["role": role, "content": content])
+        
+        // Limit history size to prevent memory issues
+        if internalConversationHistory.count > maxHistorySize {
+            internalConversationHistory.removeFirst(internalConversationHistory.count - maxHistorySize)
+            conversationHistory.removeFirst(conversationHistory.count - maxHistorySize)
+        }
+    }
+    
+    private init() {
+        setupNetworkMonitoring()
+        setupURLCache()
+    }
+    
+    // MARK: - Enhanced Cache Management
+    private struct CachedResponse {
+        let data: Data
+        let response: URLResponse
+        let timestamp: Date
+        let ttl: TimeInterval
+        
+        var isExpired: Bool {
+            Date().timeIntervalSince(timestamp) > ttl
+        }
+    }
+    
+    private struct ConversationMessage {
+        let role: String
+        let content: String
+        let timestamp: Date
+    }
+    
+    private func setupNetworkMonitoring() {
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            DispatchQueue.main.async {
+                self?.isNetworkAvailable = path.status == .satisfied
+            }
+        }
+        networkMonitor.start(queue: networkQueue)
+    }
+    
+    private func setupURLCache() {
+        URLSession.shared.configuration.urlCache = cache
+        URLSession.shared.configuration.requestCachePolicy = .useProtocolCachePolicy
+    }
+    
+    private func getCachedResponse(for key: String) -> CachedResponse? {
+        return cacheQueue.sync {
+            guard let cached = responseCache[key], !cached.isExpired else {
+                responseCache.removeValue(forKey: key)
+                return nil
+            }
+            return cached
+        }
+    }
+    
+    private func setCachedResponse(_ response: CachedResponse, for key: String) {
+        cacheQueue.async {
+            self.responseCache[key] = response
+            
+            // Clean expired entries periodically
+            if self.responseCache.count > 100 {
+                self.cleanExpiredCache()
+            }
+        }
+    }
+    
+    private func cleanExpiredCache() {
+        responseCache = responseCache.filter { !$1.isExpired }
+    }
+    
+    private func clearConversationHistory() {
+        internalConversationHistory.removeAll()
+        conversationHistory.removeAll()
+    }
+    
+    // MARK: - Circuit Breaker Implementation
+    private func canMakeRequest() -> Bool {
+        if let openUntil = circuitBreakerOpenUntil {
+            if Date() < openUntil {
+                return false // Circuit breaker is open
+            } else {
+                circuitBreakerOpenUntil = nil
+                failureCount = 0 // Reset on timeout
+            }
+        }
+        return true
+    }
+    
+    private func recordSuccess() {
+        failureCount = 0
+        circuitBreakerOpenUntil = nil
+    }
+    
+    private func recordFailure() {
+        failureCount += 1
+        if failureCount >= maxFailures {
+            circuitBreakerOpenUntil = Date().addingTimeInterval(circuitBreakerTimeout)
+            print("⚡ Circuit breaker opened due to \(failureCount) failures")
+        }
+    }
+    
+    // MARK: - Optimized Request Helper
+    private func addAuthHeader(to request: inout URLRequest) {
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("StudyAI-iOS/1.0", forHTTPHeaderField: "User-Agent")
+            request.setValue("gzip, deflate", forHTTPHeaderField: "Accept-Encoding")
+        }
+    }
+    
+    // MARK: - Network Errors
+    enum NetworkError: LocalizedError {
+        case circuitBreakerOpen
+        case noConnection
+        case invalidResponse
+        case authenticationRequired
+        case rateLimited
+        case serverError(Int)
+        case httpError(Int)
+        case networkFailure(String)
+        case decodingError(String)
+        
+        var errorDescription: String? {
+            switch self {
+            case .circuitBreakerOpen:
+                return "Service temporarily unavailable. Please try again later."
+            case .noConnection:
+                return "No internet connection available."
+            case .invalidResponse:
+                return "Invalid response from server."
+            case .authenticationRequired:
+                return "Authentication required. Please sign in again."
+            case .rateLimited:
+                return "Too many requests. Please wait a moment and try again."
+            case .serverError(let code):
+                return "Server error (\(code)). Please try again later."
+            case .httpError(let code):
+                return "Request failed with error \(code)."
+            case .networkFailure(let message):
+                return "Network error: \(message)"
+            case .decodingError(let message):
+                return "Data parsing error: \(message)"
+            }
+        }
+    }
+    
+    // MARK: - Optimized Network Request Manager
+    private func performRequest<T>(
+        _ request: URLRequest,
+        cacheKey: String? = nil,
+        cacheTTL: TimeInterval = 300,
+        decoder: @escaping (Data) throws -> T
+    ) async throws -> T {
+        
+        // Check circuit breaker
+        guard canMakeRequest() else {
+            throw NetworkError.circuitBreakerOpen
+        }
+        
+        // Check network availability
+        guard isNetworkAvailable else {
+            throw NetworkError.noConnection
+        }
+        
+        // Check cache first
+        if let cacheKey = cacheKey,
+           let cached = getCachedResponse(for: cacheKey) {
+            do {
+                let result = try decoder(cached.data)
+                return result
+            } catch {
+                // Cache is corrupted, remove it
+                cacheQueue.async {
+                    self.responseCache.removeValue(forKey: cacheKey)
+                }
+            }
+        }
+        
+        // Cancel any existing request with same URL
+        if let existingTask = activeRequests[request.url?.absoluteString ?? ""] {
+            existingTask.cancel()
+        }
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                recordFailure()
+                throw NetworkError.invalidResponse
+            }
+            
+            // Handle HTTP errors
+            switch httpResponse.statusCode {
+            case 200...299:
+                recordSuccess()
+                
+                // Cache successful responses
+                if let cacheKey = cacheKey {
+                    let cachedResponse = CachedResponse(
+                        data: data,
+                        response: response,
+                        timestamp: Date(),
+                        ttl: cacheTTL
+                    )
+                    setCachedResponse(cachedResponse, for: cacheKey)
+                }
+                
+                return try decoder(data)
+                
+            case 401:
+                // Token expired, let AuthenticationService handle it
+                throw NetworkError.authenticationRequired
+                
+            case 429:
+                // Rate limited
+                recordFailure()
+                throw NetworkError.rateLimited
+                
+            case 500...599:
+                // Server error
+                recordFailure()
+                throw NetworkError.serverError(httpResponse.statusCode)
+                
+            default:
+                recordFailure()
+                throw NetworkError.httpError(httpResponse.statusCode)
+            }
+            
+        } catch {
+            // Remove from active requests
+            activeRequests.removeValue(forKey: request.url?.absoluteString ?? "")
+            
+            if error is NetworkError {
+                throw error
+            } else {
+                recordFailure()
+                throw NetworkError.networkFailure(error.localizedDescription)
+            }
         }
     }
     
@@ -469,91 +715,116 @@ class NetworkService: ObservableObject {
         }
     }
     
-    // MARK: - Image Upload and Analysis
+    // MARK: - Optimized Image Upload and Analysis
     func uploadImageForAnalysis(imageData: Data, subject: String = "general") async -> (success: Bool, result: [String: Any]?) {
-        print("📷 === IMAGE UPLOAD FOR ANALYSIS ===")
-        print("🔗 AI Proxy URL: \(baseURL)/api/ai")
-        print("📊 Image data size: \(imageData.count) bytes")
+        // Memory optimization: Compress image if too large
+        let optimizedImageData = optimizeImageData(imageData)
+        
+        print("📷 === OPTIMIZED IMAGE UPLOAD ===")
+        print("📊 Original size: \(imageData.count) bytes")
+        print("📊 Optimized size: \(optimizedImageData.count) bytes")
         print("📚 Subject: \(subject)")
         
         let imageUploadURL = "\(baseURL)/api/ai/analyze-image"
-        print("🔗 Full upload URL: \(imageUploadURL)")
         
         guard let url = URL(string: imageUploadURL) else {
-            print("❌ Invalid image upload URL")
-            return (false, nil)
+            return (false, ["error": "Invalid URL"])
         }
         
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 45.0
+        
+        addAuthHeader(to: &request)
+        
         do {
-            // Create multipart form data request
-            let boundary = "StudyAI-iOS-\(UUID().uuidString)"
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-            request.timeoutInterval = 45.0  // Longer timeout for image processing
+            // Use streaming for large uploads
+            let formData = createMultipartFormData(
+                imageData: optimizedImageData,
+                subject: subject,
+                boundary: "StudyAI-iOS-\(UUID().uuidString)"
+            )
             
-            // Build multipart form data
-            var formData = Data()
+            request.setValue("multipart/form-data; boundary=\(formData.boundary)", forHTTPHeaderField: "Content-Type")
+            request.httpBody = formData.data
             
-            // Add image data
-            formData.append("--\(boundary)\r\n".data(using: .utf8)!)
-            formData.append("Content-Disposition: form-data; name=\"image\"; filename=\"homework.jpg\"\r\n".data(using: .utf8)!)
-            formData.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-            formData.append(imageData)
-            formData.append("\r\n".data(using: .utf8)!)
-            
-            // Add subject parameter
-            formData.append("--\(boundary)\r\n".data(using: .utf8)!)
-            formData.append("Content-Disposition: form-data; name=\"subject\"\r\n\r\n".data(using: .utf8)!)
-            formData.append(subject.data(using: .utf8)!)
-            formData.append("\r\n".data(using: .utf8)!)
-            
-            // Add student_id parameter
-            formData.append("--\(boundary)\r\n".data(using: .utf8)!)
-            formData.append("Content-Disposition: form-data; name=\"student_id\"\r\n\r\n".data(using: .utf8)!)
-            formData.append("ios_user".data(using: .utf8)!)
-            formData.append("\r\n".data(using: .utf8)!)
-            
-            // Close boundary
-            formData.append("--\(boundary)--\r\n".data(using: .utf8)!)
-            
-            request.httpBody = formData
-            
-            print("📡 Uploading image to AI Engine...")
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Image Upload Response Status: \(httpResponse.statusCode)")
-                
-                if httpResponse.statusCode == 200 {
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("🎉 === IMAGE ANALYSIS SUCCESS ===")
-                        print("✅ Server Response: \(json)")
-                        
-                        let extractedText = json["extracted_text"] as? String ?? ""
-                        let hasMath = json["mathematical_content"] as? Bool ?? false
-                        let confidence = json["confidence_score"] as? Double ?? 0.0
-                        let suggestions = json["suggestions"] as? [String] ?? []
-                        
-                        print("📄 Extracted Text Length: \(extractedText.count)")
-                        print("🧮 Contains Math: \(hasMath)")
-                        print("🎯 Confidence: \(confidence)")
-                        print("💡 Suggestions: \(suggestions.count) items")
-                        
-                        return (true, json)
-                    }
+            let decoder: (Data) throws -> [String: Any] = { data in
+                guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    throw NetworkError.decodingError("Invalid JSON response")
                 }
-                
-                let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                print("❌ Image Upload HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
-                return (false, ["error": "HTTP \(httpResponse.statusCode)", "details": rawResponse])
+                return json
             }
             
-            return (false, ["error": "No HTTP response"])
+            let result = try await performRequest(
+                request,
+                cacheKey: nil, // Don't cache image uploads
+                decoder: decoder
+            )
+            
+            return (true, result)
+            
         } catch {
-            print("❌ Image upload failed: \(error.localizedDescription)")
             return (false, ["error": error.localizedDescription])
         }
+    }
+    
+    // MARK: - Image Optimization
+    private func optimizeImageData(_ imageData: Data) -> Data {
+        // Maximum size: 5MB
+        let maxSize = 5 * 1024 * 1024
+        
+        if imageData.count <= maxSize {
+            return imageData
+        }
+        
+        guard let image = UIImage(data: imageData) else {
+            return imageData
+        }
+        
+        // Calculate compression ratio
+        let compressionRatio = Double(maxSize) / Double(imageData.count)
+        let targetQuality = min(0.8, compressionRatio)
+        
+        // Compress image
+        if let compressedData = image.jpegData(compressionQuality: targetQuality) {
+            print("🗜️ Image compressed from \(imageData.count) to \(compressedData.count) bytes")
+            return compressedData
+        }
+        
+        return imageData
+    }
+    
+    private struct MultipartFormData {
+        let data: Data
+        let boundary: String
+    }
+    
+    private func createMultipartFormData(imageData: Data, subject: String, boundary: String) -> MultipartFormData {
+        var formData = Data()
+        
+        // Add image data
+        formData.append("--\(boundary)\r\n".data(using: .utf8)!)
+        formData.append("Content-Disposition: form-data; name=\"image\"; filename=\"homework.jpg\"\r\n".data(using: .utf8)!)
+        formData.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        formData.append(imageData)
+        formData.append("\r\n".data(using: .utf8)!)
+        
+        // Add subject parameter
+        formData.append("--\(boundary)\r\n".data(using: .utf8)!)
+        formData.append("Content-Disposition: form-data; name=\"subject\"\r\n\r\n".data(using: .utf8)!)
+        formData.append(subject.data(using: .utf8)!)
+        formData.append("\r\n".data(using: .utf8)!)
+        
+        // Add student_id parameter
+        formData.append("--\(boundary)\r\n".data(using: .utf8)!)
+        formData.append("Content-Disposition: form-data; name=\"student_id\"\r\n\r\n".data(using: .utf8)!)
+        formData.append("ios_user".data(using: .utf8)!)
+        formData.append("\r\n".data(using: .utf8)!)
+        
+        // Close boundary
+        formData.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        
+        return MultipartFormData(data: formData, boundary: boundary)
     }
     
     // MARK: - Session Management
@@ -691,8 +962,8 @@ class NetworkService: ObservableObject {
                         
                         // Update conversation history
                         await MainActor.run {
-                            self.conversationHistory.append(["role": "user", "content": message])
-                            self.conversationHistory.append(["role": "assistant", "content": aiResponse])
+                            self.addToConversationHistory(role: "user", content: message)
+                            self.addToConversationHistory(role: "assistant", content: aiResponse)
                             
                             // Additional debug for conversation history update
                             print("📚 === CONVERSATION HISTORY UPDATE ===")

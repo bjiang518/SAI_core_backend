@@ -7,6 +7,36 @@
 //
 
 import SwiftUI
+import os.log
+
+// MARK: - Main Tab Enum
+enum MainTab: Int, CaseIterable {
+    case home = 0
+    case chat = 1
+    case progress = 2
+    case library = 3
+    case profile = 4
+    
+    var title: String {
+        switch self {
+        case .home: return "Home"
+        case .chat: return "Chat"
+        case .progress: return "Progress"
+        case .library: return "Library"
+        case .profile: return "Profile"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .home: return "house.fill"
+        case .chat: return "message.fill"
+        case .progress: return "chart.bar.fill"
+        case .library: return "books.vertical.fill"
+        case .profile: return "person.fill"
+        }
+    }
+}
 
 struct ContentView: View {
     @StateObject private var authService = AuthenticationService.shared
@@ -30,50 +60,112 @@ struct ContentView: View {
 
 struct MainTabView: View {
     let onLogout: () -> Void
+    @State private var selectedTab: MainTab = .home
+    
+    private let logger = Logger(subsystem: "com.studyai", category: "MainTabView")
     
     var body: some View {
-        TabView {
-            NavigationView {
-                HomeView()
+        TabView(selection: Binding(
+            get: { selectedTab.rawValue },
+            set: { selectedTab = MainTab(rawValue: $0) ?? .home }
+        )) {
+            // Home Tab
+            NavigationStack {
+                HomeView(onSelectTab: selectTab)
+                    .onAppear {
+                        logger.info("🏠 === HOME VIEW APPEARED ===")
+                        logger.info("🏠 HomeView is now displayed (Tab 0)")
+                    }
             }
             .tabItem {
-                Image(systemName: "house.fill")
-                Text("Home")
+                Image(systemName: MainTab.home.icon)
+                Text(MainTab.home.title)
             }
+            .tag(MainTab.home.rawValue)
             
-            NavigationView {
-                QuestionView()
+            // Chat Tab  
+            NavigationStack {
+                DirectAIHomeworkView()
+                    .onAppear {
+                        logger.info("🤖 === AI HOMEWORK VIEW APPEARED ===")
+                        logger.info("🤖 DirectAIHomeworkView is now displayed (Tab 1)")
+                    }
             }
             .tabItem {
-                Image(systemName: "questionmark.circle.fill")
-                Text("Ask AI")
+                Image(systemName: MainTab.chat.icon)
+                Text(MainTab.chat.title)
             }
+            .tag(MainTab.chat.rawValue)
             
-            NavigationView {
-                SessionHistoryView() // Placeholder - needs LearningProgressView added to project
+            // Progress Tab
+            NavigationStack {
+                LearningProgressView()
+                    .onAppear {
+                        logger.info("📊 === LEARNING PROGRESS VIEW APPEARED ===")
+                        logger.info("📊 LearningProgressView is now displayed (Tab 2)")
+                    }
             }
             .tabItem {
-                Image(systemName: "chart.bar.fill")
-                Text("Progress")
+                Image(systemName: MainTab.progress.icon)
+                Text(MainTab.progress.title)
             }
+            .tag(MainTab.progress.rawValue)
             
-            NavigationView {
-                SessionHistoryView()
+            // Library Tab
+            NavigationStack {
+                UnifiedLibraryView()
+                    .onAppear {
+                        logger.info("📚 === UNIFIED LIBRARY VIEW APPEARED ===")
+                        logger.info("📚 UnifiedLibraryView is now displayed (Tab 3)")
+                    }
             }
             .tabItem {
-                Image(systemName: "books.vertical.fill")
-                Text("Library")
+                Image(systemName: MainTab.library.icon)
+                Text(MainTab.library.title)
             }
+            .tag(MainTab.library.rawValue)
             
-            NavigationView {
+            // Profile Tab
+            NavigationStack {
                 ModernProfileView(onLogout: onLogout)
+                    .onAppear {
+                        logger.info("👤 === MODERN PROFILE VIEW APPEARED ===")
+                        logger.info("👤 ModernProfileView is now displayed (Tab 4)")
+                    }
             }
             .tabItem {
-                Image(systemName: "person.fill")
-                Text("Profile")
+                Image(systemName: MainTab.profile.icon)
+                Text(MainTab.profile.title)
+            }
+            .tag(MainTab.profile.rawValue)
+        }
+        .tint(.blue) // Modern iOS accent color
+        .onChange(of: selectedTab) { oldTab, newTab in
+            logger.info("🔄 === TAB SELECTION CHANGED ===")
+            logger.info("🔄 Previous tab: \(oldTab.rawValue) → New tab: \(newTab.rawValue)")
+            
+            switch newTab {
+            case .home:
+                logger.info("📍 User pressed HOME button (Tab 0) - should show HomeView")
+            case .chat:
+                logger.info("📍 User pressed CHAT button (Tab 1) - should show DirectAIHomeworkView")
+            case .progress:
+                logger.info("📍 User pressed PROGRESS button (Tab 2) - should show LearningProgressView")
+            case .library:
+                logger.info("📍 User pressed LIBRARY button (Tab 3) - should show UnifiedLibraryView")
+            case .profile:
+                logger.info("📍 User pressed PROFILE button (Tab 4) - should show ModernProfileView")
             }
         }
-        .tint(.blue) // Modern iOS 26+ accent color
+        .onAppear {
+            logger.info("🚀 === MAIN TAB VIEW APPEARED ===")
+            logger.info("🚀 Initial selected tab: \(selectedTab.rawValue)")
+        }
+    }
+    
+    private func selectTab(_ tab: MainTab) {
+        selectedTab = tab
+        logger.info("🎯 Programmatically selected tab: \(tab.title)")
     }
 }
 

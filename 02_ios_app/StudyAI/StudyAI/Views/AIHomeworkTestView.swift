@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import os.log
 
 struct AIHomeworkTestView: View {
     @State private var originalImage: UIImage?
@@ -48,6 +49,24 @@ struct AIHomeworkTestView: View {
         .navigationTitle("AI Homework Parser")
         .sheet(isPresented: $showingCamera) {
             ImageSourceSelectionView(selectedImage: $originalImage, isPresented: $showingCamera)
+                .onAppear {
+                    // CRITICAL: Log complete state when AI homework function is entered
+                    let logger = Logger(subsystem: "com.studyai", category: "AIHomeworkTestView")
+                    logger.info("🚀 === AI HOMEWORK FUNCTION ENTERED ===")
+                    logger.info("📊 Current ViewModel state: \(CameraViewModel.shared.captureState)")
+                    logger.info("🖼️ ViewModel has captured image: \(CameraViewModel.shared.capturedImage != nil)")
+                    logger.info("🔄 Processing state: \(CameraViewModel.shared.isProcessingImage)")
+                    logger.info("❌ Last camera error: \(CameraViewModel.shared.lastCameraError ?? "None")")
+                    logger.info("🎛️ Suppress next cleanup: \(CameraViewModel.shared.suppressNextCleanup)")
+                    logger.info("📱 Original image in view: \(originalImage != nil)")
+                    logger.info("🎬 Show camera state: \(showingCamera)")
+                    logger.info("🔄 Is processing: \(isProcessing)")
+                    logger.info("📝 Processing status: \(processingStatus)")
+                    logger.info("📊 Has parsing result: \(parsingResult != nil)")
+                    logger.info("🔍 Has enhanced result: \(enhancedResult != nil)")
+                    logger.info("⚠️ Parsing error: \(parsingError ?? "None")")
+                    logger.info("✅ === AI HOMEWORK STATE LOGGING COMPLETE ===")
+                }
         }
         .sheet(isPresented: $showingResults) {
             if let enhanced = enhancedResult {
@@ -71,16 +90,25 @@ struct AIHomeworkTestView: View {
                 Text(error)
             }
         }
-        .onChange(of: originalImage) { _, newImage in
+        .onChange(of: originalImage) { oldValue, newImage in
+            let logger = Logger(subsystem: "com.studyai", category: "AIHomeworkTestView")
+            logger.info("🔄 === ORIGINAL IMAGE CHANGED ===")
+            logger.info("🖼️ Had old image: \(oldValue != nil)")
+            logger.info("🖼️ Has new image: \(newImage != nil)")
             if let image = newImage {
+                logger.info("🖼️ New image size: \(image.size.width)x\(image.size.height)")
+                logger.info("✅ Starting processing after 0.5s delay...")
                 // Add delay to ensure view controller dismissal is complete
                 Task {
                     // Wait for UI to settle before processing
                     try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
                     await MainActor.run {
+                        logger.info("🚀 Calling processImage()...")
                         processImage(image)
                     }
                 }
+            } else {
+                logger.info("❌ originalImage set to nil - no processing")
             }
         }
     }
@@ -486,6 +514,9 @@ struct AIHomeworkTestView: View {
             processingStatus = enhanced.questions.count > 0 ?
                 "✅ Enhanced AI parsing completed: \(enhanced.questions.count) questions found (\(enhanced.parsingQualityDescription))" :
                 "⚠️ Enhanced AI parsing completed: No questions detected"
+            
+            // Clear ViewModel after successful processing to prepare for next capture
+            CameraViewModel.shared.handleUploadSuccess()
         } else {
             // Fallback to legacy parsing
             processingStatus = "🔄 Using fallback parsing method..."
@@ -503,6 +534,9 @@ struct AIHomeworkTestView: View {
             processingStatus = questions.count > 0 ?
                 "⚠️ Fallback parsing completed: \(questions.count) questions found" :
                 "❌ Parsing failed: No questions detected"
+            
+            // Clear ViewModel after successful processing to prepare for next capture
+            CameraViewModel.shared.handleUploadSuccess()
         }
     }
     
@@ -809,6 +843,9 @@ struct AIHomeworkTestView: View {
         originalImage = nil
         parsingResult = nil
         processingStatus = "Ready to test AI homework parsing"
+        
+        // Also clear the CameraViewModel for clean state
+        CameraViewModel.shared.clearForNextCapture()
     }
 }
 
