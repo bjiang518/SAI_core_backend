@@ -1172,7 +1172,7 @@ async function initializeDatabase() {
     // Check if critical tables exist (users table is required for authentication)
     const tableCheck = await db.query(`
       SELECT tablename FROM pg_tables 
-      WHERE schemaname = 'public' AND tablename IN ('users', 'user_sessions', 'profiles', 'sessions', 'questions', 'archived_conversations_new', 'conversations')
+      WHERE schemaname = 'public' AND tablename IN ('users', 'user_sessions', 'profiles', 'sessions', 'questions', 'archived_conversations_new', 'conversations', 'archived_questions')
     `);
     
     if (tableCheck.rows.length === 0) {
@@ -1196,7 +1196,7 @@ async function initializeDatabase() {
       
       // Check if we need to add missing tables
       const existingTables = tableCheck.rows.map(r => r.tablename);
-      const requiredTables = ['users', 'user_sessions', 'profiles', 'sessions', 'questions', 'archived_conversations_new', 'conversations'];
+      const requiredTables = ['users', 'user_sessions', 'profiles', 'sessions', 'questions', 'archived_conversations_new', 'conversations', 'archived_questions'];
       const missingTables = requiredTables.filter(table => !existingTables.includes(table));
       
       if (missingTables.length > 0) {
@@ -1225,6 +1225,146 @@ async function runDatabaseMigrations() {
   try {
     console.log('🔄 Checking for database migrations...');
     
+    // Create a migrations tracking table if it doesn't exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS migration_history (
+        id SERIAL PRIMARY KEY,
+        migration_name VARCHAR(255) UNIQUE NOT NULL,
+        executed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    
+    // Check if grading fields migration has been applied
+    const gradeFieldsCheck = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'archived_questions' 
+      AND column_name IN ('student_answer', 'grade', 'points', 'max_points', 'feedback', 'is_graded')
+    `);
+    
+    // First ensure the archived_questions table exists with basic structure
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS archived_questions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id TEXT NOT NULL,
+        subject VARCHAR(100) NOT NULL,
+        question_text TEXT NOT NULL,
+        answer_text TEXT NOT NULL,
+        confidence FLOAT NOT NULL DEFAULT 0,
+        has_visual_elements BOOLEAN DEFAULT FALSE,
+        
+        -- Image storage
+        original_image_url TEXT,
+        question_image_url TEXT, -- Cropped image of just this question
+        
+        -- Metadata
+        processing_time FLOAT NOT NULL DEFAULT 0,
+        archived_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        review_count INTEGER DEFAULT 0,
+        last_reviewed_at TIMESTAMP WITH TIME ZONE,
+        
+        -- User customization
+        tags TEXT[], -- Array of user-defined tags
+        notes TEXT, -- User notes for this question
+        
+        -- Timestamps
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    
+    if (gradeFieldsCheck.rows.length < 6) {
+      console.log('📋 Applying grading fields migration...');
+      
+      // Run the grading fields migration
+      await db.query(`
+        -- Add new grading-specific columns to archived_questions table
+        ALTER TABLE archived_questions 
+        ADD COLUMN IF NOT EXISTS student_answer TEXT,
+        ADD COLUMN IF NOT EXISTS grade VARCHAR(20) CHECK (grade IN ('CORRECT', 'INCORRECT', 'EMPTY', 'PARTIAL_CREDIT')),
+        ADD COLUMN IF NOT EXISTS points FLOAT,
+        ADD COLUMN IF NOT EXISTS max_points FLOAT,
+        ADD COLUMN IF NOT EXISTS feedback TEXT,
+        ADD COLUMN IF NOT EXISTS is_graded BOOLEAN DEFAULT false;
+
+        -- Add indexes for better query performance
+        CREATE INDEX IF NOT EXISTS idx_archived_questions_grade ON archived_questions(grade);
+        CREATE INDEX IF NOT EXISTS idx_archived_questions_is_graded ON archived_questions(is_graded);
+
+        -- Add comments to document the new columns
+        COMMENT ON COLUMN archived_questions.student_answer IS 'The student''s provided answer from homework image';
+        COMMENT ON COLUMN archived_questions.grade IS 'Grading result: CORRECT, INCORRECT, EMPTY, or PARTIAL_CREDIT';
+        COMMENT ON COLUMN archived_questions.points IS 'Points earned for this question';
+        COMMENT ON COLUMN archived_questions.max_points IS 'Maximum points possible for this question';
+        COMMENT ON COLUMN archived_questions.feedback IS 'AI-generated feedback for the student';
+        COMMENT ON COLUMN archived_questions.is_graded IS 'Whether this question was graded (true) vs just answered (false)';
+      `);
+      
+      // Update the question_summaries view to include grading info
+      await db.query(`
+        CREATE OR REPLACE VIEW question_summaries AS
+        SELECT 
+            id,
+            user_id,
+            subject,
+            CASE 
+                WHEN length(question_text) > 100 
+                THEN substring(question_text from 1 for 97) || '...'
+                ELSE question_text
+            END as short_question_text,
+            question_text,
+            confidence,
+            CASE 
+                WHEN confidence >= 0.8 THEN 'High'
+                WHEN confidence >= 0.6 THEN 'Medium'
+                ELSE 'Low'
+            END as confidence_level,
+            has_visual_elements,
+            archived_at,
+            review_count,
+            tags,
+            -- New grading fields
+            grade,
+            points,
+            max_points,
+            is_graded,
+            CASE 
+                WHEN is_graded AND grade IS NOT NULL THEN
+                    CASE 
+                        WHEN points IS NOT NULL AND max_points IS NOT NULL THEN
+                            grade || ' (' || points::text || '/' || max_points::text || ')'
+                        ELSE grade
+                    END
+                ELSE 'Not Graded'
+            END as grade_display_text,
+            CASE 
+                WHEN points IS NOT NULL AND max_points IS NOT NULL AND max_points > 0 THEN
+                    (points / max_points * 100)::int
+                ELSE NULL
+            END as score_percentage,
+            created_at
+        FROM archived_questions
+        ORDER BY archived_at DESC;
+      `);
+      
+      // Record the migration as completed
+      await db.query(`
+        INSERT INTO migration_history (migration_name) 
+        VALUES ('001_add_grading_fields') 
+        ON CONFLICT (migration_name) DO NOTHING;
+      `);
+      
+      console.log('✅ Grading fields migration completed successfully!');
+      console.log('📊 Database now supports:');
+      console.log('   - Student answers from homework images');
+      console.log('   - Grading results (CORRECT/INCORRECT/EMPTY/PARTIAL_CREDIT)');
+      console.log('   - Points earned and maximum points');
+      console.log('   - AI-generated feedback for students');
+      console.log('   - Graded vs non-graded question tracking');
+    } else {
+      console.log('✅ Grading fields migration already applied');
+    }
+    
     // Clean up legacy tables - keep sessions, questions and archived_conversations_new
     const legacyTables = [
       'archived_conversations', 
@@ -1232,8 +1372,7 @@ async function runDatabaseMigrations() {
       'conversations', 
       'sessions_summaries', 
       'evaluations', 
-      'progress',
-      'archived_questions'  // Remove this too since we'll use questions table
+      'progress'
     ];
     
     for (const tableName of legacyTables) {
@@ -1317,6 +1456,7 @@ async function runDatabaseMigrations() {
     } catch (error) {
       console.log(`⚠️ Could not create index idx_questions_subject: ${error.message}`);
     }
+    
     // Ensure sessions table exists for AI proxy functionality
     await db.query(`
       CREATE TABLE IF NOT EXISTS sessions (

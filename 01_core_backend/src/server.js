@@ -11,6 +11,7 @@ const progressRoutes = require('./routes/progress');
 const sessionRoutes = require('./routes/sessions');
 const evaluationRoutes = require('./routes/evaluations');
 const contentRoutes = require('./routes/content');
+const archivedQuestionsRoutes = require('./routes/archived-questions');
 
 const { errorHandler, notFound } = require('./middleware/errorMiddleware');
 const { validateEnv } = require('./utils/validation');
@@ -69,6 +70,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/evaluations', evaluationRoutes);
 app.use('/api/content', contentRoutes);
+app.use('/api/archived-questions', archivedQuestionsRoutes);
 
 // Error handling middleware
 app.use(notFound);

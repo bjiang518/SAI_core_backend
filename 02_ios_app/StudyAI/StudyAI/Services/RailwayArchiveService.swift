@@ -526,7 +526,8 @@ class RailwayArchiveService: ObservableObject {
             processingTime: data["processingTime"] as? Double ?? 0,
             overallConfidence: Float(data["overallConfidence"] as? Double ?? 0),
             parsingMethod: data["parsingMethod"] as? String ?? "Railway Backend",
-            rawAIResponse: "Parsed via Railway Backend"
+            rawAIResponse: "Parsed via Railway Backend",
+            performanceSummary: nil
         )
     }
     

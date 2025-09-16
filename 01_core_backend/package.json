@@ -56,6 +56,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^2.0.0",
+    "node-cache": "^5.1.2",
     "node-cron": "^3.0.2",
     "openai": "^4.20.1",
     "pg": "^8.16.3",

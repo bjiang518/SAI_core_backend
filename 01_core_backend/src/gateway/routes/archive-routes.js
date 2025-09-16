@@ -134,6 +134,128 @@ class ArchiveRoutes {
         tags: ['Archive', 'Health']
       }
     }, this.healthCheck.bind(this));
+
+    // =============== ARCHIVED QUESTIONS ROUTES ===============
+    
+    // Archive multiple questions from homework
+    this.fastify.post('/api/archived-questions', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Archive multiple questions from homework',
+        tags: ['Archived Questions'],
+        body: {
+          type: 'object',
+          required: ['selectedQuestionIndices', 'questions', 'detectedSubject'],
+          properties: {
+            selectedQuestionIndices: { type: 'array', items: { type: 'integer' } },
+            questions: { type: 'array' },
+            userNotes: { type: 'array', items: { type: 'string' } },
+            userTags: { type: 'array', items: { type: 'array' } },
+            detectedSubject: { type: 'string' },
+            originalImageUrl: { type: 'string' },
+            processingTime: { type: 'number' }
+          }
+        }
+      }
+    }, this.archiveQuestions.bind(this));
+
+    // Get user's archived questions with pagination and filtering
+    this.fastify.get('/api/archived-questions', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get user archived questions with pagination and filtering',
+        tags: ['Archived Questions'],
+        querystring: {
+          type: 'object',
+          properties: {
+            limit: { type: 'integer', default: 50 },
+            offset: { type: 'integer', default: 0 },
+            subject: { type: 'string' },
+            searchText: { type: 'string' },
+            confidenceMin: { type: 'number' },
+            confidenceMax: { type: 'number' },
+            hasVisualElements: { type: 'boolean' },
+            grade: { type: 'string' }
+          }
+        }
+      }
+    }, this.getArchivedQuestions.bind(this));
+
+    // Get questions by subject
+    this.fastify.get('/api/archived-questions/subject/:subject', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get questions by subject',
+        tags: ['Archived Questions'],
+        params: {
+          type: 'object',
+          properties: {
+            subject: { type: 'string' }
+          }
+        }
+      }
+    }, this.getQuestionsBySubject.bind(this));
+
+    // Get full question details by ID
+    this.fastify.get('/api/archived-questions/:id', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get full question details by ID',
+        tags: ['Archived Questions'],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' }
+          }
+        }
+      }
+    }, this.getQuestionDetails.bind(this));
+
+    // Update question tags and notes
+    this.fastify.patch('/api/archived-questions/:id', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Update question tags and notes',
+        tags: ['Archived Questions'],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' }
+          }
+        },
+        body: {
+          type: 'object',
+          properties: {
+            tags: { type: 'array', items: { type: 'string' } },
+            notes: { type: 'string' }
+          }
+        }
+      }
+    }, this.updateQuestion.bind(this));
+
+    // Delete archived question
+    this.fastify.delete('/api/archived-questions/:id', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Delete archived question',
+        tags: ['Archived Questions'],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' }
+          }
+        }
+      }
+    }, this.deleteQuestion.bind(this));
+
+    // Get user's archived questions statistics
+    this.fastify.get('/api/archived-questions/stats/summary', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get user archived questions statistics',
+        tags: ['Archived Questions']
+      }
+    }, this.getQuestionStats.bind(this));
   }
 
   // Get user ID from request (flexible - could be from JWT, header, or query)
@@ -412,6 +534,460 @@ class ArchiveRoutes {
         success: false,
         message: 'Database health check failed',
         error: error.message
+      });
+    }
+  }
+
+  // =============== ARCHIVED QUESTIONS METHOD IMPLEMENTATIONS ===============
+
+  async archiveQuestions(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+      const {
+        selectedQuestionIndices,
+        questions,
+        userNotes = [],
+        userTags = [],
+        detectedSubject,
+        originalImageUrl = '',
+        processingTime = 0
+      } = request.body;
+
+      this.fastify.log.info(`📝 Archiving ${selectedQuestionIndices.length} questions for user: ${userId}, subject: ${detectedSubject}`);
+
+      const archivedQuestions = [];
+
+      // Process each selected question
+      for (let i = 0; i < selectedQuestionIndices.length; i++) {
+        const questionIndex = selectedQuestionIndices[i];
+        if (questionIndex >= questions.length) continue;
+
+        const question = questions[questionIndex];
+        const userNote = i < userNotes.length ? userNotes[i] : '';
+        const tags = i < userTags.length ? userTags[i] : [];
+
+        // Insert into database
+        const query = `
+          INSERT INTO archived_questions (
+            user_id, subject, question_text, answer_text, confidence, has_visual_elements,
+            original_image_url, processing_time, tags, notes,
+            student_answer, grade, points, max_points, feedback, is_graded
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+          RETURNING *
+        `;
+
+        const values = [
+          userId,
+          detectedSubject,
+          question.questionText,
+          question.answerText || question.correctAnswer, // Legacy compatibility
+          question.confidence || 0.8,
+          question.hasVisualElements || false,
+          originalImageUrl,
+          processingTime,
+          tags,
+          userNote,
+          question.studentAnswer || '',
+          question.grade || 'EMPTY',
+          question.pointsEarned || (question.grade === 'CORRECT' ? 1.0 : 0.0),
+          question.pointsPossible || 1.0,
+          question.feedback || '',
+          question.grade ? true : false // is_graded
+        ];
+
+        const result = await db.query(query, values);
+        archivedQuestions.push(result.rows[0]);
+      }
+
+      this.fastify.log.info(`✅ Successfully archived ${archivedQuestions.length} questions`);
+
+      return reply.status(201).send({
+        success: true,
+        message: 'Questions archived successfully',
+        data: archivedQuestions.map(q => ({
+          id: q.id,
+          subject: q.subject,
+          questionText: q.question_text,
+          archivedAt: q.archived_at
+        }))
+      });
+    } catch (error) {
+      this.fastify.log.error('Error archiving questions:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to archive questions',
+        message: error.message
+      });
+    }
+  }
+
+  async getArchivedQuestions(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+      const {
+        limit = 50,
+        offset = 0,
+        subject,
+        searchText,
+        confidenceMin,
+        confidenceMax,
+        hasVisualElements,
+        grade
+      } = request.query;
+
+      this.fastify.log.info(`📚 Fetching archived questions for user: ${userId}`);
+
+      let query = `
+        SELECT 
+          id, subject, question_text, confidence, has_visual_elements, 
+          archived_at, review_count, tags, grade, points, 
+          max_points, is_graded, student_answer, feedback
+        FROM archived_questions
+        WHERE user_id = $1
+      `;
+
+      const values = [userId];
+      let paramIndex = 2;
+
+      // Add filters
+      if (subject) {
+        query += ` AND subject = $${paramIndex}`;
+        values.push(subject);
+        paramIndex++;
+      }
+
+      if (searchText) {
+        query += ` AND (question_text ILIKE $${paramIndex} OR answer_text ILIKE $${paramIndex})`;
+        values.push(`%${searchText}%`);
+        paramIndex++;
+      }
+
+      if (confidenceMin) {
+        query += ` AND confidence >= $${paramIndex}`;
+        values.push(parseFloat(confidenceMin));
+        paramIndex++;
+      }
+
+      if (confidenceMax) {
+        query += ` AND confidence <= $${paramIndex}`;
+        values.push(parseFloat(confidenceMax));
+        paramIndex++;
+      }
+
+      if (hasVisualElements !== undefined) {
+        query += ` AND has_visual_elements = $${paramIndex}`;
+        values.push(hasVisualElements);
+        paramIndex++;
+      }
+
+      if (grade) {
+        query += ` AND grade = $${paramIndex}`;
+        values.push(grade);
+        paramIndex++;
+      }
+
+      query += ` ORDER BY archived_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      values.push(parseInt(limit), parseInt(offset));
+
+      const result = await db.query(query, values);
+
+      // Transform for client response
+      const questions = result.rows.map(q => ({
+        id: q.id,
+        subject: q.subject,
+        questionText: q.question_text,
+        confidence: q.confidence,
+        hasVisualElements: q.has_visual_elements,
+        archivedAt: q.archived_at,
+        reviewCount: q.review_count,
+        tags: q.tags,
+        grade: q.grade,
+        points: q.points,
+        maxPoints: q.max_points,
+        isGraded: q.is_graded,
+        studentAnswer: q.student_answer,
+        feedback: q.feedback
+      }));
+
+      this.fastify.log.info(`✅ Fetched ${questions.length} questions`);
+
+      return reply.send({
+        success: true,
+        data: questions,
+        pagination: {
+          limit: parseInt(limit),
+          offset: parseInt(offset),
+          count: questions.length
+        }
+      });
+    } catch (error) {
+      this.fastify.log.error('Error fetching archived questions:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to fetch questions',
+        message: error.message
+      });
+    }
+  }
+
+  async getQuestionsBySubject(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+      const { subject } = request.params;
+
+      this.fastify.log.info(`📚 Fetching questions for subject: ${subject}, user: ${userId}`);
+
+      const query = `
+        SELECT 
+          id, subject, question_text, confidence, has_visual_elements,
+          archived_at, review_count, tags, grade, points,
+          max_points, is_graded
+        FROM archived_questions
+        WHERE user_id = $1 AND subject = $2
+        ORDER BY archived_at DESC
+      `;
+
+      const result = await db.query(query, [userId, subject]);
+
+      const questions = result.rows.map(q => ({
+        id: q.id,
+        subject: q.subject,
+        questionText: q.question_text,
+        confidence: q.confidence,
+        hasVisualElements: q.has_visual_elements,
+        archivedAt: q.archived_at,
+        reviewCount: q.review_count,
+        tags: q.tags,
+        grade: q.grade,
+        points: q.points,
+        maxPoints: q.max_points,
+        isGraded: q.is_graded
+      }));
+
+      return reply.send({
+        success: true,
+        data: questions
+      });
+    } catch (error) {
+      this.fastify.log.error('Error fetching questions by subject:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to fetch questions by subject',
+        message: error.message
+      });
+    }
+  }
+
+  async getQuestionDetails(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+      const { id } = request.params;
+
+      this.fastify.log.info(`📄 Fetching question details: ${id} for user: ${userId}`);
+
+      const query = `
+        SELECT * FROM archived_questions
+        WHERE id = $1 AND user_id = $2
+      `;
+
+      const result = await db.query(query, [id, userId]);
+
+      if (result.rows.length === 0) {
+        return reply.status(404).send({
+          success: false,
+          message: 'Question not found'
+        });
+      }
+
+      const question = result.rows[0];
+
+      return reply.send({
+        success: true,
+        data: {
+          id: question.id,
+          userId: question.user_id,
+          subject: question.subject,
+          questionText: question.question_text,
+          answerText: question.answer_text,
+          confidence: question.confidence,
+          hasVisualElements: question.has_visual_elements,
+          originalImageUrl: question.original_image_url,
+          questionImageUrl: question.question_image_url,
+          processingTime: question.processing_time,
+          archivedAt: question.archived_at,
+          reviewCount: question.review_count,
+          lastReviewedAt: question.last_reviewed_at,
+          tags: question.tags,
+          notes: question.notes,
+          studentAnswer: question.student_answer,
+          grade: question.grade,
+          pointsEarned: question.points,
+          pointsPossible: question.max_points,
+          feedback: question.feedback,
+          isGraded: question.is_graded,
+          createdAt: question.created_at,
+          updatedAt: question.updated_at
+        }
+      });
+    } catch (error) {
+      this.fastify.log.error('Error fetching question details:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to fetch question details',
+        message: error.message
+      });
+    }
+  }
+
+  async updateQuestion(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+      const { id } = request.params;
+      const { tags, notes } = request.body;
+
+      this.fastify.log.info(`📝 Updating question: ${id} for user: ${userId}`);
+
+      const query = `
+        UPDATE archived_questions
+        SET tags = $1, notes = $2, updated_at = NOW()
+        WHERE id = $3 AND user_id = $4
+        RETURNING *
+      `;
+
+      const result = await db.query(query, [tags, notes, id, userId]);
+
+      if (result.rows.length === 0) {
+        return reply.status(404).send({
+          success: false,
+          message: 'Question not found'
+        });
+      }
+
+      return reply.send({
+        success: true,
+        message: 'Question updated successfully',
+        data: {
+          id: result.rows[0].id,
+          tags: result.rows[0].tags,
+          notes: result.rows[0].notes,
+          updatedAt: result.rows[0].updated_at
+        }
+      });
+    } catch (error) {
+      this.fastify.log.error('Error updating question:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to update question',
+        message: error.message
+      });
+    }
+  }
+
+  async deleteQuestion(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+      const { id } = request.params;
+
+      this.fastify.log.info(`🗑️ Deleting question: ${id} for user: ${userId}`);
+
+      const query = `
+        DELETE FROM archived_questions
+        WHERE id = $1 AND user_id = $2
+        RETURNING id
+      `;
+
+      const result = await db.query(query, [id, userId]);
+
+      if (result.rows.length === 0) {
+        return reply.status(404).send({
+          success: false,
+          message: 'Question not found'
+        });
+      }
+
+      return reply.send({
+        success: true,
+        message: 'Question deleted successfully'
+      });
+    } catch (error) {
+      this.fastify.log.error('Error deleting question:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to delete question',
+        message: error.message
+      });
+    }
+  }
+
+  async getQuestionStats(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+
+      this.fastify.log.info(`📊 Fetching question statistics for user: ${userId}`);
+
+      const query = `
+        SELECT 
+          COUNT(*) as total_questions,
+          COUNT(DISTINCT subject) as subjects_studied,
+          AVG(confidence) as avg_confidence,
+          COUNT(CASE WHEN grade = 'CORRECT' THEN 1 END) as correct_answers,
+          COUNT(CASE WHEN grade = 'INCORRECT' THEN 1 END) as incorrect_answers,
+          COUNT(CASE WHEN grade = 'EMPTY' THEN 1 END) as empty_answers,
+          COUNT(CASE WHEN is_graded = true THEN 1 END) as graded_questions
+        FROM archived_questions
+        WHERE user_id = $1
+      `;
+
+      const result = await db.query(query, [userId]);
+      const stats = result.rows[0];
+
+      // Get subject breakdown
+      const subjectQuery = `
+        SELECT 
+          subject,
+          COUNT(*) as question_count,
+          AVG(confidence) as avg_confidence,
+          COUNT(CASE WHEN grade = 'CORRECT' THEN 1 END) as correct_count,
+          COUNT(CASE WHEN is_graded = true THEN 1 END) as graded_count
+        FROM archived_questions
+        WHERE user_id = $1
+        GROUP BY subject
+        ORDER BY question_count DESC
+      `;
+
+      const subjectResult = await db.query(subjectQuery, [userId]);
+
+      return reply.send({
+        success: true,
+        data: {
+          totalQuestions: parseInt(stats.total_questions),
+          subjectsStudied: parseInt(stats.subjects_studied),
+          averageConfidence: parseFloat(stats.avg_confidence) || 0,
+          correctAnswers: parseInt(stats.correct_answers),
+          incorrectAnswers: parseInt(stats.incorrect_answers),
+          emptyAnswers: parseInt(stats.empty_answers),
+          gradedQuestions: parseInt(stats.graded_questions),
+          accuracyRate: stats.graded_questions > 0 
+            ? parseFloat(stats.correct_answers) / parseFloat(stats.graded_questions)
+            : 0,
+          subjectBreakdown: subjectResult.rows.map(subject => ({
+            subject: subject.subject,
+            questionCount: parseInt(subject.question_count),
+            averageConfidence: parseFloat(subject.avg_confidence),
+            correctCount: parseInt(subject.correct_count),
+            gradedCount: parseInt(subject.graded_count),
+            accuracyRate: subject.graded_count > 0 
+              ? parseFloat(subject.correct_count) / parseFloat(subject.graded_count)
+              : 0
+          }))
+        }
+      });
+    } catch (error) {
+      this.fastify.log.error('Error fetching question statistics:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to fetch statistics',
+        message: error.message
       });
     }
   }

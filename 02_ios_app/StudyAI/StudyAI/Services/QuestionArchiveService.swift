@@ -11,15 +11,19 @@ import Combine
 class QuestionArchiveService: ObservableObject {
     static let shared = QuestionArchiveService()
     
-    // Supabase Configuration (reuse from SupabaseService)
-    private let supabaseURL = "https://zfrjpqmhezfcxzqbkivg.supabase.co"
-    private let supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmcmpwcW1oZXpmY3h6cWJraXZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzOTUxMTUsImV4cCI6MjA3MTk3MTExNX0._ePT9qbKj0-MjzXPjofLKBbYLZWQGsLyqNx6H4FgJ7c"
+    // Railway Backend Configuration
+    private let baseURL = "https://sai-backend-production.up.railway.app"
     
     private init() {}
     
-    // Get current user ID from centralized UserSessionManager
+    // Get authentication token from AuthenticationService
+    private var authToken: String? {
+        return AuthenticationService.shared.getAuthToken()
+    }
+    
+    // Get current user ID from AuthenticationService
     private var currentUserId: String? {
-        return UserSessionManager.shared.currentUserId
+        return AuthenticationService.shared.currentUser?.id
     }
     
     // MARK: - Archive Individual Questions
@@ -29,19 +33,79 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.notAuthenticated
         }
         
+        guard let token = authToken else {
+            throw QuestionArchiveError.notAuthenticated
+        }
+        
         print("📝 Archiving \(request.selectedQuestionIndices.count) questions for user: \(userId)")
         print("📚 Subject: \(request.detectedSubject)")
         
+        guard let url = URL(string: "\(baseURL)/api/archived-questions") else {
+            throw QuestionArchiveError.invalidURL
+        }
+        
+        // Prepare request data for Railway API
+        let requestData: [String: Any] = [
+            "selectedQuestionIndices": request.selectedQuestionIndices,
+            "questions": request.questions.map { question in
+                [
+                    "questionText": question.questionText,
+                    "answerText": question.answerText,
+                    "confidence": question.confidence,
+                    "hasVisualElements": question.hasVisualElements,
+                    "studentAnswer": question.studentAnswer ?? "",
+                    "correctAnswer": question.correctAnswer ?? question.answerText,
+                    "grade": question.grade ?? "EMPTY",
+                    "pointsEarned": question.pointsEarned ?? 0.0,
+                    "pointsPossible": question.pointsPossible ?? 1.0,
+                    "feedback": question.feedback ?? ""
+                ]
+            },
+            "userNotes": request.userNotes,
+            "userTags": request.userTags,
+            "detectedSubject": request.detectedSubject,
+            "originalImageUrl": request.originalImageUrl ?? "",
+            "processingTime": request.processingTime
+        ]
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+        
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw QuestionArchiveError.invalidResponse
+        }
+        
+        if httpResponse.statusCode != 201 {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("❌ Question archive failed: \(errorMessage)")
+            throw QuestionArchiveError.archiveFailed(errorMessage)
+        }
+        
+        // Parse response
+        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let success = jsonResponse["success"] as? Bool,
+              success == true,
+              let responseData = jsonResponse["data"] as? [[String: Any]] else {
+            throw QuestionArchiveError.invalidData
+        }
+        
+        // Convert response to ArchivedQuestions
         var archivedQuestions: [ArchivedQuestion] = []
         
-        // Process each selected question
-        for (arrayIndex, questionIndex) in request.selectedQuestionIndices.enumerated() {
+        for (index, questionIndex) in request.selectedQuestionIndices.enumerated() {
             guard questionIndex < request.questions.count else { continue }
             
             let question = request.questions[questionIndex]
-            let userNotes = arrayIndex < request.userNotes.count ? request.userNotes[arrayIndex] : ""
-            let userTags = arrayIndex < request.userTags.count ? request.userTags[arrayIndex] : []
+            let userNote = index < request.userNotes.count ? request.userNotes[index] : ""
+            let userTag = index < request.userTags.count ? request.userTags[index] : []
             
+            // Create ArchivedQuestion from response and original data
             let archivedQuestion = ArchivedQuestion(
                 userId: userId,
                 subject: request.detectedSubject,
@@ -51,15 +115,15 @@ class QuestionArchiveService: ObservableObject {
                 hasVisualElements: question.hasVisualElements,
                 originalImageUrl: request.originalImageUrl,
                 processingTime: request.processingTime,
-                tags: userTags,
-                notes: userNotes
+                tags: userTag,
+                notes: userNote,
+                studentAnswer: question.studentAnswer,
+                grade: question.grade.map { GradeResult(rawValue: $0) } ?? nil,
+                points: question.pointsEarned,
+                maxPoints: question.pointsPossible,
+                feedback: question.feedback,
+                isGraded: question.grade != nil
             )
-            
-            // Convert to database format
-            let dbData = try convertQuestionToDBFormat(archivedQuestion)
-            
-            // Insert into Supabase
-            try await insertQuestionToDB(dbData)
             
             archivedQuestions.append(archivedQuestion)
         }
@@ -75,25 +139,26 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.notAuthenticated
         }
         
+        guard let token = authToken else {
+            throw QuestionArchiveError.notAuthenticated
+        }
+        
         print("📚 Fetching archived questions for user: \(userId)")
         
-        let queryParams = [
-            "select=id,subject,question_text,confidence,has_visual_elements,archived_at,review_count,tags",
-            "user_id=eq.\(userId)",
-            "order=archived_at.desc",
-            "limit=\(limit)",
-            "offset=\(offset)"
-        ].joined(separator: "&")
+        var urlComponents = URLComponents(string: "\(baseURL)/api/archived-questions")!
+        urlComponents.queryItems = [
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "offset", value: String(offset))
+        ]
         
-        guard let url = URL(string: "\(supabaseURL)/rest/v1/archived_questions?\(queryParams)") else {
+        guard let url = urlComponents.url else {
             throw QuestionArchiveError.invalidURL
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(supabaseAnonKey)", forHTTPHeaderField: "Authorization")
-        request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -103,8 +168,14 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.fetchFailed(errorMessage)
         }
         
-        let questionData = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] ?? []
-        let questions = try questionData.map { try convertQuestionSummaryFromDBFormat($0) }
+        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let success = jsonResponse["success"] as? Bool,
+              success == true,
+              let questionData = jsonResponse["data"] as? [[String: Any]] else {
+            throw QuestionArchiveError.invalidData
+        }
+        
+        let questions = try questionData.map { try convertQuestionSummaryFromRailwayFormat($0) }
         
         print("✅ Fetched \(questions.count) questions")
         return questions
@@ -117,22 +188,18 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.notAuthenticated
         }
         
-        let queryParams = [
-            "select=id,subject,question_text,confidence,has_visual_elements,archived_at,review_count,tags",
-            "user_id=eq.\(userId)",
-            "subject=eq.\(subject)",
-            "order=archived_at.desc"
-        ].joined(separator: "&")
+        guard let token = authToken else {
+            throw QuestionArchiveError.notAuthenticated
+        }
         
-        guard let url = URL(string: "\(supabaseURL)/rest/v1/archived_questions?\(queryParams)") else {
+        guard let url = URL(string: "\(baseURL)/api/archived-questions/subject/\(subject)") else {
             throw QuestionArchiveError.invalidURL
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(supabaseAnonKey)", forHTTPHeaderField: "Authorization")
-        request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -142,8 +209,14 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.fetchFailed(errorMessage)
         }
         
-        let questionData = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] ?? []
-        let questions = try questionData.map { try convertQuestionSummaryFromDBFormat($0) }
+        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let success = jsonResponse["success"] as? Bool,
+              success == true,
+              let questionData = jsonResponse["data"] as? [[String: Any]] else {
+            throw QuestionArchiveError.invalidData
+        }
+        
+        let questions = try questionData.map { try convertQuestionSummaryFromRailwayFormat($0) }
         
         return questions
     }
@@ -155,21 +228,18 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.notAuthenticated
         }
         
-        let queryParams = [
-            "select=*",
-            "id=eq.\(questionId)",
-            "user_id=eq.\(userId)"
-        ].joined(separator: "&")
+        guard let token = authToken else {
+            throw QuestionArchiveError.notAuthenticated
+        }
         
-        guard let url = URL(string: "\(supabaseURL)/rest/v1/archived_questions?\(queryParams)") else {
+        guard let url = URL(string: "\(baseURL)/api/archived-questions/\(questionId)") else {
             throw QuestionArchiveError.invalidURL
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(supabaseAnonKey)", forHTTPHeaderField: "Authorization")
-        request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -179,12 +249,14 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.fetchFailed(errorMessage)
         }
         
-        let questionData = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] ?? []
-        guard let firstQuestion = questionData.first else {
-            throw QuestionArchiveError.questionNotFound
+        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let success = jsonResponse["success"] as? Bool,
+              success == true,
+              let questionData = jsonResponse["data"] as? [String: Any] else {
+            throw QuestionArchiveError.invalidData
         }
         
-        return try convertFullQuestionFromDBFormat(firstQuestion)
+        return try convertFullQuestionFromRailwayFormat(questionData)
     }
     
     // MARK: - Search Questions
@@ -194,38 +266,43 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.notAuthenticated
         }
         
-        var queryParams = [
-            "select=id,subject,question_text,confidence,has_visual_elements,archived_at,review_count,tags",
-            "user_id=eq.\(userId)",
-            "order=archived_at.desc"
-        ]
+        guard let token = authToken else {
+            throw QuestionArchiveError.notAuthenticated
+        }
+        
+        var urlComponents = URLComponents(string: "\(baseURL)/api/archived-questions")!
+        var queryItems: [URLQueryItem] = []
         
         // Add filters
         if let subjects = filter.subjects, !subjects.isEmpty {
-            let subjectFilter = subjects.map { "subject.eq.\($0)" }.joined(separator: ",")
-            queryParams.append("or=(\(subjectFilter))")
+            // For multiple subjects, we'll use the first one for now
+            // The API could be enhanced to support multiple subjects
+            queryItems.append(URLQueryItem(name: "subject", value: subjects.first))
         }
         
         if let confidenceRange = filter.confidenceRange {
-            queryParams.append("confidence=gte.\(confidenceRange.lowerBound)")
-            queryParams.append("confidence=lte.\(confidenceRange.upperBound)")
+            queryItems.append(URLQueryItem(name: "confidenceMin", value: String(confidenceRange.lowerBound)))
+            queryItems.append(URLQueryItem(name: "confidenceMax", value: String(confidenceRange.upperBound)))
         }
         
         if let hasVisualElements = filter.hasVisualElements {
-            queryParams.append("has_visual_elements=eq.\(hasVisualElements)")
+            queryItems.append(URLQueryItem(name: "hasVisualElements", value: String(hasVisualElements)))
         }
         
-        let queryString = queryParams.joined(separator: "&")
+        if let searchText = filter.searchText, !searchText.isEmpty {
+            queryItems.append(URLQueryItem(name: "searchText", value: searchText))
+        }
         
-        guard let url = URL(string: "\(supabaseURL)/rest/v1/archived_questions?\(queryString)") else {
+        urlComponents.queryItems = queryItems
+        
+        guard let url = urlComponents.url else {
             throw QuestionArchiveError.invalidURL
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(supabaseAnonKey)", forHTTPHeaderField: "Authorization")
-        request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -235,82 +312,40 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.fetchFailed(errorMessage)
         }
         
-        let questionData = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] ?? []
-        var questions = try questionData.map { try convertQuestionSummaryFromDBFormat($0) }
-        
-        // Apply text search (client-side for now)
-        if let searchText = filter.searchText, !searchText.isEmpty {
-            questions = questions.filter { question in
-                question.questionText.localizedCaseInsensitiveContains(searchText) ||
-                question.subject.localizedCaseInsensitiveContains(searchText)
-            }
+        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let success = jsonResponse["success"] as? Bool,
+              success == true,
+              let questionData = jsonResponse["data"] as? [[String: Any]] else {
+            throw QuestionArchiveError.invalidData
         }
+        
+        let questions = try questionData.map { try convertQuestionSummaryFromRailwayFormat($0) }
         
         return questions
     }
     
     // MARK: - Helper Methods
     
-    private func insertQuestionToDB(_ dbData: [String: Any]) async throws {
-        guard let url = URL(string: "\(supabaseURL)/rest/v1/archived_questions") else {
-            throw QuestionArchiveError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(supabaseAnonKey)", forHTTPHeaderField: "Authorization")
-        request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("return=representation", forHTTPHeaderField: "Prefer")
-        
-        request.httpBody = try JSONSerialization.data(withJSONObject: dbData)
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw QuestionArchiveError.invalidResponse
-        }
-        
-        if httpResponse.statusCode != 201 {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            print("❌ Question archive failed: \(errorMessage)")
-            throw QuestionArchiveError.archiveFailed(errorMessage)
-        }
-    }
-    
-    private func convertQuestionToDBFormat(_ question: ArchivedQuestion) throws -> [String: Any] {
-        return [
-            "id": question.id,
-            "user_id": question.userId,
-            "subject": question.subject,
-            "question_text": question.questionText,
-            "answer_text": question.answerText,
-            "confidence": question.confidence,
-            "has_visual_elements": question.hasVisualElements,
-            "original_image_url": question.originalImageUrl as Any,
-            "question_image_url": question.questionImageUrl as Any,
-            "processing_time": question.processingTime,
-            "archived_at": ISO8601DateFormatter().string(from: question.archivedAt),
-            "review_count": question.reviewCount,
-            "last_reviewed_at": question.lastReviewedAt?.ISO8601Format() as Any,
-            "tags": question.tags as Any,
-            "notes": question.notes as Any
-        ]
-    }
-    
-    private func convertQuestionSummaryFromDBFormat(_ data: [String: Any]) throws -> QuestionSummary {
+    private func convertQuestionSummaryFromRailwayFormat(_ data: [String: Any]) throws -> QuestionSummary {
         guard let id = data["id"] as? String,
               let subject = data["subject"] as? String,
-              let questionText = data["question_text"] as? String,
-              let archivedAtString = data["archived_at"] as? String,
+              let questionText = data["questionText"] as? String,
+              let archivedAtString = data["archivedAt"] as? String,
               let archivedAt = parseDate(archivedAtString) else {
             throw QuestionArchiveError.invalidData
         }
         
-        let confidence = (data["confidence"] as? Float) ?? (data["confidence"] as? Int).map(Float.init) ?? 0.0
-        let hasVisualElements = (data["has_visual_elements"] as? Bool) ?? false
-        let reviewCount = (data["review_count"] as? Int) ?? 0
+        let confidence = (data["confidence"] as? Float) ?? (data["confidence"] as? Double).map(Float.init) ?? 0.0
+        let hasVisualElements = (data["hasVisualElements"] as? Bool) ?? false
+        let reviewCount = (data["reviewCount"] as? Int) ?? 0
         let tags = data["tags"] as? [String]
+        
+        // Grading fields
+        let gradeString = data["grade"] as? String
+        let grade = gradeString != nil ? GradeResult(rawValue: gradeString!) : nil
+        let points = (data["points"] as? Float) ?? (data["points"] as? Double).map(Float.init)
+        let maxPoints = (data["maxPoints"] as? Float) ?? (data["maxPoints"] as? Double).map(Float.init)
+        let isGraded = (data["isGraded"] as? Bool) ?? false
         
         return QuestionSummary(
             id: id,
@@ -320,32 +355,45 @@ class QuestionArchiveService: ObservableObject {
             hasVisualElements: hasVisualElements,
             archivedAt: archivedAt,
             reviewCount: reviewCount,
-            tags: tags
+            tags: tags,
+            grade: grade,
+            points: points,
+            maxPoints: maxPoints,
+            isGraded: isGraded
         )
     }
     
-    private func convertFullQuestionFromDBFormat(_ data: [String: Any]) throws -> ArchivedQuestion {
+    private func convertFullQuestionFromRailwayFormat(_ data: [String: Any]) throws -> ArchivedQuestion {
         guard let id = data["id"] as? String,
-              let userId = data["user_id"] as? String,
+              let userId = data["userId"] as? String,
               let subject = data["subject"] as? String,
-              let questionText = data["question_text"] as? String,
-              let answerText = data["answer_text"] as? String,
-              let archivedAtString = data["archived_at"] as? String,
+              let questionText = data["questionText"] as? String,
+              let answerText = data["answerText"] as? String,
+              let archivedAtString = data["archivedAt"] as? String,
               let archivedAt = parseDate(archivedAtString) else {
             throw QuestionArchiveError.invalidData
         }
         
-        let confidence = (data["confidence"] as? Float) ?? (data["confidence"] as? Int).map(Float.init) ?? 0.0
-        let hasVisualElements = (data["has_visual_elements"] as? Bool) ?? false
-        let processingTime = (data["processing_time"] as? Double) ?? 0.0
-        let reviewCount = (data["review_count"] as? Int) ?? 0
-        let originalImageUrl = data["original_image_url"] as? String
-        let questionImageUrl = data["question_image_url"] as? String
+        let confidence = (data["confidence"] as? Float) ?? (data["confidence"] as? Double).map(Float.init) ?? 0.0
+        let hasVisualElements = (data["hasVisualElements"] as? Bool) ?? false
+        let processingTime = (data["processingTime"] as? Double) ?? 0.0
+        let reviewCount = (data["reviewCount"] as? Int) ?? 0
+        let originalImageUrl = data["originalImageUrl"] as? String
+        let questionImageUrl = data["questionImageUrl"] as? String
         let tags = data["tags"] as? [String]
         let notes = data["notes"] as? String
         
+        // Grading fields
+        let studentAnswer = data["studentAnswer"] as? String
+        let gradeString = data["grade"] as? String
+        let grade = gradeString != nil ? GradeResult(rawValue: gradeString!) : nil
+        let points = (data["pointsEarned"] as? Float) ?? (data["pointsEarned"] as? Double).map(Float.init)
+        let maxPoints = (data["pointsPossible"] as? Float) ?? (data["pointsPossible"] as? Double).map(Float.init)
+        let feedback = data["feedback"] as? String
+        let isGraded = (data["isGraded"] as? Bool) ?? false
+        
         var lastReviewedAt: Date?
-        if let lastReviewedAtString = data["last_reviewed_at"] as? String {
+        if let lastReviewedAtString = data["lastReviewedAt"] as? String {
             lastReviewedAt = parseDate(lastReviewedAtString)
         }
         
@@ -364,7 +412,13 @@ class QuestionArchiveService: ObservableObject {
             reviewCount: reviewCount,
             lastReviewedAt: lastReviewedAt,
             tags: tags,
-            notes: notes
+            notes: notes,
+            studentAnswer: studentAnswer,
+            grade: grade,
+            points: points,
+            maxPoints: maxPoints,
+            feedback: feedback,
+            isGraded: isGraded
         )
     }
     

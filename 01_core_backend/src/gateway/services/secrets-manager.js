@@ -27,10 +27,10 @@ class SecretsManager {
     // External API keys
     this.setSecret('OPENAI_API_KEY', process.env.OPENAI_API_KEY);
     
-    // Database credentials
-    this.setSecret('SUPABASE_URL', process.env.SUPABASE_URL);
-    this.setSecret('SUPABASE_ANON_KEY', process.env.SUPABASE_ANON_KEY);
-    this.setSecret('SUPABASE_SERVICE_KEY', process.env.SUPABASE_SERVICE_KEY);
+    // Database credentials (optional - only warn if database operations are attempted)
+    this.setSecretQuiet('SUPABASE_URL', process.env.SUPABASE_URL);
+    this.setSecretQuiet('SUPABASE_ANON_KEY', process.env.SUPABASE_ANON_KEY);
+    this.setSecretQuiet('SUPABASE_SERVICE_KEY', process.env.SUPABASE_SERVICE_KEY);
     
     // Service URLs (not secret but centralized)
     this.setSecret('AI_ENGINE_URL', process.env.AI_ENGINE_URL, false);
@@ -72,6 +72,24 @@ class SecretsManager {
       if (isSecret) {
         console.warn(`⚠️ Secret '${name}' is not set`);
       }
+      return;
+    }
+
+    const secretData = {
+      value: isSecret ? this.encrypt(value) : value,
+      isSecret,
+      setAt: Date.now(),
+      accessCount: 0
+    };
+
+    this.secrets.set(name, secretData);
+  }
+
+  /**
+   * Set a secret value without warning if missing (for optional secrets)
+   */
+  setSecretQuiet(name, value, isSecret = true) {
+    if (!value) {
       return;
     }
 

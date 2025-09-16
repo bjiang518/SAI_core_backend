@@ -35,7 +35,8 @@ struct HomeworkResultsView: View {
             processingTime: enhancedResult.processingTime,
             overallConfidence: enhancedResult.overallConfidence,
             parsingMethod: enhancedResult.parsingMethod,
-            rawAIResponse: enhancedResult.rawAIResponse
+            rawAIResponse: enhancedResult.rawAIResponse,
+            performanceSummary: enhancedResult.performanceSummary
         )
         self.enhancedResult = enhancedResult
         self.originalImageUrl = originalImageUrl
@@ -47,6 +48,13 @@ struct HomeworkResultsView: View {
                 VStack(spacing: 16) {
                     // Results Summary
                     resultsSummarySection
+                    
+                    // Performance Summary
+                    if let enhanced = enhancedResult, let summary = enhanced.performanceSummary {
+                        performanceSummarySection(summary)
+                    } else if parsingResult.performanceSummary != nil {
+                        performanceSummarySection(parsingResult.performanceSummary!)
+                    }
                     
                     // Question Selection Controls
                     questionSelectionSection
@@ -63,7 +71,7 @@ struct HomeworkResultsView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Homework Results")
+            .navigationTitle("Your Score")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -122,20 +130,10 @@ struct HomeworkResultsView: View {
     private var resultsSummarySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Parsing Results")
+                Text("Report")
                     .font(.headline)
                     .foregroundColor(.black)
                 Spacer()
-                HStack(spacing: 8) {
-                    if let enhanced = enhancedResult, enhanced.isReliableParsing {
-                        Image(systemName: "checkmark.seal.fill")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                    }
-                    Text(String(format: "%.1fs", parsingResult.processingTime))
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
             }
             
             // Enhanced subject detection display
@@ -173,49 +171,77 @@ struct HomeworkResultsView: View {
                 )
                 
                 StatCard(
-                    title: "Confidence",
-                    value: String(format: "%.1f%%", parsingResult.overallConfidence * 100),
-                    icon: "checkmark.seal.fill",
-                    color: confidenceColor(parsingResult.overallConfidence)
+                    title: "Accuracy",
+                    value: String(format: "%.0f%%", 
+                        (enhancedResult?.calculatedAccuracy ?? parsingResult.calculatedAccuracy) * 100),
+                    icon: "target",
+                    color: accuracyColor(enhancedResult?.calculatedAccuracy ?? parsingResult.calculatedAccuracy)
                 )
-                
-                StatCard(
-                    title: enhancedResult?.isReliableParsing == true ? "JSON AI" : "AI",
-                    value: enhancedResult?.parsingQualityDescription.components(separatedBy: " ").first ?? "Standard",
-                    icon: enhancedResult?.isReliableParsing == true ? "cpu.fill" : "brain.head.profile.fill",
-                    color: enhancedResult?.isReliableParsing == true ? .green : .purple
-                )
-            }
-            
-            // Enhanced parsing method info
-            if let enhanced = enhancedResult {
-                HStack {
-                    Image(systemName: enhanced.isReliableParsing ? "gear.badge.checkmark" : "gear")
-                        .font(.caption)
-                        .foregroundColor(enhanced.isReliableParsing ? .green : .orange)
-                    
-                    Text(enhanced.parsingQualityDescription)
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                    
-                    Spacer()
-                    
-                    if let totalFound = enhanced.totalQuestionsFound, totalFound != enhanced.questionCount {
-                        Text("Found \(totalFound), Parsed \(enhanced.questionCount)")
-                            .font(.caption2)
-                            .foregroundColor(.orange)
-                    }
-                }
-                .padding(.top, 4)
             }
         }
         .padding()
-        .background(enhancedResult?.isReliableParsing == true ? Color.green.opacity(0.05) : Color.gray.opacity(0.1))
+        .background(Color.gray.opacity(0.1))
         .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(enhancedResult?.isReliableParsing == true ? Color.green.opacity(0.3) : Color.clear, lineWidth: 1)
-        )
+    }
+    
+    // MARK: - Performance Summary
+    
+    private func performanceSummarySection(_ summary: PerformanceSummary) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.title3)
+                    .foregroundColor(.blue)
+                
+                Text("Performance Summary")
+                    .font(.headline)
+                    .foregroundColor(.black)
+                
+                Spacer()
+            }
+            
+            // AI Summary Text
+            Text(summary.summaryText)
+                .font(.body)
+                .foregroundColor(.black)
+                .multilineTextAlignment(.leading)
+                .lineLimit(nil)
+            
+            // Score breakdown (if there are incorrect answers)
+            if summary.totalIncorrect > 0 || summary.totalEmpty > 0 {
+                HStack(spacing: 16) {
+                    if summary.totalCorrect > 0 {
+                        ScoreBreakdownItem(
+                            count: summary.totalCorrect, 
+                            label: "Correct", 
+                            color: .green,
+                            icon: "checkmark.circle.fill"
+                        )
+                    }
+                    
+                    if summary.totalIncorrect > 0 {
+                        ScoreBreakdownItem(
+                            count: summary.totalIncorrect, 
+                            label: "Incorrect", 
+                            color: .red,
+                            icon: "xmark.circle.fill"
+                        )
+                    }
+                    
+                    if summary.totalEmpty > 0 {
+                        ScoreBreakdownItem(
+                            count: summary.totalEmpty, 
+                            label: "Empty", 
+                            color: .gray,
+                            icon: "minus.circle.fill"
+                        )
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.blue.opacity(0.05))
+        .cornerRadius(16)
     }
     
     // MARK: - Questions List
@@ -380,6 +406,16 @@ struct HomeworkResultsView: View {
             return .red
         }
     }
+    
+    private func accuracyColor(_ accuracy: Float) -> Color {
+        if accuracy >= 0.9 {
+            return .green
+        } else if accuracy >= 0.7 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
 }
 
 // MARK: - Question Answer Card
@@ -437,14 +473,31 @@ struct QuestionAnswerCard: View {
                         
                         // Metadata
                         HStack(spacing: 12) {
-                            if question.confidence < 1.0 {
+                            // Show grading info if available
+                            if question.isGraded {
+                                HStack(spacing: 4) {
+                                    Image(systemName: question.gradeIcon)
+                                        .font(.caption2)
+                                        .foregroundColor(question.gradeColor)
+                                    Text(question.grade ?? "")
+                                        .font(.caption2)
+                                        .foregroundColor(question.gradeColor)
+                                    
+                                    if !question.scoreText.isEmpty {
+                                        Text("(\(question.scoreText))")
+                                            .font(.caption2)
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                            } else if question.confidence < 1.0 {
+                                // Legacy confidence display
                                 HStack(spacing: 4) {
                                     Image(systemName: "checkmark.seal.fill")
                                         .font(.caption2)
                                         .foregroundColor(confidenceColor(question.confidence))
                                     Text(String(format: "%.0f%%", question.confidence * 100))
                                         .font(.caption2)
-                                        .foregroundColor(.gray) // Fixed: explicit gray text
+                                        .foregroundColor(.gray)
                                 }
                             }
                             
@@ -455,7 +508,7 @@ struct QuestionAnswerCard: View {
                                         .foregroundColor(.blue)
                                     Text("Has Visual")
                                         .font(.caption2)
-                                        .foregroundColor(.gray) // Fixed: explicit gray text
+                                        .foregroundColor(.gray)
                                 }
                             }
                         }
@@ -477,29 +530,178 @@ struct QuestionAnswerCard: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Divider()
                     
-                    HStack(alignment: .top, spacing: 12) {
-                        // Answer indicator
-                        VStack {
-                            Image(systemName: "lightbulb.fill")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                                .padding(.top, 2)
+                    // Raw Question Section (if available)
+                    if let rawQuestion = question.rawQuestionText, !rawQuestion.isEmpty && rawQuestion != question.questionText {
+                        HStack(alignment: .top, spacing: 12) {
+                            VStack {
+                                Image(systemName: "doc.text.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .padding(.top, 2)
+                                Spacer()
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Raw Question:")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.gray)
+                                
+                                Text(rawQuestion)
+                                    .font(.body)
+                                    .foregroundColor(.black)
+                                    .multilineTextAlignment(.leading)
+                                    .textSelection(.enabled)
+                            }
+                            
                             Spacer()
                         }
-                        
-                        // Answer text
-                        Text(question.answerText)
-                            .font(.body)
-                            .foregroundColor(.black) // Fixed: explicit black text on white background
-                            .multilineTextAlignment(.leading)
-                            .textSelection(.enabled) // Allow text selection
-                        
-                        Spacer()
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom)
+                    
+                    if question.isGraded {
+                        // Grading Mode: Show student answer, correct answer, and feedback
+                        
+                        // Student Answer Section
+                        if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
+                            HStack(alignment: .top, spacing: 12) {
+                                VStack {
+                                    Image(systemName: "person.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                        .padding(.top, 2)
+                                    Spacer()
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Student Answer:")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.gray)
+                                    
+                                    Text(studentAnswer)
+                                        .font(.body)
+                                        .foregroundColor(.black)
+                                        .multilineTextAlignment(.leading)
+                                        .textSelection(.enabled)
+                                }
+                                
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                        } else {
+                            // Empty answer
+                            HStack(alignment: .top, spacing: 12) {
+                                VStack {
+                                    Image(systemName: "person.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                        .padding(.top, 2)
+                                    Spacer()
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Student Answer:")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.gray)
+                                    
+                                    Text("(No answer provided)")
+                                        .font(.body)
+                                        .italic()
+                                        .foregroundColor(.gray)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                        }
+                        
+                        // Correct Answer Section
+                        if let correctAnswer = question.correctAnswer, !correctAnswer.isEmpty {
+                            HStack(alignment: .top, spacing: 12) {
+                                VStack {
+                                    Image(systemName: "lightbulb.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.orange)
+                                        .padding(.top, 2)
+                                    Spacer()
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Correct Answer:")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.gray)
+                                    
+                                    Text(correctAnswer)
+                                        .font(.body)
+                                        .foregroundColor(.black)
+                                        .multilineTextAlignment(.leading)
+                                        .textSelection(.enabled)
+                                }
+                                
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                        }
+                        
+                        // Feedback Section
+                        if let feedback = question.feedback, !feedback.isEmpty && feedback != "No feedback provided" {
+                            HStack(alignment: .top, spacing: 12) {
+                                VStack {
+                                    Image(systemName: "bubble.left.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.purple)
+                                        .padding(.top, 2)
+                                    Spacer()
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Feedback:")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.gray)
+                                    
+                                    Text(feedback)
+                                        .font(.body)
+                                        .foregroundColor(.black)
+                                        .multilineTextAlignment(.leading)
+                                        .textSelection(.enabled)
+                                }
+                                
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                        }
+                        
+                    } else {
+                        // Legacy Mode: Show AI answer only
+                        HStack(alignment: .top, spacing: 12) {
+                            VStack {
+                                Image(systemName: "lightbulb.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                                    .padding(.top, 2)
+                                Spacer()
+                            }
+                            
+                            Text(question.answerText)
+                                .font(.body)
+                                .foregroundColor(.black)
+                                .multilineTextAlignment(.leading)
+                                .textSelection(.enabled)
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    // Bottom padding
+                    Color.clear.frame(height: 4)
                 }
-                .background(Color.blue.opacity(0.05))
+                .background(question.isGraded ? question.gradeColor.opacity(0.05) : Color.blue.opacity(0.05))
             }
         }
         .background(isSelected ? Color.blue.opacity(0.05) : Color.white)
@@ -518,8 +720,19 @@ struct QuestionAnswerCard: View {
                     .fill(Color.gray)
                     .frame(width: 8, height: 8)
                     .padding(.top, 8)
+            } else if question.isGraded {
+                // Grade indicator for graded questions
+                ZStack {
+                    Circle()
+                        .fill(question.gradeColor)
+                        .frame(width: 28, height: 28)
+                    
+                    Image(systemName: question.gradeIcon)
+                        .font(.caption)
+                        .foregroundColor(.white)
+                }
             } else {
-                // Numbered circle for numbered questions
+                // Numbered circle for numbered questions (legacy)
                 ZStack {
                     Circle()
                         .fill(Color.blue)
@@ -575,6 +788,36 @@ struct StatCard: View {
     }
 }
 
+// MARK: - Score Breakdown Item
+
+struct ScoreBreakdownItem: View {
+    let count: Int
+    let label: String
+    let color: Color
+    let icon: String
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundColor(color)
+            
+            Text("\(count)")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.black)
+            
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.gray)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(color.opacity(0.1))
+        .cornerRadius(8)
+    }
+}
+
 // MARK: - Preview
 
 #Preview {
@@ -603,7 +846,8 @@ struct StatCard: View {
             processingTime: 2.3,
             overallConfidence: 0.86,
             parsingMethod: "AI-Powered Parsing",
-            rawAIResponse: "QUESTION_NUMBER: 1\nQUESTION: What is..."
+            rawAIResponse: "QUESTION_NUMBER: 1\nQUESTION: What is...",
+            performanceSummary: nil
         ),
         originalImageUrl: "test-url"
     )

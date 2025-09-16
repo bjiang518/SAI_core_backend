@@ -499,7 +499,8 @@ struct AIHomeworkTestView: View {
                 parsingMethod: enhanced.parsingMethod,
                 rawAIResponse: enhanced.rawAIResponse,
                 totalQuestionsFound: enhanced.totalQuestionsFound,
-                jsonParsingUsed: enhanced.jsonParsingUsed
+                jsonParsingUsed: enhanced.jsonParsingUsed,
+                performanceSummary: nil
             )
             
             // Also create basic result for compatibility
@@ -508,7 +509,8 @@ struct AIHomeworkTestView: View {
                 processingTime: processingTime,
                 overallConfidence: enhanced.overallConfidence,
                 parsingMethod: enhanced.parsingMethod,
-                rawAIResponse: enhanced.rawAIResponse
+                rawAIResponse: enhanced.rawAIResponse,
+                performanceSummary: nil
             )
             
             processingStatus = enhanced.questions.count > 0 ?
@@ -528,7 +530,8 @@ struct AIHomeworkTestView: View {
                 processingTime: processingTime,
                 overallConfidence: overallConfidence,
                 parsingMethod: "Legacy AI Backend Parsing (Fallback)",
-                rawAIResponse: actualResponse
+                rawAIResponse: actualResponse,
+                performanceSummary: nil
             )
             
             processingStatus = questions.count > 0 ?
@@ -552,7 +555,8 @@ struct AIHomeworkTestView: View {
             processingTime: processingTime,
             overallConfidence: 0.0,
             parsingMethod: "AI Backend Parsing (Failed)",
-            rawAIResponse: errorMessage
+            rawAIResponse: errorMessage,
+            performanceSummary: nil
         )
         
         enhancedResult = EnhancedHomeworkParsingResult(
@@ -564,7 +568,8 @@ struct AIHomeworkTestView: View {
             parsingMethod: "Enhanced AI Backend Parsing (Failed)",
             rawAIResponse: errorMessage,
             totalQuestionsFound: 0,
-            jsonParsingUsed: false
+            jsonParsingUsed: false,
+            performanceSummary: nil
         )
     }
     

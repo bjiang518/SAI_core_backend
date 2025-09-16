@@ -4,8 +4,8 @@ const Joi = require('joi');
 const envSchema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().default(3000),
-  SUPABASE_URL: Joi.string().uri().required(),
-  SUPABASE_ANON_KEY: Joi.string().required(),
+  SUPABASE_URL: Joi.string().uri().optional(),
+  SUPABASE_ANON_KEY: Joi.string().optional(),
   JWT_SECRET: Joi.string().min(32).required(),
   OPENAI_API_KEY: Joi.string().optional(),
   YOUTUBE_API_KEY: Joi.string().optional(),

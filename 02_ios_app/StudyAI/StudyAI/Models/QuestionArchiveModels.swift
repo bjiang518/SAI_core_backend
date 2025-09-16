@@ -7,6 +7,33 @@
 
 import Foundation
 
+// MARK: - Grade Result Enum
+
+enum GradeResult: String, Codable, CaseIterable {
+    case correct = "CORRECT"
+    case incorrect = "INCORRECT" 
+    case empty = "EMPTY"
+    case partialCredit = "PARTIAL_CREDIT"
+    
+    var displayName: String {
+        switch self {
+        case .correct: return "Correct"
+        case .incorrect: return "Incorrect"
+        case .empty: return "Empty"
+        case .partialCredit: return "Partial Credit"
+        }
+    }
+    
+    var color: String {
+        switch self {
+        case .correct: return "green"
+        case .incorrect: return "red"
+        case .empty: return "gray"
+        case .partialCredit: return "orange"
+        }
+    }
+}
+
 // MARK: - Individual Question Archive Models
 
 struct ArchivedQuestion: Codable, Identifiable {
@@ -26,6 +53,14 @@ struct ArchivedQuestion: Codable, Identifiable {
     let tags: [String]? // User-added tags
     let notes: String? // User notes for this specific question
     
+    // Grading-specific fields (optional for backward compatibility)
+    let studentAnswer: String? // Student's provided answer
+    let grade: GradeResult? // CORRECT/INCORRECT/EMPTY
+    let points: Float? // Points earned for this question
+    let maxPoints: Float? // Maximum points possible
+    let feedback: String? // AI-generated feedback for the student
+    let isGraded: Bool // Whether this question was graded vs just answered
+    
     init(
         id: String = UUID().uuidString,
         userId: String,
@@ -41,7 +76,13 @@ struct ArchivedQuestion: Codable, Identifiable {
         reviewCount: Int = 0,
         lastReviewedAt: Date? = nil,
         tags: [String]? = nil,
-        notes: String? = nil
+        notes: String? = nil,
+        studentAnswer: String? = nil,
+        grade: GradeResult? = nil,
+        points: Float? = nil,
+        maxPoints: Float? = nil,
+        feedback: String? = nil,
+        isGraded: Bool = false
     ) {
         self.id = id
         self.userId = userId
@@ -58,6 +99,12 @@ struct ArchivedQuestion: Codable, Identifiable {
         self.lastReviewedAt = lastReviewedAt
         self.tags = tags
         self.notes = notes
+        self.studentAnswer = studentAnswer
+        self.grade = grade
+        self.points = points
+        self.maxPoints = maxPoints
+        self.feedback = feedback
+        self.isGraded = isGraded
     }
 }
 
@@ -86,6 +133,7 @@ struct EnhancedHomeworkParsingResult: Codable {
     let rawAIResponse: String
     let totalQuestionsFound: Int?
     let jsonParsingUsed: Bool?
+    let performanceSummary: PerformanceSummary?
     
     // Computed properties for easy access
     var questionCount: Int {
@@ -120,6 +168,19 @@ struct EnhancedHomeworkParsingResult: Codable {
         } else {
             return "Standard Quality"
         }
+    }
+    
+    // Calculate accuracy from performance summary or questions
+    var calculatedAccuracy: Float {
+        if let summary = performanceSummary {
+            return summary.accuracyRate
+        }
+        
+        let gradedQuestions = questions.filter { $0.grade != nil }
+        if gradedQuestions.isEmpty { return overallConfidence }
+        
+        let correctCount = gradedQuestions.filter { $0.grade == "CORRECT" }.count
+        return Float(correctCount) / Float(gradedQuestions.count)
     }
 }
 
@@ -178,6 +239,12 @@ struct QuestionSummary: Codable, Identifiable {
     let reviewCount: Int
     let tags: [String]?
     
+    // Grading summary fields
+    let grade: GradeResult?
+    let points: Float?
+    let maxPoints: Float?
+    let isGraded: Bool
+    
     // Computed property for display
     var shortQuestionText: String {
         if questionText.count > 100 {
@@ -192,5 +259,18 @@ struct QuestionSummary: Codable, Identifiable {
         case 0.6..<0.8: return "Medium"
         default: return "Low"
         }
+    }
+    
+    var gradeDisplayText: String {
+        guard isGraded, let grade = grade else { return "Not Graded" }
+        if let points = points, let maxPoints = maxPoints {
+            return "\(grade.displayName) (\(String(format: "%.1f", points))/\(String(format: "%.1f", maxPoints)))"
+        }
+        return grade.displayName
+    }
+    
+    var scorePercentage: Float? {
+        guard let points = points, let maxPoints = maxPoints, maxPoints > 0 else { return nil }
+        return (points / maxPoints) * 100
     }
 }

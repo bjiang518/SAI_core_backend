@@ -30,7 +30,7 @@ class EnhancedHomeworkParser {
     /// Try to parse JSON response from improved AI engine
     private func tryParseImprovedAIResponse(_ response: String) -> EnhancedHomeworkParsingResult? {
         // Look for JSON indicators in the response
-        let trimmedResponse = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        _ = response.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // Check for legacy format with enhanced fields (more flexible detection)
         if response.contains("SUBJECT_CONFIDENCE:") || response.contains("TOTAL_QUESTIONS:") || response.contains("JSON_PARSING:") {
@@ -55,6 +55,7 @@ class EnhancedHomeworkParser {
         let totalQuestionsFound = extractTotalQuestions(from: response)
         let jsonParsingUsed = response.contains("JSON_PARSING: true")
         let parsingMethod = extractParsingMethod(from: response) ?? "Enhanced AI Backend Parsing with Subject Detection"
+        let performanceSummary = extractPerformanceSummary(from: response, questions: questions)
         
         let overallConfidence = questions.isEmpty ? 0.0 : questions.map { $0.confidence }.reduce(0.0, +) / Float(questions.count)
         
@@ -67,7 +68,8 @@ class EnhancedHomeworkParser {
             parsingMethod: parsingMethod,
             rawAIResponse: response,
             totalQuestionsFound: totalQuestionsFound,
-            jsonParsingUsed: jsonParsingUsed
+            jsonParsingUsed: jsonParsingUsed,
+            performanceSummary: performanceSummary
         )
         
         print("✅ Enhanced parsing successful:")
@@ -75,6 +77,9 @@ class EnhancedHomeworkParser {
         print("📊 Questions found: \(questions.count)")
         print("🔧 Parsing Method: \(parsingMethod)")
         print("🎯 Overall confidence: \(overallConfidence)")
+        if let summary = performanceSummary {
+            print("📈 Accuracy: \(summary.accuracyPercentage)")
+        }
         
         return result
     }
@@ -104,7 +109,8 @@ class EnhancedHomeworkParser {
             parsingMethod: "Traditional AI Backend Parsing with Subject Detection",
             rawAIResponse: response,
             totalQuestionsFound: questions.count,
-            jsonParsingUsed: false
+            jsonParsingUsed: false,
+            performanceSummary: extractPerformanceSummary(from: response, questions: questions)
         )
         
         print("✅ Traditional parsing successful:")
@@ -171,8 +177,15 @@ class EnhancedHomeworkParser {
     private func parseQuestionBlock(_ block: String, defaultNumber: Int) -> ParsedQuestion {
         let lines = block.components(separatedBy: .newlines)
         var questionNumber: Int? = nil
+        var rawQuestionText = ""
         var questionText = ""
         var answerText = ""
+        var studentAnswer = ""
+        var correctAnswer = ""
+        var grade = ""
+        var pointsEarned: Float = 0.0
+        var pointsPossible: Float = 1.0
+        var feedback = ""
         var confidence: Float = 0.8
         var hasVisualElements = false
         
@@ -185,10 +198,31 @@ class EnhancedHomeworkParser {
             if trimmedLine.hasPrefix("QUESTION_NUMBER:") {
                 let numberString = trimmedLine.replacingOccurrences(of: "QUESTION_NUMBER:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
                 questionNumber = parseQuestionNumber(numberString)
+            } else if trimmedLine.hasPrefix("RAW_QUESTION:") {
+                currentSection = "raw_question"
+                rawQuestionText = trimmedLine.replacingOccurrences(of: "RAW_QUESTION:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
             } else if trimmedLine.hasPrefix("QUESTION:") {
                 currentSection = "question"
                 questionText = trimmedLine.replacingOccurrences(of: "QUESTION:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("STUDENT_ANSWER:") {
+                currentSection = "student_answer"
+                studentAnswer = trimmedLine.replacingOccurrences(of: "STUDENT_ANSWER:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("CORRECT_ANSWER:") {
+                currentSection = "correct_answer"
+                correctAnswer = trimmedLine.replacingOccurrences(of: "CORRECT_ANSWER:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("GRADE:") {
+                grade = trimmedLine.replacingOccurrences(of: "GRADE:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("POINTS_EARNED:") {
+                let pointsString = trimmedLine.replacingOccurrences(of: "POINTS_EARNED:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                pointsEarned = Float(pointsString) ?? 0.0
+            } else if trimmedLine.hasPrefix("POINTS_POSSIBLE:") {
+                let pointsString = trimmedLine.replacingOccurrences(of: "POINTS_POSSIBLE:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                pointsPossible = Float(pointsString) ?? 1.0
+            } else if trimmedLine.hasPrefix("FEEDBACK:") {
+                currentSection = "feedback"
+                feedback = trimmedLine.replacingOccurrences(of: "FEEDBACK:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
             } else if trimmedLine.hasPrefix("ANSWER:") {
+                // Legacy support for old format
                 currentSection = "answer"
                 isParsingAnswer = true
                 answerText = trimmedLine.replacingOccurrences(of: "ANSWER:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -198,26 +232,51 @@ class EnhancedHomeworkParser {
             } else if trimmedLine.hasPrefix("HAS_VISUALS:") {
                 let visualString = trimmedLine.replacingOccurrences(of: "HAS_VISUALS:", with: "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 hasVisualElements = visualString == "true" || visualString == "yes"
-            } else if !trimmedLine.isEmpty && currentSection == "question" && !isParsingAnswer {
+            } else if !trimmedLine.isEmpty && currentSection == "raw_question" {
+                rawQuestionText += " " + trimmedLine
+            } else if !trimmedLine.isEmpty && currentSection == "question" {
                 questionText += " " + trimmedLine
+            } else if !trimmedLine.isEmpty && currentSection == "student_answer" {
+                studentAnswer += " " + trimmedLine
+            } else if !trimmedLine.isEmpty && currentSection == "correct_answer" {
+                correctAnswer += " " + trimmedLine
+            } else if !trimmedLine.isEmpty && currentSection == "feedback" {
+                feedback += " " + trimmedLine
             } else if !trimmedLine.isEmpty && currentSection == "answer" && isParsingAnswer {
                 answerText += " " + trimmedLine
             }
         }
         
+        // For grading mode, use correct_answer as the main answer
+        // For legacy mode, use answerText
+        let mainAnswer = !correctAnswer.isEmpty ? correctAnswer : answerText
+        
+        // If no grading info, assume this is legacy format
+        if grade.isEmpty && !correctAnswer.isEmpty {
+            answerText = correctAnswer
+        }
+        
         // Fallback: if no structured format found, treat entire block as question
-        if questionText.isEmpty && answerText.isEmpty {
+        if questionText.isEmpty && mainAnswer.isEmpty {
             questionText = block.trimmingCharacters(in: .whitespacesAndNewlines)
             answerText = "Unable to parse answer from response"
             confidence = 0.3
         }
         
+        // Create ParsedQuestion with new grading fields
         return ParsedQuestion(
             questionNumber: questionNumber ?? (defaultNumber > 0 ? defaultNumber : nil),
+            rawQuestionText: rawQuestionText.isEmpty ? nil : rawQuestionText,
             questionText: questionText,
-            answerText: answerText,
+            answerText: mainAnswer.isEmpty ? answerText : mainAnswer,
             confidence: confidence,
-            hasVisualElements: hasVisualElements
+            hasVisualElements: hasVisualElements,
+            studentAnswer: studentAnswer,
+            correctAnswer: correctAnswer,
+            grade: grade,
+            pointsEarned: pointsEarned,
+            pointsPossible: pointsPossible,
+            feedback: feedback
         )
     }
     
@@ -302,7 +361,80 @@ class EnhancedHomeworkParser {
             processingTime: processingTime,
             overallConfidence: overallConfidence,
             parsingMethod: "AI Backend Parsing (Fallback)",
-            rawAIResponse: response
+            rawAIResponse: response,
+            performanceSummary: nil
         )
+    }
+    
+    /// Extract performance summary from response
+    private func extractPerformanceSummary(from response: String, questions: [ParsedQuestion]) -> PerformanceSummary? {
+        let lines = response.components(separatedBy: .newlines)
+        var totalCorrect = 0
+        var totalIncorrect = 0
+        var totalEmpty = 0
+        var accuracyRate: Float = 0.0
+        var summaryText = ""
+        
+        // Try to extract from response first
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmedLine.hasPrefix("TOTAL_CORRECT:") {
+                let numberString = trimmedLine.replacingOccurrences(of: "TOTAL_CORRECT:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                totalCorrect = Int(numberString) ?? 0
+            } else if trimmedLine.hasPrefix("TOTAL_INCORRECT:") {
+                let numberString = trimmedLine.replacingOccurrences(of: "TOTAL_INCORRECT:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                totalIncorrect = Int(numberString) ?? 0
+            } else if trimmedLine.hasPrefix("TOTAL_EMPTY:") {
+                let numberString = trimmedLine.replacingOccurrences(of: "TOTAL_EMPTY:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                totalEmpty = Int(numberString) ?? 0
+            } else if trimmedLine.hasPrefix("ACCURACY_RATE:") {
+                let rateString = trimmedLine.replacingOccurrences(of: "ACCURACY_RATE:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                accuracyRate = Float(rateString) ?? 0.0
+            } else if trimmedLine.hasPrefix("SUMMARY_TEXT:") {
+                summaryText = trimmedLine.replacingOccurrences(of: "SUMMARY_TEXT:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        
+        // If no performance summary found in response, calculate from questions
+        if totalCorrect == 0 && totalIncorrect == 0 && totalEmpty == 0 {
+            for question in questions {
+                switch question.grade {
+                case "CORRECT":
+                    totalCorrect += 1
+                case "INCORRECT":
+                    totalIncorrect += 1
+                case "EMPTY":
+                    totalEmpty += 1
+                case "PARTIAL_CREDIT":
+                    // Count partial credit as half correct for accuracy calculation
+                    totalIncorrect += 1
+                default:
+                    break
+                }
+            }
+            
+            let totalQuestions = totalCorrect + totalIncorrect + totalEmpty
+            if totalQuestions > 0 {
+                accuracyRate = Float(totalCorrect) / Float(totalQuestions)
+            }
+            
+            // Generate basic summary if not provided
+            if summaryText.isEmpty {
+                summaryText = "Graded \(totalQuestions) questions with \(totalCorrect) correct answers."
+            }
+        }
+        
+        // Only return summary if we have meaningful data
+        if totalCorrect > 0 || totalIncorrect > 0 || totalEmpty > 0 {
+            return PerformanceSummary(
+                totalCorrect: totalCorrect,
+                totalIncorrect: totalIncorrect,
+                totalEmpty: totalEmpty,
+                accuracyRate: accuracyRate,
+                summaryText: summaryText
+            )
+        }
+        
+        return nil
     }
 }

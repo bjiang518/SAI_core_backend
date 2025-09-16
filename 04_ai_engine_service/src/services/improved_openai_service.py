@@ -212,7 +212,7 @@ class OptimizedEducationalAIService:
             }
     
     def _create_json_schema_prompt(self, custom_prompt: Optional[str], student_context: Optional[Dict]) -> str:
-        """Create a detailed prompt that enforces strict JSON schema."""
+        """Create a detailed prompt that enforces strict JSON schema for grading."""
         
         context_info = ""
         if student_context:
@@ -222,44 +222,78 @@ class OptimizedEducationalAIService:
         if custom_prompt:
             additional_context = f"Additional context: {custom_prompt}"
         
-        return f"""You are an AI homework helper that analyzes images and extracts ALL questions found.
+        base_prompt = """You are an AI homework grader that analyzes completed homework images and grades student answers.
 
 CRITICAL: You MUST return a valid JSON object with exactly this structure:
 
-{{
+{
   "subject": "detected subject (Mathematics, Physics, Chemistry, Biology, English, History, Geography, Computer Science, Foreign Language, Arts, or Other)",
   "subject_confidence": 0.95,
   "total_questions_found": 3,
   "questions": [
-    {{
+    {
       "question_number": 1,
-      "question_text": "complete question text including all parts and sub-questions",
-      "answer": "detailed step-by-step solution with clear explanations",
+      "raw_question_text": "exact question text as it appears in the image, including any formatting or symbols",
+      "question_text": "clean, processed question text for display",
+      "student_answer": "what the student wrote as their answer (extract from image)",
+      "correct_answer": "the correct/expected answer",
+      "grade": "CORRECT",
+      "points_earned": 1.0,
+      "points_possible": 1.0,
       "confidence": 0.9,
       "has_visuals": true,
+      "feedback": "Brief explanation: why it's correct, or if wrong, hint to help student understand",
       "sub_parts": ["a) first part", "b) second part"]
-    }}
+    }
   ],
-  "processing_notes": "observations about parsing quality or difficulties"
-}}
+  "performance_summary": {
+    "total_correct": 2,
+    "total_incorrect": 1,
+    "total_empty": 0,
+    "accuracy_rate": 0.67,
+    "summary_text": "The student worked on 3 questions in Mathematics. 2 are correct, Great Job! For the wrong answers, the most likely reasons are: calculation errors in basic arithmetic operations. Areas for improvement: double-check arithmetic calculations and show all work steps."
+  },
+  "processing_notes": "observations about grading quality or difficulties"
+}
 
-STRICT RULES:
+STRICT GRADING RULES:
 1. Return ONLY valid JSON - no extra text before or after
-2. Extract ALL questions found in the image, not just the first one
-3. For multi-part questions (a, b, c), include all parts in sub_parts array
-4. Set has_visuals to true if question contains diagrams, graphs, or mathematical figures
-5. Provide complete step-by-step solutions in the answer field
-6. If unsure about subject, use "Other" and set confidence below 0.7
-7. Always include at least one question, even if image is unclear
+2. Extract ALL questions AND their student answers from the completed homework image
+3. For each question, determine: raw_question_text (exact from image), question_text (cleaned), student_answer, correct_answer
+4. Grade each answer as: "CORRECT", "INCORRECT", "EMPTY", or "PARTIAL_CREDIT"
+5. For INCORRECT answers, provide helpful feedback/hints in the feedback field
+6. For CORRECT answers, provide brief positive reinforcement in feedback
+7. For EMPTY answers, set student_answer to "" and grade as "EMPTY"
+8. Set points_earned based on correctness (1.0 for correct, 0.0 for incorrect/empty, 0.5 for partial)
+9. Set has_visuals to true if question contains diagrams, graphs, or mathematical figures
+10. If you cannot clearly read the student's answer, set grade to "EMPTY" and note in feedback
+11. Calculate performance_summary accurately:
+    - Count total_correct, total_incorrect, total_empty based on grades
+    - Calculate accuracy_rate as total_correct / total_questions
+    - Generate summary_text following this template with both praise and improvement areas:
+      * If accuracy_rate = 1.0: "The student worked on {{X}} questions in {{Subject}}. All answers are correct, Great Job! Strengths shown: {{identify what they did well}}. Keep up the excellent work!"
+      * If accuracy_rate > 0.7: "The student worked on {{X}} questions in {{Subject}}. {{Y}} are correct, Great Job! Strengths: {{what they did well}}. For the wrong answers, the most likely reasons are: {{analyze common mistake patterns}}. Areas for improvement: {{specific suggestions}}."
+      * If accuracy_rate <= 0.7: "The student worked on {{X}} questions in {{Subject}}. {{Y}} are correct. Strengths: {{acknowledge any correct work}}. For improvement, focus on: {{analyze main areas needing work with specific actionable advice}}."
 
-{context_info}
-{additional_context}
+EXAMPLES:
+- Question: "What is 2+3?" Student wrote: "5" → Grade: "CORRECT", Feedback: "Great job! Correct answer."
+- Question: "What is 2+3?" Student wrote: "6" → Grade: "INCORRECT", Feedback: "Not quite. Try adding 2+3 step by step."
+- Question: "What is 2+3?" Student wrote nothing → Grade: "EMPTY", Feedback: "Please provide an answer for this question."
 
-Remember: Return ONLY the JSON object, no other text."""
+Remember: You are GRADING completed homework, not providing answers. Extract what the STUDENT wrote and compare it to the correct answer."""
+        
+        # Add context information
+        if context_info:
+            base_prompt += f"\n\n{context_info}"
+        
+        if additional_context:
+            base_prompt += f"\n\n{additional_context}"
+        
+        return base_prompt
     
     def _validate_json_structure(self, json_data: Dict) -> bool:
-        """Validate that JSON has required structure."""
-        required_fields = ["subject", "questions"]
+        """Validate that JSON has required grading structure."""
+        required_fields = ["subject", "questions", "performance_summary"]
         
         if not isinstance(json_data, dict):
             return False
@@ -274,35 +308,64 @@ Remember: Return ONLY the JSON object, no other text."""
         if len(json_data["questions"]) == 0:
             return False
         
-        # Validate first question structure
+        # Validate first question structure for grading
         first_question = json_data["questions"][0]
-        question_fields = ["question_text", "answer"]
+        question_fields = ["raw_question_text", "question_text", "student_answer", "correct_answer", "grade"]
         
         for field in question_fields:
             if field not in first_question:
                 return False
         
+        # Validate performance_summary structure
+        performance_summary = json_data.get("performance_summary", {})
+        summary_fields = ["total_correct", "total_incorrect", "accuracy_rate", "summary_text"]
+        
+        for field in summary_fields:
+            if field not in performance_summary:
+                return False
+        
+        # Validate grade values
+        valid_grades = ["CORRECT", "INCORRECT", "EMPTY", "PARTIAL_CREDIT"]
+        if first_question.get("grade") not in valid_grades:
+            return False
+        
         return True
     
     def _normalize_json_response(self, json_data: Dict) -> Dict:
-        """Normalize JSON response to consistent format."""
+        """Normalize JSON response to consistent grading format."""
+        
+        # Extract performance summary
+        performance_summary = json_data.get("performance_summary", {})
         
         normalized = {
             "subject": json_data.get("subject", "Other"),
             "subject_confidence": float(json_data.get("subject_confidence", 0.5)),
             "total_questions": json_data.get("total_questions_found", len(json_data.get("questions", []))),
             "questions": [],
-            "processing_notes": json_data.get("processing_notes", "Processed successfully")
+            "processing_notes": json_data.get("processing_notes", "Graded successfully"),
+            "performance_summary": {
+                "total_correct": performance_summary.get("total_correct", 0),
+                "total_incorrect": performance_summary.get("total_incorrect", 0),
+                "total_empty": performance_summary.get("total_empty", 0),
+                "accuracy_rate": float(performance_summary.get("accuracy_rate", 0.0)),
+                "summary_text": performance_summary.get("summary_text", "No summary available")
+            }
         }
         
-        # Normalize each question
+        # Normalize each graded question
         for i, question in enumerate(json_data.get("questions", [])):
             normalized_question = {
                 "question_number": question.get("question_number", i + 1),
+                "raw_question_text": question.get("raw_question_text", question.get("question_text", "Raw question not found")),
                 "question_text": question.get("question_text", "Question text not found"),
-                "answer": question.get("answer", "Answer not provided"),
+                "student_answer": question.get("student_answer", ""),
+                "correct_answer": question.get("correct_answer", question.get("answer", "Answer not provided")),
+                "grade": question.get("grade", "EMPTY"),
+                "points_earned": float(question.get("points_earned", 0.0)),
+                "points_possible": float(question.get("points_possible", 1.0)),
                 "confidence": float(question.get("confidence", 0.8)),
                 "has_visuals": bool(question.get("has_visuals", False)),
+                "feedback": question.get("feedback", "No feedback provided"),
                 "sub_parts": question.get("sub_parts", question.get("sub_questions", []))
             }
             normalized["questions"].append(normalized_question)
@@ -310,21 +373,36 @@ Remember: Return ONLY the JSON object, no other text."""
         return normalized
     
     def _convert_to_legacy_format(self, normalized_data: Dict) -> str:
-        """Convert normalized JSON to legacy ═══QUESTION_SEPARATOR═══ format for iOS compatibility."""
+        """Convert normalized JSON to legacy ═══QUESTION_SEPARATOR═══ format for iOS grading compatibility."""
+        
+        performance_summary = normalized_data.get("performance_summary", {})
         
         legacy_response = f"SUBJECT: {normalized_data['subject']}\n"
         legacy_response += f"SUBJECT_CONFIDENCE: {normalized_data['subject_confidence']}\n"
         legacy_response += f"TOTAL_QUESTIONS: {normalized_data['total_questions']}\n"
         legacy_response += f"JSON_PARSING: true\n"
-        legacy_response += f"PARSING_METHOD: Enhanced AI Backend Parsing with JSON Schema\n\n"
+        legacy_response += f"PARSING_METHOD: Enhanced AI Backend Grading with JSON Schema\n"
+        
+        # Add performance summary
+        legacy_response += f"TOTAL_CORRECT: {performance_summary.get('total_correct', 0)}\n"
+        legacy_response += f"TOTAL_INCORRECT: {performance_summary.get('total_incorrect', 0)}\n"
+        legacy_response += f"TOTAL_EMPTY: {performance_summary.get('total_empty', 0)}\n"
+        legacy_response += f"ACCURACY_RATE: {performance_summary.get('accuracy_rate', 0.0)}\n"
+        legacy_response += f"SUMMARY_TEXT: {performance_summary.get('summary_text', 'No summary available')}\n\n"
         
         for i, question in enumerate(normalized_data["questions"]):
             if i > 0:
                 legacy_response += "═══QUESTION_SEPARATOR═══\n"
             
             legacy_response += f"QUESTION_NUMBER: {question['question_number']}\n"
+            legacy_response += f"RAW_QUESTION: {question['raw_question_text']}\n"
             legacy_response += f"QUESTION: {question['question_text']}\n"
-            legacy_response += f"ANSWER: {question['answer']}\n"
+            legacy_response += f"STUDENT_ANSWER: {question['student_answer']}\n"
+            legacy_response += f"CORRECT_ANSWER: {question['correct_answer']}\n"
+            legacy_response += f"GRADE: {question['grade']}\n"
+            legacy_response += f"POINTS_EARNED: {question['points_earned']}\n"
+            legacy_response += f"POINTS_POSSIBLE: {question['points_possible']}\n"
+            legacy_response += f"FEEDBACK: {question['feedback']}\n"
             legacy_response += f"CONFIDENCE: {question['confidence']}\n"
             legacy_response += f"HAS_VISUALS: {'true' if question['has_visuals'] else 'false'}\n"
             
@@ -572,7 +650,7 @@ class EducationalAIService:
         self.model = "gpt-4o-mini"
         
         # Add the improved service for homework parsing
-        self.improved_service = ImprovedEducationalAIService()
+        self.improved_service = OptimizedEducationalAIService()
     
     async def parse_homework_image(
         self,

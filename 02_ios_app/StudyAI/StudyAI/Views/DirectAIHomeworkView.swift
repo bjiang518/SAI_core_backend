@@ -653,7 +653,8 @@ struct DirectAIHomeworkView: View {
                 parsingMethod: enhanced.parsingMethod,
                 rawAIResponse: enhanced.rawAIResponse,
                 totalQuestionsFound: enhanced.totalQuestionsFound,
-                jsonParsingUsed: enhanced.jsonParsingUsed
+                jsonParsingUsed: enhanced.jsonParsingUsed,
+                performanceSummary: enhanced.performanceSummary
             )
             
             stateManager.parsingResult = HomeworkParsingResult(
@@ -661,7 +662,8 @@ struct DirectAIHomeworkView: View {
                 processingTime: processingTime,
                 overallConfidence: enhanced.overallConfidence,
                 parsingMethod: enhanced.parsingMethod,
-                rawAIResponse: enhanced.rawAIResponse
+                rawAIResponse: enhanced.rawAIResponse,
+                performanceSummary: enhanced.performanceSummary
             )
             
             stateManager.processingStatus = enhanced.questions.count > 0 ?

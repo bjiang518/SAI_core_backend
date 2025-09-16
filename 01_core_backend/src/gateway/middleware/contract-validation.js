@@ -22,7 +22,7 @@ class ContractValidator {
     this.gatewaySpec = null;
     this.aiEngineSpec = null;
     this.validators = new Map();
-    this.enabled = process.env.CONTRACT_VALIDATION_ENABLED !== 'false';
+    this.enabled = process.env.CONTRACT_VALIDATION_ENABLED === 'true'; // Changed to require explicit enable
     
     this.init();
   }
@@ -31,6 +31,11 @@ class ContractValidator {
    * Initialize OpenAPI specifications and compile validators
    */
   init() {
+    if (!this.enabled) {
+      // Silent initialization when disabled
+      return;
+    }
+    
     try {
       // Load OpenAPI specifications
       this.loadSpecifications();
@@ -41,10 +46,8 @@ class ContractValidator {
       console.log(`📋 Contract Validator initialized with ${this.validators.size} endpoint validators`);
     } catch (error) {
       console.error('Contract Validator initialization failed:', error.message);
-      if (this.enabled) {
-        console.warn('⚠️ Contract validation disabled due to initialization failure');
-        this.enabled = false;
-      }
+      console.warn('⚠️ Contract validation disabled due to initialization failure');
+      this.enabled = false;
     }
   }
 
