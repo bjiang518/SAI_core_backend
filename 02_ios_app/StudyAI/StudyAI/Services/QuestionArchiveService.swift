@@ -423,8 +423,16 @@ class QuestionArchiveService: ObservableObject {
     }
     
     private func parseDate(_ dateString: String) -> Date? {
-        // Try ISO8601 first
-        if let date = ISO8601DateFormatter().date(from: dateString) {
+        // Try ISO8601 with fractional seconds first
+        let iso8601FormatterWithFractionalSeconds = ISO8601DateFormatter()
+        iso8601FormatterWithFractionalSeconds.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso8601FormatterWithFractionalSeconds.date(from: dateString) {
+            return date
+        }
+        
+        // Try ISO8601 without fractional seconds
+        let iso8601Formatter = ISO8601DateFormatter()
+        if let date = iso8601Formatter.date(from: dateString) {
             return date
         }
         
