@@ -82,9 +82,12 @@ struct DirectAIHomeworkView: View {
             }
             
             // Main content area
-            if stateManager.originalImage != nil || stateManager.parsingResult != nil {
+            if stateManager.parsingResult != nil {
                 // Show existing session with results
                 existingSessionView
+            } else if stateManager.originalImage != nil {
+                // Show image preview with Ask AI button
+                imagePreviewView
             } else {
                 // Show image source selection directly
                 imageSourceSelectionView
@@ -127,7 +130,6 @@ struct DirectAIHomeworkView: View {
                 set: { newImage in
                     if let image = newImage {
                         stateManager.originalImage = image
-                        processImage(image)
                     }
                 }
             ), isPresented: $showingCamera)
@@ -138,7 +140,6 @@ struct DirectAIHomeworkView: View {
                 set: { newImage in
                     if let image = newImage {
                         stateManager.originalImage = image
-                        processImage(image)
                     }
                 }
             ), isPresented: $showingFilePicker)
@@ -150,7 +151,6 @@ struct DirectAIHomeworkView: View {
                     set: { newImage in
                         if let image = newImage {
                             stateManager.originalImage = image
-                            processImage(image)
                             showingPhotoPicker = false
                         }
                     }
@@ -278,6 +278,65 @@ struct DirectAIHomeworkView: View {
             .padding(.horizontal)
             
             Spacer()
+        }
+    }
+    
+    // MARK: - Image Preview View
+    private var imagePreviewView: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                if isProcessing {
+                    // Show hand writing animation during processing
+                    HandWritingAnimation()
+                } else {
+                    // Show image preview when not processing
+                    // Header
+                    VStack(spacing: 8) {
+                        Text("Preview Selected Image")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                        
+                        Text("Review your image before sending to AI")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top)
+                    
+                    // Image Preview Section
+                    if let image = stateManager.originalImage {
+                        imageSection(title: "Selected Image", image: image)
+                    }
+                    
+                    // Ask AI Button
+                    VStack(spacing: 12) {
+                        Button("🤖 Ask AI") {
+                            if let image = stateManager.originalImage {
+                                processImage(image)
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.blue)
+                        .cornerRadius(12)
+                        .disabled(isProcessing)
+                        
+                        // Clear Session Button
+                        Button("Clear Session") {
+                            stateManager.clearSession()
+                        }
+                        .foregroundColor(.red)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                }
+                
+                Spacer(minLength: 100)
+            }
+            .padding()
         }
     }
     
@@ -793,6 +852,167 @@ struct PhotosPickerView: UIViewControllerRepresentable {
         
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             parent.isPresented = false
+        }
+    }
+}
+
+// MARK: - Hand Writing Animation Component
+struct HandWritingAnimation: View {
+    @State private var currentMessageIndex = 0
+    @State private var revealedCharacters = 0
+    @State private var handOffset = CGSize.zero
+    @State private var isWriting = false
+    
+    private let messages = [
+        "Examining your homework... 🔍",
+        "Looking closely at each problem... 👀",
+        "Finding the right answers... ✨",
+        "Almost done checking! 🎯"
+    ]
+    
+    private let animationDuration: Double = 0.1
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            // Notebook Paper Background
+            ZStack {
+                // Paper background
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white)
+                    .overlay(
+                        // Notebook lines
+                        VStack(spacing: 28) {
+                            ForEach(0..<4, id: \.self) { _ in
+                                Rectangle()
+                                    .fill(Color.blue.opacity(0.3))
+                                    .frame(height: 1)
+                            }
+                        }
+                        .padding(.horizontal, 40)
+                    )
+                    .overlay(
+                        // Spiral binding
+                        HStack {
+                            VStack(spacing: 15) {
+                                ForEach(0..<8, id: \.self) { _ in
+                                    Circle()
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(width: 8, height: 8)
+                                }
+                            }
+                            .padding(.leading, 10)
+                            Spacer()
+                        }
+                    )
+                    .frame(height: 200)
+                    .shadow(color: .gray.opacity(0.2), radius: 4, x: 2, y: 2)
+                
+                // Writing content
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(0..<messages.count, id: \.self) { index in
+                        HStack {
+                            Text(getDisplayText(for: index))
+                                .font(.custom("Bradley Hand", size: 18))
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.leading)
+                            Spacer()
+                        }
+                    }
+                }
+                .padding(.horizontal, 40)
+                .padding(.vertical, 20)
+                
+                // Animated Magnifying Glass
+                if isWriting {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            ZStack {
+                                // Magnifying glass
+                                Text("🔍")
+                                    .font(.system(size: 35))
+                                    .rotationEffect(.degrees(-15))
+                                    .scaleEffect(1.2)
+                                
+                                // Sparkle effect
+                                Text("✨")
+                                    .font(.system(size: 15))
+                                    .offset(x: 20, y: -15)
+                                    .opacity(0.8)
+                            }
+                            .offset(handOffset)
+                            .animation(.easeInOut(duration: animationDuration), value: handOffset)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 40)
+                    .padding(.vertical, 20)
+                }
+            }
+            
+            // Status text
+            Text("AI is carefully examining your homework!")
+                .font(.headline)
+                .foregroundColor(.purple)
+                .opacity(0.8)
+        }
+        .onAppear {
+            startWritingAnimation()
+        }
+        .padding()
+    }
+    
+    private func getDisplayText(for messageIndex: Int) -> String {
+        if messageIndex < currentMessageIndex {
+            return messages[messageIndex]
+        } else if messageIndex == currentMessageIndex {
+            let message = messages[messageIndex]
+            let endIndex = min(revealedCharacters, message.count)
+            return String(message.prefix(endIndex))
+        } else {
+            return ""
+        }
+    }
+    
+    private func startWritingAnimation() {
+        isWriting = true
+        currentMessageIndex = 0
+        revealedCharacters = 0
+        animateCurrentMessage()
+    }
+    
+    private func animateCurrentMessage() {
+        guard currentMessageIndex < messages.count else {
+            // Restart animation
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                startWritingAnimation()
+            }
+            return
+        }
+        
+        let message = messages[currentMessageIndex]
+        
+        if revealedCharacters < message.count {
+            // Continue writing current message
+            let xOffset = CGFloat(revealedCharacters) * 8 - 50
+            let yOffset = CGFloat(currentMessageIndex) * 35
+            let newOffset = CGSize(width: xOffset, height: yOffset)
+            
+            withAnimation(.easeInOut(duration: animationDuration)) {
+                handOffset = newOffset
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration) {
+                revealedCharacters += 1
+                animateCurrentMessage()
+            }
+        } else {
+            // Move to next message
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                currentMessageIndex += 1
+                revealedCharacters = 0
+                animateCurrentMessage()
+            }
         }
     }
 }

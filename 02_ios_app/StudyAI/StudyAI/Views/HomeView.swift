@@ -114,10 +114,10 @@ struct HomeView: View {
                             }
                             
                             Button(action: {
-                                onSelectTab(.chat)
+                                onSelectTab(.grader)
                             }) {
                                 QuickActionCard(
-                                    icon: "brain.head.profile.fill",
+                                    icon: "magnifyingglass",
                                     title: "AI Homework",
                                     subtitle: "Scan & Parse",
                                     color: .purple
@@ -214,7 +214,11 @@ struct HomeView: View {
                 logger.info("🏠 HomeView main content is disappearing")
             }
             .sheet(isPresented: $showingProfile) {
-                UserProfileView()
+                ModernProfileView(onLogout: {
+                    // Handle logout - this should trigger app-wide logout
+                    AuthenticationService.shared.signOut()
+                    showingProfile = false
+                })
             }
             .background {
                 // Use NavigationLink without isActive (modern approach)
