@@ -41,6 +41,25 @@ class AIProxyRoutes {
       }
     }, this.processHomeworkImageJSON.bind(this));
 
+    // Process chat image - optimized for fast chat interactions
+    this.fastify.post('/api/ai/chat-image', {
+      schema: {
+        description: 'Process image with chat context for conversational responses',
+        tags: ['AI', 'Chat'],
+        body: {
+          type: 'object',
+          required: ['base64_image', 'prompt'],
+          properties: {
+            base64_image: { type: 'string' },
+            prompt: { type: 'string' },
+            session_id: { type: 'string' },
+            subject: { type: 'string' },
+            student_id: { type: 'string' }
+          }
+        }
+      }
+    }, this.processChatImage.bind(this));
+
     // Process individual question
     this.fastify.post('/api/ai/process-question', {
       schema: {
@@ -396,6 +415,60 @@ class AIProxyRoutes {
       return reply.status(500).send({
         error: 'Internal server error processing image JSON',
         code: 'PROCESSING_ERROR'
+      });
+    }
+  }
+
+  async processChatImage(request, reply) {
+    const startTime = Date.now();
+    
+    try {
+      this.fastify.log.info('🖼️ === CHAT IMAGE PROCESSING REQUEST ===');
+      this.fastify.log.info(`📝 Prompt: ${request.body.prompt}`);
+      this.fastify.log.info(`🆔 Session: ${request.body.session_id || 'none'}`);
+      this.fastify.log.info(`📚 Subject: ${request.body.subject || 'general'}`);
+      
+      // Proxy JSON request directly to AI Engine chat-image endpoint
+      const result = await this.aiClient.proxyRequest(
+        'POST',
+        '/api/v1/chat-image',
+        {
+          base64_image: request.body.base64_image,
+          prompt: request.body.prompt,
+          subject: request.body.subject || 'general',
+          session_id: request.body.session_id,
+          student_id: request.body.student_id || 'anonymous'
+        },
+        { 'Content-Type': 'application/json' }
+      );
+
+      if (result.success) {
+        const duration = Date.now() - startTime;
+        
+        this.fastify.log.info('✅ === CHAT IMAGE PROCESSING SUCCESS ===');
+        this.fastify.log.info(`⏱️ Gateway processing time: ${duration}ms`);
+        this.fastify.log.info(`📝 Response length: ${result.data?.response?.length || 0} chars`);
+        
+        return reply.send({
+          ...result.data,
+          _gateway: {
+            processTime: duration,
+            service: 'ai-engine',
+            endpoint: '/api/v1/chat-image'
+          }
+        });
+      } else {
+        this.fastify.log.error('❌ Chat image processing failed:', result.error);
+        return this.handleProxyError(reply, result.error);
+      }
+    } catch (error) {
+      this.fastify.log.error('Error processing chat image:', error);
+      return reply.status(500).send({
+        success: false,
+        response: 'I\'m having trouble analyzing this image right now. Please try again in a moment.',
+        error: 'Internal server error processing chat image',
+        code: 'CHAT_IMAGE_PROCESSING_ERROR',
+        processing_time_ms: Date.now() - startTime
       });
     }
   }

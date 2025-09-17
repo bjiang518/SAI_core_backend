@@ -41,20 +41,54 @@ enum MainTab: Int, CaseIterable {
 struct ContentView: View {
     @StateObject private var authService = AuthenticationService.shared
     
+    private let contentLogger = Logger(subsystem: "com.studyai", category: "ContentView")
+    
+    init() {
+        let initStartTime = CFAbsoluteTimeGetCurrent()
+        contentLogger.info("🏗️ === CONTENT VIEW INIT STARTED ===")
+        
+        // This will trigger @StateObject initialization of AuthenticationService
+        contentLogger.info("🔐 About to initialize AuthenticationService...")
+        
+        let initEndTime = CFAbsoluteTimeGetCurrent()
+        let initDuration = initEndTime - initStartTime
+        contentLogger.info("🏗️ ContentView init completed in: \(initDuration * 1000, privacy: .public) ms")
+    }
+    
     var body: some View {
-        Group {
+        let bodyStartTime = CFAbsoluteTimeGetCurrent()
+        contentLogger.info("📱 === CONTENT VIEW BODY BUILDING ===")
+        contentLogger.info("📱 Auth status: \(authService.isAuthenticated)")
+        contentLogger.info("📱 Auth loading: \(authService.isLoading)")
+        
+        return Group {
             if authService.isAuthenticated {
                 MainTabView(onLogout: {
+                    contentLogger.info("🚪 User logged out")
                     authService.signOut()
                 })
+                .onAppear {
+                    let bodyDuration = CFAbsoluteTimeGetCurrent() - bodyStartTime
+                    contentLogger.info("🏠 MainTabView appeared after: \(bodyDuration * 1000, privacy: .public) ms")
+                }
             } else {
                 ModernLoginView(onLoginSuccess: {
+                    contentLogger.info("✅ Login successful")
                     // Authentication is handled by the service
                 })
+                .onAppear {
+                    let bodyDuration = CFAbsoluteTimeGetCurrent() - bodyStartTime
+                    contentLogger.info("🔐 ModernLoginView appeared after: \(bodyDuration * 1000, privacy: .public) ms")
+                }
             }
         }
         .animation(.easeInOut(duration: 0.3), value: authService.isAuthenticated)
         .ignoresSafeArea(.keyboard, edges: .bottom) // Modern keyboard handling
+        .onAppear {
+            let totalDuration = CFAbsoluteTimeGetCurrent() - bodyStartTime
+            contentLogger.info("📱 === CONTENT VIEW FULLY APPEARED ===")
+            contentLogger.info("📱 Total ContentView appearance time: \(totalDuration * 1000, privacy: .public) ms")
+        }
     }
 }
 

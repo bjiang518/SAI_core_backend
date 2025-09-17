@@ -33,16 +33,31 @@ class OptimizedEducationalAIService:
     """
     
     def __init__(self):
+        print("🔄 === INITIALIZING OPTIMIZED AI SERVICE ===")
+        
+        # Check OpenAI API key first
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            print("❌ WARNING: OPENAI_API_KEY not found in environment")
+        else:
+            print(f"✅ OpenAI API key found: {api_key[:10]}..." if len(api_key) > 10 else "✅ OpenAI API key found (short)")
+        
         # OpenAI client with connection pooling
-        self.client = openai.AsyncOpenAI(
-            api_key=os.getenv('OPENAI_API_KEY'),
-            max_retries=3,
-            timeout=60.0
-        )
+        try:
+            self.client = openai.AsyncOpenAI(
+                api_key=api_key,
+                max_retries=3,
+                timeout=60.0
+            )
+            print(f"✅ OpenAI AsyncClient initialized: {type(self.client)}")
+        except Exception as e:
+            print(f"❌ Failed to initialize OpenAI client: {e}")
+            raise
         
         self.prompt_service = AdvancedPromptService()
         self.model = "gpt-4o-mini"  # Optimized for cost and speed
         self.vision_model = "gpt-4o"  # Full model for vision tasks
+        print(f"✅ Models configured - Text: {self.model}, Vision: {self.vision_model}")
         
         # In-memory cache (fallback if Redis not available)
         self.memory_cache = {}
@@ -54,6 +69,9 @@ class OptimizedEducationalAIService:
         # Performance metrics
         self.request_count = 0
         self.cache_hits = 0
+        
+        print("✅ AI Service initialization complete")
+        print("================================================")
     
     # MARK: - Caching System
     
@@ -643,11 +661,15 @@ class EducationalAIService:
     """
     
     def __init__(self):
+        # Set up OpenAI client properly
         self.client = openai.AsyncOpenAI(
-            api_key=os.getenv('OPENAI_API_KEY')
+            api_key=os.getenv('OPENAI_API_KEY'),
+            max_retries=3,
+            timeout=60.0
         )
         self.prompt_service = AdvancedPromptService()
         self.model = "gpt-4o-mini"
+        self.vision_model = "gpt-4o"  # Full model for vision tasks
         
         # Add the improved service for homework parsing
         self.improved_service = OptimizedEducationalAIService()
@@ -857,3 +879,175 @@ class EducationalAIService:
             concepts.extend([match.strip() for match in matches if isinstance(match, str)])
         
         return list(set(concepts))[:5]  # Remove duplicates and limit to 5
+
+    async def analyze_image_with_chat_context(
+        self,
+        base64_image: str,
+        user_prompt: str,
+        subject: Optional[str] = "general",
+        session_id: Optional[str] = None,
+        student_context: Optional[Dict] = None
+    ) -> Dict[str, Any]:
+        """
+        Analyze image with chat context for conversational responses.
+        Optimized for fast, natural language responses suitable for chat interfaces.
+        
+        Args:
+            base64_image: Base64 encoded image data
+            user_prompt: User's question or prompt about the image
+            subject: Subject context (math, science, etc.)
+            session_id: Optional session ID for context awareness
+            student_context: Optional student learning context
+            
+        Returns:
+            Dict with response, tokens_used, and success status
+        """
+        
+        try:
+            print(f"🔄 === AI SERVICE: CHAT IMAGE ANALYSIS START ===")
+            print(f"📝 User Prompt: {user_prompt}")
+            print(f"📚 Subject: {subject}")
+            print(f"🆔 Session: {session_id}")
+            print(f"📄 Image length: {len(base64_image)} chars")
+            
+            # Check if OpenAI API key is available
+            api_key = os.getenv('OPENAI_API_KEY')
+            if not api_key:
+                raise Exception("OpenAI API key not configured")
+            print(f"✅ OpenAI API key verified: {api_key[:10]}..." if len(api_key) > 10 else "✅ API key verified")
+            
+            # Verify client is available
+            if not self.client:
+                raise Exception("OpenAI client not initialized")
+            print(f"✅ OpenAI client available: {type(self.client)}")
+            
+            # Create conversational prompt optimized for chat
+            print("🔄 Creating chat image prompt...")
+            system_prompt = self._create_chat_image_prompt(user_prompt, subject, student_context)
+            print(f"✅ System prompt created: {len(system_prompt)} chars")
+            
+            # Prepare image for OpenAI Vision API
+            print("🔄 Preparing image for OpenAI Vision API...")
+            image_url = f"data:image/jpeg;base64,{base64_image}"
+            
+            messages = [
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": user_prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": image_url,
+                                "detail": "high"
+                            }
+                        }
+                    ]
+                }
+            ]
+            print(f"✅ Messages prepared: {len(messages)} messages")
+            print(f"📊 System prompt length: {len(system_prompt)} chars")
+            print(f"📊 User prompt length: {len(user_prompt)} chars")
+            print(f"📊 Image URL length: {len(image_url)} chars")
+            
+            print(f"📡 Calling OpenAI Vision API...")
+            print(f"🤖 Model: {self.vision_model}")
+            print(f"⚙️ Settings: max_tokens=800, temperature=0.7")
+            
+            # Use vision model with optimized settings for chat
+            response = await self.client.chat.completions.create(
+                model=self.vision_model,  # Use full vision model for image analysis
+                messages=messages,
+                max_tokens=800,  # Shorter responses for chat
+                temperature=0.7,  # Slightly more conversational
+                stream=False
+            )
+            
+            print(f"✅ OpenAI API call completed successfully")
+            print(f"📊 Response type: {type(response)}")
+            
+            ai_response = response.choices[0].message.content.strip()
+            tokens_used = response.usage.total_tokens if response.usage else 0
+            
+            print(f"✅ === AI SERVICE: CHAT IMAGE ANALYSIS SUCCESS ===")
+            print(f"📝 Response length: {len(ai_response)} chars")
+            print(f"🎯 Tokens used: {tokens_used}")
+            
+            return {
+                "success": True,
+                "response": ai_response,
+                "tokens_used": tokens_used,
+                "processing_type": "chat_image",
+                "model_used": self.vision_model
+            }
+            
+        except Exception as e:
+            # Comprehensive error logging
+            import traceback
+            error_msg = f"Chat image analysis failed: {str(e) if str(e) else 'Unknown error'}"
+            full_traceback = traceback.format_exc()
+            
+            print(f"❌ === AI SERVICE: CHAT IMAGE ANALYSIS ERROR ===")
+            print(f"💥 Error message: '{str(e)}'")
+            print(f"💥 Error repr: {repr(e)}")
+            print(f"🔧 Exception type: {type(e).__name__}")
+            print(f"🔧 Exception module: {type(e).__module__}")
+            print(f"🔧 Exception args: {e.args}")
+            print(f"📋 Full traceback:")
+            print(full_traceback)
+            print(f"🔍 OpenAI API key available: {bool(os.getenv('OPENAI_API_KEY'))}")
+            print(f"🔍 Client type: {type(self.client)}")
+            print(f"=====================================")
+            
+            # Return more detailed error for debugging
+            detailed_error = f"{error_msg} | Type: {type(e).__name__} | Args: {e.args} | Traceback: {full_traceback[:500]}"
+            
+            return {
+                "success": False,
+                "error": detailed_error,
+                "response": "I'm having trouble analyzing this image right now. Please try again in a moment.",
+                "tokens_used": 0
+            }
+    
+    def _create_chat_image_prompt(
+        self,
+        user_prompt: str,
+        subject: str,
+        student_context: Optional[Dict] = None
+    ) -> str:
+        """
+        Create an optimized prompt for chat image analysis.
+        Focuses on conversational, helpful responses.
+        """
+        
+        base_prompt = f"""You are StudyAI, a helpful educational assistant specializing in {subject}. 
+
+The user has sent you an image with this question: "{user_prompt}"
+
+Please analyze the image and provide a clear, conversational response that:
+1. Directly addresses their question
+2. Explains what you see in the image relevant to their question
+3. Provides educational value appropriate for their level
+4. Uses a natural, friendly tone suitable for chat
+5. Keeps the response concise but informative (aim for 2-4 sentences)
+
+If the image contains:
+- Math problems: Show the solution steps clearly
+- Diagrams/charts: Explain what they represent
+- Text: Help them understand the content
+- Homework: Provide guidance without just giving answers
+
+Focus on being helpful and educational while maintaining a conversational tone."""
+
+        # Add student context if available
+        if student_context and student_context.get("student_id"):
+            base_prompt += f"\n\nStudent context: {student_context.get('student_id', 'anonymous')}"
+        
+        return base_prompt

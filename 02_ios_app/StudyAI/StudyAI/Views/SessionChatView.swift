@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 // MARK: - Character Avatar Component
 
@@ -48,6 +49,7 @@ struct VoiceInputButton: View {
     let onVoiceStart: () -> Void
     let onVoiceEnd: () -> Void
     
+    @StateObject private var speechService = SpeechRecognitionService()
     @State private var isRecording = false
     
     var body: some View {
@@ -61,20 +63,43 @@ struct VoiceInputButton: View {
                 .scaleEffect(isRecording ? 1.1 : 1.0)
                 .animation(.easeInOut(duration: 0.2), value: isRecording)
         }
+        .disabled(!speechService.isAvailable())
+        .onAppear {
+            // Request permissions when view appears
+            Task {
+                await speechService.requestPermissions()
+            }
+        }
     }
     
     private func toggleRecording() {
-        isRecording.toggle()
         if isRecording {
-            onVoiceStart()
-            // Simulate voice recognition after 2 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                onVoiceInput("Sample voice input")
-                isRecording = false
-                onVoiceEnd()
-            }
-        } else {
+            // Stop recording
+            print("🎙️ VoiceInputButton: Stopping speech recognition")
+            speechService.stopListening()
+            isRecording = false
             onVoiceEnd()
+        } else {
+            // Start recording
+            print("🎙️ VoiceInputButton: Starting speech recognition")
+            isRecording = true
+            onVoiceStart()
+            
+            speechService.startListening { result in
+                print("🎙️ VoiceInputButton: Received result: '\(result.recognizedText)'")
+                
+                DispatchQueue.main.async {
+                    self.isRecording = false
+                    self.onVoiceEnd()
+                    
+                    // Only send non-empty results
+                    if !result.recognizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        self.onVoiceInput(result.recognizedText)
+                    } else {
+                        print("🎙️ VoiceInputButton: Empty recognition result, not sending")
+                    }
+                }
+            }
         }
     }
 }
@@ -85,19 +110,31 @@ struct VoiceInputVisualization: View {
     
     var body: some View {
         if isVisible {
-            HStack(spacing: 4) {
-                ForEach(0..<8, id: \.self) { index in
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.blue)
-                        .frame(width: 4, height: animatingBars[index] ? 20 : 8)
-                        .animation(
-                            .easeInOut(duration: Double.random(in: 0.3...0.8))
-                            .repeatForever(autoreverses: true)
-                            .delay(Double(index) * 0.1),
-                            value: animatingBars[index]
-                        )
+            VStack(spacing: 16) {
+                // Voice wave animation
+                HStack(spacing: 4) {
+                    ForEach(0..<8, id: \.self) { index in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.blue)
+                            .frame(width: 4, height: animatingBars[index] ? 20 : 8)
+                            .animation(
+                                .easeInOut(duration: Double.random(in: 0.3...0.8))
+                                .repeatForever(autoreverses: true)
+                                .delay(Double(index) * 0.1),
+                                value: animatingBars[index]
+                            )
+                    }
                 }
+                
+                // Status text
+                Text("🎙️ Listening... Speak now")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white.opacity(0.8))
+                    .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: isVisible)
             }
+            .padding(16)
+            .background(Color.black.opacity(0.3))
+            .cornerRadius(12)
             .onAppear {
                 for i in 0..<animatingBars.count {
                     animatingBars[i] = true
@@ -291,12 +328,18 @@ struct MessageVoiceControls: View {
 struct SessionChatView: View {
     @StateObject private var networkService = NetworkService.shared
     @StateObject private var voiceService = VoiceInteractionService.shared
+    // @StateObject private var draftManager = ChatDraftManager.shared // TODO: Re-enable when ChatMessage.swift is properly integrated
     @State private var messageText = ""
     @State private var selectedSubject = "Mathematics"
     @State private var isSubmitting = false
     @State private var errorMessage = ""
     @State private var showingSubjectPicker = false
     @State private var sessionInfo: [String: Any]?
+    @State private var showingSearch = false
+    // @State private var enhancedMessages: [ChatMessage] = [] // TODO: Re-enable when ChatMessage.swift is properly integrated
+    @State private var searchText = ""
+    // @State private var filteredMessages: [ChatMessage] = [] // TODO: Re-enable when ChatMessage.swift is properly integrated
+    @State private var tempFilteredMessages: [String] = [] // Temporary placeholder
     @State private var showingSessionInfo = false
     @State private var showingArchiveDialog = false
     @State private var archiveTitle = ""
@@ -312,10 +355,16 @@ struct SessionChatView: View {
     @State private var isProcessingImage = false
     @State private var showingPermissionAlert = false
     
-    // Voice functionality
+    // iOS Messages-style image input
+    @State private var showingImageInputSheet = false
+    @State private var imagePrompt = ""
+    
+    // Image message storage for display
+    @State private var imageMessages: [String: Data] = [:]
+    
+    // Voice functionality - WeChat style
     @State private var showingVoiceSettings = false
-    @State private var isVoiceInputActive = false
-    @State private var showingEnhancedVoiceInput = false
+    @State private var isVoiceMode = false
     @State private var pendingUserMessage = ""
     @State private var showTypingIndicator = false
     
@@ -413,7 +462,16 @@ struct SessionChatView: View {
             VoiceSettingsView()
         }
         .sheet(isPresented: $showingCamera) {
-            CameraView(selectedImage: $selectedImage, isPresented: $showingCamera)
+            ImageSourceSelectionView(selectedImage: $selectedImage, isPresented: $showingCamera)
+        }
+        .sheet(isPresented: $showingImageInputSheet) {
+            ImageInputSheet(
+                selectedImage: $selectedImage,
+                userPrompt: $imagePrompt,
+                isPresented: $showingImageInputSheet
+            ) { image, prompt in
+                processImageWithPrompt(image: image, prompt: prompt)
+            }
         }
         .alert("Camera Permission", isPresented: $showingPermissionAlert) {
             Button("Settings") {
@@ -440,7 +498,8 @@ struct SessionChatView: View {
         }
         .onChange(of: selectedImage) { _, newImage in
             if let image = newImage {
-                processImageWithAI(image)
+                // Show iOS Messages-style input sheet instead of direct processing
+                showingImageInputSheet = true
             }
         }
     }
@@ -448,36 +507,124 @@ struct SessionChatView: View {
     // MARK: - Modern View Components (ChatGPT Style)
     
     private var modernHeaderView: some View {
-        HStack {
-            // Minimal header - just status indicator
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(networkService.currentSessionId != nil ? Color.green : Color.red)
-                    .frame(width: 6, height: 6)
+        VStack(spacing: 0) {
+            HStack {
+                // Minimal header - just status indicator
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(networkService.currentSessionId != nil ? Color.green : Color.red)
+                        .frame(width: 6, height: 6)
+                    
+                    Text(networkService.currentSessionId != nil ? "Active" : "Inactive")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                }
                 
-                Text(networkService.currentSessionId != nil ? "Active" : "Inactive")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
+                Spacer()
+                
+                // Search button
+                Button(action: {
+                    withAnimation {
+                        showingSearch.toggle()
+                        if !showingSearch {
+                            searchText = ""
+                            // TODO: Re-enable when filteredMessages is properly integrated
+                            // filteredMessages = []
+                        }
+                    }
+                }) {
+                    Image(systemName: showingSearch ? "xmark" : "magnifyingglass")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                        .frame(width: 32, height: 32)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Circle())
+                }
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
             
-            Spacer()
+            // Search bar
+            if showingSearch {
+                HStack {
+                    TextField("Search messages...", text: $searchText)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .onChange(of: searchText) { _, newValue in
+                            // TODO: Re-enable search when ChatMessage models are properly integrated
+                            // filterMessages(query: newValue)
+                        }
+                    
+                    if !searchText.isEmpty {
+                        Button("Clear") {
+                            searchText = ""
+                            // TODO: Re-enable when filteredMessages is properly integrated
+                            // filteredMessages = []
+                        }
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+                .background(Color.black.opacity(0.2))
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
     }
     
     private var darkChatMessagesView: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 24) {  // Increased spacing for modern look
+                    // Show filtered messages when searching, otherwise show all messages
+                    // TODO: Re-enable when ChatMessage models are properly integrated
+                    // let messagesToShow = !searchText.isEmpty && !filteredMessages.isEmpty ? filteredMessages : []
+                    let showSearchResults = !searchText.isEmpty && false // Temporarily disabled
+                    
                     if networkService.conversationHistory.isEmpty {
                         modernEmptyStateView
+                    } else if showSearchResults { // && messagesToShow.isEmpty (temporarily disabled)
+                        // No search results - temporarily disabled
+                        VStack(spacing: 16) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 40))
+                                .foregroundColor(.white.opacity(0.5))
+                            
+                            Text("Search temporarily disabled")
+                                .font(.headline)
+                                .foregroundColor(.white.opacity(0.8))
+                            
+                            Text("Enhanced search will be available soon")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.6))
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(40)
+                    } else if false { // showSearchResults (temporarily disabled)
+                        // Show enhanced message bubbles for search results - temporarily disabled
+                        Text("Search results will appear here")
+                            .foregroundColor(.white.opacity(0.6))
                     } else {
+                        // Show regular messages when not searching
                         ForEach(Array(networkService.conversationHistory.enumerated()), id: \.offset) { index, message in
                             if message["role"] == "user" {
-                                // User message - modern style
-                                ModernUserMessageView(message: message)
+                                // Check if message has image data
+                                if message["hasImage"] == "true",
+                                   let messageId = message["messageId"],
+                                   let imageData = imageMessages[messageId] {
+                                    // Show image message bubble
+                                    ImageMessageBubble(
+                                        imageData: imageData,
+                                        userPrompt: message["content"],
+                                        timestamp: Date(), // TODO: Add proper timestamp to message model
+                                        isFromCurrentUser: true
+                                    )
                                     .id(index)
+                                } else {
+                                    // Regular user message - modern style
+                                    ModernUserMessageView(message: message)
+                                        .id(index)
+                                }
                             } else {
                                 // AI message - ChatGPT style with character avatar and streaming
                                 ModernAIMessageView(
@@ -507,12 +654,26 @@ struct SessionChatView: View {
                 .padding(.top, 20)
             }
             .onChange(of: networkService.conversationHistory.count) { _, newCount in
-                let lastIndex = networkService.conversationHistory.count - 1
-                if lastIndex >= 0 {
-                    withAnimation(.easeOut(duration: 0.5)) {
-                        proxy.scrollTo(lastIndex, anchor: .bottom)
+                // Only auto-scroll when not searching
+                if searchText.isEmpty {
+                    let lastIndex = networkService.conversationHistory.count - 1
+                    if lastIndex >= 0 {
+                        withAnimation(.easeOut(duration: 0.5)) {
+                            proxy.scrollTo(lastIndex, anchor: .bottom)
+                        }
                     }
                 }
+            }
+            .onChange(of: tempFilteredMessages) { _, _ in
+                // Scroll to first search result when search updates - temporarily disabled
+                // TODO: Re-enable when filteredMessages is properly integrated
+                /*
+                if let firstResult = filteredMessages.first {
+                    withAnimation {
+                        proxy.scrollTo(firstResult.id, anchor: .center)
+                    }
+                }
+                */
             }
         }
     }
@@ -525,67 +686,90 @@ struct SessionChatView: View {
                 conversationContinuationButtons
             }
             
-            // Floating message input
-            HStack(spacing: 12) {
-                // Camera button (restored)
-                Button(action: openCamera) {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
-                        .frame(width: 44, height: 44)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Circle())
-                }
-                .disabled(networkService.currentSessionId == nil || isSubmitting || isProcessingImage)
-                
-                // Voice input button
-                VoiceInputButton(
+            // WeChat-style voice input or text input
+            if isVoiceMode {
+                // WeChat-style voice interface
+                WeChatStyleVoiceInput(
+                    isVoiceMode: $isVoiceMode,
                     onVoiceInput: { recognizedText in
                         handleVoiceInput(recognizedText)
                     },
-                    onVoiceStart: {
-                        isVoiceInputActive = true
-                        isMessageInputFocused = false
-                    },
-                    onVoiceEnd: {
-                        isVoiceInputActive = false
-                    }
-                )
-                
-                // Modern text input
-                HStack {
-                    TextField("Message", text: $messageText, axis: .vertical)
-                        .font(.system(size: 16))
-                        .foregroundColor(.white)
-                        .focused($isMessageInputFocused)
-                        .lineLimit(1...4)
-                        .disabled(isVoiceInputActive)
-                    
-                    if !messageText.isEmpty {
-                        Button(action: sendMessage) {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(.blue)
+                    onModeToggle: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isVoiceMode.toggle()
+                            if !isVoiceMode {
+                                isMessageInputFocused = true
+                            }
                         }
-                        .disabled(isSubmitting)
                     }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(25)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 25)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
                 )
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-            
-            // Voice visualization (when voice input is active)
-            if isVoiceInputActive {
-                VoiceInputVisualization(isVisible: true)
-                    .transition(.scale.combined(with: .opacity))
+            } else {
+                // Regular text input interface
+                HStack(spacing: 12) {
+                    // Camera button
+                    Button(action: openCamera) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(.white.opacity(0.7))
+                            .frame(width: 44, height: 44)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(Circle())
+                    }
+                    .disabled(networkService.currentSessionId == nil || isSubmitting || isProcessingImage)
+                    
+                    // Voice mode button
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isVoiceMode = true
+                            isMessageInputFocused = false
+                        }
+                    }) {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(.white.opacity(0.7))
+                            .frame(width: 44, height: 44)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(Circle())
+                    }
+                    
+                    // Text input field
+                    HStack {
+                        TextField("Message", text: $messageText, axis: .vertical)
+                            .font(.system(size: 16))
+                            .foregroundColor(.white)
+                            .focused($isMessageInputFocused)
+                            .lineLimit(1...4)
+                            .onChange(of: messageText) { _, newValue in
+                                // Auto-save draft as user types
+                                // TODO: Re-enable when ChatDraftManager is properly integrated
+                                // draftManager.saveDraft(newValue)
+                            }
+                            .onAppear {
+                                // Load draft when view appears
+                                // TODO: Re-enable when ChatDraftManager is properly integrated
+                                // messageText = draftManager.currentDraft
+                            }
+                        
+                        if !messageText.isEmpty {
+                            Button(action: sendMessage) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.blue)
+                            }
+                            .disabled(isSubmitting)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(25)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 25)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
             }
         }
         .background(
@@ -596,7 +780,7 @@ struct SessionChatView: View {
                 endPoint: .bottom
             )
         )
-        .animation(.easeInOut(duration: 0.3), value: isVoiceInputActive)
+        .animation(.easeInOut(duration: 0.3), value: isVoiceMode)
     }
     
     private var conversationContinuationButtons: some View {
@@ -621,33 +805,79 @@ struct SessionChatView: View {
     private func generateContextualButtons(for message: String) -> [String] {
         let lowercaseMessage = message.lowercased()
         
-        // Math-related responses
-        if lowercaseMessage.contains("solve") || lowercaseMessage.contains("equation") || lowercaseMessage.contains("=") {
-            return ["Show steps", "Try similar problem", "Explain method"]
+        // Analyze message content for intelligent suggestions
+        var suggestions: [String] = []
+        
+        // Math-related responses with intelligent detection
+        if containsMathTerms(lowercaseMessage) {
+            suggestions.append(contentsOf: ["Show steps", "Try similar problem", "Explain method"])
         }
         
-        // Explanation responses
-        if lowercaseMessage.contains("because") || lowercaseMessage.contains("reason") || lowercaseMessage.contains("why") {
-            return ["More examples", "Simplify further", "Related concepts"]
+        // Science concepts
+        if containsScienceTerms(lowercaseMessage) {
+            suggestions.append(contentsOf: ["Real examples", "How it works", "Connect to daily life"])
         }
         
-        // Definition responses
-        if lowercaseMessage.contains("define") || lowercaseMessage.contains("meaning") || lowercaseMessage.contains("refers to") {
-            return ["Give examples", "Compare with", "Use in sentence"]
+        // Definition or explanation responses
+        if containsDefinitionTerms(lowercaseMessage) {
+            suggestions.append(contentsOf: ["Give examples", "Compare with", "Use in sentence"])
         }
         
         // Problem-solving responses
-        if lowercaseMessage.contains("step") || lowercaseMessage.contains("first") || lowercaseMessage.contains("then") {
-            return ["Explain why", "Alternative approach", "Practice problem"]
+        if containsProblemSolvingTerms(lowercaseMessage) {
+            suggestions.append(contentsOf: ["Explain why", "Alternative approach", "Practice problem"])
         }
         
-        // Science responses
-        if lowercaseMessage.contains("photosynthesis") || lowercaseMessage.contains("cell") || lowercaseMessage.contains("atom") {
-            return ["Real examples", "How it works", "Connect to daily life"]
+        // Historical or factual content
+        if containsHistoricalTerms(lowercaseMessage) {
+            suggestions.append(contentsOf: ["When did this happen", "Who was involved", "What caused this"])
         }
         
-        // Default buttons for general responses
-        return ["Explain differently", "Give example", "More details"]
+        // Literature or language content
+        if containsLiteratureTerms(lowercaseMessage) {
+            suggestions.append(contentsOf: ["Analyze meaning", "Find themes", "Author's intent"])
+        }
+        
+        // Remove duplicates and limit to 3 most relevant suggestions
+        let uniqueSuggestions = Array(Set(suggestions))
+        
+        // If no specific suggestions, use general ones
+        if uniqueSuggestions.isEmpty {
+            return ["Explain differently", "Give example", "More details"]
+        }
+        
+        return Array(uniqueSuggestions.prefix(3))
+    }
+    
+    // Helper functions for intelligent content analysis
+    private func containsMathTerms(_ text: String) -> Bool {
+        let mathTerms = ["solve", "equation", "=", "x", "y", "derivative", "integral", "function", "graph", "algebra", "geometry", "calculus", "trigonometry", "formula", "theorem", "proof"]
+        return mathTerms.contains { text.contains($0) }
+    }
+    
+    private func containsScienceTerms(_ text: String) -> Bool {
+        let scienceTerms = ["photosynthesis", "cell", "atom", "molecule", "chemical", "reaction", "energy", "force", "gravity", "electron", "proton", "dna", "protein", "evolution", "ecosystem", "planet", "solar"]
+        return scienceTerms.contains { text.contains($0) }
+    }
+    
+    private func containsDefinitionTerms(_ text: String) -> Bool {
+        let definitionTerms = ["define", "meaning", "refers to", "is a", "means that", "definition", "concept", "term"]
+        return definitionTerms.contains { text.contains($0) }
+    }
+    
+    private func containsProblemSolvingTerms(_ text: String) -> Bool {
+        let problemTerms = ["step", "first", "then", "next", "finally", "process", "method", "approach", "strategy", "solution"]
+        return problemTerms.contains { text.contains($0) }
+    }
+    
+    private func containsHistoricalTerms(_ text: String) -> Bool {
+        let historyTerms = ["war", "revolution", "empire", "century", "ancient", "medieval", "president", "king", "queen", "battle", "treaty", "civilization"]
+        return historyTerms.contains { text.contains($0) }
+    }
+    
+    private func containsLiteratureTerms(_ text: String) -> Bool {
+        let literatureTerms = ["character", "plot", "theme", "metaphor", "symbolism", "author", "poem", "novel", "story", "narrative", "analysis"]
+        return literatureTerms.contains { text.contains($0) }
     }
     
     // Generate contextual prompts based on button and last message
@@ -902,76 +1132,6 @@ struct SessionChatView: View {
             .padding(.horizontal, 32)
         }
         .padding(.vertical, 40)
-    }
-    
-    private var messageInputView: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                // Camera button
-                Button(action: openCamera) {
-                    Image(systemName: "camera.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 36, height: 36)
-                        .background(Color.blue.opacity(0.1))
-                        .clipShape(Circle())
-                }
-                .disabled(networkService.currentSessionId == nil || isSubmitting || isProcessingImage)
-                
-                // Voice input button
-                VoiceInputButton(
-                    onVoiceInput: { recognizedText in
-                        print("💬 SessionChatView: Received voice input: '\(recognizedText)'")
-                        handleVoiceInput(recognizedText)
-                    },
-                    onVoiceStart: {
-                        isVoiceInputActive = true
-                        isMessageInputFocused = false
-                    },
-                    onVoiceEnd: {
-                        isVoiceInputActive = false
-                    }
-                )
-                
-                // Message text field
-                TextField("Ask a question about \(selectedSubject.lowercased())...", text: $messageText, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 18, weight: .medium))  // Larger font for kids
-                    .focused($isMessageInputFocused)
-                    .lineLimit(1...4)
-                    .disabled(networkService.currentSessionId == nil || isVoiceInputActive)
-                
-                // Send button
-                Button(action: sendMessage) {
-                    Image(systemName: isSubmitting ? "hourglass" : "paperplane.fill")
-                        .foregroundColor(.white)
-                        .frame(width: 36, height: 36)
-                        .background(messageText.isEmpty || isSubmitting || networkService.currentSessionId == nil ? Color.gray : Color.blue)
-                        .clipShape(Circle())
-                }
-                .disabled(messageText.isEmpty || isSubmitting || networkService.currentSessionId == nil || isVoiceInputActive)
-            }
-            
-            // Voice visualization (when voice input is active)
-            if isVoiceInputActive {
-                VoiceInputVisualization(isVisible: true)
-                    .transition(.scale.combined(with: .opacity))
-            }
-            
-            // Quick action buttons
-            if networkService.currentSessionId == nil {
-                Button("Create New Session") {
-                    startNewSession()
-                }
-                .foregroundColor(.blue)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(8)
-            }
-        }
-        .padding()
-        .background(Color.gray.opacity(0.05))
-        .animation(.easeInOut(duration: 0.3), value: isVoiceInputActive)
     }
     
     private var subjectPickerView: some View {
@@ -1236,6 +1396,41 @@ struct SessionChatView: View {
         }
     }
     
+    // MARK: - Message Management (Temporarily Disabled)
+    // TODO: Re-enable when ChatMessage models are properly integrated
+    /*
+    private func convertLegacyMessages() -> [ChatMessage] {
+        return networkService.conversationHistory.enumerated().map { index, dict in
+            ChatMessage.fromDictionary(dict, sessionId: networkService.currentSessionId)
+        }
+    }
+    
+    private func filterMessages(query: String) {
+        let convertedMessages = convertLegacyMessages()
+        
+        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            filteredMessages = []
+            return
+        }
+        
+        let lowercaseQuery = query.lowercased()
+        filteredMessages = convertedMessages.filter { message in
+            message.content.lowercased().contains(lowercaseQuery)
+        }
+    }
+    
+    private func copyMessage(_ message: ChatMessage) {
+        UIPasteboard.general.string = message.content
+        // Could show a toast notification here
+    }
+    
+    private func retryMessage(_ message: ChatMessage) {
+        // Implement retry logic if needed
+        messageText = message.content
+        sendMessage()
+    }
+    */
+    
     // MARK: - Actions
     
     private func sendMessage() {
@@ -1244,6 +1439,9 @@ struct SessionChatView: View {
         
         let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         messageText = ""
+        // Clear draft when message is sent
+        // TODO: Re-enable when ChatDraftManager is properly integrated
+        // draftManager.clearDraft()
         isSubmitting = true
         errorMessage = ""
         isMessageInputFocused = false
@@ -1272,7 +1470,29 @@ struct SessionChatView: View {
                     refreshTrigger = UUID()
                     print("🔄 SessionChatView: Triggered UI refresh after message success")
                 } else {
-                    errorMessage = "Failed to send message. Please try again."
+                    // Enhanced error handling with recovery options
+                    // sendSessionMessage returns (success: Bool, aiResponse: String?, tokensUsed: Int?, compressed: Bool?)
+                    // so we need to provide a generic error message since there's no specific error detail
+                    let errorDetail = result.aiResponse ?? "Failed to get AI response"
+                    
+                    // Check for specific error types and provide appropriate recovery
+                    if errorDetail.contains("network") || errorDetail.contains("connection") {
+                        errorMessage = "Network connection lost. Please check your internet and try again."
+                        // Restore message text for easy retry
+                        messageText = message
+                    } else if errorDetail.contains("session") || errorDetail.contains("expired") {
+                        errorMessage = "Session expired. Creating a new session..."
+                        // Automatically start new session and retry
+                        Task {
+                            await startNewSessionAndRetry(message: message)
+                        }
+                    } else if errorDetail.contains("rate limit") || errorDetail.contains("quota") {
+                        errorMessage = "Service temporarily unavailable. Please wait a moment and try again."
+                        messageText = message
+                    } else {
+                        errorMessage = "Failed to send message. Please check your connection and try again."
+                        messageText = message
+                    }
                 }
                 
                 // Session info might have changed, refresh it
@@ -1303,6 +1523,21 @@ struct SessionChatView: View {
                 if !result.success {
                     errorMessage = "Failed to create session: \(result.message)"
                 }
+            }
+        }
+    }
+    
+    private func startNewSessionAndRetry(message: String) async {
+        let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
+        
+        await MainActor.run {
+            if result.success {
+                // Session created successfully, retry the message
+                messageText = message
+                errorMessage = "New session created. Message restored for retry."
+            } else {
+                errorMessage = "Failed to create new session: \(result.message)"
+                messageText = message // Still restore message for manual retry
             }
         }
     }
@@ -1358,6 +1593,115 @@ struct SessionChatView: View {
         }
     }
     
+    private func processImageWithPrompt(image: UIImage, prompt: String) {
+        guard networkService.currentSessionId != nil else { return }
+        
+        isProcessingImage = true
+        errorMessage = ""
+        
+        // Clear the image input state
+        selectedImage = nil
+        imagePrompt = ""
+        
+        Task {
+            // Compress image for upload
+            guard let imageData = ImageProcessingService.shared.compressImageForUpload(image) else {
+                await MainActor.run {
+                    isProcessingImage = false
+                    errorMessage = "Failed to prepare image for upload"
+                }
+                return
+            }
+            
+            // Use user prompt or default question
+            let question = prompt.isEmpty ? 
+                "Analyze this image and help me understand what I see. If there are mathematical problems, solve them step by step." : 
+                prompt
+            
+            // Store image data for message display
+            let imageDataForDisplay = imageData
+            
+            // Add user message with image to conversation history immediately
+            let messageId = UUID().uuidString
+            let userMessage = prompt.isEmpty ? "📷 [Uploaded image for analysis]" : prompt
+            
+            await MainActor.run {
+                // Store image data separately for display
+                imageMessages[messageId] = imageData
+                
+                // Add message to conversation history (string-only for compatibility)
+                networkService.conversationHistory.append([
+                    "role": "user",
+                    "content": userMessage,
+                    "messageId": messageId,
+                    "hasImage": "true"
+                ])
+                
+                // Show typing indicator
+                showTypingIndicator = true
+            }
+            
+            // Process image with AI
+            let result = await networkService.processImageWithQuestion(
+                imageData: imageData,
+                question: question,
+                subject: selectedSubject.lowercased()
+            )
+            
+            await MainActor.run {
+                isProcessingImage = false
+                showTypingIndicator = false
+                
+                if result.success, let response = result.result {
+                    if let answer = response["answer"] as? String {
+                        // Add AI response to conversation history
+                        networkService.conversationHistory.append(["role": "assistant", "content": answer])
+                        
+                        // Refresh session info in background
+                        Task {
+                            loadSessionInfo()
+                        }
+                    }
+                } else {
+                    // Enhanced error handling for image processing
+                    let errorDetail = "Failed to process image"
+                    
+                    if result.result?["error"] != nil {
+                        // Try to extract error message from result if available
+                        if let errorMessage = result.result?["error"] as? String {
+                            if errorMessage.contains("network") || errorMessage.contains("connection") {
+                                self.errorMessage = "Network error during image upload. Please check your connection and try again."
+                            } else if errorMessage.contains("size") || errorMessage.contains("large") {
+                                self.errorMessage = "Image too large. Please try with a smaller image."
+                            } else if errorMessage.contains("format") || errorMessage.contains("invalid") {
+                                self.errorMessage = "Invalid image format. Please try with a different image."
+                            } else if errorMessage.contains("quota") || errorMessage.contains("limit") {
+                                self.errorMessage = "Service limit reached. Please try again later."
+                            } else {
+                                self.errorMessage = "Failed to process image: \(errorMessage). Please try again."
+                            }
+                        } else {
+                            self.errorMessage = "Failed to process image. Please try again."
+                        }
+                    } else {
+                        // Generic error messages based on common issues
+                        self.errorMessage = "Failed to process image. Please check your connection and try again."
+                    }
+                    
+                    // Remove the user message if processing failed
+                    if let lastMessage = networkService.conversationHistory.last,
+                       lastMessage["hasImage"] == "true" {
+                        // Also remove from image storage
+                        if let messageId = lastMessage["messageId"] {
+                            imageMessages.removeValue(forKey: messageId)
+                        }
+                        networkService.conversationHistory.removeLast()
+                    }
+                }
+            }
+        }
+    }
+    
     private func processImageWithAI(_ image: UIImage) {
         guard networkService.currentSessionId != nil else { return }
         
@@ -1398,7 +1742,35 @@ struct SessionChatView: View {
                         }
                     }
                 } else {
-                    errorMessage = "Failed to process image. Please try again."
+                    // Enhanced error handling for image processing
+                    // processImageWithQuestion returns (success: Bool, result: [String: Any]?)
+                    // so we need to provide a generic error message since there's no specific error detail
+                    let errorDetail = "Failed to process image"
+                    
+                    if result.result?["error"] != nil {
+                        // Try to extract error message from result if available
+                        if let errorMessage = result.result?["error"] as? String {
+                            if errorMessage.contains("network") || errorMessage.contains("connection") {
+                                self.errorMessage = "Network error during image upload. Please check your connection and try again."
+                            } else if errorMessage.contains("size") || errorMessage.contains("large") {
+                                self.errorMessage = "Image too large. Please try with a smaller image."
+                            } else if errorMessage.contains("format") || errorMessage.contains("invalid") {
+                                self.errorMessage = "Invalid image format. Please try with a different image."
+                            } else if errorMessage.contains("quota") || errorMessage.contains("limit") {
+                                self.errorMessage = "Service limit reached. Please try again later."
+                            } else {
+                                self.errorMessage = "Failed to process image: \(errorMessage). Please try again."
+                            }
+                        } else {
+                            self.errorMessage = "Failed to process image. Please try again."
+                        }
+                    } else {
+                        // Generic error messages based on common issues
+                        self.errorMessage = "Failed to process image. Please check your connection and try again."
+                    }
+                    
+                    // Store the image for potential retry
+                    selectedImage = image
                 }
             }
         }
@@ -1761,5 +2133,691 @@ extension View {
 #Preview {
     NavigationView {
         SessionChatView()
+    }
+}
+
+// MARK: - Additional View Components (Consolidated for Build Fix)
+
+// MARK: - ImageInputSheet (iOS Messages Style)
+
+struct ImageInputSheet: View {
+    @Binding var selectedImage: UIImage?
+    @Binding var userPrompt: String
+    @Binding var isPresented: Bool
+    
+    let onSend: (UIImage, String) -> Void
+    
+    @State private var showingFullImage = false
+    @FocusState private var isTextFieldFocused: Bool
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Image preview area
+                if let image = selectedImage {
+                    GeometryReader { geometry in
+                        ScrollView([.horizontal, .vertical]) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(
+                                    maxWidth: max(geometry.size.width, image.size.width * (geometry.size.height / image.size.height)),
+                                    maxHeight: max(geometry.size.height, image.size.height * (geometry.size.width / image.size.width))
+                                )
+                                .onTapGesture {
+                                    showingFullImage = true
+                                    isTextFieldFocused = false
+                                }
+                        }
+                        .clipped()
+                    }
+                    .frame(maxHeight: 300)
+                    .background(Color.black)
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                } else {
+                    // Placeholder when no image
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 200)
+                        .overlay(
+                            VStack {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.gray)
+                                Text("No image selected")
+                                    .foregroundColor(.gray)
+                            }
+                        )
+                        .padding(.horizontal)
+                }
+                
+                // Text input area (iOS Messages style)
+                VStack(spacing: 16) {
+                    HStack(alignment: .bottom, spacing: 12) {
+                        // Text input field
+                        HStack {
+                            TextField("Add a comment...", text: $userPrompt, axis: .vertical)
+                                .font(.system(size: 16))
+                                .focused($isTextFieldFocused)
+                                .lineLimit(1...6)
+                                .textFieldStyle(.plain)
+                            
+                            // Clear button (when text is present)
+                            if !userPrompt.isEmpty {
+                                Button(action: {
+                                    userPrompt = ""
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.gray)
+                                        .font(.system(size: 16))
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(20)
+                        
+                        // Send button (iOS Messages style)
+                        Button(action: {
+                            sendImageWithPrompt()
+                        }) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 32))
+                                .foregroundColor(selectedImage != nil ? .blue : .gray)
+                        }
+                        .disabled(selectedImage == nil)
+                    }
+                    .padding(.horizontal)
+                    
+                    // Character count or additional info
+                    if !userPrompt.isEmpty {
+                        HStack {
+                            Text("\(userPrompt.count) characters")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+                .background(Color(.systemBackground))
+                
+                Spacer()
+            }
+            .navigationTitle("Send Image")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        isPresented = false
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Send") {
+                        sendImageWithPrompt()
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(selectedImage == nil)
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showingFullImage) {
+            FullScreenImageView(image: selectedImage, isPresented: $showingFullImage)
+        }
+        .onAppear {
+            // Auto-focus text field when sheet appears
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                isTextFieldFocused = true
+            }
+        }
+    }
+    
+    private func sendImageWithPrompt() {
+        guard let image = selectedImage else { return }
+        
+        onSend(image, userPrompt)
+        isPresented = false
+    }
+}
+
+struct FullScreenImageView: View {
+    let image: UIImage?
+    @Binding var isPresented: Bool
+    @State private var scale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var isAnimating = false
+    
+    var body: some View {
+        ZStack {
+            Color.black
+                .ignoresSafeArea()
+            
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .scaleEffect(scale)
+                    .offset(offset)
+                    .gesture(
+                        SimultaneousGesture(
+                            MagnificationGesture()
+                                .onChanged { value in
+                                    scale = value
+                                }
+                                .onEnded { value in
+                                    withAnimation(.spring()) {
+                                        if scale < 1 {
+                                            scale = 1
+                                            offset = .zero
+                                        } else if scale > 3 {
+                                            scale = 3
+                                        }
+                                    }
+                                },
+                            
+                            DragGesture()
+                                .onChanged { value in
+                                    offset = value.translation
+                                }
+                                .onEnded { value in
+                                    withAnimation(.spring()) {
+                                        offset = .zero
+                                    }
+                                }
+                        )
+                    )
+                    .onTapGesture(count: 2) {
+                        withAnimation(.spring()) {
+                            if scale > 1 {
+                                scale = 1
+                                offset = .zero
+                            } else {
+                                scale = 2
+                            }
+                        }
+                    }
+            }
+            
+            // Close button
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        isPresented = false
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 30))
+                            .foregroundColor(.white)
+                            .background(Color.black.opacity(0.6))
+                            .clipShape(Circle())
+                    }
+                    .padding()
+                }
+                Spacer()
+            }
+        }
+        .statusBarHidden()
+        .onTapGesture {
+            isPresented = false
+        }
+    }
+}
+
+// MARK: - ImageMessageBubble
+
+struct ImageMessageBubble: View {
+    let imageData: Data
+    let userPrompt: String?
+    let timestamp: Date
+    let isFromCurrentUser: Bool
+    
+    @State private var showingFullImage = false
+    @State private var thumbnailImage: UIImage?
+    
+    var body: some View {
+        HStack {
+            if isFromCurrentUser {
+                Spacer(minLength: 50)
+                messageContent
+            } else {
+                messageContent
+                Spacer(minLength: 50)
+            }
+        }
+        .onAppear {
+            generateThumbnail()
+        }
+        .fullScreenCover(isPresented: $showingFullImage) {
+            if let fullImage = UIImage(data: imageData) {
+                FullScreenImageView(image: fullImage, isPresented: $showingFullImage)
+            }
+        }
+    }
+    
+    private var messageContent: some View {
+        VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 8) {
+            // User indicator
+            HStack {
+                if !isFromCurrentUser {
+                    Image(systemName: "brain.head.profile")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+                
+                Text(isFromCurrentUser ? "You" : "AI Assistant")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                // Timestamp
+                Text(formatTime(timestamp))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                if isFromCurrentUser {
+                    Image(systemName: "person.fill")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+            }
+            
+            // Image content
+            VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 8) {
+                // Image thumbnail
+                if let thumbnail = thumbnailImage {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: 200, maxHeight: 200)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
+                        )
+                        .onTapGesture {
+                            showingFullImage = true
+                        }
+                        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                } else {
+                    // Loading placeholder
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 200, height: 150)
+                        .overlay(
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        )
+                }
+                
+                // User prompt text (if provided)
+                if let prompt = userPrompt, !prompt.isEmpty {
+                    Text(prompt)
+                        .font(.system(size: 16))
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(isFromCurrentUser ? .trailing : .leading)
+                        .frame(maxWidth: .infinity, alignment: isFromCurrentUser ? .trailing : .leading)
+                }
+            }
+            .padding(12)
+            .background(isFromCurrentUser ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isFromCurrentUser ? Color.blue.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+    
+    private func generateThumbnail() {
+        guard thumbnailImage == nil else { return }
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            if let fullImage = UIImage(data: imageData) {
+                let thumbnail = createThumbnail(from: fullImage, maxSize: CGSize(width: 400, height: 400))
+                
+                DispatchQueue.main.async {
+                    self.thumbnailImage = thumbnail
+                }
+            }
+        }
+    }
+    
+    private func createThumbnail(from image: UIImage, maxSize: CGSize) -> UIImage {
+        let size = image.size
+        let aspectRatio = size.width / size.height
+        
+        var newSize: CGSize
+        if size.width > size.height {
+            newSize = CGSize(width: maxSize.width, height: maxSize.width / aspectRatio)
+        } else {
+            newSize = CGSize(width: maxSize.height * aspectRatio, height: maxSize.height)
+        }
+        
+        // Don't upscale small images
+        if newSize.width > size.width || newSize.height > size.height {
+            return image
+        }
+        
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+    }
+    
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+}
+
+// MARK: - WeChatStyleVoiceInput
+
+struct WeChatStyleVoiceInput: View {
+    @Binding var isVoiceMode: Bool
+    let onVoiceInput: (String) -> Void
+    let onModeToggle: () -> Void
+    
+    @StateObject private var speechService = SpeechRecognitionService()
+    @State private var isRecording = false
+    @State private var isDraggedToCancel = false
+    @State private var recordingStartTime: Date?
+    @State private var recordingDuration: TimeInterval = 0
+    @State private var dragOffset: CGSize = .zero
+    
+    // Timer for recording duration
+    @State private var recordingTimer: Timer?
+    
+    var body: some View {
+        if isVoiceMode {
+            weChatVoiceInterface
+        } else {
+            regularTextInterface
+        }
+    }
+    
+    private var weChatVoiceInterface: some View {
+        VStack(spacing: 0) {
+            // Cancel area (appears when recording)
+            if isRecording {
+                cancelArea
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            
+            // Voice input area
+            HStack(spacing: 12) {
+                // Back to text button
+                Button(action: {
+                    onModeToggle()
+                }) {
+                    Image(systemName: "keyboard")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                        .frame(width: 44, height: 44)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Circle())
+                }
+                
+                // WeChat-style voice button
+                weChatVoiceButton
+                
+                // Placeholder for symmetry (or other controls)
+                Spacer()
+                    .frame(width: 44, height: 44)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+        }
+        .background(
+            LinearGradient(
+                colors: [Color.clear, Color.black.opacity(0.2)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .animation(.easeInOut(duration: 0.3), value: isRecording)
+        .onAppear {
+            // Request permissions when voice mode appears
+            Task {
+                await speechService.requestPermissions()
+            }
+        }
+    }
+    
+    private var regularTextInterface: some View {
+        HStack(spacing: 12) {
+            // Voice mode button
+            Button(action: {
+                onModeToggle()
+            }) {
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.white.opacity(0.7))
+                    .frame(width: 44, height: 44)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(Circle())
+            }
+        }
+    }
+    
+    private var cancelArea: some View {
+        VStack(spacing: 12) {
+            // Red cancel icon
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 50))
+                .foregroundColor(isDraggedToCancel ? .red : .red.opacity(0.6))
+                .scaleEffect(isDraggedToCancel ? 1.2 : 1.0)
+                .animation(.easeInOut(duration: 0.2), value: isDraggedToCancel)
+            
+            Text(isDraggedToCancel ? "Release to Cancel" : "Slide up to Cancel")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.white.opacity(isDraggedToCancel ? 1.0 : 0.7))
+                .animation(.easeInOut(duration: 0.2), value: isDraggedToCancel)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 30)
+        .background(Color.black.opacity(0.4))
+    }
+    
+    private var weChatVoiceButton: some View {
+        Button(action: {}) {
+            HStack {
+                Spacer()
+                
+                if isRecording {
+                    VStack(spacing: 4) {
+                        HStack(spacing: 8) {
+                            // Recording animation
+                            recordingVisualization
+                            
+                            Text("Release to Send")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                        
+                        // Recording duration
+                        Text(formatDuration(recordingDuration))
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                } else {
+                    Text("Press to Talk")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                
+                Spacer()
+            }
+            .frame(height: 50)
+            .background(
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(isRecording ? Color.green.opacity(0.9) : Color.green)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 25)
+                            .stroke(Color.white.opacity(0.3), lineWidth: isRecording ? 2 : 1)
+                    )
+            )
+            .scaleEffect(isRecording ? 1.05 : 1.0)
+            .offset(dragOffset)
+            .animation(.easeInOut(duration: 0.2), value: isRecording)
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    handleDragChanged(value)
+                }
+                .onEnded { value in
+                    handleDragEnded(value)
+                }
+        )
+        .disabled(!speechService.isAvailable())
+    }
+    
+    private var recordingVisualization: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<4, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(Color.white)
+                    .frame(width: 3, height: isRecording ? CGFloat.random(in: 8...20) : 8)
+                    .animation(
+                        .easeInOut(duration: Double.random(in: 0.3...0.6))
+                        .repeatForever(autoreverses: true)
+                        .delay(Double(index) * 0.1),
+                        value: isRecording
+                    )
+            }
+        }
+    }
+    
+    private func handleDragChanged(_ value: DragGesture.Value) {
+        dragOffset = value.translation
+        
+        // Check if dragged up to cancel area (threshold: -80 points)
+        let wasDraggedToCancel = isDraggedToCancel
+        isDraggedToCancel = value.translation.height < -80
+        
+        // Start recording on initial press
+        if !isRecording && value.translation.magnitude < 10 {
+            startRecording()
+        }
+        
+        // Haptic feedback when entering/leaving cancel zone
+        if wasDraggedToCancel != isDraggedToCancel {
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+        }
+    }
+    
+    private func handleDragEnded(_ value: DragGesture.Value) {
+        // Reset drag offset
+        withAnimation(.spring()) {
+            dragOffset = .zero
+        }
+        
+        if isRecording {
+            if isDraggedToCancel {
+                // Cancel recording
+                cancelRecording()
+            } else {
+                // Send recording
+                stopRecordingAndSend()
+            }
+        }
+        
+        isDraggedToCancel = false
+    }
+    
+    private func startRecording() {
+        guard speechService.isAvailable() else { return }
+        
+        print("🎙️ WeChat Voice: Starting recording")
+        isRecording = true
+        recordingStartTime = Date()
+        recordingDuration = 0
+        
+        // Start recording timer
+        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            if let startTime = recordingStartTime {
+                recordingDuration = Date().timeIntervalSince(startTime)
+            }
+        }
+        
+        // Haptic feedback
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
+        // Start speech recognition
+        speechService.startListening { result in
+            // Handle result when recording stops
+        }
+    }
+    
+    private func stopRecordingAndSend() {
+        guard isRecording else { return }
+        
+        print("🎙️ WeChat Voice: Stopping recording and sending")
+        
+        // Stop recording
+        speechService.stopListening()
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+        
+        // Get the recognized text
+        let recognizedText = speechService.getLastRecognizedText()
+        
+        // Reset state
+        isRecording = false
+        recordingStartTime = nil
+        recordingDuration = 0
+        
+        // Haptic feedback
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+        
+        // Send the voice input if not empty
+        if !recognizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            onVoiceInput(recognizedText)
+        } else {
+            print("🎙️ WeChat Voice: Empty recognition result, not sending")
+        }
+    }
+    
+    private func cancelRecording() {
+        guard isRecording else { return }
+        
+        print("🎙️ WeChat Voice: Canceling recording")
+        
+        // Stop recording
+        speechService.stopListening()
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+        
+        // Reset state
+        isRecording = false
+        recordingStartTime = nil
+        recordingDuration = 0
+        
+        // Haptic feedback
+        let notificationFeedback = UINotificationFeedbackGenerator()
+        notificationFeedback.notificationOccurred(.warning)
+    }
+    
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+}
+
+// MARK: - Extension for magnitude calculation
+extension CGSize {
+    var magnitude: CGFloat {
+        return sqrt(width * width + height * height)
     }
 }

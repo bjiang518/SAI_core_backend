@@ -1,0 +1,33 @@
+# LLDB Configuration for Optimized iOS Device Debugging
+# Addresses the libobjc.A.dylib shared cache performance issue
+
+# Enable shared cache optimization
+settings set target.debug-file-search-paths /Library/Developer/CoreSimulator/Profiles/Runtimes
+settings set target.enable-synthetic-value true
+
+# Optimize memory reading and caching
+settings set target.memory-module-load-level minimal
+settings set target.process.disable-memory-map false
+
+# Reduce LLDB overhead for iOS device debugging
+settings set target.process.thread.trace-thread false
+settings set target.process.stop-on-sharedlibrary-events false
+
+# Optimize symbol loading for iOS frameworks
+settings set target.process.extra-startup-command "settings set target.process.stop-on-sharedlibrary-events false"
+
+# Platform-specific optimizations for iOS device debugging
+platform select ios-device
+settings set platform.plugin.remote-ios.debug-server-name debugserver
+
+# Improve RPC server stability
+settings set target.process.python-os-plugin-path ""
+settings set plugin.process.gdb-remote.packet-timeout 30
+
+# Enable better shared cache handling
+process launch --stop-at-entry
+target modules add /System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64
+
+print "📱 LLDB optimized for iOS device debugging"
+print "🚀 Shared cache and RPC server performance enhanced"
+print "⚡ Memory loading optimized for faster debugging"

@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import Network
 import UIKit
+import os.log
 
 class NetworkService: ObservableObject {
     static let shared = NetworkService()
@@ -90,8 +91,27 @@ class NetworkService: ObservableObject {
     }
     
     private init() {
+        let initStartTime = CFAbsoluteTimeGetCurrent()
+        print("🌐 === NETWORK SERVICE INIT STARTED ===")
+        
+        print("🔧 Setting up network monitoring...")
+        let networkStartTime = CFAbsoluteTimeGetCurrent()
         setupNetworkMonitoring()
+        let networkEndTime = CFAbsoluteTimeGetCurrent()
+        let networkDuration = networkEndTime - networkStartTime
+        print("✅ Network monitoring setup completed in: \(networkDuration * 1000) ms")
+        
+        print("🔧 Setting up URL cache...")
+        let cacheStartTime = CFAbsoluteTimeGetCurrent()
         setupURLCache()
+        let cacheEndTime = CFAbsoluteTimeGetCurrent()
+        let cacheDuration = cacheEndTime - cacheStartTime
+        print("✅ URL cache setup completed in: \(cacheDuration * 1000) ms")
+        
+        let initEndTime = CFAbsoluteTimeGetCurrent()
+        let initDuration = initEndTime - initStartTime
+        print("🌐 NetworkService init completed in: \(initDuration * 1000) ms")
+        print("🌐 === NETWORK SERVICE INIT FINISHED ===")
     }
     
     // MARK: - Enhanced Cache Management
@@ -113,17 +133,24 @@ class NetworkService: ObservableObject {
     }
     
     private func setupNetworkMonitoring() {
+        print("🔍 Starting network path monitor setup...")
         networkMonitor.pathUpdateHandler = { [weak self] path in
             DispatchQueue.main.async {
                 self?.isNetworkAvailable = path.status == .satisfied
+                print("📡 Network status updated: \(path.status == .satisfied ? "Connected" : "Disconnected")")
             }
         }
+        print("🔍 Starting network monitor on background queue...")
         networkMonitor.start(queue: networkQueue)
+        print("✅ Network monitoring fully configured")
     }
     
     private func setupURLCache() {
+        print("🗂️ Configuring URLSession cache (50MB memory, 200MB disk)...")
         URLSession.shared.configuration.urlCache = cache
+        print("📋 Setting cache policy to useProtocolCachePolicy...")
         URLSession.shared.configuration.requestCachePolicy = .useProtocolCachePolicy
+        print("✅ URL cache configuration complete")
     }
     
     private func getCachedResponse(for key: String) -> CachedResponse? {
@@ -608,14 +635,9 @@ class NetworkService: ObservableObject {
     
     /// Debug method to check what user ID the backend thinks we are based on our token
     func debugAuthTokenMapping() async -> (success: Bool, backendUserId: String?, message: String) {
-        print("🔍 === DEBUGGING AUTH TOKEN MAPPING ===")
-        
         guard let token = AuthenticationService.shared.getAuthToken() else {
             return (false, nil, "No auth token available")
         }
-        
-        print("📱 iOS Expected User: \(UserSessionManager.shared.currentUserId ?? "unknown")")
-        print("🔐 Token Preview: \(String(token.prefix(20)))...")
         
         // Try to get user info from backend using current token
         let debugURL = "\(baseURL)/api/user/profile"
@@ -631,24 +653,20 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Debug Auth Status: \(httpResponse.statusCode)")
-                
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let backendUserId = json["id"] as? String ?? json["userId"] as? String {
-                        print("🎯 Backend User ID: \(backendUserId)")
-                        print("📊 Full Backend Response: \(json)")
-                        return (true, backendUserId, "Backend maps token to user: \(backendUserId)")
+                       let success = json["success"] as? Bool, success == true,
+                       let profileData = json["profile"] as? [String: Any],
+                       let backendUserId = profileData["id"] as? String {
+                        return (true, backendUserId, "Successfully retrieved user profile")
                     }
                 }
                 
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                print("❌ Debug Auth Response: \(rawResponse)")
                 return (false, nil, "HTTP \(httpResponse.statusCode): \(rawResponse)")
             }
             
         } catch {
-            print("❌ Debug auth request failed: \(error.localizedDescription)")
             return (false, nil, "Network error: \(error.localizedDescription)")
         }
         
@@ -657,10 +675,7 @@ class NetworkService: ObservableObject {
     
     // MARK: - Progress Tracking
     func getProgress() async -> (success: Bool, progress: [String: Any]?) {
-        print("📊 Testing progress tracking...")
-        
         let progressURL = "\(baseURL)/api/progress"
-        print("🔗 Using progress URL with bypass token")
         
         guard let url = URL(string: progressURL) else {
             return (false, nil)
@@ -670,27 +685,20 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(from: url)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Progress Status: \(httpResponse.statusCode)")
-                
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    print("✅ Progress: \(json)")
                     return (true, json)
                 }
             }
             
             return (false, nil)
         } catch {
-            print("❌ Progress fetch failed: \(error.localizedDescription)")
             return (false, nil)
         }
     }
     
     // MARK: - Debug OpenAI
     func debugOpenAI() async -> (success: Bool, debug: [String: Any]?) {
-        print("🐛 Testing OpenAI debug endpoint...")
-        
         let debugURL = "\(baseURL)/debug/openai"
-        print("🔗 Using debug URL with bypass token")
         
         guard let url = URL(string: debugURL) else {
             return (false, nil)
@@ -1056,107 +1064,293 @@ class NetworkService: ObservableObject {
         return (result.success, result.message)
     }
     
-    // MARK: - Process Image with Question Context
+    // MARK: - Enhanced Image Processing with Fallback Strategy
     func processImageWithQuestion(imageData: Data, question: String = "", subject: String = "general") async -> (success: Bool, result: [String: Any]?) {
-        print("📷 === IMAGE PROCESSING WITH QUESTION CONTEXT ===")
-        print("🔗 AI Proxy URL: \(baseURL)/api/ai")
-        print("📊 Image data size: \(imageData.count) bytes") 
+        print("📷 === NEW CHAT IMAGE PROCESSING ===")
+        print("📊 Original image size: \(imageData.count) bytes")
         print("❓ Question: \(question)")
         print("📚 Subject: \(subject)")
         
-        let imageProcessURL = "\(baseURL)/api/ai/process-image-question"
-        print("🔗 Full process URL: \(imageProcessURL)")
+        // Apply aggressive compression for better performance
+        let optimizedImageData = aggressivelyOptimizeImageData(imageData)
+        print("🗜️ Optimized image size: \(optimizedImageData.count) bytes")
         
-        guard let url = URL(string: imageProcessURL) else {
-            print("❌ Invalid image processing URL")
-            return (false, nil)
+        // Use the new chat-image endpoint directly
+        let chatImageURL = "\(baseURL)/api/ai/chat-image"
+        print("🔗 Using new chat-image endpoint: \(chatImageURL)")
+        
+        guard let url = URL(string: chatImageURL) else {
+            print("❌ Invalid chat-image URL")
+            return (false, ["error": "Invalid URL"])
         }
         
+        // Convert image to base64
+        let base64Image = optimizedImageData.base64EncodedString()
+        
+        let requestData: [String: Any] = [
+            "base64_image": base64Image,
+            "prompt": question.isEmpty ? "What do you see in this image?" : question,
+            "subject": subject,
+            "student_id": "ios_user"
+        ]
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0 // 30 second timeout
+        
+        // Add authentication header
+        addAuthHeader(to: &request)
+        
         do {
-            // Create multipart form data request
-            let boundary = "StudyAI-Process-\(UUID().uuidString)"
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-            request.timeoutInterval = 60.0  // Longer timeout for comprehensive processing
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
             
-            // Build multipart form data
-            var formData = Data()
-            
-            // Add image data
-            formData.append("--\(boundary)\r\n".data(using: .utf8)!)
-            formData.append("Content-Disposition: form-data; name=\"image\"; filename=\"homework.jpg\"\r\n".data(using: .utf8)!)
-            formData.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-            formData.append(imageData)
-            formData.append("\r\n".data(using: .utf8)!)
-            
-            // Add question parameter
-            formData.append("--\(boundary)\r\n".data(using: .utf8)!)
-            formData.append("Content-Disposition: form-data; name=\"question\"\r\n\r\n".data(using: .utf8)!)
-            formData.append(question.data(using: .utf8)!)
-            formData.append("\r\n".data(using: .utf8)!)
-            
-            // Add subject parameter
-            formData.append("--\(boundary)\r\n".data(using: .utf8)!)
-            formData.append("Content-Disposition: form-data; name=\"subject\"\r\n\r\n".data(using: .utf8)!)
-            formData.append(subject.data(using: .utf8)!)
-            formData.append("\r\n".data(using: .utf8)!)
-            
-            // Add student_id parameter
-            formData.append("--\(boundary)\r\n".data(using: .utf8)!)
-            formData.append("Content-Disposition: form-data; name=\"student_id\"\r\n\r\n".data(using: .utf8)!)
-            formData.append("ios_user".data(using: .utf8)!)
-            formData.append("\r\n".data(using: .utf8)!)
-            
-            // Close boundary
-            formData.append("--\(boundary)--\r\n".data(using: .utf8)!)
-            
-            request.httpBody = formData
-            
-            print("📡 Processing image with question context...")
+            print("📡 Sending request to new chat-image endpoint...")
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Image Processing Response Status: \(httpResponse.statusCode)")
+                print("✅ Chat Image Response Status: \(httpResponse.statusCode)")
                 
                 if httpResponse.statusCode == 200 {
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("🎉 === IMAGE PROCESSING SUCCESS ===")
-                        print("✅ Comprehensive AI Response received")
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        print("🎉 === NEW CHAT IMAGE SUCCESS ===")
+                        print("✅ Response: \(json)")
                         
-                        // Extract the answer from the nested response structure
-                        if let response = json["response"] as? [String: Any],
-                           let answer = response["answer"] as? String {
-                            print("📏 AI Answer Length: \(answer.count) characters")
-                            print("🔍 Answer Preview: \(String(answer.prefix(100)))")
-                            
-                            // Create a simplified response format for compatibility
-                            let simplifiedResponse = [
-                                "answer": answer,
-                                "success": true,
-                                "processing_method": "image_analysis_with_gpt4o",
-                                "image_analysis": json["image_analysis"] as Any,
-                                "learning_analysis": json["learning_analysis"] as Any,
-                                "processing_time_ms": json["processing_time_ms"] as Any
-                            ] as [String: Any]
-                            
-                            return (true, simplifiedResponse)
+                        // Extract the response in the expected format
+                        if let success = json["success"] as? Bool, success,
+                           let response = json["response"] as? String {
+                            return (true, ["answer": response, "processing_method": "chat_image_endpoint"])
+                        } else if let response = json["response"] as? String {
+                            // Handle case where success field might be missing but response exists
+                            return (true, ["answer": response, "processing_method": "chat_image_endpoint"])
+                        } else {
+                            print("⚠️ Unexpected response format: \(json)")
+                            return (false, ["error": "Unexpected response format"])
                         }
-                        
-                        return (true, json)
+                    } else {
+                        let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                        print("❌ Failed to parse JSON: \(rawResponse)")
+                        return (false, ["error": "Invalid JSON response"])
                     }
+                } else {
+                    let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                    print("❌ HTTP \(httpResponse.statusCode): \(rawResponse)")
+                    
+                    // If the new endpoint fails, fall back to the working homework endpoint
+                    print("🔄 Falling back to homework endpoint...")
+                    return await fallbackToHomeworkEndpoint(imageData: optimizedImageData, question: question, subject: subject)
                 }
-                
-                let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                print("❌ Image Processing HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
-                return (false, ["error": "HTTP \(httpResponse.statusCode)", "details": rawResponse])
             }
             
             return (false, ["error": "No HTTP response"])
         } catch {
-            print("❌ Image processing failed: \(error.localizedDescription)")
+            print("❌ Chat image request failed: \(error.localizedDescription)")
+            
+            // If network error, fall back to the working homework endpoint
+            print("🔄 Network error, falling back to homework endpoint...")
+            return await fallbackToHomeworkEndpoint(imageData: optimizedImageData, question: question, subject: subject)
+        }
+    }
+    
+    // MARK: - Fallback to Working Homework Endpoint
+    private func fallbackToHomeworkEndpoint(imageData: Data, question: String, subject: String) async -> (success: Bool, result: [String: Any]?) {
+        print("🔄 === FALLBACK TO HOMEWORK ENDPOINT ===")
+        
+        let homeworkURL = "\(baseURL)/api/ai/process-homework-image-json"
+        print("🔗 Fallback URL: \(homeworkURL)")
+        
+        guard let url = URL(string: homeworkURL) else {
+            return (false, ["error": "Invalid fallback URL"])
+        }
+        
+        let base64Image = imageData.base64EncodedString()
+        let requestData: [String: Any] = [
+            "base64_image": base64Image,
+            "prompt": question.isEmpty ? "Analyze this image and provide a detailed explanation." : question,
+            "student_id": "ios_user"
+        ]
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+            
+            print("📡 Sending fallback request...")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("✅ Fallback Response Status: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 200 {
+                    if let responseText = String(data: data, encoding: .utf8) {
+                        print("✅ Fallback success with homework endpoint")
+                        return (true, ["answer": responseText, "processing_method": "homework_endpoint_fallback"])
+                    }
+                } else {
+                    let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                    print("❌ Fallback failed: HTTP \(httpResponse.statusCode): \(rawResponse)")
+                }
+            }
+            
+            return (false, ["error": "Fallback endpoint failed"])
+        } catch {
+            print("❌ Fallback request failed: \(error.localizedDescription)")
+            return (false, ["error": "All endpoints failed: \(error.localizedDescription)"])
+        }
+    }
+    
+    // MARK: - Try Individual Image Processing Endpoint
+    private func tryImageProcessingEndpoint(endpoint: String, imageData: Data, question: String, subject: String, isHomeworkEndpoint: Bool) async -> (success: Bool, result: [String: Any]?) {
+        guard let url = URL(string: endpoint) else {
+            return (false, ["error": "Invalid URL: \(endpoint)"])
+        }
+        
+        do {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 45.0  // Reasonable timeout
+            
+            if isHomeworkEndpoint {
+                // Use JSON format for homework endpoint
+                let base64Image = imageData.base64EncodedString()
+                let requestData: [String: Any] = [
+                    "base64_image": base64Image,
+                    "prompt": question.isEmpty ? "Analyze this image and provide a detailed explanation." : question,
+                    "student_id": "ios_user"
+                ]
+                
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+            } else {
+                // Use multipart form data for other endpoints
+                let boundary = "StudyAI-Enhanced-\(UUID().uuidString)"
+                request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+                
+                var formData = Data()
+                
+                // Add image data
+                formData.append("--\(boundary)\r\n".data(using: .utf8)!)
+                formData.append("Content-Disposition: form-data; name=\"image\"; filename=\"photo.jpg\"\r\n".data(using: .utf8)!)
+                formData.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+                formData.append(imageData)
+                formData.append("\r\n".data(using: .utf8)!)
+                
+                // Add question parameter
+                if !question.isEmpty {
+                    formData.append("--\(boundary)\r\n".data(using: .utf8)!)
+                    formData.append("Content-Disposition: form-data; name=\"question\"\r\n\r\n".data(using: .utf8)!)
+                    formData.append(question.data(using: .utf8)!)
+                    formData.append("\r\n".data(using: .utf8)!)
+                }
+                
+                // Add subject parameter
+                formData.append("--\(boundary)\r\n".data(using: .utf8)!)
+                formData.append("Content-Disposition: form-data; name=\"subject\"\r\n\r\n".data(using: .utf8)!)
+                formData.append(subject.data(using: .utf8)!)
+                formData.append("\r\n".data(using: .utf8)!)
+                
+                // Add student_id parameter
+                formData.append("--\(boundary)\r\n".data(using: .utf8)!)
+                formData.append("Content-Disposition: form-data; name=\"student_id\"\r\n\r\n".data(using: .utf8)!)
+                formData.append("ios_user".data(using: .utf8)!)
+                formData.append("\r\n".data(using: .utf8)!)
+                
+                // Close boundary
+                formData.append("--\(boundary)--\r\n".data(using: .utf8)!)
+                
+                request.httpBody = formData
+            }
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📡 Response status: \(httpResponse.statusCode) from \(endpoint)")
+                
+                if httpResponse.statusCode == 200 {
+                    if isHomeworkEndpoint {
+                        // Handle homework endpoint response (text format)
+                        if let responseText = String(data: data, encoding: .utf8) {
+                            return (true, ["answer": responseText, "processing_method": "homework_endpoint"])
+                        }
+                    } else {
+                        // Handle JSON response from other endpoints
+                        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                            // Extract answer from nested response structure
+                            if let response = json["response"] as? [String: Any],
+                               let answer = response["answer"] as? String {
+                                return (true, ["answer": answer, "processing_method": "ai_endpoint"])
+                            } else if let answer = json["answer"] as? String {
+                                return (true, ["answer": answer, "processing_method": "direct_answer"])
+                            } else {
+                                return (true, json)
+                            }
+                        }
+                    }
+                } else {
+                    let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    print("❌ HTTP \(httpResponse.statusCode): \(errorText)")
+                    return (false, ["error": "HTTP \(httpResponse.statusCode)", "details": errorText])
+                }
+            }
+            
+            return (false, ["error": "No HTTP response"])
+        } catch {
+            print("❌ Request failed: \(error.localizedDescription)")
             return (false, ["error": error.localizedDescription])
         }
+    }
+    
+    // MARK: - Aggressive Image Optimization
+    private func aggressivelyOptimizeImageData(_ imageData: Data) -> Data {
+        guard let image = UIImage(data: imageData) else {
+            return imageData
+        }
+        
+        print("🖼️ Original image dimensions: \(image.size)")
+        
+        // Target: 1MB max, but prefer smaller for faster uploads
+        let targetSize = 1024 * 1024 // 1MB
+        var currentData = imageData
+        
+        // Step 1: Resize if image is too large
+        let maxDimension: CGFloat = 1024
+        var processedImage = image
+        
+        if image.size.width > maxDimension || image.size.height > maxDimension {
+            let scale = maxDimension / max(image.size.width, image.size.height)
+            let newSize = CGSize(
+                width: image.size.width * scale,
+                height: image.size.height * scale
+            )
+            
+            UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+            processedImage = UIGraphicsGetImageFromCurrentImageContext() ?? image
+            UIGraphicsEndImageContext()
+            
+            print("📐 Resized to: \(newSize)")
+        }
+        
+        // Step 2: Compress with progressively lower quality
+        let qualities: [CGFloat] = [0.8, 0.6, 0.4, 0.3, 0.2]
+        
+        for quality in qualities {
+            if let compressedData = processedImage.jpegData(compressionQuality: quality) {
+                print("🗜️ Quality \(quality): \(compressedData.count) bytes")
+                if compressedData.count <= targetSize {
+                    currentData = compressedData
+                    break
+                }
+                currentData = compressedData
+            }
+        }
+        
+        print("✅ Final optimized size: \(currentData.count) bytes (\(String(format: "%.1f", Double(currentData.count) / Double(imageData.count) * 100))% of original)")
+        
+        return currentData
     }
     
     // MARK: - Enhanced Homework Parsing with Subject Detection

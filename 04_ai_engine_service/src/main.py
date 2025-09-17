@@ -93,9 +93,16 @@ app.add_middleware(
 app.middleware("http")(service_auth_middleware)
 
 # Initialize AI services
+print("🔄 === INITIALIZING AI SERVICES ===")
 ai_service = EducationalAIService()
+print("✅ EducationalAIService initialized")
+
 prompt_service = AdvancedPromptService()
+print("✅ AdvancedPromptService initialized")
+
 session_service = SessionService(ai_service, redis_client)
+print("✅ SessionService initialized")
+print("=====================================")
 
 # Startup event to initialize keep-alive mechanism
 @app.on_event("startup")
@@ -625,6 +632,22 @@ async def process_image_with_question(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image processing error: {str(e)}")
 
+# Chat Image Request Models - Optimized for Fast Chat Interactions
+class ChatImageRequest(BaseModel):
+    base64_image: str
+    prompt: str
+    session_id: Optional[str] = None
+    subject: Optional[str] = "general"
+    student_id: Optional[str] = "anonymous"
+
+class ChatImageResponse(BaseModel):
+    success: bool
+    response: str
+    processing_time_ms: int
+    tokens_used: Optional[int] = None
+    image_analyzed: bool = True
+    error: Optional[str] = None
+
 # Homework Parsing Request Models
 class HomeworkParsingRequest(BaseModel):
     base64_image: str
@@ -636,6 +659,90 @@ class HomeworkParsingResponse(BaseModel):
     response: str
     processing_time_ms: int
     error: Optional[str] = None
+
+# Chat Image Endpoint - Fast Processing for Chat Interactions
+@app.post("/api/v1/chat-image", response_model=ChatImageResponse)
+async def process_chat_image(request: ChatImageRequest):
+    """
+    Process image with chat context for quick conversational responses.
+    
+    This endpoint is optimized for chat interactions and provides:
+    - Fast response times (< 5 seconds target)
+    - Conversational context awareness
+    - Integration with session management
+    - Natural language responses suitable for chat bubbles
+    
+    Perfect for iOS chat interface where users send images with questions.
+    """
+    
+    import time
+    start_time = time.time()
+    
+    try:
+        print(f"🔄 === CHAT IMAGE ENDPOINT START ===")
+        print(f"📝 Prompt: '{request.prompt}'")
+        print(f"🆔 Session ID: {request.session_id}")
+        print(f"📚 Subject: {request.subject}")
+        print(f"👤 Student ID: {request.student_id}")
+        print(f"📄 Image size: {len(request.base64_image)} chars")
+        
+        # Validate request
+        if not request.base64_image:
+            raise HTTPException(status_code=400, detail="No image data provided")
+        if not request.prompt:
+            raise HTTPException(status_code=400, detail="No prompt provided")
+        
+        print(f"✅ Request validation passed")
+        print(f"🔄 Calling AI service analyze_image_with_chat_context...")
+        
+        # Use AI service for conversational image analysis
+        result = await ai_service.analyze_image_with_chat_context(
+            base64_image=request.base64_image,
+            user_prompt=request.prompt,
+            subject=request.subject,
+            session_id=request.session_id,
+            student_context={"student_id": request.student_id}
+        )
+        
+        print(f"🔍 AI service returned: {type(result)} - {result.keys() if isinstance(result, dict) else 'not a dict'}")
+        
+        if not result.get("success", True):
+            error_detail = result.get("error", "Chat image processing failed")
+            print(f"❌ AI service returned error: {error_detail}")
+            raise HTTPException(status_code=500, detail=error_detail)
+        
+        processing_time = int((time.time() - start_time) * 1000)
+        
+        print(f"✅ === CHAT IMAGE PROCESSING SUCCESS ===")
+        print(f"⏱️ Processing time: {processing_time}ms")
+        print(f"📝 Response length: {len(result.get('response', ''))} chars")
+        print(f"🎯 Tokens used: {result.get('tokens_used', 'unknown')}")
+        
+        return ChatImageResponse(
+            success=True,
+            response=result.get("response", "I can see the image, but I'm having trouble processing it right now."),
+            processing_time_ms=processing_time,
+            tokens_used=result.get("tokens_used"),
+            image_analyzed=True,
+            error=None
+        )
+        
+    except Exception as e:
+        processing_time = int((time.time() - start_time) * 1000)
+        error_msg = f"Chat image processing error: {str(e)}"
+        
+        print(f"❌ === CHAT IMAGE PROCESSING ERROR ===")
+        print(f"⏱️ Failed after: {processing_time}ms")
+        print(f"💥 Error: {error_msg}")
+        
+        return ChatImageResponse(
+            success=False,
+            response="I'm having trouble analyzing this image right now. Please try again in a moment.",
+            processing_time_ms=processing_time,
+            tokens_used=None,
+            image_analyzed=False,
+            error=error_msg
+        )
 
 # Homework Parsing Endpoint - Deterministic Format for iOS
 @app.post("/api/v1/process-homework-image", response_model=HomeworkParsingResponse)

@@ -1184,8 +1184,6 @@ const db = {
       languagePreference = 'en'
     } = profileData;
 
-    console.log(`🔍 DEBUG: Updating profile for user ${userId} with data:`, profileData);
-
     // First, get the user's email for the profile
     const userQuery = `SELECT email FROM users WHERE id = $1`;
     const userResult = await this.query(userQuery, [userId]);
@@ -1219,12 +1217,6 @@ const db = {
       'College': 13,
       'Adult Learner': 14
     };
-    
-    // Check if database column is INTEGER by attempting string insert first, then fallback to integer
-    let shouldUseIntegerGrade = false;
-    
-    console.log(`🔍 DEBUG: Original grade level: "${gradeLevel}"`);
-    console.log(`🔍 DEBUG: Mapped integer value: ${gradeLevelMap[gradeLevel] || 'unmapped'}`);
 
     // Calculate profile completion percentage
     const completionFields = [
@@ -1259,37 +1251,28 @@ const db = {
 
     try {
       // First attempt: use string grade level (for newer VARCHAR schema)
-      console.log(`🔍 DEBUG: Attempting string grade level insert: "${processedGradeLevel}"`);
       const values = [
         userEmail, firstName, lastName, processedGradeLevel,
         kidsAges, gender, city, stateProvince, country
       ];
 
       const result = await this.query(query, values);
-      console.log(`✅ DEBUG: Profile update successful with string grade level`);
       return result.rows[0];
       
     } catch (error) {
-      console.log(`⚠️ DEBUG: String grade level failed: ${error.message}`);
-      
       // Check if error is related to integer type conversion
       if (error.message.includes('invalid input syntax for type integer') || 
           error.message.includes('integer')) {
-        
-        console.log(`🔄 DEBUG: Retrying with integer grade level mapping`);
         
         // Second attempt: use integer grade level (for legacy INTEGER schema)
         const integerGradeLevel = gradeLevelMap[gradeLevel];
         
         if (integerGradeLevel === undefined) {
-          console.log(`❌ DEBUG: No integer mapping found for grade level: "${gradeLevel}"`);
           // If no mapping exists, use 0 as default
           processedGradeLevel = 0;
         } else {
           processedGradeLevel = integerGradeLevel;
         }
-        
-        console.log(`🔍 DEBUG: Using integer grade level: ${processedGradeLevel}`);
         
         const valuesWithIntegerGrade = [
           userEmail, firstName, lastName, processedGradeLevel,
@@ -1297,11 +1280,9 @@ const db = {
         ];
 
         const result = await this.query(query, valuesWithIntegerGrade);
-        console.log(`✅ DEBUG: Profile update successful with integer grade level`);
         return result.rows[0];
       } else {
         // Re-throw non-grade-level related errors
-        console.log(`❌ DEBUG: Non-grade-level error: ${error.message}`);
         throw error;
       }
     }

@@ -118,6 +118,7 @@ class SpeechRecognitionService: NSObject, ObservableObject {
         print("🎙️ SpeechRecognitionService: startListening called")
         print("🎙️ Permission status: \(permissionStatus)")
         print("🎙️ Can use voice: \(permissionStatus.canUseVoice)")
+        print("🎙️ Currently listening: \(isListening)")
         
         guard permissionStatus.canUseVoice else {
             print("🎙️ SpeechRecognitionService: No voice permission")
@@ -126,10 +127,13 @@ class SpeechRecognitionService: NSObject, ObservableObject {
             return
         }
         
-        print("🎙️ SpeechRecognitionService: Starting listening process")
+        // Prevent multiple simultaneous calls
+        if isListening {
+            print("🎙️ SpeechRecognitionService: Already listening, stopping current session first")
+            forceStopListening() // Use force stop to bypass the guard
+        }
         
-        // Stop any ongoing recognition
-        stopListening()
+        print("🎙️ SpeechRecognitionService: Starting listening process")
         
         // Store completion handler
         self.completionHandler = completion
@@ -161,29 +165,69 @@ class SpeechRecognitionService: NSObject, ObservableObject {
     }
     
     func stopListening() {
+        print("🎙️ SpeechRecognitionService: stopListening() called")
+        
+        // Ensure we're only stopping if we're actually listening
+        guard isListening else {
+            print("🎙️ SpeechRecognitionService: Already stopped, ignoring stopListening call")
+            return
+        }
+        
+        forceStopListening()
+    }
+    
+    private func forceStopListening() {
+        print("🎙️ SpeechRecognitionService: forceStopListening() called")
+        
         DispatchQueue.main.async {
             self.isListening = false
         }
         
-        // Cancel timeout timers
+        // Cancel timeout timers safely
         listeningTimer?.invalidate()
         listeningTimer = nil
         silenceTimer?.invalidate()
         silenceTimer = nil
         
-        // Stop audio engine
+        // Stop audio engine safely
         if audioEngine.isRunning {
+            print("🎙️ SpeechRecognitionService: Stopping audio engine")
+            
+            // Check if input node has any taps before trying to remove them
+            let inputNode = audioEngine.inputNode
+            if inputNode.numberOfInputs > 0 {
+                do {
+                    // Remove tap safely with try-catch
+                    inputNode.removeTap(onBus: 0)
+                    print("🎙️ SpeechRecognitionService: Audio tap removed successfully")
+                } catch {
+                    print("🎙️ SpeechRecognitionService: Warning - Could not remove audio tap: \(error)")
+                    // Continue with cleanup even if tap removal fails
+                }
+            }
+            
+            // Stop the audio engine
             audioEngine.stop()
-            audioEngine.inputNode.removeTap(onBus: 0)
+            print("🎙️ SpeechRecognitionService: Audio engine stopped")
         }
         
-        // Cancel recognition task
-        recognitionTask?.cancel()
-        recognitionRequest?.endAudio()
+        // Cancel recognition task safely
+        if let task = recognitionTask {
+            print("🎙️ SpeechRecognitionService: Cancelling recognition task")
+            task.cancel()
+        }
         
-        // Clean up
+        // End audio for recognition request safely
+        if let request = recognitionRequest {
+            print("🎙️ SpeechRecognitionService: Ending audio for recognition request")
+            request.endAudio()
+        }
+        
+        // Clean up references
         recognitionTask = nil
         recognitionRequest = nil
+        
+        print("🎙️ SpeechRecognitionService: forceStopListening() completed successfully")
     }
     
     private func startAudioSession() throws {
@@ -195,6 +239,8 @@ class SpeechRecognitionService: NSObject, ObservableObject {
     }
     
     private func startSpeechRecognition() throws {
+        print("🎙️ SpeechRecognitionService: startSpeechRecognition() called")
+        
         guard let speechRecognizer = speechRecognizer, speechRecognizer.isAvailable else {
             throw NSError(domain: "SpeechRecognitionService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Speech recognizer not available"])
         }
@@ -207,26 +253,50 @@ class SpeechRecognitionService: NSObject, ObservableObject {
         
         // Configure recognition request
         recognitionRequest.shouldReportPartialResults = true
+        print("🎙️ SpeechRecognitionService: Recognition request configured")
         
         // Create audio input node
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
+        print("🎙️ SpeechRecognitionService: Audio input node configured")
         
-        // Install tap on audio input
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
-            self?.recognitionRequest?.append(buffer)
+        // Ensure no existing taps before installing new one
+        do {
+            // Try to remove any existing tap first (this might fail silently)
+            if inputNode.numberOfInputs > 0 {
+                inputNode.removeTap(onBus: 0)
+                print("🎙️ SpeechRecognitionService: Removed existing audio tap")
+            }
+        } catch {
+            // Ignore error if no tap exists
+            print("🎙️ SpeechRecognitionService: No existing tap to remove (expected)")
+        }
+        
+        // Install new tap on audio input
+        do {
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+                self?.recognitionRequest?.append(buffer)
+            }
+            print("🎙️ SpeechRecognitionService: Audio tap installed successfully")
+        } catch {
+            print("🎙️ SpeechRecognitionService: Failed to install audio tap: \(error)")
+            throw error
         }
         
         // Start audio engine
+        print("🎙️ SpeechRecognitionService: Starting audio engine")
         audioEngine.prepare()
         try audioEngine.start()
+        print("🎙️ SpeechRecognitionService: Audio engine started successfully")
         
         // Start recognition task
+        print("🎙️ SpeechRecognitionService: Starting recognition task")
         recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
             DispatchQueue.main.async {
                 self?.handleRecognitionResult(result: result, error: error)
             }
         }
+        print("🎙️ SpeechRecognitionService: Recognition task started successfully")
     }
     
     private func handleRecognitionResult(result: SFSpeechRecognitionResult?, error: Error?) {
@@ -324,6 +394,10 @@ class SpeechRecognitionService: NSObject, ObservableObject {
     
     func isAvailable() -> Bool {
         return speechRecognizer?.isAvailable == true && permissionStatus.canUseVoice
+    }
+    
+    func getLastRecognizedText() -> String {
+        return lastRecognizedText
     }
     
     func getSupportedLanguages() -> [String] {

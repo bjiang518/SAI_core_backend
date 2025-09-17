@@ -13,6 +13,7 @@ import Security
 import Combine
 import UIKit
 import GoogleSignIn
+import os.log
 
 // MARK: - Authentication Models
 
@@ -106,27 +107,92 @@ final class AuthenticationService: ObservableObject {
     private let keychainService = KeychainService.shared
     private let biometricAuth = BiometricAuthService.shared
     private let networkService = NetworkService.shared
+    private let authLogger = Logger(subsystem: "com.studyai", category: "AuthService")
     
     private init() {
-        checkAuthenticationStatus()
+        let initStartTime = CFAbsoluteTimeGetCurrent()
+        authLogger.info("🔐 === AUTHENTICATION SERVICE INIT STARTED ===")
+        
+        authLogger.info("🔧 Initializing KeychainService...")
+        // KeychainService.shared is initialized here
+        
+        authLogger.info("🔧 Initializing BiometricAuthService...")
+        // BiometricAuthService.shared is initialized here
+        
+        authLogger.info("🔧 Initializing NetworkService...")
+        let networkInitStartTime = CFAbsoluteTimeGetCurrent()
+        // NetworkService.shared is initialized here - this could be expensive
+        _ = networkService // Force initialization
+        let networkInitEndTime = CFAbsoluteTimeGetCurrent()
+        let networkInitDuration = networkInitEndTime - networkInitStartTime
+        authLogger.info("🔧 NetworkService initialized in: \(networkInitDuration * 1000, privacy: .public) ms")
+        
+        let initEndTime = CFAbsoluteTimeGetCurrent()
+        let initDuration = initEndTime - initStartTime
+        authLogger.info("🔐 AuthenticationService init completed in: \(initDuration * 1000, privacy: .public) ms")
+        authLogger.info("🔐 === AUTHENTICATION SERVICE INIT FINISHED ===")
+        
+        // Move authentication status check to after initialization to avoid blocking
+        authLogger.info("🔍 Scheduling async authentication status check...")
+        Task {
+            await checkAuthenticationStatusAsync()
+        }
     }
     
     // MARK: - Authentication Status
     
-    func checkAuthenticationStatus() {
-        Task { @MainActor in
-            if let userData = keychainService.getUser() {
+    private func checkAuthenticationStatusAsync() async {
+        let checkStartTime = CFAbsoluteTimeGetCurrent()
+        authLogger.info("🔍 === CHECKING AUTHENTICATION STATUS (ASYNC) ===")
+        
+        let keychainStartTime = CFAbsoluteTimeGetCurrent()
+        authLogger.info("🔑 Looking for stored user in keychain (background thread)...")
+        
+        // Perform keychain access on background thread
+        let userData = await Task.detached {
+            return self.keychainService.getUser()
+        }.value
+        
+        let keychainEndTime = CFAbsoluteTimeGetCurrent()
+        let keychainDuration = keychainEndTime - keychainStartTime
+        authLogger.info("🔑 Keychain access completed in: \(keychainDuration * 1000, privacy: .public) ms")
+        
+        // Update UI on main thread
+        await MainActor.run {
+            if let userData = userData {
+                let userLoadTime = CFAbsoluteTimeGetCurrent()
+                let userLoadDuration = userLoadTime - checkStartTime
+                authLogger.info("✅ Found stored user: \(userData.email)")
+                authLogger.info("🔑 User loaded from keychain in: \(userLoadDuration * 1000, privacy: .public) ms")
+                
                 currentUser = userData
                 isAuthenticated = true
                 
                 // Auto-load cached profile or fetch from server
+                authLogger.info("👤 Loading user profile after login...")
                 Task {
                     await loadUserProfileAfterLogin()
                 }
             } else {
+                let noUserTime = CFAbsoluteTimeGetCurrent()
+                let noUserDuration = noUserTime - checkStartTime
+                authLogger.info("❌ No stored user found")
+                authLogger.info("🔑 Keychain check completed in: \(noUserDuration * 1000, privacy: .public) ms")
+                
                 isAuthenticated = false
                 currentUser = nil
             }
+            
+            let totalCheckTime = CFAbsoluteTimeGetCurrent() - checkStartTime
+            authLogger.info("🔍 Authentication status check completed in: \(totalCheckTime * 1000, privacy: .public) ms")
+            authLogger.info("🔍 === AUTHENTICATION STATUS CHECK FINISHED ===")
+        }
+    }
+    
+    func checkAuthenticationStatus() {
+        // Legacy method - now just calls the async version
+        Task {
+            await checkAuthenticationStatusAsync()
         }
     }
     
