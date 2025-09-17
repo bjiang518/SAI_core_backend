@@ -532,9 +532,10 @@ final class AuthenticationService: ObservableObject {
     private func loadUserProfileAfterLogin() async {
         print("🔄 Auto-loading user profile...")
         
-        // TODO: Implement ProfileService or remove this functionality
-        // For now, just log that profile loading is not implemented
-        print("⚠️ ProfileService not implemented - skipping profile auto-loading")
+        // Use the ProfileService to load user profile
+        await ProfileService.shared.loadProfileAfterLogin()
+        
+        print("✅ Profile auto-loading completed")
     }
     
     func isAppleSignInAvailable() -> Bool {

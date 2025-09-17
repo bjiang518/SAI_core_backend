@@ -394,9 +394,18 @@ struct SessionChatView: View {
             VStack(spacing: 0) {
                 // Header with session info (minimal for ChatGPT style)
                 modernHeaderView
+                    .onTapGesture {
+                        // Dismiss keyboard when tapping on header
+                        dismissKeyboard()
+                    }
                 
                 // Chat messages with dark theme
                 darkChatMessagesView
+                    .contentShape(Rectangle()) // Makes the entire area tappable
+                    .onTapGesture {
+                        // Dismiss keyboard when tapping on messages area
+                        dismissKeyboard()
+                    }
                 
                 // Modern floating message input
                 modernMessageInputView
@@ -701,7 +710,9 @@ struct SessionChatView: View {
                                 isMessageInputFocused = true
                             }
                         }
-                    }
+                    },
+                    onCameraAction: openCamera,
+                    isCameraDisabled: networkService.currentSessionId == nil || isSubmitting || isProcessingImage
                 )
             } else {
                 // Regular text input interface
@@ -1430,6 +1441,16 @@ struct SessionChatView: View {
         sendMessage()
     }
     */
+    
+    // MARK: - Keyboard Management
+    
+    private func dismissKeyboard() {
+        // Dismiss keyboard by removing focus from the message input
+        isMessageInputFocused = false
+        
+        // Alternative method using UIKit if focus state doesn't work
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
     
     // MARK: - Actions
     
@@ -2269,6 +2290,10 @@ struct ImageInputSheet: View {
         .fullScreenCover(isPresented: $showingFullImage) {
             FullScreenImageView(image: selectedImage, isPresented: $showingFullImage)
         }
+        .onTapGesture {
+            // Dismiss keyboard when tapping outside the text field
+            isTextFieldFocused = false
+        }
         .onAppear {
             // Auto-focus text field when sheet appears
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -2523,6 +2548,8 @@ struct WeChatStyleVoiceInput: View {
     @Binding var isVoiceMode: Bool
     let onVoiceInput: (String) -> Void
     let onModeToggle: () -> Void
+    let onCameraAction: () -> Void
+    let isCameraDisabled: Bool
     
     @StateObject private var speechService = SpeechRecognitionService()
     @State private var isRecording = false
@@ -2552,7 +2579,7 @@ struct WeChatStyleVoiceInput: View {
             
             // Voice input area
             HStack(spacing: 12) {
-                // Back to text button
+                // Back to text button (keyboard icon - replaces microphone position)
                 Button(action: {
                     onModeToggle()
                 }) {
@@ -2567,9 +2594,16 @@ struct WeChatStyleVoiceInput: View {
                 // WeChat-style voice button
                 weChatVoiceButton
                 
-                // Placeholder for symmetry (or other controls)
-                Spacer()
-                    .frame(width: 44, height: 44)
+                // Camera button (keep in original position)
+                Button(action: onCameraAction) {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                        .frame(width: 44, height: 44)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Circle())
+                }
+                .disabled(isCameraDisabled)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)

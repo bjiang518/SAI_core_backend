@@ -93,7 +93,9 @@ struct HomeView: View {
                             GridItem(.flexible()),
                             GridItem(.flexible())
                         ], spacing: 16) {
-                            NavigationLink(destination: SessionChatView()) {
+                            Button(action: {
+                                onSelectTab(.chat)
+                            }) {
                                 QuickActionCard(
                                     icon: "message.fill",
                                     title: "Chat Session",
@@ -101,6 +103,7 @@ struct HomeView: View {
                                     color: .blue
                                 )
                             }
+                            .buttonStyle(PlainButtonStyle())
                             
                             NavigationLink(destination: QuestionView(onNavigateToSession: {
                                 navigateToSession = true
