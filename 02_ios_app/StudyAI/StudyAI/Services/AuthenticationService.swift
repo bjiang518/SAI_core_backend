@@ -115,50 +115,18 @@ final class AuthenticationService: ObservableObject {
     
     func checkAuthenticationStatus() {
         Task { @MainActor in
-            print("🔍 === CHECKING AUTH STATUS ON APP START ===")
-            
             if let userData = keychainService.getUser() {
-                print("📱 Found existing user in keychain:")
-                print("   👤 User ID: \(userData.id)")
-                print("   📧 Email: \(userData.email)")
-                print("   🔐 Provider: \(userData.authProvider.rawValue)")
-                print("   📅 Created: \(userData.createdAt)")
-                
-                let expectedServerUid = "81de989d-75ed-4c22-bbd3-146b8f6dcd26"
-                let isFirebaseUid = userData.id.contains("-") && userData.id.count > 30
-                
-                print("🚨 === STARTUP UID ANALYSIS ===")
-                print("📱 Loaded User ID: \(userData.id)")
-                print("🖥️ Expected Server UID: \(expectedServerUid)")
-                print("🔍 Is Firebase UID: \(isFirebaseUid)")
-                print("❌ UID MISMATCH: \(userData.id != expectedServerUid ? "YES - OLD DATA!" : "NO - Fixed!")")
-                
                 currentUser = userData
                 isAuthenticated = true
                 
-                // Auto-fix UID if it's still using Firebase UID
-                if userData.id != expectedServerUid && isFirebaseUid {
-                    print("🔧 === AUTO-FIXING UID ===")
-                    print("🚀 Attempting to fetch server UID using current token...")
-                    
-                    do {
-                        try await fixExistingUserUID()
-                        print("✅ UID auto-fix completed successfully!")
-                    } catch {
-                        print("❌ UID auto-fix failed: \(error.localizedDescription)")
-                        print("💡 User will need to log out and log back in")
-                    }
+                // Auto-load cached profile or fetch from server
+                Task {
+                    await loadUserProfileAfterLogin()
                 }
-                print("===============================")
-                
             } else {
-                print("📭 No existing user found in keychain")
                 isAuthenticated = false
                 currentUser = nil
             }
-            
-            print("✅ Auth status check complete. Authenticated: \(isAuthenticated)")
-            print("==============================================")
         }
     }
     
@@ -230,6 +198,9 @@ final class AuthenticationService: ObservableObject {
                     print("👤 Current user ID now: \(user.id)")
                     print("===========================")
                 }
+                
+                // Auto-load user profile after successful login
+                await loadUserProfileAfterLogin()
             }
         } else {
             print("❌ Backend login failed: \(result.message)")
@@ -298,6 +269,9 @@ final class AuthenticationService: ObservableObject {
                 currentUser = user
                 isAuthenticated = true
             }
+            
+            // Auto-load user profile after successful login
+            await loadUserProfileAfterLogin()
         } catch {
             // Handle specific Apple Sign-In errors with helpful messages
             if let authError = error as? AuthError {
@@ -369,6 +343,9 @@ final class AuthenticationService: ObservableObject {
                     currentUser = user
                     isAuthenticated = true
                 }
+                
+                // Auto-load user profile after successful login
+                await loadUserProfileAfterLogin()
             }
         } else {
             let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
@@ -401,6 +378,9 @@ final class AuthenticationService: ObservableObject {
                     currentUser = userData
                     isAuthenticated = true
                 }
+                
+                // Auto-load user profile after successful login
+                await loadUserProfileAfterLogin()
             } else {
                 throw AuthError.keychainError
             }
@@ -478,6 +458,17 @@ final class AuthenticationService: ObservableObject {
     
     func getAuthToken() -> String? {
         return keychainService.getAuthToken()
+    }
+    
+    // MARK: - Profile Auto-Loading
+    
+    /// Auto-load user profile after successful authentication
+    private func loadUserProfileAfterLogin() async {
+        print("🔄 Auto-loading user profile...")
+        
+        // TODO: Implement ProfileService or remove this functionality
+        // For now, just log that profile loading is not implemented
+        print("⚠️ ProfileService not implemented - skipping profile auto-loading")
     }
     
     func isAppleSignInAvailable() -> Bool {

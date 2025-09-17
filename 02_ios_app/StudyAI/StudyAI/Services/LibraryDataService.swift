@@ -8,6 +8,95 @@
 import Foundation
 import Combine
 
+// MARK: - Advanced Search Models
+
+struct SearchFilters {
+    var searchText: String?
+    var selectedSubjects: Set<String> = []
+    var confidenceRange: ClosedRange<Float>?
+    var gradeFilter: GradeFilter?
+    var hasVisualElements: Bool?
+    var sortOrder: SortOrder = .dateNewest
+    var dateRange: DateRange?
+    
+    var isEmpty: Bool {
+        return searchText?.isEmpty != false &&
+               selectedSubjects.isEmpty &&
+               confidenceRange == nil &&
+               gradeFilter == nil &&
+               hasVisualElements == nil &&
+               dateRange == nil
+    }
+}
+
+enum DateRange: Hashable {
+    case lastWeek
+    case lastMonth
+    case last3Months
+    case custom(startDate: Date, endDate: Date)
+    
+    var displayName: String {
+        switch self {
+        case .lastWeek: return "Last Week"
+        case .lastMonth: return "Last Month"
+        case .last3Months: return "Last 3 Months"
+        case .custom(let startDate, let endDate):
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            return "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
+        }
+    }
+    
+    var dateComponents: (startDate: Date, endDate: Date) {
+        let now = Date()
+        let calendar = Calendar.current
+        
+        switch self {
+        case .lastWeek:
+            let startDate = calendar.date(byAdding: .weekOfYear, value: -1, to: now) ?? now
+            return (startDate, now)
+        case .lastMonth:
+            let startDate = calendar.date(byAdding: .month, value: -1, to: now) ?? now
+            return (startDate, now)
+        case .last3Months:
+            let startDate = calendar.date(byAdding: .month, value: -3, to: now) ?? now
+            return (startDate, now)
+        case .custom(let startDate, let endDate):
+            return (startDate, endDate)
+        }
+    }
+}
+
+enum GradeFilter: String, CaseIterable {
+    case all = "All"
+    case correct = "CORRECT"
+    case incorrect = "INCORRECT"
+    case empty = "EMPTY"
+    case partialCredit = "PARTIAL_CREDIT"
+    case notGraded = "Not Graded"
+    
+    var displayName: String {
+        switch self {
+        case .all: return "All Grades"
+        case .correct: return "Correct ✅"
+        case .incorrect: return "Incorrect ❌" 
+        case .empty: return "Empty 📝"
+        case .partialCredit: return "Partial Credit ⚡"
+        case .notGraded: return "Not Graded 📋"
+        }
+    }
+}
+
+enum SortOrder: String, CaseIterable {
+    case dateNewest = "Date (Newest First)"
+    case dateOldest = "Date (Oldest First)"
+    case confidenceHigh = "Confidence (High to Low)"
+    case confidenceLow = "Confidence (Low to High)"
+    case subjectAZ = "Subject (A-Z)"
+    
+    var displayName: String { return rawValue }
+}
+
 /// Unified data service for Library View - handles both questions and conversations
 class LibraryDataService: ObservableObject {
     static let shared = LibraryDataService()
@@ -45,6 +134,93 @@ class LibraryDataService: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Public API
+    
+    /// Advanced search with comprehensive filtering
+    func searchQuestions(with filters: SearchFilters) async -> [QuestionSummary] {
+        guard userSessionManager.isUserAuthenticated() else {
+            await MainActor.run {
+                errorMessage = "Please sign in to search your questions"
+            }
+            return []
+        }
+        
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
+        
+        do {
+            let searchText = filters.searchText?.isEmpty == false ? filters.searchText : nil
+            let subject = filters.selectedSubjects.first // For now, use first subject
+            let gradeValue = filters.gradeFilter?.rawValue == "All" ? nil : filters.gradeFilter?.rawValue
+            
+            print("🔍 LibraryDataService: Searching with advanced filters")
+            
+            let questions = try await questionService.searchQuestions(
+                searchText: searchText,
+                subject: subject,
+                confidenceRange: filters.confidenceRange,
+                hasVisualElements: filters.hasVisualElements,
+                grade: gradeValue,
+                limit: 100
+            )
+            
+            // Apply client-side sorting
+            let sortedQuestions = applySorting(questions, sortOrder: filters.sortOrder)
+            
+            // Apply client-side date filtering if specified
+            let filteredQuestions: [QuestionSummary]
+            if let dateRange = filters.dateRange {
+                let dateComponents = dateRange.dateComponents
+                filteredQuestions = sortedQuestions.filter { question in
+                    question.archivedAt >= dateComponents.startDate && question.archivedAt <= dateComponents.endDate
+                }
+            } else {
+                filteredQuestions = sortedQuestions
+            }
+            
+            await MainActor.run {
+                isLoading = false
+            }
+            
+            print("✅ LibraryDataService: Advanced search found \(filteredQuestions.count) questions")
+            return filteredQuestions
+            
+        } catch {
+            let errorMsg = "Failed to search questions: \(error.localizedDescription)"
+            print("❌ LibraryDataService: \(errorMsg)")
+            
+            await MainActor.run {
+                isLoading = false
+                errorMessage = errorMsg
+            }
+            
+            return []
+        }
+    }
+    
+    /// Get all available subjects for filtering
+    func getAvailableSubjects() -> [String] {
+        let questionSubjects = Set(cachedQuestions.map { $0.subject })
+        let conversationSubjects = Set(cachedConversations.compactMap { $0["subject"] as? String })
+        return Array(questionSubjects.union(conversationSubjects)).sorted()
+    }
+    
+    /// Get statistics for questions by grade
+    func getGradeStatistics() -> [GradeFilter: Int] {
+        var stats: [GradeFilter: Int] = [:]
+        
+        for question in cachedQuestions {
+            if let grade = question.grade {
+                let gradeFilter = GradeFilter(rawValue: grade.rawValue) ?? .notGraded
+                stats[gradeFilter, default: 0] += 1
+            } else {
+                stats[.notGraded, default: 0] += 1
+            }
+        }
+        
+        return stats
+    }
     
     /// Fetch all library content (questions + conversations)
     func fetchLibraryContent(forceRefresh: Bool = false) async -> LibraryContent {
@@ -183,6 +359,21 @@ class LibraryDataService: ObservableObject {
             return "\(error1); \(error2)"
         }
         return error1 ?? error2
+    }
+    
+    private func applySorting(_ questions: [QuestionSummary], sortOrder: SortOrder) -> [QuestionSummary] {
+        switch sortOrder {
+        case .dateNewest:
+            return questions.sorted { $0.archivedAt > $1.archivedAt }
+        case .dateOldest:
+            return questions.sorted { $0.archivedAt < $1.archivedAt }
+        case .confidenceHigh:
+            return questions.sorted { $0.confidence > $1.confidence }
+        case .confidenceLow:
+            return questions.sorted { $0.confidence < $1.confidence }
+        case .subjectAZ:
+            return questions.sorted { $0.subject < $1.subject }
+        }
     }
     
     // MARK: - Statistics

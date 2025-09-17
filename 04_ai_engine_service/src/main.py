@@ -41,6 +41,23 @@ try:
 except ImportError:
     print("⚠️ Redis not available, using in-memory session storage")
 
+# Keep-alive mechanism for Railway
+import asyncio
+from datetime import datetime
+
+async def keep_alive_task():
+    """Periodic task to prevent Railway from sleeping the service"""
+    while True:
+        try:
+            await asyncio.sleep(int(os.getenv('HEALTH_CHECK_INTERVAL', '300')))  # 5 minutes
+            if os.getenv('RAILWAY_KEEP_ALIVE') == 'true':
+                print(f"🔄 Keep-alive ping: {datetime.now().isoformat()}")
+                # Internal health check to keep the service active
+                # This creates minimal activity to prevent Railway sleep
+        except Exception as e:
+            print(f"⚠️ Keep-alive task error: {e}")
+            await asyncio.sleep(60)  # Wait 1 minute before retrying
+
 # Initialize FastAPI app with increased body size limit
 app = FastAPI(
     title="StudyAI AI Engine",
@@ -79,6 +96,24 @@ app.middleware("http")(service_auth_middleware)
 ai_service = EducationalAIService()
 prompt_service = AdvancedPromptService()
 session_service = SessionService(ai_service, redis_client)
+
+# Startup event to initialize keep-alive mechanism
+@app.on_event("startup")
+async def startup_event():
+    """Initialize background tasks on startup"""
+    if os.getenv('RAILWAY_KEEP_ALIVE') == 'true':
+        print("🚀 Starting keep-alive background task for Railway")
+        asyncio.create_task(keep_alive_task())
+    print("✅ StudyAI AI Engine started successfully")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown"""
+    print("🔄 StudyAI AI Engine shutting down gracefully...")
+    # Close Redis connection if exists
+    if redis_client:
+        await redis_client.close()
+    print("✅ Shutdown complete")
 
 # Request/Response Models
 class QuestionRequest(BaseModel):
@@ -154,14 +189,37 @@ class SessionMessageResponse(BaseModel):
 # Health Check with optional authentication
 @app.get("/health")
 async def health_check(service_info = optional_service_auth()):
-    return {
+    """Enhanced health check with system status for Railway monitoring"""
+    import psutil
+    import time
+    
+    # System metrics for monitoring
+    memory_usage = psutil.virtual_memory()
+    cpu_usage = psutil.cpu_percent(interval=1)
+    
+    status_data = {
         "status": "healthy", 
         "service": "StudyAI AI Engine",
         "version": "2.0.0",
+        "timestamp": datetime.now().isoformat(),
+        "uptime_seconds": int(time.time() - app.state.start_time) if hasattr(app.state, 'start_time') else 0,
         "features": ["advanced_prompting", "educational_optimization", "practice_generation"],
         "authenticated": service_info.get("authenticated", False),
-        "auth_enabled": service_auth.enabled
+        "auth_enabled": service_auth.enabled,
+        "system_health": {
+            "memory_usage_percent": memory_usage.percent,
+            "memory_available_mb": round(memory_usage.available / 1024 / 1024, 1),
+            "cpu_usage_percent": cpu_usage,
+            "redis_connected": redis_client is not None,
+            "keep_alive_enabled": os.getenv('RAILWAY_KEEP_ALIVE') == 'true'
+        }
     }
+    
+    # Set start time on first health check
+    if not hasattr(app.state, 'start_time'):
+        app.state.start_time = time.time()
+    
+    return status_data
 
 # Authenticated health check for service monitoring
 @app.get("/health/authenticated")

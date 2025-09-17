@@ -17,6 +17,9 @@ cryptography==41.0.7
 # Session Storage
 redis==5.0.1
 
+# System Monitoring
+psutil==5.9.6
+
 # Utilities
 python-dotenv==1.0.0
 httpx==0.25.2

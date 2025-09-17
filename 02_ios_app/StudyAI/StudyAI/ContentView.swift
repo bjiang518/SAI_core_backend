@@ -172,7 +172,9 @@ struct MainTabView: View {
 struct ModernProfileView: View {
     let onLogout: () -> Void
     @StateObject private var authService = AuthenticationService.shared
+    @StateObject private var profileService = ProfileService.shared
     @State private var showingBiometricSetup = false
+    @State private var showingEditProfile = false
     
     var body: some View {
         NavigationView {
@@ -203,9 +205,16 @@ struct ModernProfileView: View {
                         }
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(authService.currentUser?.name ?? "User")
-                                .font(.title2)
-                                .fontWeight(.bold)
+                            // Display full name from profile if available
+                            if let profile = profileService.currentProfile {
+                                Text(profile.fullName)
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                            } else {
+                                Text(authService.currentUser?.name ?? "User")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                            }
                             
                             Text(authService.currentUser?.email ?? "user@example.com")
                                 .font(.subheadline)
@@ -225,11 +234,45 @@ struct ModernProfileView: View {
                                 .foregroundColor(.blue)
                                 .cornerRadius(8)
                             }
+                            
+                            // Profile completion indicator
+                            if let profile = profileService.currentProfile {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "person.circle.fill")
+                                        .font(.caption)
+                                        .foregroundColor(profile.isProfileComplete ? .green : .orange)
+                                    Text("Profile \(profile.profileCompletionPercentage)% complete")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
                         }
                         
                         Spacer()
                     }
                     .padding(.vertical, 8)
+                }
+                
+                // Account Section
+                Section("Account") {
+                    Button(action: { showingEditProfile = true }) {
+                        SettingsRow(
+                            icon: "person.crop.circle.fill", 
+                            title: "Edit Profile", 
+                            color: .blue
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button(action: onLogout) {
+                        HStack {
+                            Image(systemName: "arrow.right.square.fill")
+                                .foregroundColor(.red)
+                                .frame(width: 20)
+                            Text("Sign Out")
+                                .foregroundColor(.red)
+                        }
+                    }
                 }
                 
                 // Security Section
@@ -277,19 +320,6 @@ struct ModernProfileView: View {
                     SettingsRow(icon: "square.and.arrow.up.fill", title: "Share App", color: .cyan)
                 }
                 
-                // Account Section
-                Section("Account") {
-                    Button(action: onLogout) {
-                        HStack {
-                            Image(systemName: "arrow.right.square.fill")
-                                .foregroundColor(.red)
-                                .frame(width: 20)
-                            Text("Sign Out")
-                                .foregroundColor(.red)
-                        }
-                    }
-                }
-                
                 // App Info Section
                 Section {
                     VStack(spacing: 8) {
@@ -309,7 +339,16 @@ struct ModernProfileView: View {
                     .listRowBackground(Color.clear)
                 }
             }
-            .navigationTitle("Profile")
+            .navigationTitle("Settings")
+            .onAppear {
+                // Load profile when view appears
+                Task {
+                    await profileService.loadProfileAfterLogin()
+                }
+            }
+        }
+        .sheet(isPresented: $showingEditProfile) {
+            EditProfileView()
         }
     }
     

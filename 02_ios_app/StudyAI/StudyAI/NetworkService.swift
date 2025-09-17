@@ -1975,4 +1975,146 @@ class NetworkService: ObservableObject {
         
         return (false, nil, "Unknown error occurred")
     }
+    
+    // MARK: - Profile Management Functions
+    
+    /// Get detailed user profile from server
+    func getUserProfile() async -> (success: Bool, profile: [String: Any]?, message: String) {
+        print("👤 === GET USER PROFILE ===")
+        
+        let profileURL = "\(baseURL)/api/user/profile-details"
+        
+        guard let url = URL(string: profileURL) else {
+            return (false, nil, "Invalid URL")
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Add authentication header
+        addAuthHeader(to: &request)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                let statusCode = httpResponse.statusCode
+                print("✅ Profile Status: \(statusCode)")
+                
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    print("✅ Profile Response: \(json)")
+                    
+                    if statusCode == 200 {
+                        let profile = json["profile"] as? [String: Any] ?? json
+                        let message = json["message"] as? String ?? "Profile loaded successfully"
+                        return (true, profile, message)
+                    } else {
+                        let message = json["message"] as? String ?? "Failed to load profile"
+                        return (false, nil, message)
+                    }
+                }
+            }
+            
+            return (false, nil, "Invalid response")
+        } catch {
+            let errorMsg = "Profile request failed: \(error.localizedDescription)"
+            print("❌ \(errorMsg)")
+            return (false, nil, errorMsg)
+        }
+    }
+    
+    /// Update user profile on server
+    func updateUserProfile(_ profileData: [String: Any]) async -> (success: Bool, profile: [String: Any]?, message: String) {
+        print("✏️ === UPDATE USER PROFILE ===")
+        
+        let profileURL = "\(baseURL)/api/user/profile"
+        
+        guard let url = URL(string: profileURL) else {
+            return (false, nil, "Invalid URL")
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Add authentication header
+        addAuthHeader(to: &request)
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: profileData)
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                let statusCode = httpResponse.statusCode
+                print("✅ Update Profile Status: \(statusCode)")
+                
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    print("✅ Update Profile Response: \(json)")
+                    
+                    if statusCode == 200 {
+                        let profile = json["profile"] as? [String: Any] ?? json
+                        let message = json["message"] as? String ?? "Profile updated successfully"
+                        return (true, profile, message)
+                    } else {
+                        let message = json["message"] as? String ?? "Failed to update profile"
+                        return (false, nil, message)
+                    }
+                }
+            }
+            
+            return (false, nil, "Invalid response")
+        } catch {
+            let errorMsg = "Update profile request failed: \(error.localizedDescription)"
+            print("❌ \(errorMsg)")
+            return (false, nil, errorMsg)
+        }
+    }
+    
+    /// Get profile completion status
+    func getProfileCompletion() async -> (success: Bool, completion: [String: Any]?, message: String) {
+        print("📊 === GET PROFILE COMPLETION ===")
+        
+        let completionURL = "\(baseURL)/api/user/profile-completion"
+        
+        guard let url = URL(string: completionURL) else {
+            return (false, nil, "Invalid URL")
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Add authentication header
+        addAuthHeader(to: &request)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                let statusCode = httpResponse.statusCode
+                print("✅ Profile Completion Status: \(statusCode)")
+                
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    print("✅ Profile Completion Response: \(json)")
+                    
+                    if statusCode == 200 {
+                        let completion = json["completion"] as? [String: Any] ?? json
+                        let message = json["message"] as? String ?? "Profile completion loaded successfully"
+                        return (true, completion, message)
+                    } else {
+                        let message = json["message"] as? String ?? "Failed to load profile completion"
+                        return (false, nil, message)
+                    }
+                }
+            }
+            
+            return (false, nil, "Invalid response")
+        } catch {
+            let errorMsg = "Profile completion request failed: \(error.localizedDescription)"
+            print("❌ \(errorMsg)")
+            return (false, nil, errorMsg)
+        }
+    }
 }

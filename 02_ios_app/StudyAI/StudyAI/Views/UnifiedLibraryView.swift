@@ -14,12 +14,17 @@ struct UnifiedLibraryView: View {
     @State private var libraryContent = LibraryContent(questions: [], conversations: [], error: nil)
     @State private var searchText = ""
     @State private var selectedSubject: String?
+    @State private var showingAdvancedSearch = false
+    @State private var searchFilters = SearchFilters()
+    @State private var isUsingAdvancedSearch = false
+    @State private var advancedFilteredQuestions: [QuestionSummary] = []
     
     var filteredItems: [LibraryItem] {
         var allItems: [LibraryItem] = []
         
-        // Add questions
-        allItems.append(contentsOf: libraryContent.questions)
+        // Use advanced search results if available, otherwise use regular library content
+        let questionsToUse = isUsingAdvancedSearch ? advancedFilteredQuestions : libraryContent.questions
+        allItems.append(contentsOf: questionsToUse)
         
         // Add conversations
         allItems.append(contentsOf: libraryContent.conversations.map { ConversationLibraryItem(data: $0) })
@@ -72,6 +77,10 @@ struct UnifiedLibraryView: View {
                             }
                         }
                         
+                        Button("Advanced Search") {
+                            showingAdvancedSearch = true
+                        }
+                        
                         Button("Clear Filters") {
                             clearFilters()
                         }
@@ -101,6 +110,20 @@ struct UnifiedLibraryView: View {
             }
             .refreshable {
                 await refreshContent()
+            }
+            .sheet(isPresented: $showingAdvancedSearch) {
+                AdvancedSearchView(
+                    searchFilters: $searchFilters,
+                    availableSubjects: availableSubjects,
+                    onSearch: { filters in
+                        Task {
+                            await performAdvancedSearch(filters)
+                        }
+                    },
+                    onClearSearch: {
+                        clearAdvancedSearch()
+                    }
+                )
             }
         }
         .searchable(text: $searchText, prompt: "Search your study sessions...")
@@ -161,6 +184,18 @@ struct UnifiedLibraryView: View {
     private func clearFilters() {
         searchText = ""
         selectedSubject = nil
+        clearAdvancedSearch()
+    }
+    
+    private func performAdvancedSearch(_ filters: SearchFilters) async {
+        advancedFilteredQuestions = await libraryService.searchQuestions(with: filters)
+        isUsingAdvancedSearch = true
+    }
+    
+    private func clearAdvancedSearch() {
+        isUsingAdvancedSearch = false
+        advancedFilteredQuestions = []
+        searchFilters = SearchFilters()
     }
 }
 
@@ -396,6 +431,140 @@ struct NoResultsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
+    }
+}
+
+// MARK: - Advanced Search View
+
+struct AdvancedSearchView: View {
+    @Binding var searchFilters: SearchFilters
+    let availableSubjects: [String]
+    let onSearch: (SearchFilters) -> Void
+    let onClearSearch: () -> Void
+    
+    @Environment(\.dismiss) private var dismiss
+    @State private var localFilters: SearchFilters
+    
+    init(searchFilters: Binding<SearchFilters>, availableSubjects: [String], onSearch: @escaping (SearchFilters) -> Void, onClearSearch: @escaping () -> Void) {
+        self._searchFilters = searchFilters
+        self.availableSubjects = availableSubjects
+        self.onSearch = onSearch
+        self.onClearSearch = onClearSearch
+        self._localFilters = State(initialValue: searchFilters.wrappedValue)
+    }
+    
+    // Computed properties to simplify bindings
+    private var searchTextBinding: Binding<String> {
+        Binding(
+            get: { localFilters.searchText ?? "" },
+            set: { localFilters.searchText = $0.isEmpty ? nil : $0 }
+        )
+    }
+    
+    private var selectedSubjectBinding: Binding<String> {
+        Binding(
+            get: { localFilters.selectedSubjects.first ?? "All" },
+            set: { subject in
+                if subject == "All" {
+                    localFilters.selectedSubjects.removeAll()
+                } else {
+                    localFilters.selectedSubjects = [subject]
+                }
+            }
+        )
+    }
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                searchTextSection
+                subjectFilterSection
+                gradeFilterSection
+                dateRangeSection
+                sortOrderSection
+            }
+            .navigationTitle("Advanced Search")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Search") {
+                        searchFilters = localFilters
+                        onSearch(localFilters)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .bottomBar) {
+                    Button("Clear Search") {
+                        onClearSearch()
+                        dismiss()
+                    }
+                    .foregroundColor(.red)
+                }
+            }
+        }
+    }
+    
+    // Break down the Form into separate computed properties
+    private var searchTextSection: some View {
+        Section("Search Text") {
+            TextField("Search questions...", text: searchTextBinding)
+        }
+    }
+    
+    private var subjectFilterSection: some View {
+        Section("Subject Filter") {
+            Picker("Subject", selection: selectedSubjectBinding) {
+                Text("All Subjects").tag("All")
+                ForEach(availableSubjects, id: \.self) { subject in
+                    Text(subject).tag(subject)
+                }
+            }
+            .pickerStyle(.menu)
+        }
+    }
+    
+    private var gradeFilterSection: some View {
+        Section("Grade Filter") {
+            Picker("Grade", selection: $localFilters.gradeFilter) {
+                Text("All Grades").tag(nil as GradeFilter?)
+                ForEach(GradeFilter.allCases.filter { $0 != .all }, id: \.self) { grade in
+                    Text(grade.displayName).tag(grade as GradeFilter?)
+                }
+            }
+            .pickerStyle(.menu)
+        }
+    }
+    
+    private var dateRangeSection: some View {
+        Section("Date Range") {
+            Picker("Date Range", selection: $localFilters.dateRange) {
+                Text("All Time").tag(nil as DateRange?)
+                Text("Last Week").tag(DateRange.lastWeek as DateRange?)
+                Text("Last Month").tag(DateRange.lastMonth as DateRange?)
+                Text("Last 3 Months").tag(DateRange.last3Months as DateRange?)
+            }
+            .pickerStyle(.menu)
+        }
+    }
+    
+    private var sortOrderSection: some View {
+        Section("Sort Order") {
+            Picker("Sort By", selection: $localFilters.sortOrder) {
+                ForEach(SortOrder.allCases, id: \.self) { order in
+                    Text(order.displayName).tag(order)
+                }
+            }
+            .pickerStyle(.menu)
+        }
     }
 }
 

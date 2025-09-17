@@ -132,6 +132,93 @@ class QuestionArchiveService: ObservableObject {
         return archivedQuestions
     }
     
+    // MARK: - Enhanced Search Methods
+    
+    /// Advanced search with comprehensive filtering options
+    func searchQuestions(
+        searchText: String? = nil,
+        subject: String? = nil,
+        confidenceRange: ClosedRange<Float>? = nil,
+        hasVisualElements: Bool? = nil,
+        grade: String? = nil,
+        limit: Int = 50,
+        offset: Int = 0
+    ) async throws -> [QuestionSummary] {
+        guard let userId = currentUserId else {
+            throw QuestionArchiveError.notAuthenticated
+        }
+        
+        guard let token = authToken else {
+            throw QuestionArchiveError.notAuthenticated
+        }
+        
+        print("🔍 Searching archived questions with filters:")
+        if let searchText = searchText { print("  📝 Search text: \(searchText)") }
+        if let subject = subject { print("  📚 Subject: \(subject)") }
+        if let confidenceRange = confidenceRange { print("  📊 Confidence: \(confidenceRange)") }
+        if let hasVisualElements = hasVisualElements { print("  🖼️ Visual elements: \(hasVisualElements)") }
+        if let grade = grade { print("  ✅ Grade: \(grade)") }
+        
+        var urlComponents = URLComponents(string: "\(baseURL)/api/archived-questions")!
+        var queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "offset", value: String(offset))
+        ]
+        
+        // Add search filters
+        if let searchText = searchText, !searchText.isEmpty {
+            queryItems.append(URLQueryItem(name: "searchText", value: searchText))
+        }
+        
+        if let subject = subject, !subject.isEmpty {
+            queryItems.append(URLQueryItem(name: "subject", value: subject))
+        }
+        
+        if let confidenceRange = confidenceRange {
+            queryItems.append(URLQueryItem(name: "confidenceMin", value: String(confidenceRange.lowerBound)))
+            queryItems.append(URLQueryItem(name: "confidenceMax", value: String(confidenceRange.upperBound)))
+        }
+        
+        if let hasVisualElements = hasVisualElements {
+            queryItems.append(URLQueryItem(name: "hasVisualElements", value: String(hasVisualElements)))
+        }
+        
+        if let grade = grade, !grade.isEmpty {
+            queryItems.append(URLQueryItem(name: "grade", value: grade))
+        }
+        
+        urlComponents.queryItems = queryItems
+        
+        guard let url = urlComponents.url else {
+            throw QuestionArchiveError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw QuestionArchiveError.fetchFailed(errorMessage)
+        }
+        
+        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let success = jsonResponse["success"] as? Bool,
+              success == true,
+              let questionData = jsonResponse["data"] as? [[String: Any]] else {
+            throw QuestionArchiveError.invalidData
+        }
+        
+        let questions = try questionData.map { try convertQuestionSummaryFromRailwayFormat($0) }
+        
+        print("🔍 Search completed: found \(questions.count) questions")
+        return questions
+    }
+    
     // MARK: - Fetch Archived Questions
     
     func fetchArchivedQuestions(limit: Int = 50, offset: Int = 0) async throws -> [QuestionSummary] {

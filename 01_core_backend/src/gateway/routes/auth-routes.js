@@ -90,6 +90,73 @@ class AuthRoutes {
       }
     }, this.getUserProfile.bind(this));
 
+    // Get detailed user profile endpoint
+    this.fastify.get('/api/user/profile-details', {
+      schema: {
+        description: 'Get detailed user profile with all fields',
+        tags: ['User', 'Profile'],
+        headers: {
+          type: 'object',
+          properties: {
+            authorization: { type: 'string' }
+          }
+        }
+      }
+    }, this.getUserProfileDetails.bind(this));
+
+    // Update user profile endpoint
+    this.fastify.put('/api/user/profile', {
+      schema: {
+        description: 'Update user profile information',
+        tags: ['User', 'Profile'],
+        headers: {
+          type: 'object',
+          properties: {
+            authorization: { type: 'string' }
+          }
+        },
+        body: {
+          type: 'object',
+          properties: {
+            firstName: { type: 'string' },
+            lastName: { type: 'string' },
+            displayName: { type: 'string' },
+            gradeLevel: { type: 'string' },
+            dateOfBirth: { type: 'string', format: 'date' },
+            kidsAges: { 
+              type: 'array',
+              items: { type: 'integer', minimum: 0, maximum: 18 }
+            },
+            gender: { type: 'string' },
+            city: { type: 'string' },
+            stateProvince: { type: 'string' },
+            country: { type: 'string' },
+            favoriteSubjects: {
+              type: 'array',
+              items: { type: 'string' }
+            },
+            learningStyle: { type: 'string' },
+            timezone: { type: 'string' },
+            languagePreference: { type: 'string' }
+          }
+        }
+      }
+    }, this.updateUserProfile.bind(this));
+
+    // Get profile completion status
+    this.fastify.get('/api/user/profile-completion', {
+      schema: {
+        description: 'Get user profile completion percentage',
+        tags: ['User', 'Profile'],
+        headers: {
+          type: 'object',
+          properties: {
+            authorization: { type: 'string' }
+          }
+        }
+      }
+    }, this.getProfileCompletion.bind(this));
+
     // Health check for auth service
     this.fastify.get('/api/auth/health', {
       schema: {
@@ -368,6 +435,196 @@ class AuthRoutes {
         success: false,
         message: 'Failed to get user profile',
         code: 'PROFILE_ERROR'
+      });
+    }
+  }
+
+  async getUserProfileDetails(request, reply) {
+    try {
+      const authHeader = request.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Authentication required',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      const token = authHeader.substring(7);
+      const sessionData = await db.verifyUserSession(token);
+      
+      if (!sessionData) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid or expired token',
+          code: 'TOKEN_EXPIRED'
+        });
+      }
+
+      // Get enhanced profile data
+      const profileData = await db.getEnhancedUserProfile(sessionData.user_id);
+      
+      if (profileData) {
+        return reply.send({
+          success: true,
+          profile: {
+            id: sessionData.user_id, // Use user_id from session instead of profile
+            email: profileData.user_email,
+            name: profileData.user_name,
+            profileImageUrl: profileData.profile_image_url,
+            authProvider: profileData.auth_provider,
+            firstName: profileData.first_name,
+            lastName: profileData.last_name,
+            gradeLevel: profileData.grade_level,
+            kidsAges: profileData.kids_ages || [],
+            gender: profileData.gender,
+            city: profileData.city,
+            stateProvince: profileData.state_province,
+            country: profileData.country,
+            lastUpdated: profileData.updated_at
+          }
+        });
+      } else {
+        // Return basic profile with empty enhanced fields
+        return reply.send({
+          success: true,
+          profile: {
+            id: sessionData.user_id,
+            email: sessionData.email,
+            name: sessionData.name,
+            profileImageUrl: sessionData.profile_image_url,
+            authProvider: sessionData.auth_provider,
+            firstName: null,
+            lastName: null,
+            displayName: null,
+            gradeLevel: null,
+            dateOfBirth: null,
+            kidsAges: [],
+            gender: null,
+            city: null,
+            stateProvince: null,
+            country: null,
+            favoriteSubjects: [],
+            learningStyle: null,
+            timezone: 'UTC',
+            languagePreference: 'en',
+            profileCompletionPercentage: 0,
+            lastUpdated: null
+          }
+        });
+      }
+    } catch (error) {
+      this.fastify.log.error('Get user profile details error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to get profile details',
+        code: 'PROFILE_ERROR'
+      });
+    }
+  }
+
+  async updateUserProfile(request, reply) {
+    try {
+      const authHeader = request.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Authentication required',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      const token = authHeader.substring(7);
+      const sessionData = await db.verifyUserSession(token);
+      
+      if (!sessionData) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid or expired token',
+          code: 'TOKEN_EXPIRED'
+        });
+      }
+
+      const profileData = request.body;
+      
+      this.fastify.log.info(`📝 Updating profile for user: ${sessionData.email}`);
+
+      // Update profile in database
+      const updatedProfile = await db.updateUserProfileEnhanced(sessionData.user_id, profileData);
+      
+      this.fastify.log.info(`✅ Profile updated successfully for user: ${sessionData.email}`);
+      
+      return reply.send({
+        success: true,
+        message: 'Profile updated successfully',
+        profile: {
+          id: sessionData.user_id, // Use user_id from session instead of profile
+          email: updatedProfile.email,
+          firstName: updatedProfile.first_name,
+          lastName: updatedProfile.last_name,
+          gradeLevel: updatedProfile.grade_level,
+          kidsAges: updatedProfile.kids_ages || [],
+          gender: updatedProfile.gender,
+          city: updatedProfile.city,
+          stateProvince: updatedProfile.state_province,
+          country: updatedProfile.country,
+          lastUpdated: updatedProfile.updated_at
+        }
+      });
+      
+    } catch (error) {
+      this.fastify.log.error('Update user profile error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to update profile',
+        code: 'PROFILE_UPDATE_ERROR',
+        error: error.message
+      });
+    }
+  }
+
+  async getProfileCompletion(request, reply) {
+    try {
+      const authHeader = request.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Authentication required',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      const token = authHeader.substring(7);
+      const sessionData = await db.verifyUserSession(token);
+      
+      if (!sessionData) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid or expired token',
+          code: 'TOKEN_EXPIRED'
+        });
+      }
+
+      const completionData = await db.isProfileComplete(sessionData.user_id);
+      
+      return reply.send({
+        success: true,
+        completion: {
+          percentage: completionData?.profile_completion_percentage || 0,
+          isComplete: completionData?.is_complete || false,
+          onboardingCompleted: completionData?.onboarding_completed || false
+        }
+      });
+      
+    } catch (error) {
+      this.fastify.log.error('Get profile completion error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to get profile completion',
+        code: 'PROFILE_COMPLETION_ERROR'
       });
     }
   }

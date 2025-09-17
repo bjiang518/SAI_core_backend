@@ -1161,6 +1161,170 @@ const db = {
 
     const result = await this.query(query, values);
     return result.rows;
+  },
+
+  /**
+   * Enhanced Profile Management Functions - Update existing profile with new fields
+   */
+  async updateUserProfileEnhanced(userId, profileData) {
+    const {
+      firstName,
+      lastName,
+      displayName,
+      gradeLevel,
+      dateOfBirth,
+      kidsAges = [],
+      gender,
+      city,
+      stateProvince,
+      country,
+      favoriteSubjects = [],
+      learningStyle,
+      timezone = 'UTC',
+      languagePreference = 'en'
+    } = profileData;
+
+    console.log(`🔍 DEBUG: Updating profile for user ${userId} with data:`, profileData);
+
+    // First, get the user's email for the profile
+    const userQuery = `SELECT email FROM users WHERE id = $1`;
+    const userResult = await this.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0) {
+      throw new Error('User not found');
+    }
+    
+    const userEmail = userResult.rows[0].email;
+
+    // Convert grade level string to appropriate format for database
+    // Handle both old INTEGER columns and new VARCHAR columns
+    let processedGradeLevel = gradeLevel;
+    
+    // Map grade level strings to integers for legacy database compatibility
+    const gradeLevelMap = {
+      'Pre-K': -1,
+      'Kindergarten': 0, 
+      '1st Grade': 1,
+      '2nd Grade': 2,
+      '3rd Grade': 3,
+      '4th Grade': 4,
+      '5th Grade': 5,
+      '6th Grade': 6,
+      '7th Grade': 7,
+      '8th Grade': 8,
+      '9th Grade': 9,
+      '10th Grade': 10,
+      '11th Grade': 11,
+      '12th Grade': 12,
+      'College': 13,
+      'Adult Learner': 14
+    };
+    
+    // Check if database column is INTEGER by attempting string insert first, then fallback to integer
+    let shouldUseIntegerGrade = false;
+    
+    console.log(`🔍 DEBUG: Original grade level: "${gradeLevel}"`);
+    console.log(`🔍 DEBUG: Mapped integer value: ${gradeLevelMap[gradeLevel] || 'unmapped'}`);
+
+    // Calculate profile completion percentage
+    const completionFields = [
+      firstName, lastName, gradeLevel, dateOfBirth, 
+      city, stateProvince, country, favoriteSubjects?.length > 0
+    ];
+    const completedFields = completionFields.filter(field => field).length;
+    const profileCompletionPercentage = Math.round((completedFields / completionFields.length) * 100);
+
+    // Try inserting with string grade level first (newer schema)
+    const query = `
+      INSERT INTO profiles (
+        email, first_name, last_name, grade_level, 
+        kids_ages, gender, city, state_province, country,
+        created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+      )
+      ON CONFLICT (email) 
+      DO UPDATE SET 
+        first_name = EXCLUDED.first_name,
+        last_name = EXCLUDED.last_name,
+        grade_level = EXCLUDED.grade_level,
+        kids_ages = EXCLUDED.kids_ages,
+        gender = EXCLUDED.gender,
+        city = EXCLUDED.city,
+        state_province = EXCLUDED.state_province,
+        country = EXCLUDED.country,
+        updated_at = NOW()
+      RETURNING *
+    `;
+
+    try {
+      // First attempt: use string grade level (for newer VARCHAR schema)
+      console.log(`🔍 DEBUG: Attempting string grade level insert: "${processedGradeLevel}"`);
+      const values = [
+        userEmail, firstName, lastName, processedGradeLevel,
+        kidsAges, gender, city, stateProvince, country
+      ];
+
+      const result = await this.query(query, values);
+      console.log(`✅ DEBUG: Profile update successful with string grade level`);
+      return result.rows[0];
+      
+    } catch (error) {
+      console.log(`⚠️ DEBUG: String grade level failed: ${error.message}`);
+      
+      // Check if error is related to integer type conversion
+      if (error.message.includes('invalid input syntax for type integer') || 
+          error.message.includes('integer')) {
+        
+        console.log(`🔄 DEBUG: Retrying with integer grade level mapping`);
+        
+        // Second attempt: use integer grade level (for legacy INTEGER schema)
+        const integerGradeLevel = gradeLevelMap[gradeLevel];
+        
+        if (integerGradeLevel === undefined) {
+          console.log(`❌ DEBUG: No integer mapping found for grade level: "${gradeLevel}"`);
+          // If no mapping exists, use 0 as default
+          processedGradeLevel = 0;
+        } else {
+          processedGradeLevel = integerGradeLevel;
+        }
+        
+        console.log(`🔍 DEBUG: Using integer grade level: ${processedGradeLevel}`);
+        
+        const valuesWithIntegerGrade = [
+          userEmail, firstName, lastName, processedGradeLevel,
+          kidsAges, gender, city, stateProvince, country
+        ];
+
+        const result = await this.query(query, valuesWithIntegerGrade);
+        console.log(`✅ DEBUG: Profile update successful with integer grade level`);
+        return result.rows[0];
+      } else {
+        // Re-throw non-grade-level related errors
+        console.log(`❌ DEBUG: Non-grade-level error: ${error.message}`);
+        throw error;
+      }
+    }
+  },
+
+  /**
+   * Get enhanced user profile by user ID
+   */
+  async getEnhancedUserProfile(userId) {
+    const query = `
+      SELECT 
+        p.*,
+        u.name as user_name,
+        u.email as user_email,
+        u.profile_image_url,
+        u.auth_provider
+      FROM profiles p
+      LEFT JOIN users u ON p.email = u.email
+      WHERE u.id = $1 AND u.is_active = true
+    `;
+    
+    const result = await this.query(query, [userId]);
+    return result.rows[0];
   }
 };
 
@@ -1489,6 +1653,56 @@ async function runDatabaseMigrations() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
+    
+    // Check if profile enhancement migration has been applied
+    const profileFieldsCheck = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'profiles' 
+      AND column_name IN ('kids_ages', 'gender', 'city', 'state_province', 'country')
+    `);
+    
+    if (profileFieldsCheck.rows.length < 5) {
+      console.log('📋 Applying profile enhancement migration...');
+      
+      // Add new profile fields for comprehensive user profile management
+      await db.query(`
+        -- Add new profile fields for enhanced user information
+        ALTER TABLE profiles 
+        ADD COLUMN IF NOT EXISTS kids_ages INTEGER[],
+        ADD COLUMN IF NOT EXISTS gender VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS city VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS state_province VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS country VARCHAR(100);
+
+        -- Add indexes for better query performance
+        CREATE INDEX IF NOT EXISTS idx_profiles_location ON profiles(country, state_province, city);
+        CREATE INDEX IF NOT EXISTS idx_profiles_gender ON profiles(gender);
+
+        -- Add comments to document the new columns
+        COMMENT ON COLUMN profiles.kids_ages IS 'Array of children ages for parent profiles';
+        COMMENT ON COLUMN profiles.gender IS 'Optional gender identification';
+        COMMENT ON COLUMN profiles.city IS 'City of residence';
+        COMMENT ON COLUMN profiles.state_province IS 'State or province of residence';
+        COMMENT ON COLUMN profiles.country IS 'Country of residence';
+      `);
+      
+      // Record the migration as completed
+      await db.query(`
+        INSERT INTO migration_history (migration_name) 
+        VALUES ('002_add_profile_fields') 
+        ON CONFLICT (migration_name) DO NOTHING;
+      `);
+      
+      console.log('✅ Profile enhancement migration completed successfully!');
+      console.log('📊 Profiles table now supports:');
+      console.log('   - Children ages for parent accounts');
+      console.log('   - Gender identification (optional)');
+      console.log('   - Location information (city, state, country)');
+      console.log('   - Enhanced user profile management');
+    } else {
+      console.log('✅ Profile enhancement migration already applied');
+    }
     
     console.log('✅ Database cleanup and migrations completed successfully');
     
