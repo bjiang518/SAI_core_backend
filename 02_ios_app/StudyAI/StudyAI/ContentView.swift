@@ -209,6 +209,7 @@ struct ModernProfileView: View {
     @StateObject private var profileService = ProfileService.shared
     @State private var showingBiometricSetup = false
     @State private var showingEditProfile = false
+    @State private var showingLearningGoals = false
     
     var body: some View {
         NavigationView {
@@ -340,7 +341,16 @@ struct ModernProfileView: View {
                 
                 // Learning Section
                 Section("Learning") {
-                    SettingsRow(icon: "target", title: "Daily Goals", color: .red)
+                    Button(action: {
+                        print("🎯 DEBUG: Learning Goals button tapped in ModernProfileView!")
+                        print("🎯 DEBUG: showingLearningGoals was: \(showingLearningGoals)")
+                        showingLearningGoals = true
+                        print("🎯 DEBUG: showingLearningGoals is now: \(showingLearningGoals)")
+                    }) {
+                        SettingsRow(icon: "target", title: "Learning Goals & Progress", color: .red)
+                    }
+                    .buttonStyle(.plain)
+                    
                     SettingsRow(icon: "book.fill", title: "Subjects", color: .purple)
                     SettingsRow(icon: "clock.fill", title: "Study Reminders", color: .orange)
                     SettingsRow(icon: "archivebox.fill", title: "Question Archive", color: .teal)
@@ -375,6 +385,8 @@ struct ModernProfileView: View {
             }
             .navigationTitle("Settings")
             .onAppear {
+                print("🚨 CRITICAL DEBUG: ModernProfileView appeared - This is the actual settings view!")
+                print("🎯 DEBUG: showingLearningGoals state: \(showingLearningGoals)")
                 // Load profile when view appears
                 Task {
                     await profileService.loadProfileAfterLogin()
@@ -383,6 +395,12 @@ struct ModernProfileView: View {
         }
         .sheet(isPresented: $showingEditProfile) {
             EditProfileView()
+        }
+        .sheet(isPresented: $showingLearningGoals) {
+            LearningGoalsSettingsView()
+                .onAppear {
+                    print("🎯 DEBUG: Learning Goals sheet is being presented from ModernProfileView!")
+                }
         }
     }
     

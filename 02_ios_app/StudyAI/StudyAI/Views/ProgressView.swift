@@ -9,12 +9,22 @@ import SwiftUI
 
 struct LearningProgressView: View {
     @StateObject private var networkService = NetworkService.shared
+    @ObservedObject private var pointsManager = PointsEarningManager.shared
     @State private var progressData: [String: Any]?
     @State private var isLoading = false
     @State private var errorMessage = ""
     
+    private let viewId = UUID().uuidString.prefix(8)
+    
     var body: some View {
-        ScrollView {
+        print("🎯 DEBUG: [View \(viewId)] OLD ProgressView.swift LearningProgressView body building")
+        print("🎯 DEBUG: [View \(viewId)] Current points from pointsManager: \(pointsManager.currentPoints)")
+        print("🎯 DEBUG: [View \(viewId)] Current learning goals from pointsManager:")
+        for (index, goal) in pointsManager.learningGoals.enumerated() {
+            print("🎯 DEBUG: [View \(viewId)]   Goal \(index): \(goal.type.displayName) - Progress: \(goal.currentProgress)/\(goal.targetValue)")
+        }
+        
+        return ScrollView {
             VStack(spacing: 24) {
                 if isLoading {
                     ProgressView("Loading your progress...")
@@ -31,82 +41,37 @@ struct LearningProgressView: View {
                             GridItem(.flexible())
                         ], spacing: 16) {
                             StatCard(
-                                title: "Total Questions",
-                                value: "\(progress["totalQuestions"] as? Int ?? 0)",
-                                icon: "questionmark.circle.fill",
+                                title: "Total Points",
+                                value: "\(pointsManager.currentPoints)",
+                                icon: "star.fill",
                                 color: .blue
                             )
                             
                             StatCard(
-                                title: "Correct Answers",
-                                value: "\(progress["correctAnswers"] as? Int ?? 0)",
-                                icon: "checkmark.circle.fill",
-                                color: .green
-                            )
-                            
-                            StatCard(
-                                title: "Accuracy Rate",
-                                value: "\(progress["accuracy"] as? Int ?? 0)%",
-                                icon: "target",
+                                title: "Current Streak",
+                                value: "\(pointsManager.currentStreak)",
+                                icon: "flame.fill",
                                 color: .orange
                             )
                             
                             StatCard(
-                                title: "Current Streak",
-                                value: "\(progress["streak"] as? Int ?? 0)",
-                                icon: "flame.fill",
-                                color: .red
+                                title: "Total Earned",
+                                value: "\(pointsManager.totalPointsEarned)",
+                                icon: "trophy.fill",
+                                color: .green
+                            )
+                            
+                            StatCard(
+                                title: "Today's Accuracy",
+                                value: "\(Int(pointsManager.todayProgress?.accuracy ?? 0))%",
+                                icon: "target",
+                                color: .purple
                             )
                         }
                     }
                     
-                    // Progress Chart Section
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Weekly Progress")
-                            .font(.headline)
-                        
-                        // Placeholder for chart - in a real app you'd use a chart library
-                        VStack(spacing: 12) {
-                            HStack {
-                                Text("This Week")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Text("7 questions asked")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                            }
-                            
-                            HStack(spacing: 4) {
-                                ForEach(0..<7) { day in
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(day < 4 ? Color.green : Color.gray.opacity(0.3))
-                                        .frame(height: 30)
-                                }
-                            }
-                            
-                            HStack {
-                                Text("Mon")
-                                Spacer()
-                                Text("Tue")
-                                Spacer()
-                                Text("Wed")
-                                Spacer()
-                                Text("Thu")
-                                Spacer()
-                                Text("Fri")
-                                Spacer()
-                                Text("Sat")
-                                Spacer()
-                                Text("Sun")
-                            }
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        }
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(16)
-                    }
+                    // Weekly Progress Section
+                    WeeklyProgressGrid()
                     
                     // Subject Breakdown
                     VStack(alignment: .leading, spacing: 16) {
@@ -124,35 +89,21 @@ struct LearningProgressView: View {
                         .cornerRadius(16)
                     }
                     
-                    // Goals Section
+                    // Learning Goals Section
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Learning Goals")
                             .font(.headline)
                         
                         VStack(spacing: 12) {
-                            GoalCard(
-                                title: "Daily Questions",
-                                current: 3,
-                                target: 5,
-                                icon: "target",
-                                color: .blue
-                            )
-                            
-                            GoalCard(
-                                title: "Weekly Streak",
-                                current: 4,
-                                target: 7,
-                                icon: "flame.fill",
-                                color: .orange
-                            )
-                            
-                            GoalCard(
-                                title: "Accuracy Goal",
-                                current: 70,
-                                target: 80,
-                                icon: "percent",
-                                color: .green
-                            )
+                            ForEach(pointsManager.learningGoals) { goal in
+                                GoalCard(
+                                    title: goal.title,
+                                    current: goal.currentProgress,
+                                    target: goal.targetValue,
+                                    icon: goal.type.icon,
+                                    color: goal.type.color
+                                )
+                            }
                         }
                         .padding()
                         .background(Color.gray.opacity(0.1))
@@ -198,8 +149,17 @@ struct LearningProgressView: View {
         }
         .navigationTitle("Progress")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear(perform: loadProgress)
+        .onAppear {
+            print("🎯 DEBUG: [View \(viewId)] OLD ProgressView.swift LearningProgressView onAppear called")
+            print("🎯 DEBUG: [View \(viewId)] Final points check on appear: \(pointsManager.currentPoints)")
+            print("🎯 DEBUG: [View \(viewId)] Final learning goals check on appear:")
+            for (index, goal) in pointsManager.learningGoals.enumerated() {
+                print("🎯 DEBUG: [View \(viewId)]   Goal \(index): \(goal.type.displayName) - Progress: \(goal.currentProgress)/\(goal.targetValue)")
+            }
+            loadProgress()
+        }
         .refreshable {
+            print("🎯 DEBUG: [View \(viewId)] Manual refresh triggered in OLD ProgressView.swift")
             await loadProgressAsync()
         }
     }

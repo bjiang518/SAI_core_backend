@@ -105,16 +105,17 @@ struct HomeView: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                             
-                            NavigationLink(destination: QuestionView(onNavigateToSession: {
-                                navigateToSession = true
-                            })) {
+                            Button(action: {
+                                onSelectTab(.library)
+                            }) {
                                 QuickActionCard(
-                                    icon: "questionmark.circle.fill",
-                                    title: "Ask Question",
-                                    subtitle: "Single Q&A",
-                                    color: .green
+                                    icon: "books.vertical.fill",
+                                    title: "Library",
+                                    subtitle: "Study sessions",
+                                    color: .teal
                                 )
                             }
+                            .buttonStyle(PlainButtonStyle())
                             
                             Button(action: {
                                 onSelectTab(.grader)
@@ -128,15 +129,6 @@ struct HomeView: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                             
-                            NavigationLink(destination: ArchivedQuestionsView()) {
-                                QuickActionCard(
-                                    icon: "archivebox.fill",
-                                    title: "Archive",
-                                    subtitle: "Saved questions",
-                                    color: .orange
-                                )
-                            }
-                            
                             Button(action: {
                                 onSelectTab(.progress)
                             }) {
@@ -148,15 +140,6 @@ struct HomeView: View {
                                 )
                             }
                             .buttonStyle(PlainButtonStyle())
-                            
-                            NavigationLink(destination: SessionHistoryView()) {
-                                QuickActionCard(
-                                    icon: "clock.fill",
-                                    title: "History",
-                                    subtitle: "Past sessions",
-                                    color: .pink
-                                )
-                            }
                         }
                         .padding(.horizontal)
                     }

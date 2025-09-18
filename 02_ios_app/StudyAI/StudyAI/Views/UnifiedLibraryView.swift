@@ -126,7 +126,7 @@ struct UnifiedLibraryView: View {
                 )
             }
         }
-        .searchable(text: $searchText, prompt: "Search your study sessions...")
+        .searchable(text: $searchText, prompt: "Search by question, subject, or content...")
         .task {
             await loadContent()
         }
@@ -145,6 +145,85 @@ struct UnifiedLibraryView: View {
     
     private var libraryList: some View {
         VStack(spacing: 0) {
+            // Compact Search Section
+            VStack(spacing: 12) {
+                // Compact Search Bar
+                HStack(spacing: 12) {
+                    // Search Field (shorter, left-aligned)
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                            .font(.body)
+                        
+                        TextField("Search library...", text: $searchText)
+                            .textFieldStyle(PlainTextFieldStyle())
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
+                    
+                    // Advanced Search Button (compact)
+                    Button(action: { showingAdvancedSearch = true }) {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                    }
+                    .frame(width: 44, height: 44)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(10)
+                }
+                .padding(.horizontal)
+                
+                // Quick Filter Buttons
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        // Date Range Quick Filters
+                        QuickFilterButton(
+                            title: "This Week",
+                            icon: "calendar.badge.clock",
+                            isSelected: false
+                        ) {
+                            searchFilters.dateRange = .lastWeek
+                            Task { await performAdvancedSearch(searchFilters) }
+                        }
+                        
+                        QuickFilterButton(
+                            title: "This Month",
+                            icon: "calendar",
+                            isSelected: false
+                        ) {
+                            searchFilters.dateRange = .lastMonth
+                            Task { await performAdvancedSearch(searchFilters) }
+                        }
+                        
+                        // Subject Quick Filters
+                        ForEach(availableSubjects.prefix(3), id: \.self) { subject in
+                            QuickFilterButton(
+                                title: subject,
+                                icon: "book.fill",
+                                isSelected: selectedSubject == subject
+                            ) {
+                                selectedSubject = selectedSubject == subject ? nil : subject
+                            }
+                        }
+                        
+                        // Visual Elements Filter
+                        QuickFilterButton(
+                            title: "With Images",
+                            icon: "photo",
+                            isSelected: false
+                        ) {
+                            searchFilters.hasVisualElements = true
+                            Task { await performAdvancedSearch(searchFilters) }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
+            .padding(.vertical)
+            .background(Color(.systemGroupedBackground))
+            
             // Quick Stats Header
             if !libraryContent.isEmpty {
                 QuickStatsHeader(content: libraryContent, selectedSubject: selectedSubject)
@@ -157,9 +236,30 @@ struct UnifiedLibraryView: View {
                 }
             } else {
                 List(filteredItems, id: \.id) { item in
-                    LibraryItemRow(item: item)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
+                    Group {
+                        if item.itemType == .question, let questionItem = item as? QuestionSummary {
+                            NavigationLink(destination: QuestionDetailView(questionId: questionItem.id)) {
+                                LibraryItemRow(item: item)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        } else if item.itemType == .question, let sessionItem = item as? ConversationLibraryItem {
+                            // Handle homework sessions (treated as question type)
+                            NavigationLink(destination: SessionDetailView(sessionId: sessionItem.id, isConversation: false)) {
+                                LibraryItemRow(item: item)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        } else if let conversationItem = item as? ConversationLibraryItem {
+                            // Handle actual conversation sessions
+                            NavigationLink(destination: SessionDetailView(sessionId: conversationItem.id, isConversation: true)) {
+                                LibraryItemRow(item: item)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        } else {
+                            LibraryItemRow(item: item)
+                        }
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
                 .listStyle(.plain)
                 .overlay {
@@ -282,8 +382,8 @@ struct LibraryItemRow: View {
             // Header with type indicator
             HStack {
                 // Item type icon
-                Image(systemName: item.itemType == .question ? "questionmark.circle.fill" : "bubble.left.and.bubble.right.fill")
-                    .foregroundColor(item.itemType == .question ? .blue : .green)
+                Image(systemName: iconForItem(item))
+                    .foregroundColor(colorForItem(item))
                     .font(.title3)
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -309,32 +409,94 @@ struct LibraryItemRow: View {
                 }
                 
                 Spacer()
+                
+                // Interactive indicator - show for all clickable items
+                if isClickable(item) {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
             }
             
-            // Preview content
+            // Enhanced preview content
             Text(item.preview)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-                .lineLimit(2)
+                .lineLimit(3)
             
-            // Item type label
+            // Item type label with action hint
             HStack {
                 Label(
-                    item.itemType == .question ? "Archived Question" : "Conversation Session",
-                    systemImage: item.itemType == .question ? "archivebox.fill" : "message.fill"
+                    labelForItem(item),
+                    systemImage: iconForItem(item)
                 )
                 .font(.caption)
                 .foregroundColor(.secondary)
                 
                 Spacer()
+                
+                if isClickable(item) {
+                    Text("Tap to review")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .fontWeight(.medium)
+                }
             }
         }
         .padding()
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isClickable(item) ? Color.blue.opacity(0.2) : Color.clear, lineWidth: 1)
+        )
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         .padding(.horizontal)
         .padding(.vertical, 4)
+    }
+    
+    private func iconForItem(_ item: LibraryItem) -> String {
+        switch item.itemType {
+        case .question:
+            if let conversationItem = item as? ConversationLibraryItem {
+                // Check if this is a homework session
+                return "doc.text.fill" // Homework session icon
+            }
+            return "questionmark.circle.fill" // Individual question icon
+        case .conversation:
+            return "bubble.left.and.bubble.right.fill" // Conversation icon
+        }
+    }
+    
+    private func colorForItem(_ item: LibraryItem) -> Color {
+        switch item.itemType {
+        case .question:
+            if let conversationItem = item as? ConversationLibraryItem {
+                return .purple // Homework sessions in purple
+            }
+            return .blue // Individual questions in blue
+        case .conversation:
+            return .green // Conversations in green
+        }
+    }
+    
+    private func labelForItem(_ item: LibraryItem) -> String {
+        switch item.itemType {
+        case .question:
+            if let conversationItem = item as? ConversationLibraryItem {
+                return "Homework Session"
+            }
+            return "Archived Question"
+        case .conversation:
+            return "Conversation Session"
+        }
+    }
+    
+    private func isClickable(_ item: LibraryItem) -> Bool {
+        // All questions and homework sessions are clickable
+        // Conversations are also clickable if they have content
+        return item.itemType == .question || 
+               (item.itemType == .conversation && !item.preview.isEmpty)
     }
 }
 
@@ -565,6 +727,33 @@ struct AdvancedSearchView: View {
             }
             .pickerStyle(.menu)
         }
+    }
+}
+
+// MARK: - Quick Filter Button
+
+struct QuickFilterButton: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.caption)
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(isSelected ? Color.blue : Color.gray.opacity(0.1))
+            .foregroundColor(isSelected ? .white : .primary)
+            .cornerRadius(20)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

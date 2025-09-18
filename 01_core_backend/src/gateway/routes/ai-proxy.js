@@ -1071,12 +1071,52 @@ FORMATTING RULES:
         });
       }
 
-      // Archive the conversation using simplified method
+      // Archive the conversation using simplified method - but first get actual conversation content
+      console.log(`🔍 [ARCHIVE] Fetching conversation messages for session ${sessionId}`);
+      
+      // Get actual conversation messages from conversations table
+      const conversationMessages = await db.query(`
+        SELECT message_type, message_text, created_at 
+        FROM conversations 
+        WHERE session_id = $1 AND user_id = $2 
+        ORDER BY created_at ASC
+      `, [sessionId, userId]);
+      
+      console.log(`📋 [ARCHIVE] Found ${conversationMessages.rows.length} conversation messages`);
+      
+      // Build actual conversation content from messages
+      let actualConversationContent = '';
+      
+      if (conversationMessages.rows.length > 0) {
+        actualConversationContent = `=== Conversation Archive ===\n`;
+        actualConversationContent += `Session: ${sessionId}\n`;
+        actualConversationContent += `Subject: ${subject || 'General Discussion'}\n`;
+        actualConversationContent += `Topic: ${topic || title || 'User Conversation'}\n`;
+        actualConversationContent += `Archived: ${new Date().toISOString()}\n`;
+        actualConversationContent += `Messages: ${conversationMessages.rows.length}\n\n`;
+        
+        conversationMessages.rows.forEach((msg, index) => {
+          const speaker = msg.message_type === 'user' ? 'User' : 'AI Assistant';
+          const timestamp = new Date(msg.created_at).toLocaleString();
+          actualConversationContent += `[${timestamp}] ${speaker}:\n${msg.message_text}\n\n`;
+        });
+        
+        if (notes) {
+          actualConversationContent += `=== Notes ===\n${notes}\n`;
+        }
+        
+        console.log(`✅ [ARCHIVE] Built conversation content: ${actualConversationContent.length} characters`);
+      } else {
+        // Fallback for sessions with no messages
+        actualConversationContent = `Session archived by user on ${new Date().toISOString()}\n\nSubject: ${subject || 'General Discussion'}\nTopic: ${topic || title || 'User Conversation'}\nNotes: ${notes || 'No conversation messages found - this may be a homework session'}\n\nSession ID: ${sessionId}`;
+        console.log(`⚠️ [ARCHIVE] No messages found, using fallback content`);
+      }
+
       const archivedConversation = await db.archiveConversation({
         userId: userId,
         subject: subject || 'General Discussion',
         topic: topic || title || `Conversation - ${new Date().toLocaleDateString()}`,
-        conversationContent: `Session archived by user on ${new Date().toISOString()}\n\nSubject: ${subject || 'General Discussion'}\nTopic: ${topic || title || 'User Conversation'}\nNotes: ${notes || 'No additional notes provided'}`
+        conversationContent: actualConversationContent
       });
 
       return reply.send({

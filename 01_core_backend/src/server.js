@@ -8,6 +8,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const questionRoutes = require('./routes/questions');
 const progressRoutes = require('./routes/progress');
+const enhancedProgressRoutes = require('./routes/enhanced-progress');
 const sessionRoutes = require('./routes/sessions');
 const evaluationRoutes = require('./routes/evaluations');
 const contentRoutes = require('./routes/content');
@@ -67,6 +68,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/progress', enhancedProgressRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/evaluations', evaluationRoutes);
 app.use('/api/content', contentRoutes);

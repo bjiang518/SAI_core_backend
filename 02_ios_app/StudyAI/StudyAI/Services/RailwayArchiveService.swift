@@ -321,33 +321,77 @@ class RailwayArchiveService: ObservableObject {
             throw ArchiveError.notAuthenticated
         }
         
-        guard let url = URL(string: "\(baseURL)/api/ai/archives/conversations/\(conversationId)") else {
-            throw ArchiveError.invalidURL
-        }
+        print("🔍 Attempting to retrieve conversation details for ID: \(conversationId)")
         
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        // Try multiple endpoints since conversations are stored across different tables
+        let endpoints = [
+            "\(baseURL)/api/ai/archives/conversations/\(conversationId)",
+            "\(baseURL)/api/archive/conversations/\(conversationId)", 
+            "\(baseURL)/api/conversations/\(conversationId)",
+            "\(baseURL)/api/user/conversations/\(conversationId)"
+        ]
         
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            if (response as? HTTPURLResponse)?.statusCode == 404 {
-                throw ArchiveError.sessionNotFound
-            }
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw ArchiveError.fetchFailed(errorMessage)
-        }
-        
-        if let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let conversationData = jsonResponse["data"] as? [String: Any] {
+        for endpoint in endpoints {
+            print("🔗 Trying endpoint: \(endpoint)")
             
-            return try convertToArchivedConversation(conversationData)
+            guard let url = URL(string: endpoint) else {
+                print("❌ Invalid URL: \(endpoint)")
+                continue
+            }
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("✅ Response status from \(endpoint): \(httpResponse.statusCode)")
+                    
+                    if httpResponse.statusCode == 200 {
+                        if let rawResponse = String(data: data, encoding: .utf8) {
+                            print("📄 Raw response from \(endpoint): \(String(rawResponse.prefix(300)))")
+                        }
+                        
+                        // Try to parse the response
+                        if let jsonResponse = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                            // Try different response formats
+                            var conversationData: [String: Any]?
+                            
+                            if let data = jsonResponse["data"] as? [String: Any] {
+                                conversationData = data
+                            } else if let conversation = jsonResponse["conversation"] as? [String: Any] {
+                                conversationData = conversation
+                            } else if jsonResponse["id"] != nil {
+                                // Direct format
+                                conversationData = jsonResponse
+                            }
+                            
+                            if let conversationData = conversationData {
+                                print("✅ Successfully parsed conversation data from \(endpoint)")
+                                return try convertToArchivedConversation(conversationData)
+                            }
+                        }
+                    } else if httpResponse.statusCode == 404 {
+                        print("⚠️ Conversation not found at \(endpoint)")
+                        continue
+                    } else {
+                        let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+                        print("❌ HTTP \(httpResponse.statusCode) from \(endpoint): \(errorMessage)")
+                        continue
+                    }
+                }
+            } catch {
+                print("❌ Network error for \(endpoint): \(error.localizedDescription)")
+                continue
+            }
         }
         
-        throw ArchiveError.invalidData
+        // If no endpoint worked, throw not found error
+        print("❌ Conversation \(conversationId) not found in any endpoint")
+        throw ArchiveError.sessionNotFound
     }
     
     // MARK: - Update Review Count
@@ -484,27 +528,62 @@ class RailwayArchiveService: ObservableObject {
     }
     
     private func convertToArchivedConversation(_ data: [String: Any]) throws -> ArchivedConversation {
-        guard let id = data["id"] as? String,
-              let userId = data["user_id"] as? String,
-              let subject = data["subject"] as? String,
-              let conversationContent = data["conversation_content"] as? String else {
+        print("🔄 Converting conversation data: \(data)")
+        
+        // Handle different field name variations from different tables
+        guard let id = data["id"] as? String else {
+            print("❌ Missing required field: id")
             throw ArchiveError.invalidData
         }
         
-        // Parse date
+        // Try different user ID field names
+        let userId = data["user_id"] as? String ?? 
+                    data["userId"] as? String ?? 
+                    data["user"] as? String
+        
+        guard let userId = userId else {
+            print("❌ Missing required field: user_id/userId")
+            throw ArchiveError.invalidData
+        }
+        
+        // Try different subject field names
+        let subject = data["subject"] as? String ?? "General"
+        
+        // Try different conversation content field names  
+        let conversationContent = data["conversation_content"] as? String ?? 
+                                 data["conversationContent"] as? String ?? 
+                                 data["content"] as? String ?? 
+                                 data["messages"] as? String
+        
+        guard let conversationContent = conversationContent else {
+            print("❌ Missing required field: conversation_content/conversationContent")
+            throw ArchiveError.invalidData
+        }
+        
+        // Parse date - try multiple field names and formats
         let archivedDate: Date
-        if let dateString = data["archived_date"] as? String {
+        let dateString = data["archived_date"] as? String ?? 
+                        data["archivedDate"] as? String ?? 
+                        data["archived_at"] as? String ?? 
+                        data["created_at"] as? String ?? 
+                        data["createdAt"] as? String
+        
+        if let dateString = dateString {
             let formatter = ISO8601DateFormatter()
             archivedDate = formatter.date(from: dateString) ?? Date()
         } else {
             archivedDate = Date()
         }
         
+        let topic = data["topic"] as? String ?? data["title"] as? String
+        
+        print("✅ Successfully converted conversation: id=\(id), subject=\(subject), topic=\(topic ?? "none")")
+        
         return ArchivedConversation(
             id: id,
             userId: userId,
             subject: subject,
-            topic: data["topic"] as? String,
+            topic: topic,
             conversationContent: conversationContent,
             archivedDate: archivedDate,
             createdAt: archivedDate

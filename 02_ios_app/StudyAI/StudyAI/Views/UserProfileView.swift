@@ -16,9 +16,11 @@ struct UserProfileView: View {
     @State private var isEditingName = false
     @State private var showingVoiceSettings = false
     @State private var showingLogoutConfirmation = false
+    @State private var showingLearningGoals = false
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
+        let _ = print("🚨 CRITICAL DEBUG: UserProfileView body is being rendered!")
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
@@ -40,6 +42,10 @@ struct UserProfileView: View {
             }
             .navigationTitle("Profile & Settings")
             .navigationBarTitleDisplayMode(.large)
+            .onAppear {
+                print("🎯 DEBUG: UserProfileView appeared - Learning Goals should be visible!")
+                print("🎯 DEBUG: Current showingLearningGoals state: \(showingLearningGoals)")
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
@@ -51,6 +57,12 @@ struct UserProfileView: View {
         }
         .sheet(isPresented: $showingVoiceSettings) {
             VoiceSettingsView()
+        }
+        .sheet(isPresented: $showingLearningGoals) {
+            LearningGoalsSettingsView()
+                .onAppear {
+                    print("🎯 DEBUG: Learning Goals sheet is being presented!")
+                }
         }
         .alert("Sign Out", isPresented: $showingLogoutConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -260,10 +272,15 @@ struct UserProfileView: View {
                 )
                 
                 settingsRow(
-                    title: "Study Preferences",
-                    subtitle: "Customize your learning experience",
-                    icon: "book.fill",
-                    action: { /* TODO: Implement study preferences */ }
+                    title: "Learning Goals",
+                    subtitle: "Set and track your study goals and points",
+                    icon: "target",
+                    action: { 
+                        print("🎯 DEBUG: Learning Goals button tapped!")
+                        print("🎯 DEBUG: showingLearningGoals was: \(showingLearningGoals)")
+                        showingLearningGoals = true 
+                        print("🎯 DEBUG: showingLearningGoals is now: \(showingLearningGoals)")
+                    }
                 )
                 
                 settingsRow(

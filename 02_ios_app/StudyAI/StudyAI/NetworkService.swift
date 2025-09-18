@@ -90,6 +90,25 @@ class NetworkService: ObservableObject {
         }
     }
     
+    // MARK: - Public Conversation Management (for SessionChatView)
+    
+    /// Add user message to conversation history immediately (for optimistic UI updates)
+    func addUserMessageToHistory(_ message: String) {
+        addToConversationHistory(role: "user", content: message)
+        print("📤 User message added to history optimistically: '\(message.prefix(50))...'")
+    }
+    
+    /// Remove the last message from conversation history (for error recovery)
+    func removeLastMessageFromHistory() {
+        if !internalConversationHistory.isEmpty {
+            let removedMessage = internalConversationHistory.removeLast()
+            conversationHistory.removeLast()
+            print("🗑️ Removed last message from history: '\(removedMessage.content.prefix(50))...'")
+        } else {
+            print("⚠️ Attempted to remove message from empty conversation history")
+        }
+    }
+    
     private init() {
         let initStartTime = CFAbsoluteTimeGetCurrent()
         print("🌐 === NETWORK SERVICE INIT STARTED ===")
@@ -673,7 +692,7 @@ class NetworkService: ObservableObject {
         return (false, nil, "Unknown error")
     }
     
-    // MARK: - Progress Tracking
+    // MARK: - Enhanced Progress Tracking
     func getProgress() async -> (success: Bool, progress: [String: Any]?) {
         let progressURL = "\(baseURL)/api/progress"
         
@@ -694,6 +713,254 @@ class NetworkService: ObservableObject {
         } catch {
             return (false, nil)
         }
+    }
+    
+    func getEnhancedProgress() async -> (success: Bool, progress: [String: Any]?) {
+        print("📊 === GET ENHANCED PROGRESS ===")
+        
+        let progressURL = "\(baseURL)/api/progress/enhanced"
+        
+        guard let url = URL(string: progressURL) else {
+            return (false, nil)
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        // Add authentication header
+        addAuthHeader(to: &request)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("✅ Enhanced Progress Status: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 200 {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        print("✅ Enhanced Progress Response: \(json)")
+                        return (true, json)
+                    }
+                } else if httpResponse.statusCode == 401 {
+                    print("❌ Authentication expired in getEnhancedProgress")
+                    return (false, nil)
+                }
+                
+                let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                print("❌ Enhanced Progress HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
+                return (false, nil)
+            }
+            
+            return (false, nil)
+        } catch {
+            print("❌ Enhanced progress request failed: \(error.localizedDescription)")
+            return (false, nil)
+        }
+    }
+    
+    // MARK: - Progress Tracking Integration
+    
+    /// Track question answered for progress system
+    func trackQuestionAnswered(subject: String, isCorrect: Bool, studyTimeSeconds: Int = 0) async {
+        print("📈 Tracking question progress: \(subject), correct: \(isCorrect)")
+        
+        let trackURL = "\(baseURL)/api/progress/track-question"
+        
+        guard let url = URL(string: trackURL) else {
+            print("❌ Invalid track question URL")
+            return
+        }
+        
+        let trackData = [
+            "subject": subject,
+            "is_correct": isCorrect,
+            "study_time_seconds": studyTimeSeconds
+        ] as [String: Any]
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10.0
+        
+        // Add authentication header
+        addAuthHeader(to: &request)
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: trackData)
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 200 {
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        print("🎉 Progress tracked successfully")
+                        
+                        // Check for achievements or level ups
+                        if let achievements = json["new_achievements"] as? [[String: Any]], !achievements.isEmpty {
+                            print("🏆 New achievements unlocked: \(achievements.count)")
+                            // TODO: Trigger achievement notifications when AchievementManager is added to project
+                        }
+                        
+                        if let levelUp = json["level_up"] as? Bool, levelUp {
+                            print("🎊 User leveled up!")
+                            // TODO: Create level up achievement notification when AchievementManager is added to project
+                        }
+                    }
+                }
+            }
+        } catch {
+            print("❌ Progress tracking failed: \(error.localizedDescription)")
+            // Fail silently for progress tracking
+        }
+    }
+    
+    // MARK: - User Progress Server Sync Methods
+    
+    /// Update user progress on server (for weekly progress sync)
+    func updateUserProgress(questionCount: Int = 1, subject: String, currentScore: Int, clientTimezone: String) async -> (success: Bool, progress: [String: Any]?, message: String?) {
+        let updateURL = "\(baseURL)/api/progress/update"
+        
+        guard let url = URL(string: updateURL) else {
+            return (false, nil, "Invalid URL")
+        }
+        
+        let requestData: [String: Any] = [
+            "questionCount": questionCount,
+            "subject": subject,
+            "currentScore": currentScore,
+            "clientTimezone": clientTimezone
+        ]
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 200 {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        let success = json["success"] as? Bool ?? false
+                        let progressData = (json["data"] as? [String: Any])?["progress"] as? [String: Any]
+                        let message = (json["data"] as? [String: Any])?["message"] as? String
+                        
+                        print("📊 DEBUG: Server progress update successful")
+                        return (success, progressData, message)
+                    }
+                } else {
+                    let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
+                    print("📊 DEBUG: Server progress update failed: \(errorMessage)")
+                    return (false, nil, errorMessage)
+                }
+            }
+            
+            return (false, nil, "Invalid response")
+        } catch {
+            print("📊 DEBUG: Server progress update error: \(error.localizedDescription)")
+            return (false, nil, error.localizedDescription)
+        }
+    }
+    
+    /// Get current week progress from server
+    func getCurrentWeekProgress(timezone: String) async -> (success: Bool, progress: [String: Any]?, message: String?) {
+        // Get user ID from stored auth data
+        guard let userData = getCurrentUserData(),
+              let userId = userData["id"] as? String else {
+            return (false, nil, "User not authenticated")
+        }
+        
+        let currentURL = "\(baseURL)/api/progress/current/\(userId)?timezone=\(timezone.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? timezone)"
+        
+        guard let url = URL(string: currentURL) else {
+            return (false, nil, "Invalid URL")
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        addAuthHeader(to: &request)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 200 {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        let success = json["success"] as? Bool ?? false
+                        let progressData = (json["data"] as? [String: Any])?["progress"] as? [String: Any]
+                        
+                        print("📊 DEBUG: Current week progress loaded from server")
+                        return (success, progressData, nil)
+                    }
+                } else {
+                    let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
+                    print("📊 DEBUG: Get current week failed: \(errorMessage)")
+                    return (false, nil, errorMessage)
+                }
+            }
+            
+            return (false, nil, "Invalid response")
+        } catch {
+            print("📊 DEBUG: Get current week error: \(error.localizedDescription)")
+            return (false, nil, error.localizedDescription)
+        }
+    }
+    
+    /// Get progress history from server
+    func getProgressHistory(limit: Int = 12) async -> (success: Bool, history: [[String: Any]]?, message: String?) {
+        // Get user ID from stored auth data
+        guard let userData = getCurrentUserData(),
+              let userId = userData["id"] as? String else {
+            return (false, nil, "User not authenticated")
+        }
+        
+        let historyURL = "\(baseURL)/api/progress/history/\(userId)?limit=\(limit)"
+        
+        guard let url = URL(string: historyURL) else {
+            return (false, nil, "Invalid URL")
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        addAuthHeader(to: &request)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 200 {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        let success = json["success"] as? Bool ?? false
+                        let historyData = (json["data"] as? [String: Any])?["history"] as? [[String: Any]]
+                        
+                        print("📊 DEBUG: Progress history loaded from server")
+                        return (success, historyData, nil)
+                    }
+                } else {
+                    let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
+                    print("📊 DEBUG: Get progress history failed: \(errorMessage)")
+                    return (false, nil, errorMessage)
+                }
+            }
+            
+            return (false, nil, "Invalid response")
+        } catch {
+            print("📊 DEBUG: Get progress history error: \(error.localizedDescription)")
+            return (false, nil, error.localizedDescription)
+        }
+    }
+    
+    /// Helper method to get current user data for API calls
+    private func getCurrentUserData() -> [String: Any]? {
+        if let userDataString = UserDefaults.standard.string(forKey: "user_data"),
+           let userData = userDataString.data(using: .utf8),
+           let userDict = try? JSONSerialization.jsonObject(with: userData) as? [String: Any] {
+            return userDict
+        }
+        return nil
     }
     
     // MARK: - Debug OpenAI
@@ -968,14 +1235,13 @@ class NetworkService: ObservableObject {
                         print("📊 Tokens Used: \(tokensUsed ?? 0)")
                         print("🗜️ Context Compressed: \(compressed ?? false)")
                         
-                        // Update conversation history
+                        // Update conversation history - only add AI response since user message was already added optimistically
                         await MainActor.run {
-                            self.addToConversationHistory(role: "user", content: message)
                             self.addToConversationHistory(role: "assistant", content: aiResponse)
                             
                             // Additional debug for conversation history update
                             print("📚 === CONVERSATION HISTORY UPDATE ===")
-                            print("👤 User Message Added: '\(message)'")
+                            print("👤 User Message Already Added: '\(message)' (optimistic update)")
                             print("🤖 AI Message Added: '\(aiResponse)'")
                             print("📈 Total Messages in History: \(self.conversationHistory.count)")
                             print("=====================================")
@@ -1306,6 +1572,7 @@ class NetworkService: ObservableObject {
     // MARK: - Aggressive Image Optimization
     private func aggressivelyOptimizeImageData(_ imageData: Data) -> Data {
         guard let image = UIImage(data: imageData) else {
+            print("❌ Failed to create UIImage from data")
             return imageData
         }
         
@@ -1314,6 +1581,10 @@ class NetworkService: ObservableObject {
         // Target: 1MB max, but prefer smaller for faster uploads
         let targetSize = 1024 * 1024 // 1MB
         var currentData = imageData
+        
+        // Detect original format
+        let originalFormat = detectImageFormat(imageData)
+        print("🔍 Detected original format: \(originalFormat)")
         
         // Step 1: Resize if image is too large
         let maxDimension: CGFloat = 1024
@@ -1334,12 +1605,24 @@ class NetworkService: ObservableObject {
             print("📐 Resized to: \(newSize)")
         }
         
-        // Step 2: Compress with progressively lower quality
-        let qualities: [CGFloat] = [0.8, 0.6, 0.4, 0.3, 0.2]
+        // Step 2: Try to preserve original format first, then compress
+        if originalFormat == "png" {
+            // For PNG, try PNG compression first
+            if let pngData = processedImage.pngData() {
+                print("🖼️ PNG format preserved: \(pngData.count) bytes")
+                if pngData.count <= targetSize {
+                    return pngData
+                }
+                currentData = pngData
+            }
+        }
+        
+        // Step 3: If still too large or was JPEG, try JPEG compression
+        let qualities: [CGFloat] = [0.9, 0.8, 0.6, 0.4, 0.3, 0.2]
         
         for quality in qualities {
             if let compressedData = processedImage.jpegData(compressionQuality: quality) {
-                print("🗜️ Quality \(quality): \(compressedData.count) bytes")
+                print("🗜️ JPEG Quality \(quality): \(compressedData.count) bytes")
                 if compressedData.count <= targetSize {
                     currentData = compressedData
                     break
@@ -1348,9 +1631,37 @@ class NetworkService: ObservableObject {
             }
         }
         
+        // Step 4: If JPEG is still too large, fallback to PNG (for better compatibility)
+        if currentData.count > targetSize {
+            if let pngData = processedImage.pngData() {
+                print("🔄 Fallback to PNG: \(pngData.count) bytes")
+                currentData = pngData
+            }
+        }
+        
         print("✅ Final optimized size: \(currentData.count) bytes (\(String(format: "%.1f", Double(currentData.count) / Double(imageData.count) * 100))% of original)")
         
         return currentData
+    }
+    
+    // Helper method to detect image format from data
+    private func detectImageFormat(_ data: Data) -> String {
+        guard data.count >= 8 else { return "unknown" }
+        
+        let bytes = data.prefix(8)
+        let header = bytes.map { String(format: "%02x", $0) }.joined()
+        
+        if header.hasPrefix("89504e47") { // PNG signature
+            return "png"
+        } else if header.hasPrefix("ffd8ff") { // JPEG signature
+            return "jpeg"
+        } else if header.hasPrefix("47494638") { // GIF signature
+            return "gif"
+        } else if header.hasPrefix("52494646") { // WEBP signature (partial)
+            return "webp"
+        }
+        
+        return "unknown"
     }
     
     // MARK: - Enhanced Homework Parsing with Subject Detection

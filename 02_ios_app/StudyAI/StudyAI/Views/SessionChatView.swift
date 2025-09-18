@@ -201,10 +201,10 @@ struct TypingIndicatorView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            CharacterAvatar(voiceType: .eva, size: 40)
+            CharacterAvatar(voiceType: .adam, size: 40)
             
             VStack(alignment: .leading, spacing: 8) {
-                Text("AI Assistant")
+                Text("Adam")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
@@ -328,6 +328,7 @@ struct MessageVoiceControls: View {
 struct SessionChatView: View {
     @StateObject private var networkService = NetworkService.shared
     @StateObject private var voiceService = VoiceInteractionService.shared
+    @ObservedObject private var pointsManager = PointsEarningManager.shared
     // @StateObject private var draftManager = ChatDraftManager.shared // TODO: Re-enable when ChatMessage.swift is properly integrated
     @State private var messageText = ""
     @State private var selectedSubject = "Mathematics"
@@ -346,6 +347,8 @@ struct SessionChatView: View {
     @State private var archiveTopic = ""
     @State private var archiveNotes = ""
     @State private var isArchiving = false
+    @State private var showingArchiveSuccess = false
+    @State private var archivedSessionTitle = ""
     @State private var refreshTrigger = UUID() // Force UI refresh
     
     // Image upload functionality
@@ -504,6 +507,17 @@ struct SessionChatView: View {
             }
         } message: {
             Text(errorMessage)
+        }
+        .alert("Archive Successful! 🎉", isPresented: $showingArchiveSuccess) {
+            Button("View in Library") {
+                // Navigate to library tab if possible
+                showingArchiveSuccess = false
+            }
+            Button("OK") {
+                showingArchiveSuccess = false
+            }
+        } message: {
+            Text("\(archivedSessionTitle.capitalized) has been successfully archived and saved to your Study Library.")
         }
         .onChange(of: selectedImage) { _, newImage in
             if let image = newImage {
@@ -1455,8 +1469,7 @@ struct SessionChatView: View {
     // MARK: - Actions
     
     private func sendMessage() {
-        guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let sessionId = networkService.currentSessionId else { return }
+        guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         
         let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         messageText = ""
@@ -1467,14 +1480,30 @@ struct SessionChatView: View {
         errorMessage = ""
         isMessageInputFocused = false
         
-        // Show pending user message
-        pendingUserMessage = message
-        
-        // Show typing indicator after a brief delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        // Check if we have a session
+        if let sessionId = networkService.currentSessionId {
+            // For existing session: Add user message immediately (consistent with NetworkService behavior)
+            networkService.addUserMessageToHistory(message)
+            
+            // Show typing indicator
             showTypingIndicator = true
+            
+            sendMessageToExistingSession(sessionId: sessionId, message: message)
+        } else {
+            // For first message: Create session and add user message immediately
+            // Add user message to conversation history right away so it shows immediately
+            networkService.addUserMessageToHistory(message)
+            
+            // Show typing indicator
+            showTypingIndicator = true
+            
+            sendFirstMessage(message: message)
         }
-        
+    }
+    
+    // MARK: - Send Message Helpers
+    
+    private func sendMessageToExistingSession(sessionId: String, message: String) {
         Task {
             let result = await networkService.sendSessionMessage(
                 sessionId: sessionId,
@@ -1482,45 +1511,92 @@ struct SessionChatView: View {
             )
             
             await MainActor.run {
-                isSubmitting = false
-                pendingUserMessage = ""
-                showTypingIndicator = false
+                handleSendMessageResult(result, originalMessage: message)
+            }
+        }
+    }
+    
+    private func sendFirstMessage(message: String) {
+        Task {
+            // First create a session
+            let sessionResult = await networkService.startNewSession(subject: selectedSubject.lowercased())
+            
+            if sessionResult.success, let sessionId = networkService.currentSessionId {
+                // Session created successfully, now send the message
+                let messageResult = await networkService.sendSessionMessage(
+                    sessionId: sessionId,
+                    message: message
+                )
                 
-                if result.success {
-                    // Force UI refresh to ensure new messages are displayed
-                    refreshTrigger = UUID()
-                    print("🔄 SessionChatView: Triggered UI refresh after message success")
-                } else {
-                    // Enhanced error handling with recovery options
-                    // sendSessionMessage returns (success: Bool, aiResponse: String?, tokensUsed: Int?, compressed: Bool?)
-                    // so we need to provide a generic error message since there's no specific error detail
-                    let errorDetail = result.aiResponse ?? "Failed to get AI response"
-                    
-                    // Check for specific error types and provide appropriate recovery
-                    if errorDetail.contains("network") || errorDetail.contains("connection") {
-                        errorMessage = "Network connection lost. Please check your internet and try again."
-                        // Restore message text for easy retry
-                        messageText = message
-                    } else if errorDetail.contains("session") || errorDetail.contains("expired") {
-                        errorMessage = "Session expired. Creating a new session..."
-                        // Automatically start new session and retry
-                        Task {
-                            await startNewSessionAndRetry(message: message)
-                        }
-                    } else if errorDetail.contains("rate limit") || errorDetail.contains("quota") {
-                        errorMessage = "Service temporarily unavailable. Please wait a moment and try again."
-                        messageText = message
-                    } else {
-                        errorMessage = "Failed to send message. Please check your connection and try again."
-                        messageText = message
-                    }
+                await MainActor.run {
+                    handleSendMessageResult(messageResult, originalMessage: message)
                 }
-                
-                // Session info might have changed, refresh it
-                Task {
-                    loadSessionInfo()
+            } else {
+                // Session creation failed
+                await MainActor.run {
+                    isSubmitting = false
+                    showTypingIndicator = false
+                    errorMessage = "Failed to create session: \(sessionResult.message)"
+                    
+                    // Remove the user message we added optimistically
+                    if let lastMessage = networkService.conversationHistory.last,
+                       lastMessage["role"] == "user",
+                       lastMessage["content"] == message {
+                        networkService.removeLastMessageFromHistory()
+                    }
+                    
+                    // Restore message text for retry
+                    messageText = message
                 }
             }
+        }
+    }
+    
+    private func handleSendMessageResult(_ result: (success: Bool, aiResponse: String?, tokensUsed: Int?, compressed: Bool?), originalMessage: String) {
+        isSubmitting = false
+        showTypingIndicator = false
+        
+        if result.success {
+            // Message sent successfully - NetworkService already added both messages to history
+            // Force UI refresh to ensure new messages are displayed
+            refreshTrigger = UUID()
+            print("🔄 SessionChatView: Triggered UI refresh after message success")
+            
+            // Track progress for this question using new points system
+            trackChatInteraction(subject: selectedSubject, userMessage: originalMessage, aiResponse: result.aiResponse)
+            
+        } else {
+            // Enhanced error handling with recovery options
+            let errorDetail = result.aiResponse ?? "Failed to get AI response"
+            
+            // Remove the user message we added optimistically since the request failed
+            if let lastMessage = networkService.conversationHistory.last,
+               lastMessage["role"] == "user",
+               lastMessage["content"] == originalMessage {
+                networkService.removeLastMessageFromHistory()
+            }
+            
+            // Check for specific error types and provide appropriate recovery
+            if errorDetail.contains("network") || errorDetail.contains("connection") {
+                errorMessage = "Network connection lost. Please check your internet and try again."
+                messageText = originalMessage
+            } else if errorDetail.contains("session") || errorDetail.contains("expired") {
+                errorMessage = "Session expired. Creating a new session..."
+                Task {
+                    await startNewSessionAndRetry(message: originalMessage)
+                }
+            } else if errorDetail.contains("rate limit") || errorDetail.contains("quota") {
+                errorMessage = "Service temporarily unavailable. Please wait a moment and try again."
+                messageText = originalMessage
+            } else {
+                errorMessage = "Failed to send message. Please check your connection and try again."
+                messageText = originalMessage
+            }
+        }
+        
+        // Session info might have changed, refresh it
+        Task {
+            loadSessionInfo()
         }
     }
     
@@ -1678,6 +1754,16 @@ struct SessionChatView: View {
                         // Add AI response to conversation history
                         networkService.conversationHistory.append(["role": "assistant", "content": answer])
                         
+                        // Track progress for this image question
+                        Task {
+                            await networkService.trackQuestionAnswered(
+                                subject: selectedSubject,
+                                isCorrect: true, // Assume correct for image analysis
+                                studyTimeSeconds: 0
+                            )
+                            print("📈 Progress tracked for image question in subject: \(selectedSubject)")
+                        }
+                        
                         // Refresh session info in background
                         Task {
                             loadSessionInfo()
@@ -1818,9 +1904,13 @@ struct SessionChatView: View {
                 if result.success {
                     // Archive successful - close dialog and show success
                     showingArchiveDialog = false
+                    archivedSessionTitle = archiveTitle.isEmpty ? "your conversation" : archiveTitle
                     archiveTitle = ""
                     archiveTopic = ""
                     archiveNotes = ""
+                    
+                    // Show success alert
+                    showingArchiveSuccess = true
                     
                     // Optionally start a new session or clear current session
                     networkService.currentSessionId = nil
@@ -1830,6 +1920,47 @@ struct SessionChatView: View {
                 }
             }
         }
+    }
+    
+    /// Track chat interaction for points earning system
+    private func trackChatInteraction(subject: String, userMessage: String, aiResponse: String?) {
+        // Analyze the interaction to determine if it was educational
+        let isCorrect = analyzeInteractionCorrectness(userMessage: userMessage, aiResponse: aiResponse)
+        
+        // Track the question for points earning
+        pointsManager.trackQuestionAnswered(subject: subject, isCorrect: isCorrect)
+        
+        // Estimate study time based on message complexity
+        let wordCount = userMessage.components(separatedBy: .whitespacesAndNewlines).count
+        let estimatedStudyTime = max(wordCount / 10, 1) // 1 minute per 10 words, minimum 1 minute
+        pointsManager.trackStudyTime(estimatedStudyTime)
+        
+        print("📊 Tracked chat interaction: subject=\(subject), correct=\(isCorrect), studyTime=\(estimatedStudyTime)min")
+    }
+    
+    /// Analyze if the interaction was likely a correct learning exchange
+    private func analyzeInteractionCorrectness(userMessage: String, aiResponse: String?) -> Bool {
+        guard let response = aiResponse else { return false }
+        
+        let responseLowercase = response.lowercased()
+        
+        // Check for positive indicators in AI response
+        let positiveIndicators = [
+            "correct", "right", "exactly", "yes", "that's right", "well done",
+            "good job", "perfect", "accurate", "spot on", "excellent"
+        ]
+        
+        let negativeIndicators = [
+            "incorrect", "wrong", "not quite", "actually", "however", "but",
+            "mistake", "error", "try again", "reconsider"
+        ]
+        
+        let positiveCount = positiveIndicators.filter { responseLowercase.contains($0) }.count
+        let negativeCount = negativeIndicators.filter { responseLowercase.contains($0) }.count
+        
+        // If there are more positive indicators than negative, consider it correct
+        // If unclear, default to false (conservative approach for accuracy calculation)
+        return positiveCount > negativeCount && positiveCount > 0
     }
 }
 
@@ -2102,10 +2233,10 @@ struct ModernTypingIndicatorView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            CharacterAvatar(voiceType: .eva, size: 50)
+            CharacterAvatar(voiceType: .adam, size: 50)
             
             VStack(alignment: .leading, spacing: 8) {
-                Text("Elsa")
+                Text("Adam")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white)
                 

@@ -62,6 +62,10 @@
 		PROF567890123456BCDE8901 /* StudyAI/Models/UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROF123456789012ABCD7890 /* StudyAI/Models/UserProfile.swift */; };
 		PRFS678901234567CDEF9012 /* StudyAI/Services/ProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRFS234567890123BCDE8901 /* StudyAI/Services/ProfileService.swift */; };
 		EDIT789012345678DEFF0123 /* StudyAI/Views/EditProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDIT345678901234CDEF9012 /* StudyAI/Views/EditProfileView.swift */; };
+		PNTS789012345678EFGH0123 /* StudyAI/Models/PointsEarningSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = PNTS456789012345EFGH0123 /* StudyAI/Models/PointsEarningSystem.swift */; };
+		DCHK890123456789FGHI1234 /* StudyAI/Views/DailyCheckoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCHK567890123456FGHI1234 /* StudyAI/Views/DailyCheckoutView.swift */; };
+		LGLS901234567890GHIJ2345 /* StudyAI/Views/LearningGoalsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = LGLS678901234567GHIJ2345 /* StudyAI/Views/LearningGoalsSettingsView.swift */; };
+		7454ECCF0700400CAB3D9062 /* StudyAI/Views/WeeklyProgressGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 172B88920E5545748C6B70F2 /* StudyAI/Views/WeeklyProgressGrid.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -136,6 +140,10 @@
 		PROF123456789012ABCD7890 /* StudyAI/Models/UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Models/UserProfile.swift; sourceTree = "<group>"; };
 		PRFS234567890123BCDE8901 /* StudyAI/Services/ProfileService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/ProfileService.swift; sourceTree = "<group>"; };
 		EDIT345678901234CDEF9012 /* StudyAI/Views/EditProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/EditProfileView.swift; sourceTree = "<group>"; };
+		PNTS456789012345EFGH0123 /* StudyAI/Models/PointsEarningSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Models/PointsEarningSystem.swift; sourceTree = "<group>"; };
+		DCHK567890123456FGHI1234 /* StudyAI/Views/DailyCheckoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/DailyCheckoutView.swift; sourceTree = "<group>"; };
+		LGLS678901234567GHIJ2345 /* StudyAI/Views/LearningGoalsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/LearningGoalsSettingsView.swift; sourceTree = "<group>"; };
+		172B88920E5545748C6B70F2 /* StudyAI/Views/WeeklyProgressGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/WeeklyProgressGrid.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -187,6 +195,7 @@
 				B496CCDDC9B5477581971035 /* StudyAI/Models/SessionModels.swift */,
 				740D132F82A14ABAA94D79CC /* StudyAI/Models/VoiceModels.swift */,
 				PROF123456789012ABCD7890 /* StudyAI/Models/UserProfile.swift */,
+				PNTS456789012345EFGH0123 /* StudyAI/Models/PointsEarningSystem.swift */,
 				1ECE095FF4DB41A3B76FBE4F /* StudyAI/NetworkService.swift */,
 				DBB6C78FB23E45A9AF19ECC9 /* StudyAI/Services/AuthenticationService.swift */,
 				CAS43139063DB4892D6DA7D /* StudyAI/Services/CameraSessionManager.swift */,
@@ -215,6 +224,8 @@
 				885943542F6749ACA3543873 /* StudyAI/Views/CameraView.swift */,
 				122549B3F87E417292C7874C /* StudyAI/Views/DirectAIHomeworkView.swift */,
 				EDIT345678901234CDEF9012 /* StudyAI/Views/EditProfileView.swift */,
+				DCHK567890123456FGHI1234 /* StudyAI/Views/DailyCheckoutView.swift */,
+				LGLS678901234567GHIJ2345 /* StudyAI/Views/LearningGoalsSettingsView.swift */,
 				3007D1E356704A0C864FBEED /* StudyAI/Views/HomeView.swift */,
 				4C75C2233B72490A8E27CDEB /* StudyAI/Views/HomeworkResultsView.swift */,
 				84F4782308454D1A98C2741E /* StudyAI/Views/ImageCropView.swift */,
@@ -230,6 +241,7 @@
 				D724DD29C2CD4B3AAC9114B6 /* StudyAI/Views/UserProfileView.swift */,
 				03DB96F217C9458693CF5BDA /* StudyAI/Views/VoiceSettingsView.swift */,
 				2575218B86324529B227C931 /* StudyAI/Views/ZoomedRegionView.swift */,
+				172B88920E5545748C6B70F2 /* StudyAI/Views/WeeklyProgressGrid.swift */,
 			);
 			name = "Recovered References";
 			sourceTree = "<group>";
@@ -418,6 +430,7 @@
 				EF7FC57F2FF9428F9F262123 /* StudyAI/Models/SessionModels.swift in Sources */,
 				6AAA1280DC3B4E05B19E67B6 /* StudyAI/Models/VoiceModels.swift in Sources */,
 				PROF567890123456BCDE8901 /* StudyAI/Models/UserProfile.swift in Sources */,
+				PNTS789012345678EFGH0123 /* StudyAI/Models/PointsEarningSystem.swift in Sources */,
 				C42D5B1E2F9F422F898D739B /* StudyAI/NetworkService.swift in Sources */,
 				3CAC0FF7EDE94A0B9ACDC78F /* StudyAI/Services/AuthenticationService.swift in Sources */,
 				CAB7C1BE421684B5D6EBB59 /* StudyAI/Services/CameraSessionManager.swift in Sources */,
@@ -445,6 +458,8 @@
 				CBC9A72B2BBE4D5DB9556A4C /* StudyAI/Views/CameraView.swift in Sources */,
 				2889F08A3B034FE5AC00739C /* StudyAI/Views/DirectAIHomeworkView.swift in Sources */,
 				EDIT789012345678DEFF0123 /* StudyAI/Views/EditProfileView.swift in Sources */,
+				DCHK890123456789FGHI1234 /* StudyAI/Views/DailyCheckoutView.swift in Sources */,
+				LGLS901234567890GHIJ2345 /* StudyAI/Views/LearningGoalsSettingsView.swift in Sources */,
 				51E8895014244637989DCA32 /* StudyAI/Views/HomeView.swift in Sources */,
 				44D8DB9D1B4C4CFA8A59EB3D /* StudyAI/Views/HomeworkResultsView.swift in Sources */,
 				73BEB15D842A4FB3B7E6B147 /* StudyAI/Views/ImageCropView.swift in Sources */,
@@ -460,7 +475,9 @@
 				C278552EF36F41E59A51F0FC /* StudyAI/Views/UserProfileView.swift in Sources */,
 				7DCD4D51FBF64F74AEA6A5C3 /* StudyAI/Views/VoiceSettingsView.swift in Sources */,
 				2F704A14D92440C2A18F02EC /* StudyAI/Views/ZoomedRegionView.swift in Sources */,
+				7454ECCF0700400CAB3D9062 /* StudyAI/Views/WeeklyProgressGrid.swift in Sources */,
 				34567890123456789012CDEF /* StudyAI/Views/UnifiedLibraryView.swift in Sources */,
+				7454ECCF0700400CAB3D9062 /* StudyAI/Views/WeeklyProgressGrid.swift in Sources */,
 				45678901234567890123DDEF /* StudyAI/ViewModels/CameraViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -802,7 +802,7 @@ const db = {
     const startTime = Date.now();
     
     try {
-      console.log(`🔍 [DB] getConversationDetails called with conversationId: ${conversationId}, userId: ${userId}`);
+      console.log(`🔍 [DB] getConversationDetails called with ID: ${conversationId}, userId: ${userId}`);
       
       if (!conversationId) {
         console.error(`❌ [DB] Missing conversationId parameter`);
@@ -814,12 +814,63 @@ const db = {
         throw new Error('User ID is required');
       }
       
+      // Step 1: Debug - Get all sessions for this user
+      console.log(`🔍 [DB] Step 1: Getting all sessions for user ${userId}`);
+      const userSessionsQuery = `SELECT id FROM sessions WHERE user_id = $1`;
+      const userSessionsResult = await this.query(userSessionsQuery, [userId]);
+      console.log(`📋 [DB] Found ${userSessionsResult.rows.length} sessions for user:`);
+      userSessionsResult.rows.forEach((row, i) => {
+        console.log(`📋 [DB] Session ${i+1}: ${row.id}`);
+      });
+      
+      // Step 2: Check if the requested ID is one of the user's sessions
+      const isUserSession = userSessionsResult.rows.some(row => row.id === conversationId);
+      console.log(`📋 [DB] Is ${conversationId} a user session? ${isUserSession}`);
+      
+      if (isUserSession) {
+        // Step 3: Get conversations for this specific session
+        console.log(`🔍 [DB] Step 3: Getting conversations for session ${conversationId}`);
+        const conversationsQuery = `SELECT * FROM conversations WHERE session_id = $1`;
+        const conversationsResult = await this.query(conversationsQuery, [conversationId]);
+        console.log(`📋 [DB] Found ${conversationsResult.rows.length} conversation messages for session ${conversationId}`);
+        
+        if (conversationsResult.rows.length > 0) {
+          conversationsResult.rows.forEach((row, i) => {
+            console.log(`📋 [DB] Message ${i+1}: Type=${row.message_type}, Text="${row.message_text.substring(0, 50)}..."`);
+          });
+        } else {
+          console.log(`⚠️ [DB] No conversation messages found for session ${conversationId}`);
+        }
+      }
+      
+      // Step 4: Also check all conversations for this user to see what's available
+      console.log(`🔍 [DB] Step 4: Getting all conversations for user ${userId}`);
+      const allConversationsQuery = `
+        SELECT session_id, COUNT(*) as message_count, MIN(created_at) as first_message, MAX(created_at) as last_message
+        FROM conversations 
+        WHERE user_id = $1 
+        GROUP BY session_id
+        ORDER BY last_message DESC
+      `;
+      const allConversationsResult = await this.query(allConversationsQuery, [userId]);
+      console.log(`📋 [DB] Found conversations for ${allConversationsResult.rows.length} different sessions:`);
+      allConversationsResult.rows.forEach((row, i) => {
+        console.log(`📋 [DB] Conversation ${i+1}: Session=${row.session_id}, Messages=${row.message_count}, Last=${row.last_message}`);
+      });
+      
+      // Now implement the actual conversation retrieval logic
       const query = `
-        SELECT * FROM archived_conversations_new 
-        WHERE id = $1 AND user_id = $2
+        SELECT 
+          c.*,
+          s.subject as session_subject,
+          s.start_time as session_start_time
+        FROM conversations c
+        LEFT JOIN sessions s ON c.session_id = s.id
+        WHERE c.session_id = $1 AND c.user_id = $2
+        ORDER BY c.created_at ASC
       `;
       
-      console.log(`📋 [DB] Executing query: ${query}`);
+      console.log(`📋 [DB] Final Query: ${query}`);
       console.log(`📋 [DB] Parameters: [${conversationId}, ${userId}]`);
       
       const result = await this.query(query, [conversationId, userId]);
@@ -829,15 +880,72 @@ const db = {
       console.log(`📊 [DB] Result rows count: ${result.rows.length}`);
       
       if (result.rows.length > 0) {
-        const conversation = result.rows[0];
-        console.log(`✅ [DB] Conversation found - ID: ${conversation.id}, Subject: ${conversation.subject}`);
-        console.log(`✅ [DB] Content length: ${conversation.conversation_content?.length || 0} characters`);
-        console.log(`✅ [DB] Archived date: ${conversation.archived_date}`);
+        // Combine all conversation messages into a single conversation object
+        const messages = result.rows;
+        const firstMessage = messages[0];
+        
+        // Build conversation content string
+        let conversationContent = '';
+        messages.forEach(msg => {
+          const speaker = msg.message_type === 'user' ? 'User' : 'AI';
+          conversationContent += `${speaker}: ${msg.message_text}\n\n`;
+        });
+        
+        const conversation = {
+          id: conversationId, // Use session_id as conversation id
+          user_id: firstMessage.user_id,
+          session_id: conversationId,
+          subject: firstMessage.session_subject || 'General',
+          topic: firstMessage.session_subject || 'Conversation',
+          conversation_content: conversationContent.trim(),
+          message_count: messages.length,
+          archived_date: firstMessage.session_start_time || firstMessage.created_at,
+          created_at: firstMessage.created_at
+        };
+        
+        console.log(`✅ [DB] Conversation found in ${duration}ms - Session ID: ${conversationId}, Messages: ${messages.length}`);
+        console.log(`✅ [DB] Subject: ${conversation.subject}, Content length: ${conversationContent.length} characters`);
         return conversation;
       } else {
-        console.log(`❌ [DB] No conversation found for ID: ${conversationId}, User: ${userId}`);
+        console.log(`❌ [DB] No conversation found for session ID: ${conversationId}, User: ${userId}`);
+        
+        // Check if this conversation exists in archived_conversations_new table
+        console.log(`🔍 [DB] Checking archived_conversations_new for session ${conversationId}`);
+        const archivedQuery = `SELECT * FROM archived_conversations_new WHERE user_id = $2 AND (id = $1 OR id IN (SELECT id FROM sessions WHERE id = $1 AND user_id = $2))`;
+        const archivedResult = await this.query(archivedQuery, [conversationId, userId]);
+        
+        if (archivedResult.rows.length > 0) {
+          const archived = archivedResult.rows[0];
+          console.log(`✅ [DB] Found archived conversation: ID=${archived.id}, Subject=${archived.subject}`);
+          console.log(`✅ [DB] Content length: ${archived.conversation_content?.length || 0} characters`);
+          
+          return {
+            id: archived.id,
+            user_id: archived.user_id,
+            session_id: conversationId,
+            subject: archived.subject || 'General',
+            topic: archived.topic || archived.subject || 'Conversation',
+            conversation_content: archived.conversation_content || '',
+            message_count: 1,
+            archived_date: archived.archived_date || archived.created_at,
+            created_at: archived.created_at
+          };
+        }
+        
+        // Additional debug: Check if session exists but has no conversations
+        const sessionCheckQuery = `SELECT * FROM sessions WHERE id = $1 AND user_id = $2`;
+        const sessionCheckResult = await this.query(sessionCheckQuery, [conversationId, userId]);
+        if (sessionCheckResult.rows.length > 0) {
+          const session = sessionCheckResult.rows[0];
+          console.log(`📋 [DB] Session exists but has no conversations:`);
+          console.log(`📋 [DB] Session Type: ${session.session_type}, Subject: ${session.subject}, Created: ${session.created_at}`);
+        } else {
+          console.log(`📋 [DB] Session ${conversationId} does not exist for user ${userId}`);
+        }
+        
         return null;
       }
+      
     } catch (error) {
       const duration = Date.now() - startTime;
       console.error(`🚨 [DB] getConversationDetails error after ${duration}ms:`, error);
@@ -1306,6 +1414,313 @@ const db = {
     
     const result = await this.query(query, [userId]);
     return result.rows[0];
+  },
+
+  // MARK: - Enhanced Progress System Functions
+
+  /**
+   * Update daily progress for a user
+   */
+  async updateDailyProgress(userId, progressData) {
+    const {
+      questionsAnswered = 0,
+      correctAnswers = 0,
+      studyTimeMinutes = 0,
+      subjectsStudied = [],
+      xpEarned = 0,
+      bonusXp = 0,
+      perfectSessions = 0
+    } = progressData;
+
+    const today = new Date().toISOString().split('T')[0];
+
+    const query = `
+      INSERT INTO daily_progress (
+        user_id, date, questions_answered, correct_answers, study_time_minutes,
+        subjects_studied, xp_earned, bonus_xp, perfect_sessions
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (user_id, date) 
+      DO UPDATE SET 
+        questions_answered = daily_progress.questions_answered + EXCLUDED.questions_answered,
+        correct_answers = daily_progress.correct_answers + EXCLUDED.correct_answers,
+        study_time_minutes = daily_progress.study_time_minutes + EXCLUDED.study_time_minutes,
+        subjects_studied = array(SELECT DISTINCT unnest(daily_progress.subjects_studied || EXCLUDED.subjects_studied)),
+        xp_earned = daily_progress.xp_earned + EXCLUDED.xp_earned,
+        bonus_xp = daily_progress.bonus_xp + EXCLUDED.bonus_xp,
+        perfect_sessions = daily_progress.perfect_sessions + EXCLUDED.perfect_sessions,
+        updated_at = NOW()
+      RETURNING *
+    `;
+
+    const values = [userId, today, questionsAnswered, correctAnswers, studyTimeMinutes, subjectsStudied, xpEarned, bonusXp, perfectSessions];
+    const result = await this.query(query, values);
+    return result.rows[0];
+  },
+
+  /**
+   * Get user's current progress summary
+   */
+  async getUserProgressSummary(userId) {
+    const query = `
+      WITH recent_progress AS (
+        SELECT 
+          dp.*,
+          ss.current_streak,
+          ss.longest_streak,
+          ul.current_level,
+          ul.total_xp,
+          ul.xp_to_next_level
+        FROM daily_progress dp
+        LEFT JOIN study_streaks ss ON dp.user_id = ss.user_id
+        LEFT JOIN user_levels ul ON dp.user_id = ul.user_id
+        WHERE dp.user_id = $1 AND dp.date >= CURRENT_DATE - INTERVAL '30 days'
+        ORDER BY dp.date DESC
+      ),
+      today_progress AS (
+        SELECT * FROM daily_progress 
+        WHERE user_id = $1 AND date = CURRENT_DATE
+      ),
+      weekly_stats AS (
+        SELECT 
+          COUNT(*) as days_active,
+          SUM(questions_answered) as total_questions,
+          SUM(correct_answers) as total_correct,
+          SUM(xp_earned) as total_xp,
+          AVG(CASE WHEN questions_answered > 0 THEN correct_answers::float / questions_answered ELSE 0 END) as avg_accuracy
+        FROM daily_progress 
+        WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '7 days'
+      ),
+      achievements_count AS (
+        SELECT COUNT(*) as total_achievements
+        FROM user_achievements 
+        WHERE user_id = $1 AND is_completed = true
+      ),
+      daily_goal AS (
+        SELECT * FROM daily_goals 
+        WHERE user_id = $1 AND date = CURRENT_DATE
+        ORDER BY created_at DESC LIMIT 1
+      )
+      SELECT 
+        COALESCE(tp.questions_answered, 0) as today_questions,
+        COALESCE(tp.correct_answers, 0) as today_correct,
+        COALESCE(tp.xp_earned, 0) as today_xp,
+        COALESCE(ss.current_streak, 0) as current_streak,
+        COALESCE(ss.longest_streak, 0) as longest_streak,
+        COALESCE(ul.current_level, 1) as current_level,
+        COALESCE(ul.total_xp, 0) as total_xp,
+        COALESCE(ul.xp_to_next_level, 100) as xp_to_next_level,
+        COALESCE(ws.days_active, 0) as week_days_active,
+        COALESCE(ws.total_questions, 0) as week_questions,
+        COALESCE(ws.total_correct, 0) as week_correct,
+        COALESCE(ws.avg_accuracy, 0) as week_accuracy,
+        COALESCE(ac.total_achievements, 0) as total_achievements,
+        COALESCE(dg.target_value, 5) as daily_goal_target,
+        COALESCE(dg.current_value, 0) as daily_goal_current,
+        COALESCE(dg.is_completed, false) as daily_goal_completed
+      FROM (SELECT $1 as user_id) u
+      LEFT JOIN today_progress tp ON u.user_id = tp.user_id
+      LEFT JOIN study_streaks ss ON u.user_id = ss.user_id
+      LEFT JOIN user_levels ul ON u.user_id = ul.user_id
+      LEFT JOIN weekly_stats ws ON true
+      LEFT JOIN achievements_count ac ON true
+      LEFT JOIN daily_goal dg ON u.user_id = dg.user_id
+    `;
+
+    const result = await this.query(query, [userId]);
+    return result.rows[0];
+  },
+
+  /**
+   * Update user's study streak
+   */
+  async updateStudyStreak(userId) {
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const query = `
+      INSERT INTO study_streaks (user_id, current_streak, longest_streak, last_study_date)
+      VALUES ($1, 1, 1, $2)
+      ON CONFLICT (user_id) 
+      DO UPDATE SET 
+        current_streak = CASE 
+          WHEN study_streaks.last_study_date = $3 THEN study_streaks.current_streak + 1
+          WHEN study_streaks.last_study_date = $2 THEN study_streaks.current_streak
+          ELSE 1
+        END,
+        longest_streak = GREATEST(study_streaks.longest_streak, 
+          CASE 
+            WHEN study_streaks.last_study_date = $3 THEN study_streaks.current_streak + 1
+            WHEN study_streaks.last_study_date = $2 THEN study_streaks.current_streak
+            ELSE 1
+          END
+        ),
+        last_study_date = $2,
+        updated_at = NOW()
+      RETURNING *
+    `;
+
+    const result = await this.query(query, [userId, today, yesterday]);
+    return result.rows[0];
+  },
+
+  /**
+   * Update user level and XP
+   */
+  async updateUserXP(userId, xpGained) {
+    const query = `
+      INSERT INTO user_levels (user_id, total_xp, xp_to_next_level)
+      VALUES ($1, $2, 100)
+      ON CONFLICT (user_id) 
+      DO UPDATE SET 
+        total_xp = user_levels.total_xp + $2,
+        current_level = CASE 
+          WHEN (user_levels.total_xp + $2) >= user_levels.xp_to_next_level THEN user_levels.current_level + 1
+          ELSE user_levels.current_level
+        END,
+        xp_to_next_level = CASE 
+          WHEN (user_levels.total_xp + $2) >= user_levels.xp_to_next_level THEN 
+            (user_levels.current_level + 1) * 100
+          ELSE user_levels.xp_to_next_level
+        END,
+        last_level_up = CASE 
+          WHEN (user_levels.total_xp + $2) >= user_levels.xp_to_next_level THEN NOW()
+          ELSE user_levels.last_level_up
+        END,
+        updated_at = NOW()
+      RETURNING *, 
+        CASE WHEN (total_xp - $2) < xp_to_next_level AND total_xp >= xp_to_next_level THEN true ELSE false END as leveled_up
+    `;
+
+    const result = await this.query(query, [userId, xpGained]);
+    return result.rows[0];
+  },
+
+  /**
+   * Add achievement to user
+   */
+  async addUserAchievement(userId, achievementData) {
+    const {
+      achievementId,
+      achievementName,
+      description,
+      icon,
+      category = 'general',
+      xpReward = 0,
+      rarity = 'common'
+    } = achievementData;
+
+    const query = `
+      INSERT INTO user_achievements (
+        user_id, achievement_id, achievement_name, description, 
+        icon, category, xp_reward, rarity
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (user_id, achievement_id) DO NOTHING
+      RETURNING *
+    `;
+
+    const values = [userId, achievementId, achievementName, description, icon, category, xpReward, rarity];
+    const result = await this.query(query, values);
+    return result.rows[0];
+  },
+
+  /**
+   * Get user achievements
+   */
+  async getUserAchievements(userId, limit = 50) {
+    const query = `
+      SELECT * FROM user_achievements 
+      WHERE user_id = $1 AND is_completed = true
+      ORDER BY unlocked_at DESC, rarity DESC
+      LIMIT $2
+    `;
+
+    const result = await this.query(query, [userId, limit]);
+    return result.rows;
+  },
+
+  /**
+   * Update daily goal progress
+   */
+  async updateDailyGoal(userId, goalType = 'questions', progressValue = 1) {
+    const today = new Date().toISOString().split('T')[0];
+
+    const query = `
+      INSERT INTO daily_goals (user_id, date, goal_type, current_value)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (user_id, date, goal_type) 
+      DO UPDATE SET 
+        current_value = daily_goals.current_value + $4,
+        is_completed = (daily_goals.current_value + $4) >= daily_goals.target_value,
+        updated_at = NOW()
+      RETURNING *
+    `;
+
+    const result = await this.query(query, [userId, today, goalType, progressValue]);
+    return result.rows[0];
+  },
+
+  /**
+   * Get daily progress heatmap data
+   */
+  async getDailyProgressHeatmap(userId, days = 90) {
+    const query = `
+      SELECT 
+        date,
+        questions_answered,
+        xp_earned,
+        daily_goal_completed,
+        CASE 
+          WHEN questions_answered = 0 THEN 0
+          WHEN questions_answered < 3 THEN 1
+          WHEN questions_answered < 6 THEN 2
+          WHEN questions_answered < 10 THEN 3
+          ELSE 4
+        END as activity_level
+      FROM daily_progress 
+      WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '$2 days'
+      ORDER BY date DESC
+    `;
+
+    const result = await this.query(query, [userId, days]);
+    return result.rows;
+  },
+
+  /**
+   * Get subject progress breakdown
+   */
+  async getSubjectProgress(userId) {
+    const query = `
+      WITH subject_stats AS (
+        SELECT 
+          unnest(subjects_studied) as subject,
+          SUM(questions_answered) as total_questions,
+          SUM(correct_answers) as total_correct,
+          COUNT(DISTINCT date) as days_studied,
+          SUM(xp_earned) as total_xp
+        FROM daily_progress 
+        WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '30 days'
+        GROUP BY unnest(subjects_studied)
+      )
+      SELECT 
+        subject,
+        total_questions,
+        total_correct,
+        days_studied,
+        total_xp,
+        CASE WHEN total_questions > 0 THEN total_correct::float / total_questions ELSE 0 END as accuracy,
+        CASE 
+          WHEN total_questions >= 50 THEN 'advanced'
+          WHEN total_questions >= 20 THEN 'intermediate'
+          WHEN total_questions >= 5 THEN 'beginner'
+          ELSE 'novice'
+        END as proficiency_level
+      FROM subject_stats 
+      WHERE subject IS NOT NULL
+      ORDER BY total_xp DESC, total_questions DESC
+    `;
+
+    const result = await this.query(query, [userId]);
+    return result.rows;
   }
 };
 
@@ -1534,6 +1949,7 @@ async function runDatabaseMigrations() {
       CREATE TABLE IF NOT EXISTS archived_conversations_new (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        session_id UUID REFERENCES sessions(id) ON DELETE SET NULL,
         subject VARCHAR(100) NOT NULL,
         topic VARCHAR(200),
         conversation_content TEXT NOT NULL,
@@ -1685,7 +2101,156 @@ async function runDatabaseMigrations() {
       console.log('✅ Profile enhancement migration already applied');
     }
     
-    console.log('✅ Database cleanup and migrations completed successfully');
+    // Check if progress enhancement migration has been applied
+    const progressEnhancementCheck = await db.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name IN ('daily_progress', 'progress_milestones', 'user_achievements')
+      AND table_schema = 'public'
+    `);
+    
+    if (progressEnhancementCheck.rows.length < 3) {
+      console.log('📋 Applying progress enhancement migration...');
+      
+      // Create enhanced progress tracking tables
+      await db.query(`
+        -- Daily progress tracking for gamification
+        CREATE TABLE IF NOT EXISTS daily_progress (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          date DATE NOT NULL,
+          questions_answered INTEGER DEFAULT 0,
+          correct_answers INTEGER DEFAULT 0,
+          study_time_minutes INTEGER DEFAULT 0,
+          subjects_studied TEXT[] DEFAULT '{}',
+          streak_count INTEGER DEFAULT 0,
+          xp_earned INTEGER DEFAULT 0,
+          achievements_unlocked TEXT[] DEFAULT '{}',
+          daily_goal_completed BOOLEAN DEFAULT false,
+          bonus_xp INTEGER DEFAULT 0,
+          perfect_sessions INTEGER DEFAULT 0,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          UNIQUE(user_id, date)
+        );
+
+        -- Weekly/Monthly progress milestones
+        CREATE TABLE IF NOT EXISTS progress_milestones (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          milestone_type VARCHAR(20) NOT NULL CHECK (milestone_type IN ('daily', 'weekly', 'monthly', 'custom')),
+          period_start DATE NOT NULL,
+          period_end DATE NOT NULL,
+          total_xp INTEGER DEFAULT 0,
+          total_questions INTEGER DEFAULT 0,
+          accuracy_rate FLOAT DEFAULT 0,
+          subjects_mastered TEXT[] DEFAULT '{}',
+          achievements TEXT[] DEFAULT '{}',
+          rank_position INTEGER,
+          goal_completion_rate FLOAT DEFAULT 0,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+
+        -- User achievements and badges
+        CREATE TABLE IF NOT EXISTS user_achievements (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          achievement_id VARCHAR(100) NOT NULL,
+          achievement_name VARCHAR(200) NOT NULL,
+          description TEXT,
+          icon VARCHAR(100),
+          category VARCHAR(50) DEFAULT 'general',
+          xp_reward INTEGER DEFAULT 0,
+          rarity VARCHAR(20) DEFAULT 'common' CHECK (rarity IN ('common', 'rare', 'epic', 'legendary')),
+          unlocked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          progress_value INTEGER DEFAULT 0,
+          max_progress INTEGER DEFAULT 1,
+          is_completed BOOLEAN DEFAULT true,
+          UNIQUE(user_id, achievement_id)
+        );
+
+        -- User level and XP tracking
+        CREATE TABLE IF NOT EXISTS user_levels (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          current_level INTEGER DEFAULT 1,
+          total_xp INTEGER DEFAULT 0,
+          xp_to_next_level INTEGER DEFAULT 100,
+          level_up_rewards TEXT[] DEFAULT '{}',
+          last_level_up TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          UNIQUE(user_id)
+        );
+
+        -- Study streaks tracking
+        CREATE TABLE IF NOT EXISTS study_streaks (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          current_streak INTEGER DEFAULT 0,
+          longest_streak INTEGER DEFAULT 0,
+          last_study_date DATE,
+          streak_freeze_used INTEGER DEFAULT 0,
+          streak_freeze_available INTEGER DEFAULT 3,
+          streak_rewards_claimed TEXT[] DEFAULT '{}',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          UNIQUE(user_id)
+        );
+
+        -- Study goals and challenges
+        CREATE TABLE IF NOT EXISTS daily_goals (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          date DATE NOT NULL,
+          goal_type VARCHAR(50) NOT NULL DEFAULT 'questions',
+          target_value INTEGER NOT NULL DEFAULT 5,
+          current_value INTEGER DEFAULT 0,
+          is_completed BOOLEAN DEFAULT false,
+          xp_reward INTEGER DEFAULT 50,
+          bonus_multiplier FLOAT DEFAULT 1.0,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          UNIQUE(user_id, date, goal_type)
+        );
+
+        -- Indexes for performance
+        CREATE INDEX IF NOT EXISTS idx_daily_progress_user_date ON daily_progress(user_id, date DESC);
+        CREATE INDEX IF NOT EXISTS idx_daily_progress_streak ON daily_progress(user_id, streak_count DESC);
+        CREATE INDEX IF NOT EXISTS idx_user_achievements_user_category ON user_achievements(user_id, category);
+        CREATE INDEX IF NOT EXISTS idx_user_achievements_unlocked_at ON user_achievements(user_id, unlocked_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_user_levels_xp ON user_levels(user_id, total_xp DESC);
+        CREATE INDEX IF NOT EXISTS idx_study_streaks_current ON study_streaks(user_id, current_streak DESC);
+        CREATE INDEX IF NOT EXISTS idx_daily_goals_user_date ON daily_goals(user_id, date DESC);
+        CREATE INDEX IF NOT EXISTS idx_progress_milestones_user_period ON progress_milestones(user_id, period_start, period_end);
+
+        -- Comments for documentation
+        COMMENT ON TABLE daily_progress IS 'Daily progress tracking for gamification and engagement';
+        COMMENT ON TABLE user_achievements IS 'Achievement system for user engagement and motivation';
+        COMMENT ON TABLE user_levels IS 'User level and XP progression system';
+        COMMENT ON TABLE study_streaks IS 'Daily study streak tracking and rewards';
+        COMMENT ON TABLE daily_goals IS 'Adaptive daily goals and challenges';
+      `);
+      
+      // Record the migration as completed
+      await db.query(`
+        INSERT INTO migration_history (migration_name) 
+        VALUES ('003_progress_enhancement') 
+        ON CONFLICT (migration_name) DO NOTHING;
+      `);
+      
+      console.log('✅ Progress enhancement migration completed successfully!');
+      console.log('📊 Enhanced progress system now supports:');
+      console.log('   - Daily progress tracking with XP and streaks');
+      console.log('   - Achievement system with badges and rewards');
+      console.log('   - User levels and XP progression');
+      console.log('   - Study streak tracking and bonuses');
+      console.log('   - Adaptive daily goals and challenges');
+      console.log('   - Weekly/monthly milestone tracking');
+    } else {
+      console.log('✅ Progress enhancement migration already applied');
+    }
     
   } catch (error) {
     console.error('❌ Database migration failed:', error);

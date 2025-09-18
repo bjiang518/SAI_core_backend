@@ -19,7 +19,9 @@ struct HomeworkResultsView: View {
     @State private var selectedQuestionIndices: Set<Int> = []
     @State private var questionNotes: [String] = []
     @State private var questionTags: [[String]] = []
+    @State private var hasMarkedProgress = false
     @StateObject private var questionArchiveService = QuestionArchiveService.shared
+    @ObservedObject private var pointsManager = PointsEarningManager.shared
     
     // Enhanced initializer that can accept either type
     init(parsingResult: HomeworkParsingResult, originalImageUrl: String?) {
@@ -66,6 +68,9 @@ struct HomeworkResultsView: View {
                     if !parsingResult.rawAIResponse.isEmpty {
                         debugSection
                     }
+                    
+                    // Mark Progress Button
+                    markProgressButton
                     
                     Spacer(minLength: 100)
                 }
@@ -371,6 +376,58 @@ struct HomeworkResultsView: View {
         .padding()
         .background(Color.blue.opacity(0.05))
         .cornerRadius(12)
+    }
+    
+    // MARK: - Mark Progress Button
+    
+    private var markProgressButton: some View {
+        VStack(spacing: 16) {
+            Button(action: {
+                print("🎯 DEBUG: Mark Progress button tapped!")
+                trackHomeworkUsage()
+                hasMarkedProgress = true
+                
+                // Show success feedback
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
+            }) {
+                HStack {
+                    Image(systemName: hasMarkedProgress ? "checkmark.circle.fill" : "chart.line.uptrend.xyaxis")
+                        .font(.title3)
+                    Text(hasMarkedProgress ? "Progress Marked!" : "Mark Progress")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    LinearGradient(
+                        colors: hasMarkedProgress ? [Color.green, Color.green.opacity(0.8)] : [Color.blue, Color.blue.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(16)
+                .shadow(color: (hasMarkedProgress ? Color.green : Color.blue).opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+            .disabled(hasMarkedProgress)
+            
+            if hasMarkedProgress {
+                Text("✅ Your study progress has been updated!")
+                    .font(.subheadline)
+                    .foregroundColor(.green)
+                    .multilineTextAlignment(.center)
+            } else {
+                Text("Tap to add these \\(parsingResult.allQuestions.count) questions to your daily learning goals")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(16)
     }
     
     // MARK: - Helper Methods
@@ -874,5 +931,86 @@ extension HomeworkResultsView {
                 isArchiving = false
             }
         }
+    }
+    
+    /// Track homework grading usage for points earning system
+    private func trackHomeworkUsage() {
+        print("🎯 DEBUG: trackHomeworkUsage() called in HomeworkResultsView")
+        let questions = parsingResult.allQuestions
+        print("🎯 DEBUG: Total questions to track: \(questions.count)")
+        
+        // Track each question as answered for daily questions goal
+        for (index, question) in questions.enumerated() {
+            print("🎯 DEBUG: Processing question \(index + 1)/\(questions.count)")
+            // Determine if this was a correct answer based on grading result
+            let isCorrect: Bool
+            if question.isGraded {
+                // Use the actual grading result
+                isCorrect = question.grade?.lowercased().contains("correct") == true ||
+                           question.grade?.lowercased().contains("right") == true ||
+                           question.grade == "✓" || question.grade == "A"
+            } else {
+                // For non-graded questions, assume they were answered (for goal tracking)
+                // We'll consider them as "attempted" rather than correct/incorrect
+                isCorrect = false // Conservative approach for accuracy calculation
+            }
+            
+            // Get the subject from enhanced result or try to detect from question text
+            let subject = enhancedResult?.detectedSubject ?? detectSubjectFromQuestion(question.questionText)
+            print("🎯 DEBUG: Detected subject: \(subject), isCorrect: \(isCorrect)")
+            
+            // Track the question for points earning  
+            print("🎯 DEBUG: About to call pointsManager.trackQuestionAnswered()")
+            pointsManager.trackQuestionAnswered(subject: subject, isCorrect: isCorrect)
+            print("🎯 DEBUG: Called pointsManager.trackQuestionAnswered() successfully")
+        }
+        
+        // Track study time (estimate based on number of questions)
+        let estimatedStudyTime = max(questions.count * 2, 5) // 2 minutes per question, minimum 5 minutes
+        print("🎯 DEBUG: About to track study time: \(estimatedStudyTime) minutes")
+        pointsManager.trackStudyTime(estimatedStudyTime)
+        
+        print("📊 Tracked homework usage: \(questions.count) questions, estimated \(estimatedStudyTime) minutes study time")
+        print("🎯 DEBUG: trackHomeworkUsage() completed")
+    }
+    
+    /// Simple subject detection from question text
+    private func detectSubjectFromQuestion(_ questionText: String) -> String {
+        let lowercaseText = questionText.lowercased()
+        
+        // Math keywords
+        if lowercaseText.contains("equation") || lowercaseText.contains("solve") || 
+           lowercaseText.contains("calculate") || lowercaseText.contains("algebra") ||
+           lowercaseText.contains("geometry") || lowercaseText.contains("integral") ||
+           lowercaseText.contains("derivative") || lowercaseText.contains("function") {
+            return "Mathematics"
+        }
+        
+        // Physics keywords
+        if lowercaseText.contains("force") || lowercaseText.contains("velocity") ||
+           lowercaseText.contains("acceleration") || lowercaseText.contains("energy") ||
+           lowercaseText.contains("momentum") || lowercaseText.contains("wave") ||
+           lowercaseText.contains("electric") || lowercaseText.contains("magnetic") {
+            return "Physics"
+        }
+        
+        // Chemistry keywords
+        if lowercaseText.contains("element") || lowercaseText.contains("compound") ||
+           lowercaseText.contains("reaction") || lowercaseText.contains("molecule") ||
+           lowercaseText.contains("atom") || lowercaseText.contains("chemical") ||
+           lowercaseText.contains("periodic") || lowercaseText.contains("bond") {
+            return "Chemistry"
+        }
+        
+        // Biology keywords
+        if lowercaseText.contains("cell") || lowercaseText.contains("organism") ||
+           lowercaseText.contains("dna") || lowercaseText.contains("gene") ||
+           lowercaseText.contains("evolution") || lowercaseText.contains("ecosystem") ||
+           lowercaseText.contains("species") || lowercaseText.contains("protein") {
+            return "Biology"
+        }
+        
+        // Default to General if no specific subject detected
+        return "General"
     }
 }

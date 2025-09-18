@@ -455,7 +455,27 @@ struct ConversationLibraryItem: LibraryItem {
     }
     
     var title: String {
-        return data["title"] as? String ?? "Conversation Session"
+        // Check if this is a homework session or conversation
+        if let sessionTitle = data["title"] as? String, !sessionTitle.isEmpty {
+            return sessionTitle
+        }
+        
+        // Check for topic field (from archived conversations)
+        if let topic = data["topic"] as? String, !topic.isEmpty {
+            return topic
+        }
+        
+        // Try to extract subject-based title for homework sessions
+        if let subject = data["subject"] as? String {
+            let questionCount = data["aiParsingResult"] as? [String: Any] ?? [:]
+            let count = (questionCount["questionCount"] as? Int) ?? (questionCount["questions"] as? [[String: Any]])?.count ?? 0
+            if count > 0 {
+                return "Homework Session - \(subject) (\(count) questions)"
+            }
+            return "Study Session - \(subject)"
+        }
+        
+        return "Study Session"
     }
     
     var subject: String {
@@ -475,11 +495,71 @@ struct ConversationLibraryItem: LibraryItem {
     }
     
     var itemType: LibraryItemType {
+        // Determine if this is actually a homework session or conversation
+        // Check for conversation indicators first
+        if data["topic"] != nil || 
+           data["conversationContent"] != nil || 
+           data["messages"] != nil ||
+           (data["type"] as? String) == "conversation" {
+            return .conversation
+        }
+        
+        // Then check for homework session indicators
+        if data["aiParsingResult"] != nil || data["questions"] != nil {
+            return .question // Treat homework sessions as question type
+        }
+        
         return .conversation
     }
     
     var preview: String {
+        // For homework sessions, show question details
+        if let aiParsingResult = data["aiParsingResult"] as? [String: Any] {
+            let questionCount = aiParsingResult["questionCount"] as? Int ?? 0
+            let questions = aiParsingResult["questions"] as? [[String: Any]] ?? []
+            
+            if questionCount > 0 || !questions.isEmpty {
+                let count = max(questionCount, questions.count)
+                let confidence = data["overallConfidence"] as? Double ?? 0.0
+                let confidencePercent = Int(confidence * 100)
+                
+                return "Homework session with \(count) questions • \(confidencePercent)% confidence"
+            }
+        }
+        
+        // For conversation sessions, try to show first message or conversation content
+        if let conversationContent = data["conversationContent"] as? String, !conversationContent.isEmpty {
+            // Extract first few words from the conversation
+            let lines = conversationContent.components(separatedBy: .newlines)
+            for line in lines {
+                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmedLine.isEmpty && !trimmedLine.hasPrefix("User:") && !trimmedLine.hasPrefix("AI:") {
+                    let preview = String(trimmedLine.prefix(80))
+                    return preview + (trimmedLine.count > 80 ? "..." : "")
+                }
+            }
+        }
+        
+        // Check for first message in messages array
+        if let messages = data["messages"] as? [[String: Any]], !messages.isEmpty {
+            if let firstMessage = messages.first,
+               let content = firstMessage["content"] as? String ?? firstMessage["message"] as? String {
+                let preview = String(content.prefix(80))
+                return preview + (content.count > 80 ? "..." : "")
+            }
+        }
+        
+        // For conversation sessions, show message count if no content available
         let messageCount = data["message_count"] as? Int ?? data["messageCount"] as? Int ?? 0
-        return "\(messageCount) messages in conversation"
+        if messageCount > 0 {
+            return "\(messageCount) messages in conversation"
+        }
+        
+        // Fallback for other session types
+        if let notes = data["notes"] as? String, !notes.isEmpty {
+            return notes.prefix(100) + (notes.count > 100 ? "..." : "")
+        }
+        
+        return "Study session"
     }
 }
