@@ -939,30 +939,50 @@ extension HomeworkResultsView {
         let questions = parsingResult.allQuestions
         print("🎯 DEBUG: Total questions to track: \(questions.count)")
         
-        // Track each question as answered for daily questions goal
-        for (index, question) in questions.enumerated() {
-            print("🎯 DEBUG: Processing question \(index + 1)/\(questions.count)")
-            // Determine if this was a correct answer based on grading result
-            let isCorrect: Bool
-            if question.isGraded {
-                // Use the actual grading result
-                isCorrect = question.grade?.lowercased().contains("correct") == true ||
-                           question.grade?.lowercased().contains("right") == true ||
-                           question.grade == "✓" || question.grade == "A"
-            } else {
-                // For non-graded questions, assume they were answered (for goal tracking)
-                // We'll consider them as "attempted" rather than correct/incorrect
-                isCorrect = false // Conservative approach for accuracy calculation
+        // Get subject from enhanced result or try to detect from question text
+        let subject = enhancedResult?.detectedSubject ?? detectSubjectFromQuestion(questions.first?.questionText ?? "")
+        
+        // Use enhanced result for accurate statistics if available
+        if let enhanced = enhancedResult, let performanceSummary = enhanced.performanceSummary {
+            let totalCorrect = performanceSummary.totalCorrect
+            print("🎯 DEBUG: Using enhanced result: \(totalCorrect) correct out of \(questions.count)")
+            
+            // Track correct answers based on enhanced result
+            for i in 0..<totalCorrect {
+                print("🎯 DEBUG: Tracking correct answer \(i + 1)/\(totalCorrect)")
+                pointsManager.trackQuestionAnswered(subject: subject, isCorrect: true)
             }
             
-            // Get the subject from enhanced result or try to detect from question text
-            let subject = enhancedResult?.detectedSubject ?? detectSubjectFromQuestion(question.questionText)
-            print("🎯 DEBUG: Detected subject: \(subject), isCorrect: \(isCorrect)")
-            
-            // Track the question for points earning  
-            print("🎯 DEBUG: About to call pointsManager.trackQuestionAnswered()")
-            pointsManager.trackQuestionAnswered(subject: subject, isCorrect: isCorrect)
-            print("🎯 DEBUG: Called pointsManager.trackQuestionAnswered() successfully")
+            // Track incorrect answers
+            let incorrectCount = questions.count - totalCorrect
+            for i in 0..<incorrectCount {
+                print("🎯 DEBUG: Tracking incorrect answer \(i + 1)/\(incorrectCount)")
+                pointsManager.trackQuestionAnswered(subject: subject, isCorrect: false)
+            }
+        } else {
+            // Fallback to individual question checking
+            for (index, question) in questions.enumerated() {
+                print("🎯 DEBUG: Processing question \(index + 1)/\(questions.count)")
+                // Determine if this was a correct answer based on grading result
+                let isCorrect: Bool
+                if question.isGraded {
+                    // Use the actual grading result
+                    isCorrect = question.grade?.lowercased().contains("correct") == true ||
+                               question.grade?.lowercased().contains("right") == true ||
+                               question.grade == "✓" || question.grade == "A"
+                } else {
+                    // For non-graded questions, assume they were answered (for goal tracking)
+                    // We'll consider them as "attempted" rather than correct/incorrect
+                    isCorrect = false // Conservative approach for accuracy calculation
+                }
+                
+                print("🎯 DEBUG: Detected subject: \(subject), isCorrect: \(isCorrect)")
+                
+                // Track the question for points earning  
+                print("🎯 DEBUG: About to call pointsManager.trackQuestionAnswered()")
+                pointsManager.trackQuestionAnswered(subject: subject, isCorrect: isCorrect)
+                print("🎯 DEBUG: Called pointsManager.trackQuestionAnswered() successfully")
+            }
         }
         
         // Track study time (estimate based on number of questions)

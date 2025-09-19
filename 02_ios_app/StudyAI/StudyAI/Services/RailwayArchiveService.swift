@@ -43,6 +43,7 @@ class RailwayArchiveService: ObservableObject {
         
         let requestData: [String: Any] = [
             "subject": request.subject.isEmpty ? "General" : request.subject,
+            "subject": request.subject.isEmpty ? "General" : request.subject,
             "title": generateTitle(request.homeworkResult, request.subject),
             "originalImageUrl": request.originalImageUrl,
             "thumbnailUrl": nil as String?,

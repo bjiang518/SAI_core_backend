@@ -2037,19 +2037,193 @@ async function runDatabaseMigrations() {
     `);
     
     // Ensure conversations table exists for chat history
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS conversations (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
-        session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
-        message_type VARCHAR(50) NOT NULL, -- 'user' or 'assistant'
-        message_text TEXT NOT NULL,
-        message_data JSONB,
-        tokens_used INTEGER DEFAULT 0,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      );
-    `);
+    try {
+      // First check if conversations table already exists
+      const conversationsCheck = await db.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'conversations'
+      `);
+      
+      if (conversationsCheck.rows.length === 0) {
+        // Only create if table doesn't exist
+        await db.query(`
+          CREATE TABLE conversations (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
+            session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+            message_type VARCHAR(50) NOT NULL, -- 'user' or 'assistant'
+            message_text TEXT NOT NULL,
+            message_data JSONB,
+            tokens_used INTEGER DEFAULT 0,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+        `);
+        console.log('✅ Created conversations table');
+      } else {
+        console.log('✅ Conversations table already exists');
+      }
+    } catch (error) {
+      console.log(`⚠️ Conversations table creation skipped: ${error.message}`);
+    }
+    
+    // Ensure progress tracking tables exist for subject breakdown functionality
+    try {
+      console.log('🔍 Checking current database schema for progress tables...');
+      
+      // Check what tables already exist
+      const existingTables = await db.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name IN ('subject_progress', 'daily_subject_activities', 'question_sessions', 'subject_insights')
+      `);
+      
+      console.log(`📋 Found existing tables: ${existingTables.rows.map(r => r.table_name).join(', ') || 'none'}`);
+      
+      // Check what types already exist that might conflict
+      const existingTypes = await db.query(`
+        SELECT typname 
+        FROM pg_type 
+        WHERE typname IN ('subject_progress', 'daily_subject_activities', 'question_sessions', 'subject_insights')
+        AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+      `);
+      
+      console.log(`🏷️ Found existing types: ${existingTypes.rows.map(r => r.typname).join(', ') || 'none'}`);
+      
+      // Only create tables that don't exist and don't conflict with types
+      const tablesToCreate = [
+        {
+          name: 'subject_progress',
+          sql: `
+            CREATE TABLE subject_progress (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              subject VARCHAR(100) NOT NULL,
+              total_questions_attempted INTEGER DEFAULT 0,
+              total_questions_correct INTEGER DEFAULT 0,
+              accuracy_rate DECIMAL(5,2) DEFAULT 0.0,
+              total_time_spent INTEGER DEFAULT 0,
+              average_confidence DECIMAL(3,2) DEFAULT 0.0,
+              streak_count INTEGER DEFAULT 0,
+              last_activity_date TIMESTAMP WITH TIME ZONE,
+              performance_trend VARCHAR(50) DEFAULT 'stable',
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+              UNIQUE(user_id, subject)
+            );
+          `
+        },
+        {
+          name: 'daily_subject_activities',
+          sql: `
+            CREATE TABLE daily_subject_activities (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              activity_date DATE NOT NULL,
+              subject VARCHAR(100) NOT NULL,
+              questions_attempted INTEGER DEFAULT 0,
+              questions_correct INTEGER DEFAULT 0,
+              time_spent INTEGER DEFAULT 0,
+              points_earned INTEGER DEFAULT 0,
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+              UNIQUE(user_id, activity_date, subject)
+            );
+          `
+        },
+        {
+          name: 'question_sessions',
+          sql: `
+            CREATE TABLE question_sessions (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              subject VARCHAR(100) NOT NULL,
+              session_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+              questions_attempted INTEGER DEFAULT 0,
+              questions_correct INTEGER DEFAULT 0,
+              time_spent INTEGER DEFAULT 0,
+              confidence_level DECIMAL(3,2) DEFAULT 0.8,
+              session_type VARCHAR(50) DEFAULT 'homework',
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            );
+          `
+        },
+        {
+          name: 'subject_insights',
+          sql: `
+            CREATE TABLE subject_insights (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              subject VARCHAR(100) NOT NULL,
+              insight_type VARCHAR(50) NOT NULL,
+              insight_message TEXT NOT NULL,
+              confidence_level DECIMAL(3,2) DEFAULT 0.8,
+              action_recommended TEXT,
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            );
+          `
+        }
+      ];
+      
+      for (const table of tablesToCreate) {
+        const existsAsTable = existingTables.rows.some(row => row.table_name === table.name);
+        const existsAsType = existingTypes.rows.some(row => row.typname === table.name);
+        
+        if (existsAsTable) {
+          console.log(`✅ Table ${table.name} already exists`);
+        } else if (existsAsType) {
+          console.log(`⚠️ Skipping ${table.name} - conflicts with existing type`);
+        } else {
+          try {
+            await db.query(table.sql);
+            console.log(`✅ Created ${table.name} table`);
+          } catch (error) {
+            console.log(`❌ Failed to create ${table.name}: ${error.message}`);
+          }
+        }
+      }
+      
+      // Create indexes only if tables exist
+      const indexQueries = [
+        {
+          name: 'idx_subject_progress_user_subject',
+          sql: `CREATE INDEX IF NOT EXISTS idx_subject_progress_user_subject ON subject_progress(user_id, subject);`,
+          table: 'subject_progress'
+        },
+        {
+          name: 'idx_daily_activities_user_date',
+          sql: `CREATE INDEX IF NOT EXISTS idx_daily_activities_user_date ON daily_subject_activities(user_id, activity_date DESC);`,
+          table: 'daily_subject_activities'
+        },
+        {
+          name: 'idx_question_sessions_user_subject',
+          sql: `CREATE INDEX IF NOT EXISTS idx_question_sessions_user_subject ON question_sessions(user_id, subject, session_date DESC);`,
+          table: 'question_sessions'
+        }
+      ];
+      
+      for (const index of indexQueries) {
+        try {
+          const tableExists = await db.query(`
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_name = '${index.table}'
+          `);
+          
+          if (tableExists.rows.length > 0) {
+            await db.query(index.sql);
+            console.log(`✅ Created index ${index.name}`);
+          }
+        } catch (error) {
+          console.log(`⚠️ Index ${index.name} creation skipped: ${error.message}`);
+        }
+      }
+      
+    } catch (error) {
+      console.log(`⚠️ Progress tables migration issue: ${error.message}`);
+    }
     
     // Check if profile enhancement migration has been applied
     const profileFieldsCheck = await db.query(`

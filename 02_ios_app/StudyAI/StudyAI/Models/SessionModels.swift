@@ -161,7 +161,7 @@ enum SubjectCategory: String, CaseIterable, Codable {
         case .physics: return "atom"
         case .chemistry: return "flask"
         case .biology: return "leaf"
-        case .english: return "textbook"
+        case .english: return "book.pages"
         case .history: return "clock.arrow.circlepath"
         case .geography: return "globe"
         case .computerScience: return "laptopcomputer"
@@ -187,7 +187,10 @@ enum SubjectCategory: String, CaseIterable, Codable {
         }
     }
     
-    // Auto-detect subject from AI parsing result
+    var displayName: String {
+        return self.rawValue
+    }
+    
     static func detectSubject(from result: HomeworkParsingResult) -> SubjectCategory {
         let content = result.questions.map { $0.questionText + " " + $0.answerText }.joined().lowercased()
         

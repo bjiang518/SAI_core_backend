@@ -231,10 +231,13 @@ class NetworkService: ObservableObject {
     // MARK: - Optimized Request Helper
     private func addAuthHeader(to request: inout URLRequest) {
         if let token = AuthenticationService.shared.getAuthToken() {
+            print("🔐 Adding auth header with token: \(String(token.prefix(20)))...")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("StudyAI-iOS/1.0", forHTTPHeaderField: "User-Agent")
             request.setValue("gzip, deflate", forHTTPHeaderField: "Accept-Encoding")
+        } else {
+            print("⚠️ No auth token available for request")
         }
     }
     
@@ -249,6 +252,8 @@ class NetworkService: ObservableObject {
         case httpError(Int)
         case networkFailure(String)
         case decodingError(String)
+        case invalidURL
+        case invalidData
         
         var errorDescription: String? {
             switch self {
@@ -270,11 +275,77 @@ class NetworkService: ObservableObject {
                 return "Network error: \(message)"
             case .decodingError(let message):
                 return "Data parsing error: \(message)"
+            case .invalidURL:
+                return "Invalid URL provided"
+            case .invalidData:
+                return "Invalid data received from server"
             }
         }
     }
     
     // MARK: - Optimized Network Request Manager
+    
+    // Simple performRequest method that returns (Data, URLResponse)
+    private func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        print("🌐 DEBUG: performRequest called")
+        print("🔗 Request URL: \(request.url?.absoluteString ?? "Unknown")")
+        print("📤 Request Method: \(request.httpMethod ?? "Unknown")")
+        
+        // Check circuit breaker
+        guard canMakeRequest() else {
+            print("⚡ Circuit breaker is open, rejecting request")
+            throw NetworkError.circuitBreakerOpen
+        }
+        
+        // Check network availability
+        guard isNetworkAvailable else {
+            print("📡 Network unavailable, rejecting request")
+            throw NetworkError.noConnection
+        }
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            // Handle HTTP response
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 HTTP Response Status: \(httpResponse.statusCode)")
+                print("📄 Response Headers: \(httpResponse.allHeaderFields)")
+                
+                if httpResponse.statusCode >= 400 {
+                    let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                    print("❌ HTTP Error \(httpResponse.statusCode): \(rawResponse)")
+                    
+                    if httpResponse.statusCode == 401 {
+                        print("🔐 Authentication failed - token may be expired")
+                        throw NetworkError.authenticationRequired
+                    } else if httpResponse.statusCode == 404 {
+                        print("🔗 Endpoint not found - URL may be incorrect")
+                        throw NetworkError.httpError(httpResponse.statusCode)
+                    } else if httpResponse.statusCode == 429 {
+                        throw NetworkError.rateLimited
+                    } else if httpResponse.statusCode >= 500 {
+                        throw NetworkError.serverError(httpResponse.statusCode)
+                    } else {
+                        throw NetworkError.httpError(httpResponse.statusCode)
+                    }
+                }
+            }
+            
+            recordSuccess()
+            print("✅ Request completed successfully")
+            return (data, response)
+            
+        } catch {
+            recordFailure()
+            print("❌ Request failed with error: \(error.localizedDescription)")
+            if error is NetworkError {
+                throw error
+            } else {
+                throw NetworkError.networkFailure(error.localizedDescription)
+            }
+        }
+    }
+    
     private func performRequest<T>(
         _ request: URLRequest,
         cacheKey: String? = nil,
@@ -2621,5 +2692,332 @@ class NetworkService: ObservableObject {
             print("❌ \(errorMsg)")
             return (false, nil, errorMsg)
         }
+    }
+    
+    // MARK: - Subject Breakdown API Methods
+    
+    func fetchSubjectBreakdown(userId: String, timeframe: String = "current_week") async throws -> SubjectBreakdownResponse {
+        let endpoint = "/api/progress/subject/breakdown/\(userId)"
+        let fullURL = "\(baseURL)\(endpoint)?timeframe=\(timeframe)"
+        
+        print("🔍 DEBUG: Subject Breakdown API Call")
+        print("🔗 Base URL: \(baseURL)")
+        print("📍 Endpoint: \(endpoint)")
+        print("🌐 Full URL: \(fullURL)")
+        print("👤 User ID: \(userId)")
+        print("⏰ Timeframe: \(timeframe)")
+        print("🔐 Auth Token Available: \(AuthenticationService.shared.getAuthToken() != nil)")
+        
+        guard let url = URL(string: fullURL) else {
+            print("❌ Invalid URL constructed: \(fullURL)")
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+        
+        print("📤 Making subject breakdown request...")
+        print("🔍 Request Headers: \(request.allHTTPHeaderFields ?? [:])")
+        
+        do {
+            let (data, response) = try await performRequest(request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("✅ Subject Breakdown Response Status: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 200 {
+                    print("🎉 Subject breakdown API call successful")
+                    
+                    // Add comprehensive JSON debugging
+                    let rawResponseString = String(data: data, encoding: .utf8) ?? "Unable to decode raw response"
+                    print("🔍 === RAW API RESPONSE DEBUG ===")
+                    print("📄 Raw JSON Response: \(rawResponseString)")
+                    print("📏 Response Length: \(data.count) bytes")
+                    print("🔍 Response Preview: \(String(rawResponseString.prefix(500)))...")
+                    print("=====================================")
+                    
+                    do {
+                        let decodedResponse = try JSONDecoder().decode(SubjectBreakdownResponse.self, from: data)
+                        print("✅ JSON decoding successful!")
+                        print("📊 Decoded response with \(decodedResponse.data?.subjectProgress.count ?? 0) subjects")
+                        return decodedResponse
+                    } catch {
+                        print("❌ === JSON DECODING FAILED ===")
+                        print("🚨 Decoding Error: \(error)")
+                        print("🔍 Error Details: \(error.localizedDescription)")
+                        
+                        if let decodingError = error as? DecodingError {
+                            switch decodingError {
+                            case .typeMismatch(let type, let context):
+                                print("🔴 Type Mismatch: Expected \(type), Context: \(context)")
+                            case .valueNotFound(let type, let context):
+                                print("🔴 Value Not Found: \(type), Context: \(context)")
+                            case .keyNotFound(let key, let context):
+                                print("🔴 Key Not Found: \(key), Context: \(context)")
+                            case .dataCorrupted(let context):
+                                print("🔴 Data Corrupted: \(context)")
+                            @unknown default:
+                                print("🔴 Unknown decoding error: \(decodingError)")
+                            }
+                        }
+                        
+                        // Try to decode as generic JSON to see the structure
+                        do {
+                            if let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                                print("🔍 === JSON STRUCTURE ANALYSIS ===")
+                                print("📊 Root Keys: \(Array(jsonObject.keys))")
+                                
+                                if let success = jsonObject["success"] as? Bool {
+                                    print("✅ Success Field: \(success)")
+                                }
+                                
+                                if let data = jsonObject["data"] as? [String: Any] {
+                                    print("📦 Data Keys: \(Array(data.keys))")
+                                    
+                                    if let subjectProgress = data["subjectProgress"] as? [[String: Any]] {
+                                        print("📚 Subject Progress Array Count: \(subjectProgress.count)")
+                                        if let firstSubject = subjectProgress.first {
+                                            print("🔍 First Subject Keys: \(Array(firstSubject.keys))")
+                                            print("🔍 First Subject Data: \(firstSubject)")
+                                        }
+                                    }
+                                    
+                                    if let summary = data["summary"] as? [String: Any] {
+                                        print("📋 Summary Keys: \(Array(summary.keys))")
+                                    }
+                                    
+                                    if let insights = data["insights"] as? [String: Any] {
+                                        print("💡 Insights Keys: \(Array(insights.keys))")
+                                    }
+                                } else {
+                                    print("❌ No 'data' field found in response")
+                                }
+                                print("===================================")
+                            }
+                        } catch {
+                            print("❌ Failed to parse as generic JSON: \(error)")
+                        }
+                        
+                        throw error
+                    }
+                } else {
+                    let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                    print("❌ Subject breakdown failed with status \(httpResponse.statusCode)")
+                    print("📄 Raw response: \(rawResponse)")
+                }
+            }
+            
+            return try JSONDecoder().decode(SubjectBreakdownResponse.self, from: data)
+        } catch {
+            print("❌ Subject breakdown request failed: \(error.localizedDescription)")
+            if let networkError = error as? NetworkError {
+                print("🔍 Network error details: \(networkError.errorDescription ?? "Unknown")")
+            }
+            throw error
+        }
+    }
+    
+    func updateSubjectProgress(
+        subject: String,
+        questionCount: Int = 1,
+        correctAnswers: Int = 0,
+        studyTimeMinutes: Int = 0,
+        topicBreakdown: [String: Int] = [:],
+        difficultyLevel: String = "intermediate"
+    ) async throws -> (success: Bool, message: String) {
+        let endpoint = "/api/progress/subject/update"
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            throw NetworkError.invalidURL
+        }
+        
+        let requestBody: [String: Any] = [
+            "subject": subject,
+            "questionCount": questionCount,
+            "correctAnswers": correctAnswers,
+            "studyTimeMinutes": studyTimeMinutes,
+            "topicBreakdown": topicBreakdown,
+            "difficultyLevel": difficultyLevel,
+            "clientTimezone": TimeZone.current.identifier
+        ]
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            throw NetworkError.invalidData
+        }
+        
+        do {
+            let (data, _) = try await performRequest(request)
+            
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let success = json["success"] as? Bool ?? false
+                let message = json["message"] as? String ?? ""
+                return (success, message)
+            }
+            
+            return (false, "Invalid response format")
+        } catch {
+            throw error
+        }
+    }
+    
+    func fetchSubjectInsights(userId: String) async throws -> SubjectInsights? {
+        let endpoint = "/api/progress/subject/insights/\(userId)"
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+        
+        do {
+            let (data, _) = try await performRequest(request)
+            
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let success = json["success"] as? Bool, success,
+               let dataDict = json["data"] as? [String: Any],
+               let insightsDict = dataDict["insights"] as? [String: Any] {
+                
+                // Parse insights manually since it's complex JSON
+                let focusSubjects = (insightsDict["focus_subjects"] as? [String] ?? []).compactMap { SubjectCategory(rawValue: $0) }
+                let maintainSubjects = (insightsDict["maintain_subjects"] as? [String] ?? []).compactMap { SubjectCategory(rawValue: $0) }
+                let studyRecommendations = insightsDict["study_recommendations"] as? [String: Int] ?? [:]
+                let personalizedTips = insightsDict["personalized_tips"] as? [String] ?? []
+                
+                // Convert to SubjectCategory keys for study recommendations
+                let convertedRecommendations: [SubjectCategory: Int] = studyRecommendations.compactMapKeys { key in
+                    SubjectCategory(rawValue: key)
+                }
+                
+                let insights = SubjectInsights(
+                    subjectToFocus: focusSubjects,
+                    subjectsToMaintain: maintainSubjects,
+                    studyTimeRecommendations: convertedRecommendations,
+                    crossSubjectConnections: [], // Could be enhanced
+                    achievementOpportunities: [], // Could be enhanced
+                    personalizedTips: personalizedTips,
+                    optimalStudySchedule: WeeklyStudySchedule(
+                        monday: [], tuesday: [], wednesday: [], thursday: [],
+                        friday: [], saturday: [], sunday: []
+                    )
+                )
+                
+                return insights
+            }
+            
+            return nil
+        } catch {
+            throw error
+        }
+    }
+    
+    func generateSubjectInsights(userId: String) async throws -> (success: Bool, message: String) {
+        let endpoint = "/api/progress/subject/generate-insights/\(userId)"
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            throw NetworkError.invalidURL
+        }
+        
+        let requestBody: [String: Any] = [
+            "timezone": TimeZone.current.identifier
+        ]
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            throw NetworkError.invalidData
+        }
+        
+        do {
+            let (data, _) = try await performRequest(request)
+            
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let success = json["success"] as? Bool ?? false
+                let message = json["message"] as? String ?? ""
+                return (success, message)
+            }
+            
+            return (false, "Invalid response format")
+        } catch {
+            throw error
+        }
+    }
+    
+    func fetchSubjectTrends(userId: String, subject: String? = nil, periodType: String = "weekly", limit: Int = 12) async throws -> [SubjectTrendData] {
+        var endpoint = "/api/progress/subject/trends/\(userId)?period_type=\(periodType)&limit=\(limit)"
+        if let subject = subject {
+            endpoint += "&subject=\(subject)"
+        }
+        
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+        
+        do {
+            let (data, _) = try await performRequest(request)
+            
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let success = json["success"] as? Bool, success,
+               let dataDict = json["data"] as? [String: Any],
+               let trendsArray = dataDict["trends"] as? [[String: Any]] {
+                
+                // Parse trends manually (simplified version)
+                var trendData: [SubjectTrendData] = []
+                
+                for trendDict in trendsArray {
+                    if let subjectString = trendDict["subject"] as? String,
+                       let subject = SubjectCategory(rawValue: subjectString) {
+                        
+                        let trend = SubjectTrendData(
+                            subject: subject,
+                            weeklyTrends: [], // Could be populated from API
+                            monthlyTrends: [], // Could be populated from API
+                            trendDirection: .stable, // Could be parsed from API
+                            projectedPerformance: trendDict["projected_performance"] as? Double ?? 0.0,
+                            seasonalPattern: nil // Could be parsed from API
+                        )
+                        
+                        trendData.append(trend)
+                    }
+                }
+                
+                return trendData
+            }
+            
+            return []
+        } catch {
+            throw error
+        }
+    }
+}
+
+// MARK: - Dictionary Extension for Key Conversion
+extension Dictionary {
+    func compactMapKeys<T>(_ transform: (Key) throws -> T?) rethrows -> [T: Value] {
+        var result: [T: Value] = [:]
+        for (key, value) in self {
+            if let transformedKey = try transform(key) {
+                result[transformedKey] = value
+            }
+        }
+        return result
     }
 }

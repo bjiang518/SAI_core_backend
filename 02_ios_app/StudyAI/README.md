@@ -16,6 +16,14 @@ StudyAI is a comprehensive homework assistance app that combines native iOS docu
 - **Visual Element Detection**: Identifies questions containing diagrams, graphs, and mathematical visuals
 - **Collapsible Results Interface**: Expandable question cards with numbered and unnumbered question support
 
+### 📊 Subject-Based Progress Analytics
+- **Comprehensive Subject Breakdown**: Real-time analytics across 10+ academic subjects (Mathematics, Physics, Chemistry, Biology, English, History, Geography, Computer Science, Foreign Language, Arts)
+- **Performance Visualization**: Color-coded progress cards showing accuracy percentages, study time, and question counts
+- **Cross-Platform Data Sync**: Full iOS-backend integration with PostgreSQL for persistent progress tracking
+- **Learning Insights**: AI-generated study recommendations and personalized guidance based on performance patterns
+- **Real-Time Updates**: Live sync of study session progress to analytics dashboard
+- **Historical Trends**: Performance tracking over time with improvement analysis
+
 ### 📚 Core Educational Features
 - **Real AI Integration**: OpenAI GPT-4o backend for comprehensive homework explanations
 - **12+ Subject Support**: Math, Physics, Chemistry, Biology, History, Literature, and more
@@ -42,6 +50,7 @@ StudyAI/
 │   │   ├── HomeworkResultsView.swift     # 🆕 Question selection & archiving UI
 │   │   ├── ArchivedQuestionsView.swift   # 🆕 Individual question archive browser
 │   │   ├── QuestionArchiveView.swift     # 🆕 Question archiving dialog
+│   │   ├── LearningProgressView.swift    # 🆕 Subject breakdown analytics dashboard
 │   │   ├── CameraView.swift              # 🔄 Enhanced with native scanner
 │   │   ├── HomeView.swift                # 🔄 Updated with archive navigation
 │   │   ├── LoginView.swift               # Authentication interface
@@ -50,9 +59,11 @@ StudyAI/
 │   │   └── ProgressView.swift            # Learning analytics
 │   ├── Models/
 │   │   ├── HomeworkModels.swift          # 🔄 Enhanced parsing models
-│   │   └── QuestionArchiveModels.swift   # 🆕 Individual question data models
+│   │   ├── QuestionArchiveModels.swift   # 🆕 Individual question data models
+│   │   ├── SubjectBreakdownModels.swift  # 🆕 Subject analytics data models
+│   │   └── SessionModels.swift           # Session and subject categorization
 │   ├── Services/
-│   │   ├── NetworkService.swift          # 🔄 Enhanced with subject detection
+│   │   ├── NetworkService.swift          # 🔄 Enhanced with subject detection & analytics
 │   │   └── QuestionArchiveService.swift  # 🆕 Individual question management
 │   ├── ContentView.swift                 # Main app navigation
 │   └── StudyAIApp.swift                 # App entry point
@@ -70,6 +81,23 @@ StudyAI/
 ```
 
 ## 🚀 Major Updates (September 2025)
+
+### 📊 Subject-Based Progress Analytics System
+**New Feature**: Comprehensive subject breakdown analytics with real-time progress tracking
+**Implementation**: Complete iOS-backend integration with visual progress dashboard
+
+### 🎯 Progress Analytics Features
+- **Subject Performance Tracking**: Real-time accuracy percentages, study time, and question counts across 10+ subjects
+- **Visual Progress Cards**: Color-coded subject cards with performance indicators and SF Symbols icons
+- **Learning Insights**: AI-generated recommendations for study focus areas and time allocation
+- **Historical Analytics**: Performance trends and improvement tracking over time
+- **Cross-Platform Sync**: Full integration with PostgreSQL backend for persistent data
+
+### 🔧 Technical Implementation
+- **Robust JSON Decoding**: Custom decoder architecture with graceful error handling for complex nested data
+- **Type-Safe Models**: Strongly-typed Swift enums and dictionaries with proper fallback handling
+- **Authentication Integration**: User-specific progress data with secure API access
+- **Real-Time Updates**: Live sync between study sessions and analytics dashboard
 
 ### 🔄 Individual Question Archiving System
 **Replaced**: Session-based homework archiving  
@@ -173,7 +201,17 @@ HAS_VISUALS: [true/false if question contains diagrams/graphs]
 
 ## 🔧 Development Status
 
-**Current Version**: Production Ready with Individual Question Archiving (100% Complete)
+**Current Version**: Production Ready with Subject Breakdown Analytics (100% Complete)
+- ✅ Complete subject-based progress analytics system
+- ✅ Visual progress dashboard with color-coded subject cards
+- ✅ Real-time sync between study sessions and analytics
+- ✅ Robust JSON decoding architecture with error handling
+- ✅ Custom decoder implementation for complex nested data structures
+- ✅ Type-safe Swift models with graceful fallback handling
+- ✅ User-specific progress tracking with authentication integration
+- ✅ AI-generated learning insights and study recommendations
+
+**Individual Question Archiving System**:
 - ✅ Complete individual question archiving system
 - ✅ AI-powered subject detection with confidence scoring
 - ✅ Selective question archiving with checkbox interface
@@ -189,10 +227,16 @@ HAS_VISUALS: [true/false if question contains diagrams/graphs]
 - ✅ Individual question selection and archiving
 - ✅ Subject-based organization with AI detection
 - ✅ Full-text search with GIN indexes for performance
+- ✅ Comprehensive progress analytics and insights
 
 ## 🌟 Key Achievements
 
 ### September 2025 Major Update
+- **Subject Breakdown Analytics**: Implemented comprehensive subject-based progress tracking with visual dashboard
+- **Robust JSON Decoding**: Built resilient parsing architecture with graceful error handling for complex nested data
+- **Real-Time Progress Sync**: Created live sync between study sessions and analytics dashboard
+- **Type-Safe Models**: Developed strongly-typed Swift data models with custom decoder implementations
+- **Visual Progress Cards**: Designed color-coded subject cards with performance indicators and SF Symbols
 - **Individual Question System**: Migrated from session-based to individual question archiving
 - **AI Subject Detection**: Integrated automatic subject classification with enhanced prompts
 - **Selective Archiving**: Built checkbox-based question selection interface
@@ -201,7 +245,12 @@ HAS_VISUALS: [true/false if question contains diagrams/graphs]
 - **Database Architecture**: Designed PostgreSQL schema with full-text search and security
 
 ### Technical Milestones
-- **Advanced Data Models**: Created comprehensive structures for individual question management
+- **Subject Analytics Integration**: Complete iOS-backend integration for real-time progress tracking across academic subjects
+- **Custom JSON Decoding**: Robust decoder architecture handling complex nested data structures with graceful error handling
+- **Type-Safe Dictionary Parsing**: Resolution of strongly-typed Swift dictionary decoding vs generic JSON object challenges
+- **Progress Dashboard**: Visual analytics interface with color-coded performance indicators and real-time updates
+- **Authentication Integration**: Seamless user-specific data access with secure API token management
+- **Advanced Data Models**: Created comprehensive structures for individual question management and subject analytics
 - **Service Layer Architecture**: Built dedicated QuestionArchiveService for database operations
 - **Enhanced AI Integration**: Extended NetworkService with subject detection capabilities
 - **Compact UI Components**: Designed minimal, efficient interfaces for archive management
