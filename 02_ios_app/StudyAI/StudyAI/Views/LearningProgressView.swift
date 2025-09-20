@@ -49,156 +49,154 @@ struct LearningProgressView: View {
     
     var body: some View {
         print("🎯 DEBUG: [View \(viewId)] LearningProgressView with SUBJECT BREAKDOWN body building")
-        return NavigationView {
-            ScrollView {
-                LazyVStack(spacing: 20) {
-                    if isLoading {
-                        ProgressView("Loading your progress...")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .padding()
-                    } else if !errorMessage.isEmpty {
-                        ErrorStateView(message: errorMessage) {
-                            loadProgressData()
-                        }
-                    } else {
-                        progressContent
+        return ScrollView {
+            LazyVStack(spacing: 20) {
+                if isLoading {
+                    ProgressView("Loading your progress...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding()
+                } else if !errorMessage.isEmpty {
+                    ErrorStateView(message: errorMessage) {
+                        loadProgressData()
                     }
-                }
-                .padding()
-            }
-            .navigationTitle("📊 Progress")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Menu {
-                        Button(selectedSubjectFilter?.displayName ?? "All Subjects") {}
-                            .disabled(true)
-                        
-                        Divider()
-                        
-                        Button("All Subjects") {
-                            selectedSubjectFilter = nil
-                            loadingTask?.cancel()
-                            loadingTask = Task {
-                                await loadSubjectBreakdown()
-                            }
-                        }
-                        
-                        ForEach(SubjectCategory.allCases, id: \.self) { subject in
-                            Button(action: {
-                                selectedSubjectFilter = subject
-                                loadingTask?.cancel()
-                                loadingTask = Task {
-                                    await loadSubjectBreakdown()
-                                }
-                            }) {
-                                HStack {
-                                    Image(systemName: subject.icon)
-                                    Text(subject.displayName)
-                                    if selectedSubjectFilter == subject {
-                                        Spacer()
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "line.3.horizontal.decrease.circle")
-                            if let filter = selectedSubjectFilter {
-                                Text(filter.displayName)
-                                    .font(.caption)
-                            }
-                        }
-                        .foregroundColor(.blue)
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button("Daily Checkout") {
-                            showingDailyCheckout = true
-                        }
-                        
-                        Divider()
-                        
-                        Button("Analytics View") {
-                            showingSubjectFilter = true
-                        }
-                        
-                        Divider()
-                        
-                        ForEach(TimeframeOption.allCases, id: \.self) { option in
-                            Button(action: {
-                                selectedTimeframe = option
-                                loadingTask?.cancel()
-                                loadingTask = Task {
-                                    await loadSubjectBreakdown()
-                                }
-                            }) {
-                                HStack {
-                                    Text(option.displayName)
-                                    if selectedTimeframe == option {
-                                        Spacer()
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .foregroundColor(.blue)
-                    }
+                } else {
+                    progressContent
                 }
             }
-            .refreshable {
-                print("🎯 DEBUG: Enhanced LearningProgressView manual refresh triggered")
-                // Cancel existing task and create new one
-                loadingTask?.cancel()
-                loadingTask = Task {
-                    await loadProgressDataAsync()
-                }
-                await loadingTask?.value
-            }
-            .onAppear {
-                print("🎯 DEBUG: [View \(viewId)] Enhanced LearningProgressView onAppear called")
-                // Cancel any existing loading task
-                loadingTask?.cancel()
-                
-                // Only load if we don't have data or it's stale
-                if subjectBreakdownData == nil || errorMessage.isEmpty {
-                    loadingTask = Task {
-                        await loadProgressDataAsync()
-                    }
-                }
-            }
-            .onDisappear {
-                print("🎯 DEBUG: [View \(viewId)] Enhanced LearningProgressView onDisappear called")
-                // Cancel loading task when view disappears
-                loadingTask?.cancel()
-                loadingTask = nil
-            }
-            .sheet(isPresented: $showingDailyCheckout) {
-                DailyCheckoutView()
-            }
-            .sheet(isPresented: $showingSubjectDetail) {
-                if let subject = selectedSubject {
-                    SubjectDetailView(subject: subject, timeframe: selectedTimeframe)
-                }
-            }
-            .sheet(isPresented: $showingSubjectFilter) {
-                SubjectAnalyticsView(
-                    subjectBreakdownData: subjectBreakdownData,
-                    selectedTimeframe: selectedTimeframe,
-                    onTimeframeChanged: { timeframe in
-                        selectedTimeframe = timeframe
+            .padding()
+        }
+        .navigationTitle("📊 Progress")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Menu {
+                    Button(selectedSubjectFilter?.displayName ?? "All Subjects") {}
+                        .disabled(true)
+
+                    Divider()
+
+                    Button("All Subjects") {
+                        selectedSubjectFilter = nil
                         loadingTask?.cancel()
                         loadingTask = Task {
                             await loadSubjectBreakdown()
                         }
                     }
-                )
+
+                    ForEach(SubjectCategory.allCases, id: \.self) { subject in
+                        Button(action: {
+                            selectedSubjectFilter = subject
+                            loadingTask?.cancel()
+                            loadingTask = Task {
+                                await loadSubjectBreakdown()
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: subject.icon)
+                                Text(subject.displayName)
+                                if selectedSubjectFilter == subject {
+                                    Spacer()
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                        if let filter = selectedSubjectFilter {
+                            Text(filter.displayName)
+                                .font(.caption)
+                        }
+                    }
+                    .foregroundColor(.blue)
+                }
             }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button("Daily Checkout") {
+                        showingDailyCheckout = true
+                    }
+
+                    Divider()
+
+                    Button("Analytics View") {
+                        showingSubjectFilter = true
+                    }
+
+                    Divider()
+
+                    ForEach(TimeframeOption.allCases, id: \.self) { option in
+                        Button(action: {
+                            selectedTimeframe = option
+                            loadingTask?.cancel()
+                            loadingTask = Task {
+                                await loadSubjectBreakdown()
+                            }
+                        }) {
+                            HStack {
+                                Text(option.displayName)
+                                if selectedTimeframe == option {
+                                    Spacer()
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundColor(.blue)
+                }
+            }
+        }
+        .refreshable {
+            print("🎯 DEBUG: Enhanced LearningProgressView manual refresh triggered")
+            // Cancel existing task and create new one
+            loadingTask?.cancel()
+            loadingTask = Task {
+                await loadProgressDataAsync()
+            }
+            await loadingTask?.value
+        }
+        .onAppear {
+            print("🎯 DEBUG: [View \(viewId)] Enhanced LearningProgressView onAppear called")
+            // Cancel any existing loading task
+            loadingTask?.cancel()
+
+            // Only load if we don't have data or it's stale
+            if subjectBreakdownData == nil || errorMessage.isEmpty {
+                loadingTask = Task {
+                    await loadProgressDataAsync()
+                }
+            }
+        }
+        .onDisappear {
+            print("🎯 DEBUG: [View \(viewId)] Enhanced LearningProgressView onDisappear called")
+            // Cancel loading task when view disappears
+            loadingTask?.cancel()
+            loadingTask = nil
+        }
+        .sheet(isPresented: $showingDailyCheckout) {
+            DailyCheckoutView()
+        }
+        .sheet(isPresented: $showingSubjectDetail) {
+            if let subject = selectedSubject {
+                SubjectDetailView(subject: subject, timeframe: selectedTimeframe)
+            }
+        }
+        .sheet(isPresented: $showingSubjectFilter) {
+            SubjectAnalyticsView(
+                subjectBreakdownData: subjectBreakdownData,
+                selectedTimeframe: selectedTimeframe,
+                onTimeframeChanged: { timeframe in
+                    selectedTimeframe = timeframe
+                    loadingTask?.cancel()
+                    loadingTask = Task {
+                        await loadSubjectBreakdown()
+                    }
+                }
+            )
         }
     }
     

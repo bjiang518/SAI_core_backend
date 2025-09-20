@@ -234,57 +234,53 @@ struct TypingIndicatorView: View {
 
 struct MessageVoiceControls: View {
     let text: String
+    let messageId: String
     let autoSpeak: Bool
-    
+
     @StateObject private var voiceService = VoiceInteractionService.shared
-    
+    @State private var isCurrentlyPlaying = false
+    @State private var hasAttemptedAutoSpeak = false
+
     var body: some View {
         HStack(spacing: 12) {
-            // Enhanced speaker button with better visibility
+            // Enhanced speaker button with individual control
             Button(action: toggleSpeech) {
                 HStack(spacing: 8) {
-                    Image(systemName: voiceService.interactionState == .speaking ? "speaker.wave.3.fill" : "speaker.wave.2")
+                    Image(systemName: isCurrentlyPlaying ? "stop.fill" : "speaker.wave.2")
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(voiceService.interactionState == .speaking ? .orange : .white.opacity(0.7))
-                    
-                    if voiceService.interactionState == .speaking {
-                        Text("Playing")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.orange.opacity(0.9))
-                    } else {
-                        Text("Listen")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white.opacity(0.7))
-                    }
+                        .foregroundColor(isCurrentlyPlaying ? .red : .white.opacity(0.7))
+
+                    Text(isCurrentlyPlaying ? "Stop" : "Play")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(isCurrentlyPlaying ? .red.opacity(0.9) : .white.opacity(0.7))
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(voiceService.interactionState == .speaking ? Color.orange.opacity(0.15) : Color.white.opacity(0.1))
+                        .fill(isCurrentlyPlaying ? Color.red.opacity(0.15) : Color.white.opacity(0.1))
                         .overlay(
                             RoundedRectangle(cornerRadius: 20)
-                                .stroke(voiceService.interactionState == .speaking ? Color.orange.opacity(0.4) : Color.white.opacity(0.2), lineWidth: 1)
+                                .stroke(isCurrentlyPlaying ? Color.red.opacity(0.4) : Color.white.opacity(0.2), lineWidth: 1)
                         )
                 )
-                .scaleEffect(voiceService.interactionState == .speaking ? 1.02 : 1.0)
-                .animation(.easeInOut(duration: 0.2), value: voiceService.interactionState == .speaking)
+                .scaleEffect(isCurrentlyPlaying ? 1.02 : 1.0)
+                .animation(.easeInOut(duration: 0.2), value: isCurrentlyPlaying)
             }
             .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            
-            // Progress indicator when speaking
-            if voiceService.interactionState == .speaking {
+
+            // Progress indicator when this specific message is playing
+            if isCurrentlyPlaying {
                 VStack(spacing: 4) {
-                    // Simple progress indicator (since we're using shared service)
                     HStack {
                         Image(systemName: voiceService.voiceSettings.voiceType.icon)
                             .font(.system(size: 12))
-                            .foregroundColor(.orange.opacity(0.8))
-                        
+                            .foregroundColor(.white.opacity(0.8))
+
                         Text("\(voiceService.voiceSettings.voiceType.displayName) speaking...")
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.white.opacity(0.6))
-                        
+
                         Spacer()
                     }
                 }
@@ -292,33 +288,52 @@ struct MessageVoiceControls: View {
             }
         }
         .onAppear {
-            if autoSpeak && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            // Only auto-speak if enabled AND this message hasn't tried before
+            if autoSpeak && !hasAttemptedAutoSpeak && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                hasAttemptedAutoSpeak = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     startSpeaking()
                 }
             }
         }
+        .onReceive(voiceService.$currentSpeakingMessageId) { currentMessageId in
+            // Update playing state based on which message is currently speaking
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isCurrentlyPlaying = (currentMessageId == messageId)
+            }
+        }
+        .onReceive(voiceService.$interactionState) { state in
+            // Stop playing indicator when voice service stops
+            if state != .speaking {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isCurrentlyPlaying = false
+                }
+            }
+        }
     }
-    
+
     private func toggleSpeech() {
-        if voiceService.interactionState == .speaking {
+        if isCurrentlyPlaying {
             stopSpeaking()
         } else {
             startSpeaking()
         }
     }
-    
+
     private func startSpeaking() {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        
-        print("🔊 MessageVoiceControls: Starting TTS with character voice: \(voiceService.voiceSettings.voiceType.displayName)")
-        
-        // Use VoiceInteractionService which handles interruption automatically
-        voiceService.speakText(text, autoSpeak: false) // Force speak this message
+
+        print("🔊 MessageVoiceControls: Starting TTS for message: \(messageId)")
+
+        // Set this message as the current speaking message
+        voiceService.setCurrentSpeakingMessage(messageId)
+
+        // Use VoiceInteractionService to speak the text
+        voiceService.speakText(text, autoSpeak: false)
     }
-    
+
     private func stopSpeaking() {
-        print("🔊 MessageVoiceControls: Stopping TTS")
+        print("🔊 MessageVoiceControls: Stopping TTS for message: \(messageId)")
         voiceService.stopSpeech()
     }
 }
@@ -408,10 +423,16 @@ struct SessionChatView: View {
                     .onTapGesture {
                         // Dismiss keyboard when tapping on messages area
                         dismissKeyboard()
+                        // Stop any playing audio when user taps messages area
+                        stopCurrentAudio()
                     }
                 
                 // Modern floating message input
                 modernMessageInputView
+                    .onTapGesture {
+                        // Stop any playing audio when user taps input area
+                        stopCurrentAudio()
+                    }
             }
             .safeAreaInset(edge: .bottom) {
                 // Modern iOS 26+ safe area handling for input area
@@ -518,6 +539,12 @@ struct SessionChatView: View {
             }
         } message: {
             Text("\(archivedSessionTitle.capitalized) has been successfully archived and saved to your Study Library.")
+        }
+        .onDisappear {
+            print("🎯 SessionChatView: onDisappear called")
+
+            // Stop any playing audio when leaving the chat view
+            stopCurrentAudio()
         }
         .onChange(of: selectedImage) { _, newImage in
             if let image = newImage {
@@ -1457,20 +1484,32 @@ struct SessionChatView: View {
     */
     
     // MARK: - Keyboard Management
-    
+
     private func dismissKeyboard() {
         // Dismiss keyboard by removing focus from the message input
         isMessageInputFocused = false
-        
+
         // Alternative method using UIKit if focus state doesn't work
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    // MARK: - Audio Management
+
+    private func stopCurrentAudio() {
+        // Stop any currently playing audio
+        if voiceService.interactionState == .speaking {
+            voiceService.stopSpeech()
+        }
     }
     
     // MARK: - Actions
     
     private func sendMessage() {
         guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        
+
+        // Stop any currently playing audio when sending a new message
+        stopCurrentAudio()
+
         let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         messageText = ""
         // Clear draft when message is sent
@@ -2000,7 +2039,8 @@ struct MessageBubbleView: View {
                 if !isUser {
                     MessageVoiceControls(
                         text: message["content"] ?? "",
-                        autoSpeak: false  // Disable auto-speak, user must manually tap to speak
+                        messageId: "legacy-message-\((message["content"] ?? "").hashValue)",
+                        autoSpeak: false  // Disable auto-speak, user must manually tap to play
                     )
                 }
                 
@@ -2102,11 +2142,12 @@ struct ModernAIMessageView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
-                // Voice controls - enhanced for character interaction with automatic speaking
+                // Voice controls - enhanced for character interaction with individual control
                 HStack {
                     MessageVoiceControls(
                         text: message,
-                        autoSpeak: voiceService.isVoiceEnabled && 
+                        messageId: "modern-ai-\(message.hashValue)",
+                        autoSpeak: voiceService.isVoiceEnabled &&
                                    (voiceType == .eva || voiceService.voiceSettings.autoSpeakResponses)
                     )
                     
