@@ -7,10 +7,33 @@
 
 import SwiftUI
 
+// MARK: - Content Type Filter Enum
+enum ContentTypeFilter: String, CaseIterable {
+    case all = "All Sessions"
+    case questions = "Questions Only"
+    case conversations = "Conversations Only"
+
+    var icon: String {
+        switch self {
+        case .all: return "books.vertical.fill"
+        case .questions: return "questionmark.circle.fill"
+        case .conversations: return "bubble.left.and.bubble.right.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .all: return .purple
+        case .questions: return .blue
+        case .conversations: return .green
+        }
+    }
+}
+
 struct UnifiedLibraryView: View {
     @StateObject private var libraryService = LibraryDataService.shared
     @StateObject private var userSession = UserSessionManager.shared
-    
+
     @State private var libraryContent = LibraryContent(questions: [], conversations: [], error: nil)
     @State private var searchText = ""
     @State private var selectedSubject: String?
@@ -18,25 +41,42 @@ struct UnifiedLibraryView: View {
     @State private var searchFilters = SearchFilters()
     @State private var isUsingAdvancedSearch = false
     @State private var advancedFilteredQuestions: [QuestionSummary] = []
+
+    // New state for content type filtering
+    @State private var selectedContentType: ContentTypeFilter = .all
+    @State private var showFilterIndicator = false
     
     var filteredItems: [LibraryItem] {
         var allItems: [LibraryItem] = []
-        
+
         // Use advanced search results if available, otherwise use regular library content
         let questionsToUse = isUsingAdvancedSearch ? advancedFilteredQuestions : libraryContent.questions
-        allItems.append(contentsOf: questionsToUse)
-        
-        // Add conversations
-        allItems.append(contentsOf: libraryContent.conversations.map { ConversationLibraryItem(data: $0) })
-        
-        // Apply filters
+
+        // Apply content type filter FIRST
+        switch selectedContentType {
+        case .questions:
+            // Only include questions/homework sessions
+            allItems.append(contentsOf: questionsToUse)
+
+        case .conversations:
+            // Only include pure conversation sessions
+            let conversationItems = libraryContent.conversations.map { ConversationLibraryItem(data: $0) }
+            allItems.append(contentsOf: conversationItems.filter { $0.itemType == .conversation })
+
+        case .all:
+            // Include everything
+            allItems.append(contentsOf: questionsToUse)
+            allItems.append(contentsOf: libraryContent.conversations.map { ConversationLibraryItem(data: $0) })
+        }
+
+        // Then apply existing filters (subject, search text)
         var filtered = allItems
-        
+
         // Subject filter
         if let selectedSubject = selectedSubject {
             filtered = filtered.filter { $0.subject.lowercased() == selectedSubject.lowercased() }
         }
-        
+
         // Search filter
         if !searchText.isEmpty {
             filtered = filtered.filter { item in
@@ -45,7 +85,7 @@ struct UnifiedLibraryView: View {
                 item.preview.localizedCaseInsensitiveContains(searchText)
             }
         }
-        
+
         // Sort by date (newest first)
         return filtered.sorted { $0.date > $1.date }
     }
@@ -199,12 +239,21 @@ struct UnifiedLibraryView: View {
             
             // Quick Stats Header
             if !libraryContent.isEmpty {
-                QuickStatsHeader(content: libraryContent, selectedSubject: selectedSubject)
+                QuickStatsHeader(
+                    content: libraryContent,
+                    selectedSubject: selectedSubject,
+                    selectedContentType: selectedContentType,
+                    onContentTypeSelected: { contentType in
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            selectedContentType = contentType
+                        }
+                    }
+                )
             }
             
             // Content List
             if filteredItems.isEmpty {
-                NoResultsView(hasFilters: !searchText.isEmpty || selectedSubject != nil) {
+                NoResultsView(hasFilters: !searchText.isEmpty || selectedSubject != nil || selectedContentType != .all) {
                     clearFilters()
                 }
             } else {
@@ -257,6 +306,7 @@ struct UnifiedLibraryView: View {
     private func clearFilters() {
         searchText = ""
         selectedSubject = nil
+        selectedContentType = .all
         clearAdvancedSearch()
     }
     
@@ -277,43 +327,72 @@ struct UnifiedLibraryView: View {
 struct QuickStatsHeader: View {
     let content: LibraryContent
     let selectedSubject: String?
-    
+    let selectedContentType: ContentTypeFilter
+    let onContentTypeSelected: (ContentTypeFilter) -> Void
+
     var body: some View {
         VStack(spacing: 12) {
             HStack(spacing: 20) {
-                StatPill(
+                InteractiveStatPill(
                     icon: "questionmark.circle.fill",
                     title: "Questions",
                     count: content.questions.count,
-                    color: .blue
+                    color: .blue,
+                    isSelected: selectedContentType == .questions,
+                    action: { onContentTypeSelected(.questions) }
                 )
-                
-                StatPill(
+
+                InteractiveStatPill(
                     icon: "bubble.left.and.bubble.right.fill",
-                    title: "Conversations", 
+                    title: "Conversations",
                     count: content.conversations.count,
-                    color: .green
+                    color: .green,
+                    isSelected: selectedContentType == .conversations,
+                    action: { onContentTypeSelected(.conversations) }
                 )
-                
-                StatPill(
+
+                InteractiveStatPill(
                     icon: "books.vertical.fill",
                     title: "Total Sessions",
                     count: content.totalItems,
-                    color: .purple
+                    color: .purple,
+                    isSelected: selectedContentType == .all,
+                    action: { onContentTypeSelected(.all) }
                 )
             }
-            
-            // Subject Filter Indicator
-            if let selectedSubject = selectedSubject {
-                HStack {
-                    Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                        .foregroundColor(.orange)
-                    Text("Filtered by: \(selectedSubject)")
+
+            // Enhanced filter indicators
+            VStack(spacing: 8) {
+                if selectedContentType != .all {
+                    HStack {
+                        Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                            .foregroundColor(selectedContentType.color)
+                        Text("Showing: \(selectedContentType.rawValue)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Spacer()
+
+                        Button("Show All") {
+                            onContentTypeSelected(.all)
+                        }
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
+                        .foregroundColor(.blue)
+                    }
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
+
+                if let selectedSubject = selectedSubject {
+                    HStack {
+                        Image(systemName: "tag.fill")
+                            .foregroundColor(.orange)
+                        Text("Subject: \(selectedSubject)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                }
             }
         }
         .padding()
@@ -321,27 +400,43 @@ struct QuickStatsHeader: View {
     }
 }
 
-struct StatPill: View {
+struct InteractiveStatPill: View {
     let icon: String
     let title: String
     let count: Int
     let color: Color
-    
+    let isSelected: Bool
+    let action: () -> Void
+
     var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(color)
-            
-            Text("\(count)")
-                .font(.headline)
-                .fontWeight(.bold)
-            
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(isSelected ? .white : color)
+
+                Text("\(count)")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(isSelected ? .white : .primary)
+
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(isSelected ? color : color.opacity(0.1))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? color : Color.clear, lineWidth: 2)
+            )
+            .scaleEffect(isSelected ? 1.05 : 1.0)
+            .shadow(color: isSelected ? color.opacity(0.3) : .clear, radius: 4, x: 0, y: 2)
         }
-        .frame(maxWidth: .infinity)
+        .buttonStyle(PlainButtonStyle())
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
 }
 
