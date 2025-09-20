@@ -239,7 +239,7 @@ struct ShareSheet: UIViewControllerRepresentable {
 - **Individual Question Models**: Complete data structures for question archiving
 - **Archive Service Layer**: Dedicated service for question management and database operations
 - **Subject Detection Integration**: Enhanced AI requests with subject classification prompts
-- **Supabase Database**: PostgreSQL backend with full-text search and RLS security
+- **Database Architecture**: PostgreSQL backend with full-text search and security
 - **Compact UI Components**: Minimal, powerful interface following modern design principles
 
 ### AI Engine Enhancements
@@ -372,7 +372,7 @@ HAS_VISUALS: [true/false if question contains diagrams/graphs]
 
 ### iOS Integration  
 - **Archive Management**: Native SwiftUI interface for question organization
-- **Database Integration**: Supabase PostgreSQL with full-text search capabilities
+- **Database Integration**: PostgreSQL backend with full-text search capabilities
 - **UI Design**: Compact, minimal interface optimized for efficiency
 - **Search Performance**: Real-time filtering by subject, tags, and content
 - **Data Security**: Row Level Security with user-specific question access

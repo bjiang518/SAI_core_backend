@@ -147,6 +147,7 @@ struct MainTabView: View {
             
             // Progress Tab
             NavigationStack {
+                
                 LearningProgressView()
                     .onAppear {
                         logger.info("📊 === LEARNING PROGRESS VIEW APPEARED ===")

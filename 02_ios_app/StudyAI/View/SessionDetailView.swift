@@ -1,0 +1,448 @@
+//
+//  SessionDetailView.swift
+//  StudyAI
+//
+//  Created by Claude Code on 9/4/25.
+//
+
+import SwiftUI
+
+struct SessionDetailView: View {
+    let sessionId: String
+    let isConversation: Bool // Add parameter to distinguish between conversations and sessions
+    @StateObject private var railwayService = RailwayArchiveService.shared
+    @State private var session: ArchivedSession?
+    @State private var conversation: ArchivedConversation?
+    @State private var isLoading = true
+    @State private var errorMessage = ""
+    @Environment(\.dismiss) private var dismiss
+    
+    init(sessionId: String, isConversation: Bool = false) {
+        self.sessionId = sessionId
+        self.isConversation = isConversation
+    }
+    
+    var body: some View {
+        NavigationView {
+            Group {
+                if isLoading {
+                    VStack {
+                        ProgressView()
+                        Text("Loading...")
+                            .foregroundColor(.gray)
+                            .padding(.top)
+                    }
+                } else if let errorMessage = errorMessage.isEmpty ? nil : errorMessage {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.largeTitle)
+                            .foregroundColor(.red)
+                        Text("Error loading content")
+                            .font(.headline)
+                        Text(errorMessage)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                } else if let session = session {
+                    SessionDetailContent(session: session)
+                } else if let conversation = conversation {
+                    ConversationDetailContent(conversation: conversation)
+                } else {
+                    Text("Content not found")
+                        .foregroundColor(.gray)
+                }
+            }
+            .navigationTitle(isConversation ? "Conversation Details" : "Session Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            Task {
+                await loadDetails()
+            }
+        }
+    }
+    
+    private func loadDetails() async {
+        isLoading = true
+        errorMessage = ""
+        
+        do {
+            if isConversation {
+                let loadedConversation = try await railwayService.getConversationDetails(conversationId: sessionId)
+                await MainActor.run {
+                    conversation = loadedConversation
+                    isLoading = false
+                }
+            } else {
+                let loadedSession = try await railwayService.getSessionDetails(sessionId: sessionId)
+                await MainActor.run {
+                    session = loadedSession
+                    isLoading = false
+                }
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                isLoading = false
+            }
+        }
+    }
+}
+
+struct SessionDetailContent: View {
+    let session: ArchivedSession
+    
+    private func colorForSubject(_ colorName: String) -> Color {
+        switch colorName.lowercased() {
+        case "blue": return .blue
+        case "purple": return .purple
+        case "green": return .green
+        case "orange": return .orange
+        case "red": return .red
+        case "brown": return .brown
+        case "teal": return .teal
+        case "indigo": return .indigo
+        case "pink": return .pink
+        case "yellow": return .yellow
+        case "gray": return .gray
+        default: return .gray
+        }
+    }
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Header Card
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        if let category = SubjectCategory(rawValue: session.subject) {
+                            Image(systemName: category.icon)
+                                .foregroundColor(colorForSubject(category.color))
+                                .font(.title2)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(session.subject)
+                                .font(.headline)
+                            Text(session.sessionDate, style: .date)
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("\(session.aiParsingResult.questionCount) Questions")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            Text("\(Int(session.overallConfidence * 100))% Confidence")
+                                .font(.caption2)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    
+                    if let title = session.title {
+                        Text(title)
+                            .font(.title3)
+                            .fontWeight(.medium)
+                    }
+                }
+                .padding()
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(12)
+                
+                // Questions Section
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("Questions & Answers")
+                            .font(.headline)
+                        Spacer()
+                        Text("\(session.aiParsingResult.questions.count) items")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    ForEach(Array(session.aiParsingResult.questions.enumerated()), id: \.offset) { index, question in
+                        DetailQuestionCard(question: question, index: index + 1)
+                    }
+                }
+                
+                // Notes Section (if any)
+                if let notes = session.notes, !notes.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Notes")
+                            .font(.headline)
+                        Text(notes)
+                            .padding()
+                            .background(Color.blue.opacity(0.05))
+                            .cornerRadius(8)
+                    }
+                }
+                
+                // Metadata Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Session Info")
+                        .font(.headline)
+                    
+                    VStack(spacing: 8) {
+                        InfoRow(label: "Processing Time", value: "\(String(format: "%.1f", session.processingTime))s")
+                        InfoRow(label: "Parsing Method", value: session.aiParsingResult.parsingMethod)
+                        InfoRow(label: "Review Count", value: "\(session.reviewCount)")
+                        InfoRow(label: "Created", value: session.createdAt.formatted(date: .abbreviated, time: .shortened))
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(8)
+                }
+            }
+            .padding()
+        }
+    }
+}
+
+struct DetailQuestionCard: View {
+    let question: ParsedQuestion
+    let index: Int
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Question Header
+            HStack {
+                Text("Q\(index)")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue)
+                    .cornerRadius(4)
+                
+                if question.hasVisualElements {
+                    Image(systemName: "photo")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
+                
+                Spacer()
+                
+                Text("\(Int(question.confidence * 100))%")
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+            }
+            
+            // Question Text
+            Text(question.questionText)
+                .font(.body)
+                .fontWeight(.medium)
+            
+            // Answer Text
+            Text(question.answerText)
+                .font(.body)
+                .foregroundColor(.gray)
+                .padding()
+                .background(Color.green.opacity(0.05))
+                .cornerRadius(8)
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
+}
+
+struct InfoRow: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(label)
+                .foregroundColor(.gray)
+            Spacer()
+            Text(value)
+                .fontWeight(.medium)
+        }
+        .font(.caption)
+    }
+}
+
+struct ConversationDetailContent: View {
+    let conversation: ArchivedConversation
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Header Card
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "message.circle")
+                            .foregroundColor(.blue)
+                            .font(.title2)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(conversation.subject)
+                                .font(.headline)
+                            if let topic = conversation.topic {
+                                Text(topic)
+                                    .font(.subheadline)
+                                    .foregroundColor(.blue)
+                            }
+                            Text(conversation.archivedDate, style: .date)
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        
+                        Spacer()
+                    }
+                }
+                .padding()
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(12)
+                
+                // Conversation Content
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Conversation")
+                        .font(.headline)
+                    
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(parseConversation(conversation.conversationContent), id: \.offset) { messageItem in
+                                ConversationMessageView(
+                                    speaker: messageItem.element.speaker,
+                                    message: messageItem.element.message,
+                                    isUser: messageItem.element.speaker.lowercased().contains("user")
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                    .frame(maxHeight: 400)
+                }
+                
+                // Metadata Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Conversation Info")
+                        .font(.headline)
+                    
+                    VStack(spacing: 8) {
+                        InfoRow(label: "Subject", value: conversation.subject)
+                        if let topic = conversation.topic {
+                            InfoRow(label: "Topic", value: topic)
+                        }
+                        InfoRow(label: "Archived", value: conversation.archivedDate.formatted(date: .abbreviated, time: .omitted))
+                        InfoRow(label: "Created", value: conversation.createdAt.formatted(date: .abbreviated, time: .shortened))
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(8)
+                }
+            }
+            .padding()
+        }
+    }
+    
+    private func parseConversation(_ content: String) -> [(offset: Int, element: (speaker: String, message: String))] {
+        let lines = content.components(separatedBy: .newlines)
+        var messages: [(speaker: String, message: String)] = []
+        var currentMessage = ""
+        var currentSpeaker = ""
+        
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            if trimmedLine.contains(":") && (trimmedLine.hasPrefix("User:") || trimmedLine.hasPrefix("AI:") || trimmedLine.hasPrefix("Assistant:")) {
+                // Save previous message if exists
+                if !currentSpeaker.isEmpty && !currentMessage.isEmpty {
+                    messages.append((speaker: currentSpeaker, message: currentMessage.trimmingCharacters(in: .whitespacesAndNewlines)))
+                }
+                
+                // Start new message
+                let components = trimmedLine.components(separatedBy: ":")
+                if components.count >= 2 {
+                    currentSpeaker = components[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                    currentMessage = components.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            } else if !trimmedLine.isEmpty {
+                // Continue current message
+                if !currentMessage.isEmpty {
+                    currentMessage += "\n"
+                }
+                currentMessage += trimmedLine
+            }
+        }
+        
+        // Save final message
+        if !currentSpeaker.isEmpty && !currentMessage.isEmpty {
+            messages.append((speaker: currentSpeaker, message: currentMessage.trimmingCharacters(in: .whitespacesAndNewlines)))
+        }
+        
+        return Array(messages.enumerated())
+    }
+}
+
+struct ConversationMessageView: View {
+    let speaker: String
+    let message: String
+    let isUser: Bool
+    
+    var body: some View {
+        HStack {
+            if isUser {
+                Spacer(minLength: 50)
+                messageContent
+            } else {
+                messageContent
+                Spacer(minLength: 50)
+            }
+        }
+    }
+    
+    private var messageContent: some View {
+        VStack(alignment: isUser ? .trailing : .leading, spacing: 8) {
+            HStack {
+                if !isUser {
+                    Image(systemName: "brain.head.profile")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+                
+                Text(speaker)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                if isUser {
+                    Image(systemName: "person.fill")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+            }
+            
+            Text(message)
+                .font(.body)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+        }
+        .padding(12)
+        .background(isUser ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(isUser ? Color.blue.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
+        )
+    }
+}
+
+#Preview {
+    SessionDetailView(sessionId: "sample-id", isConversation: false)
+}

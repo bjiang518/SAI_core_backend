@@ -4,10 +4,10 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>SAI</string>
-	<key>CFBundleIdentifier</key>
-	<string>com.bo-jiang-StudyAI</string>
 	<key>CFBundleExecutable</key>
 	<string>StudyAI</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.bo-jiang-StudyAI</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -21,16 +21,16 @@
 			</array>
 		</dict>
 	</array>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>StudyAI needs microphone access to listen to your voice questions and help you learn through voice interaction.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>StudyAI uses speech recognition to convert your voice questions into text so our AI can provide better learning assistance.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>StudyAI needs camera access to capture homework photos for AI-powered question analysis and solving.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>StudyAI needs photo library access to select homework images for analysis and to save processed results.</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>26.0</string>
+	<key>NSCameraUsageDescription</key>
+	<string>StudyAI needs camera access to capture homework photos for AI-powered question analysis and solving.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>StudyAI needs microphone access to listen to your voice questions and help you learn through voice interaction.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>StudyAI needs photo library access to select homework images for analysis and to save processed results.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>StudyAI uses speech recognition to convert your voice questions into text so our AI can provide better learning assistance.</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UILaunchScreen</key>
