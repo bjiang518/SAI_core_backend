@@ -70,6 +70,10 @@
 	3B0419DAC7D9493DB3C35B7F /* StudyAI/Views/SubjectBreakdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69D668B7833B4B1D9DF8653A /* StudyAI/Views/SubjectBreakdownView.swift */; };
 	3703A418AA10464CA1AC3132 /* StudyAI/Views/SubjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9969A366189C4E3AA0A188D8 /* StudyAI/Views/SubjectDetailView.swift */; };
 	0341FBBA-FFF4-4982-ADF0-7E53C1CAC5F2 /* StudyAI/Views/SubjectAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06D4219D-97D9-4AF5-962C-92CD11F16175 /* StudyAI/Views/SubjectAnalyticsView.swift */; };
+	MIST1234567890123456ABCD /* StudyAI/Views/MistakeReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MISTFILE1234567890ABCD12 /* StudyAI/Views/MistakeReviewView.swift */; };
+	MSTS1234567890123456ABCD /* StudyAI/Services/MistakeReviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = MSTSFILE1234567890ABCD12 /* StudyAI/Services/MistakeReviewService.swift */; };
+	PDFG1234567890123456ABCD /* StudyAI/Services/PDFGeneratorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PDFGFILE1234567890ABCD12 /* StudyAI/Services/PDFGeneratorService.swift */; };
+	PDFP1234567890123456ABCD /* StudyAI/Views/PDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PDFPFILE1234567890ABCD12 /* StudyAI/Views/PDFPreviewView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -152,6 +156,10 @@
 		69D668B7833B4B1D9DF8653A /* StudyAI/Views/SubjectBreakdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/SubjectBreakdownView.swift; sourceTree = "<group>"; };
 		9969A366189C4E3AA0A188D8 /* StudyAI/Views/SubjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/SubjectDetailView.swift; sourceTree = "<group>"; };
 		06D4219D-97D9-4AF5-962C-92CD11F16175 /* StudyAI/Views/SubjectAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/SubjectAnalyticsView.swift; sourceTree = "<group>"; };
+		MISTFILE1234567890ABCD12 /* StudyAI/Views/MistakeReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/MistakeReviewView.swift; sourceTree = "<group>"; };
+		MSTSFILE1234567890ABCD12 /* StudyAI/Services/MistakeReviewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/MistakeReviewService.swift; sourceTree = "<group>"; };
+		PDFGFILE1234567890ABCD12 /* StudyAI/Services/PDFGeneratorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/PDFGeneratorService.swift; sourceTree = "<group>"; };
+		PDFPFILE1234567890ABCD12 /* StudyAI/Views/PDFPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/PDFPreviewView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -253,6 +261,10 @@
 				69D668B7833B4B1D9DF8653A /* StudyAI/Views/SubjectBreakdownView.swift */,
 				9969A366189C4E3AA0A188D8 /* StudyAI/Views/SubjectDetailView.swift */,
 				06D4219D-97D9-4AF5-962C-92CD11F16175 /* StudyAI/Views/SubjectAnalyticsView.swift */,
+				MISTFILE1234567890ABCD12 /* StudyAI/Views/MistakeReviewView.swift */,
+				MSTSFILE1234567890ABCD12 /* StudyAI/Services/MistakeReviewService.swift */,
+				PDFGFILE1234567890ABCD12 /* StudyAI/Services/PDFGeneratorService.swift */,
+				PDFPFILE1234567890ABCD12 /* StudyAI/Views/PDFPreviewView.swift */,
 			);
 			name = "Recovered References";
 			sourceTree = "<group>";
@@ -494,6 +506,10 @@
 				3B0419DAC7D9493DB3C35B7F /* StudyAI/Views/SubjectBreakdownView.swift in Sources */,
 				3703A418AA10464CA1AC3132 /* StudyAI/Views/SubjectDetailView.swift in Sources */,
 				0341FBBA-FFF4-4982-ADF0-7E53C1CAC5F2 /* StudyAI/Views/SubjectAnalyticsView.swift in Sources */,
+				MIST1234567890123456ABCD /* StudyAI/Views/MistakeReviewView.swift in Sources */,
+				MSTS1234567890123456ABCD /* StudyAI/Services/MistakeReviewService.swift in Sources */,
+				PDFG1234567890123456ABCD /* StudyAI/Services/PDFGeneratorService.swift in Sources */,
+				PDFP1234567890123456ABCD /* StudyAI/Views/PDFPreviewView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

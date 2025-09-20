@@ -39,10 +39,50 @@ class ConversationStore: ObservableObject {
             return []
         }
         
+        // DEFENSIVE FIX: Filter out sessions that have valid data
+        // This handles the database inconsistency where list returns conversations but details are missing
+        var validSessions: [[String: Any]] = []
+        
+        for session in sessions {
+            // Check if this looks like a conversation (has message_count or conversationContent)
+            let isConversationArchive = session["message_count"] != nil || 
+                                      session["messageCount"] != nil ||
+                                      session["conversationContent"] != nil
+            
+            if isConversationArchive {
+                // For conversations, verify they have actual content
+                if let conversationContent = session["conversationContent"] as? String,
+                   !conversationContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    validSessions.append(session)
+                    
+                    // DIAGNOSTIC: Check if this looks like an image conversation
+                    let hasImageContent = conversationContent.contains("base64") || 
+                                        conversationContent.contains("image") ||
+                                        conversationContent.contains("picture") ||
+                                        conversationContent.contains("photo")
+                    print("✅ Valid conversation found: \(session["id"] as? String ?? "unknown") | Contains images: \(hasImageContent)")
+                } else {
+                    // DIAGNOSTIC: Check if this was likely an image conversation that failed to store
+                    let conversationId = session["id"] as? String ?? "unknown"
+                    let topic = session["topic"] as? String ?? ""
+                    let subject = session["subject"] as? String ?? ""
+                    
+                    print("⚠️ MISSING CONTENT - Likely image conversation: \(conversationId)")
+                    print("   └── Topic: '\(topic)' | Subject: '\(subject)'")
+                    print("   └── This conversation probably contained images that couldn't be stored in backend database")
+                }
+            } else {
+                // For homework sessions, keep all (they don't have the same detail fetch issue)
+                validSessions.append(session)
+            }
+        }
+        
+        print("📊 Filtered sessions: \(validSessions.count) valid out of \(sessions.count) total")
+        
         // Convert server sessions/conversations to Conversation model
         var conversations: [Conversation] = []
         
-        for session in sessions {
+        for session in validSessions {
             guard let id = session["id"] as? String,
                   let title = session["title"] as? String else {
                 continue
@@ -128,7 +168,7 @@ class ConversationStore: ObservableObject {
             }
         }
         
-        print("✅ Successfully converted \(filteredConversations.count) sessions to conversations")
+        print("✅ Successfully converted \(filteredConversations.count) valid sessions to conversations")
         return filteredConversations.sorted { $0.updatedAt > $1.updatedAt }
     }
     

@@ -147,33 +147,6 @@ struct UnifiedLibraryView: View {
         VStack(spacing: 0) {
             // Compact Search Section
             VStack(spacing: 12) {
-                // Compact Search Bar
-                HStack(spacing: 12) {
-                    // Search Field (shorter, left-aligned)
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.gray)
-                            .font(.body)
-                        
-                        TextField("Search library...", text: $searchText)
-                            .textFieldStyle(PlainTextFieldStyle())
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
-                    
-                    // Advanced Search Button (compact)
-                    Button(action: { showingAdvancedSearch = true }) {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                            .font(.title2)
-                            .foregroundColor(.blue)
-                    }
-                    .frame(width: 44, height: 44)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(10)
-                }
-                .padding(.horizontal)
                 
                 // Quick Filter Buttons
                 ScrollView(.horizontal, showsIndicators: false) {

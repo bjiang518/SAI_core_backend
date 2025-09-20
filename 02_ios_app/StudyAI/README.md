@@ -82,6 +82,99 @@ StudyAI/
 
 ## 🚀 Major Updates (September 2025)
 
+### 📄 Mistake Review & PDF Generation System (September 20, 2025)
+**New Feature**: Complete mistake review system with PDF generation and print functionality
+**Implementation**: Native iOS PDFKit integration with print and sharing capabilities
+
+### 🎯 Mistake Review Features
+- **Mistake Aggregation**: Backend API integration to fetch user mistakes across subjects and time ranges
+- **Interactive Selection**: Checkbox-based UI for selecting specific questions to practice again
+- **PDF Generation**: Native iOS PDFKit-powered PDF creation with professional formatting
+- **Print Integration**: Full UIPrintInteractionController support for direct printing
+- **Email & Share**: Complete sharing workflow with PDF attachments
+
+### 🔧 Technical API Implementation
+
+#### Backend Integration
+- **Mistakes API**: `GET /api/archived-questions/mistakes/subjects/{userId}` - Fetch subjects with mistake counts
+- **Subject Mistakes**: `GET /api/archived-questions/mistakes/{userId}?range={timeRange}&subject={subject}` - Get specific mistakes by subject and time range
+- **Time Range Filtering**: Support for Last Week, Last Month, Last 3 Months filtering
+- **Real-time Data**: Live mistake counts and subject classification from study sessions
+
+#### Native iOS PDF Generation
+```swift
+// PDFGeneratorService using native PDFKit
+@MainActor
+class PDFGeneratorService: ObservableObject {
+    @Published var isGenerating = false
+    @Published var generationProgress: Double = 0.0
+
+    func generateMistakesPDF(
+        questions: [MistakeQuestion],
+        subject: String,
+        timeRange: MistakeTimeRange
+    ) async -> PDFDocument?
+}
+```
+
+#### Print API Integration
+```swift
+// UIPrintInteractionController integration
+private func handlePrint() {
+    let printController = UIPrintInteractionController.shared
+    let printInfo = UIPrintInfo.printInfo()
+    printInfo.outputType = .general
+    printInfo.jobName = "StudyAI Practice Questions"
+
+    printController.printInfo = printInfo
+    printController.printingItem = pdfURL
+    printController.present(animated: true)
+}
+```
+
+#### PDF Layout Specifications
+- **Page Format**: US Letter (8.5" x 11") at 72 DPI (612x792 points)
+- **Print-Optimized Fonts**:
+  - Title: 18pt (optimized from 24pt for print)
+  - Headers: 12pt (optimized from 16pt for print)
+  - Body text: 10pt (optimized from 14pt for print)
+  - Footer: 9pt (optimized from 12pt for print)
+- **Layout Elements**: Professional headers, answer spaces, question numbering, StudyAI branding
+- **Margins**: 0.75" (54pt) standard document margins
+
+#### MessageUI Integration
+```swift
+// Email attachment support
+func makeUIViewController(context: Context) -> MFMailComposeViewController {
+    let composer = MFMailComposeViewController()
+    composer.setSubject("Study Practice Questions - \(subject)")
+    composer.setMessageBody(emailBody, isHTML: false)
+
+    if let data = try? Data(contentsOf: attachmentURL) {
+        composer.addAttachmentData(data, mimeType: "application/pdf", fileName: attachmentName)
+    }
+    return composer
+}
+```
+
+#### UIActivityViewController Sharing
+```swift
+// Native iOS sharing integration
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+}
+```
+
+### 🎨 User Interface Components
+- **MistakeReviewView**: Main interface with time range and subject selection
+- **MistakeQuestionListView**: Individual question selection with visual feedback
+- **PDFPreviewView**: Native PDFKitView with action buttons for print/email/share
+- **MistakeQuestionCard**: Expandable question cards with selection state
+
 ### 📊 Subject-Based Progress Analytics System
 **New Feature**: Comprehensive subject breakdown analytics with real-time progress tracking
 **Implementation**: Complete iOS-backend integration with visual progress dashboard
@@ -201,7 +294,19 @@ HAS_VISUALS: [true/false if question contains diagrams/graphs]
 
 ## 🔧 Development Status
 
-**Current Version**: Production Ready with Subject Breakdown Analytics (100% Complete)
+**Current Version**: Production Ready with Mistake Review & PDF Generation (100% Complete)
+- ✅ Complete mistake review system with PDF generation capabilities
+- ✅ Native iOS PDFKit integration with professional document formatting
+- ✅ UIPrintInteractionController integration for direct printing
+- ✅ MessageUI framework integration for PDF email attachments
+- ✅ UIActivityViewController sharing with PDF export
+- ✅ Print-optimized font sizing and layout specifications
+- ✅ Backend API integration for mistake aggregation across subjects
+- ✅ Time range filtering (Last Week, Last Month, Last 3 Months)
+- ✅ Interactive question selection with checkbox UI
+- ✅ PDF preview with action buttons (Print/Email/Share)
+
+**Subject Breakdown Analytics System**: (100% Complete)
 - ✅ Complete subject-based progress analytics system
 - ✅ Visual progress dashboard with color-coded subject cards
 - ✅ Real-time sync between study sessions and analytics

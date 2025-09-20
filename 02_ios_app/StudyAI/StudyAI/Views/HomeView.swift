@@ -17,6 +17,7 @@ struct HomeView: View {
     @State private var isLoadingProgress = false
     @State private var navigateToSession = false
     @State private var showingProfile = false
+    @State private var showingMistakeReview = false
     
     private let logger = Logger(subsystem: "com.studyai", category: "HomeView")
     
@@ -171,7 +172,51 @@ struct HomeView: View {
                             .frame(height: 100)
                         }
                     }
-                    
+
+                    // Mistake Review Button
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Learning Review")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        Button(action: { showingMistakeReview = true }) {
+                            HStack(spacing: 16) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.orange.opacity(0.1))
+                                        .frame(width: 44, height: 44)
+
+                                    Image(systemName: "arrow.uturn.backward.circle.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.orange)
+                                }
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Revisit Your Mistakes")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+
+                                    Text("Learn from past errors")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "chevron.right")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .background(Color(.systemBackground))
+                            .cornerRadius(12)
+                            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding(.horizontal)
+                    }
+
                     // Recent Activity
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Recent Activity")
@@ -205,6 +250,9 @@ struct HomeView: View {
                     AuthenticationService.shared.signOut()
                     showingProfile = false
                 })
+            }
+            .sheet(isPresented: $showingMistakeReview) {
+                MistakeReviewView()
             }
             .background {
                 // Use NavigationLink without isActive (modern approach)

@@ -164,9 +164,15 @@ class LibraryDataService: ObservableObject {
                 grade: gradeValue,
                 limit: 100
             )
-            
+
+            // Filter out mistake questions from Study Library search results
+            // These should only appear in the Mistake Review feature
+            let nonMistakeQuestions = questions.filter { question in
+                return question.grade != .incorrect
+            }
+
             // Apply client-side sorting
-            let sortedQuestions = applySorting(questions, sortOrder: filters.sortOrder)
+            let sortedQuestions = applySorting(nonMistakeQuestions, sortOrder: filters.sortOrder)
             
             // Apply client-side date filtering if specified
             let filteredQuestions: [QuestionSummary]
@@ -199,18 +205,20 @@ class LibraryDataService: ObservableObject {
         }
     }
     
-    /// Get all available subjects for filtering
+    /// Get all available subjects for filtering (excluding mistake questions)
     func getAvailableSubjects() -> [String] {
-        let questionSubjects = Set(cachedQuestions.map { $0.subject })
+        // Only include subjects from non-mistake questions for Study Library
+        let questionSubjects = Set(cachedQuestions.filter { $0.grade != .incorrect }.map { $0.subject })
         let conversationSubjects = Set(cachedConversations.compactMap { $0["subject"] as? String })
         return Array(questionSubjects.union(conversationSubjects)).sorted()
     }
     
-    /// Get statistics for questions by grade
+    /// Get statistics for questions by grade (excluding mistake questions from Study Library)
     func getGradeStatistics() -> [GradeFilter: Int] {
         var stats: [GradeFilter: Int] = [:]
-        
-        for question in cachedQuestions {
+
+        // Only include non-mistake questions in Study Library statistics
+        for question in cachedQuestions.filter({ $0.grade != .incorrect }) {
             if let grade = question.grade {
                 let gradeFilter = GradeFilter(rawValue: grade.rawValue) ?? .notGraded
                 stats[gradeFilter, default: 0] += 1
@@ -218,7 +226,7 @@ class LibraryDataService: ObservableObject {
                 stats[.notGraded, default: 0] += 1
             }
         }
-        
+
         return stats
     }
     
@@ -307,9 +315,23 @@ class LibraryDataService: ObservableObject {
     private func fetchQuestions() async -> (data: [QuestionSummary], error: String?) {
         do {
             print("📝 LibraryDataService: Fetching archived questions...")
-            let questions = try await questionService.fetchArchivedQuestions(limit: 100)
-            print("✅ LibraryDataService: Found \(questions.count) questions")
-            return (questions, nil)
+            let allQuestions = try await questionService.fetchArchivedQuestions(limit: 100)
+
+            // Filter out mistake questions (grade == .incorrect) from Study Library
+            // These should only appear in the Mistake Review feature
+            let nonMistakeQuestions = allQuestions.filter { question in
+                // Only exclude questions that are explicitly marked as incorrect
+                // Keep questions that are ungraded, correct, or have partial credit
+                return question.grade != .incorrect
+            }
+
+            print("✅ LibraryDataService: Found \(allQuestions.count) total questions, \(nonMistakeQuestions.count) non-mistake questions for Study Library")
+            if allQuestions.count != nonMistakeQuestions.count {
+                let filteredCount = allQuestions.count - nonMistakeQuestions.count
+                print("🔍 LibraryDataService: Filtered out \(filteredCount) mistake questions (these will appear in Mistake Review instead)")
+            }
+
+            return (nonMistakeQuestions, nil)
         } catch {
             let errorMsg = "Failed to load questions: \(error.localizedDescription)"
             print("❌ LibraryDataService: \(errorMsg)")
@@ -377,12 +399,14 @@ class LibraryDataService: ObservableObject {
     }
     
     // MARK: - Statistics
-    
+
     func getLibraryStatistics() -> LibraryStatistics {
+        // Only count non-mistake questions for Study Library statistics
+        let nonMistakeQuestions = cachedQuestions.filter { $0.grade != .incorrect }
         return LibraryStatistics(
-            totalQuestions: cachedQuestions.count,
+            totalQuestions: nonMistakeQuestions.count,
             totalConversations: cachedConversations.count,
-            uniqueSubjects: Set(cachedQuestions.map { $0.subject }).count,
+            uniqueSubjects: Set(nonMistakeQuestions.map { $0.subject }).count,
             lastUpdated: lastUpdated
         )
     }

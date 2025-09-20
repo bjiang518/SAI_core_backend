@@ -256,6 +256,60 @@ class ArchiveRoutes {
         tags: ['Archived Questions']
       }
     }, this.getQuestionStats.bind(this));
+
+    // =============== MISTAKE REVIEW ROUTES ===============
+
+    // Get subjects with mistakes
+    this.fastify.get('/api/archived-questions/mistakes/subjects/:userId', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get subjects with mistake counts for a user',
+        tags: ['Mistake Review'],
+        params: {
+          type: 'object',
+          properties: {
+            userId: { type: 'string' }
+          }
+        }
+      }
+    }, this.getMistakeSubjects.bind(this));
+
+    // Get filtered mistakes
+    this.fastify.get('/api/archived-questions/mistakes/:userId', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get filtered mistakes by subject and time range',
+        tags: ['Mistake Review'],
+        params: {
+          type: 'object',
+          properties: {
+            userId: { type: 'string' }
+          }
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            subject: { type: 'string' },
+            range: { type: 'string' }
+          }
+        }
+      }
+    }, this.getMistakes.bind(this));
+
+    // Get mistake statistics
+    this.fastify.get('/api/archived-questions/mistakes/stats/:userId', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get mistake statistics for a user',
+        tags: ['Mistake Review'],
+        params: {
+          type: 'object',
+          properties: {
+            userId: { type: 'string' }
+          }
+        }
+      }
+    }, this.getMistakeStats.bind(this));
   }
 
   // Get user ID from request (flexible - could be from JWT, header, or query)
@@ -995,13 +1049,185 @@ class ArchiveRoutes {
   generateTitle(aiParsingResult, subject) {
     const questionCount = aiParsingResult?.questionCount || 0;
     const date = new Date().toLocaleDateString();
-    
+
     if (questionCount === 1) {
       return `${subject} - 1 Question (${date})`;
     } else if (questionCount > 1) {
       return `${subject} - ${questionCount} Questions (${date})`;
     } else {
       return `${subject} Study Session (${date})`;
+    }
+  }
+
+  // =============== MISTAKE REVIEW METHOD IMPLEMENTATIONS ===============
+
+  async getMistakeSubjects(request, reply) {
+    try {
+      const { userId } = request.params;
+
+      this.fastify.log.info(`📊 Fetching mistake subjects for user: ${userId}`);
+
+      // Helper function to get subject icon
+      const getSubjectIcon = (subject) => {
+        const iconMap = {
+          'Mathematics': 'plus.forwardslash.minus',
+          'Math': 'plus.forwardslash.minus',
+          'Science': 'atom',
+          'Physics': 'atom',
+          'Chemistry': 'testtube.2',
+          'Biology': 'leaf',
+          'English': 'book',
+          'History': 'clock',
+          'Geography': 'globe'
+        };
+        return iconMap[subject] || 'questionmark.circle';
+      };
+
+      const query = `
+        SELECT
+          subject,
+          COUNT(*) as mistake_count
+        FROM archived_questions
+        WHERE user_id = $1 AND grade = 'INCORRECT'
+        GROUP BY subject
+        ORDER BY mistake_count DESC
+      `;
+
+      const result = await db.query(query, [userId]);
+
+      const subjects = result.rows.map(row => ({
+        subject: row.subject,
+        mistakeCount: parseInt(row.mistake_count),
+        icon: getSubjectIcon(row.subject)
+      }));
+
+      this.fastify.log.info(`✅ Found ${subjects.length} subjects with mistakes`);
+
+      return reply.send({
+        success: true,
+        data: subjects
+      });
+    } catch (error) {
+      this.fastify.log.error('Error fetching mistake subjects:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to fetch mistake subjects',
+        message: error.message
+      });
+    }
+  }
+
+  async getMistakes(request, reply) {
+    try {
+      const { userId } = request.params;
+      const { subject, range } = request.query;
+
+      this.fastify.log.info(`📚 Fetching mistakes for user: ${userId}, subject: ${subject}, range: ${range}`);
+
+      let query = `
+        SELECT
+          id, subject, question_text, answer_text, student_answer,
+          confidence, points, max_points, feedback, tags, notes, archived_at
+        FROM archived_questions
+        WHERE user_id = $1 AND grade = 'INCORRECT'
+      `;
+
+      const values = [userId];
+      let paramIndex = 2;
+
+      // Add subject filter
+      if (subject) {
+        query += ` AND subject = $${paramIndex}`;
+        values.push(subject);
+        paramIndex++;
+      }
+
+      // Add time range filter
+      if (range) {
+        let timeCondition = '';
+        if (range === 'last_week') {
+          timeCondition = ` AND archived_at >= NOW() - INTERVAL '7 days'`;
+        } else if (range === 'last_month') {
+          timeCondition = ` AND archived_at >= NOW() - INTERVAL '30 days'`;
+        }
+        // 'all_time' doesn't add any condition
+        query += timeCondition;
+      }
+
+      query += ` ORDER BY archived_at DESC`;
+
+      const result = await db.query(query, values);
+
+      const mistakes = result.rows.map(row => ({
+        id: row.id,
+        subject: row.subject,
+        question: row.question_text,
+        correctAnswer: row.answer_text,
+        studentAnswer: row.student_answer,
+        explanation: row.feedback || 'No explanation available',
+        createdAt: row.archived_at,
+        confidence: row.confidence,
+        pointsEarned: row.points,
+        pointsPossible: row.max_points,
+        tags: row.tags || [],
+        notes: row.notes || ''
+      }));
+
+      this.fastify.log.info(`✅ Found ${mistakes.length} mistakes`);
+
+      return reply.send({
+        success: true,
+        data: mistakes
+      });
+    } catch (error) {
+      this.fastify.log.error('Error fetching mistakes:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to fetch mistakes',
+        message: error.message
+      });
+    }
+  }
+
+  async getMistakeStats(request, reply) {
+    try {
+      const { userId } = request.params;
+
+      this.fastify.log.info(`📈 Fetching mistake statistics for user: ${userId}`);
+
+      const query = `
+        SELECT
+          COUNT(*) as total_mistakes,
+          COUNT(DISTINCT subject) as subjects_with_mistakes,
+          COUNT(CASE WHEN archived_at >= NOW() - INTERVAL '7 days' THEN 1 END) as mistakes_last_week,
+          COUNT(CASE WHEN archived_at >= NOW() - INTERVAL '30 days' THEN 1 END) as mistakes_last_month
+        FROM archived_questions
+        WHERE user_id = $1 AND grade = 'INCORRECT'
+      `;
+
+      const result = await db.query(query, [userId]);
+      const stats = result.rows[0];
+
+      const mistakeStats = {
+        totalMistakes: parseInt(stats.total_mistakes),
+        subjectsWithMistakes: parseInt(stats.subjects_with_mistakes),
+        mistakesLastWeek: parseInt(stats.mistakes_last_week),
+        mistakesLastMonth: parseInt(stats.mistakes_last_month)
+      };
+
+      this.fastify.log.info(`✅ Mistake stats: ${mistakeStats.totalMistakes} total mistakes`);
+
+      return reply.send({
+        success: true,
+        data: mistakeStats
+      });
+    } catch (error) {
+      this.fastify.log.error('Error fetching mistake statistics:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to fetch mistake statistics',
+        message: error.message
+      });
     }
   }
 }

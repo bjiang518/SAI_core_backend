@@ -2002,9 +2002,9 @@ class NetworkService: ObservableObject {
     
     // MARK: - Session Archive Management
     
-    /// Archive a session conversation to the backend database
+    /// Archive a session conversation to the backend database with image processing
     func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil) async -> (success: Bool, message: String) {
-        print("📦 === ARCHIVE CONVERSATION SESSION ===")
+        print("📦 === ARCHIVE CONVERSATION SESSION (WITH IMAGE PROCESSING) ===")
         print("📁 Session ID: \(sessionId)")
         print("📝 Title: \(title ?? "Auto-generated")")
         print("🏷️ Topic: \(topic ?? "Auto-generated from subject")")
@@ -2019,6 +2019,14 @@ class NetworkService: ObservableObject {
             return (false, "Authentication required. Please login first.")
         }
         
+        // ENHANCED: Process conversation history to handle images
+        let processedConversation = await processConversationForArchive()
+        print("🔍 Processed conversation: \(processedConversation.messageCount) messages")
+        print("📷 Images processed: \(processedConversation.imagesProcessed)")
+        if processedConversation.imagesProcessed > 0 {
+            print("📝 Image summaries created: \(processedConversation.imageSummariesCreated)")
+        }
+        
         let archiveURL = "\(baseURL)/api/ai/sessions/\(sessionId)/archive"
         print("🔗 Archive URL: \(archiveURL)")
         
@@ -2027,7 +2035,7 @@ class NetworkService: ObservableObject {
             return (false, "Invalid URL")
         }
         
-        // Build archive request body - FIXED FORMAT
+        // Build archive request body - ENHANCED FORMAT with processed conversation
         var archiveData: [String: Any] = [:]
         
         if let title = title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -2054,7 +2062,23 @@ class NetworkService: ObservableObject {
             archiveData["notes"] = notes
         }
         
-        print("📤 Sending archive data: \(archiveData)")
+        // ENHANCED: Add processed conversation content (images converted to summaries)
+        archiveData["conversationContent"] = processedConversation.textContent
+        archiveData["messageCount"] = processedConversation.messageCount
+        archiveData["hasImageSummaries"] = processedConversation.imagesProcessed > 0
+        archiveData["imageCount"] = processedConversation.imagesProcessed
+        
+        // Add detailed breakdown for debugging
+        if processedConversation.imagesProcessed > 0 {
+            let enhancedNotes = """
+            \(notes ?? "")
+            
+            📸 Session contained \(processedConversation.imagesProcessed) image(s) that were converted to text summaries for storage.
+            """
+            archiveData["notes"] = enhancedNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        
+        print("📤 Sending enhanced archive data: \(archiveData)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -2144,11 +2168,129 @@ class NetworkService: ObservableObject {
         }
     }
     
+    // MARK: - Conversation Processing for Archive
+    
+    /// Result structure for processed conversation content
+    struct ProcessedConversation {
+        let textContent: String
+        let messageCount: Int
+        let imagesProcessed: Int
+        let imageSummariesCreated: Int
+    }
+    
+    /// Process conversation history to create text-only archive content
+    /// Images are converted to detailed summaries to preserve context while avoiding database storage issues
+    private func processConversationForArchive() async -> ProcessedConversation {
+        print("🔄 === PROCESSING CONVERSATION FOR ARCHIVE ===")
+        
+        var processedMessages: [String] = []
+        var imageCount = 0
+        var summaryCount = 0
+        
+        for (index, message) in conversationHistory.enumerated() {
+            let role = message["role"] ?? "unknown"
+            let content = message["content"] ?? ""
+            let hasImage = message["hasImage"] == "true"
+            let messageId = message["messageId"] ?? ""
+            
+            print("📝 Processing message \(index): role=\(role), hasImage=\(hasImage)")
+            
+            if hasImage && !messageId.isEmpty {
+                // This message contains an image - create a detailed summary instead
+                imageCount += 1
+                
+                let imageSummary = await createImageSummary(
+                    content: content,
+                    messageIndex: index,
+                    role: role
+                )
+                
+                if !imageSummary.isEmpty {
+                    processedMessages.append(imageSummary)
+                    summaryCount += 1
+                    print("✅ Created image summary for message \(index)")
+                } else {
+                    // Fallback if summary creation fails
+                    let fallbackMessage = """
+                    \(role.uppercased()): [Image uploaded - content could not be preserved]
+                    User prompt: \(content.isEmpty ? "No additional text provided" : content)
+                    """
+                    processedMessages.append(fallbackMessage)
+                    print("⚠️ Used fallback summary for message \(index)")
+                }
+            } else {
+                // Regular text message - preserve as-is
+                let formattedMessage = "\(role.uppercased()): \(content)"
+                processedMessages.append(formattedMessage)
+                print("✅ Preserved text message \(index)")
+            }
+        }
+        
+        let finalContent = processedMessages.joined(separator: "\n\n")
+        
+        print("📊 Processing complete:")
+        print("   - Total messages: \(conversationHistory.count)")
+        print("   - Images processed: \(imageCount)")
+        print("   - Summaries created: \(summaryCount)")
+        print("   - Final content length: \(finalContent.count) characters")
+        
+        return ProcessedConversation(
+            textContent: finalContent,
+            messageCount: conversationHistory.count,
+            imagesProcessed: imageCount,
+            imageSummariesCreated: summaryCount
+        )
+    }
+    
+    /// Create a detailed text summary for an image message
+    private func createImageSummary(content: String, messageIndex: Int, role: String) async -> String {
+        // Generate timestamp for the image
+        let timestamp = Date()
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        
+        // Try to get the AI response from the next message for enhanced context
+        var aiResponseContext = ""
+        if role == "user" && messageIndex + 1 < conversationHistory.count {
+            let nextMessage = conversationHistory[messageIndex + 1]
+            if nextMessage["role"] == "assistant" {
+                let aiResponse = nextMessage["content"] ?? ""
+                // Extract first 200 characters of AI response for context
+                aiResponseContext = String(aiResponse.prefix(200))
+                if aiResponse.count > 200 {
+                    aiResponseContext += "..."
+                }
+            }
+        }
+        
+        // Create a comprehensive summary that preserves context
+        let summary = """
+        \(role.uppercased()): [IMAGE UPLOADED - \(formatter.string(from: timestamp))]
+        
+        📷 Image Context:
+        • User prompt: \(content.isEmpty ? "No additional text provided with image" : content)
+        • Position in conversation: Message #\(messageIndex + 1)
+        • Type: Visual content analysis request
+        
+        📝 Note: This message originally contained an image that was processed for visual analysis. 
+        The image content has been converted to this text summary for database storage compatibility.
+        
+        \(content.isEmpty ? "" : "User's question about the image: \"\(content)\"")
+        
+        \(aiResponseContext.isEmpty ? "" : "AI's analysis of the image: \"\(aiResponseContext)\"")
+        """
+        
+        return summary
+    }
+    
     /// Get archived sessions list with query parameters for server-side filtering
     func getArchivedSessionsWithParams(_ queryParams: [String: String], forceRefresh: Bool = false) async -> (success: Bool, sessions: [[String: Any]]?, message: String) {
-        print("📦 === GET ARCHIVED SESSIONS WITH CACHING ==")
+        print("📦 === GET ARCHIVED SESSIONS WITH CACHING ===")
         print("📄 Query Params: \(queryParams)")
         print("🔄 Force Refresh: \(forceRefresh)")
+        print("🔐 Auth Status: \(AuthenticationService.shared.getAuthToken() != nil ? "✅ Token OK" : "❌ No Token")")
+        print("👤 User: \(AuthenticationService.shared.currentUser?.email ?? "None")")
         
         // Check cache first (unless force refresh is requested or search parameters are present)
         let hasSearchParams = queryParams.keys.contains { ["search", "subject", "startDate", "endDate"].contains($0) }
@@ -2397,6 +2539,8 @@ class NetworkService: ObservableObject {
     private func fetchConversationSessions(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
         print("🔄 === FETCHING CONVERSATION SESSIONS ===")
         print("📄 Input Query Params: \(queryParams)")
+        print("🔐 Auth Token Available: \(AuthenticationService.shared.getAuthToken() != nil)")
+        print("🌐 Base URL: \(baseURL)")
         
         // Try multiple endpoints for conversation sessions - AVOID /api/ai/sessions/archived due to routing conflict
         let endpoints = [
@@ -2411,13 +2555,18 @@ class NetworkService: ObservableObject {
             print("🔗 Trying conversation endpoint: \(endpoint)")
             let result = await tryFetchConversationsFrom(endpoint, queryParams: queryParams)
             if result.success {
+                print("✅ SUCCESS: Found conversations from \(endpoint)")
                 return result
+            } else {
+                print("❌ FAILED: No data from \(endpoint)")
             }
         }
         
         // Then try the search endpoint with corrected parameters
         print("🔍 Trying search endpoint as fallback...")
-        return await tryConversationSearch(queryParams)
+        let fallbackResult = await tryConversationSearch(queryParams)
+        print("🔍 Fallback result: success=\(fallbackResult.success), sessions=\(fallbackResult.sessions?.count ?? 0)")
+        return fallbackResult
     }
     
     private func tryFetchConversationsFrom(_ endpoint: String, queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
@@ -3005,6 +3154,150 @@ class NetworkService: ObservableObject {
             return []
         } catch {
             throw error
+        }
+    }
+
+    // MARK: - Mistake Review Methods
+    func getMistakeSubjects() async throws -> [SubjectMistakeCount] {
+        guard let user = AuthenticationService.shared.currentUser else {
+            throw NetworkError.authenticationRequired
+        }
+
+        var request = URLRequest(url: URL(string: "\(baseURL)/api/archived-questions/mistakes/subjects/\(user.id)")!)
+        request.httpMethod = "GET"
+
+        // Add authentication header
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, _) = try await performRequest(request)
+
+        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let success = json["success"] as? Bool, success,
+           let subjectsData = json["data"] as? [[String: Any]] {
+
+            var subjects: [SubjectMistakeCount] = []
+            for subjectDict in subjectsData {
+                if let subject = subjectDict["subject"] as? String,
+                   let mistakeCount = subjectDict["mistakeCount"] as? Int,
+                   let icon = subjectDict["icon"] as? String {
+
+                    subjects.append(SubjectMistakeCount(
+                        subject: subject,
+                        mistakeCount: mistakeCount,
+                        icon: icon
+                    ))
+                }
+            }
+            return subjects
+        } else {
+            throw NetworkError.invalidResponse
+        }
+    }
+
+    func getMistakes(subject: String?, timeRange: String) async throws -> [MistakeQuestion] {
+        guard let user = AuthenticationService.shared.currentUser else {
+            throw NetworkError.authenticationRequired
+        }
+
+        var urlComponents = URLComponents(string: "\(baseURL)/api/archived-questions/mistakes/\(user.id)")!
+        var queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "range", value: timeRange)
+        ]
+
+        if let subject = subject {
+            queryItems.append(URLQueryItem(name: "subject", value: subject))
+        }
+
+        urlComponents.queryItems = queryItems
+
+        var request = URLRequest(url: urlComponents.url!)
+        request.httpMethod = "GET"
+
+        // Add authentication header
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, _) = try await performRequest(request)
+
+        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let success = json["success"] as? Bool, success,
+           let mistakesData = json["data"] as? [[String: Any]] {
+
+            var mistakes: [MistakeQuestion] = []
+            let formatter = ISO8601DateFormatter()
+
+            for mistakeDict in mistakesData {
+                if let id = mistakeDict["id"] as? String,
+                   let subject = mistakeDict["subject"] as? String,
+                   let question = mistakeDict["question"] as? String,
+                   let correctAnswer = mistakeDict["correctAnswer"] as? String,
+                   let studentAnswer = mistakeDict["studentAnswer"] as? String,
+                   let explanation = mistakeDict["explanation"] as? String,
+                   let createdAtString = mistakeDict["createdAt"] as? String,
+                   let confidence = mistakeDict["confidence"] as? Double,
+                   let pointsEarned = mistakeDict["pointsEarned"] as? Double,
+                   let pointsPossible = mistakeDict["pointsPossible"] as? Double,
+                   let tags = mistakeDict["tags"] as? [String],
+                   let notes = mistakeDict["notes"] as? String {
+
+                    let createdAt = formatter.date(from: createdAtString) ?? Date()
+
+                    mistakes.append(MistakeQuestion(
+                        id: id,
+                        subject: subject,
+                        question: question,
+                        correctAnswer: correctAnswer,
+                        studentAnswer: studentAnswer,
+                        explanation: explanation,
+                        createdAt: createdAt,
+                        confidence: confidence,
+                        pointsEarned: pointsEarned,
+                        pointsPossible: pointsPossible,
+                        tags: tags,
+                        notes: notes
+                    ))
+                }
+            }
+            return mistakes
+        } else {
+            throw NetworkError.invalidResponse
+        }
+    }
+
+    func getMistakeStats() async throws -> MistakeStats {
+        guard let user = AuthenticationService.shared.currentUser else {
+            throw NetworkError.authenticationRequired
+        }
+
+        var request = URLRequest(url: URL(string: "\(baseURL)/api/archived-questions/mistakes/stats/\(user.id)")!)
+        request.httpMethod = "GET"
+
+        // Add authentication header
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, _) = try await performRequest(request)
+
+        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let success = json["success"] as? Bool, success,
+           let statsData = json["data"] as? [String: Any],
+           let totalMistakes = statsData["totalMistakes"] as? Int,
+           let subjectsWithMistakes = statsData["subjectsWithMistakes"] as? Int,
+           let mistakesLastWeek = statsData["mistakesLastWeek"] as? Int,
+           let mistakesLastMonth = statsData["mistakesLastMonth"] as? Int {
+
+            return MistakeStats(
+                totalMistakes: totalMistakes,
+                subjectsWithMistakes: subjectsWithMistakes,
+                mistakesLastWeek: mistakesLastWeek,
+                mistakesLastMonth: mistakesLastMonth
+            )
+        } else {
+            throw NetworkError.invalidResponse
         }
     }
 }

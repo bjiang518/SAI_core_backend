@@ -138,3 +138,108 @@ struct HomeworkParsingResult: Codable {
         return Float(correctCount) / Float(gradedQuestions.count)
     }
 }
+
+// MARK: - Mistake Review Models
+struct SubjectMistakeCount: Codable, Identifiable {
+    let id = UUID()
+    let subject: String
+    let mistakeCount: Int
+    let icon: String
+
+    enum CodingKeys: String, CodingKey {
+        case subject
+        case mistakeCount
+        case icon
+    }
+}
+
+struct MistakeQuestion: Codable, Identifiable {
+    let id: String
+    let subject: String
+    let question: String
+    let correctAnswer: String
+    let studentAnswer: String
+    let explanation: String
+    let createdAt: Date
+    let confidence: Double
+    let pointsEarned: Double
+    let pointsPossible: Double
+    let tags: [String]
+    let notes: String
+
+    // Custom initializer for manual construction
+    init(id: String, subject: String, question: String, correctAnswer: String,
+         studentAnswer: String, explanation: String, createdAt: Date,
+         confidence: Double, pointsEarned: Double, pointsPossible: Double,
+         tags: [String], notes: String) {
+        self.id = id
+        self.subject = subject
+        self.question = question
+        self.correctAnswer = correctAnswer
+        self.studentAnswer = studentAnswer
+        self.explanation = explanation
+        self.createdAt = createdAt
+        self.confidence = confidence
+        self.pointsEarned = pointsEarned
+        self.pointsPossible = pointsPossible
+        self.tags = tags
+        self.notes = notes
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, subject, question, correctAnswer, studentAnswer, explanation
+        case createdAt, confidence, pointsEarned, pointsPossible, tags, notes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(String.self, forKey: .id)
+        subject = try container.decode(String.self, forKey: .subject)
+        question = try container.decode(String.self, forKey: .question)
+        correctAnswer = try container.decode(String.self, forKey: .correctAnswer)
+        studentAnswer = try container.decode(String.self, forKey: .studentAnswer)
+        explanation = try container.decode(String.self, forKey: .explanation)
+        confidence = try container.decode(Double.self, forKey: .confidence)
+        pointsEarned = try container.decode(Double.self, forKey: .pointsEarned)
+        pointsPossible = try container.decode(Double.self, forKey: .pointsPossible)
+        tags = try container.decode([String].self, forKey: .tags)
+        notes = try container.decode(String.self, forKey: .notes)
+
+        // Handle date parsing
+        let dateString = try container.decode(String.self, forKey: .createdAt)
+        let formatter = ISO8601DateFormatter()
+        createdAt = formatter.date(from: dateString) ?? Date()
+    }
+}
+
+struct MistakeStats: Codable {
+    let totalMistakes: Int
+    let subjectsWithMistakes: Int
+    let mistakesLastWeek: Int
+    let mistakesLastMonth: Int
+}
+
+enum MistakeTimeRange: String, CaseIterable, Identifiable {
+    case lastWeek = "Last Week"
+    case lastMonth = "Last Month"
+    case allTime = "All Time"
+
+    var id: String { self.rawValue }
+
+    var apiValue: String {
+        switch self {
+        case .lastWeek: return "last_week"
+        case .lastMonth: return "last_month"
+        case .allTime: return "all_time"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .lastWeek: return "calendar.badge.clock"
+        case .lastMonth: return "calendar"
+        case .allTime: return "clock"
+        }
+    }
+}
