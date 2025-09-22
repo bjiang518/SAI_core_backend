@@ -238,7 +238,8 @@ struct QuestionSummary: Codable, Identifiable {
     let archivedAt: Date
     let reviewCount: Int
     let tags: [String]?
-    
+    let totalQuestions: Int
+
     // Grading summary fields
     let grade: GradeResult?
     let points: Float?

@@ -14,6 +14,8 @@ struct ScannedImageActionView: View {
     let onEditImage: (UIImage) -> Void
     let onCancel: () -> Void
     @Binding var isPresented: Bool
+
+    @State private var showPreprocessing = false
     
     var body: some View {
         NavigationView {
@@ -36,25 +38,42 @@ struct ScannedImageActionView: View {
                 
                 // Action buttons
                 VStack(spacing: 16) {
-                    // Primary action - Use directly
+                    // Primary action - Ask AI with preprocessing
                     Button(action: {
-                        onAcceptDirect(scannedImage)
-                        isPresented = false
+                        showPreprocessing = true
                     }) {
                         HStack {
-                            Image(systemName: "checkmark.circle.fill")
+                            Image(systemName: "sparkles")
                                 .font(.title2)
-                            Text("Use This Image")
+                            Text("Ask AI (Recommended)")
                                 .font(.headline)
                         }
                         .foregroundColor(.white)
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color.green)
+                        .background(Color.blue)
                         .cornerRadius(12)
                     }
-                    
-                    // Secondary action - Edit first
+
+                    // Secondary action - Use directly without preprocessing
+                    Button(action: {
+                        onAcceptDirect(scannedImage)
+                        isPresented = false
+                    }) {
+                        HStack {
+                            Image(systemName: "checkmark.circle")
+                                .font(.title2)
+                            Text("Use Original Image")
+                                .font(.headline)
+                        }
+                        .foregroundColor(.blue)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(12)
+                    }
+
+                    // Tertiary action - Edit first
                     Button(action: {
                         onEditImage(scannedImage)
                         isPresented = false
@@ -63,12 +82,12 @@ struct ScannedImageActionView: View {
                             Image(systemName: "crop")
                                 .font(.title2)
                             Text("Edit & Crop")
-                                .font(.headline)
+                                .font(.subheadline)
                         }
-                        .foregroundColor(.blue)
+                        .foregroundColor(.gray)
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color.blue.opacity(0.1))
+                        .background(Color.gray.opacity(0.1))
                         .cornerRadius(12)
                     }
                 }
@@ -84,6 +103,19 @@ struct ScannedImageActionView: View {
                     isPresented = false
                 }
             )
+            .fullScreenCover(isPresented: $showPreprocessing) {
+                ImagePreprocessingView(
+                    originalImage: scannedImage,
+                    onComplete: { processedImage in
+                        showPreprocessing = false
+                        onAcceptDirect(processedImage)
+                        isPresented = false
+                    },
+                    onCancel: {
+                        showPreprocessing = false
+                    }
+                )
+            }
         }
     }
 }

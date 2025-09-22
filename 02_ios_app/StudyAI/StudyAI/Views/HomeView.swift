@@ -18,6 +18,7 @@ struct HomeView: View {
     @State private var navigateToSession = false
     @State private var showingProfile = false
     @State private var showingMistakeReview = false
+    @State private var showingQuestionGeneration = false
     
     private let logger = Logger(subsystem: "com.studyai", category: "HomeView")
     
@@ -55,7 +56,7 @@ struct HomeView: View {
                             )
                             
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("AI Assistant: \\(voiceService.voiceSettings.voiceType.displayName)")
+                                Text("AI Assistant: \(voiceService.voiceSettings.voiceType.displayName)")
                                     .font(.subheadline)
                                     .fontWeight(.medium)
                                 
@@ -105,7 +106,19 @@ struct HomeView: View {
                                 )
                             }
                             .buttonStyle(PlainButtonStyle())
-                            
+
+                            Button(action: {
+                                showingQuestionGeneration = true
+                            }) {
+                                QuickActionCard(
+                                    icon: "brain.head.profile.fill",
+                                    title: "Generate Questions",
+                                    subtitle: "AI Practice",
+                                    color: .mint
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+
                             Button(action: {
                                 onSelectTab(.library)
                             }) {
@@ -117,7 +130,7 @@ struct HomeView: View {
                                 )
                             }
                             .buttonStyle(PlainButtonStyle())
-                            
+
                             Button(action: {
                                 onSelectTab(.grader)
                             }) {
@@ -129,7 +142,7 @@ struct HomeView: View {
                                 )
                             }
                             .buttonStyle(PlainButtonStyle())
-                            
+
                             Button(action: {
                                 onSelectTab(.progress)
                             }) {
@@ -138,6 +151,16 @@ struct HomeView: View {
                                     title: "Progress",
                                     subtitle: "Track learning",
                                     color: .indigo
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+
+                            Button(action: { showingMistakeReview = true }) {
+                                QuickActionCard(
+                                    icon: "arrow.uturn.backward.circle.fill",
+                                    title: "Mistake Review",
+                                    subtitle: "Learn & improve",
+                                    color: .orange
                                 )
                             }
                             .buttonStyle(PlainButtonStyle())
@@ -171,50 +194,6 @@ struct HomeView: View {
                             }
                             .frame(height: 100)
                         }
-                    }
-
-                    // Mistake Review Button
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Learning Review")
-                            .font(.headline)
-                            .padding(.horizontal)
-
-                        Button(action: { showingMistakeReview = true }) {
-                            HStack(spacing: 16) {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.orange.opacity(0.1))
-                                        .frame(width: 44, height: 44)
-
-                                    Image(systemName: "arrow.uturn.backward.circle.fill")
-                                        .font(.title2)
-                                        .foregroundColor(.orange)
-                                }
-
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Revisit Your Mistakes")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
-
-                                    Text("Learn from past errors")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
-
-                                Spacer()
-
-                                Image(systemName: "chevron.right")
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding()
-                            .background(Color(.systemBackground))
-                            .cornerRadius(12)
-                            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .padding(.horizontal)
                     }
 
                     // Recent Activity
@@ -253,6 +232,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingMistakeReview) {
                 MistakeReviewView()
+            }
+            .sheet(isPresented: $showingQuestionGeneration) {
+                QuestionGenerationView()
             }
             .background {
                 // Use NavigationLink without isActive (modern approach)

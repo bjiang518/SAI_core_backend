@@ -326,6 +326,126 @@ class AIProxyRoutes {
       }
     }, this.generateTTS.bind(this));
 
+    // NEW: Question Generation Endpoints
+
+    // Generate random questions
+    this.fastify.post('/api/ai/generate-questions/random', {
+      schema: {
+        description: 'Generate random practice questions for a given subject',
+        tags: ['AI', 'Question Generation'],
+        body: {
+          type: 'object',
+          required: ['subject', 'config', 'user_profile'],
+          properties: {
+            subject: { type: 'string' },
+            config: {
+              type: 'object',
+              properties: {
+                topics: { type: 'array', items: { type: 'string' } },
+                focus_notes: { type: 'string' },
+                difficulty: { type: 'string', enum: ['beginner', 'intermediate', 'advanced'] },
+                question_count: { type: 'integer', minimum: 1, maximum: 10 }
+              }
+            },
+            user_profile: {
+              type: 'object',
+              properties: {
+                grade: { type: 'string' },
+                location: { type: 'string' },
+                preferences: { type: 'object', additionalProperties: true }
+              }
+            }
+          }
+        }
+      }
+    }, this.generateRandomQuestions.bind(this));
+
+    // Generate questions based on previous mistakes
+    this.fastify.post('/api/ai/generate-questions/mistakes', {
+      schema: {
+        description: 'Generate remedial questions based on previous mistakes',
+        tags: ['AI', 'Question Generation'],
+        body: {
+          type: 'object',
+          required: ['subject', 'mistakes_data', 'config', 'user_profile'],
+          properties: {
+            subject: { type: 'string' },
+            mistakes_data: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  original_question: { type: 'string' },
+                  user_answer: { type: 'string' },
+                  correct_answer: { type: 'string' },
+                  mistake_type: { type: 'string' },
+                  topic: { type: 'string' },
+                  date: { type: 'string' }
+                }
+              }
+            },
+            config: {
+              type: 'object',
+              properties: {
+                question_count: { type: 'integer', minimum: 1, maximum: 10 }
+              }
+            },
+            user_profile: {
+              type: 'object',
+              properties: {
+                grade: { type: 'string' },
+                location: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }, this.generateMistakeBasedQuestions.bind(this));
+
+    // Generate questions based on previous conversations
+    this.fastify.post('/api/ai/generate-questions/conversations', {
+      schema: {
+        description: 'Generate personalized questions based on previous conversations',
+        tags: ['AI', 'Question Generation'],
+        body: {
+          type: 'object',
+          required: ['subject', 'conversation_data', 'config', 'user_profile'],
+          properties: {
+            subject: { type: 'string' },
+            conversation_data: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  date: { type: 'string' },
+                  topics: { type: 'array', items: { type: 'string' } },
+                  student_questions: { type: 'string' },
+                  difficulty_level: { type: 'string' },
+                  strengths: { type: 'array', items: { type: 'string' } },
+                  weaknesses: { type: 'array', items: { type: 'string' } },
+                  key_concepts: { type: 'string' },
+                  engagement: { type: 'string' }
+                }
+              }
+            },
+            config: {
+              type: 'object',
+              properties: {
+                question_count: { type: 'integer', minimum: 1, maximum: 10 }
+              }
+            },
+            user_profile: {
+              type: 'object',
+              properties: {
+                grade: { type: 'string' },
+                location: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }, this.generateConversationBasedQuestions.bind(this));
+
     // Generic proxy for any other AI endpoints
     this.fastify.all('/api/ai/*', this.genericProxy.bind(this));
   }
@@ -1785,6 +1905,209 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       error: 'Unexpected error occurred',
       code: 'UNKNOWN_ERROR'
     });
+  }
+
+  // NEW: Question generation endpoint implementations
+
+  async generateRandomQuestions(request, reply) {
+    const startTime = Date.now();
+
+    try {
+      // Get authenticated user ID from token
+      const userId = await this.getUserIdFromToken(request);
+
+      if (!userId) {
+        return reply.status(401).send({
+          error: 'Authentication required to generate questions',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      this.fastify.log.info('🎯 === RANDOM QUESTIONS GENERATION REQUEST ===');
+      this.fastify.log.info(`📚 Subject: ${request.body.subject}`);
+      this.fastify.log.info(`⚙️  Config: ${JSON.stringify(request.body.config)}`);
+      this.fastify.log.info(`👤 User Profile: ${JSON.stringify(request.body.user_profile)}`);
+      this.fastify.log.info(`🔐 User ID: ${userId}`);
+
+      // Proxy to AI Engine question generation service
+      const result = await this.aiClient.proxyRequest(
+        'POST',
+        '/api/v1/generate-questions/random',
+        {
+          subject: request.body.subject,
+          config: request.body.config,
+          user_profile: {
+            ...request.body.user_profile,
+            user_id: userId // Add authenticated user ID
+          }
+        },
+        { 'Content-Type': 'application/json' }
+      );
+
+      if (result.success) {
+        const duration = Date.now() - startTime;
+
+        this.fastify.log.info('✅ === RANDOM QUESTIONS GENERATION SUCCESS ===');
+        this.fastify.log.info(`⏱️ Gateway processing time: ${duration}ms`);
+        this.fastify.log.info(`🎯 Questions generated: ${result.data?.question_count || 0}`);
+
+        return reply.send({
+          ...result.data,
+          _gateway: {
+            processTime: duration,
+            service: 'ai-engine',
+            endpoint: '/api/v1/generate-questions/random',
+            userId: userId
+          }
+        });
+      } else {
+        this.fastify.log.error('❌ Random questions generation failed:', result.error);
+        return this.handleProxyError(reply, result.error);
+      }
+    } catch (error) {
+      this.fastify.log.error('Error generating random questions:', error);
+      return reply.status(500).send({
+        error: 'Internal server error generating random questions',
+        code: 'RANDOM_QUESTIONS_ERROR',
+        processing_time_ms: Date.now() - startTime
+      });
+    }
+  }
+
+  async generateMistakeBasedQuestions(request, reply) {
+    const startTime = Date.now();
+
+    try {
+      // Get authenticated user ID from token
+      const userId = await this.getUserIdFromToken(request);
+
+      if (!userId) {
+        return reply.status(401).send({
+          error: 'Authentication required to generate questions',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      this.fastify.log.info('🎯 === MISTAKE-BASED QUESTIONS GENERATION REQUEST ===');
+      this.fastify.log.info(`📚 Subject: ${request.body.subject}`);
+      this.fastify.log.info(`❌ Mistakes Count: ${request.body.mistakes_data?.length || 0}`);
+      this.fastify.log.info(`⚙️  Config: ${JSON.stringify(request.body.config)}`);
+      this.fastify.log.info(`👤 User Profile: ${JSON.stringify(request.body.user_profile)}`);
+      this.fastify.log.info(`🔐 User ID: ${userId}`);
+
+      // Proxy to AI Engine question generation service
+      const result = await this.aiClient.proxyRequest(
+        'POST',
+        '/api/v1/generate-questions/mistakes',
+        {
+          subject: request.body.subject,
+          mistakes_data: request.body.mistakes_data,
+          config: request.body.config,
+          user_profile: {
+            ...request.body.user_profile,
+            user_id: userId // Add authenticated user ID
+          }
+        },
+        { 'Content-Type': 'application/json' }
+      );
+
+      if (result.success) {
+        const duration = Date.now() - startTime;
+
+        this.fastify.log.info('✅ === MISTAKE-BASED QUESTIONS GENERATION SUCCESS ===');
+        this.fastify.log.info(`⏱️ Gateway processing time: ${duration}ms`);
+        this.fastify.log.info(`🎯 Questions generated: ${result.data?.question_count || 0}`);
+        this.fastify.log.info(`❌ Mistakes analyzed: ${result.data?.mistakes_analyzed || 0}`);
+
+        return reply.send({
+          ...result.data,
+          _gateway: {
+            processTime: duration,
+            service: 'ai-engine',
+            endpoint: '/api/v1/generate-questions/mistakes',
+            userId: userId
+          }
+        });
+      } else {
+        this.fastify.log.error('❌ Mistake-based questions generation failed:', result.error);
+        return this.handleProxyError(reply, result.error);
+      }
+    } catch (error) {
+      this.fastify.log.error('Error generating mistake-based questions:', error);
+      return reply.status(500).send({
+        error: 'Internal server error generating mistake-based questions',
+        code: 'MISTAKE_QUESTIONS_ERROR',
+        processing_time_ms: Date.now() - startTime
+      });
+    }
+  }
+
+  async generateConversationBasedQuestions(request, reply) {
+    const startTime = Date.now();
+
+    try {
+      // Get authenticated user ID from token
+      const userId = await this.getUserIdFromToken(request);
+
+      if (!userId) {
+        return reply.status(401).send({
+          error: 'Authentication required to generate questions',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      this.fastify.log.info('🎯 === CONVERSATION-BASED QUESTIONS GENERATION REQUEST ===');
+      this.fastify.log.info(`📚 Subject: ${request.body.subject}`);
+      this.fastify.log.info(`💬 Conversations Count: ${request.body.conversation_data?.length || 0}`);
+      this.fastify.log.info(`⚙️  Config: ${JSON.stringify(request.body.config)}`);
+      this.fastify.log.info(`👤 User Profile: ${JSON.stringify(request.body.user_profile)}`);
+      this.fastify.log.info(`🔐 User ID: ${userId}`);
+
+      // Proxy to AI Engine question generation service
+      const result = await this.aiClient.proxyRequest(
+        'POST',
+        '/api/v1/generate-questions/conversations',
+        {
+          subject: request.body.subject,
+          conversation_data: request.body.conversation_data,
+          config: request.body.config,
+          user_profile: {
+            ...request.body.user_profile,
+            user_id: userId // Add authenticated user ID
+          }
+        },
+        { 'Content-Type': 'application/json' }
+      );
+
+      if (result.success) {
+        const duration = Date.now() - startTime;
+
+        this.fastify.log.info('✅ === CONVERSATION-BASED QUESTIONS GENERATION SUCCESS ===');
+        this.fastify.log.info(`⏱️ Gateway processing time: ${duration}ms`);
+        this.fastify.log.info(`🎯 Questions generated: ${result.data?.question_count || 0}`);
+        this.fastify.log.info(`💬 Conversations analyzed: ${result.data?.conversations_analyzed || 0}`);
+
+        return reply.send({
+          ...result.data,
+          _gateway: {
+            processTime: duration,
+            service: 'ai-engine',
+            endpoint: '/api/v1/generate-questions/conversations',
+            userId: userId
+          }
+        });
+      } else {
+        this.fastify.log.error('❌ Conversation-based questions generation failed:', result.error);
+        return this.handleProxyError(reply, result.error);
+      }
+    } catch (error) {
+      this.fastify.log.error('Error generating conversation-based questions:', error);
+      return reply.status(500).send({
+        error: 'Internal server error generating conversation-based questions',
+        code: 'CONVERSATION_QUESTIONS_ERROR',
+        processing_time_ms: Date.now() - startTime
+      });
+    }
   }
 
   async generateTTS(request, reply) {

@@ -1004,3 +1004,328 @@ Remember: Your goal is to help the student learn and understand both the image c
         response = re.sub(r'\\\]\s+', '\\]\n', response) # Line break after \]
         
         return response.strip()
+
+    # MARK: - Question Generation Prompts
+
+    def get_random_questions_prompt(self, subject: str, config: Dict[str, Any], user_profile: Dict[str, Any]) -> str:
+        """
+        Generate prompt for creating random practice questions.
+        """
+        print(f"🎯 === GENERATING RANDOM QUESTIONS PROMPT ===")
+        print(f"📚 Subject: {subject}")
+        print(f"⚙️  Config: {config}")
+        print(f"👤 User Profile: {user_profile}")
+
+        # Extract configuration
+        topics = config.get('topics', [])
+        focus_notes = config.get('focus_notes', '')
+        difficulty = config.get('difficulty', 'intermediate')
+        question_count = config.get('question_count', 5)
+
+        # Extract user profile
+        grade_level = user_profile.get('grade', 'High School')
+        location = user_profile.get('location', 'US')
+
+        # Get subject-specific formatting
+        detected_subject = self.detect_subject(subject)
+        template = self.prompt_templates.get(detected_subject, self.prompt_templates[Subject.GENERAL])
+
+        prompt = f"""You are an expert educational question generator specializing in {subject} at {grade_level} level.
+
+USER PROFILE:
+- Grade Level: {grade_level}
+- Location: {location}
+- Difficulty Preference: {difficulty}
+
+GENERATION REQUEST:
+- Subject: {subject}
+- Topics to Focus On: {', '.join(topics) if topics else 'General topics'}
+- Additional Focus Notes: {focus_notes if focus_notes else 'None specified'}
+- Number of Questions: {question_count}
+
+TASK:
+Generate {question_count} diverse, high-quality practice questions that:
+
+1. DIFFICULTY MATCHING:
+   - Match the "{difficulty}" difficulty level appropriately
+   - Are suitable for {grade_level} students
+   - Progress logically in complexity if multiple questions
+
+2. TOPIC COVERAGE:
+   - Cover the specified topics: {', '.join(topics) if topics else 'general subject concepts'}
+   - Focus on: {focus_notes if focus_notes else 'core understanding and application'}
+   - Include a variety of question types and approaches
+
+3. QUESTION TYPES:
+   - Mix of multiple choice, short answer, and calculation problems
+   - Real-world applications when appropriate
+   - Clear, unambiguous wording
+
+4. EDUCATIONAL VALUE:
+   - Test conceptual understanding, not just memorization
+   - Include questions that reveal common misconceptions
+   - Provide meaningful learning opportunities
+
+FORMATTING REQUIREMENTS:
+{template.base_prompt}"""
+
+        # Add formatting rules
+        prompt += "\n\nFORMATTING RULES:\n"
+        for rule in template.formatting_rules:
+            prompt += f"• {rule}\n"
+
+        prompt += f"""
+OUTPUT FORMAT:
+Return your response as a JSON object with a "questions" array. Each question must follow this exact structure:
+
+{{
+    "questions": [
+        {{
+            "question": "Clear, well-formatted question text with proper mathematical notation",
+            "type": "multiple_choice|short_answer|calculation",
+            "options": ["A) option1", "B) option2", "C) option3", "D) option4"],
+            "correct_answer": "The correct answer (for MC: just the letter and text, e.g., 'A) option1')",
+            "explanation": "Step-by-step explanation showing the solution process",
+            "difficulty": "{difficulty}",
+            "topic": "specific topic name from the focus areas",
+            "estimated_time": "time in minutes (e.g., '3 minutes')"
+        }}
+    ]
+}}
+
+CRITICAL NOTES:
+- For multiple choice: include exactly 4 options in the "options" array
+- For short answer/calculation: set "options" to null
+- Make sure all mathematical expressions use proper LaTeX formatting
+- Explanations should be educational and help students learn
+- Each question should be independent and self-contained
+
+Generate the questions now:"""
+
+        print(f"📝 Generated Random Questions Prompt Length: {len(prompt)} characters")
+        print("=" * 60)
+        return prompt
+
+    def get_mistake_based_questions_prompt(self, subject: str, mistakes_data: List[Dict], config: Dict[str, Any], user_profile: Dict[str, Any]) -> str:
+        """
+        Generate prompt for creating questions based on previous mistakes.
+        """
+        print(f"🎯 === GENERATING MISTAKE-BASED QUESTIONS PROMPT ===")
+        print(f"📚 Subject: {subject}")
+        print(f"❌ Mistakes Count: {len(mistakes_data)}")
+        print(f"⚙️  Config: {config}")
+        print(f"👤 User Profile: {user_profile}")
+
+        # Extract configuration
+        question_count = config.get('question_count', 5)
+
+        # Extract user profile
+        grade_level = user_profile.get('grade', 'High School')
+
+        # Format mistakes data
+        mistakes_analysis = []
+        for i, mistake in enumerate(mistakes_data, 1):
+            analysis = f"""
+MISTAKE #{i}:
+Original Question: {mistake.get('original_question', 'N/A')}
+Student's Answer: {mistake.get('user_answer', 'N/A')}
+Correct Answer: {mistake.get('correct_answer', 'N/A')}
+Mistake Type: {mistake.get('mistake_type', 'N/A')}
+Topic: {mistake.get('topic', 'N/A')}
+Date: {mistake.get('date', 'N/A')}
+"""
+            mistakes_analysis.append(analysis)
+
+        # Get subject-specific formatting
+        detected_subject = self.detect_subject(subject)
+        template = self.prompt_templates.get(detected_subject, self.prompt_templates[Subject.GENERAL])
+
+        prompt = f"""You are an expert educational tutor analyzing student mistakes to generate targeted remedial questions.
+
+USER PROFILE:
+- Grade Level: {grade_level}
+- Subject: {subject}
+
+MISTAKE ANALYSIS:
+The student has made the following mistakes in {subject}:
+{chr(10).join(mistakes_analysis)}
+
+TASK:
+Based on these mistakes, generate {question_count} new practice questions that:
+
+1. MISTAKE TARGETING:
+   - Address the same underlying concepts as the mistakes
+   - Use different numbers, contexts, or formats than the original questions
+   - Help the student practice the specific areas they struggled with
+   - Target the conceptual gaps revealed by their errors
+
+2. REMEDIAL APPROACH:
+   - Start with simpler variations of the mistaken concepts
+   - Gradually increase complexity within the same question set
+   - Include "trap" answers that represent common mistakes
+   - Focus on the root cause of errors, not just the symptoms
+
+3. EDUCATIONAL STRATEGY:
+   - Create questions that force correct reasoning about the mistaken concepts
+   - Include explanation steps that address the specific error patterns
+   - Design multiple choice distractors based on likely student errors
+   - Help build confidence through achievable but meaningful challenges
+
+4. VARIETY AND ENGAGEMENT:
+   - Use different problem contexts while maintaining concept focus
+   - Mix question types (multiple choice, short answer, calculations)
+   - Ensure questions are appropriately challenging but not overwhelming
+   - Connect to real-world applications when relevant
+
+FORMATTING REQUIREMENTS:
+{template.base_prompt}"""
+
+        # Add formatting rules
+        prompt += "\n\nFORMATTING RULES:\n"
+        for rule in template.formatting_rules:
+            prompt += f"• {rule}\n"
+
+        prompt += f"""
+OUTPUT FORMAT:
+Return your response as a JSON object with a "questions" array. Each question must follow this exact structure:
+
+{{
+    "questions": [
+        {{
+            "question": "Question text that addresses the mistake pattern",
+            "type": "multiple_choice|short_answer|calculation",
+            "options": ["A) option1", "B) option2", "C) option3", "D) option4"],
+            "correct_answer": "The correct answer",
+            "explanation": "Detailed explanation that addresses the common mistake and shows correct reasoning",
+            "difficulty": "beginner|intermediate|advanced",
+            "topic": "specific topic from the mistake analysis",
+            "addresses_mistake": "Brief description of which mistake pattern this question helps with (optional)",
+            "estimated_time": "time in minutes"
+        }}
+    ]
+}}
+
+CRITICAL NOTES:
+- Focus on helping the student overcome their specific error patterns
+- Make sure explanations explicitly address why the student's previous approach was incorrect
+- For multiple choice, include distractors that represent common mistakes
+- Questions should build understanding, not just test memorization
+
+Generate the remedial questions now:"""
+
+        print(f"📝 Generated Mistake-Based Questions Prompt Length: {len(prompt)} characters")
+        print("=" * 60)
+        return prompt
+
+    def get_conversation_based_questions_prompt(self, subject: str, conversation_data: List[Dict], config: Dict[str, Any], user_profile: Dict[str, Any]) -> str:
+        """
+        Generate prompt for creating questions based on previous conversations.
+        """
+        print(f"🎯 === GENERATING CONVERSATION-BASED QUESTIONS PROMPT ===")
+        print(f"📚 Subject: {subject}")
+        print(f"💬 Conversations Count: {len(conversation_data)}")
+        print(f"⚙️  Config: {config}")
+        print(f"👤 User Profile: {user_profile}")
+
+        # Extract configuration
+        question_count = config.get('question_count', 5)
+
+        # Extract user profile
+        grade_level = user_profile.get('grade', 'High School')
+
+        # Format conversation data
+        conversation_analysis = []
+        for i, conv in enumerate(conversation_data, 1):
+            analysis = f"""
+CONVERSATION #{i}:
+Date: {conv.get('date', 'N/A')}
+Topics Discussed: {', '.join(conv.get('topics', [])) if conv.get('topics') else 'N/A'}
+Student Questions Asked: {conv.get('student_questions', 'N/A')}
+Difficulty Level: {conv.get('difficulty_level', 'N/A')}
+Student Strengths Observed: {', '.join(conv.get('strengths', [])) if conv.get('strengths') else 'N/A'}
+Areas for Improvement: {', '.join(conv.get('weaknesses', [])) if conv.get('weaknesses') else 'N/A'}
+Key Concepts Covered: {conv.get('key_concepts', 'N/A')}
+Student Engagement Level: {conv.get('engagement', 'N/A')}
+"""
+            conversation_analysis.append(analysis)
+
+        # Get subject-specific formatting
+        detected_subject = self.detect_subject(subject)
+        template = self.prompt_templates.get(detected_subject, self.prompt_templates[Subject.GENERAL])
+
+        prompt = f"""You are an expert educational AI analyzing previous learning conversations to generate personalized questions.
+
+USER PROFILE:
+- Grade Level: {grade_level}
+- Subject: {subject}
+
+CONVERSATION ANALYSIS:
+Based on previous conversations, here's what we know about the student's learning patterns in {subject}:
+{chr(10).join(conversation_analysis)}
+
+TASK:
+Generate {question_count} personalized questions that:
+
+1. PERSONALIZATION:
+   - Build upon concepts the student has shown interest in
+   - Address knowledge gaps identified in conversations
+   - Match the student's demonstrated ability level
+   - Connect to topics they've previously engaged with successfully
+
+2. LEARNING PROGRESSION:
+   - Start from their current understanding level
+   - Introduce appropriate challenges without overwhelming
+   - Reinforce concepts they've partially grasped
+   - Extend their knowledge into related areas they're ready for
+
+3. ENGAGEMENT OPTIMIZATION:
+   - Focus on topics that sparked their curiosity in conversations
+   - Use problem contexts similar to what they found interesting
+   - Build on their demonstrated strengths
+   - Address weaknesses through supportive, scaffolded questions
+
+4. ADAPTIVE DIFFICULTY:
+   - Questions should feel achievable but meaningful
+   - Provide appropriate challenge based on their conversation history
+   - Include both reinforcement and extension opportunities
+   - Consider their typical response patterns and preferences
+
+FORMATTING REQUIREMENTS:
+{template.base_prompt}"""
+
+        # Add formatting rules
+        prompt += "\n\nFORMATTING RULES:\n"
+        for rule in template.formatting_rules:
+            prompt += f"• {rule}\n"
+
+        prompt += f"""
+OUTPUT FORMAT:
+Return your response as a JSON object with a "questions" array. Each question must follow this exact structure:
+
+{{
+    "questions": [
+        {{
+            "question": "Personalized question text building on their conversation history",
+            "type": "multiple_choice|short_answer|calculation",
+            "options": ["A) option1", "B) option2", "C) option3", "D) option4"],
+            "correct_answer": "The correct answer",
+            "explanation": "Explanation that connects to their previous understanding and conversations",
+            "difficulty": "beginner|intermediate|advanced",
+            "topic": "specific topic from conversation analysis",
+            "builds_on": "Brief description of which conversation element this builds upon (optional)",
+            "estimated_time": "time in minutes"
+        }}
+    ]
+}}
+
+CRITICAL NOTES:
+- Questions should feel like a natural continuation of their learning journey
+- Reference concepts from their conversations when appropriate
+- Explanations should connect new material to what they already know
+- Maintain the engagement style that worked well in their conversations
+
+Generate the personalized questions now:"""
+
+        print(f"📝 Generated Conversation-Based Questions Prompt Length: {len(prompt)} characters")
+        print("=" * 60)
+        return prompt

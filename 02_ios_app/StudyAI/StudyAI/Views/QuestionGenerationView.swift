@@ -1,0 +1,1409 @@
+//
+//  QuestionGenerationView.swift
+//  StudyAI
+//
+//  Created by Claude Code on 12/21/24.
+//
+
+import SwiftUI
+import Foundation
+import os.log
+
+struct QuestionGenerationView: View {
+    @StateObject private var questionService = QuestionGenerationService.shared
+    @StateObject private var authService = AuthenticationService.shared
+    @StateObject private var profileService = ProfileService.shared
+    @StateObject private var mistakeService = MistakeReviewService()
+    // @StateObject private var conversationStore = ConversationStore.shared
+    @StateObject private var archiveService = QuestionArchiveService.shared
+    @State private var inputSubject = ""
+    @State private var selectedTemplate: TemplateType = .randomPractice
+    @State private var showingQuestionsList = false
+    @State private var generatedQuestions: [QuestionGenerationService.GeneratedQuestion] = []
+    @State private var showingErrorAlert = false
+    @State private var errorMessage = ""
+    @State private var availableMistakes: [MistakeQuestion] = []
+    @State private var availableConversations: [String] = [] // Temporary: using [String] instead of [Conversation]
+    @State private var availableQuestions: [QuestionSummary] = []
+    @State private var selectedConversations: Set<String> = []
+    @State private var selectedQuestions: Set<String> = []
+    @State private var selectedMistakes: Set<String> = [] // Add selected mistakes tracking
+    @State private var selectedDifficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty = .intermediate
+    @State private var questionCount = 5
+    @State private var selectedMistakeNotebook = ""
+    @State private var selectedArchiveSession = ""
+    @State private var isLoadingData = false
+    @State private var selectedSubject = ""
+    @State private var showingMistakeSelection = false // Add mistake selection sheet state
+    @State private var showingArchiveSelection = false // Add archive selection sheet state
+
+    private let logger = Logger(subsystem: "com.studyai", category: "QuestionGeneration")
+    private let dataAdapter = QuestionGenerationDataAdapter.shared
+
+    enum TemplateType: String, CaseIterable {
+        case randomPractice = "random"
+        case fromMistakes = "mistake_based"
+        case fromArchives = "conversation_based"
+
+        var displayName: String {
+            switch self {
+            case .randomPractice: return "Random Practice"
+            case .fromMistakes: return "From Mistakes"
+            case .fromArchives: return "From Archives"
+            }
+        }
+
+        var description: String {
+            switch self {
+            case .randomPractice: return "Generate fresh practice questions"
+            case .fromMistakes: return "Target your weak areas"
+            case .fromArchives: return "Build on archived sessions"
+            }
+        }
+
+        var iconName: String {
+            switch self {
+            case .randomPractice: return "dice.fill"
+            case .fromMistakes: return "exclamationmark.triangle.fill"
+            case .fromArchives: return "archivebox.fill"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .randomPractice: return .blue
+            case .fromMistakes: return .orange
+            case .fromArchives: return .green
+            }
+        }
+    }
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 32) {
+                    // Header Section
+                    headerSection
+
+                    // Generation Type Selection
+                    generationTypeSelection
+
+                    // Configuration Section
+                    configurationSection
+
+                    // General Configuration Section
+                    generalConfigurationSection
+
+                    // Generate Button
+                    generateButton
+
+                    // Progress Section
+                    if questionService.isGenerating {
+                        progressSection
+                    }
+
+                    // Recent Questions Preview
+                    if !generatedQuestions.isEmpty {
+                        recentQuestionsPreview
+                    }
+
+                    Spacer(minLength: 100)
+                }
+                .padding()
+            }
+            .navigationTitle("Generate Questions")
+            .navigationBarTitleDisplayMode(.large)
+            .sheet(isPresented: $showingQuestionsList) {
+                GeneratedQuestionsListView(questions: generatedQuestions)
+            }
+            .sheet(isPresented: $showingMistakeSelection) {
+                MistakeSelectionView(
+                    mistakes: availableMistakes,
+                    selectedMistakes: $selectedMistakes
+                )
+            }
+            .sheet(isPresented: $showingArchiveSelection) {
+                ArchiveSelectionView(
+                    conversations: availableConversations,
+                    questions: availableQuestions,
+                    selectedConversations: $selectedConversations,
+                    selectedQuestions: $selectedQuestions
+                )
+            }
+            .alert("Generation Error", isPresented: $showingErrorAlert) {
+                Button("OK") { }
+            } message: {
+                Text(errorMessage)
+            }
+            .onAppear {
+                logger.info("🎯 Question Generation View appeared")
+                loadInitialData()
+            }
+        }
+    }
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("AI Question Generator")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+
+                    Text("Generate personalized practice questions powered by AI")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "brain.head.profile.fill")
+                    .font(.title)
+                    .foregroundColor(.purple)
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(16)
+    }
+
+    private var generationTypeSelection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Choose Template")
+                .font(.title3)
+                .fontWeight(.semibold)
+
+            VStack(spacing: 16) {
+                ForEach(TemplateType.allCases, id: \.self) { type in
+                    GenerationTypeCard(
+                        type: type,
+                        isSelected: selectedTemplate == type,
+                        onTap: { selectedTemplate = type }
+                    )
+                }
+            }
+        }
+    }
+
+    private var configurationSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Configuration")
+                .font(.title3)
+                .fontWeight(.semibold)
+
+            switch selectedTemplate {
+            case .randomPractice:
+                RandomQuestionConfig(
+                    availableSubjects: dataAdapter.getMostCommonSubjects(),
+                    selectedSubject: $selectedSubject
+                )
+            case .fromMistakes:
+                MistakeBasedConfig(
+                    mistakes: availableMistakes,
+                    isLoading: isLoadingData,
+                    selectedMistakes: $selectedMistakes,
+                    onShowSelection: { showingMistakeSelection = true }
+                )
+            case .fromArchives:
+                ArchiveBasedConfig(
+                    conversations: availableConversations,
+                    questions: availableQuestions,
+                    selectedConversations: $selectedConversations,
+                    selectedQuestions: $selectedQuestions,
+                    isLoading: isLoadingData,
+                    onShowSelection: { showingArchiveSelection = true }
+                )
+            }
+        }
+    }
+
+    private var generalConfigurationSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("General Settings")
+                .font(.title3)
+                .fontWeight(.semibold)
+
+            VStack(spacing: 16) {
+                // Difficulty Slider
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.subheadline)
+                            .foregroundColor(.purple)
+                        Text("Difficulty Level")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Text(selectedDifficulty.rawValue.capitalized)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(selectedTemplate.color.opacity(0.1))
+                            .cornerRadius(6)
+                    }
+
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("Beginner")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text("Advanced")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        // Custom difficulty picker using segmented control style
+                        Picker("Difficulty", selection: $selectedDifficulty) {
+                            ForEach(QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty.allCases, id: \.self) { difficulty in
+                                Text(difficulty.rawValue.capitalized).tag(difficulty)
+                            }
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                    }
+                }
+
+                // Question Count Slider
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "number.circle")
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                        Text("Number of Questions")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Text("\(questionCount)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(selectedTemplate.color.opacity(0.1))
+                            .cornerRadius(6)
+                    }
+
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("1")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text("10")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Slider(value: Binding(
+                            get: { Double(questionCount) },
+                            set: { questionCount = Int($0) }
+                        ), in: 1...10, step: 1)
+                        .accentColor(selectedTemplate.color)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(16)
+    }
+
+    private var generateButton: some View {
+        Button(action: generateQuestions) {
+            HStack(spacing: 8) {
+                if questionService.isGenerating {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.8)
+                } else {
+                    Image(systemName: "sparkles")
+                        .font(.headline)
+                }
+
+                Text(questionService.isGenerating ? "Generating..." : "Generate Questions")
+                    .font(.body.bold())
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(
+                LinearGradient(
+                    colors: [selectedTemplate.color, selectedTemplate.color.opacity(0.8)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(16)
+            .disabled(questionService.isGenerating || !canGenerate())
+        }
+        .opacity(questionService.isGenerating || !canGenerate() ? 0.6 : 1.0)
+    }
+
+    private var progressSection: some View {
+        VStack(spacing: 16) {
+            if let progress = questionService.generationProgress {
+                Text(progress)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            ProgressView()
+                .progressViewStyle(LinearProgressViewStyle(tint: selectedTemplate.color))
+        }
+        .padding()
+        .background(selectedTemplate.color.opacity(0.05))
+        .cornerRadius(12)
+    }
+
+    private var recentQuestionsPreview: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                Text("Generated Questions")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+
+                Spacer()
+
+                Button("View All") {
+                    showingQuestionsList = true
+                }
+                .font(.subheadline)
+                .foregroundColor(selectedTemplate.color)
+            }
+
+            VStack(spacing: 8) {
+                ForEach(generatedQuestions.prefix(3)) { question in
+                    QuestionGenerationPreviewCard(question: question)
+                }
+            }
+        }
+    }
+
+    private func loadInitialData() {
+        guard !isLoadingData else { return }
+
+        isLoadingData = true
+        logger.info("🔄 Loading initial data for question generation")
+
+        Task {
+            do {
+                // Load mistakes - fetch them properly like MistakeReviewView does
+                // Use nil subject to get all mistakes across all subjects
+                await mistakeService.fetchMistakes(subject: nil, timeRange: .lastMonth)
+                let allMistakes = mistakeService.mistakes
+
+                // Get conversations from sample data for now - TEMPORARY FIX
+                // let conversations = await conversationStore.listConversations(filter: .all, forceRefresh: false)
+                let conversations = ["Math - Algebra", "Physics - Mechanics", "Chemistry - Bonding"] // Temporary placeholder
+
+                // Load archived questions from QuestionArchiveService
+                let questions = try await archiveService.fetchArchivedQuestions(limit: 100)
+
+                await MainActor.run {
+                    self.availableMistakes = allMistakes
+                    self.availableConversations = conversations
+                    self.availableQuestions = questions
+                    self.isLoadingData = false
+
+                    logger.info("✅ Loaded \(allMistakes.count) mistakes, \(conversations.count) conversations, and \(questions.count) questions")
+                }
+            } catch {
+                await MainActor.run {
+                    self.isLoadingData = false
+                    self.errorMessage = "Failed to load data: \\(error.localizedDescription)"
+                    self.showingErrorAlert = true
+                    logger.error("❌ Failed to load initial data: \\(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    private func canGenerate() -> Bool {
+        guard authService.isAuthenticated else { return false }
+
+        switch selectedTemplate {
+        case .randomPractice:
+            return true
+        case .fromMistakes:
+            return !selectedMistakes.isEmpty
+        case .fromArchives:
+            return !selectedConversations.isEmpty || !selectedQuestions.isEmpty
+        }
+    }
+
+    private func generateQuestions() {
+        logger.info("🎯 Starting question generation: \(selectedTemplate.rawValue)")
+
+        Task {
+            do {
+                let questions = try await performGeneration()
+
+                await MainActor.run {
+                    self.generatedQuestions = questions
+                    self.showingQuestionsList = true
+                    logger.info("✅ Successfully generated \(questions.count) questions")
+                }
+            } catch {
+                await MainActor.run {
+                    // Enhanced error handling with better user messages
+                    if let generationError = error as? QuestionGenerationError {
+                        self.errorMessage = generationError.errorDescription ?? error.localizedDescription
+
+                        // Add recovery suggestion for better UX
+                        if let recovery = generationError.recoverySuggestion {
+                            self.errorMessage += "\n\n💡 " + recovery
+                        }
+
+                        // Log the specific error type for debugging
+                        switch generationError {
+                        case .backendValidationBug(let message):
+                            logger.error("🐛 Backend validation bug detected: \(message)")
+                        case .aiProcessingError(let message):
+                            logger.error("🤖 AI processing error: \(message)")
+                        case .serverError(let code):
+                            logger.error("🔴 Server error \(code)")
+                        case .networkError(let message):
+                            logger.error("🌐 Network error: \(message)")
+                        default:
+                            logger.error("❌ Other generation error: \(generationError.errorDescription ?? "Unknown")")
+                        }
+                    } else {
+                        // Fallback for non-QuestionGenerationError types
+                        self.errorMessage = error.localizedDescription
+                        logger.error("❌ Question generation failed: \(error.localizedDescription)")
+                    }
+
+                    self.showingErrorAlert = true
+                }
+            }
+        }
+    }
+
+    private func performGeneration() async throws -> [QuestionGenerationService.GeneratedQuestion] {
+        let userProfile = dataAdapter.createUserProfile()
+
+        switch selectedTemplate {
+        case .randomPractice:
+            let mostCommonSubjects = dataAdapter.getMostCommonSubjects()
+
+            let primarySubject = !selectedSubject.isEmpty ? selectedSubject : (mostCommonSubjects.first ?? "Mathematics")
+
+            let recommendedCount = dataAdapter.getRecommendedQuestionCount()
+
+            let recommendedDifficulty = dataAdapter.getRecommendedDifficulty()
+
+            let focusAreas = dataAdapter.getFocusAreas()
+
+            let focusNotes = focusAreas.isEmpty ?
+                "Generate diverse practice questions to build foundational knowledge" :
+                "Focus on these areas where the student needs improvement: \(focusAreas.joined(separator: ", "))"
+
+            let config = QuestionGenerationService.RandomQuestionsConfig(
+                topics: mostCommonSubjects.isEmpty ? [primarySubject] : mostCommonSubjects,
+                focusNotes: focusNotes,
+                difficulty: selectedDifficulty,
+                questionCount: questionCount
+            )
+
+            logger.info("🎯 Random questions config: subject=\(primarySubject), difficulty=\(selectedDifficulty.rawValue), count=\(questionCount)")
+
+            let result = await questionService.generateRandomQuestions(
+                subject: primarySubject,
+                config: config,
+                userProfile: userProfile
+            )
+
+            switch result {
+            case .success(let questions):
+                return questions
+            case .failure(let error):
+                throw error
+            }
+
+        case .fromMistakes:
+            guard !selectedMistakes.isEmpty else {
+                throw NSError(domain: "QuestionGeneration", code: -1, userInfo: [NSLocalizedDescriptionKey: "No mistakes selected for question generation"])
+            }
+
+            // Filter to only selected mistakes
+            let selectedMistakeObjects = availableMistakes.filter { selectedMistakes.contains($0.id) }
+
+            // Convert selected mistake data using the adapter
+            let mistakeData = selectedMistakeObjects.map { mistake in
+                QuestionGenerationService.MistakeData(
+                    originalQuestion: mistake.question,
+                    userAnswer: mistake.studentAnswer,
+                    correctAnswer: mistake.correctAnswer,
+                    mistakeType: "incorrect_answer",
+                    topic: mistake.subject,
+                    date: ISO8601DateFormatter().string(from: mistake.createdAt)
+                )
+            }
+
+            // Get the most common subject from selected mistakes
+            let mistakeSubjects = Array(Set(selectedMistakeObjects.map { $0.subject }))
+            let primarySubject = mistakeSubjects.first ?? "Mathematics"
+
+            let config = QuestionGenerationService.RandomQuestionsConfig(
+                topics: mistakeSubjects,
+                focusNotes: "Focus on addressing common mistakes and strengthening weak areas",
+                difficulty: selectedDifficulty,
+                questionCount: questionCount
+            )
+
+            let result = await questionService.generateMistakeBasedQuestions(
+                subject: primarySubject,
+                mistakes: mistakeData,
+                config: config,
+                userProfile: userProfile
+            )
+
+            switch result {
+            case .success(let questions):
+                return questions
+            case .failure(let error):
+                throw error
+            }
+
+        case .fromArchives:
+            guard !availableConversations.isEmpty else {
+                throw NSError(domain: "QuestionGeneration", code: -1, userInfo: [NSLocalizedDescriptionKey: "No conversations available for question generation"])
+            }
+
+            // Convert real conversation data using the adapter
+            let conversationData = availableConversations.map { conversationTitle in
+                QuestionGenerationService.ConversationData(
+                    date: ISO8601DateFormatter().string(from: Date()),
+                    topics: [conversationTitle.components(separatedBy: " - ").first ?? "General"],
+                    studentQuestions: "Discussion about \(conversationTitle)",
+                    difficultyLevel: "intermediate",
+                    strengths: ["Active participation"],
+                    weaknesses: ["More practice needed"],
+                    keyConcepts: conversationTitle,
+                    engagement: "high"
+                )
+            }
+
+            // Get the most common subject from conversations
+            let conversationSubjects = Array(Set(availableConversations.compactMap { conversationTitle in
+                conversationTitle.components(separatedBy: " - ").first
+            })).filter { !$0.isEmpty && $0 != "General Discussion" }
+            let primarySubject = conversationSubjects.first ?? "Mathematics"
+
+            let config = QuestionGenerationService.RandomQuestionsConfig(
+                topics: conversationSubjects.isEmpty ? [primarySubject] : conversationSubjects,
+                focusNotes: "Based on conversation topics and user engagement patterns",
+                difficulty: selectedDifficulty,
+                questionCount: questionCount
+            )
+
+            let result = await questionService.generateConversationBasedQuestions(
+                subject: primarySubject,
+                conversations: conversationData,
+                config: config,
+                userProfile: userProfile
+            )
+
+            switch result {
+            case .success(let questions):
+                return questions
+            case .failure(let error):
+                throw error
+            }
+        }
+    }
+}
+
+// MARK: - New Supporting Views
+
+struct TemplateButton: View {
+    let template: QuestionGenerationView.TemplateType
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(template.color.opacity(isSelected ? 0.2 : 0.1))
+                        .frame(width: 50, height: 50)
+
+                    Image(systemName: template.iconName)
+                        .font(.title3)
+                        .foregroundColor(template.color)
+                }
+
+                Text(template.displayName)
+                    .font(.caption)
+                    .fontWeight(isSelected ? .semibold : .medium)
+                    .foregroundColor(isSelected ? template.color : .secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(isSelected ? template.color.opacity(0.08) : Color.clear)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? template.color : Color.gray.opacity(0.3), lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct GenerationTypeCard: View {
+    let type: QuestionGenerationView.TemplateType
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 20) {
+                ZStack {
+                    Circle()
+                        .fill(type.color.opacity(isSelected ? 0.2 : 0.1))
+                        .frame(width: 50, height: 50)
+
+                    Image(systemName: type.iconName)
+                        .font(.title2)
+                        .foregroundColor(type.color)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(type.displayName)
+                        .font(.body.bold())
+                        .foregroundColor(.primary)
+
+                    Text(type.description)
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer()
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(type.color)
+                }
+            }
+            .padding()
+            .background(isSelected ? type.color.opacity(0.05) : Color.gray.opacity(0.1))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isSelected ? type.color : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct QuestionGenerationPreviewCard: View {
+    let question: QuestionGenerationService.GeneratedQuestion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(question.question)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .lineLimit(2)
+
+            Text(question.topic)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(6)
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(12)
+    }
+}
+
+struct RandomQuestionConfig: View {
+    let availableSubjects: [String]
+    @Binding var selectedSubject: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "dice.fill")
+                    .font(.subheadline)
+                    .foregroundColor(.blue)
+                Text("Random Practice Settings")
+                    .font(.body)
+                    .fontWeight(.medium)
+            }
+
+            if !availableSubjects.isEmpty {
+                Menu {
+                    ForEach(availableSubjects, id: \.self) { subject in
+                        Button(subject) {
+                            selectedSubject = subject
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(selectedSubject.isEmpty ? "Choose subject" : selectedSubject)
+                            .foregroundColor(selectedSubject.isEmpty ? .secondary : .primary)
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
+                }
+            } else {
+                Text("Using general math topics")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .italic()
+            }
+        }
+        .padding()
+        .background(Color.blue.opacity(0.05))
+        .cornerRadius(8)
+        .onAppear {
+            if selectedSubject.isEmpty && !availableSubjects.isEmpty {
+                selectedSubject = availableSubjects.first ?? ""
+            }
+        }
+    }
+}
+
+struct MistakeBasedConfig: View {
+    let mistakes: [MistakeQuestion]
+    let isLoading: Bool
+    @Binding var selectedMistakes: Set<String>
+    let onShowSelection: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.subheadline)
+                    .foregroundColor(.orange)
+                Text("Mistake-Based Settings")
+                    .font(.body)
+                    .fontWeight(.medium)
+            }
+
+            if isLoading {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Loading mistakes...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } else if !mistakes.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(mistakes.count) mistakes available")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            if selectedMistakes.isEmpty {
+                                Text("Tap to select mistakes")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                                    .italic()
+                            } else {
+                                Text("\(selectedMistakes.count) mistakes selected")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                                    .fontWeight(.medium)
+                            }
+                        }
+
+                        Spacer()
+
+                        Button(action: onShowSelection) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "list.bullet")
+                                    .font(.caption)
+                                Text("Select")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.orange)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.orange.opacity(0.1))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+
+                    // Show breakdown by subject if available and mistakes are selected
+                    if !selectedMistakes.isEmpty {
+                        let selectedMistakeObjects = mistakes.filter { selectedMistakes.contains($0.id) }
+                        let subjectCounts = Dictionary(grouping: selectedMistakeObjects, by: { $0.subject })
+                            .mapValues { $0.count }
+                            .sorted(by: { $0.value > $1.value })
+
+                        if subjectCounts.count > 0 {
+                            Text("Selected: \(subjectCounts.prefix(3).map { "\($0.key) (\($0.value))" }.joined(separator: ", "))")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .italic()
+                        }
+                    }
+                }
+            } else {
+                Text("No mistakes found. Complete some homework first.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .italic()
+            }
+        }
+        .padding()
+        .background(Color.orange.opacity(0.05))
+        .cornerRadius(8)
+    }
+}
+
+struct ArchiveBasedConfig: View {
+    let conversations: [String] // Temporary: using [String] instead of [Conversation]
+    let questions: [QuestionSummary]
+    @Binding var selectedConversations: Set<String>
+    @Binding var selectedQuestions: Set<String>
+    let isLoading: Bool
+    let onShowSelection: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "archivebox.fill")
+                    .font(.subheadline)
+                    .foregroundColor(.green)
+                Text("Archive-Based Settings")
+                    .font(.body)
+                    .fontWeight(.medium)
+            }
+
+            if isLoading {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Loading archive data...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(conversations.count) conversations, \(questions.count) questions available")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            if selectedConversations.isEmpty && selectedQuestions.isEmpty {
+                                Text("Tap to select archives")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                                    .italic()
+                            } else {
+                                Text("\(selectedConversations.count) conversations, \(selectedQuestions.count) questions selected")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                                    .fontWeight(.medium)
+                            }
+                        }
+
+                        Spacer()
+
+                        Button(action: onShowSelection) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "list.bullet")
+                                    .font(.caption)
+                                Text("Select")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.green)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.green.opacity(0.1))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+
+                    if conversations.isEmpty && questions.isEmpty {
+                        Text("No archived content found. Have some conversations or complete homework first.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .italic()
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.green.opacity(0.05))
+        .cornerRadius(8)
+    }
+}
+
+struct ConversationSelectionCard: View {
+    let conversationTitle: String // Temporary: using String instead of Conversation
+    let isSelected: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(conversationTitle)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+
+                Text("Conversation") // Temporary placeholder for subject
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            .padding(8)
+            .frame(width: 120, height: 60)
+            .background(isSelected ? Color.green.opacity(0.2) : Color.gray.opacity(0.1))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.green : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct QuestionSelectionCard: View {
+    let question: QuestionSummary
+    let isSelected: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(question.subject)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+
+                Text("\(question.totalQuestions) questions")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .padding(8)
+            .frame(width: 100, height: 50)
+            .background(isSelected ? Color.blue.opacity(0.2) : Color.gray.opacity(0.1))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct ConversationBasedConfig: View {
+    let conversations: [String]
+    let isLoading: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "archivebox.fill")
+                    .font(.subheadline)
+                    .foregroundColor(.green)
+                Text("Archive-Based Settings")
+                    .font(.body)
+                    .fontWeight(.medium)
+            }
+
+            if isLoading {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Loading conversations...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } else if !conversations.isEmpty {
+                Text("\(conversations.count) conversations available for question generation")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("No archived conversations found. Have some conversations first.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .italic()
+            }
+        }
+        .padding()
+        .background(Color.green.opacity(0.05))
+        .cornerRadius(8)
+    }
+}
+
+#Preview {
+    QuestionGenerationView()
+}
+
+// MARK: - Selection Views
+
+struct MistakeSelectionView: View {
+    let mistakes: [MistakeQuestion]
+    @Binding var selectedMistakes: Set<String>
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            VStack {
+                if mistakes.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 64))
+                            .foregroundColor(.green)
+
+                        Text("No mistakes found!")
+                            .font(.title2)
+                            .fontWeight(.bold)
+
+                        Text("Complete some homework to build your mistake collection.")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                } else {
+                    // Selection Controls
+                    HStack {
+                        Button(action: {
+                            if selectedMistakes.count == mistakes.count {
+                                selectedMistakes.removeAll()
+                            } else {
+                                selectedMistakes = Set(mistakes.map { $0.id })
+                            }
+                        }) {
+                            Text(selectedMistakes.count == mistakes.count ? "Deselect All" : "Select All")
+                                .font(.subheadline)
+                                .foregroundColor(.orange)
+                        }
+
+                        Spacer()
+
+                        Text("\(selectedMistakes.count) selected")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+
+                    // Mistakes List
+                    List {
+                        ForEach(mistakes) { mistake in
+                            MistakeSelectionCard(
+                                mistake: mistake,
+                                isSelected: selectedMistakes.contains(mistake.id),
+                                onToggle: {
+                                    if selectedMistakes.contains(mistake.id) {
+                                        selectedMistakes.remove(mistake.id)
+                                    } else {
+                                        selectedMistakes.insert(mistake.id)
+                                    }
+                                }
+                            )
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                        }
+                    }
+                    .listStyle(.plain)
+                }
+            }
+            .navigationTitle("Select Mistakes")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(selectedMistakes.isEmpty)
+                }
+            }
+        }
+    }
+}
+
+struct ArchiveSelectionView: View {
+    let conversations: [String]
+    let questions: [QuestionSummary]
+    @Binding var selectedConversations: Set<String>
+    @Binding var selectedQuestions: Set<String>
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            VStack {
+                if conversations.isEmpty && questions.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "archivebox")
+                            .font(.system(size: 64))
+                            .foregroundColor(.green)
+
+                        Text("No archives found!")
+                            .font(.title2)
+                            .fontWeight(.bold)
+
+                        Text("Have some conversations or complete homework to build your archive collection.")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                } else {
+                    // Selection Controls
+                    HStack {
+                        Button(action: {
+                            let totalItems = conversations.count + questions.count
+                            let selectedItems = selectedConversations.count + selectedQuestions.count
+
+                            if selectedItems == totalItems {
+                                selectedConversations.removeAll()
+                                selectedQuestions.removeAll()
+                            } else {
+                                selectedConversations = Set(conversations)
+                                selectedQuestions = Set(questions.map { $0.id })
+                            }
+                        }) {
+                            let totalItems = conversations.count + questions.count
+                            let selectedItems = selectedConversations.count + selectedQuestions.count
+
+                            Text(selectedItems == totalItems ? "Deselect All" : "Select All")
+                                .font(.subheadline)
+                                .foregroundColor(.green)
+                        }
+
+                        Spacer()
+
+                        Text("\(selectedConversations.count + selectedQuestions.count) selected")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+
+                    // Archive List
+                    List {
+                        if !conversations.isEmpty {
+                            Section("Conversations") {
+                                ForEach(conversations, id: \.self) { conversation in
+                                    ArchiveConversationSelectionCard(
+                                        conversationTitle: conversation,
+                                        isSelected: selectedConversations.contains(conversation),
+                                        onToggle: {
+                                            if selectedConversations.contains(conversation) {
+                                                selectedConversations.remove(conversation)
+                                            } else {
+                                                selectedConversations.insert(conversation)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        if !questions.isEmpty {
+                            Section("Questions") {
+                                ForEach(questions) { question in
+                                    ArchiveQuestionSelectionCard(
+                                        question: question,
+                                        isSelected: selectedQuestions.contains(question.id),
+                                        onToggle: {
+                                            if selectedQuestions.contains(question.id) {
+                                                selectedQuestions.remove(question.id)
+                                            } else {
+                                                selectedQuestions.insert(question.id)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                }
+            }
+            .navigationTitle("Select Archives")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(selectedConversations.isEmpty && selectedQuestions.isEmpty)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Selection Cards
+
+struct MistakeSelectionCard: View {
+    let mistake: MistakeQuestion
+    let isSelected: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 16) {
+                // Selection indicator
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(isSelected ? .orange : .gray)
+                    .font(.title2)
+
+                // Mistake content
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(mistake.question)
+                        .font(.body)
+                        .fontWeight(.medium)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+
+                    HStack {
+                        Text(mistake.subject)
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.orange.opacity(0.1))
+                            .foregroundColor(.orange)
+                            .cornerRadius(4)
+
+                        Spacer()
+
+                        Text(RelativeDateTimeFormatter().localizedString(for: mistake.createdAt, relativeTo: Date()))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding()
+            .background(isSelected ? Color.orange.opacity(0.1) : Color(.systemBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color.orange : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct ArchiveConversationSelectionCard: View {
+    let conversationTitle: String
+    let isSelected: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 16) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(isSelected ? .green : .gray)
+                    .font(.title2)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(conversationTitle)
+                        .font(.body)
+                        .fontWeight(.medium)
+                        .multilineTextAlignment(.leading)
+
+                    Text("Conversation")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+            }
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct ArchiveQuestionSelectionCard: View {
+    let question: QuestionSummary
+    let isSelected: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 16) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(isSelected ? .green : .gray)
+                    .font(.title2)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(question.shortQuestionText)
+                        .font(.body)
+                        .fontWeight(.medium)
+                        .multilineTextAlignment(.leading)
+
+                    HStack {
+                        Text(question.subject)
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.green.opacity(0.1))
+                            .foregroundColor(.green)
+                            .cornerRadius(4)
+
+                        Spacer()
+
+                        Text(RelativeDateTimeFormatter().localizedString(for: question.archivedAt, relativeTo: Date()))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+            }
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}

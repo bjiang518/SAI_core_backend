@@ -1925,13 +1925,12 @@ async function runDatabaseMigrations() {
       console.log('✅ Grading fields migration already applied');
     }
     
-    // Clean up legacy tables - keep sessions, questions and archived_conversations_new
+    // Clean up legacy tables - keep sessions, questions, conversations and archived_conversations_new
     const legacyTables = [
-      'archived_conversations', 
-      'archived_sessions', 
-      'conversations', 
-      'sessions_summaries', 
-      'evaluations', 
+      'archived_conversations',
+      'archived_sessions',
+      'sessions_summaries',
+      'evaluations',
       'progress'
     ];
     
@@ -2036,38 +2035,9 @@ async function runDatabaseMigrations() {
       );
     `);
     
-    // Ensure conversations table exists for chat history
-    try {
-      // First check if conversations table already exists
-      const conversationsCheck = await db.query(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'conversations'
-      `);
-      
-      if (conversationsCheck.rows.length === 0) {
-        // Only create if table doesn't exist
-        await db.query(`
-          CREATE TABLE conversations (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
-            session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
-            message_type VARCHAR(50) NOT NULL, -- 'user' or 'assistant'
-            message_text TEXT NOT NULL,
-            message_data JSONB,
-            tokens_used INTEGER DEFAULT 0,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-          );
-        `);
-        console.log('✅ Created conversations table');
-      } else {
-        console.log('✅ Conversations table already exists');
-      }
-    } catch (error) {
-      console.log(`⚠️ Conversations table creation skipped: ${error.message}`);
-    }
+    // Conversations table already created in railway-schema.sql
+    // Skipping duplicate creation to avoid PostgreSQL type conflicts
+    console.log('✅ Conversations table handled by railway-schema.sql');
     
     // Ensure progress tracking tables exist for subject breakdown functionality
     try {
@@ -2554,18 +2524,8 @@ async function createInlineSchema() {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
 
-    -- Conversations table for chat history
-    CREATE TABLE IF NOT EXISTS conversations (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
-      session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
-      message_type VARCHAR(50) NOT NULL, -- 'user' or 'assistant'
-      message_text TEXT NOT NULL,
-      message_data JSONB,
-      tokens_used INTEGER DEFAULT 0,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );
+    -- Conversations table already created in railway-schema.sql
+    -- Skipping duplicate creation to avoid PostgreSQL type conflicts
 
     -- Evaluations table
     CREATE TABLE IF NOT EXISTS evaluations (
@@ -2617,16 +2577,8 @@ async function createInlineSchema() {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
 
-    -- Archived conversations table (for chat/conversation sessions)
-    CREATE TABLE IF NOT EXISTS archived_conversations (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      subject VARCHAR(100) NOT NULL,
-      topic VARCHAR(200), -- User-defined or default topic summary
-      conversation_content TEXT NOT NULL, -- Full conversation as "User: ... AI: ..." format
-      archived_date DATE NOT NULL DEFAULT CURRENT_DATE,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );
+    -- Archived conversations table already created in railway-schema.sql
+    -- Skipping duplicate creation to avoid PostgreSQL type conflicts
 
     -- Archived questions table (for individual Q&A pairs)
     CREATE TABLE IF NOT EXISTS archived_questions (
@@ -2651,8 +2603,8 @@ async function createInlineSchema() {
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_questions_user_id ON questions(user_id);
     CREATE INDEX IF NOT EXISTS idx_questions_session_id ON questions(session_id);
-    CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
-    CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id);
+    -- Conversation indexes already created in railway-schema.sql
+    -- Skipping duplicate index creation
     
     -- Enhanced profile table indexes
     CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
@@ -2662,9 +2614,8 @@ async function createInlineSchema() {
     CREATE INDEX IF NOT EXISTS idx_profiles_completion ON profiles(profile_completion_percentage);
     CREATE INDEX IF NOT EXISTS idx_profiles_onboarding ON profiles(onboarding_completed);
     
-    -- Archive table indexes
-    CREATE INDEX IF NOT EXISTS idx_archived_conversations_user_date ON archived_conversations(user_id, archived_date DESC);
-    CREATE INDEX IF NOT EXISTS idx_archived_conversations_subject ON archived_conversations(user_id, subject);
+    -- Archive table indexes already created in railway-schema.sql
+    -- Skipping duplicate index creation
     CREATE INDEX IF NOT EXISTS idx_archived_questions_user_date ON archived_questions(user_id, archived_date DESC);
     CREATE INDEX IF NOT EXISTS idx_archived_questions_subject ON archived_questions(user_id, subject);
 

@@ -58,15 +58,19 @@ struct DirectAIHomeworkView: View {
     @State private var showingResults = false
     @State private var isProcessing = false
     @State private var showingErrorAlert = false
-    
+
     // Image source selection states
     @State private var showingCamera = false
     @State private var showingPhotoPicker = false
     @State private var showingFilePicker = false
-    
+
     // Permission states
     @State private var photoPermissionDenied = false
     @State private var cameraPermissionDenied = false
+
+    // Preview functionality
+    @State private var preprocessedImage: UIImage?
+    @State private var showImageComparison = false
     
     private let logger = Logger(subsystem: "com.studyai", category: "DirectAIHomeworkView")
     
@@ -178,6 +182,15 @@ struct DirectAIHomeworkView: View {
         } message: {
             Text("Please allow camera access in Settings to take photos.")
         }
+        .fullScreenCover(isPresented: $showingFullScreenImage) {
+            if let image = fullScreenImage {
+                ImageZoomView(
+                    image: image,
+                    title: fullScreenTitle,
+                    isPresented: $showingFullScreenImage
+                )
+            }
+        }
     }
     
     // MARK: - Initial View
@@ -288,55 +301,233 @@ struct DirectAIHomeworkView: View {
                 if isProcessing {
                     // Show hand writing animation during processing
                     HandWritingAnimation()
+                } else if showImageComparison, let originalImage = stateManager.originalImage, let processedImage = preprocessedImage {
+                    // Show image comparison after preprocessing
+                    imageComparisonView(original: originalImage, processed: processedImage)
                 } else {
-                    // Show image preview when not processing
-                    // Header
-                    VStack(spacing: 8) {
-                        Text("Preview Selected Image")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        
-                        Text("Review your image before sending to AI")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.top)
-                    
-                    // Image Preview Section
-                    if let image = stateManager.originalImage {
-                        imageSection(title: "Selected Image", image: image)
-                    }
-                    
-                    // Ask AI Button
-                    VStack(spacing: 12) {
-                        Button("🤖 Ask AI") {
-                            if let image = stateManager.originalImage {
-                                processImage(image)
-                            }
-                        }
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .cornerRadius(12)
-                        .disabled(isProcessing)
-                        
-                        // Clear Session Button
-                        Button("Clear Session") {
-                            stateManager.clearSession()
-                        }
-                        .foregroundColor(.red)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.red.opacity(0.1))
-                        .cornerRadius(12)
-                    }
-                    .padding(.horizontal)
+                    // Show initial image preview
+                    initialImagePreview
                 }
-                
+
                 Spacer(minLength: 100)
             }
             .padding()
+        }
+    }
+
+    // MARK: - Initial Image Preview
+    private var initialImagePreview: some View {
+        VStack(spacing: 20) {
+            // Header
+            VStack(spacing: 8) {
+                Text("Preview Selected Image")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("Review your image before sending to AI")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.top)
+
+            // Image Preview Section
+            if let image = stateManager.originalImage {
+                imageSection(title: "Selected Image", image: image)
+            }
+
+            // Ask AI Button
+            VStack(spacing: 12) {
+                Button("🤖 Ask AI") {
+                    if let image = stateManager.originalImage {
+                        processImage(image)
+                    }
+                }
+                .foregroundColor(.white)
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.blue)
+                .cornerRadius(12)
+                .disabled(isProcessing)
+
+                // Clear Session Button
+                Button("Clear Session") {
+                    stateManager.clearSession()
+                    preprocessedImage = nil
+                    showImageComparison = false
+                }
+                .foregroundColor(.red)
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(12)
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    // MARK: - Image Comparison View
+    private func imageComparisonView(original: UIImage, processed: UIImage) -> some View {
+        VStack(spacing: 24) {
+            // Header
+            VStack(spacing: 8) {
+                Text("✨ Image Enhanced!")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.green)
+
+                Text("Tap images to zoom and inspect quality")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.top)
+
+            // Image comparison with zoom functionality
+            VStack(spacing: 16) {
+                HStack(spacing: 16) {
+                    // Original image with zoom
+                    VStack(spacing: 8) {
+                        Text("Original")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+
+                        ZoomableImageView(image: original, borderColor: .gray)
+                            .frame(height: 200)
+
+                        Text(String(format: "%.0f × %.0f", original.size.width, original.size.height))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    // Arrow
+                    Image(systemName: "arrow.right")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+
+                    // Processed image with zoom
+                    VStack(spacing: 8) {
+                        Text("Enhanced")
+                            .font(.headline)
+                            .foregroundColor(.blue)
+
+                        ZoomableImageView(image: processed, borderColor: .blue)
+                            .frame(height: 200)
+
+                        Text(String(format: "%.0f × %.0f", processed.size.width, processed.size.height))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.horizontal)
+
+                // Full-screen preview buttons
+                HStack(spacing: 12) {
+                    Button("🔍 Zoom Original") {
+                        showFullScreenImage(original, title: "Original Image")
+                    }
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
+
+                    Button("🔍 Zoom Enhanced") {
+                        showFullScreenImage(processed, title: "Enhanced Image")
+                    }
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+                }
+            }
+
+            // Quality info
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(.blue)
+                    Text("Enhanced for better AI recognition")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                    Spacer()
+                }
+
+                HStack {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .foregroundColor(.green)
+                    Text("Optimized contrast and lighting")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                    Spacer()
+                }
+
+                HStack {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .foregroundColor(.orange)
+                    Text("Reduced file size for faster processing")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                    Spacer()
+                }
+            }
+            .padding()
+            .background(Color.blue.opacity(0.05))
+            .cornerRadius(12)
+            .padding(.horizontal)
+
+            // Action buttons
+            VStack(spacing: 12) {
+                // Send Enhanced Image
+                Button(action: {
+                    sendToAI(image: processed)
+                }) {
+                    HStack {
+                        Image(systemName: "sparkles")
+                        Text("Send Enhanced Image to AI")
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.blue)
+                    .cornerRadius(12)
+                }
+
+                // Send Original Image
+                Button(action: {
+                    sendToAI(image: original)
+                }) {
+                    HStack {
+                        Image(systemName: "photo")
+                        Text("Send Original Image")
+                    }
+                    .foregroundColor(.blue)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(12)
+                }
+
+                // Try Different Enhancement
+                Button(action: {
+                    preprocessedImage = nil
+                    showImageComparison = false
+                    if let image = stateManager.originalImage {
+                        processImage(image)
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Try Different Enhancement")
+                    }
+                    .foregroundColor(.orange)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(12)
+                }
+            }
+            .padding(.horizontal)
         }
     }
     
@@ -583,30 +774,76 @@ struct DirectAIHomeworkView: View {
             do {
                 let startTime = Date()
                 
-                // Compress image for API
-                guard let imageData = compressImageForAPI(image) else {
+                // 🆕 USE ADVANCED PREPROCESSING instead of basic compression
+                logger.info("🔧 === APPLYING ADVANCED IMAGE PREPROCESSING ===")
+                let processedImage = ImageProcessingService.shared.preprocessImageForAI(image) ?? image
+                logger.info("📊 Preprocessed image size: \(processedImage.size.width)x\(processedImage.size.height)")
+
+                // Store preprocessed image for preview
+                await MainActor.run {
+                    self.preprocessedImage = processedImage
+                    stateManager.processingStatus = "✨ Image enhanced! Review quality before sending to AI"
+                    self.showImageComparison = true
+                    self.isProcessing = false
+                }
+
+                // Wait for user confirmation before proceeding
+                return
+            } catch {
+                await MainActor.run {
+                    stateManager.parsingError = "Preprocessing failed: \(error.localizedDescription)"
+                    stateManager.processingStatus = "❌ Preprocessing failed"
+                    showingErrorAlert = true
+                    isProcessing = false
+                }
+            }
+        }
+    }
+
+    // MARK: - Send to AI Method
+    private func sendToAI(image: UIImage) {
+        isProcessing = true
+        showImageComparison = false
+        stateManager.processingStatus = "Preparing image for AI analysis..."
+        stateManager.parsingError = nil
+
+        logger.info("📡 === SENDING IMAGE TO AI ===")
+        logger.info("📊 Final image size: \(image.size.width)x\(image.size.height)")
+
+        Task {
+            do {
+                let startTime = Date()
+
+                // Convert to data with aggressive compression
+                guard let imageData = compressPreprocessedImage(image) else {
                     await MainActor.run {
-                        stateManager.parsingError = "Failed to compress image to acceptable size"
-                        stateManager.processingStatus = "❌ Image too large to process"
+                        stateManager.parsingError = "Failed to compress image for upload"
+                        stateManager.processingStatus = "❌ Image compression failed"
                         showingErrorAlert = true
                         isProcessing = false
                     }
                     return
                 }
-                
+
+                logger.info("📄 Final image data size: \(imageData.count) bytes")
                 let base64Image = imageData.base64EncodedString()
+                logger.info("📄 Base64 string length: \(base64Image.count) characters")
                 stateManager.originalImageUrl = "temp://homework-image-\(UUID().uuidString)"
-                
+
+                await MainActor.run {
+                    stateManager.processingStatus = "🤖 AI is analyzing your homework..."
+                }
+
                 logger.info("📡 Sending to AI for processing...")
-                
+
                 // Process with AI
                 let result = await NetworkService.shared.processHomeworkImageWithSubjectDetection(
                     base64Image: base64Image,
                     prompt: ""
                 )
-                
+
                 let processingTime = Date().timeIntervalSince(startTime)
-                
+
                 await MainActor.run {
                     if result.success, let response = result.response {
                         logger.info("🎉 AI processing successful")
@@ -617,11 +854,11 @@ struct DirectAIHomeworkView: View {
                     }
                     isProcessing = false
                 }
-                
+
             } catch {
                 await MainActor.run {
-                    stateManager.parsingError = "Processing failed: \(error.localizedDescription)"
-                    stateManager.processingStatus = "❌ Processing failed"
+                    stateManager.parsingError = "AI processing failed: \(error.localizedDescription)"
+                    stateManager.processingStatus = "❌ AI processing failed"
                     showingErrorAlert = true
                     isProcessing = false
                 }
@@ -684,20 +921,37 @@ struct DirectAIHomeworkView: View {
         showingErrorAlert = true
     }
     
-    private func compressImageForAPI(_ image: UIImage) -> Data? {
-        let maxDimension: CGFloat = 800
+    private func compressPreprocessedImage(_ image: UIImage) -> Data? {
+        logger.info("🗜️ === COMPRESSING PREPROCESSED IMAGE ===")
+        logger.info("📊 Input image size: \(image.size.width)x\(image.size.height)")
+
+        // For binary preprocessed images, we can be more aggressive with compression
+        let maxDimension: CGFloat = 1024  // Larger than before since binary images compress better
         let resizedImage = resizeImage(image, maxDimension: maxDimension)
-        let maxSizeBytes = 1 * 1024 * 1024 // 1MB limit
-        
-        let compressionLevels: [CGFloat] = [0.6, 0.4, 0.3, 0.2, 0.15, 0.1]
-        
+        logger.info("📐 Resized to: \(resizedImage.size.width)x\(resizedImage.size.height)")
+
+        let maxSizeBytes = 500 * 1024 // 500KB limit for binary images (much smaller than 1MB)
+
+        // Try different compression levels - binary images compress very well
+        let compressionLevels: [CGFloat] = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2]
+
         for quality in compressionLevels {
-            if let data = resizedImage.jpegData(compressionQuality: quality),
-               data.count <= maxSizeBytes {
-                return data
+            if let data = resizedImage.jpegData(compressionQuality: quality) {
+                logger.info("🔍 Quality \(quality): \(data.count) bytes")
+                if data.count <= maxSizeBytes {
+                    logger.info("✅ Final compressed size: \(data.count) bytes at quality \(quality)")
+                    return data
+                }
             }
         }
-        
+
+        // If still too large, try PNG (sometimes better for binary images)
+        if let pngData = resizedImage.pngData(), pngData.count <= maxSizeBytes {
+            logger.info("✅ Final PNG size: \(pngData.count) bytes")
+            return pngData
+        }
+
+        logger.error("❌ Could not compress image to acceptable size")
         return nil
     }
     
@@ -715,6 +969,17 @@ struct DirectAIHomeworkView: View {
         return renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }
+    }
+
+    // MARK: - Full Screen Image Display
+    @State private var fullScreenImage: UIImage?
+    @State private var fullScreenTitle: String = ""
+    @State private var showingFullScreenImage = false
+
+    private func showFullScreenImage(_ image: UIImage, title: String) {
+        fullScreenImage = image
+        fullScreenTitle = title
+        showingFullScreenImage = true
     }
 }
 
@@ -1015,6 +1280,195 @@ struct HandWritingAnimation: View {
                 revealedCharacters = 0
                 animateCurrentMessage()
             }
+        }
+    }
+}
+
+// MARK: - Zoomable Image View Component
+struct ZoomableImageView: View {
+    let image: UIImage
+    let borderColor: Color
+
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
+    var body: some View {
+        GeometryReader { geometry in
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .scaleEffect(scale)
+                .offset(offset)
+                .gesture(
+                    SimultaneousGesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                let delta = value / lastScale
+                                lastScale = value
+                                scale = min(max(scale * delta, 0.5), 4.0)
+                            }
+                            .onEnded { _ in
+                                lastScale = 1.0
+                            },
+                        DragGesture()
+                            .onChanged { value in
+                                let newOffset = CGSize(
+                                    width: lastOffset.width + value.translation.width,
+                                    height: lastOffset.height + value.translation.height
+                                )
+                                offset = newOffset
+                            }
+                            .onEnded { _ in
+                                lastOffset = offset
+                            }
+                    )
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation(.spring()) {
+                        if scale > 1.0 {
+                            scale = 1.0
+                            offset = .zero
+                            lastOffset = .zero
+                        } else {
+                            scale = 2.0
+                        }
+                    }
+                }
+        }
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(borderColor.opacity(0.5), lineWidth: borderColor == .blue ? 2 : 1)
+        )
+        .clipped()
+    }
+}
+
+// MARK: - Full Screen Image View
+struct ImageZoomView: View {
+    let image: UIImage
+    let title: String
+    @Binding var isPresented: Bool
+
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
+    var body: some View {
+        ZStack {
+            // Black background
+            Color.black
+                .ignoresSafeArea(.all)
+
+            // Image container
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .scaleEffect(scale)
+                .offset(offset)
+                .clipped()
+                .gesture(
+                    SimultaneousGesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                let delta = value / lastScale
+                                lastScale = value
+                                scale = min(max(scale * delta, 0.5), 10.0)
+                            }
+                            .onEnded { _ in
+                                lastScale = 1.0
+                            },
+                        DragGesture()
+                            .onChanged { value in
+                                let newOffset = CGSize(
+                                    width: lastOffset.width + value.translation.width,
+                                    height: lastOffset.height + value.translation.height
+                                )
+                                offset = newOffset
+                            }
+                            .onEnded { _ in
+                                lastOffset = offset
+                            }
+                    )
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation(.spring()) {
+                        if scale > 1.0 {
+                            scale = 1.0
+                            offset = .zero
+                            lastOffset = .zero
+                        } else {
+                            scale = 3.0
+                        }
+                    }
+                }
+
+            // Overlay controls
+            VStack {
+                // Top toolbar
+                HStack {
+                    Button(action: {
+                        isPresented = false
+                    }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                            Text("Done")
+                        }
+                        .foregroundColor(.white)
+                        .font(.system(size: 17, weight: .medium))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color.black.opacity(0.3))
+                        .cornerRadius(20)
+                    }
+
+                    Spacer()
+
+                    Text(title)
+                        .foregroundColor(.white)
+                        .font(.system(size: 17, weight: .medium))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.black.opacity(0.3))
+                        .cornerRadius(16)
+
+                    Spacer()
+
+                    Text(String(format: "%.1fx", scale))
+                        .foregroundColor(.white)
+                        .font(.system(size: 15, weight: .medium))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.black.opacity(0.3))
+                        .cornerRadius(16)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 60) // Safe area padding
+
+                Spacer()
+
+                // Bottom instructions
+                Text("Pinch to zoom • Double tap to reset • Tap Done to close")
+                    .foregroundColor(.white.opacity(0.8))
+                    .font(.system(size: 14, weight: .medium))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(Color.black.opacity(0.3))
+                    .cornerRadius(16)
+                    .padding(.bottom, 40) // Safe area padding
+            }
+        }
+        .statusBarHidden()
+        .onAppear {
+            // Reset zoom state when view appears
+            scale = 1.0
+            offset = .zero
+            lastOffset = .zero
         }
     }
 }

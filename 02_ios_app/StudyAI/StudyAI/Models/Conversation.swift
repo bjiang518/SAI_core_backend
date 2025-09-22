@@ -10,6 +10,7 @@ import Foundation
 struct Conversation: Identifiable, Codable {
     let id: UUID
     var title: String
+    var subject: String
     var lastMessage: String
     var participants: [String]
     var tags: [String]
@@ -22,6 +23,7 @@ struct Conversation: Identifiable, Codable {
     init(
         id: UUID = UUID(),
         title: String,
+        subject: String = "General",
         lastMessage: String,
         participants: [String] = [],
         tags: [String] = [],
@@ -33,6 +35,7 @@ struct Conversation: Identifiable, Codable {
     ) {
         self.id = id
         self.title = title
+        self.subject = subject
         self.lastMessage = lastMessage
         self.participants = participants
         self.tags = tags
@@ -66,6 +69,7 @@ extension Conversation {
     static let sampleData: [Conversation] = [
         Conversation(
             title: "Mathematics - Quadratic Equations",
+            subject: "Mathematics",
             lastMessage: "Solved 5 quadratic equations with step-by-step explanations",
             participants: ["AI Assistant"],
             tags: ["Mathematics", "Algebra"],
@@ -73,6 +77,7 @@ extension Conversation {
         ),
         Conversation(
             title: "Physics - Newton's Laws",
+            subject: "Physics",
             lastMessage: "Discussed the three laws of motion with real-world examples",
             participants: ["AI Assistant"],
             tags: ["Physics", "Mechanics"],
@@ -82,6 +87,7 @@ extension Conversation {
         ),
         Conversation(
             title: "Chemistry - Periodic Table",
+            subject: "Chemistry",
             lastMessage: "Learned about electron configurations and chemical bonding",
             participants: ["AI Assistant"],
             tags: ["Chemistry", "General"],

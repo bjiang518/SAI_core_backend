@@ -33,6 +33,7 @@
 		6AAA1280DC3B4E05B19E67B6 /* VoiceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 740D132F82A14ABAA94D79CC /* VoiceModels.swift */; };
 		6CBE355CB94942A4BCE01308 /* ImageProcessingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32BB536B35E943F1A8FB9571 /* ImageProcessingService.swift */; };
 		73BEB15D842A4FB3B7E6B147 /* ImageCropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84F4782308454D1A98C2741E /* ImageCropView.swift */; };
+		IMGPREPBUILD123456789ABCD /* ImagePreprocessingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = IMGPREP123456789012ABCD34 /* ImagePreprocessingView.swift */; };
 		7454ECCF0700400CAB3D9062 /* WeeklyProgressGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 172B88920E5545748C6B70F2 /* WeeklyProgressGrid.swift */; };
 		762793B2FEB2456CA1FFD512 /* ScannedImageActionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8B9760D87F648899A6633CB /* ScannedImageActionView.swift */; };
 		7BC00E6A2E714B68002DF625 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 7BC00E692E714B68002DF625 /* GoogleSignIn */; };
@@ -40,11 +41,6 @@
 		7BC00E6E2E714D67002DF625 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7BC00E6D2E714D67002DF625 /* GoogleService-Info.plist */; };
 		7BC00E6F2E714D67002DF625 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7BC00E6D2E714D67002DF625 /* GoogleService-Info.plist */; };
 		7BC00E702E714D67002DF625 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7BC00E6D2E714D67002DF625 /* GoogleService-Info.plist */; };
-		7BEDA6272E80B8C500D57B15 /* QuestionGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */; };
-		7BEDA6282E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */; };
-		7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */; };
-		7BEDA62D2E80B91100D57B15 /* QuestionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA62A2E80B91100D57B15 /* QuestionDetailView.swift */; };
-		7BEDA62E2E80B91100D57B15 /* QuestionGenerationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA62B2E80B91100D57B15 /* QuestionGenerationView.swift */; };
 		7DCD4D51FBF64F74AEA6A5C3 /* VoiceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03DB96F217C9458693CF5BDA /* VoiceSettingsView.swift */; };
 		809124D3E9CF44C6A623DE31 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685F5AB0784E4EAEB6B58C7E /* ContentView.swift */; };
 		8659331C2BF143DBB36C245F /* EnhancedHomeworkParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C87EE23BC3FC415E8AFB5C0A /* EnhancedHomeworkParser.swift */; };
@@ -70,7 +66,6 @@
 		EF7FC57F2FF9428F9F262123 /* SessionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B496CCDDC9B5477581971035 /* SessionModels.swift */; };
 		EIB7AB25DA9B4CE3E97F6F9 /* EnhancedImageProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EIR3E31E87F78722E1F7AE5 /* EnhancedImageProcessor.swift */; };
 		F650D062B9BD47CF8FB56CA7 /* SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D90BE85B6E443D192306734 /* SupabaseService.swift */; };
-		IMGPREPBUILD123456789ABCD /* ImagePreprocessingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = IMGPREP123456789012ABCD34 /* ImagePreprocessingView.swift */; };
 		LGLS901234567890GHIJ2345 /* LearningGoalsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = LGLS678901234567GHIJ2345 /* LearningGoalsSettingsView.swift */; };
 		LRNP36652115E4F419FE4EEEA /* LearningProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = LRNP1132738F4C03AC421E7D /* LearningProgressView.swift */; };
 		MIST1234567890123456ABCD /* MistakeReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MISTFILE1234567890ABCD12 /* MistakeReviewView.swift */; };
@@ -131,14 +126,10 @@
 		7B9EC47A2E61663E005E4BFB /* StudyAITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StudyAITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B9EC4842E61663E005E4BFB /* StudyAIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StudyAIUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7BC00E6D2E714D67002DF625 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
-		7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationDataAdapter.swift; path = ../StudyAI/Services/QuestionGenerationDataAdapter.swift; sourceTree = "<group>"; };
-		7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationService.swift; path = ../StudyAI/Services/QuestionGenerationService.swift; sourceTree = "<group>"; };
-		7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeneratedQuestionsListView.swift; path = ../StudyAI/Views/GeneratedQuestionsListView.swift; sourceTree = "<group>"; };
-		7BEDA62A2E80B91100D57B15 /* QuestionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionDetailView.swift; path = ../StudyAI/Views/QuestionDetailView.swift; sourceTree = "<group>"; };
-		7BEDA62B2E80B91100D57B15 /* QuestionGenerationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationView.swift; path = ../StudyAI/Views/QuestionGenerationView.swift; sourceTree = "<group>"; };
 		8357641D6957415C8C814D59 /* QuestionSegmenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionSegmenter.swift; path = ../StudyAI/Services/QuestionSegmenter.swift; sourceTree = "<group>"; };
 		8405427D871C4C278BB1D075 /* SpeechRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpeechRecognitionService.swift; path = ../StudyAI/Services/SpeechRecognitionService.swift; sourceTree = "<group>"; };
 		84F4782308454D1A98C2741E /* ImageCropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageCropView.swift; path = ../StudyAI/Views/ImageCropView.swift; sourceTree = "<group>"; };
+		IMGPREP123456789012ABCD34 /* ImagePreprocessingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImagePreprocessingView.swift; path = ../StudyAI/Views/ImagePreprocessingView.swift; sourceTree = "<group>"; };
 		885943542F6749ACA3543873 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraView.swift; path = ../StudyAI/Views/CameraView.swift; sourceTree = "<group>"; };
 		9969A366189C4E3AA0A188D8 /* SubjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SubjectDetailView.swift; path = ../StudyAI/Views/SubjectDetailView.swift; sourceTree = "<group>"; };
 		9D2C1B0980334724B73CC227 /* PerspectiveCorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PerspectiveCorrector.swift; path = ../StudyAI/Services/PerspectiveCorrector.swift; sourceTree = "<group>"; };
@@ -162,7 +153,6 @@
 		EDIT345678901234CDEF9012 /* EditProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EditProfileView.swift; path = ../StudyAI/Views/EditProfileView.swift; sourceTree = "<group>"; };
 		EEAD0FA974974B559BA7B6B7 /* VoiceInteractionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceInteractionService.swift; path = ../StudyAI/Services/VoiceInteractionService.swift; sourceTree = "<group>"; };
 		EIR3E31E87F78722E1F7AE5 /* EnhancedImageProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EnhancedImageProcessor.swift; path = ../StudyAI/Services/EnhancedImageProcessor.swift; sourceTree = "<group>"; };
-		IMGPREP123456789012ABCD34 /* ImagePreprocessingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImagePreprocessingView.swift; path = ../StudyAI/Views/ImagePreprocessingView.swift; sourceTree = "<group>"; };
 		LGLS678901234567GHIJ2345 /* LearningGoalsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LearningGoalsSettingsView.swift; path = ../StudyAI/Views/LearningGoalsSettingsView.swift; sourceTree = "<group>"; };
 		LRNP1132738F4C03AC421E7D /* LearningProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LearningProgressView.swift; path = ../StudyAI/Views/LearningProgressView.swift; sourceTree = "<group>"; };
 		MISTFILE1234567890ABCD12 /* MistakeReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MistakeReviewView.swift; path = ../StudyAI/Views/MistakeReviewView.swift; sourceTree = "<group>"; };
@@ -271,8 +261,6 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */,
-				7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */,
 				DBB6C78FB23E45A9AF19ECC9 /* AuthenticationService.swift */,
 				CAS43139063DB4892D6DA7D /* CameraSessionManager.swift */,
 				EIR3E31E87F78722E1F7AE5 /* EnhancedImageProcessor.swift */,
@@ -303,9 +291,6 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */,
-				7BEDA62A2E80B91100D57B15 /* QuestionDetailView.swift */,
-				7BEDA62B2E80B91100D57B15 /* QuestionGenerationView.swift */,
 				DDEF456789012345HIJK6789 /* CameraViewModel.swift */,
 				1C5B92FDE0224FCA9F3A87CD /* AIHomeworkTestView.swift */,
 				27D08428900147788147829E /* ArchivedQuestionsView.swift */,
@@ -506,9 +491,6 @@
 				6AAA1280DC3B4E05B19E67B6 /* VoiceModels.swift in Sources */,
 				PROF567890123456BCDE8901 /* UserProfile.swift in Sources */,
 				PNTS789012345678EFGH0123 /* PointsEarningSystem.swift in Sources */,
-				7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */,
-				7BEDA62D2E80B91100D57B15 /* QuestionDetailView.swift in Sources */,
-				7BEDA62E2E80B91100D57B15 /* QuestionGenerationView.swift in Sources */,
 				21C64949788648B5AB0D6515 /* SubjectBreakdownModels.swift in Sources */,
 				C42D5B1E2F9F422F898D739B /* NetworkService.swift in Sources */,
 				3CAC0FF7EDE94A0B9ACDC78F /* AuthenticationService.swift in Sources */,
@@ -522,8 +504,6 @@
 				D10DEB4AEF7548A0BC7A194F /* PerspectiveCorrector.swift in Sources */,
 				495A344A96B74E8DA4253A7F /* QuestionArchiveService.swift in Sources */,
 				DB5CF3C197754361B71BF918 /* QuestionSegmenter.swift in Sources */,
-				7BEDA6272E80B8C500D57B15 /* QuestionGenerationService.swift in Sources */,
-				7BEDA6282E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift in Sources */,
 				368449B00EC0466B89F7AFF6 /* RailwayArchiveService.swift in Sources */,
 				BBC5F8E4CA694EABAD6955A2 /* SimpleMathRenderer.swift in Sources */,
 				D3FB6347F13948AB873BE1F8 /* SpeechRecognitionService.swift in Sources */,

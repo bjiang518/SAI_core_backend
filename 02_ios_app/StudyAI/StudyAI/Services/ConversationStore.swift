@@ -140,6 +140,7 @@ class ConversationStore: ObservableObject {
             let conversation = Conversation(
                 id: UUID(uuidString: id) ?? UUID(),
                 title: title,
+                subject: subject,
                 lastMessage: lastMessage,
                 participants: [], // Neither type has participants displayed
                 tags: [subject] // Use subject as tag

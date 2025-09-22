@@ -795,6 +795,286 @@ async def process_homework_image(request: HomeworkParsingRequest):
             error=f"Homework parsing error: {str(e)}"
         )
 
+# NEW: Question Generation Request/Response Models
+
+class RandomQuestionsRequest(BaseModel):
+    subject: str
+    config: Dict
+    user_profile: Dict
+
+class MistakeBasedQuestionsRequest(BaseModel):
+    subject: str
+    mistakes_data: List[Dict]
+    config: Dict
+    user_profile: Dict
+
+class ConversationBasedQuestionsRequest(BaseModel):
+    subject: str
+    conversation_data: List[Dict]
+    config: Dict
+    user_profile: Dict
+
+class QuestionGenerationResponse(BaseModel):
+    success: bool
+    questions: Optional[List[Dict]] = None
+    generation_type: str
+    subject: str
+    tokens_used: Optional[int] = None
+    question_count: Optional[int] = None
+    config_used: Optional[Dict] = None
+    processing_details: Optional[Dict] = None
+    error: Optional[str] = None
+
+# NEW: Question Generation Endpoints
+
+@app.post("/api/v1/generate-questions/random", response_model=QuestionGenerationResponse)
+async def generate_random_questions(request: RandomQuestionsRequest, service_info = optional_service_auth()):
+    """
+    Generate random practice questions for a given subject.
+
+    This endpoint creates diverse, educational questions based on:
+    - Subject area and topic preferences
+    - User's grade level and location
+    - Difficulty settings and focus notes
+    - Educational best practices and standards
+
+    Features:
+    - Subject-specific question generation
+    - Grade-level appropriate content
+    - Multiple question types (multiple choice, short answer, calculation)
+    - Educational explanations and solutions
+    - JSON response format for easy parsing
+    """
+
+    import time
+    start_time = time.time()
+
+    try:
+        print(f"🎯 === RANDOM QUESTIONS GENERATION START ===")
+        print(f"📚 Subject: {request.subject}")
+        print(f"⚙️  Config: {request.config}")
+        print(f"👤 User Profile: {request.user_profile}")
+
+        # Use the AI service to generate random questions
+        result = await ai_service.generate_random_questions(
+            subject=request.subject,
+            config=request.config,
+            user_profile=request.user_profile
+        )
+
+        processing_time = int((time.time() - start_time) * 1000)
+
+        if result["success"]:
+            print(f"✅ === RANDOM QUESTIONS GENERATION SUCCESS ===")
+            print(f"🎯 Generated {result.get('question_count', 0)} questions")
+            print(f"⏱️ Processing time: {processing_time}ms")
+
+            return QuestionGenerationResponse(
+                success=True,
+                questions=result["questions"],
+                generation_type=result["generation_type"],
+                subject=result["subject"],
+                tokens_used=result.get("tokens_used"),
+                question_count=result.get("question_count"),
+                config_used=result.get("config_used"),
+                processing_details={
+                    **result.get("processing_details", {}),
+                    "processing_time_ms": processing_time
+                }
+            )
+        else:
+            print(f"❌ Random questions generation failed: {result.get('error')}")
+            return QuestionGenerationResponse(
+                success=False,
+                generation_type="random",
+                subject=request.subject,
+                error=result.get("error", "Random question generation failed")
+            )
+
+    except Exception as e:
+        import traceback
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
+        print(f"❌ Random Questions Generation Error: {error_details}")
+
+        return QuestionGenerationResponse(
+            success=False,
+            generation_type="random",
+            subject=request.subject,
+            error=f"Random question generation error: {str(e)}"
+        )
+
+@app.post("/api/v1/generate-questions/mistakes", response_model=QuestionGenerationResponse)
+async def generate_mistake_based_questions(request: MistakeBasedQuestionsRequest, service_info = optional_service_auth()):
+    """
+    Generate remedial questions based on previous mistakes.
+
+    This endpoint analyzes student mistakes to create targeted questions that:
+    - Address the same underlying concepts as the mistakes
+    - Use different numbers, contexts, or formats than the original questions
+    - Help the student practice the specific areas they struggled with
+    - Target the conceptual gaps revealed by their errors
+
+    Features:
+    - Mistake pattern analysis
+    - Remedial question generation
+    - Adaptive difficulty adjustment
+    - Educational explanations focused on common errors
+    - JSON response format optimized for learning apps
+    """
+
+    import time
+    start_time = time.time()
+
+    try:
+        print(f"🎯 === MISTAKE-BASED QUESTIONS GENERATION START ===")
+        print(f"📚 Subject: {request.subject}")
+        print(f"❌ Mistakes Count: {len(request.mistakes_data)}")
+        print(f"⚙️  Config: {request.config}")
+        print(f"👤 User Profile: {request.user_profile}")
+
+        # Use the AI service to generate mistake-based questions
+        result = await ai_service.generate_mistake_based_questions(
+            subject=request.subject,
+            mistakes_data=request.mistakes_data,
+            config=request.config,
+            user_profile=request.user_profile
+        )
+
+        processing_time = int((time.time() - start_time) * 1000)
+
+        if result["success"]:
+            print(f"✅ === MISTAKE-BASED QUESTIONS GENERATION SUCCESS ===")
+            print(f"🎯 Generated {result.get('question_count', 0)} remedial questions")
+            print(f"❌ Analyzed {result.get('mistakes_analyzed', 0)} mistakes")
+            print(f"⏱️ Processing time: {processing_time}ms")
+
+            return QuestionGenerationResponse(
+                success=True,
+                questions=result["questions"],
+                generation_type=result["generation_type"],
+                subject=result["subject"],
+                tokens_used=result.get("tokens_used"),
+                question_count=result.get("question_count"),
+                config_used=result.get("config_used"),
+                processing_details={
+                    **result.get("processing_details", {}),
+                    "processing_time_ms": processing_time,
+                    "mistakes_analyzed": result.get("mistakes_analyzed")
+                }
+            )
+        else:
+            print(f"❌ Mistake-based questions generation failed: {result.get('error')}")
+            return QuestionGenerationResponse(
+                success=False,
+                generation_type="mistake_based",
+                subject=request.subject,
+                error=result.get("error", "Mistake-based question generation failed")
+            )
+
+    except Exception as e:
+        import traceback
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
+        print(f"❌ Mistake-Based Questions Generation Error: {error_details}")
+
+        return QuestionGenerationResponse(
+            success=False,
+            generation_type="mistake_based",
+            subject=request.subject,
+            error=f"Mistake-based question generation error: {str(e)}"
+        )
+
+@app.post("/api/v1/generate-questions/conversations", response_model=QuestionGenerationResponse)
+async def generate_conversation_based_questions(request: ConversationBasedQuestionsRequest, service_info = optional_service_auth()):
+    """
+    Generate personalized questions based on previous conversations.
+
+    This endpoint analyzes conversation history to create questions that:
+    - Build upon concepts the student has shown interest in
+    - Address knowledge gaps identified in conversations
+    - Match the student's demonstrated ability level
+    - Connect to topics they've previously engaged with successfully
+
+    Features:
+    - Conversation pattern analysis
+    - Personalized question generation
+    - Engagement optimization
+    - Adaptive difficulty based on conversation history
+    - JSON response format for seamless integration
+    """
+
+    import time
+    start_time = time.time()
+
+    try:
+        print(f"🎯 === CONVERSATION-BASED QUESTIONS GENERATION START ===")
+        print(f"📚 Subject: {request.subject}")
+        print(f"💬 Conversations Count: {len(request.conversation_data)}")
+        print(f"⚙️  Config: {request.config}")
+        print(f"👤 User Profile: {request.user_profile}")
+
+        # Use the AI service to generate conversation-based questions
+        result = await ai_service.generate_conversation_based_questions(
+            subject=request.subject,
+            conversation_data=request.conversation_data,
+            config=request.config,
+            user_profile=request.user_profile
+        )
+
+        processing_time = int((time.time() - start_time) * 1000)
+
+        if result["success"]:
+            print(f"✅ === CONVERSATION-BASED QUESTIONS GENERATION SUCCESS ===")
+            print(f"🎯 Generated {result.get('question_count', 0)} personalized questions")
+            print(f"💬 Analyzed {result.get('conversations_analyzed', 0)} conversations")
+            print(f"⏱️ Processing time: {processing_time}ms")
+
+            return QuestionGenerationResponse(
+                success=True,
+                questions=result["questions"],
+                generation_type=result["generation_type"],
+                subject=result["subject"],
+                tokens_used=result.get("tokens_used"),
+                question_count=result.get("question_count"),
+                config_used=result.get("config_used"),
+                processing_details={
+                    **result.get("processing_details", {}),
+                    "processing_time_ms": processing_time,
+                    "conversations_analyzed": result.get("conversations_analyzed")
+                }
+            )
+        else:
+            print(f"❌ Conversation-based questions generation failed: {result.get('error')}")
+            return QuestionGenerationResponse(
+                success=False,
+                generation_type="conversation_based",
+                subject=request.subject,
+                error=result.get("error", "Conversation-based question generation failed")
+            )
+
+    except Exception as e:
+        import traceback
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
+        print(f"❌ Conversation-Based Questions Generation Error: {error_details}")
+
+        return QuestionGenerationResponse(
+            success=False,
+            generation_type="conversation_based",
+            subject=request.subject,
+            error=f"Conversation-based question generation error: {str(e)}"
+        )
+
 # Session Management Endpoints
 @app.post("/api/v1/sessions/create", response_model=SessionResponse)
 async def create_session(request: SessionCreateRequest):

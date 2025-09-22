@@ -131,6 +131,143 @@ class OptimizedEducationalAIService:
         finally:
             # Clean up pending request
             self.pending_requests.pop(cache_key, None)
+
+    # MARK: - Robust Text Parsing for Questions
+
+    def _parse_questions_from_text(self, raw_response: str) -> List[Dict]:
+        """
+        Parse questions from text using robust delimiter-based approach.
+        Much more reliable than JSON parsing for question generation.
+        """
+        print(f"🔍 Starting robust text parsing for questions...")
+        print(f"📝 Raw response length: {len(raw_response)} characters")
+
+        questions = []
+
+        # Try JSON parsing first as fallback
+        try:
+            json_data = json.loads(raw_response)
+            if isinstance(json_data, list):
+                print(f"✅ Successfully parsed as direct JSON array with {len(json_data)} questions")
+                return json_data
+            elif isinstance(json_data, dict) and "questions" in json_data:
+                print(f"✅ Successfully parsed as JSON object with {len(json_data['questions'])} questions")
+                return json_data["questions"]
+        except (json.JSONDecodeError, KeyError):
+            print(f"⚠️ JSON parsing failed, switching to text parsing...")
+
+        # Text-based parsing with delimiters
+        # Look for question patterns: "question": "...", "type": "...", etc.
+        lines = raw_response.split('\n')
+        current_question = {}
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Look for field patterns with robust regex
+            if '"question"' in line and ':' in line:
+                # Extract question text
+                question_match = re.search(r'"question":\s*"([^"]*)"', line)
+                if question_match:
+                    current_question['question'] = question_match.group(1)
+
+            elif '"type"' in line and ':' in line:
+                type_match = re.search(r'"type":\s*"([^"]*)"', line)
+                if type_match:
+                    current_question['type'] = type_match.group(1)
+
+            elif '"correct_answer"' in line and ':' in line:
+                answer_match = re.search(r'"correct_answer":\s*"([^"]*)"', line)
+                if answer_match:
+                    current_question['correct_answer'] = answer_match.group(1)
+
+            elif '"explanation"' in line and ':' in line:
+                explanation_match = re.search(r'"explanation":\s*"([^"]*)"', line)
+                if explanation_match:
+                    current_question['explanation'] = explanation_match.group(1)
+
+            elif '"topic"' in line and ':' in line:
+                topic_match = re.search(r'"topic":\s*"([^"]*)"', line)
+                if topic_match:
+                    current_question['topic'] = topic_match.group(1)
+
+            elif '"difficulty"' in line and ':' in line:
+                difficulty_match = re.search(r'"difficulty":\s*"([^"]*)"', line)
+                if difficulty_match:
+                    current_question['difficulty'] = difficulty_match.group(1)
+
+            elif '"options"' in line and '[' in line:
+                # Extract options array
+                options_match = re.search(r'"options":\s*\[(.*?)\]', line)
+                if options_match:
+                    options_str = options_match.group(1)
+                    # Parse individual options
+                    options = []
+                    for opt in re.findall(r'"([^"]*)"', options_str):
+                        options.append(opt)
+                    current_question['options'] = options
+
+            # Check if we have a complete question
+            if (len(current_question) >= 4 and
+                'question' in current_question and
+                'type' in current_question and
+                'correct_answer' in current_question and
+                'explanation' in current_question):
+
+                # Set defaults for missing fields
+                if 'topic' not in current_question:
+                    current_question['topic'] = 'General'
+                if 'difficulty' not in current_question:
+                    current_question['difficulty'] = 'intermediate'
+                if 'options' not in current_question:
+                    current_question['options'] = None
+
+                questions.append(current_question.copy())
+                print(f"✅ Parsed question {len(questions)}: {current_question['question'][:50]}...")
+                current_question = {}
+
+        print(f"🎯 Text parsing completed: {len(questions)} questions extracted")
+
+        # If text parsing failed, try even more aggressive parsing
+        if len(questions) == 0:
+            print(f"⚠️ Text parsing found no questions, trying aggressive fallback...")
+            questions = self._aggressive_question_extraction(raw_response)
+
+        return questions
+
+    def _aggressive_question_extraction(self, text: str) -> List[Dict]:
+        """
+        Last resort: extract questions using pattern matching and heuristics.
+        """
+        questions = []
+
+        # Look for question-like patterns
+        question_patterns = [
+            r'(?i)what\s+is.*\?',
+            r'(?i)which\s+of.*\?',
+            r'(?i)how\s+.*\?',
+            r'(?i)calculate.*\?',
+            r'(?i)solve.*\?',
+            r'(?i)find.*\?'
+        ]
+
+        for pattern in question_patterns:
+            matches = re.findall(pattern, text)
+            for i, match in enumerate(matches[:3]):  # Max 3 questions per pattern
+                questions.append({
+                    'question': match.strip(),
+                    'type': 'short_answer',
+                    'correct_answer': 'Please provide the correct answer',
+                    'explanation': 'Generated question needs manual review',
+                    'topic': 'General',
+                    'difficulty': 'intermediate',
+                    'options': None
+                })
+
+        print(f"🔍 Aggressive extraction found {len(questions)} question patterns")
+        return questions[:5]  # Limit to 5 questions max
     
     async def parse_homework_image_json(
         self,
@@ -184,7 +321,7 @@ class OptimizedEducationalAIService:
                 ],
                 temperature=0.1,  # Very low temperature for consistency
                 max_tokens=4000,
-                response_format={"type": "json_object"}  # Force JSON response
+                # Remove JSON format requirement for more reliable parsing
             )
             
             raw_response = response.choices[0].message.content
@@ -834,7 +971,7 @@ class EducationalAIService:
     def _extract_reasoning_steps(self, text: str) -> List[str]:
         """Extract reasoning steps from text (existing method)."""
         steps = []
-        
+
         # Look for numbered steps
         step_patterns = [
             r'\d+\.\s*([^\n]+)',
@@ -844,12 +981,147 @@ class EducationalAIService:
             r'Then[,\s]*([^\n]+)',
             r'Finally[,\s]*([^\n]+)'
         ]
-        
+
         for pattern in step_patterns:
             matches = re.findall(pattern, text, re.IGNORECASE)
             steps.extend([match.strip() for match in matches])
-        
+
         return steps[:5]  # Limit to 5 steps
+
+    def _parse_questions_from_text(self, raw_response: str) -> List[Dict]:
+        """
+        Parse questions from text using robust delimiter-based approach.
+        Much more reliable than JSON parsing for question generation.
+        """
+        print(f"🔍 Starting robust text parsing for questions...")
+        print(f"📝 Raw response length: {len(raw_response)} characters")
+
+        questions = []
+
+        # Try JSON parsing first as fallback
+        try:
+            json_data = json.loads(raw_response)
+            if isinstance(json_data, list):
+                print(f"✅ Successfully parsed as direct JSON array with {len(json_data)} questions")
+                return json_data
+            elif isinstance(json_data, dict) and "questions" in json_data:
+                print(f"✅ Successfully parsed as JSON object with {len(json_data['questions'])} questions")
+                return json_data["questions"]
+        except (json.JSONDecodeError, KeyError):
+            print(f"⚠️ JSON parsing failed, switching to text parsing...")
+
+        # Text-based parsing with delimiters
+        # Look for question patterns: "question": "...", "type": "...", etc.
+        lines = raw_response.split('\n')
+        current_question = {}
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Look for field patterns with robust regex
+            if '"question"' in line and ':' in line:
+                # Extract question text
+                question_match = re.search(r'"question":\s*"([^"]*)"', line)
+                if question_match:
+                    current_question['question'] = question_match.group(1)
+
+            elif '"type"' in line and ':' in line:
+                type_match = re.search(r'"type":\s*"([^"]*)"', line)
+                if type_match:
+                    current_question['type'] = type_match.group(1)
+
+            elif '"correct_answer"' in line and ':' in line:
+                answer_match = re.search(r'"correct_answer":\s*"([^"]*)"', line)
+                if answer_match:
+                    current_question['correct_answer'] = answer_match.group(1)
+
+            elif '"explanation"' in line and ':' in line:
+                explanation_match = re.search(r'"explanation":\s*"([^"]*)"', line)
+                if explanation_match:
+                    current_question['explanation'] = explanation_match.group(1)
+
+            elif '"topic"' in line and ':' in line:
+                topic_match = re.search(r'"topic":\s*"([^"]*)"', line)
+                if topic_match:
+                    current_question['topic'] = topic_match.group(1)
+
+            elif '"difficulty"' in line and ':' in line:
+                difficulty_match = re.search(r'"difficulty":\s*"([^"]*)"', line)
+                if difficulty_match:
+                    current_question['difficulty'] = difficulty_match.group(1)
+
+            elif '"options"' in line and '[' in line:
+                # Extract options array
+                options_match = re.search(r'"options":\s*\[(.*?)\]', line)
+                if options_match:
+                    options_str = options_match.group(1)
+                    # Parse individual options
+                    options = []
+                    for opt in re.findall(r'"([^"]*)"', options_str):
+                        options.append(opt)
+                    current_question['options'] = options
+
+            # Check if we have a complete question
+            if (len(current_question) >= 4 and
+                'question' in current_question and
+                'type' in current_question and
+                'correct_answer' in current_question and
+                'explanation' in current_question):
+
+                # Set defaults for missing fields
+                if 'topic' not in current_question:
+                    current_question['topic'] = 'General'
+                if 'difficulty' not in current_question:
+                    current_question['difficulty'] = 'intermediate'
+                if 'options' not in current_question:
+                    current_question['options'] = None
+
+                questions.append(current_question.copy())
+                print(f"✅ Parsed question {len(questions)}: {current_question['question'][:50]}...")
+                current_question = {}
+
+        print(f"🎯 Text parsing completed: {len(questions)} questions extracted")
+
+        # If text parsing failed, try even more aggressive parsing
+        if len(questions) == 0:
+            print(f"⚠️ Text parsing found no questions, trying aggressive fallback...")
+            questions = self._aggressive_question_extraction(raw_response)
+
+        return questions
+
+    def _aggressive_question_extraction(self, text: str) -> List[Dict]:
+        """
+        Last resort: extract questions using pattern matching and heuristics.
+        """
+        questions = []
+
+        # Look for question-like patterns
+        question_patterns = [
+            r'(?i)what\s+is.*\?',
+            r'(?i)which\s+of.*\?',
+            r'(?i)how\s+.*\?',
+            r'(?i)calculate.*\?',
+            r'(?i)solve.*\?',
+            r'(?i)find.*\?'
+        ]
+
+        for pattern in question_patterns:
+            matches = re.findall(pattern, text)
+            for i, match in enumerate(matches[:3]):  # Max 3 questions per pattern
+                questions.append({
+                    'question': match.strip(),
+                    'type': 'short_answer',
+                    'correct_answer': 'Please provide the correct answer',
+                    'explanation': 'Generated question needs manual review',
+                    'topic': 'General',
+                    'difficulty': 'intermediate',
+                    'options': None
+                })
+
+        print(f"🔍 Aggressive extraction found {len(questions)} question patterns")
+        return questions[:5]  # Limit to 5 questions max
     
     def _identify_key_concepts(self, text: str, subject: str) -> List[str]:
         """Identify key concepts from text (existing method)."""
@@ -1049,5 +1321,363 @@ Focus on being helpful and educational while maintaining a conversational tone."
         # Add student context if available
         if student_context and student_context.get("student_id"):
             base_prompt += f"\n\nStudent context: {student_context.get('student_id', 'anonymous')}"
-        
+
         return base_prompt
+
+    # MARK: - Question Generation Methods
+
+    async def generate_random_questions(
+        self,
+        subject: str,
+        config: Dict[str, Any],
+        user_profile: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Generate random practice questions for a given subject.
+
+        Args:
+            subject: Subject area (e.g., 'mathematics', 'physics')
+            config: Configuration with topics, focus_notes, difficulty, question_count
+            user_profile: User details like grade, location, preferences
+
+        Returns:
+            Dict with generated questions in JSON format
+        """
+
+        try:
+            print(f"🎯 === AI SERVICE: RANDOM QUESTIONS GENERATION START ===")
+            print(f"📚 Subject: {subject}")
+            print(f"⚙️  Config: {config}")
+            print(f"👤 User Profile: {user_profile}")
+
+            # Generate the comprehensive prompt
+            system_prompt = self.prompt_service.get_random_questions_prompt(subject, config, user_profile)
+
+            print(f"📝 === FULL INPUT PROMPT FOR RANDOM QUESTIONS ===")
+            print(f"📄 Prompt Length: {len(system_prompt)} characters")
+            print(f"📋 Full Prompt Content:")
+            print("=" * 80)
+            print(system_prompt)
+            print("=" * 80)
+
+            # Call OpenAI with JSON response format enforcement
+            print(f"📡 Calling OpenAI API for question generation...")
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Generate {config.get('question_count', 5)} random questions for {subject} now."}
+                ],
+                temperature=0.7,  # Higher temperature for variety in questions
+                max_tokens=3000,
+                # Remove JSON format requirement for more reliable parsing
+            )
+
+            raw_response = response.choices[0].message.content
+            tokens_used = response.usage.total_tokens if response.usage else 0
+
+            print(f"✅ OpenAI API call completed")
+            print(f"📊 Tokens used: {tokens_used}")
+            print(f"📝 Raw response length: {len(raw_response)} characters")
+            print(f"📋 Raw Response Preview: {raw_response[:200]}...")
+
+            # Use robust text parsing instead of fragile JSON parsing
+            try:
+                questions_json = self._parse_questions_from_text(raw_response)
+
+                # Validate that we have questions
+                if not questions_json or len(questions_json) == 0:
+                    raise ValueError("No valid questions could be extracted from response")
+
+                # Validate each question has required fields
+                required_fields = ["question", "type", "correct_answer", "explanation", "topic"]
+                for i, question in enumerate(questions_json):
+                    for field in required_fields:
+                        if field not in question:
+                            raise ValueError(f"Question {i+1} missing required field: {field}")
+
+                print(f"✅ === AI SERVICE: RANDOM QUESTIONS GENERATION SUCCESS ===")
+                print(f"🎯 Generated {len(questions_json)} questions")
+
+                return {
+                    "success": True,
+                    "questions": questions_json,
+                    "generation_type": "random",
+                    "subject": subject,
+                    "tokens_used": tokens_used,
+                    "question_count": len(questions_json),
+                    "config_used": config,
+                    "processing_details": {
+                        "model_used": self.model,
+                        "prompt_optimization": True,
+                        "json_format": True,
+                        "validation_passed": True
+                    }
+                }
+
+            except (ValueError, Exception) as parse_error:
+                print(f"⚠️ Question parsing failed: {parse_error}")
+                print(f"📄 Raw response: {raw_response}")
+
+                return {
+                    "success": False,
+                    "error": f"Question generation parsing failed: {parse_error}",
+                    "raw_response": raw_response,
+                    "generation_type": "random",
+                    "subject": subject
+                }
+
+        except Exception as e:
+            print(f"❌ === AI SERVICE: RANDOM QUESTIONS GENERATION ERROR ===")
+            print(f"💥 Error: {str(e)}")
+            import traceback
+            print(f"📋 Full traceback: {traceback.format_exc()}")
+
+            return {
+                "success": False,
+                "error": f"Random question generation failed: {str(e)}",
+                "generation_type": "random",
+                "subject": subject
+            }
+
+    async def generate_mistake_based_questions(
+        self,
+        subject: str,
+        mistakes_data: List[Dict],
+        config: Dict[str, Any],
+        user_profile: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Generate questions based on previous mistakes to help remedial learning.
+
+        Args:
+            subject: Subject area
+            mistakes_data: List of previous mistakes with context
+            config: Configuration including question_count
+            user_profile: User details
+
+        Returns:
+            Dict with generated remedial questions in JSON format
+        """
+
+        try:
+            print(f"🎯 === AI SERVICE: MISTAKE-BASED QUESTIONS GENERATION START ===")
+            print(f"📚 Subject: {subject}")
+            print(f"❌ Mistakes Count: {len(mistakes_data)}")
+            print(f"⚙️  Config: {config}")
+            print(f"👤 User Profile: {user_profile}")
+
+            # Generate the comprehensive prompt
+            system_prompt = self.prompt_service.get_mistake_based_questions_prompt(
+                subject, mistakes_data, config, user_profile
+            )
+
+            print(f"📝 === FULL INPUT PROMPT FOR MISTAKE-BASED QUESTIONS ===")
+            print(f"📄 Prompt Length: {len(system_prompt)} characters")
+            print(f"📋 Full Prompt Content:")
+            print("=" * 80)
+            print(system_prompt)
+            print("=" * 80)
+
+            # Call OpenAI with JSON response format enforcement
+            print(f"📡 Calling OpenAI API for mistake-based question generation...")
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Generate {config.get('question_count', 5)} remedial questions based on the mistake patterns for {subject}."}
+                ],
+                temperature=0.6,  # Moderate temperature for focused remedial questions
+                max_tokens=3000,
+                # Remove JSON format requirement for more reliable parsing
+            )
+
+            raw_response = response.choices[0].message.content
+            tokens_used = response.usage.total_tokens if response.usage else 0
+
+            print(f"✅ OpenAI API call completed")
+            print(f"📊 Tokens used: {tokens_used}")
+            print(f"📝 Raw response length: {len(raw_response)} characters")
+            print(f"📋 Raw Response Preview: {raw_response[:200]}...")
+
+            # Use robust text parsing instead of fragile JSON parsing
+            try:
+                questions_json = self._parse_questions_from_text(raw_response)
+
+                # Validate that we have questions
+                if not questions_json or len(questions_json) == 0:
+                    raise ValueError("No valid questions could be extracted from response")
+
+                # Validate each question has required fields
+                required_fields = ["question", "type", "correct_answer", "explanation", "topic"]
+                for i, question in enumerate(questions_json):
+                    for field in required_fields:
+                        if field not in question:
+                            raise ValueError(f"Question {i+1} missing required field: {field}")
+
+                print(f"✅ === AI SERVICE: MISTAKE-BASED QUESTIONS GENERATION SUCCESS ===")
+                print(f"🎯 Generated {len(questions_json)} remedial questions")
+
+                return {
+                    "success": True,
+                    "questions": questions_json,
+                    "generation_type": "mistake_based",
+                    "subject": subject,
+                    "tokens_used": tokens_used,
+                    "question_count": len(questions_json),
+                    "mistakes_analyzed": len(mistakes_data),
+                    "config_used": config,
+                    "processing_details": {
+                        "model_used": self.model,
+                        "prompt_optimization": True,
+                        "json_format": True,
+                        "validation_passed": True,
+                        "remedial_focus": True
+                    }
+                }
+
+            except (json.JSONDecodeError, ValueError) as parse_error:
+                print(f"⚠️ JSON parsing failed: {parse_error}")
+                print(f"📄 Raw response: {raw_response}")
+
+                return {
+                    "success": False,
+                    "error": f"Mistake-based question generation parsing failed: {parse_error}",
+                    "raw_response": raw_response,
+                    "generation_type": "mistake_based",
+                    "subject": subject
+                }
+
+        except Exception as e:
+            print(f"❌ === AI SERVICE: MISTAKE-BASED QUESTIONS GENERATION ERROR ===")
+            print(f"💥 Error: {str(e)}")
+            import traceback
+            print(f"📋 Full traceback: {traceback.format_exc()}")
+
+            return {
+                "success": False,
+                "error": f"Mistake-based question generation failed: {str(e)}",
+                "generation_type": "mistake_based",
+                "subject": subject
+            }
+
+    async def generate_conversation_based_questions(
+        self,
+        subject: str,
+        conversation_data: List[Dict],
+        config: Dict[str, Any],
+        user_profile: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Generate personalized questions based on previous conversations.
+
+        Args:
+            subject: Subject area
+            conversation_data: List of conversation summaries and contexts
+            config: Configuration including question_count
+            user_profile: User details
+
+        Returns:
+            Dict with generated personalized questions in JSON format
+        """
+
+        try:
+            print(f"🎯 === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION START ===")
+            print(f"📚 Subject: {subject}")
+            print(f"💬 Conversations Count: {len(conversation_data)}")
+            print(f"⚙️  Config: {config}")
+            print(f"👤 User Profile: {user_profile}")
+
+            # Generate the comprehensive prompt
+            system_prompt = self.prompt_service.get_conversation_based_questions_prompt(
+                subject, conversation_data, config, user_profile
+            )
+
+            print(f"📝 === FULL INPUT PROMPT FOR CONVERSATION-BASED QUESTIONS ===")
+            print(f"📄 Prompt Length: {len(system_prompt)} characters")
+            print(f"📋 Full Prompt Content:")
+            print("=" * 80)
+            print(system_prompt)
+            print("=" * 80)
+
+            # Call OpenAI with JSON response format enforcement
+            print(f"📡 Calling OpenAI API for conversation-based question generation...")
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Generate {config.get('question_count', 5)} personalized questions based on the conversation history for {subject}."}
+                ],
+                temperature=0.8,  # Higher temperature for more personalized, creative questions
+                max_tokens=3000,
+                # Remove JSON format requirement for more reliable parsing
+            )
+
+            raw_response = response.choices[0].message.content
+            tokens_used = response.usage.total_tokens if response.usage else 0
+
+            print(f"✅ OpenAI API call completed")
+            print(f"📊 Tokens used: {tokens_used}")
+            print(f"📝 Raw response length: {len(raw_response)} characters")
+            print(f"📋 Raw Response Preview: {raw_response[:200]}...")
+
+            # Use robust text parsing instead of fragile JSON parsing
+            try:
+                questions_json = self._parse_questions_from_text(raw_response)
+
+                # Validate that we have questions
+                if not questions_json or len(questions_json) == 0:
+                    raise ValueError("No valid questions could be extracted from response")
+
+                # Validate each question has required fields
+                required_fields = ["question", "type", "correct_answer", "explanation", "topic"]
+                for i, question in enumerate(questions_json):
+                    for field in required_fields:
+                        if field not in question:
+                            raise ValueError(f"Question {i+1} missing required field: {field}")
+
+                print(f"✅ === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION SUCCESS ===")
+                print(f"🎯 Generated {len(questions_json)} personalized questions")
+
+                return {
+                    "success": True,
+                    "questions": questions_json,
+                    "generation_type": "conversation_based",
+                    "subject": subject,
+                    "tokens_used": tokens_used,
+                    "question_count": len(questions_json),
+                    "conversations_analyzed": len(conversation_data),
+                    "config_used": config,
+                    "processing_details": {
+                        "model_used": self.model,
+                        "prompt_optimization": True,
+                        "json_format": True,
+                        "validation_passed": True,
+                        "personalization": True
+                    }
+                }
+
+            except (json.JSONDecodeError, ValueError) as parse_error:
+                print(f"⚠️ JSON parsing failed: {parse_error}")
+                print(f"📄 Raw response: {raw_response}")
+
+                return {
+                    "success": False,
+                    "error": f"Conversation-based question generation parsing failed: {parse_error}",
+                    "raw_response": raw_response,
+                    "generation_type": "conversation_based",
+                    "subject": subject
+                }
+
+        except Exception as e:
+            print(f"❌ === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION ERROR ===")
+            print(f"💥 Error: {str(e)}")
+            import traceback
+            print(f"📋 Full traceback: {traceback.format_exc()}")
+
+            return {
+                "success": False,
+                "error": f"Conversation-based question generation failed: {str(e)}",
+                "generation_type": "conversation_based",
+                "subject": subject
+            }

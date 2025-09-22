@@ -599,7 +599,7 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30.0
+        request.timeoutInterval = 90.0 // Extended timeout for AI processing
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
@@ -1271,7 +1271,7 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30.0
+        request.timeoutInterval = 90.0 // Extended timeout for AI processing
         
         // Add authentication header
         addAuthHeader(to: &request)
@@ -1434,7 +1434,7 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30.0 // 30 second timeout
+        request.timeoutInterval = 90.0 // Extended timeout for AI processing // 30 second timeout
         
         // Add authentication header
         addAuthHeader(to: &request)
@@ -1510,7 +1510,7 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30.0
+        request.timeoutInterval = 90.0 // Extended timeout for AI processing
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
@@ -1774,7 +1774,7 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 60.0 // Longer timeout for AI processing
+        request.timeoutInterval = 120.0 // Extended timeout for AI processing - prevents timeouts
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
@@ -1830,7 +1830,7 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 60.0 // Longer timeout for AI processing
+        request.timeoutInterval = 120.0 // Extended timeout for AI processing - prevents timeouts
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
@@ -2084,7 +2084,7 @@ class NetworkService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 30.0
+        request.timeoutInterval = 90.0 // Extended timeout for AI processing
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: archiveData)

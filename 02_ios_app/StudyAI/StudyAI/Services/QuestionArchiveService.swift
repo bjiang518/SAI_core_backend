@@ -443,6 +443,7 @@ class QuestionArchiveService: ObservableObject {
             archivedAt: archivedAt,
             reviewCount: reviewCount,
             tags: tags,
+            totalQuestions: 1, // Each question summary represents 1 question
             grade: grade,
             points: points,
             maxPoints: maxPoints,
