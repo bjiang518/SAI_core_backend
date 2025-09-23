@@ -1204,33 +1204,37 @@ FORMATTING RULES:
       
       console.log(`📋 [ARCHIVE] Found ${conversationMessages.rows.length} conversation messages`);
       
-      // Build actual conversation content from messages
-      let actualConversationContent = '';
-      
-      if (conversationMessages.rows.length > 0) {
-        actualConversationContent = `=== Conversation Archive ===\n`;
-        actualConversationContent += `Session: ${sessionId}\n`;
-        actualConversationContent += `Subject: ${subject || 'General Discussion'}\n`;
-        actualConversationContent += `Topic: ${topic || title || 'User Conversation'}\n`;
-        actualConversationContent += `Archived: ${new Date().toISOString()}\n`;
-        actualConversationContent += `Messages: ${conversationMessages.rows.length}\n\n`;
-        
-        conversationMessages.rows.forEach((msg, index) => {
-          const speaker = msg.message_type === 'user' ? 'User' : 'AI Assistant';
-          const timestamp = new Date(msg.created_at).toLocaleString();
-          actualConversationContent += `[${timestamp}] ${speaker}:\n${msg.message_text}\n\n`;
+      // Only archive conversations that have actual messages - no fallback
+      if (conversationMessages.rows.length === 0) {
+        console.log(`❌ [ARCHIVE] No messages found for session ${sessionId} - cannot archive empty conversation`);
+        return reply.status(400).send({
+          success: false,
+          error: 'Cannot archive conversation with no messages',
+          code: 'NO_MESSAGES_TO_ARCHIVE',
+          sessionId: sessionId,
+          messageCount: 0
         });
-        
-        if (notes) {
-          actualConversationContent += `=== Notes ===\n${notes}\n`;
-        }
-        
-        console.log(`✅ [ARCHIVE] Built conversation content: ${actualConversationContent.length} characters`);
-      } else {
-        // Fallback for sessions with no messages
-        actualConversationContent = `Session archived by user on ${new Date().toISOString()}\n\nSubject: ${subject || 'General Discussion'}\nTopic: ${topic || title || 'User Conversation'}\nNotes: ${notes || 'No conversation messages found - this may be a homework session'}\n\nSession ID: ${sessionId}`;
-        console.log(`⚠️ [ARCHIVE] No messages found, using fallback content`);
       }
+
+      // Build conversation content from messages
+      let actualConversationContent = `=== Conversation Archive ===\n`;
+      actualConversationContent += `Session: ${sessionId}\n`;
+      actualConversationContent += `Subject: ${subject || 'General Discussion'}\n`;
+      actualConversationContent += `Topic: ${topic || title || 'User Conversation'}\n`;
+      actualConversationContent += `Archived: ${new Date().toISOString()}\n`;
+      actualConversationContent += `Messages: ${conversationMessages.rows.length}\n\n`;
+
+      conversationMessages.rows.forEach((msg, index) => {
+        const speaker = msg.message_type === 'user' ? 'User' : 'AI Assistant';
+        const timestamp = new Date(msg.created_at).toLocaleString();
+        actualConversationContent += `[${timestamp}] ${speaker}:\n${msg.message_text}\n\n`;
+      });
+
+      if (notes) {
+        actualConversationContent += `=== Notes ===\n${notes}\n`;
+      }
+
+      console.log(`✅ [ARCHIVE] Built conversation content: ${actualConversationContent.length} characters`);
 
       const archivedConversation = await db.archiveConversation({
         userId: userId,

@@ -244,13 +244,18 @@ class LibraryDataService: ObservableObject {
             errorMessage = nil
         }
         
-        // Check cache first
+        // Check cache first (but respect forceRefresh)
         if !forceRefresh && isCacheValid() {
             print("📚 LibraryDataService: Using cached data")
             await MainActor.run {
                 isLoading = false
             }
             return LibraryContent(questions: cachedQuestions, conversations: cachedConversations, error: nil)
+        }
+
+        if forceRefresh {
+            print("🔄 LibraryDataService: Force refresh requested - clearing cache and fetching fresh data")
+            clearCache()
         }
         
         print("📚 LibraryDataService: Fetching fresh library content")
@@ -309,7 +314,67 @@ class LibraryDataService: ObservableObject {
         clearCache()
         return await fetchLibraryContent(forceRefresh: true)
     }
-    
+
+    // MARK: - Date Parsing Helper
+
+    /// Parses date strings from server with multiple format fallbacks to prevent showing current date
+    private func parseServerDate(_ dateString: String?) -> Date {
+        guard let dateString = dateString, !dateString.isEmpty else {
+            return Date.distantPast // Use distant past instead of current date for missing dates
+        }
+
+        // Try multiple date formatters in order of preference
+        let formatters: [(DateFormatter) -> Void] = [
+            // ISO8601 with fractional seconds: "2024-01-15T14:30:45.123456Z"
+            { formatter in
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'"
+                formatter.timeZone = TimeZone(abbreviation: "UTC")
+            },
+            // ISO8601 with milliseconds: "2024-01-15T14:30:45.123Z"
+            { formatter in
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+                formatter.timeZone = TimeZone(abbreviation: "UTC")
+            },
+            // ISO8601 standard: "2024-01-15T14:30:45Z"
+            { formatter in
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                formatter.timeZone = TimeZone(abbreviation: "UTC")
+            },
+            // ISO8601 with timezone: "2024-01-15T14:30:45+00:00"
+            { formatter in
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+            },
+            // Simple date: "2024-01-15"
+            { formatter in
+                formatter.dateFormat = "yyyy-MM-dd"
+                formatter.timeZone = TimeZone(abbreviation: "UTC")
+            },
+            // PostgreSQL timestamp: "2024-01-15 14:30:45"
+            { formatter in
+                formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                formatter.timeZone = TimeZone(abbreviation: "UTC")
+            }
+        ]
+
+        for formatterConfig in formatters {
+            let formatter = DateFormatter()
+            formatterConfig(formatter)
+
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
+        }
+
+        // Try ISO8601DateFormatter as final fallback
+        let iso8601Formatter = ISO8601DateFormatter()
+        if let date = iso8601Formatter.date(from: dateString) {
+            return date
+        }
+
+        // If all parsing fails, use distant past instead of current date
+        return Date.distantPast
+    }
+
     // MARK: - Private Methods
     
     private func fetchQuestions() async -> (data: [QuestionSummary], error: String?) {
@@ -340,19 +405,98 @@ class LibraryDataService: ObservableObject {
     }
     
     private func fetchConversations() async -> (data: [[String: Any]], error: String?) {
-        print("💬 LibraryDataService: Fetching archived conversations...")
-        
-        let result = await networkService.getArchivedSessionsWithParams([:], forceRefresh: false)
-        
-        if result.success {
-            let conversations = result.sessions ?? []
-            print("✅ LibraryDataService: Found \(conversations.count) conversations")
-            return (conversations, nil)
-        } else {
+        print("💬 LibraryDataService: Fetching archived conversations with 404 filtering...")
+        print("🔍 === ENHANCED CONVERSATION FILTERING ENABLED ===")
+
+        // Fetch all conversations from server (force refresh to bypass NetworkService cache)
+        let result = await networkService.getArchivedSessionsWithParams([:], forceRefresh: true)
+
+        guard result.success, let allSessions = result.sessions else {
             let errorMsg = "Failed to load conversations: \(result.message)"
             print("❌ LibraryDataService: \(errorMsg)")
             return ([], errorMsg)
         }
+
+        print("📊 LibraryDataService: Fetched \(allSessions.count) sessions from server")
+
+        // Apply aggressive 404 filtering by validating each conversation exists
+        print("🔍 === STARTING AGGRESSIVE 404 FILTERING ===")
+        var validatedSessions: [[String: Any]] = []
+
+        // Process in batches to avoid overwhelming the server
+        let batchSize = 5
+        for i in stride(from: 0, to: allSessions.count, by: batchSize) {
+            let endIndex = min(i + batchSize, allSessions.count)
+            let batch = Array(allSessions[i..<endIndex])
+
+            print("🔍 Batch \(i/batchSize + 1): Validating conversations \(i+1)-\(endIndex) of \(allSessions.count)")
+
+            // Check each conversation in this batch concurrently
+            await withTaskGroup(of: (session: [String: Any], exists: Bool).self) { group in
+                for session in batch {
+                    group.addTask {
+                        let conversationId = session["id"] as? String ?? ""
+                        let validationResult = await self.networkService.checkConversationExists(conversationId: conversationId)
+                        return (session: session, exists: validationResult.exists)
+                    }
+                }
+
+                // Collect results
+                for await result in group {
+                    if result.exists {
+                        // APPLY ROBUST DATE PARSING to validated sessions
+                        var processedSession = result.session
+
+                        // Parse and fix date fields using robust date parser
+                        if let archivedDateString = processedSession["archived_date"] as? String {
+                            let parsedDate = parseServerDate(archivedDateString)
+                            let iso8601String = ISO8601DateFormatter().string(from: parsedDate)
+                            processedSession["archived_date"] = iso8601String
+                            print("📅 Fixed archived_date: '\(archivedDateString)' → '\(iso8601String)'")
+                        }
+
+                        if let archivedAtString = processedSession["archived_at"] as? String {
+                            let parsedDate = parseServerDate(archivedAtString)
+                            let iso8601String = ISO8601DateFormatter().string(from: parsedDate)
+                            processedSession["archived_at"] = iso8601String
+                            print("📅 Fixed archived_at date: '\(archivedAtString)' → '\(iso8601String)'")
+                        }
+
+                        if let sessionDateString = processedSession["sessionDate"] as? String {
+                            let parsedDate = parseServerDate(sessionDateString)
+                            let iso8601String = ISO8601DateFormatter().string(from: parsedDate)
+                            processedSession["sessionDate"] = iso8601String
+                            print("📅 Fixed sessionDate: '\(sessionDateString)' → '\(iso8601String)'")
+                        }
+
+                        if let createdAtString = processedSession["created_at"] as? String {
+                            let parsedDate = parseServerDate(createdAtString)
+                            let iso8601String = ISO8601DateFormatter().string(from: parsedDate)
+                            processedSession["created_at"] = iso8601String
+                            print("📅 Fixed created_at date: '\(createdAtString)' → '\(iso8601String)'")
+                        }
+
+                        validatedSessions.append(processedSession)
+                        let id = result.session["id"] as? String ?? "unknown"
+                        print("✅ VALIDATED: Conversation \(String(id.prefix(8)))... exists (with corrected dates)")
+                    } else {
+                        let id = result.session["id"] as? String ?? "unknown"
+                        print("❌ FILTERED OUT: Conversation \(String(id.prefix(8)))... returns 404")
+                    }
+                }
+            }
+
+            // Small delay between batches to be respectful to the server
+            if endIndex < allSessions.count {
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
+            }
+        }
+
+        print("🔍 === AGGRESSIVE FILTERING COMPLETE ===")
+        print("📊 Final validated conversations: \(validatedSessions.count) out of \(allSessions.count) checked")
+        print("📊 Filtered out: \(allSessions.count - validatedSessions.count) non-existent conversations")
+
+        return (validatedSessions, nil)
     }
     
     // MARK: - Cache Management
@@ -507,15 +651,66 @@ struct ConversationLibraryItem: LibraryItem {
     }
     
     var date: Date {
-        let dateString = data["sessionDate"] as? String ?? 
-                        data["archived_at"] as? String ?? 
-                        data["created_at"] as? String
-        
+        let dateString = data["sessionDate"] as? String ??
+                        data["archivedDate"] as? String ??   // FIXED: use camelCase archivedDate
+                        data["archived_date"] as? String ??  // Keep snake_case as fallback
+                        data["createdAt"] as? String ??      // FIXED: use camelCase createdAt
+                        data["created_at"] as? String ??     // Keep snake_case as fallback
+                        data["archived_at"] as? String
+
         if let dateString = dateString {
-            let formatter = ISO8601DateFormatter()
-            return formatter.date(from: dateString) ?? Date()
+            // Use robust date parsing with multiple format fallbacks
+            let formatters: [(DateFormatter) -> Void] = [
+                // ISO8601 with fractional seconds: "2024-01-15T14:30:45.123456Z"
+                { formatter in
+                    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'"
+                    formatter.timeZone = TimeZone(abbreviation: "UTC")
+                },
+                // ISO8601 with milliseconds: "2024-01-15T14:30:45.123Z"
+                { formatter in
+                    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+                    formatter.timeZone = TimeZone(abbreviation: "UTC")
+                },
+                // ISO8601 standard: "2024-01-15T14:30:45Z"
+                { formatter in
+                    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                    formatter.timeZone = TimeZone(abbreviation: "UTC")
+                },
+                // ISO8601 with timezone: "2024-01-15T14:30:45+00:00"
+                { formatter in
+                    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+                },
+                // Simple date: "2024-01-15"
+                { formatter in
+                    formatter.dateFormat = "yyyy-MM-dd"
+                    formatter.timeZone = TimeZone(abbreviation: "UTC")
+                },
+                // PostgreSQL timestamp: "2024-01-15 14:30:45"
+                { formatter in
+                    formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                    formatter.timeZone = TimeZone(abbreviation: "UTC")
+                }
+            ]
+
+            for formatterConfig in formatters {
+                let formatter = DateFormatter()
+                formatterConfig(formatter)
+
+                if let date = formatter.date(from: dateString) {
+                    return date
+                }
+            }
+
+            // Try ISO8601DateFormatter as final fallback
+            let iso8601Formatter = ISO8601DateFormatter()
+            if let date = iso8601Formatter.date(from: dateString) {
+                return date
+            }
+
+            // If all parsing fails, use distant past
+            return Date.distantPast
         }
-        return Date()
+        return Date.distantPast
     }
     
     var itemType: LibraryItemType {

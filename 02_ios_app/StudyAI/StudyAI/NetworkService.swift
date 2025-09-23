@@ -3157,6 +3157,63 @@ class NetworkService: ObservableObject {
         }
     }
 
+    // MARK: - Conversation Validation
+
+    /// Check if a conversation exists without fetching full content
+    func checkConversationExists(conversationId: String) async -> (exists: Bool, error: String?) {
+        print("🔍 === CHECKING CONVERSATION EXISTS ===")
+        print("🆔 Conversation ID: \(conversationId)")
+
+        // Check authentication first
+        guard AuthenticationService.shared.getAuthToken() != nil else {
+            print("❌ No auth token available for conversation check")
+            return (false, "Authentication required")
+        }
+
+        // Try multiple endpoints to check if conversation exists
+        let endpoints = [
+            "\(baseURL)/api/ai/archives/conversations/\(conversationId)",
+            "\(baseURL)/api/archive/conversations/\(conversationId)",
+            "\(baseURL)/api/user/conversations/\(conversationId)"
+        ]
+
+        for endpoint in endpoints {
+            guard let url = URL(string: endpoint) else {
+                continue
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "HEAD" // Use HEAD for lightweight check
+            request.timeoutInterval = 10.0 // Quick timeout
+            addAuthHeader(to: &request)
+
+            do {
+                let (_, response) = try await URLSession.shared.data(for: request)
+
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("✅ Conversation check (\(endpoint)): \(httpResponse.statusCode)")
+
+                    if httpResponse.statusCode == 200 {
+                        print("✅ Conversation exists: \(conversationId)")
+                        return (true, nil)
+                    } else if httpResponse.statusCode == 404 {
+                        print("❌ Conversation not found at \(endpoint)")
+                        continue // Try next endpoint
+                    } else if httpResponse.statusCode == 401 {
+                        print("❌ Authentication failed for conversation check")
+                        return (false, "Authentication expired")
+                    }
+                }
+            } catch {
+                print("❌ Conversation check failed for \(endpoint): \(error.localizedDescription)")
+                continue // Try next endpoint
+            }
+        }
+
+        print("❌ Conversation does not exist: \(conversationId)")
+        return (false, "Conversation not found")
+    }
+
     // MARK: - Mistake Review Methods
     func getMistakeSubjects() async throws -> [SubjectMistakeCount] {
         guard let user = AuthenticationService.shared.currentUser else {

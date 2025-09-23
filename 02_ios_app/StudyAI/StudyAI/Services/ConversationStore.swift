@@ -3,10 +3,84 @@ import Combine
 
 class ConversationStore: ObservableObject {
     static let shared = ConversationStore()
-    
+
     private let networkService = NetworkService.shared
-    
+
     private init() {}
+
+    // MARK: - Conversation Validation
+
+    /// Validates if a conversation actually exists by checking the backend
+    private func validateConversationExists(_ conversationId: String) async -> Bool {
+        // Quick HEAD request to check if conversation exists without fetching full content
+        let result = await networkService.checkConversationExists(conversationId: conversationId)
+        return result.exists
+    }
+
+    // MARK: - Conversation Listing
+
+    /// Parses date strings from server with multiple format fallbacks to prevent showing current date
+    private func parseServerDate(_ dateString: String?) -> Date {
+        guard let dateString = dateString, !dateString.isEmpty else {
+            print("⚠️ Date parsing: No date string provided, using distant past instead of current date")
+            return Date.distantPast // Use distant past instead of current date for missing dates
+        }
+
+        // Try multiple date formatters in order of preference
+        let formatters: [(DateFormatter) -> Void] = [
+            // ISO8601 with fractional seconds: "2024-01-15T14:30:45.123Z"
+            { formatter in
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'"
+                formatter.timeZone = TimeZone(abbreviation: "UTC")
+            },
+            // ISO8601 with milliseconds: "2024-01-15T14:30:45.123Z"
+            { formatter in
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+                formatter.timeZone = TimeZone(abbreviation: "UTC")
+            },
+            // ISO8601 standard: "2024-01-15T14:30:45Z"
+            { formatter in
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                formatter.timeZone = TimeZone(abbreviation: "UTC")
+            },
+            // ISO8601 with timezone: "2024-01-15T14:30:45+00:00"
+            { formatter in
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+            },
+            // Simple date: "2024-01-15"
+            { formatter in
+                formatter.dateFormat = "yyyy-MM-dd"
+                formatter.timeZone = TimeZone(abbreviation: "UTC")
+            },
+            // PostgreSQL timestamp: "2024-01-15 14:30:45"
+            { formatter in
+                formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                formatter.timeZone = TimeZone(abbreviation: "UTC")
+            }
+        ]
+
+        for (index, formatterConfig) in formatters.enumerated() {
+            let formatter = DateFormatter()
+            formatterConfig(formatter)
+
+            if let date = formatter.date(from: dateString) {
+                print("✅ Date parsing: Successfully parsed '\(dateString)' using format #\(index + 1)")
+                return date
+            }
+        }
+
+        // Try ISO8601DateFormatter as final fallback
+        let iso8601Formatter = ISO8601DateFormatter()
+        if let date = iso8601Formatter.date(from: dateString) {
+            print("✅ Date parsing: Successfully parsed '\(dateString)' using ISO8601DateFormatter")
+            return date
+        }
+
+        // If all parsing fails, log the problem and use distant past instead of current date
+        print("❌ Date parsing: Failed to parse '\(dateString)' with any format, using distant past")
+        print("   └── This prevents showing current date for old conversations")
+        return Date.distantPast
+    }
     
     func listConversations(filter: ConversationFilter = .all, query: String? = nil, dateRange: DateInterval? = nil, forceRefresh: Bool = false) async -> [Conversation] {
         print("📚 Fetching conversations from server...")
@@ -50,23 +124,38 @@ class ConversationStore: ObservableObject {
                                       session["conversationContent"] != nil
             
             if isConversationArchive {
-                // For conversations, verify they have actual content
+                // For conversations, verify they have actual content and proper format
                 if let conversationContent = session["conversationContent"] as? String,
                    !conversationContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    validSessions.append(session)
-                    
-                    // DIAGNOSTIC: Check if this looks like an image conversation
-                    let hasImageContent = conversationContent.contains("base64") || 
-                                        conversationContent.contains("image") ||
-                                        conversationContent.contains("picture") ||
-                                        conversationContent.contains("photo")
-                    print("✅ Valid conversation found: \(session["id"] as? String ?? "unknown") | Contains images: \(hasImageContent)")
+
+                    // Filter out fallback archived sessions that don't have real conversation content
+                    if conversationContent.hasPrefix("Session archived by user on") {
+                        let conversationId = session["id"] as? String ?? "unknown"
+                        print("🗑️ FILTERING OUT - Empty fallback archive: \(conversationId)")
+                        print("   └── Content starts with 'Session archived by user on' - no real messages")
+                        // Skip this session - don't add to validSessions
+                    } else if conversationContent.hasPrefix("=== Conversation Archive ===") {
+                        // This is a proper conversation archive with real messages
+                        validSessions.append(session)
+
+                        // DIAGNOSTIC: Check if this looks like an image conversation
+                        let hasImageContent = conversationContent.contains("base64") ||
+                                            conversationContent.contains("image") ||
+                                            conversationContent.contains("picture") ||
+                                            conversationContent.contains("photo")
+                        print("✅ Valid conversation found: \(session["id"] as? String ?? "unknown") | Contains images: \(hasImageContent)")
+                    } else {
+                        // Some other format - include but log for investigation
+                        validSessions.append(session)
+                        print("⚠️ Unknown conversation format: \(session["id"] as? String ?? "unknown")")
+                        print("   └── Content preview: \(String(conversationContent.prefix(50)))...")
+                    }
                 } else {
                     // DIAGNOSTIC: Check if this was likely an image conversation that failed to store
                     let conversationId = session["id"] as? String ?? "unknown"
                     let topic = session["topic"] as? String ?? ""
                     let subject = session["subject"] as? String ?? ""
-                    
+
                     print("⚠️ MISSING CONTENT - Likely image conversation: \(conversationId)")
                     print("   └── Topic: '\(topic)' | Subject: '\(subject)'")
                     print("   └── This conversation probably contained images that couldn't be stored in backend database")
@@ -78,11 +167,56 @@ class ConversationStore: ObservableObject {
         }
         
         print("📊 Filtered sessions: \(validSessions.count) valid out of \(sessions.count) total")
-        
-        // Convert server sessions/conversations to Conversation model
+
+        // AGGRESSIVE FILTERING: Validate each conversation exists before displaying
+        print("🔍 === STARTING AGGRESSIVE 404 FILTERING ===")
+        var validatedSessions: [[String: Any]] = []
+
+        // Process in batches to avoid overwhelming the server
+        let batchSize = 5
+        for i in stride(from: 0, to: validSessions.count, by: batchSize) {
+            let endIndex = min(i + batchSize, validSessions.count)
+            let batch = Array(validSessions[i..<endIndex])
+
+            print("🔍 Batch \(i/batchSize + 1): Validating conversations \(i+1)-\(endIndex) of \(validSessions.count)")
+
+            // Check each conversation in this batch concurrently
+            await withTaskGroup(of: (session: [String: Any], exists: Bool).self) { group in
+                for session in batch {
+                    group.addTask {
+                        let conversationId = session["id"] as? String ?? ""
+                        let validationResult = await self.networkService.checkConversationExists(conversationId: conversationId)
+                        return (session: session, exists: validationResult.exists)
+                    }
+                }
+
+                // Collect results
+                for await result in group {
+                    if result.exists {
+                        validatedSessions.append(result.session)
+                        let id = result.session["id"] as? String ?? "unknown"
+                        print("✅ VALIDATED: Conversation \(String(id.prefix(8)))... exists")
+                    } else {
+                        let id = result.session["id"] as? String ?? "unknown"
+                        print("❌ FILTERED OUT: Conversation \(String(id.prefix(8)))... returns 404")
+                    }
+                }
+            }
+
+            // Small delay between batches to be respectful to the server
+            if endIndex < validSessions.count {
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
+            }
+        }
+
+        print("🔍 === AGGRESSIVE FILTERING COMPLETE ===")
+        print("📊 Final validated conversations: \(validatedSessions.count) out of \(validSessions.count) checked")
+        print("📊 Filtered out: \(validSessions.count - validatedSessions.count) non-existent conversations")
+
+        // Convert validated server sessions/conversations to Conversation model
         var conversations: [Conversation] = []
-        
-        for session in validSessions {
+
+        for session in validatedSessions {
             guard let id = session["id"] as? String,
                   let title = session["title"] as? String else {
                 continue
@@ -99,13 +233,9 @@ class ConversationStore: ObservableObject {
                 // This is a conversation archive
                 subject = session["subject"] as? String ?? "General Discussion"
                 
-                // Parse archived date for conversations
-                if let archivedAtString = session["archived_at"] as? String ?? session["archivedAt"] as? String {
-                    let dateFormatter = ISO8601DateFormatter()
-                    sessionDate = dateFormatter.date(from: archivedAtString) ?? Date()
-                } else {
-                    sessionDate = Date()
-                }
+                // Parse archived date for conversations using robust date parser
+                let archivedAtString = session["archived_at"] as? String ?? session["archivedAt"] as? String
+                sessionDate = parseServerDate(archivedAtString)
                 
                 // Extract conversation info
                 let messageCount = session["message_count"] as? Int ?? session["messageCount"] as? Int ?? 0
@@ -118,13 +248,9 @@ class ConversationStore: ObservableObject {
                 // This is a homework session archive
                 subject = session["subject"] as? String ?? "General"
                 
-                // Parse session date for homework
-                if let sessionDateString = session["sessionDate"] as? String {
-                    let dateFormatter = ISO8601DateFormatter()
-                    sessionDate = dateFormatter.date(from: sessionDateString) ?? Date()
-                } else {
-                    sessionDate = Date()
-                }
+                // Parse session date for homework using robust date parser
+                let sessionDateString = session["sessionDate"] as? String
+                sessionDate = parseServerDate(sessionDateString)
                 
                 // Extract homework session info
                 let questionCount = session["questionCount"] as? Int ?? 0
