@@ -22,7 +22,6 @@ class ConversationStore: ObservableObject {
     /// Parses date strings from server with multiple format fallbacks to prevent showing current date
     private func parseServerDate(_ dateString: String?) -> Date {
         guard let dateString = dateString, !dateString.isEmpty else {
-            print("⚠️ Date parsing: No date string provided, using distant past instead of current date")
             return Date.distantPast // Use distant past instead of current date for missing dates
         }
 
@@ -59,12 +58,11 @@ class ConversationStore: ObservableObject {
             }
         ]
 
-        for (index, formatterConfig) in formatters.enumerated() {
+        for formatterConfig in formatters {
             let formatter = DateFormatter()
             formatterConfig(formatter)
 
             if let date = formatter.date(from: dateString) {
-                print("✅ Date parsing: Successfully parsed '\(dateString)' using format #\(index + 1)")
                 return date
             }
         }
@@ -72,44 +70,37 @@ class ConversationStore: ObservableObject {
         // Try ISO8601DateFormatter as final fallback
         let iso8601Formatter = ISO8601DateFormatter()
         if let date = iso8601Formatter.date(from: dateString) {
-            print("✅ Date parsing: Successfully parsed '\(dateString)' using ISO8601DateFormatter")
             return date
         }
 
-        // If all parsing fails, log the problem and use distant past instead of current date
-        print("❌ Date parsing: Failed to parse '\(dateString)' with any format, using distant past")
-        print("   └── This prevents showing current date for old conversations")
+        // If all parsing fails, use distant past instead of current date
         return Date.distantPast
     }
     
     func listConversations(filter: ConversationFilter = .all, query: String? = nil, dateRange: DateInterval? = nil, forceRefresh: Bool = false) async -> [Conversation] {
-        print("📚 Fetching conversations from server...")
-        print("🔍 Filter: \(filter), Query: \(query ?? "none"), Force Refresh: \(forceRefresh)")
-        
         // Build query parameters for server-side filtering
         var queryParams: [String: String] = [
             "limit": "50",
             "offset": "0"
         ]
-        
+
         // Add search query if provided
         if let query = query, !query.isEmpty {
             // For homework sessions, we can search by subject or title
             queryParams["subject"] = query
         }
-        
+
         // Add date range if provided
         if let dateRange = dateRange {
             let dateFormatter = ISO8601DateFormatter()
             queryParams["startDate"] = dateFormatter.string(from: dateRange.start)
             queryParams["endDate"] = dateFormatter.string(from: dateRange.end)
         }
-        
+
         // Fetch archived sessions from server with caching support
         let result = await networkService.getArchivedSessionsWithParams(queryParams, forceRefresh: forceRefresh)
-        
+
         guard result.success, let sessions = result.sessions else {
-            print("❌ Failed to fetch sessions: \(result.message)")
             return []
         }
         
@@ -131,8 +122,6 @@ class ConversationStore: ObservableObject {
                     // Filter out fallback archived sessions that don't have real conversation content
                     if conversationContent.hasPrefix("Session archived by user on") {
                         let conversationId = session["id"] as? String ?? "unknown"
-                        print("🗑️ FILTERING OUT - Empty fallback archive: \(conversationId)")
-                        print("   └── Content starts with 'Session archived by user on' - no real messages")
                         // Skip this session - don't add to validSessions
                     } else if conversationContent.hasPrefix("=== Conversation Archive ===") {
                         // This is a proper conversation archive with real messages
@@ -143,33 +132,24 @@ class ConversationStore: ObservableObject {
                                             conversationContent.contains("image") ||
                                             conversationContent.contains("picture") ||
                                             conversationContent.contains("photo")
-                        print("✅ Valid conversation found: \(session["id"] as? String ?? "unknown") | Contains images: \(hasImageContent)")
                     } else {
                         // Some other format - include but log for investigation
                         validSessions.append(session)
-                        print("⚠️ Unknown conversation format: \(session["id"] as? String ?? "unknown")")
-                        print("   └── Content preview: \(String(conversationContent.prefix(50)))...")
                     }
                 } else {
                     // DIAGNOSTIC: Check if this was likely an image conversation that failed to store
                     let conversationId = session["id"] as? String ?? "unknown"
                     let topic = session["topic"] as? String ?? ""
                     let subject = session["subject"] as? String ?? ""
-
-                    print("⚠️ MISSING CONTENT - Likely image conversation: \(conversationId)")
-                    print("   └── Topic: '\(topic)' | Subject: '\(subject)'")
-                    print("   └── This conversation probably contained images that couldn't be stored in backend database")
+                    // This conversation probably contained images that couldn't be stored in backend database
                 }
             } else {
                 // For homework sessions, keep all (they don't have the same detail fetch issue)
                 validSessions.append(session)
             }
         }
-        
-        print("📊 Filtered sessions: \(validSessions.count) valid out of \(sessions.count) total")
 
         // AGGRESSIVE FILTERING: Validate each conversation exists before displaying
-        print("🔍 === STARTING AGGRESSIVE 404 FILTERING ===")
         var validatedSessions: [[String: Any]] = []
 
         // Process in batches to avoid overwhelming the server
@@ -177,8 +157,6 @@ class ConversationStore: ObservableObject {
         for i in stride(from: 0, to: validSessions.count, by: batchSize) {
             let endIndex = min(i + batchSize, validSessions.count)
             let batch = Array(validSessions[i..<endIndex])
-
-            print("🔍 Batch \(i/batchSize + 1): Validating conversations \(i+1)-\(endIndex) of \(validSessions.count)")
 
             // Check each conversation in this batch concurrently
             await withTaskGroup(of: (session: [String: Any], exists: Bool).self) { group in
@@ -194,11 +172,6 @@ class ConversationStore: ObservableObject {
                 for await result in group {
                     if result.exists {
                         validatedSessions.append(result.session)
-                        let id = result.session["id"] as? String ?? "unknown"
-                        print("✅ VALIDATED: Conversation \(String(id.prefix(8)))... exists")
-                    } else {
-                        let id = result.session["id"] as? String ?? "unknown"
-                        print("❌ FILTERED OUT: Conversation \(String(id.prefix(8)))... returns 404")
                     }
                 }
             }
@@ -208,10 +181,6 @@ class ConversationStore: ObservableObject {
                 try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
             }
         }
-
-        print("🔍 === AGGRESSIVE FILTERING COMPLETE ===")
-        print("📊 Final validated conversations: \(validatedSessions.count) out of \(validSessions.count) checked")
-        print("📊 Filtered out: \(validSessions.count - validatedSessions.count) non-existent conversations")
 
         // Convert validated server sessions/conversations to Conversation model
         var conversations: [Conversation] = []

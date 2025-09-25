@@ -1,0 +1,520 @@
+//
+//  ParentReportsView.swift
+//  StudyAI
+//
+//  Main view for parent report generation and management
+//  Provides date range selection and report display functionality
+//
+
+import SwiftUI
+
+struct ParentReportsView: View {
+    @StateObject private var reportService = ParentReportService.shared
+    @StateObject private var authService = AuthenticationService.shared
+    @State private var showingDateRangeSelector = false
+    @State private var showingReportDetail = false
+    @State private var selectedReport: ParentReport?
+    @State private var isGeneratingReport = false
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header Section
+                    headerSection
+
+                    // Quick Actions
+                    quickActionsSection
+
+                    // Recent Reports
+                    recentReportsSection
+
+                    // Report Analytics
+                    analyticsSection
+                }
+                .padding()
+            }
+            .navigationTitle("Parent Reports")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showingDateRangeSelector = true
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.blue)
+                    }
+                    .disabled(isGeneratingReport)
+                }
+            }
+            .sheet(isPresented: $showingDateRangeSelector) {
+                ReportDateRangeSelector(
+                    onReportGenerated: { report in
+                        selectedReport = report
+                        showingReportDetail = true
+                    }
+                )
+            }
+            .sheet(isPresented: $showingReportDetail) {
+                if let report = selectedReport {
+                    ReportDetailView(report: report)
+                }
+            }
+            .onAppear {
+                loadRecentReports()
+            }
+            .overlay {
+                if reportService.isGeneratingReport {
+                    ReportGenerationOverlay(
+                        progress: reportService.reportGenerationProgress
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Header Section
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("Study Reports")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Text("Track your child's academic progress")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "doc.text.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.blue)
+                    .opacity(0.7)
+            }
+        }
+        .padding()
+        .background(Color.blue.opacity(0.05))
+        .cornerRadius(16)
+    }
+
+    // MARK: - Quick Actions Section
+    private var quickActionsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Quick Actions")
+                .font(.headline)
+
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 16) {
+                Button(action: {
+                    generateWeeklyReport()
+                }) {
+                    ReportActionCard(
+                        icon: "calendar.badge.clock",
+                        title: "Weekly Report",
+                        subtitle: "Last 7 days",
+                        color: .green
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(isGeneratingReport)
+
+                Button(action: {
+                    generateMonthlyReport()
+                }) {
+                    ReportActionCard(
+                        icon: "calendar",
+                        title: "Monthly Report",
+                        subtitle: "Last 30 days",
+                        color: .orange
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(isGeneratingReport)
+
+                Button(action: {
+                    showingDateRangeSelector = true
+                }) {
+                    ReportActionCard(
+                        icon: "calendar.badge.plus",
+                        title: "Custom Range",
+                        subtitle: "Choose dates",
+                        color: .purple
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(isGeneratingReport)
+
+                Button(action: {
+                    generateProgressReport()
+                }) {
+                    ReportActionCard(
+                        icon: "chart.line.uptrend.xyaxis",
+                        title: "Progress Report",
+                        subtitle: "Detailed analysis",
+                        color: .blue
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(isGeneratingReport)
+            }
+        }
+    }
+
+    // MARK: - Recent Reports Section
+    private var recentReportsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Recent Reports")
+                    .font(.headline)
+
+                Spacer()
+
+                if !reportService.availableReports.isEmpty {
+                    Button("View All") {
+                        // Navigate to full reports list
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                }
+            }
+
+            if reportService.availableReports.isEmpty {
+                RecentReportsEmptyState()
+            } else {
+                LazyVStack(spacing: 12) {
+                    ForEach(reportService.availableReports.prefix(3)) { report in
+                        ReportListCard(report: report) {
+                            Task {
+                                await loadReportDetail(reportId: report.id)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Analytics Section
+    private var analyticsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Quick Insights")
+                .font(.headline)
+
+            if let lastReport = reportService.lastGeneratedReport {
+                ReportInsightsCard(report: lastReport)
+            } else {
+                AnalyticsEmptyState()
+            }
+        }
+    }
+
+    // MARK: - Actions
+    private func loadRecentReports() {
+        guard let userId = authService.currentUser?.id else { return }
+
+        Task {
+            _ = await reportService.fetchStudentReports(
+                studentId: userId,
+                limit: 5
+            )
+        }
+    }
+
+    private func generateWeeklyReport() {
+        generateQuickReport(type: .weekly, daysBack: 7)
+    }
+
+    private func generateMonthlyReport() {
+        generateQuickReport(type: .monthly, daysBack: 30)
+    }
+
+    private func generateProgressReport() {
+        generateQuickReport(type: .progress, daysBack: 14)
+    }
+
+    private func generateQuickReport(type: ReportType, daysBack: Int) {
+        guard let userId = authService.currentUser?.id else { return }
+
+        let endDate = Date()
+        let startDate = Calendar.current.date(byAdding: .day, value: -daysBack, to: endDate) ?? endDate
+
+        isGeneratingReport = true
+
+        Task {
+            let result = await reportService.generateReport(
+                studentId: userId,
+                startDate: startDate,
+                endDate: endDate,
+                reportType: type,
+                includeAIAnalysis: true,
+                compareWithPrevious: true
+            )
+
+            await MainActor.run {
+                isGeneratingReport = false
+
+                switch result {
+                case .success(let report):
+                    selectedReport = report
+                    showingReportDetail = true
+                case .failure(let error):
+                    print("Report generation failed: \(error.localizedDescription)")
+                    // Handle error - could show alert
+                }
+            }
+        }
+    }
+
+    private func loadReportDetail(reportId: String) async {
+        let result = await reportService.fetchReport(reportId: reportId)
+
+        await MainActor.run {
+            switch result {
+            case .success(let report):
+                selectedReport = report
+                showingReportDetail = true
+            case .failure(let error):
+                print("Failed to load report: \(error.localizedDescription)")
+                // Handle error
+            }
+        }
+    }
+}
+
+// MARK: - Supporting Views
+
+struct ReportActionCard: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 24))
+                .foregroundColor(color)
+
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .multilineTextAlignment(.center)
+
+            Text(subtitle)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .padding(.horizontal, 12)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct ReportListCard: View {
+    let report: ReportListItem
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                Image(systemName: report.reportType.icon)
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                    .frame(width: 40)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(report.reportType.displayName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+
+                    Text(formatDateRange(start: report.startDate, end: report.endDate))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    HStack {
+                        if report.aiAnalysisIncluded {
+                            Label("AI Analysis", systemImage: "brain.head.profile")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                        }
+
+                        Spacer()
+
+                        Text(RelativeDateTimeFormatter().localizedString(for: report.generatedAt, relativeTo: Date()))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color(.systemGray4), lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    private func formatDateRange(start: Date, end: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return "\(formatter.string(from: start)) - \(formatter.string(from: end))"
+    }
+}
+
+struct RecentReportsEmptyState: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "doc.text.below.ecg")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+
+            VStack(spacing: 8) {
+                Text("No Reports Yet")
+                    .font(.headline)
+                    .fontWeight(.medium)
+
+                Text("Generate your first report to see detailed insights about study progress")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(.vertical, 32)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct AnalyticsEmptyState: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "chart.bar.doc.horizontal")
+                .font(.system(size: 32))
+                .foregroundColor(.secondary)
+
+            Text("Generate a report to see insights")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct ReportInsightsCard: View {
+    let report: ParentReport
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Latest Report Highlights")
+                .font(.subheadline)
+                .fontWeight(.medium)
+
+            HStack(spacing: 16) {
+                InsightItem(
+                    icon: "target",
+                    title: "Accuracy",
+                    value: report.reportData.academic.accuracyPercentage,
+                    color: .green
+                )
+
+                InsightItem(
+                    icon: "clock.fill",
+                    title: "Study Time",
+                    value: "\(Int(report.reportData.activity.totalStudyHours))h",
+                    color: .blue
+                )
+
+                InsightItem(
+                    icon: "heart.fill",
+                    title: "Wellbeing",
+                    value: report.reportData.mentalHealth.wellbeingPercentage,
+                    color: report.reportData.mentalHealth.wellbeingColor
+                )
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct InsightItem: View {
+    let icon: String
+    let title: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(color)
+
+            Text(value)
+                .font(.caption)
+                .fontWeight(.semibold)
+
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct ReportGenerationOverlay: View {
+    let progress: Double
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                ProgressView()
+                    .scaleEffect(1.2)
+                    .tint(.white)
+
+                Text("Generating Report...")
+                    .font(.headline)
+                    .foregroundColor(.white)
+
+                ProgressView(value: progress)
+                    .frame(width: 200)
+                    .tint(.white)
+
+                Text("\(Int(progress * 100))% Complete")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.8))
+            }
+            .padding(30)
+            .background(Color.black.opacity(0.8))
+            .cornerRadius(16)
+        }
+    }
+}
+
+#Preview {
+    ParentReportsView()
+}

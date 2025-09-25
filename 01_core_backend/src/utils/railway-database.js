@@ -2395,7 +2395,78 @@ async function runDatabaseMigrations() {
     } else {
       console.log('✅ Progress enhancement migration already applied');
     }
-    
+
+    // Check if parent report narratives migration has been applied
+    const parentReportNarrativesCheck = await db.query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_name = 'parent_report_narratives'
+      AND table_schema = 'public'
+    `);
+
+    if (parentReportNarrativesCheck.rows.length === 0) {
+      console.log('📋 Applying parent report narratives migration...');
+
+      // Create parent report narratives table for human-readable reports
+      await db.query(`
+        -- Parent report narratives table for human-readable reports
+        CREATE TABLE parent_report_narratives (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          parent_report_id UUID NOT NULL REFERENCES parent_reports(id) ON DELETE CASCADE,
+          narrative_content TEXT NOT NULL,
+          report_summary TEXT NOT NULL,
+          key_insights JSONB DEFAULT '[]',
+          recommendations TEXT[] DEFAULT '{}',
+          tone_style VARCHAR(50) DEFAULT 'teacher_to_parent',
+          language VARCHAR(10) DEFAULT 'en',
+          generated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          ai_model_version VARCHAR(50) DEFAULT 'claude-3.5-sonnet',
+          word_count INTEGER DEFAULT 0,
+          reading_level VARCHAR(20) DEFAULT 'grade_8',
+          generation_time_ms INTEGER DEFAULT 0,
+          is_complete BOOLEAN DEFAULT true,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+
+        -- Create indexes for better query performance
+        CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_parent_report_id
+          ON parent_report_narratives(parent_report_id);
+        CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_generated_at
+          ON parent_report_narratives(generated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_tone_language
+          ON parent_report_narratives(tone_style, language);
+
+        -- Add comments to document the new table
+        COMMENT ON TABLE parent_report_narratives IS 'Human-readable narrative reports generated from analytics data';
+        COMMENT ON COLUMN parent_report_narratives.narrative_content IS 'Full human-readable report content in teacher-to-parent tone';
+        COMMENT ON COLUMN parent_report_narratives.report_summary IS 'Brief executive summary of the report';
+        COMMENT ON COLUMN parent_report_narratives.key_insights IS 'JSON array of key insights and highlights';
+        COMMENT ON COLUMN parent_report_narratives.recommendations IS 'Array of actionable recommendations for parents';
+        COMMENT ON COLUMN parent_report_narratives.tone_style IS 'Writing tone: teacher_to_parent, formal, casual, etc.';
+        COMMENT ON COLUMN parent_report_narratives.word_count IS 'Total word count of narrative content';
+        COMMENT ON COLUMN parent_report_narratives.reading_level IS 'Target reading level for accessibility';
+      `);
+
+      // Record the migration as completed
+      await db.query(`
+        INSERT INTO migration_history (migration_name)
+        VALUES ('004_parent_report_narratives')
+        ON CONFLICT (migration_name) DO NOTHING;
+      `);
+
+      console.log('✅ Parent report narratives migration completed successfully!');
+      console.log('📊 Parent report narratives table now supports:');
+      console.log('   - Human-readable narrative content');
+      console.log('   - Executive summaries for busy parents');
+      console.log('   - Key insights and recommendations');
+      console.log('   - Multiple tone styles and languages');
+      console.log('   - Reading level optimization');
+      console.log('   - Performance tracking and analytics');
+    } else {
+      console.log('✅ Parent report narratives migration already applied');
+    }
+
   } catch (error) {
     console.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has

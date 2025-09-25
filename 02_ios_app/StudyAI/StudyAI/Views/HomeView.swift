@@ -19,6 +19,7 @@ struct HomeView: View {
     @State private var showingProfile = false
     @State private var showingMistakeReview = false
     @State private var showingQuestionGeneration = false
+    @State private var showingParentReports = false
     
     private let logger = Logger(subsystem: "com.studyai", category: "HomeView")
     
@@ -164,6 +165,16 @@ struct HomeView: View {
                                 )
                             }
                             .buttonStyle(PlainButtonStyle())
+
+                            Button(action: { showingParentReports = true }) {
+                                QuickActionCard(
+                                    icon: "doc.text.fill",
+                                    title: "Parent Reports",
+                                    subtitle: "Study insights",
+                                    color: .teal
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                         .padding(.horizontal)
                     }
@@ -235,6 +246,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingQuestionGeneration) {
                 QuestionGenerationView()
+            }
+            .sheet(isPresented: $showingParentReports) {
+                ParentReportsView()
             }
             .background {
                 // Use NavigationLink without isActive (modern approach)

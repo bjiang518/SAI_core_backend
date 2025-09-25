@@ -25,6 +25,7 @@ const AIProxyRoutes = require('./routes/ai-proxy');
 const ArchiveRoutes = require('./routes/archive-routes');
 const AuthRoutes = require('./routes/auth-routes');
 const ProgressRoutes = require('./routes/progress-routes');
+const ParentReportsRoutes = require('./routes/parent-reports');
 const HealthRoutes = require('./routes/health');
 const { serviceAuth } = require('./middleware/service-auth');
 const { requestValidator } = require('./middleware/request-validation');
@@ -183,7 +184,10 @@ if (features.useGateway) {
   
   // Progress tracking routes
   new ProgressRoutes(fastify);
-  
+
+  // Parent Reports routes - NEW
+  new ParentReportsRoutes(fastify);
+
   // AI Engine proxy routes
   new AIProxyRoutes(fastify);
   

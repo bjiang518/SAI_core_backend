@@ -446,6 +446,24 @@ class AIProxyRoutes {
       }
     }, this.generateConversationBasedQuestions.bind(this));
 
+    // AI Analytics for Parent Reports
+    this.fastify.post('/api/ai/analytics/insights', {
+      schema: {
+        description: 'Generate AI-powered insights for parent reports',
+        tags: ['AI', 'Analytics', 'Parent Reports'],
+        body: {
+          type: 'object',
+          required: ['report_data'],
+          properties: {
+            report_data: {
+              type: 'object',
+              description: 'Comprehensive report data from aggregation service'
+            }
+          }
+        }
+      }
+    }, this.generateAIInsights.bind(this));
+
     // Generic proxy for any other AI endpoints
     this.fastify.all('/api/ai/*', this.genericProxy.bind(this));
   }
@@ -2319,6 +2337,52 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
         code: 'TTS_ERROR',
         error: error.message,
         stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+      });
+    }
+  }
+
+  async generateAIInsights(request, reply) {
+    const startTime = Date.now();
+
+    try {
+      this.fastify.log.info('🧠 === AI ANALYTICS INSIGHTS REQUEST ===');
+      this.fastify.log.info(`📊 Report data keys: ${Object.keys(request.body.report_data)}`);
+
+      // Proxy request to AI Engine analytics endpoint
+      const result = await this.aiClient.proxyRequest(
+        'POST',
+        '/api/v1/analytics/insights',
+        request.body,
+        { 'Content-Type': 'application/json' }
+      );
+
+      if (result.success) {
+        const duration = Date.now() - startTime;
+
+        this.fastify.log.info('✅ === AI ANALYTICS INSIGHTS SUCCESS ===');
+        this.fastify.log.info(`⏱️ Gateway processing time: ${duration}ms`);
+        this.fastify.log.info(`🎯 Generated insights: ${Object.keys(result.data.insights || {})}`);
+
+        return reply.send({
+          ...result.data,
+          _gateway: {
+            processTime: duration,
+            service: 'ai-engine',
+            endpoint: '/api/v1/analytics/insights'
+          }
+        });
+      } else {
+        this.fastify.log.error('❌ AI Analytics insights generation failed:', result.error);
+        return this.handleProxyError(reply, result.error);
+      }
+    } catch (error) {
+      this.fastify.log.error('Error generating AI insights:', error);
+      return reply.status(500).send({
+        success: false,
+        insights: null,
+        processing_time_ms: Date.now() - startTime,
+        error: 'Internal server error generating AI insights',
+        code: 'AI_INSIGHTS_ERROR'
       });
     }
   }

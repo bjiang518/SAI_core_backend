@@ -80,6 +80,12 @@
 		PNTS789012345678EFGH0123 /* PointsEarningSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = PNTS456789012345EFGH0123 /* PointsEarningSystem.swift */; };
 		PRFS678901234567CDEF9012 /* ProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRFS234567890123BCDE8901 /* ProfileService.swift */; };
 		PROF567890123456BCDE8901 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROF123456789012ABCD7890 /* UserProfile.swift */; };
+ttE5DD5CA3D59C449EA91D72D7DA772F67 /* QuestionGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EEE70735E8C47E19BD267827B465026 /* QuestionGenerationService.swift */; };
+tt1FB7CE36CA5F4D84B848005838BEB9A1 /* QuestionGenerationDataAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC905A79BE14DF8B732FD8FEC9067B2 /* QuestionGenerationDataAdapter.swift */; };
+ttD673E657151945B8A2F6464007CC34D5 /* QuestionGenerationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C254028D9E8B494288C2CC16E228716B /* QuestionGenerationView.swift */; };
+tt81D8E5D8FB0A4C16A0FA091EEBF30C6B /* QuestionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E6BE2D4395478AB207E7E61619D788 /* QuestionDetailView.swift */; };
+tt9162C6B35CA349A9AABD6265BB21653D /* GeneratedQuestionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D79A9074F1D4645BE782B60B4C4AE3A /* GeneratedQuestionsListView.swift */; };
+
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -172,6 +178,12 @@
 		PNTS456789012345EFGH0123 /* PointsEarningSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PointsEarningSystem.swift; path = ../StudyAI/Models/PointsEarningSystem.swift; sourceTree = "<group>"; };
 		PRFS234567890123BCDE8901 /* ProfileService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileService.swift; path = ../StudyAI/Services/ProfileService.swift; sourceTree = "<group>"; };
 		PROF123456789012ABCD7890 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserProfile.swift; path = ../StudyAI/Models/UserProfile.swift; sourceTree = "<group>"; };
+tt7EEE70735E8C47E19BD267827B465026 /* QuestionGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionGenerationService.swift; sourceTree = "<group>"; };
+ttEEC905A79BE14DF8B732FD8FEC9067B2 /* QuestionGenerationDataAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionGenerationDataAdapter.swift; sourceTree = "<group>"; };
+ttC254028D9E8B494288C2CC16E228716B /* QuestionGenerationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionGenerationView.swift; sourceTree = "<group>"; };
+tt96E6BE2D4395478AB207E7E61619D788 /* QuestionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionDetailView.swift; sourceTree = "<group>"; };
+tt2D79A9074F1D4645BE782B60B4C4AE3A /* GeneratedQuestionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedQuestionsListView.swift; sourceTree = "<group>"; };
+
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */

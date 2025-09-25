@@ -35,6 +35,14 @@
 		73BEB15D842A4FB3B7E6B147 /* ImageCropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84F4782308454D1A98C2741E /* ImageCropView.swift */; };
 		7454ECCF0700400CAB3D9062 /* WeeklyProgressGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 172B88920E5545748C6B70F2 /* WeeklyProgressGrid.swift */; };
 		762793B2FEB2456CA1FFD512 /* ScannedImageActionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8B9760D87F648899A6633CB /* ScannedImageActionView.swift */; };
+		7B1ED83B2E829AA600E5E57D /* ParentReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED83A2E829AA600E5E57D /* ParentReportsView.swift */; };
+		7B1ED83E2E829B1700E5E57D /* ReportDateRangeSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED83C2E829B1700E5E57D /* ReportDateRangeSelector.swift */; };
+		7B1ED83F2E829B1700E5E57D /* ReportDetailComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED83D2E829B1700E5E57D /* ReportDetailComponents.swift */; };
+		7B1ED8412E829B3700E5E57D /* ParentReportModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8402E829B3700E5E57D /* ParentReportModels.swift */; };
+		7B1ED8432E829B6000E5E57D /* ParentReportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8422E829B6000E5E57D /* ParentReportService.swift */; };
+		7B1ED8452E829DBE00E5E57D /* ReportDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8442E829DBE00E5E57D /* ReportDetailView.swift */; };
+		7B1ED8472E829DE900E5E57D /* ReportExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8462E829DE900E5E57D /* ReportExportView.swift */; };
+		7B1ED8492E829E5B00E5E57D /* ReportExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8482E829E5B00E5E57D /* ReportExportService.swift */; };
 		7BC00E6A2E714B68002DF625 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 7BC00E692E714B68002DF625 /* GoogleSignIn */; };
 		7BC00E6C2E714B68002DF625 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 7BC00E6B2E714B68002DF625 /* GoogleSignInSwift */; };
 		7BC00E6E2E714D67002DF625 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7BC00E6D2E714D67002DF625 /* GoogleService-Info.plist */; };
@@ -127,6 +135,14 @@
 		69D668B7833B4B1D9DF8653A /* SubjectBreakdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SubjectBreakdownView.swift; path = ../StudyAI/Views/SubjectBreakdownView.swift; sourceTree = "<group>"; };
 		6C25B8960EFF470BBE31F73A /* SessionChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionChatView.swift; path = ../StudyAI/Views/SessionChatView.swift; sourceTree = "<group>"; };
 		740D132F82A14ABAA94D79CC /* VoiceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceModels.swift; path = ../StudyAI/Models/VoiceModels.swift; sourceTree = "<group>"; };
+		7B1ED83A2E829AA600E5E57D /* ParentReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentReportsView.swift; path = StudyAI/Views/ParentReportsView.swift; sourceTree = SOURCE_ROOT; };
+		7B1ED83C2E829B1700E5E57D /* ReportDateRangeSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportDateRangeSelector.swift; path = StudyAI/Views/ReportDateRangeSelector.swift; sourceTree = SOURCE_ROOT; };
+		7B1ED83D2E829B1700E5E57D /* ReportDetailComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportDetailComponents.swift; path = StudyAI/Views/ReportDetailComponents.swift; sourceTree = SOURCE_ROOT; };
+		7B1ED8402E829B3700E5E57D /* ParentReportModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentReportModels.swift; sourceTree = "<group>"; };
+		7B1ED8422E829B6000E5E57D /* ParentReportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentReportService.swift; path = StudyAI/Services/ParentReportService.swift; sourceTree = SOURCE_ROOT; };
+		7B1ED8442E829DBE00E5E57D /* ReportDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportDetailView.swift; path = StudyAI/Views/ReportDetailView.swift; sourceTree = SOURCE_ROOT; };
+		7B1ED8462E829DE900E5E57D /* ReportExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportExportView.swift; path = StudyAI/Views/ReportExportView.swift; sourceTree = SOURCE_ROOT; };
+		7B1ED8482E829E5B00E5E57D /* ReportExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportExportService.swift; path = StudyAI/Services/ReportExportService.swift; sourceTree = SOURCE_ROOT; };
 		7B9EC46D2E61663B005E4BFB /* StudyAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StudyAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B9EC47A2E61663E005E4BFB /* StudyAITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StudyAITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B9EC4842E61663E005E4BFB /* StudyAIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StudyAIUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -257,6 +273,7 @@
 		7BEDA5F72E7EB8C500D57B15 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				7B1ED8402E829B3700E5E57D /* ParentReportModels.swift */,
 				06624CDF338947F0A3F8838D /* HomeworkModels.swift */,
 				3E2AD38EF0CF492393C1C87D /* QuestionArchiveModels.swift */,
 				B496CCDDC9B5477581971035 /* SessionModels.swift */,
@@ -271,6 +288,8 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7B1ED8482E829E5B00E5E57D /* ReportExportService.swift */,
+				7B1ED8422E829B6000E5E57D /* ParentReportService.swift */,
 				7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */,
 				7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */,
 				DBB6C78FB23E45A9AF19ECC9 /* AuthenticationService.swift */,
@@ -303,6 +322,11 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7B1ED8462E829DE900E5E57D /* ReportExportView.swift */,
+				7B1ED8442E829DBE00E5E57D /* ReportDetailView.swift */,
+				7B1ED83C2E829B1700E5E57D /* ReportDateRangeSelector.swift */,
+				7B1ED83D2E829B1700E5E57D /* ReportDetailComponents.swift */,
+				7B1ED83A2E829AA600E5E57D /* ParentReportsView.swift */,
 				7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */,
 				7BEDA62A2E80B91100D57B15 /* QuestionDetailView.swift */,
 				7BEDA62B2E80B91100D57B15 /* QuestionGenerationView.swift */,
@@ -508,6 +532,7 @@
 				PNTS789012345678EFGH0123 /* PointsEarningSystem.swift in Sources */,
 				7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */,
 				7BEDA62D2E80B91100D57B15 /* QuestionDetailView.swift in Sources */,
+				7B1ED8452E829DBE00E5E57D /* ReportDetailView.swift in Sources */,
 				7BEDA62E2E80B91100D57B15 /* QuestionGenerationView.swift in Sources */,
 				21C64949788648B5AB0D6515 /* SubjectBreakdownModels.swift in Sources */,
 				C42D5B1E2F9F422F898D739B /* NetworkService.swift in Sources */,
@@ -527,6 +552,9 @@
 				368449B00EC0466B89F7AFF6 /* RailwayArchiveService.swift in Sources */,
 				BBC5F8E4CA694EABAD6955A2 /* SimpleMathRenderer.swift in Sources */,
 				D3FB6347F13948AB873BE1F8 /* SpeechRecognitionService.swift in Sources */,
+				7B1ED83E2E829B1700E5E57D /* ReportDateRangeSelector.swift in Sources */,
+				7B1ED83F2E829B1700E5E57D /* ReportDetailComponents.swift in Sources */,
+				7B1ED83B2E829AA600E5E57D /* ParentReportsView.swift in Sources */,
 				F650D062B9BD47CF8FB56CA7 /* SupabaseService.swift in Sources */,
 				B67097AEC09C4CA4B5C82F10 /* TextToSpeechService.swift in Sources */,
 				9FF8A1F6F34E4BF786B5EAC3 /* VoiceInteractionService.swift in Sources */,
@@ -551,13 +579,17 @@
 				04A8227E20B44E2A9BB27336 /* QuestionArchiveView.swift in Sources */,
 				41384D26DC5E427FA23BC317 /* QuestionView.swift in Sources */,
 				762793B2FEB2456CA1FFD512 /* ScannedImageActionView.swift in Sources */,
+				7B1ED8472E829DE900E5E57D /* ReportExportView.swift in Sources */,
 				E50F5FB6D0B84192B07AC6D4 /* SessionChatView.swift in Sources */,
 				A6AAD8B3B1CF457696752650 /* SessionDetailView.swift in Sources */,
 				8F1EBFF4298743058E934595 /* SessionHistoryView.swift in Sources */,
 				C278552EF36F41E59A51F0FC /* UserProfileView.swift in Sources */,
 				7DCD4D51FBF64F74AEA6A5C3 /* VoiceSettingsView.swift in Sources */,
 				2F704A14D92440C2A18F02EC /* ZoomedRegionView.swift in Sources */,
+				7B1ED8492E829E5B00E5E57D /* ReportExportService.swift in Sources */,
+				7B1ED8412E829B3700E5E57D /* ParentReportModels.swift in Sources */,
 				7454ECCF0700400CAB3D9062 /* WeeklyProgressGrid.swift in Sources */,
+				7B1ED8432E829B6000E5E57D /* ParentReportService.swift in Sources */,
 				34567890123456789012CDEF /* UnifiedLibraryView.swift in Sources */,
 				45678901234567890123DDEF /* CameraViewModel.swift in Sources */,
 				3B0419DAC7D9493DB3C35B7F /* SubjectBreakdownView.swift in Sources */,

@@ -16,6 +16,11 @@ class NetworkService: ObservableObject {
     
     // Primary: Production Railway backend with integrated AI proxy
     private let baseURL = "https://sai-backend-production.up.railway.app"
+
+    // Public getter for base URL
+    var apiBaseURL: String {
+        return baseURL
+    }
     
     // MARK: - Legacy Cache Management (backward compatibility)
     private var cachedSessions: [[String: Any]]?
@@ -232,6 +237,10 @@ class NetworkService: ObservableObject {
     private func addAuthHeader(to request: inout URLRequest) {
         if let token = AuthenticationService.shared.getAuthToken() {
             print("🔐 Adding auth header with token: \(String(token.prefix(20)))...")
+            print("🔑 === FULL BEARER TOKEN FOR CURL TESTING ===")
+            print("🔑 Bearer Token: \(token)")
+            print("🔑 Authorization Header: Bearer \(token)")
+            print("🔑 === END BEARER TOKEN DEBUG ===")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("StudyAI-iOS/1.0", forHTTPHeaderField: "User-Agent")
@@ -3161,12 +3170,8 @@ class NetworkService: ObservableObject {
 
     /// Check if a conversation exists without fetching full content
     func checkConversationExists(conversationId: String) async -> (exists: Bool, error: String?) {
-        print("🔍 === CHECKING CONVERSATION EXISTS ===")
-        print("🆔 Conversation ID: \(conversationId)")
-
         // Check authentication first
         guard AuthenticationService.shared.getAuthToken() != nil else {
-            print("❌ No auth token available for conversation check")
             return (false, "Authentication required")
         }
 
@@ -3191,26 +3196,19 @@ class NetworkService: ObservableObject {
                 let (_, response) = try await URLSession.shared.data(for: request)
 
                 if let httpResponse = response as? HTTPURLResponse {
-                    print("✅ Conversation check (\(endpoint)): \(httpResponse.statusCode)")
-
                     if httpResponse.statusCode == 200 {
-                        print("✅ Conversation exists: \(conversationId)")
                         return (true, nil)
                     } else if httpResponse.statusCode == 404 {
-                        print("❌ Conversation not found at \(endpoint)")
                         continue // Try next endpoint
                     } else if httpResponse.statusCode == 401 {
-                        print("❌ Authentication failed for conversation check")
                         return (false, "Authentication expired")
                     }
                 }
             } catch {
-                print("❌ Conversation check failed for \(endpoint): \(error.localizedDescription)")
                 continue // Try next endpoint
             }
         }
 
-        print("❌ Conversation does not exist: \(conversationId)")
         return (false, "Conversation not found")
     }
 

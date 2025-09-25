@@ -143,19 +143,17 @@ class LibraryDataService: ObservableObject {
             }
             return []
         }
-        
+
         await MainActor.run {
             isLoading = true
             errorMessage = nil
         }
-        
+
         do {
             let searchText = filters.searchText?.isEmpty == false ? filters.searchText : nil
             let subject = filters.selectedSubjects.first // For now, use first subject
             let gradeValue = filters.gradeFilter?.rawValue == "All" ? nil : filters.gradeFilter?.rawValue
-            
-            print("🔍 LibraryDataService: Searching with advanced filters")
-            
+
             let questions = try await questionService.searchQuestions(
                 searchText: searchText,
                 subject: subject,
@@ -173,7 +171,7 @@ class LibraryDataService: ObservableObject {
 
             // Apply client-side sorting
             let sortedQuestions = applySorting(nonMistakeQuestions, sortOrder: filters.sortOrder)
-            
+
             // Apply client-side date filtering if specified
             let filteredQuestions: [QuestionSummary]
             if let dateRange = filters.dateRange {
@@ -184,23 +182,21 @@ class LibraryDataService: ObservableObject {
             } else {
                 filteredQuestions = sortedQuestions
             }
-            
+
             await MainActor.run {
                 isLoading = false
             }
-            
-            print("✅ LibraryDataService: Advanced search found \(filteredQuestions.count) questions")
+
             return filteredQuestions
-            
+
         } catch {
             let errorMsg = "Failed to search questions: \(error.localizedDescription)"
-            print("❌ LibraryDataService: \(errorMsg)")
-            
+
             await MainActor.run {
                 isLoading = false
                 errorMessage = errorMsg
             }
-            
+
             return []
         }
     }
@@ -238,15 +234,14 @@ class LibraryDataService: ObservableObject {
             }
             return LibraryContent(questions: [], conversations: [], error: errorMessage)
         }
-        
+
         await MainActor.run {
             isLoading = true
             errorMessage = nil
         }
-        
+
         // Check cache first (but respect forceRefresh)
         if !forceRefresh && isCacheValid() {
-            print("📚 LibraryDataService: Using cached data")
             await MainActor.run {
                 isLoading = false
             }
@@ -254,46 +249,37 @@ class LibraryDataService: ObservableObject {
         }
 
         if forceRefresh {
-            print("🔄 LibraryDataService: Force refresh requested - clearing cache and fetching fresh data")
             clearCache()
         }
-        
-        print("📚 LibraryDataService: Fetching fresh library content")
-        print("👤 User ID: \(userSessionManager.currentUserId ?? "unknown")")
-        
+
         // Debug authentication token mapping
         let debugResult = await networkService.debugAuthTokenMapping()
-        print("🔍 Auth Debug Result: \(debugResult.message)")
         if let backendUserId = debugResult.backendUserId, backendUserId != userSessionManager.currentUserId {
-            print("⚠️ WARNING: User ID mismatch detected!")
-            print("📱 iOS User ID: \(userSessionManager.currentUserId ?? "unknown")")
-            print("🖥️ Backend User ID: \(backendUserId)")
+            // Log user ID mismatch for debugging
         }
-        
+
         // Fetch both types of data concurrently
         async let questionsResult = fetchQuestions()
         async let conversationsResult = fetchConversations()
-        
+
         let questions = await questionsResult
         let conversations = await conversationsResult
-        
+
         // Update cache
         updateCache(questions: questions.data, conversations: conversations.data)
-        
+
         let content = LibraryContent(
             questions: questions.data,
             conversations: conversations.data,
             error: combineErrors(questions.error, conversations.error)
         )
-        
+
         await MainActor.run {
             isLoading = false
             errorMessage = content.error
             lastUpdated = Date()
         }
-        
-        print("📚 LibraryDataService: Fetched \(questions.data.count) questions, \(conversations.data.count) conversations")
-        
+
         return content
     }
     
@@ -379,7 +365,6 @@ class LibraryDataService: ObservableObject {
     
     private func fetchQuestions() async -> (data: [QuestionSummary], error: String?) {
         do {
-            print("📝 LibraryDataService: Fetching archived questions...")
             let allQuestions = try await questionService.fetchArchivedQuestions(limit: 100)
 
             // Filter out mistake questions (grade == .incorrect) from Study Library
@@ -390,37 +375,23 @@ class LibraryDataService: ObservableObject {
                 return question.grade != .incorrect
             }
 
-            print("✅ LibraryDataService: Found \(allQuestions.count) total questions, \(nonMistakeQuestions.count) non-mistake questions for Study Library")
-            if allQuestions.count != nonMistakeQuestions.count {
-                let filteredCount = allQuestions.count - nonMistakeQuestions.count
-                print("🔍 LibraryDataService: Filtered out \(filteredCount) mistake questions (these will appear in Mistake Review instead)")
-            }
-
             return (nonMistakeQuestions, nil)
         } catch {
             let errorMsg = "Failed to load questions: \(error.localizedDescription)"
-            print("❌ LibraryDataService: \(errorMsg)")
             return ([], errorMsg)
         }
     }
     
     private func fetchConversations() async -> (data: [[String: Any]], error: String?) {
-        print("💬 LibraryDataService: Fetching archived conversations with 404 filtering...")
-        print("🔍 === ENHANCED CONVERSATION FILTERING ENABLED ===")
-
         // Fetch all conversations from server (force refresh to bypass NetworkService cache)
         let result = await networkService.getArchivedSessionsWithParams([:], forceRefresh: true)
 
         guard result.success, let allSessions = result.sessions else {
             let errorMsg = "Failed to load conversations: \(result.message)"
-            print("❌ LibraryDataService: \(errorMsg)")
             return ([], errorMsg)
         }
 
-        print("📊 LibraryDataService: Fetched \(allSessions.count) sessions from server")
-
         // Apply aggressive 404 filtering by validating each conversation exists
-        print("🔍 === STARTING AGGRESSIVE 404 FILTERING ===")
         var validatedSessions: [[String: Any]] = []
 
         // Process in batches to avoid overwhelming the server
@@ -428,8 +399,6 @@ class LibraryDataService: ObservableObject {
         for i in stride(from: 0, to: allSessions.count, by: batchSize) {
             let endIndex = min(i + batchSize, allSessions.count)
             let batch = Array(allSessions[i..<endIndex])
-
-            print("🔍 Batch \(i/batchSize + 1): Validating conversations \(i+1)-\(endIndex) of \(allSessions.count)")
 
             // Check each conversation in this batch concurrently
             await withTaskGroup(of: (session: [String: Any], exists: Bool).self) { group in
@@ -452,36 +421,27 @@ class LibraryDataService: ObservableObject {
                             let parsedDate = parseServerDate(archivedDateString)
                             let iso8601String = ISO8601DateFormatter().string(from: parsedDate)
                             processedSession["archived_date"] = iso8601String
-                            print("📅 Fixed archived_date: '\(archivedDateString)' → '\(iso8601String)'")
                         }
 
                         if let archivedAtString = processedSession["archived_at"] as? String {
                             let parsedDate = parseServerDate(archivedAtString)
                             let iso8601String = ISO8601DateFormatter().string(from: parsedDate)
                             processedSession["archived_at"] = iso8601String
-                            print("📅 Fixed archived_at date: '\(archivedAtString)' → '\(iso8601String)'")
                         }
 
                         if let sessionDateString = processedSession["sessionDate"] as? String {
                             let parsedDate = parseServerDate(sessionDateString)
                             let iso8601String = ISO8601DateFormatter().string(from: parsedDate)
                             processedSession["sessionDate"] = iso8601String
-                            print("📅 Fixed sessionDate: '\(sessionDateString)' → '\(iso8601String)'")
                         }
 
                         if let createdAtString = processedSession["created_at"] as? String {
                             let parsedDate = parseServerDate(createdAtString)
                             let iso8601String = ISO8601DateFormatter().string(from: parsedDate)
                             processedSession["created_at"] = iso8601String
-                            print("📅 Fixed created_at date: '\(createdAtString)' → '\(iso8601String)'")
                         }
 
                         validatedSessions.append(processedSession)
-                        let id = result.session["id"] as? String ?? "unknown"
-                        print("✅ VALIDATED: Conversation \(String(id.prefix(8)))... exists (with corrected dates)")
-                    } else {
-                        let id = result.session["id"] as? String ?? "unknown"
-                        print("❌ FILTERED OUT: Conversation \(String(id.prefix(8)))... returns 404")
                     }
                 }
             }
@@ -491,10 +451,6 @@ class LibraryDataService: ObservableObject {
                 try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
             }
         }
-
-        print("🔍 === AGGRESSIVE FILTERING COMPLETE ===")
-        print("📊 Final validated conversations: \(validatedSessions.count) out of \(allSessions.count) checked")
-        print("📊 Filtered out: \(allSessions.count - validatedSessions.count) non-existent conversations")
 
         return (validatedSessions, nil)
     }
@@ -510,14 +466,12 @@ class LibraryDataService: ObservableObject {
         cachedQuestions = questions
         cachedConversations = conversations
         lastCacheTime = Date()
-        print("💾 LibraryDataService: Cache updated with \(questions.count) questions, \(conversations.count) conversations")
     }
     
     private func clearCache() {
         cachedQuestions = []
         cachedConversations = []
         lastCacheTime = nil
-        print("🗑️ LibraryDataService: Cache cleared")
     }
     
     private func combineErrors(_ error1: String?, _ error2: String?) -> String? {

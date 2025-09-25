@@ -7,16 +7,18 @@ Advanced AI processing service for educational content and agentic workflows.
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import uvicorn
 import os
 import base64
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Import our advanced AI services
 from src.services.improved_openai_service import EducationalAIService  # Now uses improved parsing
 from src.services.prompt_service import AdvancedPromptService
 from src.services.session_service import SessionService
+from src.services.ai_analytics_service import AIAnalyticsService
 
 # Import service authentication
 from src.middleware.service_auth import (
@@ -102,6 +104,9 @@ print("✅ AdvancedPromptService initialized")
 
 session_service = SessionService(ai_service, redis_client)
 print("✅ SessionService initialized")
+
+ai_analytics_service = AIAnalyticsService()
+print("✅ AIAnalyticsService initialized")
 print("=====================================")
 
 # Startup event to initialize keep-alive mechanism
@@ -192,6 +197,16 @@ class SessionMessageResponse(BaseModel):
     ai_response: str
     tokens_used: int
     compressed: bool
+
+# AI Analytics Models
+class AIAnalyticsRequest(BaseModel):
+    report_data: Dict[str, Any]  # Report data from the aggregation service
+
+class AIAnalyticsResponse(BaseModel):
+    success: bool
+    insights: Optional[Dict[str, Any]] = None
+    processing_time_ms: int
+    error: Optional[str] = None
 
 # Health Check with optional authentication
 @app.get("/health")
@@ -1208,6 +1223,312 @@ async def delete_session(session_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Session deletion error: {str(e)}")
+
+# AI Analytics Endpoint for Parent Reports
+@app.post("/api/v1/analytics/insights", response_model=AIAnalyticsResponse)
+async def generate_ai_insights(
+    request: AIAnalyticsRequest,
+    service_info = optional_service_auth()
+):
+    """
+    Generate AI-powered insights for parent reports.
+
+    This endpoint analyzes comprehensive student data and generates:
+    - Learning pattern analysis
+    - Cognitive load assessment
+    - Engagement trend analysis
+    - Predictive analytics
+    - Personalized learning strategies
+    - Risk assessment
+    - Subject mastery analysis
+    - Conceptual gap identification
+    """
+
+    import time
+    start_time = time.time()
+
+    try:
+        print(f"🧠 === AI ANALYTICS INSIGHTS GENERATION START ===")
+        print(f"📊 Report data keys: {list(request.report_data.keys())}")
+
+        # Generate AI insights using the analytics service
+        insights = ai_analytics_service.generate_ai_insights(request.report_data)
+
+        processing_time = int((time.time() - start_time) * 1000)
+
+        print(f"✅ === AI ANALYTICS INSIGHTS GENERATION SUCCESS ===")
+        print(f"🎯 Generated insights: {list(insights.keys())}")
+        print(f"⏱️ Processing time: {processing_time}ms")
+
+        return AIAnalyticsResponse(
+            success=True,
+            insights=insights,
+            processing_time_ms=processing_time
+        )
+
+    except Exception as e:
+        import traceback
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
+        print(f"❌ AI Analytics Error: {error_details}")
+
+        processing_time = int((time.time() - start_time) * 1000)
+
+        return AIAnalyticsResponse(
+            success=False,
+            insights=None,
+            processing_time_ms=processing_time,
+            error=f"AI Analytics processing error: {str(e)}"
+        )
+
+# === NARRATIVE GENERATION ENDPOINT ===
+
+class NarrativeGenerationRequest(BaseModel):
+    prompt: str
+    analytics_data: Dict[str, Any]
+    options: Optional[Dict[str, Any]] = {
+        "tone": "teacher_to_parent",
+        "language": "en",
+        "readingLevel": "grade_8",
+        "maxWords": 800,
+        "includeRecommendations": True,
+        "includeKeyInsights": True
+    }
+
+class NarrativeGenerationResponse(BaseModel):
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    processing_time_ms: int = 0
+    error: Optional[str] = None
+    modelVersion: Optional[str] = "claude-3.5-sonnet"
+
+@app.post("/api/v1/reports/generate-narrative", response_model=NarrativeGenerationResponse)
+async def generate_narrative_report(request: NarrativeGenerationRequest, service_name: str = Depends(optional_service_auth)):
+    """
+    🎯 Generate human-readable narrative reports from analytics data
+
+    This endpoint converts complex analytics data into warm, encouraging parent reports
+    written in a teacher-to-parent tone for better parent engagement.
+
+    Features:
+    - Teacher-to-parent communication style
+    - Configurable reading level and word count
+    - Key insights and actionable recommendations
+    - Multiple language support
+    - Comprehensive error handling and debugging
+    """
+
+    import time
+    start_time = time.time()
+
+    print(f"\n🎯 === NARRATIVE GENERATION REQUEST START ===")
+    print(f"📊 Request from service: {service_name or 'Unknown'}")
+    print(f"📏 Prompt length: {len(request.prompt)} characters")
+    print(f"📊 Analytics data keys: {list(request.analytics_data.keys()) if request.analytics_data else 'None'}")
+    print(f"🎨 Options: {request.options}")
+
+    try:
+        # Extract key information from analytics data
+        analytics = request.analytics_data
+        academic = analytics.get('academic', {})
+        activity = analytics.get('activity', {})
+        subjects = analytics.get('subjects', {})
+        progress = analytics.get('progress', {})
+
+        print(f"🔍 === ANALYTICS DATA BREAKDOWN ===")
+        print(f"📚 Academic questions: {academic.get('totalQuestions', 0)}")
+        print(f"✅ Correct answers: {academic.get('correctAnswers', 0)}")
+
+        # Safe formatting with null checks
+        accuracy = academic.get('accuracy', 0) or 0
+        print(f"📊 Accuracy: {accuracy:.2%}")
+
+        # Handle the ACTUAL data structure from backend
+        # activity is flattened: {studyTime: number, activeDays: number, sessionsPerDay: number, totalConversations: number, engagementScore: number}
+        study_time_minutes = activity.get('studyTime', 0) or 0  # This is already the total minutes
+        active_days = activity.get('activeDays', 0) or 0
+        sessions_per_day = activity.get('sessionsPerDay', 0) or 0
+        total_conversations = activity.get('totalConversations', 0) or 0
+        engagement_score = activity.get('engagementScore', 0) or 0
+
+        print(f"⏱️ Study time: {study_time_minutes} minutes")
+        print(f"📅 Active days: {active_days}")
+
+        # subjects is an ARRAY of objects: [{name, accuracy, questions, studyTime}, ...]
+        subject_names = []
+        if isinstance(subjects, list):
+            subject_names = [subj.get('name', 'Unknown') for subj in subjects if subj and isinstance(subj, dict)]
+            print(f"📖 Subjects: {subject_names}")
+        else:
+            subject_names = list(subjects.keys()) if isinstance(subjects, dict) else []
+            print(f"📖 Subjects: {subject_names}")
+
+        # Safe confidence formatting
+        confidence = academic.get('confidence', 0) or 0
+
+        # Build comprehensive prompt for narrative generation
+        enhanced_prompt = f"""Generate a warm, encouraging parent report based on the following student data:
+
+STUDENT PERFORMANCE DATA:
+- Questions Attempted: {academic.get('totalQuestions', 0)}
+- Correct Answers: {academic.get('correctAnswers', 0)}
+- Accuracy Rate: {accuracy:.1%}
+- Study Time: {study_time_minutes} minutes over {active_days} days
+- Active Sessions: {sessions_per_day:.1f} per day
+- Main Subjects: {', '.join(subject_names[:3])}
+
+CONVERSATION ENGAGEMENT:
+- Total Conversations: {total_conversations}
+- Engagement Score: {engagement_score:.1%}
+
+PROGRESS INDICATORS:
+- Overall Trend: {progress.get('overallTrend', 'Steady progress')}
+- Improvements: {', '.join([imp.get('message', '') if isinstance(imp, dict) else str(imp) for imp in progress.get('improvements', [])[:3] if imp])}
+- Areas for Growth: {', '.join([concern.get('message', '') if isinstance(concern, dict) else str(concern) for concern in progress.get('concerns', [])[:2] if concern])}
+
+REQUIREMENTS:
+1. Write in a warm, encouraging teacher-to-parent tone
+2. Start with positive highlights and overall progress
+3. Naturally weave in specific statistics within flowing sentences
+4. Address any concerns constructively with actionable suggestions
+5. End with specific recommendations parents can implement
+6. Keep it conversational yet informative
+7. Target {request.options.get('readingLevel', 'grade 8')} reading level
+8. Maximum {request.options.get('maxWords', 800)} words
+9. Focus on growth mindset and learning journey
+10. DO NOT include any confidence metrics as these are not student confidence
+11. End the report with "Warmly, your study mate" as the signature
+
+Please generate a complete narrative report that includes:
+- Opening with positive student highlights
+- Academic performance summary with specific data points (NO confidence metrics)
+- Study habits and engagement patterns
+- Subject-specific insights
+- Areas of strength and growth opportunities
+- 3-5 actionable recommendations for parents
+- Encouraging closing focused on continued progress
+- End with signature "Warmly, your study mate"
+
+Additionally, provide:
+- A 2-3 sentence executive summary
+- 3-5 key insights as bullet points
+- 3-5 specific recommendations for parents
+
+Format the response as JSON with fields: narrative, summary, keyInsights, recommendations"""
+
+        print(f"🤖 === CALLING OPENAI FOR NARRATIVE GENERATION ===")
+        print(f"📏 Enhanced prompt length: {len(enhanced_prompt)} characters")
+
+        # Use the existing AI service to generate the narrative
+        openai_start = time.time()
+
+        # Generate the narrative using OpenAI
+        ai_response = await ai_service.process_educational_question(
+            question=enhanced_prompt,
+            subject="General",
+            student_context={"student_id": "narrative_generation"},
+            include_followups=False
+        )
+
+        openai_time = int((time.time() - openai_start) * 1000)
+        print(f"🤖 OpenAI response time: {openai_time}ms")
+        print(f"📝 Raw AI response length: {len(ai_response.get('answer', ''))} characters")
+
+        # Parse the AI response to extract structured data
+        narrative_content = ai_response.get('answer', '')
+
+        # Try to extract JSON from the response if it's structured
+        import json, re
+
+        try:
+            # Look for JSON in the response
+            json_match = re.search(r'\{.*\}', narrative_content, re.DOTALL)
+            if json_match:
+                json_data = json.loads(json_match.group())
+                narrative = json_data.get('narrative', narrative_content)
+                summary = json_data.get('summary', 'Generated narrative report for student progress.')
+                key_insights = json_data.get('keyInsights', [])
+                recommendations = json_data.get('recommendations', [])
+                print(f"✅ Successfully parsed structured JSON response")
+            else:
+                # Fallback: Use the full response as narrative
+                narrative = narrative_content
+                summary = f"Student completed {academic.get('totalQuestions', 0)} questions with {accuracy:.0%} accuracy over {active_days} study days."
+                key_insights = [
+                    f"Attempted {academic.get('totalQuestions', 0)} questions with {accuracy:.0%} accuracy",
+                    f"Studied for {study_time_minutes} minutes across {active_days} days",
+                    f"Primary focus on {', '.join(subject_names[:2])} subjects"
+                ]
+                recommendations = [
+                    "Maintain consistent daily study routine",
+                    "Focus on understanding concepts thoroughly",
+                    "Celebrate learning achievements regularly",
+                    "Provide encouragement during challenging topics"
+                ]
+                print(f"⚠️ Using fallback structured data extraction")
+
+        except json.JSONDecodeError:
+            # Complete fallback
+            narrative = narrative_content
+            summary = f"Student completed {academic.get('totalQuestions', 0)} questions with {accuracy:.0%} accuracy."
+            key_insights = [f"Attempted {academic.get('totalQuestions', 0)} questions"]
+            recommendations = ["Continue regular study practice"]
+            print(f"⚠️ JSON parsing failed, using complete fallback")
+
+        processing_time = int((time.time() - start_time) * 1000)
+
+        response_data = {
+            "narrative": narrative,
+            "summary": summary,
+            "keyInsights": key_insights,
+            "recommendations": recommendations,
+            "wordCount": len(narrative.split()),
+            "generatedAt": datetime.now().isoformat(),
+            "processingTimeMs": processing_time,
+            "openaiTimeMs": openai_time
+        }
+
+        print(f"✅ === NARRATIVE GENERATION SUCCESS ===")
+        print(f"📝 Generated narrative length: {len(narrative)} characters")
+        print(f"📊 Word count: {len(narrative.split())} words")
+        print(f"🔍 Key insights count: {len(key_insights)}")
+        print(f"💡 Recommendations count: {len(recommendations)}")
+        print(f"⏱️ Total processing time: {processing_time}ms")
+        print(f"🤖 OpenAI processing time: {openai_time}ms")
+
+        return NarrativeGenerationResponse(
+            success=True,
+            data=response_data,
+            processing_time_ms=processing_time,
+            modelVersion="gpt-4"
+        )
+
+    except Exception as e:
+        import traceback
+
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+        processing_time = int((time.time() - start_time) * 1000)
+
+        print(f"❌ === NARRATIVE GENERATION ERROR ===")
+        print(f"🚨 Error type: {error_details['error_type']}")
+        print(f"💥 Error message: {error_details['error_message']}")
+        print(f"📚 Full traceback: {error_details['traceback']}")
+        print(f"⏱️ Processing time before error: {processing_time}ms")
+
+        return NarrativeGenerationResponse(
+            success=False,
+            data=None,
+            processing_time_ms=processing_time,
+            error=f"Narrative generation error: {str(e)}"
+        )
 
 if __name__ == "__main__":
     # Get port from environment variable (Railway sets this automatically)
