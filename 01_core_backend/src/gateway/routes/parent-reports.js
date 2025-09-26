@@ -311,10 +311,10 @@ class ParentReportsRoutes {
                 });
             }
 
-            // Check for existing recent report
+            // Check for existing recent report with smart time-based caching
             this.fastify.log.info('🔍 Checking for existing cached report...');
 
-            const existingReport = await this.findExistingReport(student_id, startDate, endDate, report_type);
+            const existingReport = await this.findExistingReportWithTimeLogic(student_id, startDate, endDate, report_type);
 
             if (existingReport) {
                 this.fastify.log.info(`📋 Found cached report: ${existingReport.id}`);
@@ -891,6 +891,77 @@ class ParentReportsRoutes {
         // For now, allow users to access their own data
         // In a real parent-student system, you'd check parent-child relationships
         return authenticatedUserId === studentId;
+    }
+
+    async findExistingReportWithTimeLogic(userId, startDate, endDate, reportType) {
+        this.fastify.log.info(`🕒 Smart cache check for ${reportType} report`);
+        this.fastify.log.info(`🕒 Requested period: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+
+        // For custom reports, use exact date matching (original behavior)
+        if (reportType === 'custom' || reportType === 'progress') {
+            this.fastify.log.info('🕒 Using exact date matching for custom/progress report');
+            return await this.findExistingReport(userId, startDate, endDate, reportType);
+        }
+
+        const now = new Date();
+        let shouldUseCache = false;
+        let cacheReason = '';
+
+        if (reportType === 'weekly') {
+            // For weekly reports, only use cache if we're still in the same week
+            const requestedWeekStart = new Date(startDate);
+            const requestedWeekEnd = new Date(endDate);
+
+            // Check if the requested period is for the current week
+            const currentWeekStart = new Date(now);
+            currentWeekStart.setDate(now.getDate() - now.getDay()); // Start of current week (Sunday)
+            currentWeekStart.setHours(0, 0, 0, 0);
+
+            const currentWeekEnd = new Date(currentWeekStart);
+            currentWeekEnd.setDate(currentWeekStart.getDate() + 6); // End of current week (Saturday)
+            currentWeekEnd.setHours(23, 59, 59, 999);
+
+            // If requesting current week data, allow caching
+            if (requestedWeekStart >= currentWeekStart && requestedWeekEnd <= currentWeekEnd) {
+                shouldUseCache = true;
+                cacheReason = 'Same week as current week';
+            } else {
+                shouldUseCache = false;
+                cacheReason = 'Different week from current week';
+            }
+
+            this.fastify.log.info(`🕒 Weekly report cache decision: ${shouldUseCache ? 'USE CACHE' : 'GENERATE NEW'} - ${cacheReason}`);
+            this.fastify.log.info(`🕒 Current week: ${currentWeekStart.toISOString()} to ${currentWeekEnd.toISOString()}`);
+            this.fastify.log.info(`🕒 Requested week: ${requestedWeekStart.toISOString()} to ${requestedWeekEnd.toISOString()}`);
+
+        } else if (reportType === 'monthly') {
+            // For monthly reports, only use cache if we're still in the same month
+            const requestedMonth = startDate.getMonth();
+            const requestedYear = startDate.getFullYear();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            if (requestedMonth === currentMonth && requestedYear === currentYear) {
+                shouldUseCache = true;
+                cacheReason = 'Same month and year as current month';
+            } else {
+                shouldUseCache = false;
+                cacheReason = 'Different month or year from current month';
+            }
+
+            this.fastify.log.info(`🕒 Monthly report cache decision: ${shouldUseCache ? 'USE CACHE' : 'GENERATE NEW'} - ${cacheReason}`);
+            this.fastify.log.info(`🕒 Current month/year: ${currentMonth + 1}/${currentYear}`);
+            this.fastify.log.info(`🕒 Requested month/year: ${requestedMonth + 1}/${requestedYear}`);
+        }
+
+        if (!shouldUseCache) {
+            this.fastify.log.info('🕒 Cache decision: Generate new report due to time boundary logic');
+            return null;
+        }
+
+        // If we should use cache, look for existing report
+        this.fastify.log.info('🕒 Cache decision: Looking for existing cached report');
+        return await this.findExistingReport(userId, startDate, endDate, reportType);
     }
 
     async findExistingReport(userId, startDate, endDate, reportType) {

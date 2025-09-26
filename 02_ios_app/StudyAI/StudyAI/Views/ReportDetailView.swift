@@ -38,12 +38,24 @@ struct ReportDetailView: View {
                     // Report Header
                     reportHeader
 
-                    // For narrative reports, show narrative content directly
-                    if report.reportData.isNarrativeReport {
+                    // Always try to show narrative content first if we have it
+                    if let narrativeContent = narrativeContent {
+                        // Show narrative content
                         narrativeReportContent
                             .padding()
+                    } else if isLoadingNarrative {
+                        // Show loading state while fetching narrative
+                        VStack(spacing: 16) {
+                            ProgressView()
+                                .scaleEffect(1.2)
+                            Text("Loading narrative content...")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                        .padding()
                     } else {
-                        // Legacy analytics format - show section picker and content
+                        // Fallback to legacy analytics format if no narrative is available
                         // Section Picker
                         sectionPicker
 
@@ -74,9 +86,15 @@ struct ReportDetailView: View {
                 ReportExportView(report: report)
             }
             .onAppear {
-                if report.reportData.isNarrativeReport {
-                    loadNarrativeContent()
-                }
+                // Always try to load narrative content for any report
+                // This handles both:
+                // 1. Reports explicitly marked as narrative reports
+                // 2. Existing reports that may have narratives in the database
+                print("🔍 ReportDetailView appeared for report: \(report.id)")
+                print("🔍 Report type: \(report.reportType.rawValue)")
+                print("🔍 Is narrative report: \(report.reportData.isNarrativeReport)")
+
+                loadNarrativeContent()
             }
         }
     }
@@ -327,12 +345,23 @@ struct ReportDetailView: View {
 
     // MARK: - Narrative Loading
     private func loadNarrativeContent() {
-        guard report.reportData.isNarrativeReport else { return }
+        print("📝 === ATTEMPTING TO LOAD NARRATIVE CONTENT ===")
+        print("📝 Report ID: \(report.id)")
+        print("📝 Report Data Type: \(report.reportData.type ?? "nil")")
+        print("📝 Is Narrative Report: \(report.reportData.isNarrativeReport)")
+        print("📝 Narrative Available: \(report.reportData.narrativeAvailable ?? false)")
+        print("📝 Narrative ID: \(report.reportData.narrativeId ?? "nil")")
+        print("📝 Narrative URL: \(report.reportData.narrativeURL ?? "nil")")
+
+        // Always attempt to load narrative content for any report
+        // The backend may have narrative content even if the report_data doesn't indicate it
+        print("📝 Proceeding with narrative fetch attempt...")
 
         isLoadingNarrative = true
         narrativeContent = nil
 
         Task {
+            print("📝 Starting narrative fetch task for report: \(report.id)")
             let result = await reportService.fetchNarrative(reportId: report.id)
 
             await MainActor.run {
@@ -342,9 +371,17 @@ struct ReportDetailView: View {
                 case .success(let narrative):
                     narrativeContent = narrative
                     print("✅ Narrative content loaded for UI display")
+                    print("📝 Loaded narrative ID: \(narrative.id)")
+                    print("📝 Content length: \(narrative.content.count) characters")
+                    print("📝 Summary length: \(narrative.summary.count) characters")
                 case .failure(let error):
                     print("❌ Failed to load narrative for UI: \(error.localizedDescription)")
+                    print("❌ Error details: \(error)")
                     narrativeContent = nil
+
+                    // If narrative fetch fails, we should still show the report
+                    // but without narrative content (fall back to empty state)
+                    print("📝 Will show empty narrative state in UI")
                 }
             }
         }
@@ -605,8 +642,9 @@ struct MentalHealthSection: View {
             }
 
             // Data Quality
-            if let mentalHealth = report.reportData.mentalHealth {
-                DataQualityCard(dataQuality: mentalHealth.dataQuality)
+            if let mentalHealth = report.reportData.mentalHealth,
+               let dataQuality = mentalHealth.dataQuality {
+                DataQualityCard(dataQuality: dataQuality)
             }
         }
     }

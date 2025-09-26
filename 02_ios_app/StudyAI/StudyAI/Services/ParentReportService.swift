@@ -138,6 +138,15 @@ class ParentReportService: ObservableObject {
 
             print("📥 Report generation response status: \(httpResponse.statusCode)")
 
+            // Debug: Print raw response data
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📥 RAW RESPONSE DATA (first 2000 chars):")
+                print(String(responseString.prefix(2000)))
+                if responseString.count > 2000 {
+                    print("... (truncated, total length: \(responseString.count) characters)")
+                }
+            }
+
             switch httpResponse.statusCode {
             case 200:
                 let decoder = JSONDecoder()
@@ -146,8 +155,22 @@ class ParentReportService: ObservableObject {
                 let reportResponse: ParentReportResponse
                 do {
                     reportResponse = try decoder.decode(ParentReportResponse.self, from: data)
+                    print("✅ Successfully decoded ParentReportResponse")
+                    print("📊 Report Response Debug:")
+                    print("   - Success: \(reportResponse.success)")
+                    print("   - Report ID: \(reportResponse.reportId ?? "nil")")
+                    print("   - Cached: \(reportResponse.cached ?? false)")
+                    print("   - Generation Time: \(reportResponse.generationTimeMs ?? 0)ms")
+                    print("   - Report Data Type: \(reportResponse.reportData?.type ?? "nil")")
+                    print("   - Narrative Available: \(reportResponse.reportData?.narrativeAvailable ?? false)")
+                    print("   - Narrative ID: \(reportResponse.reportData?.narrativeId ?? "nil")")
+                    print("   - Narrative URL: \(reportResponse.reportData?.narrativeURL ?? "nil")")
                 } catch {
                     print("❌ Failed to decode ParentReportResponse: \(error)")
+                    print("❌ Decoder error details: \(error.localizedDescription)")
+                    if let decodingError = error as? DecodingError {
+                        print("❌ Decoding error context: \(decodingError)")
+                    }
                     throw error
                 }
 
@@ -157,6 +180,14 @@ class ParentReportService: ObservableObject {
                     // Handle the new narrative-based response format
                     if let reportData = reportResponse.reportData, reportData.isNarrativeReport {
                         print("📝 New narrative-based report format detected")
+                        print("📊 Narrative Report Data Debug:")
+                        print("   - Is Narrative Report: \(reportData.isNarrativeReport)")
+                        print("   - Type: \(reportData.type ?? "nil")")
+                        print("   - Narrative Available: \(reportData.narrativeAvailable ?? false)")
+                        print("   - Narrative ID: \(reportData.narrativeId ?? "nil")")
+                        print("   - URL: \(reportData.url ?? "nil")")
+                        print("   - Fetch Narrative URL: \(reportData.fetchNarrativeUrl ?? "nil")")
+                        print("   - Final Narrative URL: \(reportData.narrativeURL ?? "nil")")
 
                         // Create a lightweight ParentReport for narrative-based reports
                         let dateFormatter = ISO8601DateFormatter()
@@ -203,6 +234,21 @@ class ParentReportService: ObservableObject {
                     } else if let reportData = reportResponse.reportData {
                         // Handle legacy full analytics format for backward compatibility
                         print("📊 Legacy analytics report format detected")
+                        print("📊 Legacy Report Data Debug:")
+                        print("   - User ID: \(reportData.userId ?? "nil")")
+                        print("   - Has Academic Data: \(reportData.academic != nil)")
+                        print("   - Has Activity Data: \(reportData.activity != nil)")
+                        print("   - Has Progress Data: \(reportData.progress != nil)")
+                        print("   - Has Subjects Data: \(reportData.subjects != nil)")
+                        print("   - Report Period: \(reportData.reportPeriod != nil)")
+                        print("   - Generated At: \(reportData.generatedAt ?? Date())")
+
+                        // Check if this legacy report actually has narrative data in it
+                        if reportData.narrativeURL != nil || reportData.narrativeId != nil {
+                            print("🔍 Legacy report contains narrative data!")
+                            print("   - Narrative URL in legacy: \(reportData.narrativeURL ?? "nil")")
+                            print("   - Narrative ID in legacy: \(reportData.narrativeId ?? "nil")")
+                        }
 
                         // Create full ParentReport object using JSON encoding/decoding
                         let dateFormatter = ISO8601DateFormatter()
@@ -297,18 +343,25 @@ class ParentReportService: ObservableObject {
     /// - Parameter reportId: The report ID to fetch narrative for
     /// - Returns: Narrative content or error
     func fetchNarrative(reportId: String) async -> Result<NarrativeReport, ParentReportError> {
-        print("📝 Fetching narrative for report: \(reportId)")
+        print("📝 === FETCHING NARRATIVE CONTENT ===")
+        print("📝 Report ID: \(reportId)")
 
         guard let authToken = AuthenticationService.shared.getAuthToken() else {
             let error = ParentReportError.notAuthenticated
             await MainActor.run { lastError = error }
+            print("❌ No auth token available for narrative fetch")
             return .failure(error)
         }
 
+        print("🔑 Auth token available: \(String(authToken.prefix(20)))...")
+
         let narrativeURL = "\(baseURL)/api/reports/\(reportId)/narrative"
+        print("🔗 Narrative URL: \(narrativeURL)")
+
         guard let url = URL(string: narrativeURL) else {
             let error = ParentReportError.invalidURL
             await MainActor.run { lastError = error }
+            print("❌ Invalid narrative URL: \(narrativeURL)")
             return .failure(error)
         }
 
@@ -318,13 +371,27 @@ class ParentReportService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 30.0
 
+        print("📤 Sending narrative fetch request...")
+
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 let error = ParentReportError.invalidResponse
                 await MainActor.run { lastError = error }
+                print("❌ Invalid HTTP response for narrative fetch")
                 return .failure(error)
+            }
+
+            print("📥 Narrative fetch response status: \(httpResponse.statusCode)")
+
+            // Debug: Print raw narrative response data
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📥 NARRATIVE RAW RESPONSE DATA (first 2000 chars):")
+                print(String(responseString.prefix(2000)))
+                if responseString.count > 2000 {
+                    print("... (truncated, total length: \(responseString.count) characters)")
+                }
             }
 
             switch httpResponse.statusCode {
@@ -332,13 +399,55 @@ class ParentReportService: ObservableObject {
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601
 
+                do {
+                    let narrativeResponse = try decoder.decode(NarrativeResponse.self, from: data)
+                    print("✅ Successfully decoded NarrativeResponse")
+                    print("📝 Narrative Response Debug:")
+                    print("   - Success: \(narrativeResponse.success)")
+                    print("   - Has Narrative: \(narrativeResponse.narrative != nil)")
+
+                    if let narrative = narrativeResponse.narrative {
+                        print("📝 Narrative Content Debug:")
+                        print("   - ID: \(narrative.id)")
+                        print("   - Content Length: \(narrative.content.count) characters")
+                        print("   - Summary Length: \(narrative.summary.count) characters")
+                        print("   - Key Insights Count: \(narrative.keyInsights.count)")
+                        print("   - Recommendations Count: \(narrative.recommendations.count)")
+                        print("   - Word Count: \(narrative.wordCount)")
+                        print("   - Generated At: \(narrative.generatedAt)")
+                        print("   - Tone Style: \(narrative.toneStyle ?? "nil")")
+                        print("   - Language: \(narrative.language ?? "nil")")
+                        print("   - Reading Level: \(narrative.readingLevel ?? "nil")")
+
+                        // Show first 200 characters of content
+                        print("📝 Content Preview (first 200 chars):")
+                        print(String(narrative.content.prefix(200)))
+                        if narrative.content.count > 200 {
+                            print("... (content continues)")
+                        }
+                    }
+
+                    if let error = narrativeResponse.error {
+                        print("⚠️ Narrative response contains error: \(error)")
+                    }
+                } catch {
+                    print("❌ Failed to decode NarrativeResponse: \(error)")
+                    print("❌ Decoder error details: \(error.localizedDescription)")
+                    if let decodingError = error as? DecodingError {
+                        print("❌ Decoding error context: \(decodingError)")
+                    }
+                    throw error
+                }
+
                 let narrativeResponse = try decoder.decode(NarrativeResponse.self, from: data)
 
                 if narrativeResponse.success, let narrative = narrativeResponse.narrative {
                     print("✅ Narrative fetched successfully!")
+                    print("📝 Final narrative ID: \(narrative.id)")
                     return .success(narrative)
                 } else {
                     let errorMessage = narrativeResponse.error ?? "Failed to fetch narrative"
+                    print("❌ Narrative fetch failed: \(errorMessage)")
                     let error = ParentReportError.fetchFailed(errorMessage)
                     await MainActor.run { lastError = error }
                     return .failure(error)
@@ -379,18 +488,25 @@ class ParentReportService: ObservableObject {
     /// - Parameter reportId: The report ID to fetch
     /// - Returns: Retrieved report or error
     func fetchReport(reportId: String) async -> Result<ParentReport, ParentReportError> {
-        print("📄 Fetching report: \(reportId)")
+        print("📄 === FETCHING SPECIFIC REPORT ===")
+        print("📄 Report ID: \(reportId)")
 
         guard let authToken = AuthenticationService.shared.getAuthToken() else {
             let error = ParentReportError.notAuthenticated
             await MainActor.run { lastError = error }
+            print("❌ No auth token available for report fetch")
             return .failure(error)
         }
 
+        print("🔑 Auth token available: \(String(authToken.prefix(20)))...")
+
         let fetchURL = "\(baseURL)/api/reports/\(reportId)"
+        print("🔗 Fetch URL: \(fetchURL)")
+
         guard let url = URL(string: fetchURL) else {
             let error = ParentReportError.invalidURL
             await MainActor.run { lastError = error }
+            print("❌ Invalid fetch URL: \(fetchURL)")
             return .failure(error)
         }
 
@@ -399,13 +515,27 @@ class ParentReportService: ObservableObject {
         request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
+        print("📤 Sending report fetch request...")
+
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 let error = ParentReportError.invalidResponse
                 await MainActor.run { lastError = error }
+                print("❌ Invalid HTTP response for report fetch")
                 return .failure(error)
+            }
+
+            print("📥 Report fetch response status: \(httpResponse.statusCode)")
+
+            // Debug: Print raw report fetch response data
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📥 REPORT FETCH RAW RESPONSE DATA (first 2000 chars):")
+                print(String(responseString.prefix(2000)))
+                if responseString.count > 2000 {
+                    print("... (truncated, total length: \(responseString.count) characters)")
+                }
             }
 
             switch httpResponse.statusCode {
@@ -413,44 +543,82 @@ class ParentReportService: ObservableObject {
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601
 
-                // Parse the nested response structure
-                let response = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                guard let success = response?["success"] as? Bool, success,
-                      let reportDict = response?["report"] as? [String: Any] else {
-                    let error = ParentReportError.parsingError("Invalid response structure")
-                    await MainActor.run { lastError = error }
-                    return .failure(error)
+                do {
+                    // Parse the nested response structure
+                    let response = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                    print("📄 Report fetch response structure parsed")
+                    print("📄 Response keys: \(response?.keys.joined(separator: ", ") ?? "nil")")
+
+                    guard let success = response?["success"] as? Bool, success,
+                          let reportDict = response?["report"] as? [String: Any] else {
+                        print("❌ Invalid response structure or not successful")
+                        print("   - Success: \(response?["success"] ?? "nil")")
+                        print("   - Has report: \(response?["report"] != nil)")
+                        let error = ParentReportError.parsingError("Invalid response structure")
+                        await MainActor.run { lastError = error }
+                        return .failure(error)
+                    }
+
+                    print("📄 Report dictionary keys: \(reportDict.keys.joined(separator: ", "))")
+
+                    // Convert back to JSON data for decoding
+                    let reportData = try JSONSerialization.data(withJSONObject: reportDict)
+
+                    // Debug: Print exactly what we're trying to decode
+                    if let debugString = String(data: reportData, encoding: .utf8) {
+                        print("🔍 EXACT DATA BEING DECODED (first 1000 chars):")
+                        print(String(debugString.prefix(1000)))
+                        if debugString.count > 1000 {
+                            print("... (truncated, total length: \(debugString.count) characters)")
+                        }
+                    }
+
+                    print("🔍 About to decode ParentReport.self from extracted report data...")
+                    let report = try decoder.decode(ParentReport.self, from: reportData)
+
+                    print("✅ Report fetched successfully: \(reportId)")
+                    print("📄 Fetched report data type: \(report.reportData.type ?? "nil")")
+                    print("📄 Is narrative report: \(report.reportData.isNarrativeReport)")
+                    print("📄 Narrative available: \(report.reportData.narrativeAvailable ?? false)")
+                    print("📄 Narrative URL: \(report.reportData.narrativeURL ?? "nil")")
+
+                    return .success(report)
+                } catch {
+                    print("❌ Failed to decode report response: \(error)")
+                    print("❌ Decoder error details: \(error.localizedDescription)")
+                    if let decodingError = error as? DecodingError {
+                        print("❌ Decoding error context: \(decodingError)")
+                    }
+                    throw error
                 }
-
-                // Convert back to JSON data for decoding
-                let reportData = try JSONSerialization.data(withJSONObject: reportDict)
-                let report = try decoder.decode(ParentReport.self, from: reportData)
-
-                print("✅ Report fetched successfully: \(reportId)")
-                return .success(report)
 
             case 401:
                 let error = ParentReportError.notAuthenticated
                 await MainActor.run { lastError = error }
+                print("❌ Authentication failed for report fetch")
                 return .failure(error)
 
             case 403:
                 let error = ParentReportError.accessDenied
                 await MainActor.run { lastError = error }
+                print("❌ Access denied for report fetch")
                 return .failure(error)
 
             case 404:
                 let error = ParentReportError.reportNotFound
                 await MainActor.run { lastError = error }
+                print("❌ Report not found: \(reportId)")
                 return .failure(error)
 
             default:
                 let error = ParentReportError.serverError(httpResponse.statusCode)
                 await MainActor.run { lastError = error }
+                print("❌ Server error for report fetch: \(httpResponse.statusCode)")
                 return .failure(error)
             }
 
         } catch {
+            print("❌ Report fetch request failed: \(error)")
             let reportError = ParentReportError.networkError(error.localizedDescription)
             await MainActor.run { lastError = reportError }
             return .failure(reportError)
@@ -471,13 +639,19 @@ class ParentReportService: ObservableObject {
         reportType: ReportType? = nil
     ) async -> Result<StudentReportsResponse, ParentReportError> {
 
-        print("📋 Fetching reports for student: \(studentId)")
+        print("📋 === FETCHING STUDENT REPORTS ===")
+        print("📋 Student ID: \(studentId)")
+        print("📋 Limit: \(limit), Offset: \(offset)")
+        print("📋 Report Type Filter: \(reportType?.rawValue ?? "nil")")
 
         guard let authToken = AuthenticationService.shared.getAuthToken() else {
             let error = ParentReportError.notAuthenticated
             await MainActor.run { lastError = error }
+            print("❌ No auth token available for reports fetch")
             return .failure(error)
         }
+
+        print("🔑 Auth token available: \(String(authToken.prefix(20)))...")
 
         var urlComponents = URLComponents(string: "\(baseURL)/api/reports/student/\(studentId)")!
         var queryItems: [URLQueryItem] = []
@@ -494,13 +668,18 @@ class ParentReportService: ObservableObject {
         guard let url = urlComponents.url else {
             let error = ParentReportError.invalidURL
             await MainActor.run { lastError = error }
+            print("❌ Invalid reports URL: \(urlComponents.string ?? "nil")")
             return .failure(error)
         }
+
+        print("🔗 Reports URL: \(url.absoluteString)")
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        print("📤 Sending reports fetch request...")
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -508,13 +687,58 @@ class ParentReportService: ObservableObject {
             guard let httpResponse = response as? HTTPURLResponse else {
                 let error = ParentReportError.invalidResponse
                 await MainActor.run { lastError = error }
+                print("❌ Invalid HTTP response for reports fetch")
                 return .failure(error)
+            }
+
+            print("📥 Reports fetch response status: \(httpResponse.statusCode)")
+
+            // Debug: Print raw reports response data
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📥 REPORTS RAW RESPONSE DATA (first 2000 chars):")
+                print(String(responseString.prefix(2000)))
+                if responseString.count > 2000 {
+                    print("... (truncated, total length: \(responseString.count) characters)")
+                }
             }
 
             switch httpResponse.statusCode {
             case 200:
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601
+
+                do {
+                    let reportsResponse = try decoder.decode(StudentReportsResponse.self, from: data)
+                    print("✅ Successfully decoded StudentReportsResponse")
+                    print("📋 Reports Response Debug:")
+                    print("   - Success: \(reportsResponse.success)")
+                    print("   - Reports Count: \(reportsResponse.reports.count)")
+                    print("   - Total: \(reportsResponse.pagination.total)")
+                    print("   - Has More: \(reportsResponse.pagination.hasMore)")
+
+                    // Debug each report
+                    for (index, report) in reportsResponse.reports.enumerated() {
+                        print("📋 Report \(index + 1):")
+                        print("   - ID: \(report.id)")
+                        print("   - Type: \(report.reportType.rawValue)")
+                        print("   - Date Range: \(report.startDate) to \(report.endDate)")
+                        print("   - Generated At: \(report.generatedAt)")
+                        print("   - AI Analysis: \(report.aiAnalysisIncluded)")
+                        print("   - Views: \(report.viewedCount ?? 0)")
+                        print("   - Exports: \(report.exportedCount ?? 0)")
+                    }
+
+                    if let error = reportsResponse.error {
+                        print("⚠️ Reports response contains error: \(error)")
+                    }
+                } catch {
+                    print("❌ Failed to decode StudentReportsResponse: \(error)")
+                    print("❌ Decoder error details: \(error.localizedDescription)")
+                    if let decodingError = error as? DecodingError {
+                        print("❌ Decoding error context: \(decodingError)")
+                    }
+                    throw error
+                }
 
                 let reportsResponse = try decoder.decode(StudentReportsResponse.self, from: data)
 
@@ -523,10 +747,11 @@ class ParentReportService: ObservableObject {
                         availableReports = reportsResponse.reports
                     }
 
-                    print("✅ Fetched \(reportsResponse.reports.count) reports for student")
+                    print("✅ Fetched \(reportsResponse.reports.count) reports for student (IOS)")
                     return .success(reportsResponse)
                 } else {
                     let errorMessage = reportsResponse.error ?? "Failed to fetch reports"
+                    print("❌ Reports fetch failed: \(errorMessage)")
                     let error = ParentReportError.fetchFailed(errorMessage)
                     await MainActor.run { lastError = error }
                     return .failure(error)

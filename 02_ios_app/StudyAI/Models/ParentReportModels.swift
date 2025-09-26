@@ -14,7 +14,7 @@ import SwiftUI
 /// Main parent report structure matching backend API
 struct ParentReport: Codable, Identifiable {
     let id: String
-    let userId: String
+    let studentName: String?
     let reportType: ReportType
     let startDate: Date
     let endDate: Date
@@ -22,13 +22,19 @@ struct ParentReport: Codable, Identifiable {
     let generatedAt: Date
     let expiresAt: Date
     let aiAnalysisIncluded: Bool
+    let viewedCount: Int?
+    let exportedCount: Int?
+
+    // Optional fields for different response formats
     let cached: Bool?
     let generationTimeMs: Int?
 
     var dateRange: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
-        return "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
+        let result = "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
+        print("🗓️ DateRange computed: '\(result)' from startDate: \(startDate) to endDate: \(endDate)")
+        return result
     }
 
     var isExpired: Bool {
@@ -51,8 +57,8 @@ struct ParentReport: Codable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id = "report_id"
-        case userId = "userId"
+        case id
+        case studentName = "student_name"
         case reportType = "report_type"
         case startDate = "start_date"
         case endDate = "end_date"
@@ -60,6 +66,8 @@ struct ParentReport: Codable, Identifiable {
         case generatedAt = "generated_at"
         case expiresAt = "expires_at"
         case aiAnalysisIncluded = "ai_analysis_included"
+        case viewedCount = "viewed_count"
+        case exportedCount = "exported_count"
         case cached
         case generationTimeMs = "generation_time_ms"
     }
@@ -68,10 +76,12 @@ struct ParentReport: Codable, Identifiable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         id = try container.decode(String.self, forKey: .id)
-        userId = try container.decode(String.self, forKey: .userId)
+        studentName = try container.decodeIfPresent(String.self, forKey: .studentName)
         reportType = try container.decode(ReportType.self, forKey: .reportType)
         reportData = try container.decode(ReportData.self, forKey: .reportData)
         aiAnalysisIncluded = try container.decode(Bool.self, forKey: .aiAnalysisIncluded)
+        viewedCount = try container.decodeIfPresent(Int.self, forKey: .viewedCount)
+        exportedCount = try container.decodeIfPresent(Int.self, forKey: .exportedCount)
         cached = try container.decodeIfPresent(Bool.self, forKey: .cached)
         generationTimeMs = try container.decodeIfPresent(Int.self, forKey: .generationTimeMs)
 
@@ -79,10 +89,14 @@ struct ParentReport: Codable, Identifiable {
         let dateFormatter = ISO8601DateFormatter()
 
         let startDateString = try container.decode(String.self, forKey: .startDate)
+        print("🗓️ Parsing startDate: '\(startDateString)'")
         startDate = dateFormatter.date(from: startDateString) ?? Date()
+        print("🗓️ Parsed startDate: \(startDate)")
 
         let endDateString = try container.decode(String.self, forKey: .endDate)
+        print("🗓️ Parsing endDate: '\(endDateString)'")
         endDate = dateFormatter.date(from: endDateString) ?? Date()
+        print("🗓️ Parsed endDate: \(endDate)")
 
         let generatedAtString = try container.decode(String.self, forKey: .generatedAt)
         generatedAt = dateFormatter.date(from: generatedAtString) ?? Date()
@@ -94,7 +108,7 @@ struct ParentReport: Codable, Identifiable {
     // Memberwise initializer for sample data
     init(
         id: String,
-        userId: String,
+        studentName: String?,
         reportType: ReportType,
         startDate: Date,
         endDate: Date,
@@ -102,11 +116,13 @@ struct ParentReport: Codable, Identifiable {
         generatedAt: Date,
         expiresAt: Date,
         aiAnalysisIncluded: Bool,
+        viewedCount: Int? = nil,
+        exportedCount: Int? = nil,
         cached: Bool? = nil,
         generationTimeMs: Int? = nil
     ) {
         self.id = id
-        self.userId = userId
+        self.studentName = studentName
         self.reportType = reportType
         self.startDate = startDate
         self.endDate = endDate
@@ -114,6 +130,8 @@ struct ParentReport: Codable, Identifiable {
         self.generatedAt = generatedAt
         self.expiresAt = expiresAt
         self.aiAnalysisIncluded = aiAnalysisIncluded
+        self.viewedCount = viewedCount
+        self.exportedCount = exportedCount
         self.cached = cached
         self.generationTimeMs = generationTimeMs
     }
@@ -288,7 +306,7 @@ struct ReportPeriod: Codable {
 /// Academic performance metrics
 struct AcademicMetrics: Codable {
     let overallAccuracy: Double
-    let averageConfidence: Double
+    let averageConfidence: Double?
     let totalQuestions: Int
     let correctAnswers: Int
     let improvementTrend: String
@@ -301,7 +319,7 @@ struct AcademicMetrics: Codable {
     }
 
     var confidencePercentage: String {
-        return String(format: "%.1f%%", averageConfidence * 100)
+        return String(format: "%.1f%%", (averageConfidence ?? 0.0) * 100)
     }
 
     var studyTimeHours: Double {
@@ -385,7 +403,7 @@ struct MentalHealthMetrics: Codable {
     let indicators: [String: MentalHealthIndicator]
     let trends: [String: String]
     let alerts: [MentalHealthAlert]
-    let dataQuality: DataQualityMetrics
+    let dataQuality: DataQualityMetrics?
 
     var wellbeingPercentage: String {
         return String(format: "%.1f%%", overallWellbeing * 100)
@@ -491,7 +509,7 @@ struct SubjectPerformance: Codable {
     let totalQuestions: Int
     let correctAnswers: Int
     let accuracy: Double
-    let averageConfidence: Double
+    let averageConfidence: Double?
 
     var accuracyPercentage: String {
         return String(format: "%.1f%%", accuracy * 100)
@@ -790,7 +808,7 @@ struct MistakePattern: Codable, Identifiable {
     let subject: String
     let count: Int
     let percentage: Int
-    let averageConfidence: Double
+    let averageConfidence: Double?
     let commonIssues: [String]
 
     enum CodingKeys: String, CodingKey {
@@ -953,6 +971,10 @@ struct ReportListItem: Codable, Identifiable {
     let exportedCount: Int?
     let totalGenerationTimeMs: Int?
 
+    var isExpired: Bool {
+        return Date() > expiresAt
+    }
+
     enum CodingKeys: String, CodingKey {
         case id, reportType = "report_type", aiAnalysisIncluded = "ai_analysis_included"
         case startDate = "start_date", endDate = "end_date"
@@ -1022,7 +1044,7 @@ struct GenerateReportRequest: Codable {
 extension ParentReport {
     static let sampleReport = ParentReport(
         id: "sample-report-id",
-        userId: "sample-user-id",
+        studentName: "Sample Student",
         reportType: .weekly,
         startDate: Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date(),
         endDate: Date(),
@@ -1030,6 +1052,8 @@ extension ParentReport {
         generatedAt: Date(),
         expiresAt: Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date(),
         aiAnalysisIncluded: true,
+        viewedCount: 0,
+        exportedCount: 0,
         cached: false,
         generationTimeMs: 2500
     )

@@ -246,6 +246,84 @@ struct ParentReportsView: View {
         isGeneratingReport = true
 
         Task {
+            print("🚀 Quick action for \(type.rawValue) report")
+
+            // First, check if we have a recent cached report for this period
+            let recentReports = await reportService.fetchStudentReports(studentId: userId, limit: 10, offset: 0)
+
+            var cachedReportId: String? = nil
+
+            switch recentReports {
+            case .success(let reportsResponse):
+                // Look for a report that matches the requested type and is still valid
+                let cachedReportItem = reportsResponse.reports.first { report in
+                    let isSameType = report.reportType == type
+                    let isNotExpired = !report.isExpired
+
+                    // For weekly/monthly reports, check if it covers a similar recent period
+                    if type == .weekly || type == .monthly {
+                        let daysDifference = abs(Calendar.current.dateComponents([.day], from: report.startDate, to: startDate).day ?? 999)
+                        let isRecentPeriod = daysDifference <= (type == .weekly ? 3 : 15) // Allow some flexibility
+                        return isSameType && isNotExpired && isRecentPeriod
+                    } else {
+                        // For custom/progress reports, use exact date matching
+                        let sameStartDate = Calendar.current.isDate(report.startDate, inSameDayAs: startDate)
+                        let sameEndDate = Calendar.current.isDate(report.endDate, inSameDayAs: endDate)
+                        return isSameType && isNotExpired && sameStartDate && sameEndDate
+                    }
+                }
+
+                if let cached = cachedReportItem {
+                    cachedReportId = cached.id
+                    print("✅ Found cached \(type.rawValue) report: \(cached.id)")
+                    print("📅 Cached report period: \(cached.startDate) - \(cached.endDate)")
+                }
+
+            case .failure(let error):
+                print("⚠️ Failed to check for cached reports: \(error.localizedDescription)")
+            }
+
+            await MainActor.run {
+                isGeneratingReport = false
+
+                if let reportId = cachedReportId {
+                    // Fetch the cached report directly
+                    print("🎯 Using cached report instead of generating new one")
+                    loadCachedReport(reportId: reportId)
+                } else {
+                    // No suitable cached report found, proceed with generation
+                    print("🔄 No suitable cached report found, generating new report")
+                    generateNewReport(type: type, startDate: startDate, endDate: endDate, userId: userId)
+                }
+            }
+        }
+    }
+
+    private func loadCachedReport(reportId: String) {
+        isGeneratingReport = true
+
+        Task {
+            let result = await reportService.fetchReport(reportId: reportId)
+
+            await MainActor.run {
+                isGeneratingReport = false
+
+                switch result {
+                case .success(let report):
+                    selectedReport = report
+                    showingReportDetail = true
+                case .failure(let error):
+                    print("Failed to load cached report: \(error.localizedDescription)")
+                    // Handle error - could show alert or fallback to generation
+                }
+            }
+        }
+    }
+
+    private func generateNewReport(type: ReportType, startDate: Date, endDate: Date, userId: String) {
+        isGeneratingReport = true
+
+        Task {
             let result = await reportService.generateReport(
                 studentId: userId,
                 startDate: startDate,
