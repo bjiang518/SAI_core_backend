@@ -85,24 +85,46 @@ struct ParentReport: Codable, Identifiable {
         cached = try container.decodeIfPresent(Bool.self, forKey: .cached)
         generationTimeMs = try container.decodeIfPresent(Int.self, forKey: .generationTimeMs)
 
-        // Handle date parsing
+        // Handle date parsing with multiple format support
         let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        // Backup formatter for different date formats
+        let backupFormatter = DateFormatter()
+        backupFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        backupFormatter.timeZone = TimeZone(abbreviation: "UTC")
+
+        let simpleDateFormatter = DateFormatter()
+        simpleDateFormatter.dateFormat = "yyyy-MM-dd"
+        simpleDateFormatter.timeZone = TimeZone(abbreviation: "UTC")
 
         let startDateString = try container.decode(String.self, forKey: .startDate)
-        print("🗓️ Parsing startDate: '\(startDateString)'")
-        startDate = dateFormatter.date(from: startDateString) ?? Date()
-        print("🗓️ Parsed startDate: \(startDate)")
+        if let parsedStartDate = dateFormatter.date(from: startDateString) ??
+                                 backupFormatter.date(from: startDateString) ??
+                                 simpleDateFormatter.date(from: startDateString) {
+            startDate = parsedStartDate
+        } else {
+            startDate = Date()
+        }
 
         let endDateString = try container.decode(String.self, forKey: .endDate)
-        print("🗓️ Parsing endDate: '\(endDateString)'")
-        endDate = dateFormatter.date(from: endDateString) ?? Date()
-        print("🗓️ Parsed endDate: \(endDate)")
+        if let parsedEndDate = dateFormatter.date(from: endDateString) ??
+                               backupFormatter.date(from: endDateString) ??
+                               simpleDateFormatter.date(from: endDateString) {
+            endDate = parsedEndDate
+        } else {
+            endDate = Date()
+        }
 
         let generatedAtString = try container.decode(String.self, forKey: .generatedAt)
-        generatedAt = dateFormatter.date(from: generatedAtString) ?? Date()
+        generatedAt = dateFormatter.date(from: generatedAtString) ??
+                     backupFormatter.date(from: generatedAtString) ??
+                     simpleDateFormatter.date(from: generatedAtString) ?? Date()
 
         let expiresAtString = try container.decode(String.self, forKey: .expiresAt)
-        expiresAt = dateFormatter.date(from: expiresAtString) ?? Date()
+        expiresAt = dateFormatter.date(from: expiresAtString) ??
+                   backupFormatter.date(from: expiresAtString) ??
+                   simpleDateFormatter.date(from: expiresAtString) ?? Date()
     }
 
     // Memberwise initializer for sample data
@@ -993,20 +1015,38 @@ struct ReportListItem: Codable, Identifiable {
         exportedCount = try container.decodeIfPresent(Int.self, forKey: .exportedCount)
         totalGenerationTimeMs = try container.decodeIfPresent(Int.self, forKey: .totalGenerationTimeMs)
 
-        // Handle date parsing
-        let formatter = ISO8601DateFormatter()
+        // Handle date parsing with multiple format support (same as ParentReport)
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        // Backup formatter for different date formats
+        let backupFormatter = DateFormatter()
+        backupFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        backupFormatter.timeZone = TimeZone(abbreviation: "UTC")
+
+        let simpleDateFormatter = DateFormatter()
+        simpleDateFormatter.dateFormat = "yyyy-MM-dd"
+        simpleDateFormatter.timeZone = TimeZone(abbreviation: "UTC")
 
         let startDateString = try container.decode(String.self, forKey: .startDate)
-        startDate = formatter.date(from: startDateString) ?? Date()
+        startDate = dateFormatter.date(from: startDateString) ??
+                   backupFormatter.date(from: startDateString) ??
+                   simpleDateFormatter.date(from: startDateString) ?? Date()
 
         let endDateString = try container.decode(String.self, forKey: .endDate)
-        endDate = formatter.date(from: endDateString) ?? Date()
+        endDate = dateFormatter.date(from: endDateString) ??
+                 backupFormatter.date(from: endDateString) ??
+                 simpleDateFormatter.date(from: endDateString) ?? Date()
 
         let generatedAtString = try container.decode(String.self, forKey: .generatedAt)
-        generatedAt = formatter.date(from: generatedAtString) ?? Date()
+        generatedAt = dateFormatter.date(from: generatedAtString) ??
+                     backupFormatter.date(from: generatedAtString) ??
+                     simpleDateFormatter.date(from: generatedAtString) ?? Date()
 
         let expiresAtString = try container.decode(String.self, forKey: .expiresAt)
-        expiresAt = formatter.date(from: expiresAtString) ?? Date()
+        expiresAt = dateFormatter.date(from: expiresAtString) ??
+                   backupFormatter.date(from: expiresAtString) ??
+                   simpleDateFormatter.date(from: expiresAtString) ?? Date()
     }
 }
 

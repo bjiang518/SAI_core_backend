@@ -128,7 +128,7 @@ class QuestionGenerationService: ObservableObject {
 
     // MARK: - Response Models
     struct GeneratedQuestion: Identifiable, Codable {
-        let id = UUID()
+        var id: UUID
         let question: String
         let type: QuestionType
         let correctAnswer: String
@@ -138,7 +138,42 @@ class QuestionGenerationService: ObservableObject {
         let points: Int?
         let timeEstimate: String?
         let options: [String]? // For multiple choice
-        // Removed addresses_mistake and builds_on fields - they're not necessary
+
+        // Custom initializer for JSON decoding - generates UUID if not provided
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+
+            // Generate UUID for id since it's not in JSON
+            self.id = UUID()
+            self.question = try container.decode(String.self, forKey: .question)
+            self.type = try container.decode(QuestionType.self, forKey: .type)
+            self.correctAnswer = try container.decode(String.self, forKey: .correctAnswer)
+            self.explanation = try container.decode(String.self, forKey: .explanation)
+            self.topic = try container.decode(String.self, forKey: .topic)
+            self.difficulty = try container.decode(String.self, forKey: .difficulty)
+            self.points = try container.decodeIfPresent(Int.self, forKey: .points)
+            self.timeEstimate = try container.decodeIfPresent(String.self, forKey: .timeEstimate)
+            self.options = try container.decodeIfPresent([String].self, forKey: .options)
+        }
+
+        // Regular initializer for programmatic creation
+        init(id: UUID = UUID(), question: String, type: QuestionType, correctAnswer: String, explanation: String, topic: String, difficulty: String, points: Int? = nil, timeEstimate: String? = nil, options: [String]? = nil) {
+            self.id = id
+            self.question = question
+            self.type = type
+            self.correctAnswer = correctAnswer
+            self.explanation = explanation
+            self.topic = topic
+            self.difficulty = difficulty
+            self.points = points
+            self.timeEstimate = timeEstimate
+            self.options = options
+        }
+
+        // Coding keys for JSON encoding/decoding (excludes id since it's generated)
+        enum CodingKeys: String, CodingKey {
+            case question, type, correctAnswer, explanation, topic, difficulty, points, timeEstimate, options
+        }
 
         enum QuestionType: String, Codable, CaseIterable {
             case multipleChoice = "multiple_choice"

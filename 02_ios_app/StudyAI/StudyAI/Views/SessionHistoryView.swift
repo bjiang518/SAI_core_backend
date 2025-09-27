@@ -685,7 +685,7 @@ struct SessionCalendarView: View {
         }
         
         let startOfMonth = monthInterval.start
-        let endOfMonth = monthInterval.end
+        _ = monthInterval.end
         
         // Find the first day of the week containing the start of the month
         let startWeekday = calendar.component(.weekday, from: startOfMonth)

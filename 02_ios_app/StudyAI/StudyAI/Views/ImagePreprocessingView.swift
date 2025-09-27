@@ -175,7 +175,7 @@ struct ImagePreprocessingView: View {
 
         Task {
             // Simulate step-by-step processing with UI updates
-            for (index, step) in processingSteps.enumerated() {
+            for (index, _) in processingSteps.enumerated() {
                 await MainActor.run {
                     currentStep = index
                 }

@@ -131,7 +131,7 @@ struct SubjectAnalyticsView: View {
     
     @ViewBuilder
     private var overviewContent: some View {
-        if let data = subjectBreakdownData {
+        if subjectBreakdownData != nil {
             VStack(spacing: 16) {
                 Text("Overview")
                     .font(.headline)

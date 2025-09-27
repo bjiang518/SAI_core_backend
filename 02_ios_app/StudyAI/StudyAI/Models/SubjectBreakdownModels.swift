@@ -763,32 +763,143 @@ enum StudyPriority: String, CaseIterable, Codable {
 // MARK: - Subject Trend Analysis
 
 struct SubjectTrendData: Codable, Identifiable {
-    let id = UUID()
+    var id: UUID
     let subject: SubjectCategory
     let weeklyTrends: [WeeklySubjectTrend]
     let monthlyTrends: [MonthlySubjectTrend]
     let trendDirection: TrendDirection
     let projectedPerformance: Double
     let seasonalPattern: SeasonalPattern?
+
+    // Custom initializer for JSON decoding - generates UUID if not provided
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Generate UUID for id since it's not in JSON
+        self.id = UUID()
+        self.subject = try container.decode(SubjectCategory.self, forKey: .subject)
+        self.weeklyTrends = try container.decode([WeeklySubjectTrend].self, forKey: .weeklyTrends)
+        self.monthlyTrends = try container.decode([MonthlySubjectTrend].self, forKey: .monthlyTrends)
+        self.trendDirection = try container.decode(TrendDirection.self, forKey: .trendDirection)
+        self.projectedPerformance = try container.decode(Double.self, forKey: .projectedPerformance)
+        self.seasonalPattern = try container.decodeIfPresent(SeasonalPattern.self, forKey: .seasonalPattern)
+    }
+
+    // Regular initializer for programmatic creation
+    init(
+        id: UUID = UUID(),
+        subject: SubjectCategory,
+        weeklyTrends: [WeeklySubjectTrend],
+        monthlyTrends: [MonthlySubjectTrend],
+        trendDirection: TrendDirection,
+        projectedPerformance: Double,
+        seasonalPattern: SeasonalPattern?
+    ) {
+        self.id = id
+        self.subject = subject
+        self.weeklyTrends = weeklyTrends
+        self.monthlyTrends = monthlyTrends
+        self.trendDirection = trendDirection
+        self.projectedPerformance = projectedPerformance
+        self.seasonalPattern = seasonalPattern
+    }
+
+    // Coding keys for JSON encoding/decoding (excludes id since it's generated)
+    enum CodingKeys: String, CodingKey {
+        case subject, weeklyTrends, monthlyTrends, trendDirection, projectedPerformance, seasonalPattern
+    }
 }
 
 struct WeeklySubjectTrend: Codable, Identifiable {
-    let id = UUID()
+    var id: UUID
     let weekStart: String // "2024-01-15"
     let weekEnd: String // "2024-01-21"
     let questionCount: Int
     let accuracy: Double
     let studyTimeMinutes: Int
     let improvementScore: Double // -100 to +100
+
+    // Custom initializer for JSON decoding - generates UUID if not provided
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Generate UUID for id since it's not in JSON
+        self.id = UUID()
+        self.weekStart = try container.decode(String.self, forKey: .weekStart)
+        self.weekEnd = try container.decode(String.self, forKey: .weekEnd)
+        self.questionCount = try container.decode(Int.self, forKey: .questionCount)
+        self.accuracy = try container.decode(Double.self, forKey: .accuracy)
+        self.studyTimeMinutes = try container.decode(Int.self, forKey: .studyTimeMinutes)
+        self.improvementScore = try container.decode(Double.self, forKey: .improvementScore)
+    }
+
+    // Regular initializer for programmatic creation
+    init(
+        id: UUID = UUID(),
+        weekStart: String,
+        weekEnd: String,
+        questionCount: Int,
+        accuracy: Double,
+        studyTimeMinutes: Int,
+        improvementScore: Double
+    ) {
+        self.id = id
+        self.weekStart = weekStart
+        self.weekEnd = weekEnd
+        self.questionCount = questionCount
+        self.accuracy = accuracy
+        self.studyTimeMinutes = studyTimeMinutes
+        self.improvementScore = improvementScore
+    }
+
+    // Coding keys for JSON encoding/decoding (excludes id since it's generated)
+    enum CodingKeys: String, CodingKey {
+        case weekStart, weekEnd, questionCount, accuracy, studyTimeMinutes, improvementScore
+    }
 }
 
 struct MonthlySubjectTrend: Codable, Identifiable {
-    let id = UUID()
+    var id: UUID
     let month: String // "2024-01"
     let questionCount: Int
     let accuracy: Double
     let studyTimeHours: Double
     let masteryLevel: Double // 0.0 - 1.0
+
+    // Custom initializer for JSON decoding - generates UUID if not provided
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Generate UUID for id since it's not in JSON
+        self.id = UUID()
+        self.month = try container.decode(String.self, forKey: .month)
+        self.questionCount = try container.decode(Int.self, forKey: .questionCount)
+        self.accuracy = try container.decode(Double.self, forKey: .accuracy)
+        self.studyTimeHours = try container.decode(Double.self, forKey: .studyTimeHours)
+        self.masteryLevel = try container.decode(Double.self, forKey: .masteryLevel)
+    }
+
+    // Regular initializer for programmatic creation
+    init(
+        id: UUID = UUID(),
+        month: String,
+        questionCount: Int,
+        accuracy: Double,
+        studyTimeHours: Double,
+        masteryLevel: Double
+    ) {
+        self.id = id
+        self.month = month
+        self.questionCount = questionCount
+        self.accuracy = accuracy
+        self.studyTimeHours = studyTimeHours
+        self.masteryLevel = masteryLevel
+    }
+
+    // Coding keys for JSON encoding/decoding (excludes id since it's generated)
+    enum CodingKeys: String, CodingKey {
+        case month, questionCount, accuracy, studyTimeHours, masteryLevel
+    }
 }
 
 enum TrendDirection: String, CaseIterable, Codable {
@@ -976,12 +1087,47 @@ extension SubjectCategory {
 // MARK: - Subject Comparison Model
 
 struct SubjectComparison: Codable, Identifiable {
-    let id = UUID()
+    var id: UUID
     let primarySubject: SubjectCategory
     let comparedToSubject: SubjectCategory
     let accuracyDifference: Double
     let studyTimeDifference: Int // in minutes
     let comparisonType: ComparisonType
+
+    // Custom initializer for JSON decoding - generates UUID if not provided
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Generate UUID for id since it's not in JSON
+        self.id = UUID()
+        self.primarySubject = try container.decode(SubjectCategory.self, forKey: .primarySubject)
+        self.comparedToSubject = try container.decode(SubjectCategory.self, forKey: .comparedToSubject)
+        self.accuracyDifference = try container.decode(Double.self, forKey: .accuracyDifference)
+        self.studyTimeDifference = try container.decode(Int.self, forKey: .studyTimeDifference)
+        self.comparisonType = try container.decode(ComparisonType.self, forKey: .comparisonType)
+    }
+
+    // Regular initializer for programmatic creation
+    init(
+        id: UUID = UUID(),
+        primarySubject: SubjectCategory,
+        comparedToSubject: SubjectCategory,
+        accuracyDifference: Double,
+        studyTimeDifference: Int,
+        comparisonType: ComparisonType
+    ) {
+        self.id = id
+        self.primarySubject = primarySubject
+        self.comparedToSubject = comparedToSubject
+        self.accuracyDifference = accuracyDifference
+        self.studyTimeDifference = studyTimeDifference
+        self.comparisonType = comparisonType
+    }
+
+    // Coding keys for JSON encoding/decoding (excludes id since it's generated)
+    enum CodingKeys: String, CodingKey {
+        case primarySubject, comparedToSubject, accuracyDifference, studyTimeDifference, comparisonType
+    }
     
     enum ComparisonType: String, Codable, CaseIterable {
         case better = "better"
@@ -1009,13 +1155,51 @@ struct SubjectComparison: Codable, Identifiable {
 // MARK: - Subject Recommendation Model
 
 struct SubjectRecommendation: Codable, Identifiable {
-    let id = UUID()
+    var id: UUID
     let targetSubject: SubjectCategory
     let title: String
     let description: String
     let priority: RecommendationPriority
     let estimatedTimeToComplete: Int // in minutes
     let category: RecommendationCategory
+
+    // Custom initializer for JSON decoding - generates UUID if not provided
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Generate UUID for id since it's not in JSON
+        self.id = UUID()
+        self.targetSubject = try container.decode(SubjectCategory.self, forKey: .targetSubject)
+        self.title = try container.decode(String.self, forKey: .title)
+        self.description = try container.decode(String.self, forKey: .description)
+        self.priority = try container.decode(RecommendationPriority.self, forKey: .priority)
+        self.estimatedTimeToComplete = try container.decode(Int.self, forKey: .estimatedTimeToComplete)
+        self.category = try container.decode(RecommendationCategory.self, forKey: .category)
+    }
+
+    // Regular initializer for programmatic creation
+    init(
+        id: UUID = UUID(),
+        targetSubject: SubjectCategory,
+        title: String,
+        description: String,
+        priority: RecommendationPriority,
+        estimatedTimeToComplete: Int,
+        category: RecommendationCategory
+    ) {
+        self.id = id
+        self.targetSubject = targetSubject
+        self.title = title
+        self.description = description
+        self.priority = priority
+        self.estimatedTimeToComplete = estimatedTimeToComplete
+        self.category = category
+    }
+
+    // Coding keys for JSON encoding/decoding (excludes id since it's generated)
+    enum CodingKeys: String, CodingKey {
+        case targetSubject, title, description, priority, estimatedTimeToComplete, category
+    }
     
     enum RecommendationPriority: String, Codable, CaseIterable {
         case high = "high"

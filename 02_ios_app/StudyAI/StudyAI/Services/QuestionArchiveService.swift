@@ -32,11 +32,11 @@ class QuestionArchiveService: ObservableObject {
         guard let userId = currentUserId else {
             throw QuestionArchiveError.notAuthenticated
         }
-        
+
         guard let token = authToken else {
             throw QuestionArchiveError.notAuthenticated
         }
-        
+
         print("📝 Archiving \(request.selectedQuestionIndices.count) questions for user: \(userId)")
         print("📚 Subject: \(request.detectedSubject)")
         
@@ -91,7 +91,7 @@ class QuestionArchiveService: ObservableObject {
         guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let success = jsonResponse["success"] as? Bool,
               success == true,
-              let responseData = jsonResponse["data"] as? [[String: Any]] else {
+              let _ = jsonResponse["data"] as? [[String: Any]] else {
             throw QuestionArchiveError.invalidData
         }
         
@@ -144,7 +144,7 @@ class QuestionArchiveService: ObservableObject {
         limit: Int = 50,
         offset: Int = 0
     ) async throws -> [QuestionSummary] {
-        guard let userId = currentUserId else {
+        guard currentUserId != nil else {
             throw QuestionArchiveError.notAuthenticated
         }
         
@@ -225,11 +225,11 @@ class QuestionArchiveService: ObservableObject {
         guard let userId = currentUserId else {
             throw QuestionArchiveError.notAuthenticated
         }
-        
+
         guard let token = authToken else {
             throw QuestionArchiveError.notAuthenticated
         }
-        
+
         print("📚 Fetching archived questions for user: \(userId)")
         
         var urlComponents = URLComponents(string: "\(baseURL)/api/archived-questions")!
@@ -271,7 +271,7 @@ class QuestionArchiveService: ObservableObject {
     // MARK: - Fetch Questions by Subject
     
     func fetchQuestionsBySubject(_ subject: String) async throws -> [QuestionSummary] {
-        guard let userId = currentUserId else {
+        guard currentUserId != nil else {
             throw QuestionArchiveError.notAuthenticated
         }
         
@@ -311,7 +311,7 @@ class QuestionArchiveService: ObservableObject {
     // MARK: - Get Full Question Details
     
     func getQuestionDetails(questionId: String) async throws -> ArchivedQuestion {
-        guard let userId = currentUserId else {
+        guard currentUserId != nil else {
             throw QuestionArchiveError.notAuthenticated
         }
         
@@ -349,7 +349,7 @@ class QuestionArchiveService: ObservableObject {
     // MARK: - Search Questions
     
     func searchQuestions(filter: QuestionSearchFilter) async throws -> [QuestionSummary] {
-        guard let userId = currentUserId else {
+        guard currentUserId != nil else {
             throw QuestionArchiveError.notAuthenticated
         }
         

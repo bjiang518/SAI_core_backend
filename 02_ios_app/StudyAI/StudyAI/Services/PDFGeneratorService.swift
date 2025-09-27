@@ -371,7 +371,7 @@ class PDFGeneratorService: ObservableObject {
         ]
 
         let attributedString = NSAttributedString(string: text, attributes: attributes)
-        let rect = CGRect(x: point.x, y: point.y, width: width, height: 1000) // Large height for calculation
+        _ = CGRect(x: point.x, y: point.y, width: width, height: 1000) // Large height for calculation
 
         let boundingRect = attributedString.boundingRect(
             with: CGSize(width: width, height: 1000),

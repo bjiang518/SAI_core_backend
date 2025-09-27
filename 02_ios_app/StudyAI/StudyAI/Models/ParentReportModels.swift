@@ -48,11 +48,79 @@ struct ParentReport: Codable, Identifiable {
     var dateRange: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
-        return "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
+        let result = "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
+        print("🗓️ DateRange computed: '\(result)' from startDate: \(startDate) to endDate: \(endDate)")
+        return result
     }
 
     var isExpired: Bool {
         return Date() > expiresAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        print("🔍 DECODING ParentReport - Starting...")
+
+        id = try container.decode(String.self, forKey: .id)
+        studentName = try container.decodeIfPresent(String.self, forKey: .studentName)
+        reportType = try container.decode(ReportType.self, forKey: .reportType)
+        reportData = try container.decode(ReportData.self, forKey: .reportData)
+        aiAnalysisIncluded = try container.decode(Bool.self, forKey: .aiAnalysisIncluded)
+        viewedCount = try container.decodeIfPresent(Int.self, forKey: .viewedCount)
+        exportedCount = try container.decodeIfPresent(Int.self, forKey: .exportedCount)
+        cached = try container.decodeIfPresent(Bool.self, forKey: .cached)
+        generationTimeMs = try container.decodeIfPresent(Int.self, forKey: .generationTimeMs)
+
+        print("🔍 DECODING ParentReport - Basic fields decoded")
+
+        // Handle date parsing with debugging
+        let dateFormatter = ISO8601DateFormatter()
+
+        let startDateString = try container.decode(String.self, forKey: .startDate)
+        print("🗓️ Parsing startDate: '\(startDateString)'")
+        if let parsedStartDate = dateFormatter.date(from: startDateString) {
+            startDate = parsedStartDate
+            print("🗓️ Parsed startDate: \(parsedStartDate)")
+        } else {
+            startDate = Date()
+            print("❌ Failed to parse startDate, using current date: \(Date())")
+        }
+
+        let endDateString = try container.decode(String.self, forKey: .endDate)
+        print("🗓️ Parsing endDate: '\(endDateString)'")
+        if let parsedEndDate = dateFormatter.date(from: endDateString) {
+            endDate = parsedEndDate
+            print("🗓️ Parsed endDate: \(parsedEndDate)")
+        } else {
+            endDate = Date()
+            print("❌ Failed to parse endDate, using current date: \(Date())")
+        }
+
+        let generatedAtString = try container.decode(String.self, forKey: .generatedAt)
+        print("🗓️ Parsing generatedAt: '\(generatedAtString)'")
+        if let parsedGeneratedAt = dateFormatter.date(from: generatedAtString) {
+            generatedAt = parsedGeneratedAt
+            print("🗓️ Parsed generatedAt: \(parsedGeneratedAt)")
+        } else {
+            generatedAt = Date()
+            print("❌ Failed to parse generatedAt, using current date: \(Date())")
+        }
+
+        let expiresAtString = try container.decode(String.self, forKey: .expiresAt)
+        print("🗓️ Parsing expiresAt: '\(expiresAtString)'")
+        if let parsedExpiresAt = dateFormatter.date(from: expiresAtString) {
+            expiresAt = parsedExpiresAt
+            print("🗓️ Parsed expiresAt: \(parsedExpiresAt)")
+        } else {
+            expiresAt = Date()
+            print("❌ Failed to parse expiresAt, using current date: \(Date())")
+        }
+
+        print("🔍 DECODING ParentReport - COMPLETED")
+        print("   - Final startDate: \(startDate)")
+        print("   - Final endDate: \(endDate)")
+        print("   - Are dates equal? \(startDate == endDate)")
     }
 
     var reportTitle: String {
@@ -70,48 +138,7 @@ struct ParentReport: Codable, Identifiable {
         }
     }
 
-    enum CodingKeys: String, CodingKey {
-        case id
-        case userId = "userId"
-        case reportType = "report_type"
-        case startDate = "start_date"
-        case endDate = "end_date"
-        case reportData = "report_data"
-        case generatedAt = "generated_at"
-        case expiresAt = "expires_at"
-        case aiAnalysisIncluded = "ai_analysis_included"
-        case cached
-        case generationTimeMs = "generation_time_ms"
-    }
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        id = try container.decode(String.self, forKey: .id)
-        studentName = try container.decodeIfPresent(String.self, forKey: .studentName)
-        reportType = try container.decode(ReportType.self, forKey: .reportType)
-        reportData = try container.decode(ReportData.self, forKey: .reportData)
-        aiAnalysisIncluded = try container.decode(Bool.self, forKey: .aiAnalysisIncluded)
-        viewedCount = try container.decodeIfPresent(Int.self, forKey: .viewedCount)
-        exportedCount = try container.decodeIfPresent(Int.self, forKey: .exportedCount)
-        cached = try container.decodeIfPresent(Bool.self, forKey: .cached)
-        generationTimeMs = try container.decodeIfPresent(Int.self, forKey: .generationTimeMs)
-
-        // Handle date parsing
-        let dateFormatter = ISO8601DateFormatter()
-
-        let startDateString = try container.decode(String.self, forKey: .startDate)
-        startDate = dateFormatter.date(from: startDateString) ?? Date()
-
-        let endDateString = try container.decode(String.self, forKey: .endDate)
-        endDate = dateFormatter.date(from: endDateString) ?? Date()
-
-        let generatedAtString = try container.decode(String.self, forKey: .generatedAt)
-        generatedAt = dateFormatter.date(from: generatedAtString) ?? Date()
-
-        let expiresAtString = try container.decode(String.self, forKey: .expiresAt)
-        expiresAt = dateFormatter.date(from: expiresAtString) ?? Date()
-    }
 
     // Memberwise initializer for sample data
     init(

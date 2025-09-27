@@ -94,8 +94,8 @@ class ReportExportService: ObservableObject {
 
             let requestBody: [String: Any] = [
                 "to": recipients.filter { !$0.isEmpty },
-                "subject": subject.isEmpty ? nil : subject,
-                "message": message.isEmpty ? nil : message
+                "subject": subject.isEmpty ? nil as String? : subject,
+                "message": message.isEmpty ? nil as String? : message
             ].compactMapValues { $0 }
 
             var request = URLRequest(url: url)

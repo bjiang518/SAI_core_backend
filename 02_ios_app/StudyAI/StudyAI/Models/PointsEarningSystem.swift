@@ -12,11 +12,37 @@ import Combine
 // MARK: - Weekly Progress Models
 
 struct DailyQuestionActivity: Codable, Identifiable {
-    let id = UUID()
+    var id: UUID
     let date: String // "2024-01-15" (server calculated date)
     let dayOfWeek: Int // 1-7, Monday=1
     var questionCount: Int
     let timezone: String
+
+    // Custom initializer for JSON decoding - generates UUID if not provided
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Generate UUID for id since it's not in JSON
+        self.id = UUID()
+        self.date = try container.decode(String.self, forKey: .date)
+        self.dayOfWeek = try container.decode(Int.self, forKey: .dayOfWeek)
+        self.questionCount = try container.decode(Int.self, forKey: .questionCount)
+        self.timezone = try container.decode(String.self, forKey: .timezone)
+    }
+
+    // Regular initializer for programmatic creation
+    init(id: UUID = UUID(), date: String, dayOfWeek: Int, questionCount: Int, timezone: String) {
+        self.id = id
+        self.date = date
+        self.dayOfWeek = dayOfWeek
+        self.questionCount = questionCount
+        self.timezone = timezone
+    }
+
+    // Coding keys for JSON encoding/decoding (excludes id since it's generated)
+    enum CodingKeys: String, CodingKey {
+        case date, dayOfWeek, questionCount, timezone
+    }
     
     var intensityLevel: ActivityIntensity {
         switch questionCount {
@@ -104,7 +130,7 @@ struct ServerWeeklyProgressResponse: Codable {
 // MARK: - Learning Goals Configuration
 
 struct LearningGoal: Codable, Identifiable {
-    let id = UUID()
+    var id: UUID
     let type: LearningGoalType
     let title: String
     let description: String
@@ -114,6 +140,42 @@ struct LearningGoal: Codable, Identifiable {
     var currentProgress: Int = 0
     let isDaily: Bool
     let isWeekly: Bool
+
+    // Custom initializer for JSON decoding - generates UUID if not provided
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Generate UUID for id since it's not in JSON
+        self.id = UUID()
+        self.type = try container.decode(LearningGoalType.self, forKey: .type)
+        self.title = try container.decode(String.self, forKey: .title)
+        self.description = try container.decode(String.self, forKey: .description)
+        self.targetValue = try container.decode(Int.self, forKey: .targetValue)
+        self.basePoints = try container.decode(Int.self, forKey: .basePoints)
+        self.bonusMultiplier = try container.decode(Double.self, forKey: .bonusMultiplier)
+        self.currentProgress = try container.decodeIfPresent(Int.self, forKey: .currentProgress) ?? 0
+        self.isDaily = try container.decode(Bool.self, forKey: .isDaily)
+        self.isWeekly = try container.decode(Bool.self, forKey: .isWeekly)
+    }
+
+    // Regular initializer for programmatic creation
+    init(id: UUID = UUID(), type: LearningGoalType, title: String, description: String, targetValue: Int, basePoints: Int, bonusMultiplier: Double, currentProgress: Int = 0, isDaily: Bool, isWeekly: Bool) {
+        self.id = id
+        self.type = type
+        self.title = title
+        self.description = description
+        self.targetValue = targetValue
+        self.basePoints = basePoints
+        self.bonusMultiplier = bonusMultiplier
+        self.currentProgress = currentProgress
+        self.isDaily = isDaily
+        self.isWeekly = isWeekly
+    }
+
+    // Coding keys for JSON encoding/decoding (excludes id since it's generated)
+    enum CodingKeys: String, CodingKey {
+        case type, title, description, targetValue, basePoints, bonusMultiplier, currentProgress, isDaily, isWeekly
+    }
     
     var progressPercentage: Double {
         return min(Double(currentProgress) / Double(targetValue) * 100, 100.0)
@@ -830,12 +892,45 @@ class PointsEarningManager: ObservableObject {
 // MARK: - Supporting Models
 
 struct DailyCheckout: Codable, Identifiable {
-    let id = UUID()
+    var id: UUID
     let date: Date
     let pointsEarned: Int
     let goalsCompleted: Int
     let streak: Int
     let isWeekend: Bool
+
+    // Custom initializer for JSON decoding - generates UUID if not provided
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Generate UUID for id since it's not in JSON
+        self.id = UUID()
+
+        // Handle date parsing
+        let dateString = try container.decode(String.self, forKey: .date)
+        let formatter = ISO8601DateFormatter()
+        self.date = formatter.date(from: dateString) ?? Date()
+
+        self.pointsEarned = try container.decode(Int.self, forKey: .pointsEarned)
+        self.goalsCompleted = try container.decode(Int.self, forKey: .goalsCompleted)
+        self.streak = try container.decode(Int.self, forKey: .streak)
+        self.isWeekend = try container.decode(Bool.self, forKey: .isWeekend)
+    }
+
+    // Regular initializer for programmatic creation
+    init(id: UUID = UUID(), date: Date, pointsEarned: Int, goalsCompleted: Int, streak: Int, isWeekend: Bool) {
+        self.id = id
+        self.date = date
+        self.pointsEarned = pointsEarned
+        self.goalsCompleted = goalsCompleted
+        self.streak = streak
+        self.isWeekend = isWeekend
+    }
+
+    // Coding keys for JSON encoding/decoding (excludes id since it's generated)
+    enum CodingKeys: String, CodingKey {
+        case date, pointsEarned, goalsCompleted, streak, isWeekend
+    }
     
     var displayDate: String {
         let formatter = DateFormatter()

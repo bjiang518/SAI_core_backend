@@ -43,7 +43,7 @@ class TextToSpeechService: NSObject, ObservableObject {
             let audioSession = AVAudioSession.sharedInstance()
             
             // Use playback category with enhanced options for Elsa-like voice
-            try audioSession.setCategory(.playback, options: [.duckOthers, .defaultToSpeaker, .allowBluetooth])
+            try audioSession.setCategory(.playback, options: [.duckOthers, .defaultToSpeaker, .allowBluetoothA2DP])
             try audioSession.setActive(true)
             print("🔊 TextToSpeechService: Audio session setup successful")
             print("🔊 TextToSpeechService: Current category: \(audioSession.category)")
@@ -162,7 +162,7 @@ class TextToSpeechService: NSObject, ObservableObject {
             let audioSession = AVAudioSession.sharedInstance()
             
             // Temporarily switch to playAndRecord to allow both voice and TTS
-            try audioSession.setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker, .allowBluetooth])
+            try audioSession.setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker, .allowBluetoothA2DP])
             try audioSession.setActive(true)
             print("🔊 TextToSpeechService: Audio session configured for playback")
         } catch {

@@ -52,6 +52,11 @@ class ParentReportService: ObservableObject {
     ) async -> Result<ParentReport, ParentReportError> {
 
         print("📊 === PARENT REPORT GENERATION STARTED ===")
+        print("🔍 FUNCTION ENTRY - Parameters received:")
+        print("   - startDate: \(startDate)")
+        print("   - endDate: \(endDate)")
+        print("   - Dates are equal: \(startDate == endDate)")
+        print("   - Time difference: \(endDate.timeIntervalSince(startDate)) seconds")
         print("👤 Student ID: \(studentId)")
         print("📅 Date Range: \(startDate) to \(endDate)")
         print("📋 Report Type: \(reportType.rawValue)")
@@ -190,10 +195,12 @@ class ParentReportService: ObservableObject {
                         print("   - Final Narrative URL: \(reportData.narrativeURL ?? "nil")")
 
                         // Create a lightweight ParentReport for narrative-based reports
-                        let dateFormatter = ISO8601DateFormatter()
+                        let dateFormatter = DateFormatter()
+                        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                        dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
 
                         let reportDict: [String: Any] = [
-                            "report_id": reportId,  // Use correct key that matches ParentReport model
+                            "id": reportId,  // Fix: Use "id" key that matches ParentReport model CodingKeys
                             "userId": studentId,
                             "report_type": reportType.rawValue,
                             "start_date": dateFormatter.string(from: startDate),
@@ -204,7 +211,7 @@ class ParentReportService: ObservableObject {
                                 "url": reportData.narrativeURL ?? "",
                                 "userId": studentId // Add minimal backward compatibility
                             ],
-                            "generated_at": dateFormatter.string(from: Date()),
+                            "generated_at": dateFormatter.string(from: Date().addingTimeInterval(-30)), // Report was generated ~30 seconds ago
                             "expires_at": dateFormatter.string(from: reportResponse.expiresAt ?? Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()),
                             "ai_analysis_included": includeAIAnalysis,
                             "cached": reportResponse.cached ?? false,
@@ -251,7 +258,9 @@ class ParentReportService: ObservableObject {
                         }
 
                         // Create full ParentReport object using JSON encoding/decoding
-                        let dateFormatter = ISO8601DateFormatter()
+                        let dateFormatter = DateFormatter()
+                        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                        dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
 
                         // Convert reportData to dictionary directly without double encoding/decoding
                         let reportDataDict: [String: Any]
@@ -264,7 +273,7 @@ class ParentReportService: ObservableObject {
                         }
 
                         let reportDict: [String: Any] = [
-                            "report_id": reportId,  // Use correct key that matches ParentReport model
+                            "id": reportId,  // Fix: Use "id" key that matches ParentReport model CodingKeys
                             "userId": studentId,
                             "report_type": reportType.rawValue,
                             "start_date": dateFormatter.string(from: startDate),
@@ -573,7 +582,6 @@ class ParentReportService: ObservableObject {
                         }
                     }
 
-                    print("🔍 About to decode ParentReport.self from extracted report data...")
                     let report = try decoder.decode(ParentReport.self, from: reportData)
 
                     print("✅ Report fetched successfully: \(reportId)")

@@ -116,7 +116,7 @@ struct VoiceSettingsView: View {
                             EmptyView()
                         }
                         .tint(.blue)
-                        .onChange(of: tempSettings.speakingRate) { _ in
+                        .onChange(of: tempSettings.speakingRate) {
                             // Provide real-time feedback for rate changes
                             playQuickPreview()
                         }
@@ -154,7 +154,7 @@ struct VoiceSettingsView: View {
                             EmptyView()
                         }
                         .tint(.blue)
-                        .onChange(of: tempSettings.voicePitch) { _ in
+                        .onChange(of: tempSettings.voicePitch) {
                             // Provide real-time feedback for pitch changes
                             playQuickPreview()
                         }
@@ -192,7 +192,7 @@ struct VoiceSettingsView: View {
                             EmptyView()
                         }
                         .tint(.blue)
-                        .onChange(of: tempSettings.volume) { _ in
+                        .onChange(of: tempSettings.volume) {
                             // Provide real-time feedback for volume changes
                             playQuickPreview()
                         }

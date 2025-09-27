@@ -771,32 +771,23 @@ struct DirectAIHomeworkView: View {
         logger.info("📊 Original image size: \(image.size.width)x\(image.size.height)")
         
         Task {
-            do {
-                let startTime = Date()
-                
-                // 🆕 USE ADVANCED PREPROCESSING instead of basic compression
-                logger.info("🔧 === APPLYING ADVANCED IMAGE PREPROCESSING ===")
-                let processedImage = ImageProcessingService.shared.preprocessImageForAI(image) ?? image
-                logger.info("📊 Preprocessed image size: \(processedImage.size.width)x\(processedImage.size.height)")
+            let _ = Date()
 
-                // Store preprocessed image for preview
-                await MainActor.run {
-                    self.preprocessedImage = processedImage
-                    stateManager.processingStatus = "✨ Image enhanced! Review quality before sending to AI"
-                    self.showImageComparison = true
-                    self.isProcessing = false
-                }
+            // 🆕 USE ADVANCED PREPROCESSING instead of basic compression
+            logger.info("🔧 === APPLYING ADVANCED IMAGE PREPROCESSING ===")
+            let processedImage = ImageProcessingService.shared.preprocessImageForAI(image) ?? image
+            logger.info("📊 Preprocessed image size: \(processedImage.size.width)x\(processedImage.size.height)")
 
-                // Wait for user confirmation before proceeding
-                return
-            } catch {
-                await MainActor.run {
-                    stateManager.parsingError = "Preprocessing failed: \(error.localizedDescription)"
-                    stateManager.processingStatus = "❌ Preprocessing failed"
-                    showingErrorAlert = true
-                    isProcessing = false
-                }
+            // Store preprocessed image for preview
+            await MainActor.run {
+                self.preprocessedImage = processedImage
+                stateManager.processingStatus = "✨ Image enhanced! Review quality before sending to AI"
+                self.showImageComparison = true
+                self.isProcessing = false
             }
+
+            // Wait for user confirmation before proceeding
+            return
         }
     }
 
@@ -811,57 +802,47 @@ struct DirectAIHomeworkView: View {
         logger.info("📊 Final image size: \(image.size.width)x\(image.size.height)")
 
         Task {
-            do {
-                let startTime = Date()
+            let startTime = Date()
 
-                // Convert to data with aggressive compression
-                guard let imageData = compressPreprocessedImage(image) else {
-                    await MainActor.run {
-                        stateManager.parsingError = "Failed to compress image for upload"
-                        stateManager.processingStatus = "❌ Image compression failed"
-                        showingErrorAlert = true
-                        isProcessing = false
-                    }
-                    return
-                }
-
-                logger.info("📄 Final image data size: \(imageData.count) bytes")
-                let base64Image = imageData.base64EncodedString()
-                logger.info("📄 Base64 string length: \(base64Image.count) characters")
-                stateManager.originalImageUrl = "temp://homework-image-\(UUID().uuidString)"
-
+            // Convert to data with aggressive compression
+            guard let imageData = compressPreprocessedImage(image) else {
                 await MainActor.run {
-                    stateManager.processingStatus = "🤖 AI is analyzing your homework..."
-                }
-
-                logger.info("📡 Sending to AI for processing...")
-
-                // Process with AI
-                let result = await NetworkService.shared.processHomeworkImageWithSubjectDetection(
-                    base64Image: base64Image,
-                    prompt: ""
-                )
-
-                let processingTime = Date().timeIntervalSince(startTime)
-
-                await MainActor.run {
-                    if result.success, let response = result.response {
-                        logger.info("🎉 AI processing successful")
-                        processSuccessfulResponse(response, processingTime: processingTime)
-                    } else {
-                        logger.error("❌ AI processing failed")
-                        processFailedResponse(result, processingTime: processingTime)
-                    }
-                    isProcessing = false
-                }
-
-            } catch {
-                await MainActor.run {
-                    stateManager.parsingError = "AI processing failed: \(error.localizedDescription)"
-                    stateManager.processingStatus = "❌ AI processing failed"
+                    stateManager.parsingError = "Failed to compress image for upload"
+                    stateManager.processingStatus = "❌ Image compression failed"
                     showingErrorAlert = true
                     isProcessing = false
                 }
+                return
+            }
+
+            logger.info("📄 Final image data size: \(imageData.count) bytes")
+            let base64Image = imageData.base64EncodedString()
+            logger.info("📄 Base64 string length: \(base64Image.count) characters")
+            stateManager.originalImageUrl = "temp://homework-image-\(UUID().uuidString)"
+
+            await MainActor.run {
+                stateManager.processingStatus = "🤖 AI is analyzing your homework..."
+            }
+
+            logger.info("📡 Sending to AI for processing...")
+
+            // Process with AI
+            let result = await NetworkService.shared.processHomeworkImageWithSubjectDetection(
+                base64Image: base64Image,
+                prompt: ""
+            )
+
+            let processingTime = Date().timeIntervalSince(startTime)
+
+            await MainActor.run {
+                if result.success, let response = result.response {
+                    logger.info("🎉 AI processing successful")
+                    processSuccessfulResponse(response, processingTime: processingTime)
+                } else {
+                    logger.error("❌ AI processing failed")
+                    processFailedResponse(result, processingTime: processingTime)
+                }
+                isProcessing = false
             }
         }
     }

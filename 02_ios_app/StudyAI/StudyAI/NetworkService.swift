@@ -734,7 +734,7 @@ class NetworkService: ObservableObject {
     
     /// Debug method to check what user ID the backend thinks we are based on our token
     func debugAuthTokenMapping() async -> (success: Bool, backendUserId: String?, message: String) {
-        guard let token = AuthenticationService.shared.getAuthToken() else {
+        guard AuthenticationService.shared.getAuthToken() != nil else {
             return (false, nil, "No auth token available")
         }
         
@@ -782,8 +782,8 @@ class NetworkService: ObservableObject {
         
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
-            
-            if let httpResponse = response as? HTTPURLResponse {
+
+            if response is HTTPURLResponse {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     return (true, json)
                 }

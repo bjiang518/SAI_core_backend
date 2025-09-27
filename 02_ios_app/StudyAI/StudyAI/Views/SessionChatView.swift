@@ -547,7 +547,7 @@ struct SessionChatView: View {
             stopCurrentAudio()
         }
         .onChange(of: selectedImage) { _, newImage in
-            if let image = newImage {
+            if newImage != nil {
                 // Show iOS Messages-style input sheet instead of direct processing
                 showingImageInputSheet = true
             }
@@ -1755,7 +1755,7 @@ struct SessionChatView: View {
                 prompt
             
             // Store image data for message display
-            let imageDataForDisplay = imageData
+            _ = imageData
             
             // Add user message with image to conversation history immediately
             let messageId = UUID().uuidString
@@ -1810,7 +1810,7 @@ struct SessionChatView: View {
                     }
                 } else {
                     // Enhanced error handling for image processing
-                    let errorDetail = "Failed to process image"
+                    _ = "Failed to process image"
                     
                     if result.result?["error"] != nil {
                         // Try to extract error message from result if available
@@ -1891,7 +1891,7 @@ struct SessionChatView: View {
                     // Enhanced error handling for image processing
                     // processImageWithQuestion returns (success: Bool, result: [String: Any]?)
                     // so we need to provide a generic error message since there's no specific error detail
-                    let errorDetail = "Failed to process image"
+                    _ = "Failed to process image"
                     
                     if result.result?["error"] != nil {
                         // Try to extract error message from result if available

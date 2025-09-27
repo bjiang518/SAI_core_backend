@@ -61,7 +61,7 @@ enum ImageSource: String, CaseIterable {
 }
 
 struct ScannedPage: Identifiable, Equatable {
-    let id = UUID()
+    var id: UUID
     let originalImage: UIImage
     var processedImage: UIImage
     var cropRect: CGRect?
@@ -69,8 +69,9 @@ struct ScannedPage: Identifiable, Equatable {
     var enhanceParams: EnhanceParams
     var filename: String
     var fileSize: Int
-    
-    init(originalImage: UIImage, processedImage: UIImage? = nil, filename: String = "Document") {
+
+    init(id: UUID = UUID(), originalImage: UIImage, processedImage: UIImage? = nil, filename: String = "Document") {
+        self.id = id
         self.originalImage = originalImage
         self.processedImage = processedImage ?? originalImage
         self.enhanceParams = EnhanceParams()
@@ -88,14 +89,15 @@ struct EnhanceParams: Equatable {
 }
 
 struct HomeworkResult: Equatable {
-    let id = UUID()
+    var id: UUID
     let overallScore: Float
     let questions: [QuestionResult]
     let processingTime: TimeInterval
     let submittedAt: Date
     let suggestedActions: [String]
-    
-    init(overallScore: Float, questions: [QuestionResult], processingTime: TimeInterval) {
+
+    init(id: UUID = UUID(), overallScore: Float, questions: [QuestionResult], processingTime: TimeInterval) {
+        self.id = id
         self.overallScore = overallScore
         self.questions = questions
         self.processingTime = processingTime
@@ -123,7 +125,7 @@ struct HomeworkResult: Equatable {
 }
 
 struct QuestionResult: Identifiable, Equatable {
-    let id = UUID()
+    var id: UUID
     let questionNumber: Int
     let questionText: String
     let correctAnswer: String?
@@ -132,6 +134,18 @@ struct QuestionResult: Identifiable, Equatable {
     let confidence: Float
     let feedback: String
     let hints: [String]
+
+    init(id: UUID = UUID(), questionNumber: Int, questionText: String, correctAnswer: String?, studentAnswer: String?, isCorrect: Bool, confidence: Float, feedback: String, hints: [String]) {
+        self.id = id
+        self.questionNumber = questionNumber
+        self.questionText = questionText
+        self.correctAnswer = correctAnswer
+        self.studentAnswer = studentAnswer
+        self.isCorrect = isCorrect
+        self.confidence = confidence
+        self.feedback = feedback
+        self.hints = hints
+    }
 }
 
 // MARK: - Service Protocols

@@ -89,9 +89,16 @@ class SpeechRecognitionService: NSObject, ObservableObject {
     
     private func requestMicrophonePermission() async -> AVAudioSession.RecordPermission {
         return await withCheckedContinuation { continuation in
-            AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                let status: AVAudioSession.RecordPermission = granted ? .granted : .denied
-                continuation.resume(returning: status)
+            if #available(iOS 17.0, *) {
+                AVAudioApplication.requestRecordPermission { granted in
+                    let status: AVAudioSession.RecordPermission = granted ? .granted : .denied
+                    continuation.resume(returning: status)
+                }
+            } else {
+                AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                    let status: AVAudioSession.RecordPermission = granted ? .granted : .denied
+                    continuation.resume(returning: status)
+                }
             }
         }
     }
@@ -233,7 +240,7 @@ class SpeechRecognitionService: NSObject, ObservableObject {
     private func startAudioSession() throws {
         print("🎙️ SpeechRecognitionService: Setting up audio session for recording")
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetooth])
+        try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothA2DP])
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         print("🎙️ SpeechRecognitionService: Audio session configured for recording")
     }

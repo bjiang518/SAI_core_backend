@@ -388,8 +388,8 @@ extension UserProfile {
             "authProvider": authProvider,
             "kidsAges": kidsAges,
             "favoriteSubjects": favoriteSubjects,
-            "timezone": timezone,
-            "languagePreference": languagePreference,
+            "timezone": timezone as String?,
+            "languagePreference": languagePreference as String?,
             "profileCompletionPercentage": profileCompletionPercentage
         ]
         

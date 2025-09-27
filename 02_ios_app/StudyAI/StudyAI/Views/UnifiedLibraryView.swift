@@ -526,7 +526,7 @@ struct LibraryItemRow: View {
     private func iconForItem(_ item: LibraryItem) -> String {
         switch item.itemType {
         case .question:
-            if let conversationItem = item as? ConversationLibraryItem {
+            if item is ConversationLibraryItem {
                 // Check if this is a homework session
                 return "doc.text.fill" // Homework session icon
             }
@@ -539,7 +539,7 @@ struct LibraryItemRow: View {
     private func colorForItem(_ item: LibraryItem) -> Color {
         switch item.itemType {
         case .question:
-            if let conversationItem = item as? ConversationLibraryItem {
+            if item is ConversationLibraryItem {
                 return .purple // Homework sessions in purple
             }
             return .blue // Individual questions in blue
@@ -551,7 +551,7 @@ struct LibraryItemRow: View {
     private func labelForItem(_ item: LibraryItem) -> String {
         switch item.itemType {
         case .question:
-            if let conversationItem = item as? ConversationLibraryItem {
+            if item is ConversationLibraryItem {
                 return "Homework Session"
             }
             return "Archived Question"

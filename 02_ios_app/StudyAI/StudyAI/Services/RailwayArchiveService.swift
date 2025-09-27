@@ -43,9 +43,8 @@ class RailwayArchiveService: ObservableObject {
         
         let requestData: [String: Any] = [
             "subject": request.subject.isEmpty ? "General" : request.subject,
-            "subject": request.subject.isEmpty ? "General" : request.subject,
             "title": generateTitle(request.homeworkResult, request.subject),
-            "originalImageUrl": request.originalImageUrl,
+            "originalImageUrl": request.originalImageUrl as String?,
             "thumbnailUrl": nil as String?,
             "aiParsingResult": [
                 "questions": request.homeworkResult.questions.map { question in
@@ -112,7 +111,7 @@ class RailwayArchiveService: ObservableObject {
     // MARK: - Fetch Combined Archives (Conversations + Questions)
     
     func fetchArchivedSessions(limit: Int = 50, offset: Int = 0) async throws -> [SessionSummary] {
-        guard let token = authToken else {
+        guard authToken != nil else {
             throw ArchiveError.notAuthenticated
         }
         

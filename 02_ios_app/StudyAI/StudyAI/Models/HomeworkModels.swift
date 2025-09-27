@@ -141,15 +141,33 @@ struct HomeworkParsingResult: Codable {
 
 // MARK: - Mistake Review Models
 struct SubjectMistakeCount: Codable, Identifiable {
-    let id = UUID()
+    var id: UUID
     let subject: String
     let mistakeCount: Int
     let icon: String
 
+    // Custom initializer for JSON decoding - generates UUID if not provided
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Generate UUID for id since it's not in JSON
+        self.id = UUID()
+        self.subject = try container.decode(String.self, forKey: .subject)
+        self.mistakeCount = try container.decode(Int.self, forKey: .mistakeCount)
+        self.icon = try container.decode(String.self, forKey: .icon)
+    }
+
+    // Regular initializer for programmatic creation
+    init(id: UUID = UUID(), subject: String, mistakeCount: Int, icon: String) {
+        self.id = id
+        self.subject = subject
+        self.mistakeCount = mistakeCount
+        self.icon = icon
+    }
+
+    // Coding keys for JSON encoding/decoding (excludes id since it's generated)
     enum CodingKeys: String, CodingKey {
-        case subject
-        case mistakeCount
-        case icon
+        case subject, mistakeCount, icon
     }
 }
 
