@@ -723,30 +723,9 @@ class ParentReportService: ObservableObject {
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601
 
+                let reportsResponse: StudentReportsResponse
                 do {
-                    let reportsResponse = try decoder.decode(StudentReportsResponse.self, from: data)
-                    print("✅ Successfully decoded StudentReportsResponse")
-                    print("📋 Reports Response Debug:")
-                    print("   - Success: \(reportsResponse.success)")
-                    print("   - Reports Count: \(reportsResponse.reports.count)")
-                    print("   - Total: \(reportsResponse.pagination.total)")
-                    print("   - Has More: \(reportsResponse.pagination.hasMore)")
-
-                    // Debug each report
-                    for (index, report) in reportsResponse.reports.enumerated() {
-                        print("📋 Report \(index + 1):")
-                        print("   - ID: \(report.id)")
-                        print("   - Type: \(report.reportType.rawValue)")
-                        print("   - Date Range: \(report.startDate) to \(report.endDate)")
-                        print("   - Generated At: \(report.generatedAt)")
-                        print("   - AI Analysis: \(report.aiAnalysisIncluded)")
-                        print("   - Views: \(report.viewedCount ?? 0)")
-                        print("   - Exports: \(report.exportedCount ?? 0)")
-                    }
-
-                    if let error = reportsResponse.error {
-                        print("⚠️ Reports response contains error: \(error)")
-                    }
+                    reportsResponse = try decoder.decode(StudentReportsResponse.self, from: data)
                 } catch {
                     print("❌ Failed to decode StudentReportsResponse: \(error)")
                     print("❌ Decoder error details: \(error.localizedDescription)")
@@ -755,8 +734,6 @@ class ParentReportService: ObservableObject {
                     }
                     throw error
                 }
-
-                let reportsResponse = try decoder.decode(StudentReportsResponse.self, from: data)
 
                 if reportsResponse.success {
                     await MainActor.run {

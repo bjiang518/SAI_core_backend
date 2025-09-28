@@ -11,7 +11,6 @@ import SwiftUI
 struct ParentReportsView: View {
     @StateObject private var reportService = ParentReportService.shared
     @StateObject private var authService = AuthenticationService.shared
-    @State private var showingDateRangeSelector = false
     @State private var selectedReport: ParentReport?
     @State private var isGeneratingReport = false
 
@@ -32,25 +31,6 @@ struct ParentReportsView: View {
             }
             .navigationTitle("Parent Reports")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        showingDateRangeSelector = true
-                    }) {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.blue)
-                    }
-                    .disabled(isGeneratingReport)
-                }
-            }
-            .sheet(isPresented: $showingDateRangeSelector) {
-                ReportDateRangeSelector(
-                    onReportGenerated: { report in
-                        selectedReport = report
-                        // No need to set showingReportDetail - sheet(item:) handles this automatically
-                    }
-                )
-            }
             .sheet(item: $selectedReport) { report in
                 ReportDetailView(report: report)
                     .onAppear {
@@ -105,6 +85,7 @@ struct ParentReportsView: View {
 
             LazyVGrid(columns: [
                 GridItem(.flexible()),
+                GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 16) {
                 Button(action: {
@@ -112,8 +93,8 @@ struct ParentReportsView: View {
                 }) {
                     ReportActionCard(
                         icon: "calendar.badge.clock",
-                        title: "Weekly Report",
-                        subtitle: "Last 7 days",
+                        title: "Weekly\nReport",
+                        subtitle: "",
                         color: .green
                     )
                 }
@@ -125,22 +106,9 @@ struct ParentReportsView: View {
                 }) {
                     ReportActionCard(
                         icon: "calendar",
-                        title: "Monthly Report",
-                        subtitle: "Last 30 days",
+                        title: "Monthly\nReport",
+                        subtitle: "",
                         color: .orange
-                    )
-                }
-                .buttonStyle(PlainButtonStyle())
-                .disabled(isGeneratingReport)
-
-                Button(action: {
-                    showingDateRangeSelector = true
-                }) {
-                    ReportActionCard(
-                        icon: "calendar.badge.plus",
-                        title: "Custom Range",
-                        subtitle: "Choose dates",
-                        color: .purple
                     )
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -151,8 +119,8 @@ struct ParentReportsView: View {
                 }) {
                     ReportActionCard(
                         icon: "chart.line.uptrend.xyaxis",
-                        title: "Progress Report",
-                        subtitle: "Detailed analysis",
+                        title: "Progress\nReport",
+                        subtitle: "",
                         color: .blue
                     )
                 }

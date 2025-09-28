@@ -161,7 +161,6 @@ class NetworkService: ObservableObject {
         networkMonitor.pathUpdateHandler = { [weak self] path in
             DispatchQueue.main.async {
                 self?.isNetworkAvailable = path.status == .satisfied
-                print("📡 Network status updated: \(path.status == .satisfied ? "Connected" : "Disconnected")")
             }
         }
         print("🔍 Starting network monitor on background queue...")
