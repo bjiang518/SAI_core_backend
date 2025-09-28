@@ -56,12 +56,14 @@ struct ReportDetailView: View {
                         .padding()
                     } else {
                         // Fallback to legacy analytics format if no narrative is available
-                        // Section Picker
-                        sectionPicker
+                        VStack(spacing: 0) {
+                            // Section Picker
+                            sectionPicker
 
-                        // Content
-                        selectedSectionContent
-                            .padding()
+                            // Content
+                            selectedSectionContent
+                                .padding()
+                        }
                     }
                 }
             }
@@ -86,10 +88,6 @@ struct ReportDetailView: View {
                 ReportExportView(report: report)
             }
             .onAppear {
-                // Always try to load narrative content for any report
-                // This handles both:
-                // 1. Reports explicitly marked as narrative reports
-                // 2. Existing reports that may have narratives in the database
                 print("🔍 ReportDetailView appeared for report: \(report.id)")
                 print("🔍 Report type: \(report.reportType.rawValue)")
                 print("🔍 Is narrative report: \(report.reportData.isNarrativeReport)")
@@ -345,6 +343,12 @@ struct ReportDetailView: View {
 
     // MARK: - Narrative Loading
     private func loadNarrativeContent() {
+        // Prevent multiple loads if already loading or loaded
+        guard narrativeContent == nil && !isLoadingNarrative else {
+            print("📝 Skipping narrative load - already loading or loaded")
+            return
+        }
+
         print("📝 === ATTEMPTING TO LOAD NARRATIVE CONTENT ===")
         print("📝 Report ID: \(report.id)")
         print("📝 Report Data Type: \(report.reportData.type ?? "nil")")
@@ -380,8 +384,9 @@ struct ReportDetailView: View {
                     narrativeContent = nil
 
                     // If narrative fetch fails, we should still show the report
-                    // but without narrative content (fall back to empty state)
-                    print("📝 Will show empty narrative state in UI")
+                    // but fall back to the legacy analytics format
+                    print("📝 Narrative fetch failed - will show legacy analytics format")
+                    print("📝 UI will now display: isLoadingNarrative=\(self.isLoadingNarrative), narrativeContent=\(self.narrativeContent != nil)")
                 }
             }
         }

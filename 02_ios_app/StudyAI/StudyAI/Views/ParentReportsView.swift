@@ -12,7 +12,6 @@ struct ParentReportsView: View {
     @StateObject private var reportService = ParentReportService.shared
     @StateObject private var authService = AuthenticationService.shared
     @State private var showingDateRangeSelector = false
-    @State private var showingReportDetail = false
     @State private var selectedReport: ParentReport?
     @State private var isGeneratingReport = false
 
@@ -28,9 +27,6 @@ struct ParentReportsView: View {
 
                     // Recent Reports
                     recentReportsSection
-
-                    // Report Analytics
-                    analyticsSection
                 }
                 .padding()
             }
@@ -51,14 +47,15 @@ struct ParentReportsView: View {
                 ReportDateRangeSelector(
                     onReportGenerated: { report in
                         selectedReport = report
-                        showingReportDetail = true
+                        // No need to set showingReportDetail - sheet(item:) handles this automatically
                     }
                 )
             }
-            .sheet(isPresented: $showingReportDetail) {
-                if let report = selectedReport {
-                    ReportDetailView(report: report)
-                }
+            .sheet(item: $selectedReport) { report in
+                ReportDetailView(report: report)
+                    .onAppear {
+                        print("🔍 ReportDetailView sheet appeared with report: \(report.id)")
+                    }
             }
             .onAppear {
                 loadRecentReports()
@@ -199,20 +196,6 @@ struct ParentReportsView: View {
         }
     }
 
-    // MARK: - Analytics Section
-    private var analyticsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Quick Insights")
-                .font(.headline)
-
-            if let lastReport = reportService.lastGeneratedReport {
-                ReportInsightsCard(report: lastReport)
-            } else {
-                AnalyticsEmptyState()
-            }
-        }
-    }
-
     // MARK: - Actions
     private func loadRecentReports() {
         guard let userId = authService.currentUser?.id else { return }
@@ -311,7 +294,7 @@ struct ParentReportsView: View {
                 switch result {
                 case .success(let report):
                     selectedReport = report
-                    showingReportDetail = true
+                    // No need to set showingReportDetail - sheet(item:) handles this automatically
                 case .failure(let error):
                     print("Failed to load cached report: \(error.localizedDescription)")
                     // Handle error - could show alert or fallback to generation
@@ -339,7 +322,7 @@ struct ParentReportsView: View {
                 switch result {
                 case .success(let report):
                     selectedReport = report
-                    showingReportDetail = true
+                    // No need to set showingReportDetail - sheet(item:) handles this automatically
                 case .failure(let error):
                     print("Report generation failed: \(error.localizedDescription)")
                     // Handle error - could show alert
@@ -354,8 +337,9 @@ struct ParentReportsView: View {
         await MainActor.run {
             switch result {
             case .success(let report):
+                print("🔍 Setting selectedReport which will trigger sheet presentation")
                 selectedReport = report
-                showingReportDetail = true
+                // No need to set showingReportDetail - sheet(item:) handles this automatically
             case .failure(let error):
                 print("Failed to load report: \(error.localizedDescription)")
                 // Handle error
@@ -453,6 +437,7 @@ struct ReportListCard: View {
     private func formatDateRange(start: Date, end: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
+        formatter.timeZone = TimeZone(abbreviation: "UTC")
         return "\(formatter.string(from: start)) - \(formatter.string(from: end))"
     }
 }
@@ -476,87 +461,6 @@ struct RecentReportsEmptyState: View {
             }
         }
         .padding(.vertical, 32)
-        .frame(maxWidth: .infinity)
-    }
-}
-
-struct AnalyticsEmptyState: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "chart.bar.doc.horizontal")
-                .font(.system(size: 32))
-                .foregroundColor(.secondary)
-
-            Text("Generate a report to see insights")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
-        .frame(maxWidth: .infinity)
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
-}
-
-struct ReportInsightsCard: View {
-    let report: ParentReport
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Latest Report Highlights")
-                .font(.subheadline)
-                .fontWeight(.medium)
-
-            HStack(spacing: 16) {
-                InsightItem(
-                    icon: "target",
-                    title: "Accuracy",
-                    value: report.reportData.academic?.accuracyPercentage ?? "N/A",
-                    color: .green
-                )
-
-                InsightItem(
-                    icon: "clock.fill",
-                    title: "Study Time",
-                    value: "\(Int(report.reportData.activity?.totalStudyHours ?? 0))h",
-                    color: .blue
-                )
-
-                InsightItem(
-                    icon: "heart.fill",
-                    title: "Wellbeing",
-                    value: report.reportData.mentalHealth?.wellbeingPercentage ?? "N/A",
-                    color: report.reportData.mentalHealth?.wellbeingColor ?? .gray
-                )
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
-}
-
-struct InsightItem: View {
-    let icon: String
-    let title: String
-    let value: String
-    let color: Color
-
-    var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundColor(color)
-
-            Text(value)
-                .font(.caption)
-                .fontWeight(.semibold)
-
-            Text(title)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-        }
         .frame(maxWidth: .infinity)
     }
 }

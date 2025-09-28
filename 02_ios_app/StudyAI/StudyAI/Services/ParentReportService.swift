@@ -450,10 +450,18 @@ class ParentReportService: ObservableObject {
 
                 let narrativeResponse = try decoder.decode(NarrativeResponse.self, from: data)
 
-                if narrativeResponse.success, let narrative = narrativeResponse.narrative {
-                    print("✅ Narrative fetched successfully!")
-                    print("📝 Final narrative ID: \(narrative.id)")
-                    return .success(narrative)
+                if narrativeResponse.success {
+                    if let narrative = narrativeResponse.narrative {
+                        print("✅ Narrative fetched successfully!")
+                        print("📝 Final narrative ID: \(narrative.id)")
+                        return .success(narrative)
+                    } else {
+                        // Success response but no narrative content (legacy report)
+                        print("📝 No narrative content available for this report (legacy format)")
+                        let error = ParentReportError.fetchFailed("No narrative content available")
+                        await MainActor.run { lastError = error }
+                        return .failure(error)
+                    }
                 } else {
                     let errorMessage = narrativeResponse.error ?? "Failed to fetch narrative"
                     print("❌ Narrative fetch failed: \(errorMessage)")

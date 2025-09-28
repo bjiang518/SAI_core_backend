@@ -32,6 +32,7 @@ struct ParentReport: Codable, Identifiable {
     var dateRange: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
+        formatter.timeZone = TimeZone(abbreviation: "UTC")
         let result = "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
         print("🗓️ DateRange computed: '\(result)' from startDate: \(startDate) to endDate: \(endDate)")
         return result
