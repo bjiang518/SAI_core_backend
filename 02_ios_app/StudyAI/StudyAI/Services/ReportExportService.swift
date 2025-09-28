@@ -8,6 +8,8 @@
 import Foundation
 import SwiftUI
 import Combine
+import PDFKit
+import Charts
 
 @MainActor
 class ReportExportService: ObservableObject {
@@ -33,74 +35,23 @@ class ReportExportService: ObservableObject {
         }
 
         do {
-            exportStatus = "Checking narrative content..."
+            exportStatus = "Fetching report data..."
             exportProgress = 0.2
 
-            // First, try to fetch narrative content to ensure it exists
+            // Fetch narrative content
             let narrativeResult = await ParentReportService.shared.fetchNarrative(reportId: reportId)
-            let hasNarrative: Bool
-            switch narrativeResult {
-            case .success(let narrative):
-                print("✅ Narrative content found - ID: \(narrative.id), Content length: \(narrative.content.count) chars")
-                hasNarrative = true
-            case .failure(let error):
-                print("❌ No narrative content found: \(error.localizedDescription)")
-                hasNarrative = false
-            }
+            let narrative = try? narrativeResult.get()
 
-            print("📝 Narrative availability check: \(hasNarrative ? "Available" : "Not Available")")
-            exportProgress = 0.3
-
-            // Strategy 1: Try PDF export specifically designed for narrative reports
-            if hasNarrative {
-                exportStatus = "Generating narrative PDF..."
-                let narrativeEndpoint = "\(networkService.apiBaseURL)/api/reports/\(reportId)/export/narrative?format=\(format.rawValue)"
-
-                do {
-                    return try await attemptNarrativeExport(endpoint: narrativeEndpoint, reportId: reportId, format: format)
-                } catch {
-                    print("⚠️ Narrative-specific export failed: \(error)")
-                }
-            }
-
-            // Strategy 2: Try comprehensive export endpoint
-            exportProgress = 0.4
-            exportStatus = "Generating comprehensive PDF..."
-            let comprehensiveEndpoint = "\(networkService.apiBaseURL)/api/reports/\(reportId)/export/comprehensive?format=\(format.rawValue)"
-
-            do {
-                return try await attemptComprehensiveExport(endpoint: comprehensiveEndpoint, reportId: reportId, format: format)
-            } catch {
-                print("⚠️ Comprehensive export failed: \(error)")
-            }
-
-            // Strategy 3: Standard export with explicit narrative parameters
+            exportStatus = "Generating PDF with charts..."
             exportProgress = 0.5
-            exportStatus = "Generating enhanced PDF..."
-            let standardEndpoint = "\(networkService.apiBaseURL)/api/reports/\(reportId)/export?format=\(format.rawValue)&include_narrative=true&include_analytics=true&content_type=comprehensive&export_type=full"
 
-            do {
-                return try await attemptStandardExport(endpoint: standardEndpoint, reportId: reportId, format: format)
-            } catch {
-                print("⚠️ Standard export with narrative failed: \(error)")
-            }
+            // Generate PDF locally with charts and narrative
+            let fileURL = try await generateLocalPDF(reportId: reportId, narrative: narrative)
 
-            // Strategy 4: Try POST request with narrative content body (if narrative exists)
-            if hasNarrative, case .success(let narrative) = narrativeResult {
-                exportProgress = 0.6
-                exportStatus = "Creating custom narrative PDF..."
-                do {
-                    return try await attemptPostExportWithNarrative(reportId: reportId, format: format, narrative: narrative)
-                } catch {
-                    print("⚠️ POST export with narrative failed: \(error)")
-                }
-            }
+            exportProgress = 1.0
+            exportStatus = "PDF generated successfully!"
 
-            // Final fallback to basic export (warn user that narrative may not be included)
-            print("⚠️ All narrative-inclusive export attempts failed, falling back to basic export")
-            exportProgress = 0.7
-            exportStatus = "Generating basic PDF (may not include narrative)..."
-            return try await exportReportBasic(reportId: reportId, format: format)
+            return fileURL
 
         } catch {
             print("❌ Export error: \(error)")
@@ -108,264 +59,200 @@ class ReportExportService: ObservableObject {
         }
     }
 
-    // MARK: - Export Methods
+    private func generateLocalPDF(reportId: String, narrative: NarrativeReport?) async throws -> URL {
+        return try await withCheckedThrowingContinuation { continuation in
+            Task { @MainActor in
+                do {
+                    // Create PDF document
+                    let pdfDocument = PDFDocument()
 
-    private func attemptNarrativeExport(endpoint: String, reportId: String, format: ReportExportView.ExportFormat) async throws -> URL {
-        exportStatus = "Generating narrative-focused PDF..."
+                    // Generate PDF page with charts and narrative
+                    let pdfPage = try await createPDFPage(reportId: reportId, narrative: narrative)
+                    pdfDocument.insert(pdfPage, at: 0)
 
-        guard let url = URL(string: endpoint) else {
-            throw ReportExportError.networkError("Invalid narrative export URL")
+                    // Save to temporary file
+                    let fileName = "report_\(reportId)_enhanced.pdf"
+                    let tempDirectory = FileManager.default.temporaryDirectory
+                    let fileURL = tempDirectory.appendingPathComponent(fileName)
+
+                    guard pdfDocument.write(to: fileURL) else {
+                        throw ReportExportError.fileSystemError("Failed to write PDF file")
+                    }
+
+                    continuation.resume(returning: fileURL)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
         }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/pdf", forHTTPHeaderField: "Accept")
-        request.setValue("narrative-focus", forHTTPHeaderField: "X-Export-Type")
-        request.setValue("narrative", forHTTPHeaderField: "X-Report-Content-Type")
-
-        // Add authentication header
-        if let token = AuthenticationService.shared.getAuthToken() {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-
-        print("📤 Requesting narrative export: \(endpoint)")
-        exportProgress = 0.6
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ReportExportError.networkError("Invalid response")
-        }
-
-        print("📥 Narrative export response: \(httpResponse.statusCode)")
-
-        guard httpResponse.statusCode == 200 else {
-            throw ReportExportError.networkError("Narrative export failed with status \(httpResponse.statusCode)")
-        }
-
-        exportProgress = 0.9
-
-        // Save the file to temporary storage
-        let fileName = "report_\(reportId)_narrative.pdf"
-        let fileURL = try saveToTemporaryFile(data: data, fileName: fileName)
-
-        exportProgress = 1.0
-        exportStatus = "Narrative PDF generated!"
-
-        print("✅ Narrative PDF exported successfully")
-        print("📄 File size: \(data.count) bytes")
-        print("📁 File location: \(fileURL.path)")
-
-        return fileURL
     }
 
-    private func attemptPostExportWithNarrative(reportId: String, format: ReportExportView.ExportFormat, narrative: NarrativeReport) async throws -> URL {
-        exportStatus = "Creating custom PDF with narrative..."
+    private func createPDFPage(reportId: String, narrative: NarrativeReport?) async throws -> PDFPage {
+        // Create a PDF page with custom content
+        let pageSize = CGSize(width: 612, height: 792) // Standard US Letter size
 
-        let endpoint = "\(networkService.apiBaseURL)/api/reports/\(reportId)/export/custom"
-        guard let url = URL(string: endpoint) else {
-            throw ReportExportError.networkError("Invalid custom export URL")
+        let renderer = UIGraphicsImageRenderer(size: pageSize)
+        let pdfImage = renderer.image { context in
+            let cgContext = context.cgContext
+
+            // White background
+            cgContext.setFillColor(UIColor.white.cgColor)
+            cgContext.fill(CGRect(origin: .zero, size: pageSize))
+
+            // Draw content
+            drawPDFContent(context: cgContext, pageSize: pageSize, reportId: reportId, narrative: narrative)
         }
 
-        // Create request body with narrative content
-        let requestBody = [
-            "format": format.rawValue,
-            "include_narrative": true,
-            "narrative_content": [
-                "id": narrative.id,
-                "summary": narrative.summary,
-                "content": narrative.content,
-                "key_insights": narrative.keyInsights,
-                "recommendations": narrative.recommendations
-            ],
-            "export_type": "comprehensive"
-        ] as [String : Any]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/pdf", forHTTPHeaderField: "Accept")
-        request.setValue("custom-narrative", forHTTPHeaderField: "X-Export-Type")
-
-        // Add authentication header
-        if let token = AuthenticationService.shared.getAuthToken() {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        // Convert UIImage to PDFPage
+        guard let pdfPage = PDFPage(image: pdfImage) else {
+            throw ReportExportError.fileSystemError("Failed to create PDF page")
         }
 
-        let requestData = try JSONSerialization.data(withJSONObject: requestBody)
-        request.httpBody = requestData
-
-        print("📤 Requesting custom POST export with narrative content")
-        print("📄 Narrative content included: \(narrative.content.count) chars")
-        exportProgress = 0.8
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ReportExportError.networkError("Invalid response")
-        }
-
-        print("📥 Custom export response: \(httpResponse.statusCode)")
-
-        guard httpResponse.statusCode == 200 else {
-            throw ReportExportError.networkError("Custom export failed with status \(httpResponse.statusCode)")
-        }
-
-        exportProgress = 0.9
-
-        // Save the file to temporary storage
-        let fileName = "report_\(reportId)_custom_narrative.pdf"
-        let fileURL = try saveToTemporaryFile(data: data, fileName: fileName)
-
-        exportProgress = 1.0
-        exportStatus = "Custom narrative PDF generated!"
-
-        print("✅ Custom narrative PDF exported successfully")
-        print("📄 File size: \(data.count) bytes")
-        print("📁 File location: \(fileURL.path)")
-
-        return fileURL
+        return pdfPage
     }
 
-    private func attemptComprehensiveExport(endpoint: String, reportId: String, format: ReportExportView.ExportFormat) async throws -> URL {
-        exportStatus = "Generating comprehensive PDF with narrative..."
+    private func drawPDFContent(context: CGContext, pageSize: CGSize, reportId: String, narrative: NarrativeReport?) {
+        // Save graphics state
+        context.saveGState()
 
-        guard let url = URL(string: endpoint) else {
-            throw ReportExportError.networkError("Invalid comprehensive export URL")
-        }
+        let margin: CGFloat = 40
+        let contentWidth = pageSize.width - (margin * 2)
+        let currentY = margin
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/pdf", forHTTPHeaderField: "Accept")
-        request.setValue("narrative-included", forHTTPHeaderField: "X-Export-Type")
-        request.setValue("comprehensive", forHTTPHeaderField: "X-Report-Content-Type")
+        var yPosition = currentY
 
-        // Add authentication header
-        if let token = AuthenticationService.shared.getAuthToken() {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
+        // Title
+        yPosition += drawTitle(context: context, rect: CGRect(x: margin, y: yPosition, width: contentWidth, height: 50))
+        yPosition += 30
 
-        print("📤 Requesting comprehensive export: \(endpoint)")
-        exportProgress = 0.6
+        // Narrative Section (use full remaining space)
+        let remainingHeight = pageSize.height - yPosition - margin
+        drawNarrativeSection(context: context, rect: CGRect(x: margin, y: yPosition, width: contentWidth, height: remainingHeight), narrative: narrative)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ReportExportError.networkError("Invalid response")
-        }
-
-        print("📥 Comprehensive export response: \(httpResponse.statusCode)")
-
-        guard httpResponse.statusCode == 200 else {
-            throw ReportExportError.networkError("Comprehensive export failed with status \(httpResponse.statusCode)")
-        }
-
-        exportProgress = 0.9
-
-        // Save the file to temporary storage
-        let fileName = "report_\(reportId)_comprehensive.\(format.rawValue)"
-        let fileURL = try saveToTemporaryFile(data: data, fileName: fileName)
-
-        exportProgress = 1.0
-        exportStatus = "Comprehensive PDF generated!"
-
-        print("✅ Comprehensive PDF exported successfully with narrative content")
-        print("📄 File size: \(data.count) bytes")
-        print("📁 File location: \(fileURL.path)")
-
-        return fileURL
+        context.restoreGState()
     }
 
-    private func attemptStandardExport(endpoint: String, reportId: String, format: ReportExportView.ExportFormat) async throws -> URL {
-        exportStatus = "Generating enhanced PDF..."
+    private func drawTitle(context: CGContext, rect: CGRect) -> CGFloat {
+        let title = "Study Progress Report"
+        let subtitle = Date().formatted(date: .abbreviated, time: .omitted)
 
-        guard let url = URL(string: endpoint) else {
-            throw ReportExportError.networkError("Invalid standard export URL")
-        }
+        // Main title
+        let titleFont = UIFont.boldSystemFont(ofSize: 18)
+        let titleAttributes: [NSAttributedString.Key: Any] = [
+            .font: titleFont,
+            .foregroundColor: UIColor.black
+        ]
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/pdf", forHTTPHeaderField: "Accept")
-        request.setValue("enhanced", forHTTPHeaderField: "X-Export-Type")
+        let titleString = NSAttributedString(string: title, attributes: titleAttributes)
+        let titleSize = titleString.size()
+        titleString.draw(at: CGPoint(x: rect.minX, y: rect.minY))
 
-        // Add authentication header
-        if let token = AuthenticationService.shared.getAuthToken() {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
+        // Subtitle
+        let subtitleFont = UIFont.systemFont(ofSize: 12)
+        let subtitleAttributes: [NSAttributedString.Key: Any] = [
+            .font: subtitleFont,
+            .foregroundColor: UIColor.gray
+        ]
 
-        print("📤 Requesting enhanced export: \(endpoint)")
-        exportProgress = 0.7
+        let subtitleString = NSAttributedString(string: subtitle, attributes: subtitleAttributes)
+        subtitleString.draw(at: CGPoint(x: rect.minX, y: rect.minY + titleSize.height + 3))
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ReportExportError.networkError("Invalid response")
-        }
-
-        print("📥 Enhanced export response: \(httpResponse.statusCode)")
-
-        guard httpResponse.statusCode == 200 else {
-            throw ReportExportError.networkError("Enhanced export failed with status \(httpResponse.statusCode)")
-        }
-
-        exportProgress = 0.9
-
-        // Save the file to temporary storage
-        let fileName = "report_\(reportId)_enhanced.\(format.rawValue)"
-        let fileURL = try saveToTemporaryFile(data: data, fileName: fileName)
-
-        exportProgress = 1.0
-        exportStatus = "Enhanced PDF generated!"
-
-        print("✅ Enhanced PDF exported successfully")
-        print("📄 File size: \(data.count) bytes")
-
-        return fileURL
+        return titleSize.height + 15
     }
 
-    // MARK: - Fallback Export Method
 
-    private func exportReportBasic(reportId: String, format: ReportExportView.ExportFormat) async throws -> URL {
-        exportStatus = "Generating basic \(format.displayName.lowercased())..."
-        exportProgress = 0.6
-
-        let endpoint = "\(networkService.apiBaseURL)/api/reports/\(reportId)/export?format=\(format.rawValue)"
-
-        guard let url = URL(string: endpoint) else {
-            throw ReportExportError.networkError("Invalid URL")
+    private func drawNarrativeSection(context: CGContext, rect: CGRect, narrative: NarrativeReport?) {
+        guard let narrative = narrative else {
+            // Draw placeholder text if no narrative
+            let placeholderFont = UIFont.systemFont(ofSize: 14)
+            let placeholderText = "Narrative content is not available for this report."
+            let placeholderString = NSAttributedString(string: placeholderText, attributes: [.font: placeholderFont, .foregroundColor: UIColor.gray])
+            placeholderString.draw(in: rect)
+            return
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        var yPosition = rect.minY
 
-        // Add authentication header
-        if let token = AuthenticationService.shared.getAuthToken() {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        // Key Insights Section
+        if !narrative.keyInsights.isEmpty {
+            let insightsText = narrative.keyInsights.enumerated().map { index, insight in
+                "• \(insight)"
+            }.joined(separator: "\n\n")
+
+            yPosition += drawNarrativeBlock(
+                context: context,
+                title: "Key Insights",
+                content: insightsText,
+                rect: CGRect(x: rect.minX, y: yPosition, width: rect.width, height: rect.height - (yPosition - rect.minY)),
+                fontSize: 9
+            )
+            yPosition += 10
         }
 
-        print("📤 Requesting basic export: \(endpoint)")
-        print("⚠️ Note: This basic export may not include narrative content")
+        // Recommendations Section
+        if !narrative.recommendations.isEmpty {
+            let recommendationsText = narrative.recommendations.enumerated().map { index, recommendation in
+                "• \(recommendation)"
+            }.joined(separator: "\n\n")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            print("❌ Basic export failed with status \(statusCode): \(errorMessage)")
-            throw ReportExportError.networkError("Basic export failed: \(errorMessage)")
+            yPosition += drawNarrativeBlock(
+                context: context,
+                title: "Recommendations",
+                content: recommendationsText,
+                rect: CGRect(x: rect.minX, y: yPosition, width: rect.width, height: rect.height - (yPosition - rect.minY)),
+                fontSize: 9
+            )
+            yPosition += 10
         }
 
-        // Save the file to temporary storage
-        let fileName = "report_\(reportId)_basic.\(format.rawValue)"
-        let fileURL = try saveToTemporaryFile(data: data, fileName: fileName)
-
-        print("✅ Basic PDF exported successfully (fallback)")
-        print("📄 File size: \(data.count) bytes")
-        print("⚠️ Warning: This PDF may only contain analytics data, not narrative content")
-
-        return fileURL
+        // Full Report Content Section
+        let remainingHeight = rect.height - (yPosition - rect.minY)
+        if remainingHeight > 80 { // Only show if there's enough space
+            drawNarrativeBlock(
+                context: context,
+                title: "Detailed Analysis",
+                content: narrative.content,
+                rect: CGRect(x: rect.minX, y: yPosition, width: rect.width, height: remainingHeight),
+                fontSize: 8
+            )
+        }
     }
+
+    private func drawNarrativeBlock(context: CGContext, title: String, content: String, rect: CGRect, fontSize: CGFloat = 9) -> CGFloat {
+        var yPosition = rect.minY
+
+        // Title
+        let titleFont = UIFont.boldSystemFont(ofSize: 12)
+        let titleAttributes: [NSAttributedString.Key: Any] = [
+            .font: titleFont,
+            .foregroundColor: UIColor.systemBlue
+        ]
+
+        let titleString = NSAttributedString(string: title, attributes: titleAttributes)
+        titleString.draw(at: CGPoint(x: rect.minX, y: yPosition))
+        yPosition += 15
+
+        // Content
+        let contentFont = UIFont.systemFont(ofSize: fontSize)
+        let contentAttributes: [NSAttributedString.Key: Any] = [
+            .font: contentFont,
+            .foregroundColor: UIColor.black
+        ]
+
+        let contentString = NSAttributedString(string: content, attributes: contentAttributes)
+        let contentRect = CGRect(x: rect.minX, y: yPosition, width: rect.width, height: rect.height - (yPosition - rect.minY))
+        contentString.draw(in: contentRect)
+
+        // Calculate actual height used
+        let boundingRect = contentString.boundingRect(
+            with: CGSize(width: rect.width, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin],
+            context: nil
+        )
+
+        return 15 + boundingRect.height + 10 // title height + content height + spacing
+    }
+
 
     // MARK: - Utility Functions
 
