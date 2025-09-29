@@ -36,6 +36,7 @@ const { performanceAnalyzer } = require('./services/performance-analyzer');
 const { redisCacheManager } = require('./services/redis-cache');
 const { prometheusMetrics, healthMetrics } = require('./services/prometheus-metrics');
 const { secretsManager } = require('./services/secrets-manager');
+const { dailyResetService } = require('../services/daily-reset-service');
 
 // Register multipart support for file uploads
 fastify.register(require('@fastify/multipart'), {
@@ -148,40 +149,69 @@ fastify.setNotFoundHandler((request, reply) => {
 if (features.useGateway) {
   // Performance metrics endpoint
   fastify.get('/metrics', prometheusMetrics.getMetricsHandler());
-  
+
   // Performance analysis endpoint
   fastify.get('/performance', async (request, reply) => {
     const analysis = performanceAnalyzer.analyzePerformance();
     return reply.send(analysis);
   });
-  
+
   // Cache management endpoints
   fastify.get('/cache/stats', async (request, reply) => {
     const stats = redisCacheManager.getStats();
     return reply.send(stats);
   });
-  
+
   fastify.post('/cache/warm', async (request, reply) => {
     await redisCacheManager.warmCache();
     return reply.send({ success: true, message: 'Cache warming completed' });
   });
-  
+
   fastify.delete('/cache/:namespace?', async (request, reply) => {
     const { namespace } = request.params;
     await redisCacheManager.clear(namespace);
     return reply.send({ success: true, message: `Cache ${namespace ? namespace : 'all'} cleared` });
   });
-  
+
+  // Daily Reset Service management endpoints
+  fastify.get('/admin/daily-reset/status', async (request, reply) => {
+    const status = dailyResetService.getStatus();
+    return reply.send({
+      success: true,
+      data: status,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  fastify.post('/admin/daily-reset/trigger', async (request, reply) => {
+    try {
+      await dailyResetService.triggerManualReset();
+      return reply.send({
+        success: true,
+        message: 'Manual daily reset triggered successfully',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      fastify.log.error('Manual daily reset failed:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to trigger manual reset',
+        message: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Documentation server
   const docServer = new DocumentationServer();
   fastify.register(docServer.getFastifyPlugin());
-  
+
   // Health and monitoring routes
   new HealthRoutes(fastify);
-  
+
   // Authentication routes
   new AuthRoutes(fastify);
-  
+
   // Progress tracking routes
   new ProgressRoutes(fastify);
 
@@ -190,19 +220,19 @@ if (features.useGateway) {
 
   // AI Engine proxy routes
   new AIProxyRoutes(fastify);
-  
+
   // Archive routes for session management
   new ArchiveRoutes(fastify);
-  
+
   fastify.log.info('✅ API Gateway enabled with enhanced routing and performance optimization');
 } else {
   // Fallback to simple health check only
-  fastify.get('/health', async () => ({ 
-    status: 'ok', 
+  fastify.get('/health', async () => ({
+    status: 'ok',
     service: 'api-gateway',
     mode: 'fallback'
   }));
-  
+
   fastify.log.warn('⚠️ API Gateway disabled - running in fallback mode');
 }
 
@@ -210,13 +240,51 @@ const start = async () => {
   try {
     const port = process.env.PORT || 3001;
     const host = process.env.HOST || '127.0.0.1';
-    
-    await fastify.listen({ 
-      port: parseInt(port), 
-      host: host 
+
+    await fastify.listen({
+      port: parseInt(port),
+      host: host
     });
-    
+
     fastify.log.info(`🚀 API Gateway started on http://${host}:${port}`);
+
+    // Initialize Daily Reset Service after server startup
+    try {
+      await dailyResetService.initialize();
+      fastify.log.info('✅ Daily Reset Service initialized successfully');
+    } catch (resetError) {
+      fastify.log.error('❌ Failed to initialize Daily Reset Service:', resetError);
+      // Don't crash the server if reset service fails to initialize
+      // The service will still try to initialize on next startup
+    }
+
+    // Graceful shutdown handling for cleanup
+    const gracefulShutdown = async (signal) => {
+      fastify.log.info(`🛑 Received ${signal}, shutting down gracefully...`);
+
+      // Stop daily reset service first
+      try {
+        dailyResetService.stop();
+        fastify.log.info('✅ Daily Reset Service stopped');
+      } catch (e) {
+        fastify.log.error('⚠️ Error stopping Daily Reset Service:', e);
+      }
+
+      // Close fastify server
+      try {
+        await fastify.close();
+        fastify.log.info('✅ Server closed successfully');
+        process.exit(0);
+      } catch (e) {
+        fastify.log.error('❌ Error during shutdown:', e);
+        process.exit(1);
+      }
+    };
+
+    // Listen for shutdown signals
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

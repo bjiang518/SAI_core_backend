@@ -766,28 +766,7 @@ class NetworkService: ObservableObject {
     }
     
     // MARK: - Enhanced Progress Tracking
-    func getProgress() async -> (success: Bool, progress: [String: Any]?) {
-        let progressURL = "\(baseURL)/api/progress"
-        
-        guard let url = URL(string: progressURL) else {
-            return (false, nil)
-        }
-        
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
 
-            if response is HTTPURLResponse {
-                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    return (true, json)
-                }
-            }
-            
-            return (false, nil)
-        } catch {
-            return (false, nil)
-        }
-    }
-    
     func getEnhancedProgress() async -> (success: Bool, progress: [String: Any]?) {
         print("📊 === GET ENHANCED PROGRESS ===")
         
