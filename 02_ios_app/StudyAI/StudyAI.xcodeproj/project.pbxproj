@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		"0341FBBA-FFF4-4982-ADF0-7E53C1CAC5F2" /* SubjectAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = "06D4219D-97D9-4AF5-962C-92CD11F16175" /* SubjectAnalyticsView.swift */; };
 		04A8227E20B44E2A9BB27336 /* QuestionArchiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4624BD01A8D5462385D269DE /* QuestionArchiveView.swift */; };
 		0B6A2DF7A9ED4CCEBEABDB0A /* EnhancedTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC15A890FCE4881A878DD17 /* EnhancedTTSService.swift */; };
 		12345678901234567890ABCD /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCD123456789012EFGH3456 /* UserSessionManager.swift */; };
@@ -88,6 +87,9 @@
 		PNTS789012345678EFGH0123 /* PointsEarningSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = PNTS456789012345EFGH0123 /* PointsEarningSystem.swift */; };
 		PRFS678901234567CDEF9012 /* ProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRFS234567890123BCDE8901 /* ProfileService.swift */; };
 		PROF567890123456BCDE8901 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROF123456789012ABCD7890 /* UserProfile.swift */; };
+		E256D35586004F19A4722977 /* ReportGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C137BECD88E403C95DB4167 /* ReportGenerator.swift */; };
+		9CCC4910AC3F44ECA7EDB250 /* ReportFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = E959644C73C1476381FE6AF4 /* ReportFetcher.swift */; };
+		5A2598A9E1964469A1158C2E /* LocalReportStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8017F3BA66B46E9818A1867 /* LocalReportStorage.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -111,7 +113,6 @@
 		0011C726DB944E1CBD5D9102 /* SimpleMathRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SimpleMathRenderer.swift; path = ../StudyAI/Services/SimpleMathRenderer.swift; sourceTree = "<group>"; };
 		03DB96F217C9458693CF5BDA /* VoiceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceSettingsView.swift; path = ../StudyAI/Views/VoiceSettingsView.swift; sourceTree = "<group>"; };
 		06624CDF338947F0A3F8838D /* HomeworkModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkModels.swift; path = ../StudyAI/Models/HomeworkModels.swift; sourceTree = "<group>"; };
-		"06D4219D-97D9-4AF5-962C-92CD11F16175" /* SubjectAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SubjectAnalyticsView.swift; path = ../StudyAI/Views/SubjectAnalyticsView.swift; sourceTree = "<group>"; };
 		0AB173EA95EE4D1FBEAED03D /* QuestionArchiveService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionArchiveService.swift; path = ../StudyAI/Services/QuestionArchiveService.swift; sourceTree = "<group>"; };
 		0AC15A890FCE4881A878DD17 /* EnhancedTTSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EnhancedTTSService.swift; path = ../StudyAI/Services/EnhancedTTSService.swift; sourceTree = "<group>"; };
 		122549B3F87E417292C7874C /* DirectAIHomeworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DirectAIHomeworkView.swift; path = ../StudyAI/Views/DirectAIHomeworkView.swift; sourceTree = "<group>"; };
@@ -188,6 +189,9 @@
 		PNTS456789012345EFGH0123 /* PointsEarningSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PointsEarningSystem.swift; path = ../StudyAI/Models/PointsEarningSystem.swift; sourceTree = "<group>"; };
 		PRFS234567890123BCDE8901 /* ProfileService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileService.swift; path = ../StudyAI/Services/ProfileService.swift; sourceTree = "<group>"; };
 		PROF123456789012ABCD7890 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserProfile.swift; path = ../StudyAI/Models/UserProfile.swift; sourceTree = "<group>"; };
+		6C137BECD88E403C95DB4167 /* ReportGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../StudyAI/Services/ReportGenerator.swift; sourceTree = "<group>"; };
+		E959644C73C1476381FE6AF4 /* ReportFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../StudyAI/Services/ReportFetcher.swift; sourceTree = "<group>"; };
+		C8017F3BA66B46E9818A1867 /* LocalReportStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../StudyAI/Services/LocalReportStorage.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -315,6 +319,9 @@
 				1ECE095FF4DB41A3B76FBE4F /* NetworkService.swift */,
 				MSTSFILE1234567890ABCD12 /* MistakeReviewService.swift */,
 				PDFGFILE1234567890ABCD12 /* PDFGeneratorService.swift */,
+							6C137BECD88E403C95DB4167 /* ReportGenerator.swift */,
+				E959644C73C1476381FE6AF4 /* ReportFetcher.swift */,
+				C8017F3BA66B46E9818A1867 /* LocalReportStorage.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -358,7 +365,6 @@
 				69D668B7833B4B1D9DF8653A /* SubjectBreakdownView.swift */,
 				9969A366189C4E3AA0A188D8 /* SubjectDetailView.swift */,
 				685F5AB0784E4EAEB6B58C7E /* ContentView.swift */,
-				"06D4219D-97D9-4AF5-962C-92CD11F16175" /* SubjectAnalyticsView.swift */,
 				MISTFILE1234567890ABCD12 /* MistakeReviewView.swift */,
 				PDFPFILE1234567890ABCD12 /* PDFPreviewView.swift */,
 				CDEF345678901234GHIJ5678 /* UnifiedLibraryView.swift */,
@@ -594,11 +600,13 @@
 				45678901234567890123DDEF /* CameraViewModel.swift in Sources */,
 				3B0419DAC7D9493DB3C35B7F /* SubjectBreakdownView.swift in Sources */,
 				3703A418AA10464CA1AC3132 /* SubjectDetailView.swift in Sources */,
-				"0341FBBA-FFF4-4982-ADF0-7E53C1CAC5F2" /* SubjectAnalyticsView.swift in Sources */,
 				MIST1234567890123456ABCD /* MistakeReviewView.swift in Sources */,
 				MSTS1234567890123456ABCD /* MistakeReviewService.swift in Sources */,
 				PDFG1234567890123456ABCD /* PDFGeneratorService.swift in Sources */,
 				PDFP1234567890123456ABCD /* PDFPreviewView.swift in Sources */,
+							E256D35586004F19A4722977 /* ReportGenerator.swift in Sources */,
+				9CCC4910AC3F44ECA7EDB250 /* ReportFetcher.swift in Sources */,
+				5A2598A9E1964469A1158C2E /* LocalReportStorage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -85,6 +85,28 @@ class ProgressRoutes {
       }
     }, this.getWeeklyProgress.bind(this));
 
+    // Get today's activity for a user
+    this.fastify.post('/api/progress/today/:userId', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get today\'s activity summary for user',
+        tags: ['Progress'],
+        params: {
+          type: 'object',
+          properties: {
+            userId: { type: 'string' }
+          }
+        },
+        body: {
+          type: 'object',
+          properties: {
+            timezone: { type: 'string', description: 'Client timezone (e.g., America/Los_Angeles)' },
+            date: { type: 'string', description: 'Date string in YYYY-MM-DD format' }
+          }
+        }
+      }
+    }, this.getTodaysActivity.bind(this));
+
     // Get subject insights
     this.fastify.get('/api/progress/insights/:userId', {
       preHandler: authPreHandler,
@@ -524,7 +546,7 @@ class ProgressRoutes {
       const { userId } = request.params;
 
       const weeklyQuery = `
-        SELECT 
+        SELECT
           DATE(activity_date) as date,
           SUM(questions_attempted) as total_attempted,
           SUM(questions_correct) as total_correct,
@@ -555,6 +577,99 @@ class ProgressRoutes {
       return reply.status(500).send({
         success: false,
         error: 'Failed to fetch weekly progress',
+        message: error.message
+      });
+    }
+  }
+
+  async getTodaysActivity(request, reply) {
+    try {
+      const { userId } = request.params;
+      const { timezone = 'UTC', date } = request.body || {};
+
+      this.fastify.log.info(`📱 TODAY'S ACTIVITY: === API CALL: getTodaysActivity ===`);
+      this.fastify.log.info(`📱 TODAY'S ACTIVITY: userId: ${userId}`);
+      this.fastify.log.info(`📱 TODAY'S ACTIVITY: timezone: ${timezone}`);
+      this.fastify.log.info(`📱 TODAY'S ACTIVITY: client date: ${date}`);
+
+      // Use the date provided by client, or calculate today's date
+      let today;
+      if (date && typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        today = date;
+        this.fastify.log.info(`📱 TODAY'S ACTIVITY: Using client provided date: ${today}`);
+      } else {
+        today = new Date().toISOString().split('T')[0]; // For now, use server date
+        this.fastify.log.info(`📱 TODAY'S ACTIVITY: Using server calculated date: ${today}`);
+      }
+
+      // Query today's activities from daily_subject_activities table
+      const todayQuery = `
+        SELECT
+          DATE(activity_date) as date,
+          SUM(questions_attempted) as total_questions,
+          SUM(questions_correct) as correct_answers,
+          SUM(time_spent) as study_time_minutes,
+          ARRAY_AGG(DISTINCT subject) as subjects_studied
+        FROM daily_subject_activities
+        WHERE user_id = $1 AND DATE(activity_date) = $2
+        GROUP BY DATE(activity_date)
+      `;
+
+      this.fastify.log.info(`📱 TODAY'S ACTIVITY: Executing query with params: [${userId}, ${today}]`);
+
+      const result = await db.query(todayQuery, [userId, today]);
+
+      this.fastify.log.info(`📱 TODAY'S ACTIVITY: Database query returned ${result.rows.length} rows`);
+
+      let todayProgress;
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        this.fastify.log.info(`📱 TODAY'S ACTIVITY: Raw database row:`, row);
+
+        // Transform database result to match iOS DailyProgress model
+        todayProgress = {
+          totalQuestions: parseInt(row.total_questions) || 0,
+          correctAnswers: parseInt(row.correct_answers) || 0,
+          studyTimeMinutes: parseInt(row.study_time_minutes) || 0,
+          subjectsStudied: row.subjects_studied ? row.subjects_studied.filter(s => s) : []
+        };
+
+        this.fastify.log.info(`📱 TODAY'S ACTIVITY: Transformed progress:`, todayProgress);
+        this.fastify.log.info(`📱 TODAY'S ACTIVITY: - Total Questions: ${todayProgress.totalQuestions}`);
+        this.fastify.log.info(`📱 TODAY'S ACTIVITY: - Correct Answers: ${todayProgress.correctAnswers}`);
+        this.fastify.log.info(`📱 TODAY'S ACTIVITY: - Study Time: ${todayProgress.studyTimeMinutes} minutes`);
+        this.fastify.log.info(`📱 TODAY'S ACTIVITY: - Subjects: ${todayProgress.subjectsStudied.join(', ')}`);
+      } else {
+        // No activity today - return empty progress
+        todayProgress = {
+          totalQuestions: 0,
+          correctAnswers: 0,
+          studyTimeMinutes: 0,
+          subjectsStudied: []
+        };
+        this.fastify.log.info(`📱 TODAY'S ACTIVITY: No activity found for today, returning empty progress`);
+      }
+
+      const response = {
+        success: true,
+        todayProgress: todayProgress,
+        message: result.rows.length > 0 ? 'Today\'s activity retrieved successfully' : 'No activity recorded for today'
+      };
+
+      this.fastify.log.info(`📱 TODAY'S ACTIVITY: === API RESPONSE ===`);
+      this.fastify.log.info(`📱 TODAY'S ACTIVITY: Response success: ${response.success}`);
+      this.fastify.log.info(`📱 TODAY'S ACTIVITY: Response message: ${response.message}`);
+      this.fastify.log.info(`📱 TODAY'S ACTIVITY: Response data:`, response.todayProgress);
+      this.fastify.log.info(`📱 TODAY'S ACTIVITY: === END API RESPONSE ===`);
+
+      return reply.send(response);
+
+    } catch (error) {
+      this.fastify.log.error('📱 TODAY\'S ACTIVITY: Error fetching today\'s activity:', error);
+      this.fastify.log.error('📱 TODAY\'S ACTIVITY: Error stack:', error.stack);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to fetch today\'s activity',
         message: error.message
       });
     }

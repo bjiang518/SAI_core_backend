@@ -509,6 +509,190 @@ struct ReportSubjectCard: View {
 
 import Charts
 
+struct SubjectDistributionPieChart: View {
+    let subjects: [String: SubjectMetrics]
+
+    private var chartData: [SubjectChartData] {
+        let totalTime = subjects.values.reduce(0) { $0 + $1.activity.studyTimeHours }
+        guard totalTime > 0 else { return [] }
+
+        return subjects.map { (subject, metrics) in
+            SubjectChartData(
+                subject: subject.capitalized,
+                studyTime: metrics.activity.studyTimeHours,
+                percentage: (metrics.activity.studyTimeHours / totalTime) * 100,
+                color: getSubjectColor(subject)
+            )
+        }.sorted { $0.studyTime > $1.studyTime }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Study Time Distribution")
+                .font(.headline)
+                .fontWeight(.bold)
+
+            if !chartData.isEmpty {
+                HStack(spacing: 20) {
+                    // Pie Chart
+                    Chart(chartData, id: \.subject) { data in
+                        SectorMark(
+                            angle: .value("Study Time", data.studyTime),
+                            innerRadius: .ratio(0.4),
+                            angularInset: 2.0
+                        )
+                        .foregroundStyle(data.color)
+                        .opacity(0.8)
+                    }
+                    .frame(width: 120, height: 120)
+
+                    // Legend
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(chartData, id: \.subject) { data in
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(data.color)
+                                    .frame(width: 12, height: 12)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(data.subject)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+
+                                    Text("\(String(format: "%.1f", data.percentage))% • \(String(format: "%.1f", data.studyTime))h")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+
+                                Spacer()
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text("No study time data available")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 40)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+
+    private func getSubjectColor(_ subject: String) -> Color {
+        let colors: [Color] = [.blue, .green, .orange, .purple, .red, .pink, .cyan, .yellow]
+        let index = abs(subject.hashValue) % colors.count
+        return colors[index]
+    }
+}
+
+struct SubjectAccuracyBarChart: View {
+    let subjects: [String: SubjectMetrics]
+
+    private var chartData: [SubjectAccuracyData] {
+        let data = subjects.map { (subject, metrics) in
+            SubjectAccuracyData(
+                subject: subject.capitalized,
+                accuracy: metrics.performance.accuracy * 100,
+                color: getAccuracyColor(metrics.performance.accuracy)
+            )
+        }.sorted { $0.accuracy > $1.accuracy }
+
+        return data
+    }
+
+    private var averageAccuracy: Double {
+        guard !subjects.isEmpty else { return 0 }
+        let total = subjects.values.reduce(0) { $0 + $1.performance.accuracy }
+        return (total / Double(subjects.count)) * 100
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Subject Accuracy Comparison")
+                .font(.headline)
+                .fontWeight(.bold)
+
+            if !chartData.isEmpty {
+                VStack(spacing: 12) {
+                    // Average line indicator
+                    HStack {
+                        Rectangle()
+                            .fill(Color.gray)
+                            .frame(width: 20, height: 2)
+                        Text("Average: \(String(format: "%.1f", averageAccuracy))%")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+
+                    // Horizontal Bar Chart
+                    Chart(chartData, id: \.subject) { data in
+                        BarMark(
+                            x: .value("Accuracy", data.accuracy),
+                            y: .value("Subject", data.subject),
+                            height: .fixed(20)
+                        )
+                        .foregroundStyle(data.color.gradient)
+                        .cornerRadius(4)
+
+                        // Average reference line
+                        RuleMark(x: .value("Average", averageAccuracy))
+                            .foregroundStyle(Color.gray)
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                    }
+                    .frame(height: max(120, CGFloat(chartData.count * 35)))
+                    .chartXScale(domain: 0...100)
+                    .chartXAxis {
+                        AxisMarks(values: [0, 25, 50, 75, 100]) { value in
+                            AxisGridLine()
+                            AxisTick()
+                            AxisValueLabel {
+                                if let intValue = value.as(Int.self) {
+                                    Text("\(intValue)%")
+                                        .font(.caption2)
+                                }
+                            }
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks { value in
+                            AxisValueLabel {
+                                if let stringValue = value.as(String.self) {
+                                    Text(stringValue)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text("No accuracy data available")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 40)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+
+    private func getAccuracyColor(_ accuracy: Double) -> Color {
+        switch accuracy {
+        case 0.9...: return .green
+        case 0.8..<0.9: return .blue
+        case 0.7..<0.8: return .yellow
+        case 0.6..<0.7: return .orange
+        default: return .red
+        }
+    }
+}
 
 // MARK: - Chart Data Models
 

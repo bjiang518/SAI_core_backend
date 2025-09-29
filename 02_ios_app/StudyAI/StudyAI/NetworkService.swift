@@ -236,10 +236,6 @@ class NetworkService: ObservableObject {
     private func addAuthHeader(to request: inout URLRequest) {
         if let token = AuthenticationService.shared.getAuthToken() {
             print("🔐 Adding auth header with token: \(String(token.prefix(20)))...")
-            print("🔑 === FULL BEARER TOKEN FOR CURL TESTING ===")
-            print("🔑 Bearer Token: \(token)")
-            print("🔑 Authorization Header: Bearer \(token)")
-            print("🔑 === END BEARER TOKEN DEBUG ===")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("StudyAI-iOS/1.0", forHTTPHeaderField: "User-Agent")
@@ -295,7 +291,6 @@ class NetworkService: ObservableObject {
     
     // Simple performRequest method that returns (Data, URLResponse)
     private func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        print("🌐 DEBUG: performRequest called")
         print("🔗 Request URL: \(request.url?.absoluteString ?? "Unknown")")
         print("📤 Request Method: \(request.httpMethod ?? "Unknown")")
         
@@ -564,7 +559,6 @@ class NetworkService: ObservableObject {
     
     // MARK: - Question Processing
     func submitQuestion(question: String, subject: String = "general") async -> (success: Bool, answer: String?) {
-        print("🚀 === StudyAI DEBUG INFO ===")
         print("🤖 Processing question with AI Engine (improved LaTeX prompts)...")
         print("🔗 AI Proxy URL: \(baseURL)/api/ai")
         print("📝 Question: \(question)")
@@ -897,63 +891,114 @@ class NetworkService: ObservableObject {
     
     /// Update user progress on server (for weekly progress sync)
     func updateUserProgress(questionCount: Int = 1, subject: String, currentScore: Int, clientTimezone: String) async -> (success: Bool, progress: [String: Any]?, message: String?) {
+        print("📱 TODAY'S ACTIVITY: === API CALL: updateUserProgress ===")
+        print("📱 TODAY'S ACTIVITY: Request parameters:")
+        print("📱 TODAY'S ACTIVITY:   - questionCount: \(questionCount)")
+        print("📱 TODAY'S ACTIVITY:   - subject: \(subject)")
+        print("📱 TODAY'S ACTIVITY:   - currentScore: \(currentScore)")
+        print("📱 TODAY'S ACTIVITY:   - clientTimezone: \(clientTimezone)")
+
         let updateURL = "\(baseURL)/api/progress/update"
-        
+        print("📱 TODAY'S ACTIVITY: API endpoint: \(updateURL)")
+
         guard let url = URL(string: updateURL) else {
+            print("📱 TODAY'S ACTIVITY: ❌ Invalid URL: \(updateURL)")
             return (false, nil, "Invalid URL")
         }
-        
+
         let requestData: [String: Any] = [
             "questionCount": questionCount,
             "subject": subject,
             "currentScore": currentScore,
             "clientTimezone": clientTimezone
         ]
-        
+
+        print("📱 TODAY'S ACTIVITY: Request body: \(requestData)")
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         addAuthHeader(to: &request)
-        
+
+        // Log auth state
+        let authToken = AuthenticationService.shared.getAuthToken()
+        print("📱 TODAY'S ACTIVITY: Auth token present: \(authToken != nil)")
+        if let token = authToken {
+            print("📱 TODAY'S ACTIVITY: Auth token preview: \(String(token.prefix(20)))...")
+        }
+
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
-            
+
+            print("📱 TODAY'S ACTIVITY: Sending request to server...")
             let (data, response) = try await URLSession.shared.data(for: request)
-            
+
             if let httpResponse = response as? HTTPURLResponse {
+                print("📱 TODAY'S ACTIVITY: Server response status: \(httpResponse.statusCode)")
+
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                         let success = json["success"] as? Bool ?? false
                         let progressData = (json["data"] as? [String: Any])?["progress"] as? [String: Any]
                         let message = (json["data"] as? [String: Any])?["message"] as? String
-                        
-                        print("📊 DEBUG: Server progress update successful")
+
+                        print("📱 TODAY'S ACTIVITY: ✅ Server response successful:")
+                        print("📱 TODAY'S ACTIVITY:   - success: \(success)")
+                        print("📱 TODAY'S ACTIVITY:   - message: \(message ?? "none")")
+
+                        if let progress = progressData {
+                            print("📱 TODAY'S ACTIVITY: Progress data received:")
+                            for (key, value) in progress {
+                                print("📱 TODAY'S ACTIVITY:     \(key): \(value)")
+                            }
+                        } else {
+                            print("📱 TODAY'S ACTIVITY: ⚠️ No progress data in response")
+                        }
+
+                        print("📱 TODAY'S ACTIVITY: === END API CALL: updateUserProgress ===")
                         return (success, progressData, message)
                     }
                 } else {
                     let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
-                    print("📊 DEBUG: Server progress update failed: \(errorMessage)")
+                    print("📱 TODAY'S ACTIVITY: ❌ Server error: \(errorMessage)")
+
+                    // Try to get error details from response body
+                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        print("📱 TODAY'S ACTIVITY: Error response body: \(errorData)")
+                    }
+
+                    print("📱 TODAY'S ACTIVITY: === END API CALL: updateUserProgress (ERROR) ===")
                     return (false, nil, errorMessage)
                 }
             }
-            
+
+            print("📱 TODAY'S ACTIVITY: ❌ Invalid response format")
+            print("📱 TODAY'S ACTIVITY: === END API CALL: updateUserProgress (INVALID) ===")
             return (false, nil, "Invalid response")
         } catch {
-            print("📊 DEBUG: Server progress update error: \(error.localizedDescription)")
+            print("📱 TODAY'S ACTIVITY: ❌ Network error: \(error.localizedDescription)")
+            print("📱 TODAY'S ACTIVITY: === END API CALL: updateUserProgress (EXCEPTION) ===")
             return (false, nil, error.localizedDescription)
         }
     }
     
     /// Get current week progress from server
     func getCurrentWeekProgress(timezone: String) async -> (success: Bool, progress: [String: Any]?, message: String?) {
-        // Get user ID from stored auth data
-        guard let userData = getCurrentUserData(),
-              let userId = userData["id"] as? String else {
+        // Get user ID from AuthenticationService (same as other working APIs)
+        let currentUser = await MainActor.run {
+            return AuthenticationService.shared.currentUser
+        }
+
+        guard let user = currentUser else {
             return (false, nil, "User not authenticated")
         }
-        
-        let currentURL = "\(baseURL)/api/progress/current/\(userId)?timezone=\(timezone.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? timezone)"
-        
+
+        let userId = user.id
+
+        // FIXED: Use correct server endpoint from progress-routes.js
+        let currentURL = "\(baseURL)/api/progress/weekly/\(userId)"
+
+
         guard let url = URL(string: currentURL) else {
             return (false, nil, "Invalid URL")
         }
@@ -969,32 +1014,134 @@ class NetworkService: ObservableObject {
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                         let success = json["success"] as? Bool ?? false
-                        let progressData = (json["data"] as? [String: Any])?["progress"] as? [String: Any]
-                        
-                        print("📊 DEBUG: Current week progress loaded from server")
-                        return (success, progressData, nil)
+
+                        if success {
+                            // Server returns: { "success": true, "data": [array of daily activities] }
+                            let dailyActivities = json["data"] as? [[String: Any]]
+
+
+                            // Convert server response to expected format for PointsEarningSystem
+                            var weeklyData: [String: Any] = [:]
+
+                            if let activities = dailyActivities {
+                                // Log server response structure
+                                // Log basic server response info
+
+                                // Convert server data to PointsEarningSystem expected format
+                                let isoFormatter = ISO8601DateFormatter()
+                                isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+                                // Fallback formatter for different ISO formats
+                                let fallbackFormatter = DateFormatter()
+                                fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+                                fallbackFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+                                // Another fallback for the exact format we see
+                                let specificFormatter = DateFormatter()
+                                specificFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.000'Z'"
+                                specificFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+                                let simpleDateFormatter = DateFormatter()
+                                simpleDateFormatter.dateFormat = "yyyy-MM-dd"
+                                simpleDateFormatter.timeZone = TimeZone.current
+
+                                let calendar = Calendar.current
+                                let today = Date()
+
+                                // Calculate week boundaries
+                                let weekStart = calendar.dateInterval(of: .weekOfYear, for: today)?.start ?? today
+                                let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? today
+
+                                // FIXED: Use simple date format that PointsEarningSystem expects
+                                let weekStartString = simpleDateFormatter.string(from: weekStart)
+                                let weekEndString = simpleDateFormatter.string(from: weekEnd)
+
+                                // Convert activities to expected format
+                                var convertedActivities: [[String: Any]] = []
+                                var totalQuestions = 0
+                                var totalCorrect = 0
+
+                                for (index, activity) in activities.enumerated() {
+                                    // Parse server date - handle both string and direct date formats
+                                    var serverDate: Date?
+
+                                    if let dateString = activity["date"] as? String {
+                                        // Try multiple date formatters in order
+                                        serverDate = isoFormatter.date(from: dateString) ??
+                                                   fallbackFormatter.date(from: dateString) ??
+                                                   specificFormatter.date(from: dateString)
+                                    } else if let dateObj = activity["date"] as? Date {
+                                        serverDate = dateObj
+                                    }
+
+                                    guard let validDate = serverDate else {
+                                        continue
+                                    }
+
+                                    // Calculate dayOfWeek properly (1=Monday, 7=Sunday)
+                                    let weekdayComponent = calendar.component(.weekday, from: validDate)
+                                    let dayOfWeek = weekdayComponent == 1 ? 7 : weekdayComponent - 1
+
+                                    let questionCount = activity["questionsAttempted"] as? Int ?? 0
+                                    totalQuestions += questionCount
+                                    totalCorrect += (activity["questionsCorrect"] as? Int ?? 0)
+
+                                    let simpleDateString = simpleDateFormatter.string(from: validDate)
+
+                                    let convertedActivity: [String: Any] = [
+                                        "date": simpleDateString,
+                                        "dayOfWeek": dayOfWeek,
+                                        "questionCount": questionCount,
+                                        "timezone": TimeZone.current.identifier
+                                    ]
+
+                                    convertedActivities.append(convertedActivity)
+                                }
+
+                                // Build PointsEarningSystem expected format
+                                weeklyData = [
+                                    "week_start": weekStartString,
+                                    "week_end": weekEndString,
+                                    "total_questions_this_week": totalQuestions,
+                                    "current_score": totalCorrect,
+                                    "daily_activities": convertedActivities,
+                                    "timezone": TimeZone.current.identifier,
+                                    "updated_at": isoFormatter.string(from: Date()) // Keep ISO format for updated_at
+                                ]
+
+                            }
+
+                            return (success, weeklyData, nil)
+                        } else {
+                            let error = json["error"] as? String ?? "Unknown error"
+                            return (false, nil, error)
+                        }
                     }
                 } else {
                     let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
-                    print("📊 DEBUG: Get current week failed: \(errorMessage)")
                     return (false, nil, errorMessage)
                 }
             }
             
             return (false, nil, "Invalid response")
         } catch {
-            print("📊 DEBUG: Get current week error: \(error.localizedDescription)")
             return (false, nil, error.localizedDescription)
         }
     }
     
     /// Get progress history from server
     func getProgressHistory(limit: Int = 12) async -> (success: Bool, history: [[String: Any]]?, message: String?) {
-        // Get user ID from stored auth data
-        guard let userData = getCurrentUserData(),
-              let userId = userData["id"] as? String else {
+        // Get user ID from AuthenticationService (same as other working APIs)
+        let currentUser = await MainActor.run {
+            return AuthenticationService.shared.currentUser
+        }
+
+        guard let user = currentUser else {
+            print("🚨 DEBUG: getProgressHistory - No authenticated user found")
             return (false, nil, "User not authenticated")
         }
+
+        let userId = user.id
         
         let historyURL = "\(baseURL)/api/progress/history/\(userId)?limit=\(limit)"
         
@@ -1015,19 +1162,16 @@ class NetworkService: ObservableObject {
                         let success = json["success"] as? Bool ?? false
                         let historyData = (json["data"] as? [String: Any])?["history"] as? [[String: Any]]
                         
-                        print("📊 DEBUG: Progress history loaded from server")
                         return (success, historyData, nil)
                     }
                 } else {
                     let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
-                    print("📊 DEBUG: Get progress history failed: \(errorMessage)")
                     return (false, nil, errorMessage)
                 }
             }
             
             return (false, nil, "Invalid response")
         } catch {
-            print("📊 DEBUG: Get progress history error: \(error.localizedDescription)")
             return (false, nil, error.localizedDescription)
         }
     }
@@ -2857,7 +3001,6 @@ class NetworkService: ObservableObject {
         let endpoint = "/api/progress/subject/breakdown/\(userId)"
         let fullURL = "\(baseURL)\(endpoint)?timeframe=\(timeframe)"
         
-        print("🔍 DEBUG: Subject Breakdown API Call")
         print("🔗 Base URL: \(baseURL)")
         print("📍 Endpoint: \(endpoint)")
         print("🌐 Full URL: \(fullURL)")
@@ -3353,6 +3496,233 @@ class NetworkService: ObservableObject {
         } else {
             throw NetworkError.invalidResponse
         }
+    }
+
+    /// Get today's specific activity from server
+    func getTodaysActivity(timezone: String) async -> (success: Bool, todayProgress: DailyProgress?, message: String?) {
+        print("📱 TODAY'S ACTIVITY: === API CALL: getTodaysActivity ===")
+        print("📱 TODAY'S ACTIVITY: Request timezone: \(timezone)")
+
+        // Get user ID from AuthenticationService (same as other working APIs)
+        let currentUser = await MainActor.run {
+            return AuthenticationService.shared.currentUser
+        }
+
+        guard let user = currentUser else {
+            print("📱 TODAY'S ACTIVITY: ❌ No authenticated user found")
+            return (false, nil, "User not authenticated")
+        }
+
+        let userId = user.id
+        let todayURL = "\(baseURL)/api/progress/today/\(userId)"
+        print("📱 TODAY'S ACTIVITY: API endpoint: \(todayURL)")
+
+        guard let url = URL(string: todayURL) else {
+            print("📱 TODAY'S ACTIVITY: ❌ Invalid URL: \(todayURL)")
+            return (false, nil, "Invalid URL")
+        }
+
+        let requestData: [String: Any] = [
+            "timezone": timezone,
+            "date": getCurrentDateString(timezone: timezone)
+        ]
+
+        print("📱 TODAY'S ACTIVITY: Request body: \(requestData)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+
+        // Log auth state
+        let authToken = AuthenticationService.shared.getAuthToken()
+        print("📱 TODAY'S ACTIVITY: Auth token present: \(authToken != nil)")
+        if let token = authToken {
+            print("📱 TODAY'S ACTIVITY: Auth token preview: \(String(token.prefix(20)))...")
+        }
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+
+            print("📱 TODAY'S ACTIVITY: Sending request to server...")
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📱 TODAY'S ACTIVITY: Server response status: \(httpResponse.statusCode)")
+
+                if httpResponse.statusCode == 200 {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        let success = json["success"] as? Bool ?? false
+                        let message = json["message"] as? String
+
+                        print("📱 TODAY'S ACTIVITY: ✅ Server response successful:")
+                        print("📱 TODAY'S ACTIVITY:   - success: \(success)")
+                        print("📱 TODAY'S ACTIVITY:   - message: \(message ?? "none")")
+
+                        if success, let todayData = json["todayProgress"] as? [String: Any] {
+                            print("📱 TODAY'S ACTIVITY: Today's data received:")
+                            for (key, value) in todayData {
+                                print("📱 TODAY'S ACTIVITY:     \(key): \(value)")
+                            }
+
+                            // Parse today's activity data
+                            let totalQuestions = todayData["totalQuestions"] as? Int ?? 0
+                            let correctAnswers = todayData["correctAnswers"] as? Int ?? 0
+                            let studyTimeMinutes = todayData["studyTimeMinutes"] as? Int ?? 0
+                            let subjectsStudied = Set(todayData["subjectsStudied"] as? [String] ?? [])
+
+                            let todayProgress = DailyProgress(
+                                totalQuestions: totalQuestions,
+                                correctAnswers: correctAnswers,
+                                studyTimeMinutes: studyTimeMinutes,
+                                subjectsStudied: subjectsStudied
+                            )
+
+                            print("📱 TODAY'S ACTIVITY: Created DailyProgress - Total: \(totalQuestions), Correct: \(correctAnswers), Accuracy: \(todayProgress.accuracy)%")
+                            print("📱 TODAY'S ACTIVITY: === END API CALL: getTodaysActivity ===")
+                            return (true, todayProgress, message)
+                        } else {
+                            print("📱 TODAY'S ACTIVITY: ⚠️ No today's data in response")
+                            print("📱 TODAY'S ACTIVITY: === END API CALL: getTodaysActivity (NO DATA) ===")
+                            return (success, nil, message ?? "No today's data available")
+                        }
+                    }
+                } else {
+                    let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
+                    print("📱 TODAY'S ACTIVITY: ❌ Server error: \(errorMessage)")
+
+                    // Try to get error details from response body
+                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        print("📱 TODAY'S ACTIVITY: Error response body: \(errorData)")
+                    }
+
+                    print("📱 TODAY'S ACTIVITY: === END API CALL: getTodaysActivity (ERROR) ===")
+                    return (false, nil, errorMessage)
+                }
+            }
+
+            print("📱 TODAY'S ACTIVITY: ❌ Invalid response format")
+            print("📱 TODAY'S ACTIVITY: === END API CALL: getTodaysActivity (INVALID) ===")
+            return (false, nil, "Invalid response")
+        } catch {
+            print("📱 TODAY'S ACTIVITY: ❌ Network error: \(error.localizedDescription)")
+            print("📱 TODAY'S ACTIVITY: === END API CALL: getTodaysActivity (EXCEPTION) ===")
+            return (false, nil, error.localizedDescription)
+        }
+    }
+
+    /// Helper method to get current date string in specified timezone
+    // MARK: - Total Points and User Level Sync
+
+    /// Sync total points with backend user level system
+    func syncTotalPoints(userId: String, totalPoints: Int) async -> (success: Bool, updatedLevel: [String: Any]?, message: String?) {
+                
+        let syncURL = "\(baseURL)/api/user/sync-points"
+
+        guard let url = URL(string: syncURL) else {
+            print("❌ Invalid sync URL: \(syncURL)")
+            return (false, nil, "Invalid URL")
+        }
+
+        let requestBody: [String: Any] = [
+            "userId": userId,
+            "totalPoints": totalPoints,
+            "timestamp": ISO8601DateFormatter().string(from: Date())
+        ]
+
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else {
+            print("❌ Failed to serialize sync request")
+            return (false, nil, "Failed to serialize request")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Add authentication headers
+        if let authToken = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        request.httpBody = jsonData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                
+                if let responseDict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    
+                    if httpResponse.statusCode == 200 {
+                        let success = responseDict["success"] as? Bool ?? false
+                        let message = responseDict["message"] as? String
+                        let levelData = responseDict["userLevel"] as? [String: Any]
+
+                        return (success, levelData, message)
+                    } else {
+                        let message = responseDict["message"] as? String ?? "Sync failed"
+                        return (false, nil, message)
+                    }
+                }
+            }
+
+            return (false, nil, "Invalid response")
+        } catch {
+            print("❌ Sync error: \(error.localizedDescription)")
+            return (false, nil, error.localizedDescription)
+        }
+    }
+
+    /// Get user level information from backend
+    func getUserLevel(userId: String) async -> (success: Bool, levelData: [String: Any]?, message: String?) {
+                
+        let levelURL = "\(baseURL)/api/user/level/\(userId)"
+
+        guard let url = URL(string: levelURL) else {
+            print("❌ Invalid level URL: \(levelURL)")
+            return (false, nil, "Invalid URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+
+        // Add authentication headers
+        if let authToken = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                
+                if let responseDict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    
+                    if httpResponse.statusCode == 200 {
+                        let success = responseDict["success"] as? Bool ?? false
+                        let message = responseDict["message"] as? String
+                        let levelData = responseDict["data"] as? [String: Any]
+
+                        return (success, levelData, message)
+                    } else {
+                        let message = responseDict["message"] as? String ?? "Failed to get user level"
+                        return (false, nil, message)
+                    }
+                }
+            }
+
+            return (false, nil, "Invalid response")
+        } catch {
+            print("❌ Level fetch error: \(error.localizedDescription)")
+            return (false, nil, error.localizedDescription)
+        }
+    }
+
+    private func getCurrentDateString(timezone: String) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: timezone) ?? TimeZone.current
+        return formatter.string(from: Date())
     }
 }
 

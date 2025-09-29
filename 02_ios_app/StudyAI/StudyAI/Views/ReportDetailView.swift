@@ -30,6 +30,8 @@ struct ReportDetailView: View {
     @State private var showingExportOptions = false
     @State private var narrativeContent: NarrativeReport?
     @State private var isLoadingNarrative = false
+    @State private var showingErrorAlert = false
+    @State private var errorAlertMessage = ""
 
     var body: some View {
         NavigationView {
@@ -87,12 +89,21 @@ struct ReportDetailView: View {
             .sheet(isPresented: $showingExportOptions) {
                 ReportExportView(report: report)
             }
+            .alert("Error", isPresented: $showingErrorAlert) {
+                Button("OK") {
+                    showingErrorAlert = false
+                }
+            } message: {
+                Text(errorAlertMessage)
+            }
             .onAppear {
                 print("🔍 ReportDetailView appeared for report: \(report.id)")
-                print("🔍 Report type: \(report.reportType.rawValue)")
-                print("🔍 Is narrative report: \(report.reportData.isNarrativeReport)")
-
                 loadNarrativeContent()
+            }
+            .onReceive(reportService.$lastError) { error in
+                if let error = error {
+                    showErrorAlert(message: error.localizedDescription)
+                }
             }
         }
     }
@@ -349,23 +360,12 @@ struct ReportDetailView: View {
             return
         }
 
-        print("📝 === ATTEMPTING TO LOAD NARRATIVE CONTENT ===")
-        print("📝 Report ID: \(report.id)")
-        print("📝 Report Data Type: \(report.reportData.type ?? "nil")")
-        print("📝 Is Narrative Report: \(report.reportData.isNarrativeReport)")
-        print("📝 Narrative Available: \(report.reportData.narrativeAvailable ?? false)")
-        print("📝 Narrative ID: \(report.reportData.narrativeId ?? "nil")")
-        print("📝 Narrative URL: \(report.reportData.narrativeURL ?? "nil")")
-
-        // Always attempt to load narrative content for any report
-        // The backend may have narrative content even if the report_data doesn't indicate it
-        print("📝 Proceeding with narrative fetch attempt...")
+        print("📝 Loading narrative content for report: \(report.id)")
 
         isLoadingNarrative = true
         narrativeContent = nil
 
         Task {
-            print("📝 Starting narrative fetch task for report: \(report.id)")
             let result = await reportService.fetchNarrative(reportId: report.id)
 
             await MainActor.run {
@@ -374,22 +374,19 @@ struct ReportDetailView: View {
                 switch result {
                 case .success(let narrative):
                     narrativeContent = narrative
-                    print("✅ Narrative content loaded for UI display")
-                    print("📝 Loaded narrative ID: \(narrative.id)")
-                    print("📝 Content length: \(narrative.content.count) characters")
-                    print("📝 Summary length: \(narrative.summary.count) characters")
+                    print("✅ Narrative content loaded successfully")
                 case .failure(let error):
-                    print("❌ Failed to load narrative for UI: \(error.localizedDescription)")
-                    print("❌ Error details: \(error)")
+                    print("❌ Failed to load narrative: \(error.localizedDescription)")
+                    showErrorAlert(message: "Unable to load report content. Please check your connection and try again.")
                     narrativeContent = nil
-
-                    // If narrative fetch fails, we should still show the report
-                    // but fall back to the legacy analytics format
-                    print("📝 Narrative fetch failed - will show legacy analytics format")
-                    print("📝 UI will now display: isLoadingNarrative=\(self.isLoadingNarrative), narrativeContent=\(self.narrativeContent != nil)")
                 }
             }
         }
+    }
+
+    private func showErrorAlert(message: String) {
+        errorAlertMessage = message
+        showingErrorAlert = true
     }
 }
 
@@ -669,9 +666,19 @@ struct SubjectsSection: View {
                     description: "No subject-specific data available for this period"
                 )
             } else {
-                ForEach(Array(report.reportData.subjects?.keys.sorted() ?? []), id: \.self) { subject in
-                    if let metrics = report.reportData.subjects?[subject] {
-                        ReportSubjectCard(subject: subject, metrics: metrics)
+                if let subjects = report.reportData.subjects {
+                    // Individual subject cards for detailed metrics
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Subject Details")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 4)
+
+                        ForEach(Array(subjects.keys.sorted()), id: \.self) { subject in
+                            if let metrics = subjects[subject] {
+                                ReportSubjectCard(subject: subject, metrics: metrics)
+                            }
+                        }
                     }
                 }
             }

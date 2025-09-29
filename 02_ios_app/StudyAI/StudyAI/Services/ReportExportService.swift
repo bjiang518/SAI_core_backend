@@ -27,6 +27,7 @@ class ReportExportService: ObservableObject {
         isExporting = true
         exportStatus = "Preparing export..."
         exportProgress = 0.1
+        clearError()
 
         defer {
             isExporting = false
@@ -40,12 +41,21 @@ class ReportExportService: ObservableObject {
 
             // Fetch narrative content
             let narrativeResult = await ParentReportService.shared.fetchNarrative(reportId: reportId)
-            let narrative = try? narrativeResult.get()
+            let narrative: NarrativeReport?
 
-            exportStatus = "Generating PDF with charts..."
+            switch narrativeResult {
+            case .success(let narrativeContent):
+                narrative = narrativeContent
+            case .failure(let error):
+                print("⚠️ Narrative fetch failed: \(error.localizedDescription)")
+                setError("Unable to load report content. Please try again.")
+                throw ReportExportError.networkError("Failed to fetch narrative content")
+            }
+
+            exportStatus = "Generating PDF..."
             exportProgress = 0.5
 
-            // Generate PDF locally with charts and narrative
+            // Generate PDF locally with narrative content
             let fileURL = try await generateLocalPDF(reportId: reportId, narrative: narrative)
 
             exportProgress = 1.0
@@ -53,38 +63,40 @@ class ReportExportService: ObservableObject {
 
             return fileURL
 
-        } catch {
-            print("❌ Export error: \(error)")
+        } catch let error as ReportExportError {
+            let userMessage = getUserFriendlyErrorMessage(for: error)
+            setError(userMessage)
+            print("❌ Export failed: \(error.localizedDescription)")
             throw error
+        } catch {
+            let userMessage = "An unexpected error occurred while exporting the report. Please try again."
+            setError(userMessage)
+            print("❌ Unexpected export error: \(error.localizedDescription)")
+            throw ReportExportError.fileSystemError(userMessage)
         }
     }
 
     private func generateLocalPDF(reportId: String, narrative: NarrativeReport?) async throws -> URL {
-        return try await withCheckedThrowingContinuation { continuation in
-            Task { @MainActor in
-                do {
-                    // Create PDF document
-                    let pdfDocument = PDFDocument()
+        // Generate PDF page on main thread (UI components required), but file operations on background
+        let pdfPage = try await createPDFPage(reportId: reportId, narrative: narrative)
 
-                    // Generate PDF page with charts and narrative
-                    let pdfPage = try await createPDFPage(reportId: reportId, narrative: narrative)
-                    pdfDocument.insert(pdfPage, at: 0)
+        // Move file operations to background thread
+        return try await Task.detached {
+            // Create PDF document
+            let pdfDocument = PDFDocument()
+            pdfDocument.insert(pdfPage, at: 0)
 
-                    // Save to temporary file
-                    let fileName = "report_\(reportId)_enhanced.pdf"
-                    let tempDirectory = FileManager.default.temporaryDirectory
-                    let fileURL = tempDirectory.appendingPathComponent(fileName)
+            // Save to temporary file
+            let fileName = "report_\(reportId)_enhanced.pdf"
+            let tempDirectory = FileManager.default.temporaryDirectory
+            let fileURL = tempDirectory.appendingPathComponent(fileName)
 
-                    guard pdfDocument.write(to: fileURL) else {
-                        throw ReportExportError.fileSystemError("Failed to write PDF file")
-                    }
-
-                    continuation.resume(returning: fileURL)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
+            guard pdfDocument.write(to: fileURL) else {
+                throw ReportExportError.fileSystemError("Failed to write PDF file")
             }
-        }
+
+            return fileURL
+        }.value
     }
 
     private func createPDFPage(reportId: String, narrative: NarrativeReport?) async throws -> PDFPage {
@@ -208,7 +220,7 @@ class ReportExportService: ObservableObject {
         // Full Report Content Section
         let remainingHeight = rect.height - (yPosition - rect.minY)
         if remainingHeight > 80 { // Only show if there's enough space
-            drawNarrativeBlock(
+            _ = drawNarrativeBlock(
                 context: context,
                 title: "Detailed Analysis",
                 content: narrative.content,
@@ -265,11 +277,26 @@ class ReportExportService: ObservableObject {
     }
 
     func setError(_ message: String) {
-        errorMessage = message
+        Task { @MainActor in
+            errorMessage = message
+        }
     }
 
     func clearError() {
-        errorMessage = nil
+        Task { @MainActor in
+            errorMessage = nil
+        }
+    }
+
+    private func getUserFriendlyErrorMessage(for error: ReportExportError) -> String {
+        switch error {
+        case .invalidResponse:
+            return "There was a problem communicating with the server. Please check your connection and try again."
+        case .networkError(_):
+            return "Network connection problem. Please check your internet connection and try again."
+        case .fileSystemError(_):
+            return "Unable to save the PDF file. Please ensure you have enough storage space and try again."
+        }
     }
 }
 

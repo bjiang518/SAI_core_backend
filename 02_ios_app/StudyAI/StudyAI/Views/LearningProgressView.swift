@@ -16,24 +16,27 @@ struct LearningProgressView: View {
     @State private var isLoading = true
     @State private var isLoadingSubjectBreakdown = false
     @State private var errorMessage = ""
-    @State private var showingDailyCheckout = false
     @State private var selectedSubject: SubjectCategory?
     @State private var showingSubjectDetail = false
     @State private var selectedTimeframe: TimeframeOption = .currentWeek
     @State private var selectedSubjectFilter: SubjectCategory? = nil
-    @State private var showingSubjectFilter = false
-    @State private var subjectAnalytics: [String: Any] = [:]
     @State private var loadingTask: Task<Void, Never>? = nil
     
     private let viewId = UUID().uuidString.prefix(8)
     
     // Get actual user ID from authentication service
     private var userId: String {
+        print("🔍 DEBUG: === USER ID RESOLUTION DEBUG ===")
+        print("🔍 DEBUG: AuthenticationService.shared.isAuthenticated: \(AuthenticationService.shared.isAuthenticated)")
+        print("🔍 DEBUG: AuthenticationService.shared.currentUser: \(AuthenticationService.shared.currentUser?.id ?? "nil")")
+
         if let user = AuthenticationService.shared.currentUser {
             print("🎯 DEBUG: Got authenticated user ID: \(user.id)")
+            print("🎯 DEBUG: User email: \(user.email)")
+            print("🎯 DEBUG: Auth provider: \(user.authProvider)")
             return user.id
         }
-        
+
         // Fallback: try UserDefaults (legacy support)
         if let userDataString = UserDefaults.standard.string(forKey: "user_data"),
            let userData = userDataString.data(using: .utf8),
@@ -42,8 +45,25 @@ struct LearningProgressView: View {
             print("🎯 DEBUG: Got user ID from UserDefaults: \(id)")
             return id
         }
-        
+
+        // Check if we have stored auth token but no current user
+        if let token = AuthenticationService.shared.getAuthToken() {
+            print("⚠️ DEBUG: Auth token exists but no currentUser! Token: \(String(token.prefix(20)))...")
+            print("⚠️ DEBUG: This suggests authentication state is inconsistent")
+
+            // Try to fix the user UID issue
+            Task {
+                do {
+                    try await AuthenticationService.shared.fixExistingUserUID()
+                    print("✅ DEBUG: User UID fix attempt completed")
+                } catch {
+                    print("❌ DEBUG: User UID fix failed: \(error)")
+                }
+            }
+        }
+
         print("⚠️ DEBUG: No authenticated user found, falling back to guest_user")
+        print("🔍 DEBUG: === END USER ID RESOLUTION DEBUG ===")
         return "guest_user" // Fallback for non-authenticated users
     }
     
@@ -115,18 +135,6 @@ struct LearningProgressView: View {
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
-                    Button("Daily Checkout") {
-                        showingDailyCheckout = true
-                    }
-
-                    Divider()
-
-                    Button("Analytics View") {
-                        showingSubjectFilter = true
-                    }
-
-                    Divider()
-
                     ForEach(TimeframeOption.allCases, id: \.self) { option in
                         Button(action: {
                             selectedTimeframe = option
@@ -177,26 +185,10 @@ struct LearningProgressView: View {
             loadingTask?.cancel()
             loadingTask = nil
         }
-        .sheet(isPresented: $showingDailyCheckout) {
-            DailyCheckoutView()
-        }
         .sheet(isPresented: $showingSubjectDetail) {
             if let subject = selectedSubject {
                 SubjectDetailView(subject: subject, timeframe: selectedTimeframe)
             }
-        }
-        .sheet(isPresented: $showingSubjectFilter) {
-            SubjectAnalyticsView(
-                subjectBreakdownData: subjectBreakdownData,
-                selectedTimeframe: selectedTimeframe,
-                onTimeframeChanged: { timeframe in
-                    selectedTimeframe = timeframe
-                    loadingTask?.cancel()
-                    loadingTask = Task {
-                        await loadSubjectBreakdown()
-                    }
-                }
-            )
         }
     }
     
@@ -204,21 +196,25 @@ struct LearningProgressView: View {
     private var progressContent: some View {
         // Points and Streak Overview
         OverviewMetricsCard()
-        
+
+        // Today's Activity Section (moved to top)
+        if let todayProgress = pointsManager.todayProgress {
+            let _ = print("📱 TODAY'S ACTIVITY: [LearningProgressView] Displaying today's activity section")
+            let _ = print("📱 TODAY'S ACTIVITY: [LearningProgressView] Data - Total: \(todayProgress.totalQuestions), Correct: \(todayProgress.correctAnswers), Accuracy: \(todayProgress.accuracy)%")
+            TodayActivitySection(todayProgress: todayProgress)
+        } else {
+            let _ = print("📱 TODAY'S ACTIVITY: [LearningProgressView] ⚠️ No today's progress data available - section not displayed")
+        }
+
         // Weekly Progress Grid
         WeeklyProgressSection()
-        
+
         // Subject Breakdown Section (Main Feature)
         SubjectBreakdownSection()
-        
+
         // Learning Goals Progress
         LearningGoalsSection()
-        
-        // Recent Activity Summary
-        if let todayProgress = pointsManager.todayProgress {
-            TodayActivitySection(todayProgress: todayProgress)
-        }
-        
+
         // Recent Checkouts
         if !pointsManager.dailyCheckoutHistory.isEmpty {
             RecentCheckoutsSection()
@@ -233,26 +229,26 @@ struct LearningProgressView: View {
             Text("Your Learning Journey")
                 .font(.headline)
                 .fontWeight(.bold)
-            
+
             HStack(spacing: 20) {
                 ProgressMetric(
-                    title: "Points",
-                    value: "\(pointsManager.currentPoints)",
+                    title: "Points Today",
+                    value: "\(calculateTodayPoints())",
                     icon: "star.fill",
                     color: .blue
                 )
-                
+
                 ProgressMetric(
                     title: "Streak",
-                    value: "\(pointsManager.currentStreak)",
+                    value: "\(pointsManager.currentStreak) days",
                     icon: "flame.fill",
                     color: .orange
                 )
-                
+
                 ProgressMetric(
-                    title: "Total Earned",
+                    title: "Total Points",
                     value: "\(pointsManager.totalPointsEarned)",
-                    icon: "trophy.fill",
+                    icon: "star.circle.fill",
                     color: .green
                 )
             }
@@ -262,16 +258,28 @@ struct LearningProgressView: View {
         .cornerRadius(12)
     }
     
-    // MARK: - Weekly Progress Section
-    
+    // MARK: - Activity Progress Section (Weekly or Monthly)
+
     @ViewBuilder
     private func WeeklyProgressSection() -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Weekly Activity")
+            Text(selectedTimeframe == .currentWeek ? "Weekly Activity" : "Monthly Activity")
                 .font(.headline)
                 .fontWeight(.bold)
-            
-            WeeklyProgressGrid()
+
+            if selectedTimeframe == .currentWeek {
+                // Show weekly grid for current week
+                WeeklyProgressGrid()
+                    .onAppear {
+                        // Force weekly progress initialization if needed
+                        if pointsManager.currentWeeklyProgress == nil {
+                            pointsManager.checkWeeklyReset()
+                        }
+                    }
+            } else if selectedTimeframe == .lastMonth {
+                // Show monthly calendar for last month
+                MonthlyProgressGrid()
+            }
         }
         .padding()
         .background(Color(.systemGroupedBackground))
@@ -279,7 +287,7 @@ struct LearningProgressView: View {
     }
     
     // MARK: - Subject Breakdown Section (Main Feature)
-    
+
     @ViewBuilder
     private func SubjectBreakdownSection() -> some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -287,9 +295,9 @@ struct LearningProgressView: View {
                 Text("📚 Subject Breakdown")
                     .font(.headline)
                     .fontWeight(.bold)
-                
+
                 Spacer()
-                
+
                 HStack(spacing: 4) {
                     if let filter = selectedSubjectFilter {
                         HStack(spacing: 4) {
@@ -313,35 +321,23 @@ struct LearningProgressView: View {
                     }
                 }
             }
-            
+
             if let data = subjectBreakdownData {
                 let filteredData = applySubjectFilter(data)
-                
+
                 // Overall Summary
                 if filteredData.summary.totalSubjectsStudied > 0 {
                     SubjectSummaryCard(summary: filteredData.summary, filter: selectedSubjectFilter)
                 }
-                
-                // Subject Performance Grid
-                if !filteredData.subjectProgress.isEmpty {
-                    SubjectPerformanceSection(
-                        subjectProgress: filteredData.subjectProgress,
-                        onSubjectTap: { subject in
-                            selectedSubject = subject.subject
-                            showingSubjectDetail = true
-                        }
-                    )
+
+                // Enhanced Visualizations with Charts
+                if !filteredData.subjectProgress.isEmpty && selectedSubjectFilter == nil {
+                    VStack(spacing: 16) {
+                        // Horizontal bar chart for accuracy comparison only
+                        SubjectAccuracyBarChart(subjectProgress: filteredData.subjectProgress)
+                    }
                 }
-                
-                // Quick Insights
-                if !filteredData.insights.personalizedTips.isEmpty {
-                    QuickInsightsSection(insights: filteredData.insights, filter: selectedSubjectFilter)
-                }
-                
-                // Comparative Analytics (when no filter is applied)
-                if selectedSubjectFilter == nil && !filteredData.subjectProgress.isEmpty {
-                    SubjectComparisonSection(subjectProgress: filteredData.subjectProgress)
-                }
+
             } else {
                 // Empty state for subject breakdown
                 if selectedSubjectFilter != nil {
@@ -357,16 +353,27 @@ struct LearningProgressView: View {
     }
     
     // MARK: - Learning Goals Section
-    
+
     @ViewBuilder
     private func LearningGoalsSection() -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Learning Goals")
                 .font(.headline)
                 .fontWeight(.bold)
-            
-            ForEach(pointsManager.learningGoals) { goal in
-                LearningGoalProgressRow(goal: goal)
+
+            // Filter out weekly streak goals to avoid duplication with WeeklyProgressGrid
+            let filteredGoals = pointsManager.learningGoals.filter { $0.type != .weeklyStreak }
+
+            if filteredGoals.isEmpty {
+                Text("No active learning goals")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 20)
+            } else {
+                ForEach(filteredGoals) { goal in
+                    LearningGoalProgressRow(goal: goal)
+                }
             }
         }
         .padding()
@@ -376,13 +383,19 @@ struct LearningProgressView: View {
     
     // MARK: - Today Activity Section
     
-    @ViewBuilder
     private func TodayActivitySection(todayProgress: DailyProgress) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let _ = print("📱 TODAY'S ACTIVITY: [TodayActivitySection] Rendering with values:")
+        let _ = print("📱 TODAY'S ACTIVITY: [TodayActivitySection]   - totalQuestions: \(todayProgress.totalQuestions)")
+        let _ = print("📱 TODAY'S ACTIVITY: [TodayActivitySection]   - correctAnswers: \(todayProgress.correctAnswers)")
+        let _ = print("📱 TODAY'S ACTIVITY: [TodayActivitySection]   - accuracy: \(todayProgress.accuracy)%")
+        let _ = print("📱 TODAY'S ACTIVITY: [TodayActivitySection]   - studyTimeMinutes: \(todayProgress.studyTimeMinutes)")
+        let _ = print("📱 TODAY'S ACTIVITY: [TodayActivitySection]   - subjectsStudied: \(todayProgress.subjectsStudied)")
+
+        return VStack(alignment: .leading, spacing: 16) {
             Text("Today's Activity")
                 .font(.headline)
                 .fontWeight(.bold)
-            
+
             HStack(spacing: 20) {
                 ProgressMetric(
                     title: "Questions",
@@ -390,14 +403,14 @@ struct LearningProgressView: View {
                     icon: "questionmark.circle.fill",
                     color: .blue
                 )
-                
+
                 ProgressMetric(
                     title: "Correct",
                     value: "\(todayProgress.correctAnswers)",
                     icon: "checkmark.circle.fill",
                     color: .green
                 )
-                
+
                 ProgressMetric(
                     title: "Accuracy",
                     value: "\(Int(todayProgress.accuracy))%",
@@ -429,8 +442,28 @@ struct LearningProgressView: View {
         .cornerRadius(12)
     }
     
-    // MARK: - Subject Breakdown Components
-    
+    // MARK: - Helper Methods
+
+    private func calculateTodayPoints() -> Int {
+        // Calculate points based on today's progress and checked out daily goals
+        guard let todayProgress = pointsManager.todayProgress else { return 0 }
+
+        var points = 0
+
+        // Add points for questions answered (basic calculation)
+        points += todayProgress.correctAnswers * 10 // 10 points per correct answer
+        points += (todayProgress.totalQuestions - todayProgress.correctAnswers) * 5 // 5 points per wrong answer
+
+        // Add points from checked out daily goals (this is what the user requested)
+        let checkedOutDailyGoals = pointsManager.learningGoals.filter { $0.isDaily && $0.isCheckedOut }
+        for goal in checkedOutDailyGoals {
+            points += pointsManager.calculateAvailablePoints(for: goal)
+        }
+
+        // Apply daily maximum of 100 points as requested by user
+        return min(points, 100)
+    }
+
     // Helper method to apply subject filtering
     private func applySubjectFilter(_ data: SubjectBreakdownData) -> SubjectBreakdownData {
         guard let filter = selectedSubjectFilter else { return data }
@@ -875,11 +908,18 @@ struct LearningProgressView: View {
         
         do {
             print("🔄 DEBUG: Starting subject breakdown load for user: \(userId)")
+            print("🔄 DEBUG: Timeframe: \(selectedTimeframe.apiValue)")
+            print("🔄 DEBUG: Is authenticated: \(AuthenticationService.shared.isAuthenticated)")
+
             let response = try await networkService.fetchSubjectBreakdown(
                 userId: userId,
                 timeframe: selectedTimeframe.apiValue
             )
-            
+
+            print("🔄 DEBUG: Subject breakdown API response received")
+            print("🔄 DEBUG: Response success: \(response.success)")
+            print("🔄 DEBUG: Response message: \(response.message ?? "none")")
+
             // Check if task was cancelled during network call
             if Task.isCancelled {
                 print("🎯 DEBUG: Subject breakdown load cancelled during network call")
@@ -888,14 +928,19 @@ struct LearningProgressView: View {
                 }
                 return
             }
-            
+
             await MainActor.run {
                 isLoadingSubjectBreakdown = false
                 if response.success, let data = response.data {
                     self.subjectBreakdownData = data
                     print("🎯 DEBUG: Subject breakdown loaded successfully: \(data.subjectProgress.count) subjects")
+                    print("🎯 DEBUG: Subject breakdown summary - Total subjects: \(data.summary.totalSubjectsStudied)")
+                    print("🎯 DEBUG: Subject breakdown summary - Total questions: \(data.summary.totalQuestionsAcrossSubjects)")
                 } else {
                     print("🎯 DEBUG: Subject breakdown failed: \(response.message ?? "Unknown error")")
+                    if !Task.isCancelled {
+                        errorMessage = response.message ?? "Failed to load subject breakdown"
+                    }
                 }
             }
         } catch {
@@ -911,6 +956,121 @@ struct LearningProgressView: View {
             }
         }
     }
+}
+
+// MARK: - Enhanced Chart Components for Progress View
+
+struct SubjectAccuracyBarChart: View {
+    let subjectProgress: [SubjectProgressData]
+
+    private var chartData: [SubjectAccuracyChartData] {
+        let data = subjectProgress.map { progress in
+            SubjectAccuracyChartData(
+                subject: progress.subject.displayName,
+                accuracy: progress.averageAccuracy,
+                color: getAccuracyColor(progress.averageAccuracy)
+            )
+        }.sorted { $0.accuracy > $1.accuracy }
+
+        return data
+    }
+
+    private var averageAccuracy: Double {
+        guard !subjectProgress.isEmpty else { return 0 }
+        let total = subjectProgress.reduce(0) { $0 + $1.averageAccuracy }
+        return total / Double(subjectProgress.count)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Subject Accuracy Comparison")
+                .font(.headline)
+                .fontWeight(.bold)
+
+            if !chartData.isEmpty {
+                VStack(spacing: 12) {
+                    // Average line indicator
+                    HStack {
+                        Rectangle()
+                            .fill(Color.gray)
+                            .frame(width: 20, height: 2)
+                        Text("Average: \(String(format: "%.1f", averageAccuracy))%")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+
+                    // Horizontal Bar Chart
+                    Chart(chartData, id: \.subject) { data in
+                        BarMark(
+                            x: .value("Accuracy", data.accuracy),
+                            y: .value("Subject", data.subject),
+                            height: .fixed(20)
+                        )
+                        .foregroundStyle(data.color.gradient)
+                        .cornerRadius(4)
+
+                        // Average reference line
+                        RuleMark(x: .value("Average", averageAccuracy))
+                            .foregroundStyle(Color.gray)
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                    }
+                    .frame(height: max(120, CGFloat(chartData.count * 35)))
+                    .chartXScale(domain: 0...100)
+                    .chartXAxis {
+                        AxisMarks(values: [0, 25, 50, 75, 100]) { value in
+                            AxisGridLine()
+                            AxisTick()
+                            AxisValueLabel {
+                                if let intValue = value.as(Int.self) {
+                                    Text("\(intValue)%")
+                                        .font(.caption2)
+                                }
+                            }
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks { value in
+                            AxisValueLabel {
+                                if let stringValue = value.as(String.self) {
+                                    Text(stringValue)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text("No accuracy data available")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 40)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(12)
+    }
+
+    private func getAccuracyColor(_ accuracy: Double) -> Color {
+        switch accuracy {
+        case 90...: return .green
+        case 80..<90: return .blue
+        case 70..<80: return .yellow
+        case 60..<70: return .orange
+        default: return .red
+        }
+    }
+}
+
+// MARK: - Chart Data Models
+
+struct SubjectAccuracyChartData {
+    let subject: String
+    let accuracy: Double
+    let color: Color
 }
 
 // MARK: - Supporting Views
@@ -941,40 +1101,128 @@ struct ProgressMetric: View {
 
 struct LearningGoalProgressRow: View {
     let goal: LearningGoal
-    
+    @ObservedObject private var pointsManager = PointsEarningManager.shared
+    @State private var isAnimating = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: goal.type.icon)
                     .foregroundColor(goal.type.color)
                     .frame(width: 24)
-                
+
                 Text(goal.title)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                
+
                 Spacer()
-                
-                if goal.isCompleted {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+
+                // Progress info and checkout button
+                HStack(spacing: 8) {
+                    if goal.isCompleted && !goal.isCheckedOut {
+                        // Show available points for checkout
+                        let availablePoints = pointsManager.calculateAvailablePoints(for: goal)
+                        if availablePoints > 0 {
+                            Text("+\(availablePoints) pts")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.blue)
+                        }
+                    } else if goal.isCheckedOut {
+                        // Show checked out status
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.caption)
+                            Text("Checked out")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        }
+                    } else {
+                        // Show progress
+                        Text("\(goal.currentProgress)/\(goal.targetValue)")
                             .font(.caption)
-                        Text("+\(goal.pointsEarned) pts")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.green)
+                            .foregroundColor(.secondary)
                     }
-                } else {
-                    Text("\(goal.currentProgress)/\(goal.targetValue)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+
+                    // Checkout button
+                    CheckoutButton(
+                        goal: goal,
+                        isActive: goal.isCompleted && !goal.isCheckedOut,
+                        onCheckout: {
+                            performCheckout()
+                        }
+                    )
                 }
             }
-            
+
+            // Animated progress bar
             ProgressView(value: Double(goal.currentProgress), total: Double(goal.targetValue))
                 .progressViewStyle(LinearProgressViewStyle(tint: goal.type.color))
+                .scaleEffect(x: isAnimating ? 1.05 : 1.0, y: 1.0, anchor: .leading)
+                .animation(.easeInOut(duration: 0.3), value: isAnimating)
         }
+    }
+
+    private func performCheckout() {
+        let pointsEarned = pointsManager.checkoutGoal(goal.id)
+
+        // Trigger checkout animation
+        withAnimation(.easeInOut(duration: 0.3)) {
+            isAnimating = true
+        }
+
+        // Reset animation after delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isAnimating = false
+            }
+        }
+
+        print("🎯 DEBUG: Checked out \(pointsEarned) points for goal: \(goal.title)")
+    }
+}
+
+struct CheckoutButton: View {
+    let goal: LearningGoal
+    let isActive: Bool
+    let onCheckout: () -> Void
+    @State private var isPressed = false
+
+    var body: some View {
+        Button(action: {
+            if isActive {
+                // Button press animation
+                withAnimation(.easeInOut(duration: 0.1)) {
+                    isPressed = true
+                }
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        isPressed = false
+                    }
+                    onCheckout()
+                }
+            }
+        }) {
+            ZStack {
+                // Button background
+                Circle()
+                    .fill(isActive ? Color.blue : Color.gray.opacity(0.3))
+                    .frame(width: 32, height: 32)
+                    .scaleEffect(isPressed ? 0.9 : 1.0)
+
+                // Checkmark icon
+                Image(systemName: goal.isCheckedOut ? "checkmark.circle.fill" : "checkmark")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(goal.isCheckedOut ? .green : (isActive ? .white : .gray))
+                    .scaleEffect(isPressed ? 0.8 : 1.0)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .disabled(!isActive)
+        .animation(.easeInOut(duration: 0.2), value: isActive)
+        .animation(.easeInOut(duration: 0.1), value: isPressed)
     }
 }
 
@@ -1043,18 +1291,267 @@ struct ErrorStateView: View {
 enum TimeframeOption: String, CaseIterable {
     case currentWeek = "current_week"
     case lastMonth = "last_month"
-    case last3Months = "last_3_months"
-    
+
     var displayName: String {
         switch self {
         case .currentWeek: return "This Week"
         case .lastMonth: return "Last Month"
-        case .last3Months: return "Last 3 Months"
         }
     }
-    
+
     var apiValue: String {
         return self.rawValue
+    }
+}
+
+// MARK: - Monthly Progress Grid Component
+
+struct MonthlyProgressGrid: View {
+    @ObservedObject private var pointsManager = PointsEarningManager.shared
+    @State private var monthlyActivities: [DailyActivity] = []
+    @State private var isLoading = false
+
+    private let calendar = Calendar.current
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            monthHeader
+            monthlyCalendarGrid
+            activityLegend
+        }
+        .onAppear {
+            loadMonthlyData()
+        }
+    }
+
+    // MARK: - Month Header
+
+    private var monthHeader: some View {
+        HStack {
+            Text(monthTitle)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            Spacer()
+
+            Text("\(totalQuestionsThisMonth)")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.blue)
+        }
+    }
+
+    // MARK: - Monthly Calendar Grid
+
+    private var monthlyCalendarGrid: some View {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
+
+        return VStack(spacing: 8) {
+            // Weekday headers
+            HStack {
+                ForEach(weekdayHeaders, id: \.self) { weekday in
+                    Text(weekday)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+
+            // Calendar grid
+            LazyVGrid(columns: columns, spacing: 4) {
+                ForEach(calendarDays, id: \.id) { day in
+                    DayActivityCell(
+                        day: day,
+                        isCurrentMonth: day.isCurrentMonth,
+                        activity: getActivityForDay(day.date)
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Activity Legend
+
+    private var activityLegend: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Activity Level")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+
+            HStack(spacing: 12) {
+                Text("Less")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                HStack(spacing: 3) {
+                    ForEach(ActivityIntensity.allCases, id: \.rawValue) { intensity in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(intensity.color)
+                            .frame(width: 12, height: 12)
+                    }
+                }
+
+                Text("More")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                Text("questions this month")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Computed Properties
+
+    private var monthTitle: String {
+        let lastMonth = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: lastMonth)
+    }
+
+    private var weekdayHeaders: [String] {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        return formatter.shortWeekdaySymbols.map { $0.prefix(1).uppercased() }
+    }
+
+    private var calendarDays: [CalendarDay] {
+        let lastMonth = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+
+        guard let monthInterval = calendar.dateInterval(of: .month, for: lastMonth),
+              let firstOfMonth = calendar.dateInterval(of: .month, for: lastMonth)?.start else {
+            return []
+        }
+
+        let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
+        let daysInMonth = calendar.range(of: .day, in: .month, for: lastMonth)?.count ?? 30
+
+        var days: [CalendarDay] = []
+
+        // Add empty cells for days before the first day of the month
+        for _ in 1..<firstWeekday {
+            days.append(CalendarDay(date: Date.distantPast, dayNumber: 0, isCurrentMonth: false))
+        }
+
+        // Add all days of the month
+        for day in 1...daysInMonth {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: firstOfMonth) {
+                days.append(CalendarDay(date: date, dayNumber: day, isCurrentMonth: true))
+            }
+        }
+
+        // Fill remaining cells to complete the grid (42 cells = 6 weeks × 7 days)
+        while days.count < 42 {
+            days.append(CalendarDay(date: Date.distantFuture, dayNumber: 0, isCurrentMonth: false))
+        }
+
+        return days
+    }
+
+    private var totalQuestionsThisMonth: Int {
+        return monthlyActivities.reduce(0) { $0 + $1.questionCount }
+    }
+
+    // MARK: - Helper Methods
+
+    private func loadMonthlyData() {
+        // For now, use mock data. In production, this would fetch from server
+        // or calculate from stored weekly progress data
+        monthlyActivities = generateMockMonthlyData()
+    }
+
+    private func getActivityForDay(_ date: Date) -> DailyActivity? {
+        let dateString = dateFormatter.string(from: date)
+        return monthlyActivities.first { $0.date == dateString }
+    }
+
+    private func generateMockMonthlyData() -> [DailyActivity] {
+        var activities: [DailyActivity] = []
+        let lastMonth = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+
+        guard let monthInterval = calendar.dateInterval(of: .month, for: lastMonth) else {
+            return activities
+        }
+
+        var currentDate = monthInterval.start
+        while currentDate < monthInterval.end {
+            let questionCount = Int.random(in: 0...25) // Random activity for demo
+            if questionCount > 0 {
+                activities.append(DailyActivity(
+                    date: dateFormatter.string(from: currentDate),
+                    questionCount: questionCount
+                ))
+            }
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+        }
+
+        return activities
+    }
+}
+
+// MARK: - Monthly Calendar Supporting Types
+
+struct CalendarDay {
+    let id = UUID()
+    let date: Date
+    let dayNumber: Int
+    let isCurrentMonth: Bool
+}
+
+struct DailyActivity {
+    let date: String // yyyy-MM-dd format
+    let questionCount: Int
+
+    var intensityLevel: ActivityIntensity {
+        switch questionCount {
+        case 0: return .none
+        case 1...5: return .light
+        case 6...15: return .medium
+        case 16...: return .high
+        default: return .none
+        }
+    }
+}
+
+struct DayActivityCell: View {
+    let day: CalendarDay
+    let isCurrentMonth: Bool
+    let activity: DailyActivity?
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(activity?.intensityLevel.color ?? ActivityIntensity.none.color)
+                .frame(width: 32, height: 32)
+
+            if isCurrentMonth && day.dayNumber > 0 {
+                Text("\(day.dayNumber)")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(shouldUseWhiteText ? .white : .black)
+            }
+        }
+        .opacity(isCurrentMonth ? 1.0 : 0.3)
+    }
+
+    private var shouldUseWhiteText: Bool {
+        guard let activity = activity else { return false }
+        switch activity.intensityLevel {
+        case .medium, .high:
+            return true
+        case .none, .light:
+            return false
+        }
     }
 }
 

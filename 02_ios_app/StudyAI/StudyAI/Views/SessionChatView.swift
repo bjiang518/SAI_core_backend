@@ -351,9 +351,7 @@ struct SessionChatView: View {
     @State private var errorMessage = ""
     @State private var showingSubjectPicker = false
     @State private var sessionInfo: [String: Any]?
-    @State private var showingSearch = false
     // @State private var enhancedMessages: [ChatMessage] = [] // TODO: Re-enable when ChatMessage.swift is properly integrated
-    @State private var searchText = ""
     // @State private var filteredMessages: [ChatMessage] = [] // TODO: Re-enable when ChatMessage.swift is properly integrated
     @State private var tempFilteredMessages: [String] = [] // Temporary placeholder
     @State private var showingSessionInfo = false
@@ -571,54 +569,9 @@ struct SessionChatView: View {
                 }
                 
                 Spacer()
-                
-                // Search button
-                Button(action: {
-                    withAnimation {
-                        showingSearch.toggle()
-                        if !showingSearch {
-                            searchText = ""
-                            // TODO: Re-enable when filteredMessages is properly integrated
-                            // filteredMessages = []
-                        }
-                    }
-                }) {
-                    Image(systemName: showingSearch ? "xmark" : "magnifyingglass")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
-                        .frame(width: 32, height: 32)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Circle())
-                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
-            
-            // Search bar
-            if showingSearch {
-                HStack {
-                    TextField("Search messages...", text: $searchText)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .onChange(of: searchText) { _, newValue in
-                            // TODO: Re-enable search when ChatMessage models are properly integrated
-                            // filterMessages(query: newValue)
-                        }
-                    
-                    if !searchText.isEmpty {
-                        Button("Clear") {
-                            searchText = ""
-                            // TODO: Re-enable when filteredMessages is properly integrated
-                            // filteredMessages = []
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .background(Color.black.opacity(0.2))
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
         }
     }
     
@@ -626,36 +579,10 @@ struct SessionChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 24) {  // Increased spacing for modern look
-                    // Show filtered messages when searching, otherwise show all messages
-                    // TODO: Re-enable when ChatMessage models are properly integrated
-                    // let messagesToShow = !searchText.isEmpty && !filteredMessages.isEmpty ? filteredMessages : []
-                    let showSearchResults = !searchText.isEmpty && false // Temporarily disabled
-                    
                     if networkService.conversationHistory.isEmpty {
                         modernEmptyStateView
-                    } else if showSearchResults { // && messagesToShow.isEmpty (temporarily disabled)
-                        // No search results - temporarily disabled
-                        VStack(spacing: 16) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 40))
-                                .foregroundColor(.white.opacity(0.5))
-                            
-                            Text("Search temporarily disabled")
-                                .font(.headline)
-                                .foregroundColor(.white.opacity(0.8))
-                            
-                            Text("Enhanced search will be available soon")
-                                .font(.subheadline)
-                                .foregroundColor(.white.opacity(0.6))
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding(40)
-                    } else if false { // showSearchResults (temporarily disabled)
-                        // Show enhanced message bubbles for search results - temporarily disabled
-                        Text("Search results will appear here")
-                            .foregroundColor(.white.opacity(0.6))
                     } else {
-                        // Show regular messages when not searching
+                        // Show regular messages
                         ForEach(Array(networkService.conversationHistory.enumerated()), id: \.offset) { index, message in
                             if message["role"] == "user" {
                                 // Check if message has image data
@@ -704,26 +631,13 @@ struct SessionChatView: View {
                 .padding(.top, 20)
             }
             .onChange(of: networkService.conversationHistory.count) { _, newCount in
-                // Only auto-scroll when not searching
-                if searchText.isEmpty {
-                    let lastIndex = networkService.conversationHistory.count - 1
-                    if lastIndex >= 0 {
-                        withAnimation(.easeOut(duration: 0.5)) {
-                            proxy.scrollTo(lastIndex, anchor: .bottom)
-                        }
+                // Auto-scroll to bottom when new messages arrive
+                let lastIndex = networkService.conversationHistory.count - 1
+                if lastIndex >= 0 {
+                    withAnimation(.easeOut(duration: 0.5)) {
+                        proxy.scrollTo(lastIndex, anchor: .bottom)
                     }
                 }
-            }
-            .onChange(of: tempFilteredMessages) { _, _ in
-                // Scroll to first search result when search updates - temporarily disabled
-                // TODO: Re-enable when filteredMessages is properly integrated
-                /*
-                if let firstResult = filteredMessages.first {
-                    withAnimation {
-                        proxy.scrollTo(firstResult.id, anchor: .center)
-                    }
-                }
-                */
             }
         }
     }
@@ -1979,27 +1893,10 @@ struct SessionChatView: View {
     
     /// Analyze if the interaction was likely a correct learning exchange
     private func analyzeInteractionCorrectness(userMessage: String, aiResponse: String?) -> Bool {
-        guard let response = aiResponse else { return false }
-        
-        let responseLowercase = response.lowercased()
-        
-        // Check for positive indicators in AI response
-        let positiveIndicators = [
-            "correct", "right", "exactly", "yes", "that's right", "well done",
-            "good job", "perfect", "accurate", "spot on", "excellent"
-        ]
-        
-        let negativeIndicators = [
-            "incorrect", "wrong", "not quite", "actually", "however", "but",
-            "mistake", "error", "try again", "reconsider"
-        ]
-        
-        let positiveCount = positiveIndicators.filter { responseLowercase.contains($0) }.count
-        let negativeCount = negativeIndicators.filter { responseLowercase.contains($0) }.count
-        
-        // If there are more positive indicators than negative, consider it correct
-        // If unclear, default to false (conservative approach for accuracy calculation)
-        return positiveCount > negativeCount && positiveCount > 0
+        // For general chat interactions, we should not affect homework accuracy statistics
+        // Chat interactions are exploratory and don't have definitive right/wrong answers
+        // Only homework grading through the HomeworkResultsView should affect accuracy
+        return false
     }
 }
 

@@ -10,7 +10,7 @@ import SwiftUI
 struct LearningGoalsSettingsView: View {
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @State private var dailyQuestionsTarget: Double = 5
-    @State private var weeklyStreakTarget: Double = 7
+    @State private var studyConsistencyTarget: Double = 5
     @State private var accuracyTarget: Double = 80
     @Environment(\.dismiss) private var dismiss
     
@@ -83,7 +83,7 @@ struct LearningGoalsSettingsView: View {
     }
     
     // MARK: - Learning Goals Section
-    
+
     private var learningGoalsSection: some View {
         VStack(spacing: 20) {
             // Daily Questions Goal
@@ -92,7 +92,7 @@ struct LearningGoalsSettingsView: View {
                     Image(systemName: "questionmark.circle.fill")
                         .foregroundColor(.blue)
                         .font(.title2)
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Daily Questions")
                             .font(.headline)
@@ -101,10 +101,10 @@ struct LearningGoalsSettingsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     Spacer()
                 }
-                
+
                 HStack {
                     Text("Target: ")
                         .font(.subheadline)
@@ -118,61 +118,21 @@ struct LearningGoalsSettingsView: View {
                         .foregroundColor(.secondary)
                     Spacer()
                 }
-                
+
                 Slider(value: $dailyQuestionsTarget, in: 1...20, step: 1)
                     .tint(.blue)
             }
             .padding()
             .background(Color(.systemGray6))
             .cornerRadius(12)
-            
-            // Weekly Streak Goal
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "flame.fill")
-                        .foregroundColor(.orange)
-                        .font(.title2)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Weekly Streak")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        Text("Maintain a learning streak to earn big bonus points")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                }
-                
-                HStack {
-                    Text("Target: ")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Text("\(Int(weeklyStreakTarget))")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .foregroundColor(.orange)
-                    Text("days in a row")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-                
-                Slider(value: $weeklyStreakTarget, in: 3...14, step: 1)
-                    .tint(.orange)
-            }
-            .padding()
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
-            
+
             // Accuracy Goal
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "target")
                         .foregroundColor(.green)
                         .font(.title2)
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Accuracy Goal")
                             .font(.headline)
@@ -181,10 +141,10 @@ struct LearningGoalsSettingsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     Spacer()
                 }
-                
+
                 HStack {
                     Text("Target: ")
                         .font(.subheadline)
@@ -198,9 +158,49 @@ struct LearningGoalsSettingsView: View {
                         .foregroundColor(.secondary)
                     Spacer()
                 }
-                
+
                 Slider(value: $accuracyTarget, in: 50...100, step: 5)
                     .tint(.green)
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+
+            // Study Consistency Goal (Replaces Weekly Streak to avoid duplication)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "calendar.badge.checkmark")
+                        .foregroundColor(.orange)
+                        .font(.title2)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Study Consistency")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        Text("Maintain regular study habits for consistent progress")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+                }
+
+                HStack {
+                    Text("Target: ")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Text("\(Int(studyConsistencyTarget))")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.orange)
+                    Text("days per week")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+
+                Slider(value: $studyConsistencyTarget, in: 3...7, step: 1)
+                    .tint(.orange)
             }
             .padding()
             .background(Color(.systemGray6))
@@ -241,7 +241,7 @@ struct LearningGoalsSettingsView: View {
             case .dailyQuestions:
                 dailyQuestionsTarget = Double(goal.targetValue)
             case .weeklyStreak:
-                weeklyStreakTarget = Double(goal.targetValue)
+                studyConsistencyTarget = Double(goal.targetValue)
             case .accuracyGoal:
                 accuracyTarget = Double(goal.targetValue)
             default:
@@ -249,30 +249,30 @@ struct LearningGoalsSettingsView: View {
             }
         }
     }
-    
+
     private func saveGoals() {
         print("🎯 DEBUG: Saving goals to database...")
         print("🎯 DEBUG: Daily Questions Target: \(Int(dailyQuestionsTarget))")
-        print("🎯 DEBUG: Weekly Streak Target: \(Int(weeklyStreakTarget))")
+        print("🎯 DEBUG: Study Consistency Target: \(Int(studyConsistencyTarget))")
         print("🎯 DEBUG: Accuracy Target: \(Int(accuracyTarget))")
-        
+
         // Update the goals in PointsEarningManager
         for goal in pointsManager.learningGoals {
             switch goal.type {
             case .dailyQuestions:
                 pointsManager.updateLearningGoal(goal.id, targetValue: Int(dailyQuestionsTarget))
             case .weeklyStreak:
-                pointsManager.updateLearningGoal(goal.id, targetValue: Int(weeklyStreakTarget))
+                pointsManager.updateLearningGoal(goal.id, targetValue: Int(studyConsistencyTarget))
             case .accuracyGoal:
                 pointsManager.updateLearningGoal(goal.id, targetValue: Int(accuracyTarget))
             default:
                 break
             }
         }
-        
+
         // TODO: Add actual database sync logic here
         print("🎯 DEBUG: Goals saved successfully!")
-        
+
         // Show success feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()

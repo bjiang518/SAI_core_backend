@@ -22,6 +22,19 @@ struct HomeworkResultsView: View {
     @State private var hasMarkedProgress = false
     @StateObject private var questionArchiveService = QuestionArchiveService.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
+
+    // Generate unique session ID for this homework session
+    private var sessionId: String {
+        let questionsContent = parsingResult.allQuestions.map { $0.questionText + $0.answerText }.joined()
+        let processingTimeString = String(parsingResult.processingTime)
+        let combinedString = questionsContent + processingTimeString
+        return String(combinedString.hashValue)
+    }
+
+    // Key for storing progress state in UserDefaults
+    private var progressMarkedKey: String {
+        return "homework_progress_marked_\(sessionId)"
+    }
     
     // Enhanced initializer that can accept either type
     init(parsingResult: HomeworkParsingResult, originalImageUrl: String?) {
@@ -126,6 +139,7 @@ struct HomeworkResultsView: View {
             }
             .onAppear {
                 initializeQuestionData()
+                loadProgressState()
             }
         }
     }
@@ -386,7 +400,8 @@ struct HomeworkResultsView: View {
                 print("🎯 DEBUG: Mark Progress button tapped!")
                 trackHomeworkUsage()
                 hasMarkedProgress = true
-                
+                saveProgressState() // Persist the state
+
                 // Show success feedback
                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
                 impactFeedback.impactOccurred()
@@ -419,10 +434,17 @@ struct HomeworkResultsView: View {
                     .foregroundColor(.green)
                     .multilineTextAlignment(.center)
             } else {
-                Text("Tap to add these \\(parsingResult.allQuestions.count) questions to your daily learning goals")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+                VStack(spacing: 4) {
+                    Text("💡 Tip: Progress is automatically tracked when you archive questions!")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .multilineTextAlignment(.center)
+
+                    Text("Or tap here to manually add these \(parsingResult.allQuestions.count) questions to your daily learning goals")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
             }
         }
         .padding()
@@ -436,6 +458,18 @@ struct HomeworkResultsView: View {
         let totalQuestions = parsingResult.allQuestions.count
         questionNotes = Array(repeating: "", count: totalQuestions)
         questionTags = Array(repeating: [], count: totalQuestions)
+    }
+
+    /// Load the progress state from UserDefaults based on session ID
+    private func loadProgressState() {
+        hasMarkedProgress = UserDefaults.standard.bool(forKey: progressMarkedKey)
+        print("🎯 DEBUG: Loaded progress state for session \(sessionId): \(hasMarkedProgress)")
+    }
+
+    /// Save the progress state to UserDefaults
+    private func saveProgressState() {
+        UserDefaults.standard.set(hasMarkedProgress, forKey: progressMarkedKey)
+        print("🎯 DEBUG: Saved progress state for session \(sessionId): \(hasMarkedProgress)")
     }
     
     private func toggleQuestion(_ questionId: String) {
@@ -915,15 +949,21 @@ struct ScoreBreakdownItem: View {
 extension HomeworkResultsView {
     private func archiveSelectedQuestions(_ request: QuestionArchiveRequest) async {
         isArchiving = true
-        
+
         do {
             let archivedQuestions = try await questionArchiveService.archiveQuestions(request)
-            
+
             await MainActor.run {
                 archiveMessage = "Successfully archived \(archivedQuestions.count) question(s) to your Mistake Notebook!"
                 isArchiving = false
                 showingQuestionArchiveDialog = false
                 selectedQuestionIndices.removeAll()
+
+                // Automatically track progress for archived questions
+                print("🎯 DEBUG: Auto-tracking progress for archived questions")
+                trackHomeworkUsage()
+                hasMarkedProgress = true
+                saveProgressState() // Persist the state
             }
         } catch {
             await MainActor.run {

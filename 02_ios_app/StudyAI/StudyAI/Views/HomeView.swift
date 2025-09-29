@@ -12,9 +12,8 @@ struct HomeView: View {
     let onSelectTab: (MainTab) -> Void
     @StateObject private var networkService = NetworkService.shared
     @StateObject private var voiceService = VoiceInteractionService.shared
+    @ObservedObject private var pointsManager = PointsEarningManager.shared
     @State private var userName = UserDefaults.standard.string(forKey: "user_name") ?? "Student"
-    @State private var todayProgress: [String: Any]?
-    @State private var isLoadingProgress = false
     @State private var navigateToSession = false
     @State private var showingProfile = false
     @State private var showingMistakeReview = false
@@ -184,12 +183,9 @@ struct HomeView: View {
                         Text("Today's Progress")
                             .font(.headline)
                             .padding(.horizontal)
-                        
-                        if isLoadingProgress {
-                            ProgressView()
-                                .frame(height: 100)
-                        } else if let progress = todayProgress {
-                            TodayProgressCard(progress: progress)
+
+                        if let todayProgress = pointsManager.todayProgress {
+                            TodayProgressCard(todayProgress: todayProgress)
                                 .padding(.horizontal)
                         } else {
                             VStack(spacing: 8) {
@@ -223,9 +219,6 @@ struct HomeView: View {
             }
             .navigationTitle("StudyAI")
             .navigationBarTitleDisplayMode(.large)
-            .task {
-                loadTodayProgress()
-            }
             .onAppear {
                 logger.info("🏠 === HOME VIEW BODY onAppear CALLED ===")
                 logger.info("🏠 HomeView main content is loading")
@@ -264,33 +257,7 @@ struct HomeView: View {
             }
         }
     }
-    
-    private func loadTodayProgress() {
-        // Prevent multiple concurrent calls
-        guard !isLoadingProgress else { return }
-        
-        isLoadingProgress = true
-        
-        Task {
-            let result = await networkService.getProgress()
-            
-            await MainActor.run {
-                isLoadingProgress = false
-                if result.success {
-                    todayProgress = result.progress
-                } else {
-                    // Gracefully handle progress API not being available
-                    print("⚠️ Progress API not available, using mock data for demo")
-                    todayProgress = [
-                        "totalQuestions": 0,
-                        "accuracy": 0,
-                        "streak": 0
-                    ]
-                }
-            }
-        }
-    }
-    
+
     private func getCharacterColor() -> Color {
         switch voiceService.voiceSettings.voiceType {
         case .adam: return .blue      // Boy color
@@ -329,8 +296,9 @@ struct QuickActionCard: View {
 }
 
 struct TodayProgressCard: View {
-    let progress: [String: Any]
-    
+    let todayProgress: DailyProgress
+    @ObservedObject private var pointsManager = PointsEarningManager.shared
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -341,25 +309,25 @@ struct TodayProgressCard: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             HStack(spacing: 20) {
                 ProgressStat(
                     title: "Questions",
-                    value: "\(progress["totalQuestions"] as? Int ?? 0)",
+                    value: "\(todayProgress.totalQuestions)",
                     icon: "questionmark.circle.fill",
                     color: .blue
                 )
-                
+
                 ProgressStat(
                     title: "Accuracy",
-                    value: "\(progress["accuracy"] as? Int ?? 0)%",
+                    value: "\(Int(todayProgress.accuracy))%",
                     icon: "target",
                     color: .green
                 )
-                
+
                 ProgressStat(
                     title: "Streak",
-                    value: "\(progress["streak"] as? Int ?? 0)",
+                    value: "\(pointsManager.currentStreak)",
                     icon: "flame.fill",
                     color: .orange
                 )
