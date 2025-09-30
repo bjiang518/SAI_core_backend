@@ -26,14 +26,14 @@ struct LearningProgressView: View {
     
     // Get actual user ID from authentication service
     private var userId: String {
-        print("🔍 DEBUG: === USER ID RESOLUTION DEBUG ===")
-        print("🔍 DEBUG: AuthenticationService.shared.isAuthenticated: \(AuthenticationService.shared.isAuthenticated)")
-        print("🔍 DEBUG: AuthenticationService.shared.currentUser: \(AuthenticationService.shared.currentUser?.id ?? "nil")")
+
+
+
 
         if let user = AuthenticationService.shared.currentUser {
-            print("🎯 DEBUG: Got authenticated user ID: \(user.id)")
-            print("🎯 DEBUG: User email: \(user.email)")
-            print("🎯 DEBUG: Auth provider: \(user.authProvider)")
+
+
+
             return user.id
         }
 
@@ -42,7 +42,7 @@ struct LearningProgressView: View {
            let userData = userDataString.data(using: .utf8),
            let userDict = try? JSONSerialization.jsonObject(with: userData) as? [String: Any],
            let id = userDict["id"] as? String {
-            print("🎯 DEBUG: Got user ID from UserDefaults: \(id)")
+
             return id
         }
 
@@ -55,20 +55,20 @@ struct LearningProgressView: View {
             Task {
                 do {
                     try await AuthenticationService.shared.fixExistingUserUID()
-                    print("✅ DEBUG: User UID fix attempt completed")
+
                 } catch {
-                    print("❌ DEBUG: User UID fix failed: \(error)")
+
                 }
             }
         }
 
         print("⚠️ DEBUG: No authenticated user found, falling back to guest_user")
-        print("🔍 DEBUG: === END USER ID RESOLUTION DEBUG ===")
+
         return "guest_user" // Fallback for non-authenticated users
     }
     
     var body: some View {
-        print("🎯 DEBUG: [View \(viewId)] LearningProgressView with SUBJECT BREAKDOWN body building")
+
         return ScrollView {
             LazyVStack(spacing: 20) {
                 if isLoading {
@@ -159,7 +159,7 @@ struct LearningProgressView: View {
             }
         }
         .refreshable {
-            print("🎯 DEBUG: Enhanced LearningProgressView manual refresh triggered")
+
             // Cancel existing task and create new one
             loadingTask?.cancel()
             loadingTask = Task {
@@ -168,7 +168,7 @@ struct LearningProgressView: View {
             await loadingTask?.value
         }
         .onAppear {
-            print("🎯 DEBUG: [View \(viewId)] Enhanced LearningProgressView onAppear called")
+
             // Cancel any existing loading task
             loadingTask?.cancel()
 
@@ -180,7 +180,7 @@ struct LearningProgressView: View {
             }
         }
         .onDisappear {
-            print("🎯 DEBUG: [View \(viewId)] Enhanced LearningProgressView onDisappear called")
+
             // Cancel loading task when view disappears
             loadingTask?.cancel()
             loadingTask = nil
@@ -199,11 +199,11 @@ struct LearningProgressView: View {
 
         // Today's Activity Section (moved to top)
         if let todayProgress = pointsManager.todayProgress {
-            let _ = print("📱 TODAY'S ACTIVITY: [LearningProgressView] Displaying today's activity section")
-            let _ = print("📱 TODAY'S ACTIVITY: [LearningProgressView] Data - Total: \(todayProgress.totalQuestions), Correct: \(todayProgress.correctAnswers), Accuracy: \(todayProgress.accuracy)%")
+
+
             TodayActivitySection(todayProgress: todayProgress)
         } else {
-            let _ = print("📱 TODAY'S ACTIVITY: [LearningProgressView] ⚠️ No today's progress data available - section not displayed")
+
         }
 
         // Weekly Progress Grid
@@ -384,12 +384,12 @@ struct LearningProgressView: View {
     // MARK: - Today Activity Section
     
     private func TodayActivitySection(todayProgress: DailyProgress) -> some View {
-        let _ = print("📱 TODAY'S ACTIVITY: [TodayActivitySection] Rendering with values:")
-        let _ = print("📱 TODAY'S ACTIVITY: [TodayActivitySection]   - totalQuestions: \(todayProgress.totalQuestions)")
-        let _ = print("📱 TODAY'S ACTIVITY: [TodayActivitySection]   - correctAnswers: \(todayProgress.correctAnswers)")
-        let _ = print("📱 TODAY'S ACTIVITY: [TodayActivitySection]   - accuracy: \(todayProgress.accuracy)%")
-        let _ = print("📱 TODAY'S ACTIVITY: [TodayActivitySection]   - studyTimeMinutes: \(todayProgress.studyTimeMinutes)")
-        let _ = print("📱 TODAY'S ACTIVITY: [TodayActivitySection]   - subjectsStudied: \(todayProgress.subjectsStudied)")
+
+
+
+
+
+
 
         return VStack(alignment: .leading, spacing: 16) {
             Text("Today's Activity")
@@ -854,11 +854,11 @@ struct LearningProgressView: View {
     private func loadProgressDataAsync() async {
         // Check if task was cancelled before starting
         if Task.isCancelled {
-            print("🎯 DEBUG: Progress data load cancelled before starting")
+
             return
         }
         
-        print("🎯 DEBUG: Starting loadProgressDataAsync")
+
         await MainActor.run {
             isLoading = true
         }
@@ -872,10 +872,10 @@ struct LearningProgressView: View {
         if !Task.isCancelled {
             await MainActor.run {
                 isLoading = false
-                print("🎯 DEBUG: loadProgressDataAsync completed successfully")
+
             }
         } else {
-            print("🎯 DEBUG: loadProgressDataAsync was cancelled")
+
         }
     }
     
@@ -885,20 +885,20 @@ struct LearningProgressView: View {
         
         await MainActor.run {
             // Basic progress is handled by PointsEarningManager
-            print("🎯 DEBUG: Basic progress loaded")
+
         }
     }
     
     private func loadSubjectBreakdown() async {
         // Check if task was cancelled before starting
         if Task.isCancelled {
-            print("🎯 DEBUG: Subject breakdown load cancelled before starting")
+
             return
         }
         
         // Avoid duplicate requests if already loading subject breakdown specifically
         guard !isLoadingSubjectBreakdown else { 
-            print("🎯 DEBUG: Subject breakdown already loading, skipping")
+
             return 
         }
         
@@ -907,22 +907,22 @@ struct LearningProgressView: View {
         }
         
         do {
-            print("🔄 DEBUG: Starting subject breakdown load for user: \(userId)")
-            print("🔄 DEBUG: Timeframe: \(selectedTimeframe.apiValue)")
-            print("🔄 DEBUG: Is authenticated: \(AuthenticationService.shared.isAuthenticated)")
+
+
+
 
             let response = try await networkService.fetchSubjectBreakdown(
                 userId: userId,
                 timeframe: selectedTimeframe.apiValue
             )
 
-            print("🔄 DEBUG: Subject breakdown API response received")
-            print("🔄 DEBUG: Response success: \(response.success)")
-            print("🔄 DEBUG: Response message: \(response.message ?? "none")")
+
+
+
 
             // Check if task was cancelled during network call
             if Task.isCancelled {
-                print("🎯 DEBUG: Subject breakdown load cancelled during network call")
+
                 await MainActor.run {
                     isLoadingSubjectBreakdown = false
                 }
@@ -933,11 +933,11 @@ struct LearningProgressView: View {
                 isLoadingSubjectBreakdown = false
                 if response.success, let data = response.data {
                     self.subjectBreakdownData = data
-                    print("🎯 DEBUG: Subject breakdown loaded successfully: \(data.subjectProgress.count) subjects")
-                    print("🎯 DEBUG: Subject breakdown summary - Total subjects: \(data.summary.totalSubjectsStudied)")
-                    print("🎯 DEBUG: Subject breakdown summary - Total questions: \(data.summary.totalQuestionsAcrossSubjects)")
+
+
+
                 } else {
-                    print("🎯 DEBUG: Subject breakdown failed: \(response.message ?? "Unknown error")")
+
                     if !Task.isCancelled {
                         errorMessage = response.message ?? "Failed to load subject breakdown"
                     }
@@ -946,12 +946,12 @@ struct LearningProgressView: View {
         } catch {
             await MainActor.run {
                 isLoadingSubjectBreakdown = false
-                print("🎯 DEBUG: Subject breakdown error: \(error.localizedDescription)")
+
                 // Only log as error if not cancelled (which is common during view changes)
                 if !error.localizedDescription.contains("cancelled") && !Task.isCancelled {
                     errorMessage = "Failed to load subject breakdown: \(error.localizedDescription)"
                 } else {
-                    print("🎯 DEBUG: Subject breakdown request was cancelled (expected during view changes)")
+
                 }
             }
         }
@@ -1179,7 +1179,7 @@ struct LearningGoalProgressRow: View {
             }
         }
 
-        print("🎯 DEBUG: Checked out \(pointsEarned) points for goal: \(goal.title)")
+
     }
 }
 

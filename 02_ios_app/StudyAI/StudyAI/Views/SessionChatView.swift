@@ -275,11 +275,11 @@ struct MessageVoiceControls: View {
                     HStack {
                         Image(systemName: voiceService.voiceSettings.voiceType.icon)
                             .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(.primary.opacity(0.8))
 
                         Text("\(voiceService.voiceSettings.voiceType.displayName) speaking...")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.white.opacity(0.6))
+                            .foregroundColor(.primary.opacity(0.6))
 
                         Spacer()
                     }
@@ -395,12 +395,12 @@ struct SessionChatView: View {
     
     var body: some View {
         ZStack {
-            // ChatGPT-style dark gradient background
+            // Light gradient background
             LinearGradient(
                 colors: [
-                    Color(red: 0.08, green: 0.12, blue: 0.18), // Dark blue-gray top
-                    Color(red: 0.05, green: 0.08, blue: 0.12), // Darker blue-gray middle  
-                    Color(red: 0.02, green: 0.05, blue: 0.08)  // Very dark bottom
+                    Color(red: 0.98, green: 0.98, blue: 1.0), // Very light blue-white top
+                    Color(red: 0.95, green: 0.96, blue: 0.98), // Light blue-gray middle
+                    Color(red: 0.92, green: 0.94, blue: 0.96)  // Slightly darker light gray bottom
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -415,8 +415,8 @@ struct SessionChatView: View {
                         dismissKeyboard()
                     }
                 
-                // Chat messages with dark theme
-                darkChatMessagesView
+                // Chat messages with light theme
+                lightChatMessagesView
                     .contentShape(Rectangle()) // Makes the entire area tappable
                     .onTapGesture {
                         // Dismiss keyboard when tapping on messages area
@@ -440,7 +440,7 @@ struct SessionChatView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .preferredColorScheme(.dark) // Force dark mode
+        .preferredColorScheme(.light) // Force light mode
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
@@ -539,7 +539,7 @@ struct SessionChatView: View {
             Text("\(archivedSessionTitle.capitalized) has been successfully archived and saved to your Study Library.")
         }
         .onDisappear {
-            print("🎯 SessionChatView: onDisappear called")
+
 
             // Stop any playing audio when leaving the chat view
             stopCurrentAudio()
@@ -565,7 +565,7 @@ struct SessionChatView: View {
                     
                     Text(networkService.currentSessionId != nil ? "Active" : "Inactive")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(.primary.opacity(0.7))
                 }
                 
                 Spacer()
@@ -575,7 +575,7 @@ struct SessionChatView: View {
         }
     }
     
-    private var darkChatMessagesView: some View {
+    private var lightChatMessagesView: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 24) {  // Increased spacing for modern look
@@ -676,9 +676,9 @@ struct SessionChatView: View {
                     Button(action: openCamera) {
                         Image(systemName: "camera.fill")
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(.primary.opacity(0.7))
                             .frame(width: 44, height: 44)
-                            .background(Color.white.opacity(0.1))
+                            .background(Color.primary.opacity(0.1))
                             .clipShape(Circle())
                     }
                     .disabled(networkService.currentSessionId == nil || isSubmitting || isProcessingImage)
@@ -692,9 +692,9 @@ struct SessionChatView: View {
                     }) {
                         Image(systemName: "mic.fill")
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(.primary.opacity(0.7))
                             .frame(width: 44, height: 44)
-                            .background(Color.white.opacity(0.1))
+                            .background(Color.primary.opacity(0.1))
                             .clipShape(Circle())
                     }
                     
@@ -702,7 +702,7 @@ struct SessionChatView: View {
                     HStack {
                         TextField("Message", text: $messageText, axis: .vertical)
                             .font(.system(size: 16))
-                            .foregroundColor(.white)
+                            .foregroundColor(.primary)
                             .focused($isMessageInputFocused)
                             .lineLimit(1...4)
                             .onChange(of: messageText) { _, newValue in
@@ -727,11 +727,11 @@ struct SessionChatView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.1))
+                    .background(Color.primary.opacity(0.1))
                     .cornerRadius(25)
                     .overlay(
                         RoundedRectangle(cornerRadius: 25)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            .stroke(Color.primary.opacity(0.2), lineWidth: 1)
                     )
                 }
                 .padding(.horizontal, 20)
@@ -898,11 +898,11 @@ struct SessionChatView: View {
             VStack(spacing: 12) {
                 Text("Hi! I'm \(voiceService.voiceSettings.voiceType.displayName)")
                     .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(.white)
-                
+                    .foregroundColor(.primary)
+
                 Text("Ask me anything about \(selectedSubject.lowercased()) and I'll help you learn!")
                     .font(.system(size: 16))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(.primary.opacity(0.8))
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
             }
@@ -911,8 +911,8 @@ struct SessionChatView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("💡 Try asking:")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                
+                    .foregroundColor(.primary)
+
                 VStack(alignment: .leading, spacing: 8) {
                     Text("• Solve: 2x + 5 = 13")
                     Text("• Explain photosynthesis")
@@ -920,10 +920,10 @@ struct SessionChatView: View {
                     Text("• How do I balance equations?")
                 }
                 .font(.system(size: 14))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(.primary.opacity(0.7))
             }
             .padding(20)
-            .background(Color.white.opacity(0.05))
+            .background(Color.primary.opacity(0.05))
             .cornerRadius(16)
         }
         .padding(.vertical, 40)
@@ -1037,7 +1037,7 @@ struct SessionChatView: View {
             .id(refreshTrigger) // Force view recreation when refreshTrigger changes
             .onChange(of: networkService.conversationHistory.count) { _, newCount in
                 // Auto-scroll to bottom when new messages arrive
-                print("🔄 SessionChatView: Conversation history count changed to \(newCount)")
+
                 let lastIndex = networkService.conversationHistory.count - 1
                 if lastIndex >= 0 {
                     withAnimation(.easeOut(duration: 0.5)) {
@@ -1513,7 +1513,7 @@ struct SessionChatView: View {
             // Message sent successfully - NetworkService already added both messages to history
             // Force UI refresh to ensure new messages are displayed
             refreshTrigger = UUID()
-            print("🔄 SessionChatView: Triggered UI refresh after message success")
+
             
             // Track progress for this question using new points system
             trackChatInteraction(subject: selectedSubject, userMessage: originalMessage, aiResponse: result.aiResponse)
@@ -1714,7 +1714,7 @@ struct SessionChatView: View {
                                 isCorrect: true, // Assume correct for image analysis
                                 studyTimeSeconds: 0
                             )
-                            print("📈 Progress tracked for image question in subject: \(selectedSubject)")
+
                         }
                         
                         // Refresh session info in background
@@ -1888,7 +1888,7 @@ struct SessionChatView: View {
         let estimatedStudyTime = max(wordCount / 10, 1) // 1 minute per 10 words, minimum 1 minute
         pointsManager.trackStudyTime(estimatedStudyTime)
         
-        print("📊 Tracked chat interaction: subject=\(subject), correct=\(isCorrect), studyTime=\(estimatedStudyTime)min")
+
     }
     
     /// Analyze if the interaction was likely a correct learning exchange
@@ -1957,7 +1957,7 @@ struct MessageBubbleView: View {
                 .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
                 .onAppear {
                     print("🎨 === MESSAGE RENDERING DEBUG ===")
-                    print("📱 Raw AI Response: '\(rawContent)'")
+
                     print("📏 Content length: \(rawContent.count)")
                     print("🧮 Using MathFormattedText for proper LaTeX rendering")
                     print("==========================================")
@@ -1985,14 +1985,14 @@ struct ModernUserMessageView: View {
             
             Text(message["content"] ?? "")
                 .font(.system(size: 18))  // Larger font for better readability
-                .foregroundColor(.white.opacity(0.95))
+                .foregroundColor(.primary.opacity(0.95))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(Color.white.opacity(0.08))  // More subtle background
+                .background(Color.primary.opacity(0.08))  // More subtle background
                 .cornerRadius(18)  // Slightly more rounded
                 .overlay(
                     RoundedRectangle(cornerRadius: 18)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)  // Thinner border
+                        .stroke(Color.primary.opacity(0.15), lineWidth: 0.5)  // Thinner border
                 )
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -2025,17 +2025,17 @@ struct ModernAIMessageView: View {
                 // Character name
                 Text(voiceType.displayName)
                     .font(.system(size: 16, weight: .semibold))  // Larger for better readability
-                    .foregroundColor(.white.opacity(0.9))
-                
+                    .foregroundColor(.primary.opacity(0.9))
+
                 // ChatGPT-style streaming audio box
                 if isStreaming {
                     ChatGPTStyleAudioPlayer()
                         .padding(.bottom, 8)
                 }
-                
+
                 // Message content with larger typography for better readability
                 MathFormattedText(message, fontSize: 18)  // Larger font for better readability
-                    .foregroundColor(.white.opacity(0.95))
+                    .foregroundColor(.primary.opacity(0.95))
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
@@ -2176,19 +2176,19 @@ struct ModernTypingIndicatorView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Adam")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                
+                    .foregroundColor(.primary)
+
                 HStack(spacing: 4) {
                     ForEach(0..<3, id: \.self) { index in
                         Circle()
-                            .fill(Color.white.opacity(0.6))
+                            .fill(Color.primary.opacity(0.6))
                             .frame(width: 8, height: 8)
                             .scaleEffect(bounceIndex == index ? 1.2 : 1.0)
                             .animation(.easeInOut(duration: 0.6), value: bounceIndex)
                     }
                 }
                 .padding(12)
-                .background(Color.white.opacity(0.05))
+                .background(Color.primary.opacity(0.05))
                 .cornerRadius(16)
             }
             
@@ -2208,14 +2208,14 @@ extension View {
     func modernButtonStyle() -> some View {
         self
             .font(.system(size: 14, weight: .medium))
-            .foregroundColor(.white)
+            .foregroundColor(.primary)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color.white.opacity(0.1))
+            .background(Color.primary.opacity(0.1))
             .cornerRadius(20)
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    .stroke(Color.primary.opacity(0.2), lineWidth: 1)
             )
     }
 }

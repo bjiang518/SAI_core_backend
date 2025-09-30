@@ -7,7 +7,6 @@
 //
 
 import SwiftUI
-import os.log
 
 // MARK: - Main Tab Enum
 enum MainTab: Int, CaseIterable {
@@ -40,54 +39,29 @@ enum MainTab: Int, CaseIterable {
 
 struct ContentView: View {
     @StateObject private var authService = AuthenticationService.shared
-    
-    private let contentLogger = Logger(subsystem: "com.studyai", category: "ContentView")
-    
-    init() {
-        let initStartTime = CFAbsoluteTimeGetCurrent()
-        contentLogger.info("🏗️ === CONTENT VIEW INIT STARTED ===")
-        
-        // This will trigger @StateObject initialization of AuthenticationService
-        contentLogger.info("🔐 About to initialize AuthenticationService...")
-        
-        let initEndTime = CFAbsoluteTimeGetCurrent()
-        let initDuration = initEndTime - initStartTime
-        contentLogger.info("🏗️ ContentView init completed in: \(initDuration * 1000, privacy: .public) ms")
-    }
-    
+
     var body: some View {
-        let bodyStartTime = CFAbsoluteTimeGetCurrent()
-        contentLogger.info("📱 === CONTENT VIEW BODY BUILDING ===")
-        contentLogger.info("📱 Auth status: \(authService.isAuthenticated)")
-        contentLogger.info("📱 Auth loading: \(authService.isLoading)")
-        
-        return Group {
+        Group {
             if authService.isAuthenticated {
                 MainTabView(onLogout: {
-                    contentLogger.info("🚪 User logged out")
                     authService.signOut()
                 })
                 .onAppear {
-                    let bodyDuration = CFAbsoluteTimeGetCurrent() - bodyStartTime
-                    contentLogger.info("🏠 MainTabView appeared after: \(bodyDuration * 1000, privacy: .public) ms")
+                    // MainTabView appeared
                 }
             } else {
                 ModernLoginView(onLoginSuccess: {
-                    contentLogger.info("✅ Login successful")
                     // Authentication is handled by the service
                 })
                 .onAppear {
-                    let bodyDuration = CFAbsoluteTimeGetCurrent() - bodyStartTime
-                    contentLogger.info("🔐 ModernLoginView appeared after: \(bodyDuration * 1000, privacy: .public) ms")
+                    // ModernLoginView appeared
                 }
             }
         }
         .animation(.easeInOut(duration: 0.3), value: authService.isAuthenticated)
-        .ignoresSafeArea(.keyboard, edges: .bottom) // Modern keyboard handling
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
-            let totalDuration = CFAbsoluteTimeGetCurrent() - bodyStartTime
-            contentLogger.info("📱 === CONTENT VIEW FULLY APPEARED ===")
-            contentLogger.info("📱 Total ContentView appearance time: \(totalDuration * 1000, privacy: .public) ms")
+            // ContentView appeared
         }
     }
 }
@@ -95,9 +69,7 @@ struct ContentView: View {
 struct MainTabView: View {
     let onLogout: () -> Void
     @State private var selectedTab: MainTab = .home
-    
-    private let logger = Logger(subsystem: "com.studyai", category: "MainTabView")
-    
+
     var body: some View {
         TabView(selection: Binding(
             get: { selectedTab.rawValue },
@@ -107,8 +79,7 @@ struct MainTabView: View {
             NavigationStack {
                 HomeView(onSelectTab: selectTab)
                     .onAppear {
-                        logger.info("🏠 === HOME VIEW APPEARED ===")
-                        logger.info("🏠 HomeView is now displayed (Tab 0)")
+                        // HomeView appeared
                     }
             }
             .tabItem {
@@ -121,8 +92,7 @@ struct MainTabView: View {
             NavigationStack {
                 DirectAIHomeworkView()
                     .onAppear {
-                        logger.info("🤖 === AI HOMEWORK GRADER VIEW APPEARED ===")
-                        logger.info("🤖 DirectAIHomeworkView is now displayed (Tab 1 - Grader)")
+                        // DirectAIHomeworkView appeared
                     }
             }
             .tabItem {
@@ -135,8 +105,7 @@ struct MainTabView: View {
             NavigationStack {
                 SessionChatView()
                     .onAppear {
-                        logger.info("💬 === SESSION CHAT VIEW APPEARED ===")
-                        logger.info("💬 SessionChatView is now displayed (Tab 2 - Chat)")
+                        // SessionChatView appeared
                     }
             }
             .tabItem {
@@ -150,8 +119,7 @@ struct MainTabView: View {
                 
                 LearningProgressView()
                     .onAppear {
-                        logger.info("📊 === LEARNING PROGRESS VIEW APPEARED ===")
-                        logger.info("📊 LearningProgressView is now displayed (Tab 3)")
+                        // LearningProgressView appeared
                     }
             }
             .tabItem {
@@ -164,8 +132,7 @@ struct MainTabView: View {
             NavigationStack {
                 UnifiedLibraryView()
                     .onAppear {
-                        logger.info("📚 === UNIFIED LIBRARY VIEW APPEARED ===")
-                        logger.info("📚 UnifiedLibraryView is now displayed (Tab 4)")
+                        // UnifiedLibraryView appeared
                     }
             }
             .tabItem {
@@ -174,33 +141,17 @@ struct MainTabView: View {
             }
             .tag(MainTab.library.rawValue)
         }
-        .tint(.blue) // Modern iOS accent color
+        .tint(.blue)
         .onChange(of: selectedTab) { oldTab, newTab in
-            logger.info("🔄 === TAB SELECTION CHANGED ===")
-            logger.info("🔄 Previous tab: \(oldTab.rawValue) → New tab: \(newTab.rawValue)")
-            
-            switch newTab {
-            case .home:
-                logger.info("📍 User pressed HOME button (Tab 0) - should show HomeView")
-            case .grader:
-                logger.info("📍 User pressed GRADER button (Tab 1) - should show DirectAIHomeworkView")
-            case .chat:
-                logger.info("📍 User pressed CHAT button (Tab 2) - should show SessionChatView")
-            case .progress:
-                logger.info("📍 User pressed PROGRESS button (Tab 3) - should show LearningProgressView")
-            case .library:
-                logger.info("📍 User pressed LIBRARY button (Tab 4) - should show UnifiedLibraryView")
-            }
+            // Tab selection changed
         }
         .onAppear {
-            logger.info("🚀 === MAIN TAB VIEW APPEARED ===")
-            logger.info("🚀 Initial selected tab: \(selectedTab.rawValue)")
+            // MainTabView appeared
         }
     }
     
     private func selectTab(_ tab: MainTab) {
         selectedTab = tab
-        logger.info("🎯 Programmatically selected tab: \(tab.title)")
     }
 }
 
@@ -335,7 +286,6 @@ struct ModernProfileView: View {
                 // App Settings Section
                 Section("App Settings") {
                     SettingsRow(icon: "bell.fill", title: "Notifications", color: .orange)
-                    SettingsRow(icon: "moon.fill", title: "Dark Mode", color: .indigo)
                     SettingsRow(icon: "textformat.size", title: "Text Size", color: .green)
                     SettingsRow(icon: "globe", title: "Language", color: .blue)
                 }
@@ -343,10 +293,7 @@ struct ModernProfileView: View {
                 // Learning Section
                 Section("Learning") {
                     Button(action: {
-                        print("🎯 DEBUG: Learning Goals button tapped in ModernProfileView!")
-                        print("🎯 DEBUG: showingLearningGoals was: \(showingLearningGoals)")
                         showingLearningGoals = true
-                        print("🎯 DEBUG: showingLearningGoals is now: \(showingLearningGoals)")
                     }) {
                         SettingsRow(icon: "target", title: "Learning Goals & Progress", color: .red)
                     }
@@ -386,9 +333,6 @@ struct ModernProfileView: View {
             }
             .navigationTitle("Settings")
             .onAppear {
-                print("🚨 CRITICAL DEBUG: ModernProfileView appeared - This is the actual settings view!")
-                print("🎯 DEBUG: showingLearningGoals state: \(showingLearningGoals)")
-                // Load profile when view appears
                 Task {
                     await profileService.loadProfileAfterLogin()
                 }
@@ -399,9 +343,6 @@ struct ModernProfileView: View {
         }
         .sheet(isPresented: $showingLearningGoals) {
             LearningGoalsSettingsView()
-                .onAppear {
-                    print("🎯 DEBUG: Learning Goals sheet is being presented from ModernProfileView!")
-                }
         }
     }
     

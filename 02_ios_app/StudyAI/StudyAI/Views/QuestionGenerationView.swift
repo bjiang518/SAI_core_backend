@@ -136,7 +136,6 @@ struct QuestionGenerationView: View {
                 Text(errorMessage)
             }
             .onAppear {
-                logger.info("🎯 Question Generation View appeared")
                 loadInitialData()
             }
         }
@@ -385,13 +384,12 @@ struct QuestionGenerationView: View {
         guard !isLoadingData else { return }
 
         isLoadingData = true
-        logger.info("🔄 Loading initial data for question generation")
 
         Task {
             do {
                 // Load mistakes - fetch them properly like MistakeReviewView does
                 // Use nil subject to get all mistakes across all subjects
-                await mistakeService.fetchMistakes(subject: nil, timeRange: .lastMonth)
+                await mistakeService.fetchMistakes(subject: nil, timeRange: .thisMonth)
                 let allMistakes = mistakeService.mistakes
 
                 // Get conversations from sample data for now - TEMPORARY FIX
@@ -407,14 +405,12 @@ struct QuestionGenerationView: View {
                     self.availableQuestions = questions
                     self.isLoadingData = false
 
-                    logger.info("✅ Loaded \(allMistakes.count) mistakes, \(conversations.count) conversations, and \(questions.count) questions")
                 }
             } catch {
                 await MainActor.run {
                     self.isLoadingData = false
                     self.errorMessage = "Failed to load data: \\(error.localizedDescription)"
                     self.showingErrorAlert = true
-                    logger.error("❌ Failed to load initial data: \\(error.localizedDescription)")
                 }
             }
         }
@@ -434,7 +430,6 @@ struct QuestionGenerationView: View {
     }
 
     private func generateQuestions() {
-        logger.info("🎯 Starting question generation: \(selectedTemplate.rawValue)")
 
         Task {
             do {
@@ -443,7 +438,6 @@ struct QuestionGenerationView: View {
                 await MainActor.run {
                     self.generatedQuestions = questions
                     self.showingQuestionsList = true
-                    logger.info("✅ Successfully generated \(questions.count) questions")
                 }
             } catch {
                 await MainActor.run {
@@ -455,24 +449,9 @@ struct QuestionGenerationView: View {
                         if let recovery = generationError.recoverySuggestion {
                             self.errorMessage += "\n\n💡 " + recovery
                         }
-
-                        // Log the specific error type for debugging
-                        switch generationError {
-                        case .backendValidationBug(let message):
-                            logger.error("🐛 Backend validation bug detected: \(message)")
-                        case .aiProcessingError(let message):
-                            logger.error("🤖 AI processing error: \(message)")
-                        case .serverError(let code):
-                            logger.error("🔴 Server error \(code)")
-                        case .networkError(let message):
-                            logger.error("🌐 Network error: \(message)")
-                        default:
-                            logger.error("❌ Other generation error: \(generationError.errorDescription ?? "Unknown")")
-                        }
                     } else {
                         // Fallback for non-QuestionGenerationError types
                         self.errorMessage = error.localizedDescription
-                        logger.error("❌ Question generation failed: \(error.localizedDescription)")
                     }
 
                     self.showingErrorAlert = true
@@ -507,7 +486,6 @@ struct QuestionGenerationView: View {
                 questionCount: questionCount
             )
 
-            logger.info("🎯 Random questions config: subject=\(primarySubject), difficulty=\(selectedDifficulty.rawValue), count=\(questionCount)")
 
             let result = await questionService.generateRandomQuestions(
                 subject: primarySubject,

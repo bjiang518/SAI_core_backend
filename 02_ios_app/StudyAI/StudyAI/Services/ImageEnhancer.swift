@@ -161,6 +161,25 @@ class ImageEnhancer {
         return createImageFromCIImage(grayscaleImage, originalImage: image) ?? image
     }
     
+    /// Adjust image brightness and contrast separately
+    func adjustBrightnessAndContrast(_ image: UIImage, brightness: Float, contrast: Float) -> UIImage {
+        guard let cgImage = image.cgImage else { return image }
+
+        let ciImage = CIImage(cgImage: cgImage)
+
+        guard let filter = CIFilter(name: "CIColorControls") else { return image }
+        filter.setValue(ciImage, forKey: kCIInputImageKey)
+        filter.setValue(brightness, forKey: kCIInputBrightnessKey)
+        // FIXED: Contrast should work like brightness - positive values increase contrast
+        // Convert from -1...1 range to 0...2 range where 1.0 is neutral
+        let contrastValue = max(0.0, 1.0 + contrast)
+        filter.setValue(contrastValue, forKey: kCIInputContrastKey)
+
+        guard let adjustedImage = filter.outputImage else { return image }
+
+        return createImageFromCIImage(adjustedImage, originalImage: image) ?? image
+    }
+
     /// Adjust image brightness for optimal processing
     func adjustBrightness(_ image: UIImage, brightness: Float) -> UIImage {
         guard let cgImage = image.cgImage else { return image }

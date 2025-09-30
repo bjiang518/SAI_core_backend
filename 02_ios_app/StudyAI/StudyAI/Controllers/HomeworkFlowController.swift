@@ -42,7 +42,7 @@ class HomeworkFlowController: ObservableObject {
     // MARK: - Public Interface
     
     func handle(_ action: HomeworkFlowAction) {
-        print("🔄 HomeworkFlow: \(state) + \(action)")
+
         
         Task { @MainActor in
             await processAction(action)
@@ -135,7 +135,7 @@ class HomeworkFlowController: ObservableObject {
             print("⚠️ HomeworkFlow: Unhandled transition from \(oldState) with \(action)")
         }
         
-        print("🎯 HomeworkFlow: \(oldState) → \(state)")
+
     }
     
     // MARK: - Action Handlers
@@ -299,7 +299,7 @@ class DefaultAIClient: AIClient {
 
 class DefaultAnalytics: Analytics {
     func track(_ event: AnalyticsEvent) {
-        print("📊 Analytics: \(event)")
+
     }
 }
 

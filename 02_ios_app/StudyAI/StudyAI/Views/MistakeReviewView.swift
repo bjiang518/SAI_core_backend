@@ -11,7 +11,7 @@ import SwiftUI
 struct MistakeReviewView: View {
     @StateObject private var mistakeService = MistakeReviewService()
     @State private var selectedSubject: String?
-    @State private var selectedTimeRange: MistakeTimeRange = .lastWeek
+    @State private var selectedTimeRange: MistakeTimeRange? = nil
     @State private var showingMistakeList = false
     @Environment(\.dismiss) private var dismiss
 
@@ -50,7 +50,13 @@ struct MistakeReviewView: View {
                                 TimeRangeButton(
                                     range: range,
                                     isSelected: selectedTimeRange == range,
-                                    action: { selectedTimeRange = range }
+                                    action: {
+                                        if selectedTimeRange == range {
+                                            selectedTimeRange = nil
+                                        } else {
+                                            selectedTimeRange = range
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -58,8 +64,20 @@ struct MistakeReviewView: View {
 
                     // Subject Selection
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Subjects with Mistakes")
-                            .font(.headline)
+                        HStack {
+                            Text("Subjects with Mistakes")
+                                .font(.headline)
+
+                            if let timeRange = selectedTimeRange {
+                                Text("(\(timeRange.rawValue))")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(Color.blue.opacity(0.1))
+                                    .cornerRadius(4)
+                            }
+                        }
 
                         if mistakeService.isLoading {
                             ProgressView("Loading subjects...")
@@ -132,18 +150,18 @@ struct MistakeReviewView: View {
                 }
             }
             .task {
-                await mistakeService.fetchSubjectsWithMistakes()
+                await mistakeService.fetchSubjectsWithMistakes(timeRange: selectedTimeRange)
             }
             .onChange(of: selectedTimeRange) { _, newRange in
                 Task {
-                    await mistakeService.fetchSubjectsWithMistakes()
+                    await mistakeService.fetchSubjectsWithMistakes(timeRange: newRange)
                 }
             }
             .sheet(isPresented: $showingMistakeList) {
                 if let subject = selectedSubject {
                     MistakeQuestionListView(
                         subject: subject,
-                        timeRange: selectedTimeRange
+                        timeRange: selectedTimeRange ?? .allTime
                     )
                 }
             }

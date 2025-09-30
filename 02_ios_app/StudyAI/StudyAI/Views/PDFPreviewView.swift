@@ -318,6 +318,6 @@ struct ShareSheet: UIViewControllerRepresentable {
             )
         ],
         subject: "Mathematics",
-        timeRange: .lastWeek
+        timeRange: .thisWeek
     )
 }

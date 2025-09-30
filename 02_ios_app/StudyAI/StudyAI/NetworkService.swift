@@ -35,13 +35,11 @@ class NetworkService: ObservableObject {
     private func invalidateCache() {
         cachedSessions = nil
         lastCacheTime = nil
-        print("🗑️ Archive cache invalidated")
     }
     
     private func updateCache(with sessions: [[String: Any]]) {
         cachedSessions = sessions
         lastCacheTime = Date()
-        print("💾 Archive cache updated with \(sessions.count) sessions")
     }
     
     // MARK: - Enhanced Cache Management
@@ -100,7 +98,6 @@ class NetworkService: ObservableObject {
     /// Add user message to conversation history immediately (for optimistic UI updates)
     func addUserMessageToHistory(_ message: String) {
         addToConversationHistory(role: "user", content: message)
-        print("📤 User message added to history optimistically: '\(message.prefix(50))...'")
     }
     
     /// Remove the last message from conversation history (for error recovery)
@@ -108,34 +105,12 @@ class NetworkService: ObservableObject {
         if !internalConversationHistory.isEmpty {
             let removedMessage = internalConversationHistory.removeLast()
             conversationHistory.removeLast()
-            print("🗑️ Removed last message from history: '\(removedMessage.content.prefix(50))...'")
-        } else {
-            print("⚠️ Attempted to remove message from empty conversation history")
         }
     }
     
     private init() {
-        let initStartTime = CFAbsoluteTimeGetCurrent()
-        print("🌐 === NETWORK SERVICE INIT STARTED ===")
-        
-        print("🔧 Setting up network monitoring...")
-        let networkStartTime = CFAbsoluteTimeGetCurrent()
         setupNetworkMonitoring()
-        let networkEndTime = CFAbsoluteTimeGetCurrent()
-        let networkDuration = networkEndTime - networkStartTime
-        print("✅ Network monitoring setup completed in: \(networkDuration * 1000) ms")
-        
-        print("🔧 Setting up URL cache...")
-        let cacheStartTime = CFAbsoluteTimeGetCurrent()
         setupURLCache()
-        let cacheEndTime = CFAbsoluteTimeGetCurrent()
-        let cacheDuration = cacheEndTime - cacheStartTime
-        print("✅ URL cache setup completed in: \(cacheDuration * 1000) ms")
-        
-        let initEndTime = CFAbsoluteTimeGetCurrent()
-        let initDuration = initEndTime - initStartTime
-        print("🌐 NetworkService init completed in: \(initDuration * 1000) ms")
-        print("🌐 === NETWORK SERVICE INIT FINISHED ===")
     }
     
     // MARK: - Enhanced Cache Management
@@ -157,23 +132,17 @@ class NetworkService: ObservableObject {
     }
     
     private func setupNetworkMonitoring() {
-        print("🔍 Starting network path monitor setup...")
         networkMonitor.pathUpdateHandler = { [weak self] path in
             DispatchQueue.main.async {
                 self?.isNetworkAvailable = path.status == .satisfied
             }
         }
-        print("🔍 Starting network monitor on background queue...")
         networkMonitor.start(queue: networkQueue)
-        print("✅ Network monitoring fully configured")
     }
     
     private func setupURLCache() {
-        print("🗂️ Configuring URLSession cache (50MB memory, 200MB disk)...")
         URLSession.shared.configuration.urlCache = cache
-        print("📋 Setting cache policy to useProtocolCachePolicy...")
         URLSession.shared.configuration.requestCachePolicy = .useProtocolCachePolicy
-        print("✅ URL cache configuration complete")
     }
     
     private func getCachedResponse(for key: String) -> CachedResponse? {
@@ -228,20 +197,17 @@ class NetworkService: ObservableObject {
         failureCount += 1
         if failureCount >= maxFailures {
             circuitBreakerOpenUntil = Date().addingTimeInterval(circuitBreakerTimeout)
-            print("⚡ Circuit breaker opened due to \(failureCount) failures")
+            print("Circuit breaker opened due to failures")
         }
     }
     
     // MARK: - Optimized Request Helper
     private func addAuthHeader(to request: inout URLRequest) {
         if let token = AuthenticationService.shared.getAuthToken() {
-            print("🔐 Adding auth header with token: \(String(token.prefix(20)))...")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("StudyAI-iOS/1.0", forHTTPHeaderField: "User-Agent")
             request.setValue("gzip, deflate", forHTTPHeaderField: "Accept-Encoding")
-        } else {
-            print("⚠️ No auth token available for request")
         }
     }
     
@@ -291,18 +257,14 @@ class NetworkService: ObservableObject {
     
     // Simple performRequest method that returns (Data, URLResponse)
     private func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        print("🔗 Request URL: \(request.url?.absoluteString ?? "Unknown")")
-        print("📤 Request Method: \(request.httpMethod ?? "Unknown")")
         
         // Check circuit breaker
         guard canMakeRequest() else {
-            print("⚡ Circuit breaker is open, rejecting request")
             throw NetworkError.circuitBreakerOpen
         }
         
         // Check network availability
         guard isNetworkAvailable else {
-            print("📡 Network unavailable, rejecting request")
             throw NetworkError.noConnection
         }
         
@@ -311,18 +273,12 @@ class NetworkService: ObservableObject {
             
             // Handle HTTP response
             if let httpResponse = response as? HTTPURLResponse {
-                print("📥 HTTP Response Status: \(httpResponse.statusCode)")
-                print("📄 Response Headers: \(httpResponse.allHeaderFields)")
-                
                 if httpResponse.statusCode >= 400 {
                     let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-                    print("❌ HTTP Error \(httpResponse.statusCode): \(rawResponse)")
                     
                     if httpResponse.statusCode == 401 {
-                        print("🔐 Authentication failed - token may be expired")
                         throw NetworkError.authenticationRequired
                     } else if httpResponse.statusCode == 404 {
-                        print("🔗 Endpoint not found - URL may be incorrect")
                         throw NetworkError.httpError(httpResponse.statusCode)
                     } else if httpResponse.statusCode == 429 {
                         throw NetworkError.rateLimited
@@ -335,12 +291,10 @@ class NetworkService: ObservableObject {
             }
             
             recordSuccess()
-            print("✅ Request completed successfully")
             return (data, response)
             
         } catch {
             recordFailure()
-            print("❌ Request failed with error: \(error.localizedDescription)")
             if error is NetworkError {
                 throw error
             } else {
@@ -870,18 +824,10 @@ class NetworkService: ObservableObject {
     
     /// Update user progress on server (for weekly progress sync)
     func updateUserProgress(questionCount: Int = 1, subject: String, currentScore: Int, clientTimezone: String) async -> (success: Bool, progress: [String: Any]?, message: String?) {
-        print("📱 TODAY'S ACTIVITY: === API CALL: updateUserProgress ===")
-        print("📱 TODAY'S ACTIVITY: Request parameters:")
-        print("📱 TODAY'S ACTIVITY:   - questionCount: \(questionCount)")
-        print("📱 TODAY'S ACTIVITY:   - subject: \(subject)")
-        print("📱 TODAY'S ACTIVITY:   - currentScore: \(currentScore)")
-        print("📱 TODAY'S ACTIVITY:   - clientTimezone: \(clientTimezone)")
 
         let updateURL = "\(baseURL)/api/progress/update"
-        print("📱 TODAY'S ACTIVITY: API endpoint: \(updateURL)")
 
         guard let url = URL(string: updateURL) else {
-            print("📱 TODAY'S ACTIVITY: ❌ Invalid URL: \(updateURL)")
             return (false, nil, "Invalid URL")
         }
 
@@ -892,8 +838,6 @@ class NetworkService: ObservableObject {
             "clientTimezone": clientTimezone
         ]
 
-        print("📱 TODAY'S ACTIVITY: Request body: \(requestData)")
-
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -901,19 +845,15 @@ class NetworkService: ObservableObject {
 
         // Log auth state
         let authToken = AuthenticationService.shared.getAuthToken()
-        print("📱 TODAY'S ACTIVITY: Auth token present: \(authToken != nil)")
         if let token = authToken {
-            print("📱 TODAY'S ACTIVITY: Auth token preview: \(String(token.prefix(20)))...")
         }
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
 
-            print("📱 TODAY'S ACTIVITY: Sending request to server...")
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
-                print("📱 TODAY'S ACTIVITY: Server response status: \(httpResponse.statusCode)")
 
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -921,42 +861,28 @@ class NetworkService: ObservableObject {
                         let progressData = (json["data"] as? [String: Any])?["progress"] as? [String: Any]
                         let message = (json["data"] as? [String: Any])?["message"] as? String
 
-                        print("📱 TODAY'S ACTIVITY: ✅ Server response successful:")
-                        print("📱 TODAY'S ACTIVITY:   - success: \(success)")
-                        print("📱 TODAY'S ACTIVITY:   - message: \(message ?? "none")")
 
                         if let progress = progressData {
-                            print("📱 TODAY'S ACTIVITY: Progress data received:")
                             for (key, value) in progress {
-                                print("📱 TODAY'S ACTIVITY:     \(key): \(value)")
                             }
                         } else {
-                            print("📱 TODAY'S ACTIVITY: ⚠️ No progress data in response")
                         }
 
-                        print("📱 TODAY'S ACTIVITY: === END API CALL: updateUserProgress ===")
                         return (success, progressData, message)
                     }
                 } else {
                     let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
-                    print("📱 TODAY'S ACTIVITY: ❌ Server error: \(errorMessage)")
 
                     // Try to get error details from response body
                     if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("📱 TODAY'S ACTIVITY: Error response body: \(errorData)")
                     }
 
-                    print("📱 TODAY'S ACTIVITY: === END API CALL: updateUserProgress (ERROR) ===")
                     return (false, nil, errorMessage)
                 }
             }
 
-            print("📱 TODAY'S ACTIVITY: ❌ Invalid response format")
-            print("📱 TODAY'S ACTIVITY: === END API CALL: updateUserProgress (INVALID) ===")
             return (false, nil, "Invalid response")
         } catch {
-            print("📱 TODAY'S ACTIVITY: ❌ Network error: \(error.localizedDescription)")
-            print("📱 TODAY'S ACTIVITY: === END API CALL: updateUserProgress (EXCEPTION) ===")
             return (false, nil, error.localizedDescription)
         }
     }
@@ -3334,12 +3260,17 @@ class NetworkService: ObservableObject {
     }
 
     // MARK: - Mistake Review Methods
-    func getMistakeSubjects() async throws -> [SubjectMistakeCount] {
+    func getMistakeSubjects(timeRange: String? = nil) async throws -> [SubjectMistakeCount] {
         guard let user = AuthenticationService.shared.currentUser else {
             throw NetworkError.authenticationRequired
         }
 
-        var request = URLRequest(url: URL(string: "\(baseURL)/api/archived-questions/mistakes/subjects/\(user.id)")!)
+        var urlString = "\(baseURL)/api/archived-questions/mistakes/subjects/\(user.id)"
+        if let timeRange = timeRange {
+            urlString += "?timeRange=\(timeRange)"
+        }
+
+        var request = URLRequest(url: URL(string: urlString)!)
         request.httpMethod = "GET"
 
         // Add authentication header
@@ -3479,8 +3410,6 @@ class NetworkService: ObservableObject {
 
     /// Get today's specific activity from server
     func getTodaysActivity(timezone: String) async -> (success: Bool, todayProgress: DailyProgress?, message: String?) {
-        print("📱 TODAY'S ACTIVITY: === API CALL: getTodaysActivity ===")
-        print("📱 TODAY'S ACTIVITY: Request timezone: \(timezone)")
 
         // Get user ID from AuthenticationService (same as other working APIs)
         let currentUser = await MainActor.run {
@@ -3488,16 +3417,13 @@ class NetworkService: ObservableObject {
         }
 
         guard let user = currentUser else {
-            print("📱 TODAY'S ACTIVITY: ❌ No authenticated user found")
             return (false, nil, "User not authenticated")
         }
 
         let userId = user.id
         let todayURL = "\(baseURL)/api/progress/today/\(userId)"
-        print("📱 TODAY'S ACTIVITY: API endpoint: \(todayURL)")
 
         guard let url = URL(string: todayURL) else {
-            print("📱 TODAY'S ACTIVITY: ❌ Invalid URL: \(todayURL)")
             return (false, nil, "Invalid URL")
         }
 
@@ -3506,7 +3432,6 @@ class NetworkService: ObservableObject {
             "date": getCurrentDateString(timezone: timezone)
         ]
 
-        print("📱 TODAY'S ACTIVITY: Request body: \(requestData)")
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -3515,33 +3440,24 @@ class NetworkService: ObservableObject {
 
         // Log auth state
         let authToken = AuthenticationService.shared.getAuthToken()
-        print("📱 TODAY'S ACTIVITY: Auth token present: \(authToken != nil)")
         if let token = authToken {
-            print("📱 TODAY'S ACTIVITY: Auth token preview: \(String(token.prefix(20)))...")
         }
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
 
-            print("📱 TODAY'S ACTIVITY: Sending request to server...")
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
-                print("📱 TODAY'S ACTIVITY: Server response status: \(httpResponse.statusCode)")
 
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                         let success = json["success"] as? Bool ?? false
                         let message = json["message"] as? String
 
-                        print("📱 TODAY'S ACTIVITY: ✅ Server response successful:")
-                        print("📱 TODAY'S ACTIVITY:   - success: \(success)")
-                        print("📱 TODAY'S ACTIVITY:   - message: \(message ?? "none")")
 
                         if success, let todayData = json["todayProgress"] as? [String: Any] {
-                            print("📱 TODAY'S ACTIVITY: Today's data received:")
                             for (key, value) in todayData {
-                                print("📱 TODAY'S ACTIVITY:     \(key): \(value)")
                             }
 
                             // Parse today's activity data
@@ -3557,35 +3473,24 @@ class NetworkService: ObservableObject {
                                 subjectsStudied: subjectsStudied
                             )
 
-                            print("📱 TODAY'S ACTIVITY: Created DailyProgress - Total: \(totalQuestions), Correct: \(correctAnswers), Accuracy: \(todayProgress.accuracy)%")
-                            print("📱 TODAY'S ACTIVITY: === END API CALL: getTodaysActivity ===")
                             return (true, todayProgress, message)
                         } else {
-                            print("📱 TODAY'S ACTIVITY: ⚠️ No today's data in response")
-                            print("📱 TODAY'S ACTIVITY: === END API CALL: getTodaysActivity (NO DATA) ===")
                             return (success, nil, message ?? "No today's data available")
                         }
                     }
                 } else {
                     let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
-                    print("📱 TODAY'S ACTIVITY: ❌ Server error: \(errorMessage)")
 
                     // Try to get error details from response body
                     if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("📱 TODAY'S ACTIVITY: Error response body: \(errorData)")
                     }
 
-                    print("📱 TODAY'S ACTIVITY: === END API CALL: getTodaysActivity (ERROR) ===")
                     return (false, nil, errorMessage)
                 }
             }
 
-            print("📱 TODAY'S ACTIVITY: ❌ Invalid response format")
-            print("📱 TODAY'S ACTIVITY: === END API CALL: getTodaysActivity (INVALID) ===")
             return (false, nil, "Invalid response")
         } catch {
-            print("📱 TODAY'S ACTIVITY: ❌ Network error: \(error.localizedDescription)")
-            print("📱 TODAY'S ACTIVITY: === END API CALL: getTodaysActivity (EXCEPTION) ===")
             return (false, nil, error.localizedDescription)
         }
     }

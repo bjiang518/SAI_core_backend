@@ -45,25 +45,6 @@ struct HomeView: View {
                                     .font(.title2)
                                     .foregroundColor(.blue)
                             }
-
-                            #if DEBUG
-                            // Debug Reset Button (only in debug builds)
-                            VStack(spacing: 4) {
-                                Button(action: {
-                                    print("🔄 DEBUG: Forcing daily reset...")
-                                    pointsManager.clearLastResetDate()
-                                    pointsManager.forceCheckDailyReset()
-                                    print("🔄 DEBUG: Daily reset completed!")
-                                }) {
-                                    Image(systemName: "arrow.clockwise.circle.fill")
-                                        .font(.caption)
-                                        .foregroundColor(.red)
-                                }
-                                Text("Reset")
-                                    .font(.system(size: 8))
-                                    .foregroundColor(.red)
-                            }
-                            #endif
                         }
                         
                         // AI Assistant Status
@@ -239,12 +220,10 @@ struct HomeView: View {
             .navigationTitle("StudyAI")
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
-                logger.info("🏠 === HOME VIEW BODY onAppear CALLED ===")
-                logger.info("🏠 HomeView main content is loading")
+                // HomeView appeared
             }
             .onDisappear {
-                logger.info("🏠 === HOME VIEW BODY onDisappear CALLED ===")
-                logger.info("🏠 HomeView main content is disappearing")
+                // HomeView disappeared
             }
             .sheet(isPresented: $showingProfile) {
                 ModernProfileView(onLogout: {
@@ -324,20 +303,9 @@ struct TodayProgressCard: View {
                 Text("Learning Stats")
                     .font(.headline)
                 Spacer()
-                #if DEBUG
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Today")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("Daily pts: \(pointsManager.dailyPointsEarned)")
-                        .font(.system(size: 8))
-                        .foregroundColor(.orange)
-                }
-                #else
                 Text("Today")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                #endif
             }
 
             HStack(spacing: 20) {

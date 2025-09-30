@@ -45,12 +45,48 @@ struct UnifiedLibraryView: View {
     // New state for content type filtering
     @State private var selectedContentType: ContentTypeFilter = .all
     @State private var showFilterIndicator = false
+
+    // Quick filter states
+    @State private var activeQuickDateFilter: DateRange?
+    @State private var hasActiveImageFilter = false
+
+    // Computed properties for filtered counts
+    private var filteredQuestionCount: Int {
+        let questionsToUse = isUsingAdvancedSearch ? advancedFilteredQuestions : libraryContent.questions
+        return questionsToUse.count
+    }
+
+    private var filteredConversationCount: Int {
+        if let dateFilter = activeQuickDateFilter {
+            let dateComponents = dateFilter.dateComponents
+            return libraryContent.conversations.filter { conversation in
+                let conversationItem = ConversationLibraryItem(data: conversation)
+                let conversationDate = conversationItem.date
+                return conversationDate >= dateComponents.startDate && conversationDate <= dateComponents.endDate
+            }.count
+        } else {
+            return libraryContent.conversations.count
+        }
+    }
     
     var filteredItems: [LibraryItem] {
         var allItems: [LibraryItem] = []
 
         // Use advanced search results if available, otherwise use regular library content
         let questionsToUse = isUsingAdvancedSearch ? advancedFilteredQuestions : libraryContent.questions
+
+        // Filter conversations by date if there's an active quick date filter
+        let conversationsToUse: [[String: Any]]
+        if let dateFilter = activeQuickDateFilter {
+            let dateComponents = dateFilter.dateComponents
+            conversationsToUse = libraryContent.conversations.filter { conversation in
+                let conversationItem = ConversationLibraryItem(data: conversation)
+                let conversationDate = conversationItem.date
+                return conversationDate >= dateComponents.startDate && conversationDate <= dateComponents.endDate
+            }
+        } else {
+            conversationsToUse = libraryContent.conversations
+        }
 
         // Apply content type filter FIRST
         switch selectedContentType {
@@ -60,13 +96,13 @@ struct UnifiedLibraryView: View {
 
         case .conversations:
             // Only include pure conversation sessions
-            let conversationItems = libraryContent.conversations.map { ConversationLibraryItem(data: $0) }
+            let conversationItems = conversationsToUse.map { ConversationLibraryItem(data: $0) }
             allItems.append(contentsOf: conversationItems.filter { $0.itemType == .conversation })
 
         case .all:
             // Include everything
             allItems.append(contentsOf: questionsToUse)
-            allItems.append(contentsOf: libraryContent.conversations.map { ConversationLibraryItem(data: $0) })
+            allItems.append(contentsOf: conversationsToUse.map { ConversationLibraryItem(data: $0) })
         }
 
         // Then apply existing filters (subject, search text)
@@ -195,19 +231,37 @@ struct UnifiedLibraryView: View {
                         QuickFilterButton(
                             title: "This Week",
                             icon: "calendar.badge.clock",
-                            isSelected: false
+                            isSelected: activeQuickDateFilter == .thisWeek
                         ) {
-                            searchFilters.dateRange = .lastWeek
-                            Task { await performAdvancedSearch(searchFilters) }
+                            if activeQuickDateFilter == .thisWeek {
+                                // Toggle off if already selected
+                                activeQuickDateFilter = nil
+                                isUsingAdvancedSearch = false
+                                advancedFilteredQuestions = []
+                            } else {
+                                // Toggle on
+                                activeQuickDateFilter = .thisWeek
+                                searchFilters.dateRange = .thisWeek
+                                Task { await performAdvancedSearch(searchFilters) }
+                            }
                         }
-                        
+
                         QuickFilterButton(
                             title: "This Month",
                             icon: "calendar",
-                            isSelected: false
+                            isSelected: activeQuickDateFilter == .thisMonth
                         ) {
-                            searchFilters.dateRange = .lastMonth
-                            Task { await performAdvancedSearch(searchFilters) }
+                            if activeQuickDateFilter == .thisMonth {
+                                // Toggle off if already selected
+                                activeQuickDateFilter = nil
+                                isUsingAdvancedSearch = false
+                                advancedFilteredQuestions = []
+                            } else {
+                                // Toggle on
+                                activeQuickDateFilter = .thisMonth
+                                searchFilters.dateRange = .thisMonth
+                                Task { await performAdvancedSearch(searchFilters) }
+                            }
                         }
                         
                         // Subject Quick Filters
@@ -225,10 +279,20 @@ struct UnifiedLibraryView: View {
                         QuickFilterButton(
                             title: "With Images",
                             icon: "photo",
-                            isSelected: false
+                            isSelected: hasActiveImageFilter
                         ) {
-                            searchFilters.hasVisualElements = true
-                            Task { await performAdvancedSearch(searchFilters) }
+                            if hasActiveImageFilter {
+                                // Toggle off if already selected
+                                hasActiveImageFilter = false
+                                searchFilters.hasVisualElements = nil
+                                isUsingAdvancedSearch = false
+                                advancedFilteredQuestions = []
+                            } else {
+                                // Toggle on
+                                hasActiveImageFilter = true
+                                searchFilters.hasVisualElements = true
+                                Task { await performAdvancedSearch(searchFilters) }
+                            }
                         }
                     }
                     .padding(.horizontal)
@@ -247,7 +311,9 @@ struct UnifiedLibraryView: View {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             selectedContentType = contentType
                         }
-                    }
+                    },
+                    questionCount: filteredQuestionCount,
+                    conversationCount: filteredConversationCount
                 )
             }
             
@@ -307,6 +373,8 @@ struct UnifiedLibraryView: View {
         searchText = ""
         selectedSubject = nil
         selectedContentType = .all
+        activeQuickDateFilter = nil
+        hasActiveImageFilter = false
         clearAdvancedSearch()
     }
     
@@ -329,6 +397,8 @@ struct QuickStatsHeader: View {
     let selectedSubject: String?
     let selectedContentType: ContentTypeFilter
     let onContentTypeSelected: (ContentTypeFilter) -> Void
+    let questionCount: Int
+    let conversationCount: Int
 
     var body: some View {
         VStack(spacing: 12) {
@@ -336,7 +406,7 @@ struct QuickStatsHeader: View {
                 InteractiveStatPill(
                     icon: "questionmark.circle.fill",
                     title: "Questions",
-                    count: content.questions.count,
+                    count: questionCount,
                     color: .blue,
                     isSelected: selectedContentType == .questions,
                     action: { onContentTypeSelected(.questions) }
@@ -345,7 +415,7 @@ struct QuickStatsHeader: View {
                 InteractiveStatPill(
                     icon: "bubble.left.and.bubble.right.fill",
                     title: "Conversations",
-                    count: content.conversations.count,
+                    count: conversationCount,
                     color: .green,
                     isSelected: selectedContentType == .conversations,
                     action: { onContentTypeSelected(.conversations) }
@@ -778,8 +848,10 @@ struct AdvancedSearchView: View {
         Section("Date Range") {
             Picker("Date Range", selection: $localFilters.dateRange) {
                 Text("All Time").tag(nil as DateRange?)
-                Text("Last Week").tag(DateRange.lastWeek as DateRange?)
-                Text("Last Month").tag(DateRange.lastMonth as DateRange?)
+                Text("This Week").tag(DateRange.thisWeek as DateRange?)
+                Text("This Month").tag(DateRange.thisMonth as DateRange?)
+                Text("Last 7 Days").tag(DateRange.last7Days as DateRange?)
+                Text("Last 30 Days").tag(DateRange.last30Days as DateRange?)
                 Text("Last 3 Months").tag(DateRange.last3Months as DateRange?)
             }
             .pickerStyle(.menu)

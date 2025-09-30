@@ -67,7 +67,7 @@ class UserSessionManager: ObservableObject {
         
         // Notify if user ID changed
         if previousUserId != currentUserId {
-            print("🔄 UserSessionManager: User ID changed from \(previousUserId ?? "nil") to \(currentUserId ?? "nil")")
+
             NotificationCenter.default.post(name: .userSessionChanged, object: nil)
         }
     }
@@ -92,7 +92,7 @@ class UserSessionManager: ObservableObject {
     /// Force refresh authentication status
     func refreshAuthenticationStatus() {
         authService.checkAuthenticationStatus()
-        print("🔄 UserSessionManager: Forced authentication refresh")
+
     }
     
     /// Sign out user from all services
@@ -113,7 +113,7 @@ class UserSessionManager: ObservableObject {
         // Compare with AuthenticationService (our source of truth)
         let authUserId = authService.currentUser?.id
         
-        print("🔍 Service Comparison:")
+
         print("   - AuthService ID: \(authUserId ?? "nil")")
         print("   - Unified Authentication: ✅")
     }

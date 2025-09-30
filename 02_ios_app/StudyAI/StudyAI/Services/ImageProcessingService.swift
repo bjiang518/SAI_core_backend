@@ -17,10 +17,10 @@ class ImageProcessingService {
     /// This dramatically reduces file size while maintaining text readability
     func preprocessImageForAI(_ image: UIImage) -> UIImage? {
         print("🔧 === ADVANCED IMAGE PREPROCESSING STARTED ===")
-        print("📊 Input image size: \(image.size.width)x\(image.size.height)")
+
 
         guard let cgImage = image.cgImage else {
-            print("❌ Could not get CGImage from input")
+
             return nil
         }
 
@@ -55,14 +55,14 @@ class ImageProcessingService {
         print("🖼️ Step 4: Converting back to UIImage...")
         // Convert back to UIImage
         guard let outputCGImage = context.createCGImage(binaryImage, from: binaryImage.extent) else {
-            print("❌ Could not create CGImage from processed CIImage")
+
             return nil
         }
 
         let resultImage = UIImage(cgImage: outputCGImage)
-        print("✅ Preprocessing complete!")
-        print("📊 Output image size: \(resultImage.size.width)x\(resultImage.size.height)")
-        print("📈 Expected size reduction: ~80-90% due to binary conversion")
+
+
+
 
         return resultImage
     }

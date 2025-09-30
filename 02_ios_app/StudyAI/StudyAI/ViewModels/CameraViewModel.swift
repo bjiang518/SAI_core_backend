@@ -82,7 +82,7 @@ class CameraViewModel: ObservableObject {
     /// Safely store captured image with enhanced error recovery and proper state management
     func storeCapturedImage(_ image: UIImage, source: String) {
         let imageId = UUID().uuidString.prefix(8)
-        logger.info("💾 === STORING IMAGE FROM \(source.uppercased()) ===")
+
         logger.info("🆔 Image ID: \(imageId)")
         logger.info("📈 Original Size: \(image.size.width)x\(image.size.height)")
         logger.info("🎨 Scale: \(image.scale)")
@@ -105,7 +105,7 @@ class CameraViewModel: ObservableObject {
             self.lastCameraError = nil
             self.suppressNextCleanup = true // Prevent cleanup on sheet dismiss
             
-            logger.info("💾 Image stored in ViewModel - Previous image: \(beforeStorage)")
+
             logger.info("🎯 State changed to: preview (ready for user action)")
             logger.info("✅ === IMAGE SUCCESSFULLY STORED ===")
             logger.info("🆔 Stored Image ID: \(imageId)")
@@ -132,7 +132,7 @@ class CameraViewModel: ObservableObject {
             logger.info("🏁 Final verification: Image present = \(finalCheck)")
             
             isProcessingImage = false
-            logger.info("💾 === IMAGE STORAGE PROCESS COMPLETE ===")
+
         }
     }
     
@@ -319,7 +319,7 @@ class CameraViewModel: ObservableObject {
         guard let newCGImage = context.makeImage() else { return image }
         
         let retainedImage = UIImage(cgImage: newCGImage, scale: image.scale, orientation: image.imageOrientation)
-        logger.info("💾 Image retained in memory: \(retainedImage.size.width)x\(retainedImage.size.height)")
+
         return retainedImage
     }
 }

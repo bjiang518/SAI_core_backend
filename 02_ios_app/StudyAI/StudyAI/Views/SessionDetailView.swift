@@ -354,36 +354,54 @@ struct ConversationDetailContent: View {
         var messages: [(speaker: String, message: String)] = []
         var currentMessage = ""
         var currentSpeaker = ""
-        
+
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            if trimmedLine.contains(":") && (trimmedLine.hasPrefix("User:") || trimmedLine.hasPrefix("AI:") || trimmedLine.hasPrefix("Assistant:")) {
+
+            // Check for timestamped format like "[9/25/2025, 7:20:22 PM] User:" or "[9/25/2025, 7:20:22 PM] AI Assistant:"
+            if trimmedLine.contains("] User:") || trimmedLine.contains("] AI Assistant:") || trimmedLine.contains("] Assistant:") {
                 // Save previous message if exists
                 if !currentSpeaker.isEmpty && !currentMessage.isEmpty {
                     messages.append((speaker: currentSpeaker, message: currentMessage.trimmingCharacters(in: .whitespacesAndNewlines)))
                 }
-                
+
+                // Extract speaker from timestamped format
+                if let closingBracketIndex = trimmedLine.firstIndex(of: "]") {
+                    let afterBracket = String(trimmedLine[trimmedLine.index(after: closingBracketIndex)...])
+                    let components = afterBracket.components(separatedBy: ":")
+                    if components.count >= 2 {
+                        currentSpeaker = components[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                        currentMessage = components.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                }
+            }
+            // Check for simple format like "User:" or "AI:" or "Assistant:"
+            else if trimmedLine.contains(":") && (trimmedLine.hasPrefix("User:") || trimmedLine.hasPrefix("AI:") || trimmedLine.hasPrefix("Assistant:")) {
+                // Save previous message if exists
+                if !currentSpeaker.isEmpty && !currentMessage.isEmpty {
+                    messages.append((speaker: currentSpeaker, message: currentMessage.trimmingCharacters(in: .whitespacesAndNewlines)))
+                }
+
                 // Start new message
                 let components = trimmedLine.components(separatedBy: ":")
                 if components.count >= 2 {
                     currentSpeaker = components[0].trimmingCharacters(in: .whitespacesAndNewlines)
                     currentMessage = components.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespacesAndNewlines)
                 }
-            } else if !trimmedLine.isEmpty {
-                // Continue current message
+            } else if !trimmedLine.isEmpty && !currentSpeaker.isEmpty {
+                // Continue current message (skip metadata lines if no current speaker)
                 if !currentMessage.isEmpty {
                     currentMessage += "\n"
                 }
                 currentMessage += trimmedLine
             }
         }
-        
+
         // Save final message
         if !currentSpeaker.isEmpty && !currentMessage.isEmpty {
             messages.append((speaker: currentSpeaker, message: currentMessage.trimmingCharacters(in: .whitespacesAndNewlines)))
         }
-        
+
         return Array(messages.enumerated())
     }
 }

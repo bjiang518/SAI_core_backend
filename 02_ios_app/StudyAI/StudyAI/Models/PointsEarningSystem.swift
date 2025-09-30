@@ -9,18 +9,8 @@ import Foundation
 import SwiftUI
 import Combine
 import UIKit
+import os.log
 
-// MARK: - Debug Logging Configuration
-
-#if DEBUG
-private func debugLog(_ message: String, category: String = "PROGRESS") {
-    print("🎯 \(category): \(message)")
-}
-#else
-private func debugLog(_ message: String, category: String = "PROGRESS") {
-    // No-op in release builds
-}
-#endif
 
 // MARK: - Weekly Progress Models
 
@@ -270,6 +260,7 @@ class PointsEarningManager: ObservableObject {
     static let shared = PointsEarningManager()
 
     private let instanceId = UUID().uuidString.prefix(8)
+    private let logger = Logger(subsystem: "com.studyai", category: "PointsEarningManager")
 
     @Published var currentPoints: Int = 0
     @Published var totalPointsEarned: Int = 0
@@ -314,11 +305,9 @@ class PointsEarningManager: ObservableObject {
         if let observer = dayChangeObserver {
             NotificationCenter.default.removeObserver(observer)
         }
-        debugLog("PointsEarningManager deinitialized", category: "LIFECYCLE")
     }
 
     private init() {
-        debugLog("=== POINTS EARNING MANAGER INITIALIZING ===", category: "LIFECYCLE")
 
         loadStoredData()
         setupDefaultGoals()
@@ -338,7 +327,6 @@ class PointsEarningManager: ObservableObject {
         // Setup day change notifications
         setupDayChangeNotifications()
 
-        debugLog("=== POINTS EARNING MANAGER INITIALIZED ===", category: "LIFECYCLE")
 
         // Load current week from server asynchronously (AFTER daily reset check)
         Task {
@@ -396,12 +384,10 @@ class PointsEarningManager: ObservableObject {
         // Calculate next midnight
         guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: now),
               let nextMidnight = calendar.dateInterval(of: .day, for: tomorrow)?.start else {
-            debugLog("Failed to calculate next midnight", category: "TIMER")
             return
         }
 
         let timeUntilMidnight = nextMidnight.timeIntervalSince(now)
-        debugLog("Setting up midnight timer - next reset in \(timeUntilMidnight) seconds", category: "TIMER")
 
         // Create timer for midnight
         midnightTimer = Timer.scheduledTimer(withTimeInterval: timeUntilMidnight, repeats: false) { [weak self] _ in
@@ -424,7 +410,6 @@ class PointsEarningManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            debugLog("Day change notification received", category: "TIMER")
             Task { @MainActor in
                 self?.performMidnightReset()
             }
@@ -433,7 +418,6 @@ class PointsEarningManager: ObservableObject {
 
     /// Perform midnight reset - triggered at midnight or day change
     private func performMidnightReset() {
-        debugLog("=== MIDNIGHT RESET TRIGGERED ===", category: "MIDNIGHT_RESET")
 
         let calendar = Calendar.current
         let now = Date()
@@ -445,11 +429,9 @@ class PointsEarningManager: ObservableObject {
 
         let lastResetDateString = userDefaults.string(forKey: lastResetDateKey)
 
-        debugLog("Current date: \(todayString), Last reset: \(lastResetDateString ?? "none")", category: "MIDNIGHT_RESET")
 
         // Only reset if we haven't reset today yet
         if lastResetDateString != todayString {
-            debugLog("Performing midnight reset for new day: \(todayString)", category: "MIDNIGHT_RESET")
 
             // Calculate streak before resetting daily data
             updateStreakForNewDay()
@@ -460,20 +442,16 @@ class PointsEarningManager: ObservableObject {
             // Store today's date as the last reset date
             userDefaults.set(todayString, forKey: lastResetDateKey)
 
-            debugLog("Midnight reset completed successfully", category: "MIDNIGHT_RESET")
         } else {
-            debugLog("Midnight reset already performed today, skipping", category: "MIDNIGHT_RESET")
         }
 
         // Setup next midnight timer
         setupMidnightResetTimer()
 
-        debugLog("=== END MIDNIGHT RESET ===", category: "MIDNIGHT_RESET")
     }
 
     /// Check for daily reset when app comes to foreground
     private func checkDailyResetOnForeground() {
-        debugLog("=== CHECKING DAILY RESET ON FOREGROUND ===", category: "FOREGROUND_RESET")
 
         let calendar = Calendar.current
         let now = Date()
@@ -485,17 +463,13 @@ class PointsEarningManager: ObservableObject {
 
         let lastResetDateString = userDefaults.string(forKey: lastResetDateKey)
 
-        debugLog("Current date: \(todayString), Last reset: \(lastResetDateString ?? "none")", category: "FOREGROUND_RESET")
 
         // Only reset if we haven't reset today yet
         if lastResetDateString != todayString {
-            debugLog("App came to foreground on new day, performing reset", category: "FOREGROUND_RESET")
             performMidnightReset()
         } else {
-            debugLog("Daily reset already performed today", category: "FOREGROUND_RESET")
         }
 
-        debugLog("=== END CHECKING DAILY RESET ON FOREGROUND ===", category: "FOREGROUND_RESET")
     }
 
     /// Setup periodic data integrity checks and retry failed syncs
@@ -511,7 +485,7 @@ class PointsEarningManager: ObservableObject {
     private func performPeriodicMaintenance() async {
         // Check data integrity
         if !validateDataIntegrity() {
-            debugLog("Periodic integrity check failed - data may be corrupted", category: "DATA_INTEGRITY")
+            // Check data integrity
         }
 
         // Retry failed syncs if any
@@ -524,7 +498,6 @@ class PointsEarningManager: ObservableObject {
     }
     
     private func loadStoredData() {
-        debugLog("=== LOADING STORED DATA ===", category: "STORAGE")
 
         currentPoints = max(0, userDefaults.integer(forKey: pointsKey))
         totalPointsEarned = max(0, userDefaults.integer(forKey: totalPointsKey))
@@ -532,7 +505,6 @@ class PointsEarningManager: ObservableObject {
         dailyPointsEarned = max(0, userDefaults.integer(forKey: dailyPointsEarnedKey))
         lastStreakUpdateDate = userDefaults.string(forKey: lastStreakUpdateDateKey)
 
-        debugLog("Loaded basic data - Points: \(currentPoints), Streak: \(currentStreak), Daily points: \(dailyPointsEarned)", category: "STORAGE")
 
         // Load goals with validation
         if let goalsData = userDefaults.data(forKey: goalsKey),
@@ -542,10 +514,8 @@ class PointsEarningManager: ObservableObject {
                 goal.targetValue > 0 && goal.basePoints >= 0 && goal.currentProgress >= 0
             }
             if learningGoals.count != decodedGoals.count {
-                debugLog("Filtered out \(decodedGoals.count - learningGoals.count) invalid goals during load", category: "DATA_INTEGRITY")
             }
         } else {
-            debugLog("No existing goals data found, will setup defaults", category: "STORAGE")
         }
 
         // Load checkout history with size limits
@@ -554,7 +524,6 @@ class PointsEarningManager: ObservableObject {
             // Keep only last 30 days to prevent unbounded growth
             dailyCheckoutHistory = Array(decodedCheckouts.suffix(30))
             if dailyCheckoutHistory.count != decodedCheckouts.count {
-                debugLog("Trimmed checkout history from \(decodedCheckouts.count) to \(dailyCheckoutHistory.count)", category: "STORAGE")
             }
         }
 
@@ -578,18 +547,12 @@ class PointsEarningManager: ObservableObject {
 
         lastTimezoneUpdate = userDefaults.object(forKey: lastTimezoneKey) as? Date
 
-        // MARK: - TODAY'S ACTIVITY: Load today's progress data
-        debugLog("=== LOADING TODAY'S PROGRESS FROM CACHE ===", category: "TODAY'S ACTIVITY")
         if let todayData = userDefaults.data(forKey: todayProgressKey),
            let decodedTodayProgress = try? JSONDecoder().decode(DailyProgress.self, from: todayData) {
             todayProgress = decodedTodayProgress
-            debugLog("Loaded from cache - Total: \(decodedTodayProgress.totalQuestions), Correct: \(decodedTodayProgress.correctAnswers), Accuracy: \(decodedTodayProgress.accuracy)%", category: "TODAY'S ACTIVITY")
         } else {
-            debugLog("No cached data found, creating new DailyProgress", category: "TODAY'S ACTIVITY")
             todayProgress = DailyProgress()
         }
-        debugLog("=== END LOADING TODAY'S PROGRESS ===", category: "TODAY'S ACTIVITY")
-        debugLog("=== END LOADING STORED DATA ===", category: "STORAGE")
     }
     
     // MARK: - Batched UserDefaults Operations
@@ -643,7 +606,6 @@ class PointsEarningManager: ObservableObject {
             }
         }
 
-        debugLog("Performed batched save with \(updates.count) keys", category: "STORAGE")
     }
 
     /// Legacy saveData method - now uses batched saving
@@ -655,7 +617,6 @@ class PointsEarningManager: ObservableObject {
     func forceSave() {
         pendingSaveTask?.cancel()
         performBatchedSave()
-        debugLog("Forced immediate save completed", category: "STORAGE")
     }
     
     private func setupDefaultGoals() {
@@ -729,7 +690,6 @@ class PointsEarningManager: ObservableObject {
     }
     
     private func checkDailyReset() {
-        debugLog("=== CHECKING DAILY RESET ===", category: "TODAY'S ACTIVITY")
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -742,21 +702,16 @@ class PointsEarningManager: ObservableObject {
 
         let todayString = dateFormatter.string(from: today)
 
-        debugLog("Today date string: \(todayString)", category: "TODAY'S ACTIVITY")
-        debugLog("Last reset date string: \(lastResetDateString ?? "none")", category: "TODAY'S ACTIVITY")
 
         // Check if the current todayProgress looks suspicious (like yesterday's data)
         let hasStaleData = (todayProgress?.totalQuestions ?? 0) > 10 // More than 10 questions suggests yesterday's data
-        debugLog("Current progress looks stale: \(hasStaleData) (\(todayProgress?.totalQuestions ?? 0) questions)", category: "TODAY'S ACTIVITY")
 
         // Reset if:
         // 1. We haven't reset today yet (different date) OR
         // 2. We have suspicious stale data (indicating server overwrote our reset)
         let shouldReset = (lastResetDateString != todayString) || hasStaleData
-        debugLog("Should reset? \(shouldReset) (date check: \(lastResetDateString != todayString), stale data: \(hasStaleData))", category: "TODAY'S ACTIVITY")
 
         if shouldReset {
-            debugLog("Triggering daily reset...", category: "TODAY'S ACTIVITY")
 
             // Calculate streak before resetting daily data
             updateStreakForNewDay()
@@ -770,25 +725,17 @@ class PointsEarningManager: ObservableObject {
             // Force save the changes
             forceSave()
         } else {
-            debugLog("No daily reset needed - already reset today and no stale data", category: "TODAY'S ACTIVITY")
         }
 
-        debugLog("=== END CHECKING DAILY RESET ===", category: "TODAY'S ACTIVITY")
     }
     
     private func resetDailyGoals() {
-        debugLog("=== DAILY RESET TRIGGERED ===", category: "TODAY'S ACTIVITY")
-        debugLog("Resetting daily goals and today's progress", category: "TODAY'S ACTIVITY")
 
         // Show current state before reset
         if let currentProgress = todayProgress {
-            debugLog("BEFORE RESET - Total: \(currentProgress.totalQuestions), Correct: \(currentProgress.correctAnswers), Accuracy: \(currentProgress.accuracy)%", category: "TODAY'S ACTIVITY")
         } else {
-            debugLog("BEFORE RESET - No existing today's progress", category: "TODAY'S ACTIVITY")
         }
 
-        debugLog("BEFORE RESET - Daily points earned: \(dailyPointsEarned)", category: "TODAY'S ACTIVITY")
-        debugLog("BEFORE RESET - Current streak: \(currentStreak)", category: "TODAY'S ACTIVITY")
 
         // Reset all daily goal progress and checkout states
         for i in 0..<learningGoals.count {
@@ -799,7 +746,6 @@ class PointsEarningManager: ObservableObject {
                 learningGoals[i].currentProgress = 0
                 learningGoals[i].isCheckedOut = false
 
-                debugLog("Reset daily goal \(learningGoals[i].type.displayName): progress \(oldProgress) → 0, checkout \(wasCheckedOut) → false", category: "TODAY'S ACTIVITY")
             }
         }
 
@@ -812,22 +758,16 @@ class PointsEarningManager: ObservableObject {
         // Reset streak update tracking for new day
         lastStreakUpdateDate = nil
 
-        debugLog("Created fresh DailyProgress instance", category: "TODAY'S ACTIVITY")
-        debugLog("Reset daily points earned to 0", category: "TODAY'S ACTIVITY")
-        debugLog("Reset lastStreakUpdateDate to nil", category: "TODAY'S ACTIVITY")
 
         // Final state verification
         if let finalProgress = todayProgress {
-            debugLog("AFTER RESET - Total: \(finalProgress.totalQuestions), Correct: \(finalProgress.correctAnswers), Accuracy: \(finalProgress.accuracy)%, Daily points: \(dailyPointsEarned)", category: "TODAY'S ACTIVITY")
         }
 
         saveData()
-        debugLog("=== END DAILY RESET ===", category: "TODAY'S ACTIVITY")
     }
     
     /// Update streak for new day based on actual user activity
     private func updateStreakForNewDay() {
-        debugLog("=== UPDATING STREAK FOR NEW DAY ===", category: "STREAK")
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -838,37 +778,29 @@ class PointsEarningManager: ObservableObject {
         dateFormatter.timeZone = TimeZone.current
         let yesterdayString = dateFormatter.string(from: yesterday)
 
-        debugLog("Today: \(today)", category: "STREAK")
-        debugLog("Yesterday: \(yesterday) (\(yesterdayString))", category: "STREAK")
-        debugLog("Current streak before update: \(currentStreak)", category: "STREAK")
 
         // Check if user had any activity yesterday
         let hadActivityYesterday = checkActivityOnDate(yesterday)
-        debugLog("Had activity yesterday: \(hadActivityYesterday)", category: "STREAK")
 
         if hadActivityYesterday {
             // User was active yesterday, continue/increment streak
             currentStreak += 1
-            debugLog("User was active yesterday, streak continued: \(currentStreak)", category: "STREAK")
         } else {
             // User was not active yesterday, reset streak to 0
             // Streak will be set to 1 when user becomes active today
             currentStreak = 0
-            debugLog("User was not active yesterday, streak reset to: \(currentStreak)", category: "STREAK")
         }
 
         // Update streak-related goals
         updateWeeklyStreakGoal()
         updateDailyStreakGoal()
 
-        debugLog("Final streak after new day update: \(currentStreak)", category: "STREAK")
-        debugLog("=== END UPDATING STREAK FOR NEW DAY ===", category: "STREAK")
     }
 
     private func updateStreak() {
         // This method is kept for compatibility but simplified
         // Real streak logic is now handled by updateStreakForNewDay() and updateActivityBasedStreak()
-        debugLog("Legacy updateStreak() called - delegating to activity-based logic", category: "STREAK")
+        // This method is kept for compatibility but simplified
         updateWeeklyStreakGoal()
         updateDailyStreakGoal()
         saveData()
@@ -893,7 +825,6 @@ class PointsEarningManager: ObservableObject {
 
     /// Update streak based on daily activity rather than manual checkouts
     private func updateActivityBasedStreak() {
-        debugLog("=== UPDATING ACTIVITY-BASED STREAK ===", category: "STREAK")
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -905,56 +836,41 @@ class PointsEarningManager: ObservableObject {
         dateFormatter.timeZone = TimeZone.current
         let todayString = dateFormatter.string(from: today)
 
-        debugLog("Today: \(today)", category: "STREAK")
-        debugLog("Yesterday: \(yesterday)", category: "STREAK")
-        debugLog("Today string: \(todayString)", category: "STREAK")
-        debugLog("Last streak update date: \(lastStreakUpdateDate ?? "none")", category: "STREAK")
-        debugLog("Current streak before update: \(currentStreak)", category: "STREAK")
 
         // Check if we've already updated the streak today
         if let lastUpdateDate = lastStreakUpdateDate, lastUpdateDate == todayString {
-            debugLog("Streak already updated today (\(todayString)), skipping increment", category: "STREAK")
-            debugLog("=== END UPDATING ACTIVITY-BASED STREAK (NO UPDATE) ===", category: "STREAK")
             return
         }
 
         // Check if we had activity yesterday by looking at weekly progress
         let hadActivityYesterday = checkActivityOnDate(yesterday)
-        debugLog("Had activity yesterday: \(hadActivityYesterday)", category: "STREAK")
 
         // Today we're having activity (since we're tracking a question)
         let hadActivityToday = true
-        debugLog("Having activity today: \(hadActivityToday)", category: "STREAK")
 
         if hadActivityToday {
             if hadActivityYesterday {
                 // Continue streak - we had activity yesterday and today
                 currentStreak += 1
-                debugLog("Continuing streak: \(currentStreak)", category: "STREAK")
             } else {
                 // Check if this is the first day of activity or if we're restarting
                 if currentStreak == 0 {
                     // Starting new streak
                     currentStreak = 1
-                    debugLog("Starting new streak: \(currentStreak)", category: "STREAK")
                 } else {
                     // Had a gap, reset to 1 (today's activity)
                     currentStreak = 1
-                    debugLog("Reset streak due to gap: \(currentStreak)", category: "STREAK")
                 }
             }
 
             // Mark that we've updated the streak for today
             lastStreakUpdateDate = todayString
-            debugLog("Updated lastStreakUpdateDate to: \(todayString)", category: "STREAK")
         }
 
         // Update weekly streak goal
         updateWeeklyStreakGoal()
         updateDailyStreakGoal()
 
-        debugLog("Final streak: \(currentStreak)", category: "STREAK")
-        debugLog("=== END UPDATING ACTIVITY-BASED STREAK ===", category: "STREAK")
     }
 
     /// Check if there was any question activity on a specific date
@@ -968,7 +884,6 @@ class PointsEarningManager: ObservableObject {
         if let weeklyProgress = currentWeeklyProgress {
             for activity in weeklyProgress.dailyActivities {
                 if activity.date == dateString && activity.questionCount > 0 {
-                    debugLog("Found activity on \(dateString): \(activity.questionCount) questions", category: "STREAK")
                     return true
                 }
             }
@@ -978,13 +893,11 @@ class PointsEarningManager: ObservableObject {
         for weekProgress in weeklyProgressHistory {
             for activity in weekProgress.dailyActivities {
                 if activity.date == dateString && activity.questionCount > 0 {
-                    debugLog("Found activity in history on \(dateString): \(activity.questionCount) questions", category: "STREAK")
                     return true
                 }
             }
         }
 
-        debugLog("No activity found on \(dateString)", category: "STREAK")
         return false
     }
     
@@ -992,45 +905,35 @@ class PointsEarningManager: ObservableObject {
 
     /// Force check for daily reset (for debugging/testing purposes)
     func forceCheckDailyReset() {
-        debugLog("=== FORCE DAILY RESET CHECK REQUESTED ===", category: "FORCE_RESET")
         performMidnightReset()
-        debugLog("=== FORCE DAILY RESET CHECK COMPLETED ===", category: "FORCE_RESET")
     }
 
     /// Clear last reset date (for testing purposes)
     func clearLastResetDate() {
-        debugLog("=== CLEARING LAST RESET DATE FOR TESTING ===", category: "TESTING")
         userDefaults.removeObject(forKey: lastResetDateKey)
-        debugLog("Last reset date cleared - next checkDailyReset() will trigger reset", category: "TESTING")
-        debugLog("=== LAST RESET DATE CLEARED ===", category: "TESTING")
     }
     
     func trackQuestionAnswered(subject: String, isCorrect: Bool) {
-        debugLog("=== TRACKING QUESTION ANSWERED ===", category: "TODAY'S ACTIVITY")
-        debugLog("Input - subject: \(subject), isCorrect: \(isCorrect)", category: "TODAY'S ACTIVITY")
 
         // Create data backup before critical operation
         let backup = createDataBackup()
 
         // Validate data integrity before proceeding
         guard validateDataIntegrity() else {
-            debugLog("Data integrity check failed, restoring from backup", category: "DATA_RECOVERY")
+            // Data integrity check failed, restoring from backup
             restoreFromBackup(backup)
             return
         }
 
         // Ensure todayProgress exists
         if todayProgress == nil {
-            debugLog("No today's progress data exists, creating new instance", category: "TODAY'S ACTIVITY")
             todayProgress = DailyProgress()
         }
 
         guard var currentProgress = todayProgress else {
-            debugLog("Failed to access today's progress after creation", category: "TODAY'S ACTIVITY")
             return
         }
 
-        debugLog("BEFORE - Total: \(currentProgress.totalQuestions), Correct: \(currentProgress.correctAnswers), Accuracy: \(currentProgress.accuracy)%", category: "TODAY'S ACTIVITY")
 
         // Update daily questions goal with bounds checking
         for i in 0..<learningGoals.count {
@@ -1038,7 +941,6 @@ class PointsEarningManager: ObservableObject {
                 let oldProgress = learningGoals[i].currentProgress
                 learningGoals[i].currentProgress = max(0, learningGoals[i].currentProgress + 1)
                 let newProgress = learningGoals[i].currentProgress
-                debugLog("Daily Questions goal updated: \(oldProgress) → \(newProgress)/\(learningGoals[i].targetValue)", category: "TODAY'S ACTIVITY")
             }
         }
 
@@ -1054,8 +956,6 @@ class PointsEarningManager: ObservableObject {
         // Update the published property
         todayProgress = currentProgress
 
-        debugLog("Updated counts - Total: \(oldTotalQuestions) → \(currentProgress.totalQuestions), Correct: \(oldCorrectAnswers) → \(currentProgress.correctAnswers)", category: "TODAY'S ACTIVITY")
-        debugLog("Calculated accuracy: \(currentProgress.accuracy)%", category: "TODAY'S ACTIVITY")
 
         // Update accuracy goal
         updateAccuracyGoal()
@@ -1067,7 +967,6 @@ class PointsEarningManager: ObservableObject {
         updateWeeklyProgress(questionCount: 1, subject: subject)
 
         // Save data with logging
-        debugLog("Saving data to persistent storage...", category: "TODAY'S ACTIVITY")
         saveData()
 
         // Schedule debounced server sync instead of immediate sync
@@ -1075,14 +974,11 @@ class PointsEarningManager: ObservableObject {
 
         // Show final state
         if let finalProgress = todayProgress {
-            debugLog("AFTER - Total: \(finalProgress.totalQuestions), Correct: \(finalProgress.correctAnswers), Accuracy: \(finalProgress.accuracy)%", category: "TODAY'S ACTIVITY")
         }
-        debugLog("=== END TRACKING QUESTION ANSWERED ===", category: "TODAY'S ACTIVITY")
     }
     
     func trackStudyTime(_ minutes: Int) {
         guard minutes > 0 else {
-            debugLog("Invalid study time: \(minutes) minutes, skipping", category: "STUDY_TIME")
             return
         }
 
@@ -1090,7 +986,6 @@ class PointsEarningManager: ObservableObject {
             if learningGoals[i].type == .studyTime {
                 let oldProgress = learningGoals[i].currentProgress
                 learningGoals[i].currentProgress = max(0, learningGoals[i].currentProgress + minutes)
-                debugLog("Study time goal updated: \(oldProgress) → \(learningGoals[i].currentProgress) minutes", category: "STUDY_TIME")
             }
         }
 
@@ -1164,17 +1059,14 @@ class PointsEarningManager: ObservableObject {
     
     func updateLearningGoal(_ goalId: UUID, targetValue: Int) {
         guard targetValue > 0 else {
-            debugLog("Invalid target value for goal update: \(targetValue)", category: "GOAL_UPDATE")
             return
         }
 
         guard let index = learningGoals.firstIndex(where: { $0.id == goalId }) else {
-            debugLog("Goal with ID \(goalId) not found for update", category: "GOAL_UPDATE")
             return
         }
 
         guard index >= 0 && index < learningGoals.count else {
-            debugLog("Invalid goal index: \(index)", category: "GOAL_UPDATE")
             return
         }
 
@@ -1192,7 +1084,6 @@ class PointsEarningManager: ObservableObject {
         )
 
         saveData()
-        debugLog("Updated goal \(currentGoal.title) with target value: \(targetValue)", category: "GOAL_UPDATE")
     }
 
     // MARK: - Enhanced Checkout Methods
@@ -1207,7 +1098,6 @@ class PointsEarningManager: ObservableObject {
         guard goal.currentProgress >= 0,
               goal.targetValue > 0,
               goal.basePoints >= 0 else {
-            debugLog("Invalid goal data for points calculation: progress=\(goal.currentProgress), target=\(goal.targetValue), base=\(goal.basePoints)", category: "POINTS_CALC")
             return 0
         }
 
@@ -1247,7 +1137,6 @@ class PointsEarningManager: ObservableObject {
     /// Checkout points for a specific goal
     func checkoutGoal(_ goalId: UUID) -> Int {
         guard let index = learningGoals.firstIndex(where: { $0.id == goalId }) else {
-            debugLog("Goal with ID \(goalId) not found", category: "CHECKOUT")
             return 0
         }
 
@@ -1255,7 +1144,6 @@ class PointsEarningManager: ObservableObject {
         let pointsToAdd = calculateAvailablePoints(for: goal)
 
         guard pointsToAdd > 0 else {
-            debugLog("No points available for checkout for goal: \(goal.title)", category: "CHECKOUT")
             return 0
         }
 
@@ -1265,7 +1153,6 @@ class PointsEarningManager: ObservableObject {
 
         // If no points can be added due to daily limit, return early
         guard actualPointsToAdd > 0 else {
-            debugLog("Daily point limit reached, cannot checkout goal: \(goal.title)", category: "CHECKOUT")
             return 0
         }
 
@@ -1288,20 +1175,17 @@ class PointsEarningManager: ObservableObject {
             await syncTotalPointsWithBackend()
         }
 
-        debugLog("Checked out \(finalPoints) points for goal: \(goal.title)", category: "CHECKOUT")
         return finalPoints
     }
 
     /// Reset daily checkout states
     private func resetDailyCheckouts() {
         guard !learningGoals.isEmpty else {
-            debugLog("No learning goals to reset checkout states", category: "RESET")
             return
         }
 
         for i in 0..<learningGoals.count {
             guard i >= 0 && i < learningGoals.count else {
-                debugLog("Invalid index during daily checkout reset: \(i)", category: "RESET")
                 continue
             }
 
@@ -1310,7 +1194,6 @@ class PointsEarningManager: ObservableObject {
             }
         }
 
-        debugLog("Reset daily checkout states for \(learningGoals.filter { $0.isDaily }.count) daily goals", category: "RESET")
     }
 
     /// Calculate total available checkout points across all goals
@@ -1328,7 +1211,6 @@ class PointsEarningManager: ObservableObject {
     }
     
     func resetProgress() {
-        debugLog("Starting progress reset", category: "RESET")
 
         // Reset point counters with bounds checking
         currentPoints = 0
@@ -1339,12 +1221,10 @@ class PointsEarningManager: ObservableObject {
 
         // Reset learning goals progress with validation
         if learningGoals.isEmpty {
-            debugLog("No learning goals to reset", category: "RESET")
         }
 
         for i in 0..<learningGoals.count {
             guard i >= 0 && i < learningGoals.count else {
-                debugLog("Invalid index during goal reset: \(i)", category: "RESET")
                 continue
             }
 
@@ -1363,7 +1243,6 @@ class PointsEarningManager: ObservableObject {
         // Persist the reset state
         saveData()
 
-        debugLog("Progress reset completed - all counters and goals reset to zero", category: "RESET")
     }
     
     // MARK: - Weekly Progress Methods
@@ -1371,12 +1250,10 @@ class PointsEarningManager: ObservableObject {
     /// Update daily activity and sync with server if available
     func updateWeeklyProgress(questionCount: Int, subject: String) {
         guard questionCount > 0 else {
-            debugLog("Invalid question count: \(questionCount), skipping weekly progress update", category: "WEEKLY_PROGRESS")
             return
         }
 
         if subject.isEmpty {
-            debugLog("Empty subject provided, continuing with empty subject", category: "WEEKLY_PROGRESS")
         }
 
         // Update local data structure first (for immediate UI updates)
@@ -1391,7 +1268,6 @@ class PointsEarningManager: ObservableObject {
     /// Update local weekly progress data structure
     private func updateLocalWeeklyProgress(questionCount: Int) {
         guard questionCount > 0 else {
-            debugLog("Invalid question count for weekly progress: \(questionCount)", category: "WEEKLY_PROGRESS")
             return
         }
 
@@ -1405,7 +1281,6 @@ class PointsEarningManager: ObservableObject {
         }
 
         guard var weeklyProgress = currentWeeklyProgress else {
-            debugLog("Failed to create or access weekly progress data", category: "WEEKLY_PROGRESS")
             return
         }
 
@@ -1426,7 +1301,6 @@ class PointsEarningManager: ObservableObject {
             let adjustedDayOfWeek = dayOfWeek == 1 ? 7 : dayOfWeek - 1 // Convert Sunday=1 to Sunday=7, Monday=2 to Monday=1
 
             guard adjustedDayOfWeek >= 1 && adjustedDayOfWeek <= 7 else {
-                debugLog("Invalid day of week calculated: \(adjustedDayOfWeek)", category: "WEEKLY_PROGRESS")
                 return
             }
 
@@ -1658,20 +1532,20 @@ class PointsEarningManager: ObservableObject {
             }
         }
 
-        debugLog("Scheduled sync - queued: \(queuedSyncData.totalQuestions) questions, \(queuedSyncData.subjects.count) subjects", category: "SYNC")
+        logger.info("[SYNC] Scheduled sync - queued: \(self.queuedSyncData.totalQuestions) questions, \(self.queuedSyncData.subjects.count) subjects")
     }
 
     /// Perform batched server sync with accumulated data
     private func performBatchedServerSync() async {
         // Prevent concurrent sync operations
         guard !isServerSyncInProgress else {
-            debugLog("Server sync already in progress, skipping batched sync", category: "SYNC")
+            logger.info("[SYNC] Server sync already in progress, skipping batched sync")
             return
         }
 
         // Check if we have data to sync
         guard queuedSyncData.totalQuestions > 0 else {
-            debugLog("No queued data to sync", category: "SYNC")
+            logger.info("[SYNC] No queued data to sync")
             return
         }
 
@@ -1686,7 +1560,7 @@ class PointsEarningManager: ObservableObject {
         queuedSyncData = (0, [])
         lastSyncTime = Date()
 
-        debugLog("Starting batched server sync for \(questionsToSync) questions across subjects: \(subjectsToSync.joined(separator: ", "))", category: "SYNC")
+        logger.info("[SYNC] Starting batched server sync for \(questionsToSync) questions across subjects: \(subjectsToSync.joined(separator: ", "))")
 
         // Sync with primary subject (most common one)
         await syncWithServer(questionCount: questionsToSync, subject: primarySubject)
@@ -1699,7 +1573,7 @@ class PointsEarningManager: ObservableObject {
 
     /// Load today's activity from server only if we haven't reset today
     func loadTodaysActivityFromServerIfNotReset() async {
-        debugLog("=== CHECKING IF SHOULD LOAD TODAY'S ACTIVITY FROM SERVER ===", category: "SERVER_LOAD")
+        logger.info("[SERVER_LOAD] === CHECKING IF SHOULD LOAD TODAY'S ACTIVITY FROM SERVER ===")
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -1708,32 +1582,32 @@ class PointsEarningManager: ObservableObject {
         let todayString = dateFormatter.string(from: today)
         let lastResetDateString = userDefaults.string(forKey: lastResetDateKey)
 
-        debugLog("Today: \(todayString), Last reset: \(lastResetDateString ?? "none")", category: "SERVER_LOAD")
+        logger.info("[SERVER_LOAD] Today: \(todayString), Last reset: \(lastResetDateString ?? "none")")
 
         // Check if we have any local activity today (indicating we shouldn't load from server)
         let hasLocalActivityToday = todayProgress?.totalQuestions ?? 0 > 0
 
-        debugLog("Has local activity today: \(hasLocalActivityToday) (\(todayProgress?.totalQuestions ?? 0) questions)", category: "SERVER_LOAD")
+        logger.info("[SERVER_LOAD] Has local activity today: \(hasLocalActivityToday) (\(self.todayProgress?.totalQuestions ?? 0) questions)")
 
         // Only load from server if:
         // 1. We have reset today (lastResetDateString == todayString) AND
         // 2. We don't have any local activity yet (fresh reset state)
         if lastResetDateString == todayString && !hasLocalActivityToday {
-            debugLog("Loading from server is safe - we've reset today and have no local activity", category: "SERVER_LOAD")
+            logger.info("[SERVER_LOAD] Loading from server is safe - we've reset today and have no local activity")
             await loadTodaysActivityFromServerWithConflictResolution()
         } else {
-            debugLog("NOT loading from server - either haven't reset today OR have local activity to preserve", category: "SERVER_LOAD")
+            logger.info("[SERVER_LOAD] NOT loading from server - either haven't reset today OR have local activity to preserve")
         }
 
-        debugLog("=== END CHECKING IF SHOULD LOAD TODAY'S ACTIVITY FROM SERVER ===", category: "SERVER_LOAD")
+        logger.info("[SERVER_LOAD] === END CHECKING IF SHOULD LOAD TODAY'S ACTIVITY FROM SERVER ===")
     }
 
     /// Load today's activity with proper conflict resolution
     private func loadTodaysActivityFromServerWithConflictResolution() async {
-        debugLog("=== LOADING TODAY'S ACTIVITY FROM SERVER (WITH CONFLICT RESOLUTION) ===", category: "TODAY'S ACTIVITY")
+        logger.info("[TODAY'S ACTIVITY] === LOADING TODAY'S ACTIVITY FROM SERVER (WITH CONFLICT RESOLUTION) ===")
 
         guard let networkService = await getNetworkService() else {
-            debugLog("NetworkService unavailable", category: "TODAY'S ACTIVITY")
+            logger.info("[TODAY'S ACTIVITY] NetworkService unavailable")
             return
         }
 
@@ -1741,7 +1615,7 @@ class PointsEarningManager: ObservableObject {
             timezone: TimeZone.current.identifier
         )
 
-        debugLog("Server response - success: \(result.success)", category: "TODAY'S ACTIVITY")
+        logger.info("[TODAY'S ACTIVITY] Server response - success: \(result.success)")
 
         if result.success, let serverTodayProgress = result.todayProgress {
             await MainActor.run {
@@ -1750,7 +1624,7 @@ class PointsEarningManager: ObservableObject {
                     // Only update if server data is significantly more complete
                     // (more than 1 question difference to account for sync delays)
                     if localProgress.totalQuestions > serverTodayProgress.totalQuestions + 1 {
-                        debugLog("Keeping local data (local: \(localProgress.totalQuestions) >> server: \(serverTodayProgress.totalQuestions))", category: "TODAY'S ACTIVITY")
+                        logger.info("[TODAY'S ACTIVITY] Keeping local data (local: \(localProgress.totalQuestions) >> server: \(serverTodayProgress.totalQuestions))")
                         return
                     }
 
@@ -1763,7 +1637,7 @@ class PointsEarningManager: ObservableObject {
                             subjectsStudied: localProgress.subjectsStudied.union(serverTodayProgress.subjectsStudied)
                         )
                         self.todayProgress = mergedProgress
-                        debugLog("Merged local and server data - Total: \(mergedProgress.totalQuestions), Correct: \(mergedProgress.correctAnswers)", category: "TODAY'S ACTIVITY")
+                        logger.info("[TODAY'S ACTIVITY] Merged local and server data - Total: \(mergedProgress.totalQuestions), Correct: \(mergedProgress.correctAnswers)")
                         saveData()
                         return
                     }
@@ -1771,14 +1645,14 @@ class PointsEarningManager: ObservableObject {
 
                 // Use server data if local doesn't exist or server is significantly more complete
                 self.todayProgress = serverTodayProgress
-                debugLog("Updated from server - Total: \(serverTodayProgress.totalQuestions), Correct: \(serverTodayProgress.correctAnswers)", category: "TODAY'S ACTIVITY")
+                logger.info("[TODAY'S ACTIVITY] Updated from server - Total: \(serverTodayProgress.totalQuestions), Correct: \(serverTodayProgress.correctAnswers)")
                 saveData()
             }
         } else {
-            debugLog("Failed to load today's activity from server: \(result.message ?? "Unknown error")", category: "TODAY'S ACTIVITY")
+            logger.info("[TODAY'S ACTIVITY] Failed to load today's activity from server: \(result.message ?? "Unknown error")")
         }
 
-        debugLog("=== END LOADING TODAY'S ACTIVITY FROM SERVER (WITH CONFLICT RESOLUTION) ===", category: "TODAY'S ACTIVITY")
+        logger.info("[TODAY'S ACTIVITY] === END LOADING TODAY'S ACTIVITY FROM SERVER (WITH CONFLICT RESOLUTION) ===")
     }
     
     // MARK: - Data Loss Prevention and Retry Mechanisms
@@ -1809,16 +1683,16 @@ class PointsEarningManager: ObservableObject {
                         updateFromServerResponse(serverProgress)
                     }
                 }
-                debugLog("Sync successful on attempt \(attempt)", category: "SYNC")
+                logger.info("[SYNC] Sync successful on attempt \(attempt)")
             } else {
                 throw NSError(domain: "SyncError", code: 1, userInfo: [NSLocalizedDescriptionKey: result.message ?? "Unknown sync error"])
             }
         } catch {
-            debugLog("Sync failed on attempt \(attempt): \(error.localizedDescription)", category: "SYNC")
+            logger.info("[SYNC] Sync failed on attempt \(attempt): \(error.localizedDescription)")
 
             if attempt < maxRetryAttempts {
                 let delay = retryDelays[min(attempt - 1, retryDelays.count - 1)]
-                debugLog("Retrying sync in \(delay) seconds (attempt \(attempt + 1)/\(maxRetryAttempts))", category: "SYNC")
+                logger.info("[SYNC] Retrying sync in \(delay) seconds (attempt \(attempt + 1)/\(self.maxRetryAttempts))")
 
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 await performSyncWithRetry(questionCount: questionCount, subject: subject, attempt: attempt + 1)
@@ -1834,23 +1708,23 @@ class PointsEarningManager: ObservableObject {
     /// Queue failed sync operations for later retry
     private func queueFailedSync(questionCount: Int, subject: String) {
         failedSyncQueue.append((questionCount: questionCount, subject: subject))
-        debugLog("Queued failed sync: \(questionCount) questions in \(subject). Queue size: \(failedSyncQueue.count)", category: "SYNC")
+        logger.info("[SYNC] Queued failed sync: \(questionCount) questions in \(subject). Queue size: \(self.failedSyncQueue.count)")
 
         // Limit queue size to prevent memory issues
         if failedSyncQueue.count > 50 {
             failedSyncQueue.removeFirst(failedSyncQueue.count - 50)
-            debugLog("Trimmed failed sync queue to 50 items", category: "SYNC")
+            logger.info("[SYNC] Trimmed failed sync queue to 50 items")
         }
     }
 
     /// Retry failed sync operations when network becomes available
     func retryFailedSyncs() async {
         guard !failedSyncQueue.isEmpty else {
-            debugLog("No failed syncs to retry", category: "SYNC")
+            logger.info("[SYNC] No failed syncs to retry")
             return
         }
 
-        debugLog("Retrying \(failedSyncQueue.count) failed sync operations", category: "SYNC")
+        logger.info("[SYNC] Retrying \(self.failedSyncQueue.count) failed sync operations")
         let syncsToRetry = failedSyncQueue
         failedSyncQueue.removeAll()
 
@@ -1868,13 +1742,13 @@ class PointsEarningManager: ObservableObject {
               totalPointsEarned >= 0,
               currentStreak >= 0,
               dailyPointsEarned >= 0 else {
-            debugLog("Data integrity check failed: negative values detected", category: "DATA_INTEGRITY")
+            logger.info("[DATA_INTEGRITY] Data integrity check failed: negative values detected")
             return false
         }
 
         // Check that totalPointsEarned >= currentPoints (logical consistency)
         guard totalPointsEarned >= currentPoints else {
-            debugLog("Data integrity check failed: totalPointsEarned < currentPoints", category: "DATA_INTEGRITY")
+            logger.info("[DATA_INTEGRITY] Data integrity check failed: totalPointsEarned < currentPoints")
             return false
         }
 
@@ -1883,7 +1757,7 @@ class PointsEarningManager: ObservableObject {
             guard goal.currentProgress >= 0,
                   goal.targetValue > 0,
                   goal.basePoints >= 0 else {
-                debugLog("Data integrity check failed: invalid goal data for \(goal.title)", category: "DATA_INTEGRITY")
+                logger.info("[DATA_INTEGRITY] Data integrity check failed: invalid goal data for \(goal.title)")
                 return false
             }
         }
@@ -1907,7 +1781,7 @@ class PointsEarningManager: ObservableObject {
 
     /// Restore data from backup if corruption is detected
     private func restoreFromBackup(_ backup: [String: Any]) {
-        debugLog("Restoring data from backup", category: "DATA_RECOVERY")
+        logger.info("[DATA_RECOVERY] Restoring data from backup")
 
         if let points = backup["currentPoints"] as? Int {
             currentPoints = max(0, points)
@@ -1934,7 +1808,7 @@ class PointsEarningManager: ObservableObject {
         }
 
         forceSave()
-        debugLog("Data restoration completed", category: "DATA_RECOVERY")
+        logger.info("[DATA_RECOVERY] Data restoration completed")
     }
     
     /// Load current week progress from server on app start
@@ -1985,7 +1859,7 @@ class PointsEarningManager: ObservableObject {
               let dailyActivitiesArray = serverProgress["daily_activities"] as? [[String: Any]],
               let timezone = serverProgress["timezone"] as? String,
               let serverTimestamp = serverProgress["updated_at"] as? String else {
-            debugLog("Invalid server response format for weekly progress", category: "SERVER_SYNC")
+            logger.info("[SERVER_SYNC] Invalid server response format for weekly progress")
             return
         }
 
@@ -1995,7 +1869,7 @@ class PointsEarningManager: ObservableObject {
               !weekStart.isEmpty,
               !weekEnd.isEmpty,
               !timezone.isEmpty else {
-            debugLog("Server response contains invalid data values", category: "SERVER_SYNC")
+            logger.info("[SERVER_SYNC] Server response contains invalid data values")
             return
         }
 
@@ -2006,7 +1880,7 @@ class PointsEarningManager: ObservableObject {
                   let dayOfWeek = activityData["dayOfWeek"] as? Int,
                   let questionCount = activityData["questionCount"] as? Int,
                   let activityTimezone = activityData["timezone"] as? String else {
-                debugLog("Skipping invalid daily activity data from server", category: "SERVER_SYNC")
+                logger.info("[SERVER_SYNC] Skipping invalid daily activity data from server")
                 continue
             }
 
@@ -2015,7 +1889,7 @@ class PointsEarningManager: ObservableObject {
                   dayOfWeek >= 1 && dayOfWeek <= 7,
                   questionCount >= 0,
                   !activityTimezone.isEmpty else {
-                debugLog("Skipping daily activity with invalid values: date=\(date), dayOfWeek=\(dayOfWeek), count=\(questionCount)", category: "SERVER_SYNC")
+                logger.info("[SERVER_SYNC] Skipping daily activity with invalid values: date=\(date), dayOfWeek=\(dayOfWeek), count=\(questionCount)")
                 continue
             }
 
@@ -2046,7 +1920,7 @@ class PointsEarningManager: ObservableObject {
         currentWeeklyProgress = serverWeeklyProgress
         self.currentPoints = max(0, currentScore)
 
-        debugLog("Updated from server: \(dailyActivities.count) activities, \(totalQuestions) total questions, \(currentScore) points", category: "SERVER_SYNC")
+        logger.info("[SERVER_SYNC] Updated from server: \(dailyActivities.count) activities, \(totalQuestions) total questions, \(currentScore) points")
 
     }
 

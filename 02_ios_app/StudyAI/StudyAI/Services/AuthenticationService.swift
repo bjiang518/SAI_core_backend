@@ -216,13 +216,13 @@ final class AuthenticationService: ObservableObject {
         let result = await networkService.login(email: email, password: password)
         
         if result.success {
-            print("✅ Backend login successful!")
-            print("🔍 Backend Response Data: \(result.userData ?? [:])")
+
+
             
             // Extract server user ID from backend response
             guard let userData = result.userData,
                   let serverUserId = userData["id"] as? String ?? userData["userId"] as? String ?? userData["user_id"] as? String else {
-                print("❌ CRITICAL ERROR: Backend response missing user ID")
+
                 if let responseData = result.userData {
                     print("📄 Available keys in userData: \(responseData.keys.sorted())")
                 } else {
@@ -231,7 +231,7 @@ final class AuthenticationService: ObservableObject {
                 throw AuthError.serverError("Backend response missing user ID")
             }
             
-            print("🎯 === SERVER UID EXTRACTION SUCCESS ===")
+
             print("🖥️ Server User ID Found: \(serverUserId)")
             print("📧 Email: \(userData["email"] as? String ?? email)")
             print("👤 Name: \(userData["name"] as? String ?? "N/A")")
@@ -259,8 +259,8 @@ final class AuthenticationService: ObservableObject {
                 await MainActor.run {
                     currentUser = user
                     isAuthenticated = true
-                    print("🔄 === UI STATE UPDATED ===")
-                    print("✅ Authentication state set to true")
+
+
                     print("👤 Current user ID now: \(user.id)")
                     print("===========================")
                 }
@@ -269,7 +269,7 @@ final class AuthenticationService: ObservableObject {
                 await loadUserProfileAfterLogin()
             }
         } else {
-            print("❌ Backend login failed: \(result.message)")
+
             let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
             throw specificError
         }
@@ -293,7 +293,7 @@ final class AuthenticationService: ObservableObject {
         if result.success {
             // Registration successful - DO NOT auto-login
             // The user will need to manually log in from the login screen
-            print("✅ Registration successful for \(email). User needs to login manually.")
+
             
             // Store the registered email for pre-filling the login form
             await MainActor.run {
@@ -388,7 +388,7 @@ final class AuthenticationService: ObservableObject {
                 throw AuthError.serverError("Backend response missing user ID")
             }
             
-            print("🔍 Google Login - Using server user ID: \(serverUserId)")
+
             
             let user = User(
                 id: serverUserId,  // Use server UID instead of Google UID
@@ -478,15 +478,15 @@ final class AuthenticationService: ObservableObject {
         print("🔧 === FIXING EXISTING USER UID ===")
         
         guard getAuthToken() != nil else {
-            print("❌ No auth token available for UID fix")
+
             throw AuthError.keychainError
         }
         
-        print("🔍 Using current token to fetch server user profile...")
+
         let debugResult = await networkService.debugAuthTokenMapping()
         
         if debugResult.success, let serverUserId = debugResult.backendUserId {
-            print("🎯 === SERVER UID RETRIEVAL SUCCESS ===")
+
             print("🖥️ Backend User ID: \(serverUserId)")
             
             // Update existing user with server UID
@@ -505,11 +505,11 @@ final class AuthenticationService: ObservableObject {
                 
                 await MainActor.run {
                     self.currentUser = updatedUser
-                    print("✅ User UID fixed! Old: \(currentUser.id) → New: \(serverUserId)")
+
                 }
             }
         } else {
-            print("❌ Failed to fetch server UID: \(debugResult.message)")
+
             throw AuthError.networkError(debugResult.message)
         }
     }
@@ -530,12 +530,12 @@ final class AuthenticationService: ObservableObject {
     
     /// Auto-load user profile after successful authentication
     private func loadUserProfileAfterLogin() async {
-        print("🔄 Auto-loading user profile...")
+
         
         // Use the ProfileService to load user profile
         await ProfileService.shared.loadProfileAfterLogin()
         
-        print("✅ Profile auto-loading completed")
+
     }
     
     func isAppleSignInAvailable() -> Bool {
@@ -910,7 +910,7 @@ class GoogleSignInService: NSObject {
                 accessToken: user.accessToken.tokenString
             )
             
-            print("✅ Google Sign-In Success: \(googleUser.email)")
+
             continuation.resume(returning: googleUser)
         }
     }

@@ -53,13 +53,13 @@ class ProfileService: ObservableObject {
                     currentProfile = profile
                 }
                 
-                print("✅ Profile loaded successfully for user: \(profile.email)")
+
                 return profile
             } else {
                 throw ProfileError.serverError(result.message)
             }
         } catch {
-            print("❌ Failed to load profile: \(error)")
+
             await MainActor.run {
                 errorMessage = error.localizedDescription
             }
@@ -107,13 +107,13 @@ class ProfileService: ObservableObject {
                     currentProfile = updatedProfile
                 }
                 
-                print("✅ Profile updated successfully for user: \(updatedProfile.email)")
+
                 return updatedProfile
             } else {
                 throw ProfileError.serverError(result.message)
             }
         } catch {
-            print("❌ Failed to update profile: \(error)")
+
             await MainActor.run {
                 errorMessage = error.localizedDescription
             }
@@ -136,7 +136,7 @@ class ProfileService: ObservableObject {
                 throw ProfileError.serverError("Failed to get profile completion")
             }
         } catch {
-            print("❌ Failed to get profile completion: \(error)")
+
             throw error
         }
     }
@@ -148,7 +148,7 @@ class ProfileService: ObservableObject {
         do {
             let data = try JSONEncoder().encode(profile)
             try keychainService.save(data, for: "user_profile")
-            print("📱 Profile cached locally")
+
         } catch {
             print("⚠️ Failed to cache profile locally: \(error)")
             // Don't throw - caching failure shouldn't break the flow
@@ -163,7 +163,7 @@ class ProfileService: ObservableObject {
             }
             
             let profile = try JSONDecoder().decode(UserProfile.self, from: data)
-            print("📱 Loaded cached profile for user: \(profile.email)")
+
             return profile
         } catch {
             print("⚠️ Failed to load cached profile: \(error)")

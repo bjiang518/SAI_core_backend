@@ -217,7 +217,7 @@ class QuestionGenerationService: ObservableObject {
 
     private init() {
         self.baseURL = "https://sai-backend-production.up.railway.app"
-        print("🎯 QuestionGenerationService initialized with baseURL: \(baseURL)")
+
     }
 
     // MARK: - Public API Methods
@@ -232,7 +232,7 @@ class QuestionGenerationService: ObservableObject {
         // Check cache first
         let cacheKey = "random_\(subject)_\(config.difficulty.rawValue)_\(config.questionCount)"
         if let cached = questionCache[cacheKey], !cached.isExpired {
-            print("⚡ Using cached random questions for \(subject)")
+
             return .success(cached.questions)
         }
 
@@ -249,10 +249,10 @@ class QuestionGenerationService: ObservableObject {
             }
         }
 
-        print("🎯 === GENERATING RANDOM QUESTIONS ===")
+
         print("📚 Subject: \(subject)")
-        print("🎯 Question Count: \(config.questionCount)")
-        print("📈 Difficulty: \(config.difficulty.displayName)")
+
+
         print("🏷️ Topics: \(config.topics)")
         print("👤 User Grade: \(userProfile.grade)")
 
@@ -294,7 +294,7 @@ class QuestionGenerationService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Random Questions Response Status: \(httpResponse.statusCode)")
+
 
                 if httpResponse.statusCode == 200 {
                     let responseResult = try parseQuestionResponse(data: data, generationType: "random")
@@ -328,7 +328,7 @@ class QuestionGenerationService: ObservableObject {
         } catch {
             let errorMsg = "Network error: \(error.localizedDescription)"
             await MainActor.run { self.lastError = errorMsg }
-            print("❌ Random questions generation failed: \(errorMsg)")
+
             return .failure(.networkError(error.localizedDescription))
         }
     }
@@ -354,10 +354,10 @@ class QuestionGenerationService: ObservableObject {
             }
         }
 
-        print("🎯 === GENERATING MISTAKE-BASED QUESTIONS ===")
+
         print("📚 Subject: \(subject)")
-        print("❌ Mistakes Count: \(mistakes.count)")
-        print("🎯 Question Count: \(config.questionCount)")
+
+
 
         let endpoint = "/api/ai/generate-questions/mistakes"
 
@@ -395,7 +395,7 @@ class QuestionGenerationService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Mistake-Based Questions Response Status: \(httpResponse.statusCode)")
+
 
                 if httpResponse.statusCode == 200 {
                     let responseResult = try parseQuestionResponse(data: data, generationType: "mistake_based")
@@ -418,11 +418,11 @@ class QuestionGenerationService: ObservableObject {
                                 rawString.contains("questions extracted") ||
                                 rawString.contains("Parsed question")) {
 
-                                print("🔄 Detected backend text parsing fallback scenario - attempting to extract questions from raw response")
+
 
                                 // Try to extract questions from the error response that might contain parsed data
                                 if let extractedQuestions = tryExtractQuestionsFromErrorResponse(data: data) {
-                                    print("✅ Successfully extracted \(extractedQuestions.count) questions from backend fallback parsing")
+
                                     return .success(extractedQuestions)
                                 }
                             }
@@ -463,7 +463,7 @@ class QuestionGenerationService: ObservableObject {
         } catch {
             let errorMsg = "Network error: \(error.localizedDescription)"
             await MainActor.run { self.lastError = errorMsg }
-            print("❌ Mistake-based questions generation failed: \(errorMsg)")
+
             return .failure(.networkError(error.localizedDescription))
         }
     }
@@ -489,10 +489,10 @@ class QuestionGenerationService: ObservableObject {
             }
         }
 
-        print("🎯 === GENERATING CONVERSATION-BASED QUESTIONS ===")
+
         print("📚 Subject: \(subject)")
         print("💬 Conversations Count: \(conversations.count)")
-        print("🎯 Question Count: \(config.questionCount)")
+
 
         let endpoint = "/api/ai/generate-questions/conversations"
 
@@ -530,7 +530,7 @@ class QuestionGenerationService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Conversation-Based Questions Response Status: \(httpResponse.statusCode)")
+
 
                 // UNIVERSAL PARSING: Always try to parse response data regardless of status code
                 // The backend might include valid questions even in error responses
@@ -555,7 +555,7 @@ class QuestionGenerationService: ObservableObject {
                 }
 
                 // FALLBACK: If JSON parsing failed, try raw extraction from any response
-                print("🔄 JSON parsing failed, attempting raw text extraction from response...")
+
 
                 if let rawString = String(data: data, encoding: .utf8) {
                     print("📄 Raw response for extraction (Status \(httpResponse.statusCode)):")
@@ -565,7 +565,7 @@ class QuestionGenerationService: ObservableObject {
 
                     // Try to extract questions using the intelligent recovery system
                     if let extractedQuestions = tryExtractQuestionsFromErrorResponse(data: data) {
-                        print("✅ Successfully extracted \(extractedQuestions.count) questions from raw response (Status: \(httpResponse.statusCode))")
+
                         return .success(extractedQuestions)
                     }
                 }
@@ -582,7 +582,7 @@ class QuestionGenerationService: ObservableObject {
         } catch {
             let errorMsg = "Network error: \(error.localizedDescription)"
             await MainActor.run { self.lastError = errorMsg }
-            print("❌ Conversation-based questions generation failed: \(errorMsg)")
+
             return .failure(.networkError(error.localizedDescription))
         }
     }
@@ -616,7 +616,7 @@ class QuestionGenerationService: ObservableObject {
             throw QuestionGenerationError.invalidResponse("Invalid JSON format")
         }
 
-        print("📊 Response JSON keys: \(Array(json.keys))")
+
 
         let success = json["success"] as? Bool ?? false
         let subject = json["subject"] as? String ?? ""
@@ -636,7 +636,7 @@ class QuestionGenerationService: ObservableObject {
                 do {
                     let question = try parseGeneratedQuestion(from: questionDict)
                     questions.append(question)
-                    print("✅ Parsed question \(index + 1): \(question.type.displayName)")
+
                 } catch {
                     print("⚠️ Failed to parse question \(index + 1): \(error)")
                 }
@@ -666,7 +666,7 @@ class QuestionGenerationService: ObservableObject {
                 do {
                     let question = try parseGeneratedQuestion(from: questionDict)
                     questions.append(question)
-                    print("✅ Parsed question \(index + 1): \(question.type.displayName)")
+
                 } catch {
                     print("⚠️ Failed to parse question \(index + 1): \(error)")
                 }
@@ -688,11 +688,11 @@ class QuestionGenerationService: ObservableObject {
     /// Attempts to extract questions from backend error responses that contain text parsing fallback data
     private func tryExtractQuestionsFromErrorResponse(data: Data) -> [GeneratedQuestion]? {
         guard let rawString = String(data: data, encoding: .utf8) else {
-            print("❌ Could not convert response data to string")
+
             return nil
         }
 
-        print("🔍 Attempting to extract questions from error response containing fallback parsing")
+
         print("📄 Raw response length: \(rawString.count) characters")
 
         // Strategy 1: Look for complete JSON objects with questions array
@@ -713,7 +713,7 @@ class QuestionGenerationService: ObservableObject {
             return extractedQuestions
         }
 
-        print("❌ Could not extract questions from error response with any strategy")
+
         return nil
     }
 
@@ -734,7 +734,7 @@ class QuestionGenerationService: ObservableObject {
                let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
                let questionsArray = json["questions"] as? [[String: Any]] {
 
-                print("✅ Successfully extracted JSON with \(questionsArray.count) questions using \(strategy)")
+
                 return parseQuestionsArray(questionsArray, strategy: strategy)
             }
         }
@@ -757,7 +757,7 @@ class QuestionGenerationService: ObservableObject {
                let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
                let questionsArray = json["questions"] as? [[String: Any]] {
 
-                print("✅ Successfully extracted questions array with \(questionsArray.count) questions")
+
                 return parseQuestionsArray(questionsArray, strategy: "Questions Array Extraction")
             }
         }
@@ -770,7 +770,7 @@ class QuestionGenerationService: ObservableObject {
             do {
                 let question = try parseGeneratedQuestion(from: questionDict)
                 questions.append(question)
-                print("✅ Parsed \(strategy) question \(index + 1): \(question.type.displayName)")
+
             } catch {
                 print("⚠️ Failed to parse \(strategy) question \(index + 1): \(error)")
                 // Continue with other questions instead of failing completely

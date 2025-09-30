@@ -68,9 +68,9 @@ struct DirectAIHomeworkView: View {
     @State private var photoPermissionDenied = false
     @State private var cameraPermissionDenied = false
 
-    // Preview functionality
-    @State private var preprocessedImage: UIImage?
-    @State private var showImageComparison = false
+    // Image editing functionality
+    @State private var showingImageEditor = false
+    @State private var editedImage: UIImage?
     
     private let logger = Logger(subsystem: "com.studyai", category: "DirectAIHomeworkView")
     
@@ -161,6 +161,25 @@ struct DirectAIHomeworkView: View {
                 ),
                 isPresented: $showingPhotoPicker
             )
+        }
+        .sheet(isPresented: $showingImageEditor) {
+            UnifiedImageEditorView(
+                originalImage: Binding(
+                    get: { stateManager.originalImage },
+                    set: { newImage in
+                        stateManager.originalImage = newImage
+                    }
+                ),
+                editedImage: $editedImage,
+                isPresented: $showingImageEditor
+            )
+            .onDisappear {
+                // Update the image in state manager when editing is complete
+                if let edited = editedImage {
+                    stateManager.originalImage = edited
+                    editedImage = nil
+                }
+            }
         }
         .alert("Photo Access Required", isPresented: $photoPermissionDenied) {
             Button("Settings") {
@@ -301,9 +320,6 @@ struct DirectAIHomeworkView: View {
                 if isProcessing {
                     // Show hand writing animation during processing
                     HandWritingAnimation()
-                } else if showImageComparison, let originalImage = stateManager.originalImage, let processedImage = preprocessedImage {
-                    // Show image comparison after preprocessing
-                    imageComparisonView(original: originalImage, processed: processedImage)
                 } else {
                     // Show initial image preview
                     initialImagePreview
@@ -333,6 +349,17 @@ struct DirectAIHomeworkView: View {
             // Image Preview Section
             if let image = stateManager.originalImage {
                 imageSection(title: "Selected Image", image: image)
+
+                // Edit Image Button
+                Button("✏️ Edit Image") {
+                    showingImageEditor = true
+                }
+                .foregroundColor(.purple)
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.purple.opacity(0.1))
+                .cornerRadius(12)
+                .padding(.horizontal)
             }
 
             // Ask AI Button
@@ -352,8 +379,6 @@ struct DirectAIHomeworkView: View {
                 // Clear Session Button
                 Button("Clear Session") {
                     stateManager.clearSession()
-                    preprocessedImage = nil
-                    showImageComparison = false
                 }
                 .foregroundColor(.red)
                 .padding()
@@ -365,172 +390,7 @@ struct DirectAIHomeworkView: View {
         }
     }
 
-    // MARK: - Image Comparison View
-    private func imageComparisonView(original: UIImage, processed: UIImage) -> some View {
-        VStack(spacing: 24) {
-            // Header
-            VStack(spacing: 8) {
-                Text("✨ Image Enhanced!")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.green)
 
-                Text("Tap images to zoom and inspect quality")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.top)
-
-            // Image comparison with zoom functionality
-            VStack(spacing: 16) {
-                HStack(spacing: 16) {
-                    // Original image with zoom
-                    VStack(spacing: 8) {
-                        Text("Original")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
-                        ZoomableImageView(image: original, borderColor: .gray)
-                            .frame(height: 200)
-
-                        Text(String(format: "%.0f × %.0f", original.size.width, original.size.height))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    // Arrow
-                    Image(systemName: "arrow.right")
-                        .font(.title2)
-                        .foregroundColor(.blue)
-
-                    // Processed image with zoom
-                    VStack(spacing: 8) {
-                        Text("Enhanced")
-                            .font(.headline)
-                            .foregroundColor(.blue)
-
-                        ZoomableImageView(image: processed, borderColor: .blue)
-                            .frame(height: 200)
-
-                        Text(String(format: "%.0f × %.0f", processed.size.width, processed.size.height))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.horizontal)
-
-                // Full-screen preview buttons
-                HStack(spacing: 12) {
-                    Button("🔍 Zoom Original") {
-                        showFullScreenImage(original, title: "Original Image")
-                    }
-                    .font(.caption)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
-
-                    Button("🔍 Zoom Enhanced") {
-                        showFullScreenImage(processed, title: "Enhanced Image")
-                    }
-                    .font(.caption)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(8)
-                }
-            }
-
-            // Quality info
-            VStack(spacing: 8) {
-                HStack {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundColor(.blue)
-                    Text("Enhanced for better AI recognition")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                    Spacer()
-                }
-
-                HStack {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .foregroundColor(.green)
-                    Text("Optimized contrast and lighting")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                    Spacer()
-                }
-
-                HStack {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .foregroundColor(.orange)
-                    Text("Reduced file size for faster processing")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                    Spacer()
-                }
-            }
-            .padding()
-            .background(Color.blue.opacity(0.05))
-            .cornerRadius(12)
-            .padding(.horizontal)
-
-            // Action buttons
-            VStack(spacing: 12) {
-                // Send Enhanced Image
-                Button(action: {
-                    sendToAI(image: processed)
-                }) {
-                    HStack {
-                        Image(systemName: "sparkles")
-                        Text("Send Enhanced Image to AI")
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(.white)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.blue)
-                    .cornerRadius(12)
-                }
-
-                // Send Original Image
-                Button(action: {
-                    sendToAI(image: original)
-                }) {
-                    HStack {
-                        Image(systemName: "photo")
-                        Text("Send Original Image")
-                    }
-                    .foregroundColor(.blue)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(12)
-                }
-
-                // Try Different Enhancement
-                Button(action: {
-                    preprocessedImage = nil
-                    showImageComparison = false
-                    if let image = stateManager.originalImage {
-                        processImage(image)
-                    }
-                }) {
-                    HStack {
-                        Image(systemName: "arrow.clockwise")
-                        Text("Try Different Enhancement")
-                    }
-                    .foregroundColor(.orange)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(12)
-                }
-            }
-            .padding(.horizontal)
-        }
-    }
-    
     // MARK: - Existing Session View
     private var existingSessionView: some View {
         ScrollView {
@@ -766,84 +626,76 @@ struct DirectAIHomeworkView: View {
         isProcessing = true
         stateManager.processingStatus = "Processing homework image with AI..."
         stateManager.parsingError = nil
-        
+
         logger.info("🚀 === HOMEWORK IMAGE PROCESSING STARTED ===")
         logger.info("📊 Original image size: \(image.size.width)x\(image.size.height)")
-        
-        Task {
-            let _ = Date()
 
-            // 🆕 USE ADVANCED PREPROCESSING instead of basic compression
+        Task {
+            // Apply preprocessing and send directly to AI
             logger.info("🔧 === APPLYING ADVANCED IMAGE PREPROCESSING ===")
             let processedImage = ImageProcessingService.shared.preprocessImageForAI(image) ?? image
             logger.info("📊 Preprocessed image size: \(processedImage.size.width)x\(processedImage.size.height)")
 
-            // Store preprocessed image for preview
-            await MainActor.run {
-                self.preprocessedImage = processedImage
-                stateManager.processingStatus = "✨ Image enhanced! Review quality before sending to AI"
-                self.showImageComparison = true
-                self.isProcessing = false
-            }
-
-            // Wait for user confirmation before proceeding
-            return
-        }
-    }
-
-    // MARK: - Send to AI Method
-    private func sendToAI(image: UIImage) {
-        isProcessing = true
-        showImageComparison = false
-        stateManager.processingStatus = "Preparing image for AI analysis..."
-        stateManager.parsingError = nil
-
-        logger.info("📡 === SENDING IMAGE TO AI ===")
-        logger.info("📊 Final image size: \(image.size.width)x\(image.size.height)")
-
-        Task {
-            let startTime = Date()
-
-            // Convert to data with aggressive compression
-            guard let imageData = compressPreprocessedImage(image) else {
-                await MainActor.run {
-                    stateManager.parsingError = "Failed to compress image for upload"
-                    stateManager.processingStatus = "❌ Image compression failed"
-                    showingErrorAlert = true
-                    isProcessing = false
-                }
-                return
-            }
-
-            logger.info("📄 Final image data size: \(imageData.count) bytes")
-            let base64Image = imageData.base64EncodedString()
-            logger.info("📄 Base64 string length: \(base64Image.count) characters")
-            stateManager.originalImageUrl = "temp://homework-image-\(UUID().uuidString)"
-
+            // Send directly to AI without showing enhancement preview
             await MainActor.run {
                 stateManager.processingStatus = "🤖 AI is analyzing your homework..."
             }
 
-            logger.info("📡 Sending to AI for processing...")
+            await sendToAI(image: processedImage)
+        }
+    }
 
-            // Process with AI
-            let result = await NetworkService.shared.processHomeworkImageWithSubjectDetection(
-                base64Image: base64Image,
-                prompt: ""
-            )
+    // MARK: - Send to AI Method
+    private func sendToAI(image: UIImage) async {
+        await MainActor.run {
+            stateManager.processingStatus = "Preparing image for AI analysis..."
+            stateManager.parsingError = nil
+        }
 
-            let processingTime = Date().timeIntervalSince(startTime)
+        logger.info("📡 === SENDING IMAGE TO AI ===")
+        logger.info("📊 Final image size: \(image.size.width)x\(image.size.height)")
 
+        let startTime = Date()
+
+        // Convert to data with aggressive compression
+        guard let imageData = compressPreprocessedImage(image) else {
             await MainActor.run {
-                if result.success, let response = result.response {
-                    logger.info("🎉 AI processing successful")
-                    processSuccessfulResponse(response, processingTime: processingTime)
-                } else {
-                    logger.error("❌ AI processing failed")
-                    processFailedResponse(result, processingTime: processingTime)
-                }
+                stateManager.parsingError = "Failed to compress image for upload"
+                stateManager.processingStatus = "❌ Image compression failed"
+                showingErrorAlert = true
                 isProcessing = false
             }
+            return
+        }
+
+        logger.info("📄 Final image data size: \(imageData.count) bytes")
+        let base64Image = imageData.base64EncodedString()
+        logger.info("📄 Base64 string length: \(base64Image.count) characters")
+
+        await MainActor.run {
+            stateManager.originalImageUrl = "temp://homework-image-\(UUID().uuidString)"
+            stateManager.processingStatus = "🤖 AI is analyzing your homework..."
+        }
+
+        logger.info("📡 Sending to AI for processing...")
+
+        // Process with AI
+        let result = await NetworkService.shared.processHomeworkImageWithSubjectDetection(
+            base64Image: base64Image,
+            prompt: ""
+        )
+
+        let processingTime = Date().timeIntervalSince(startTime)
+
+        await MainActor.run {
+            if result.success, let response = result.response {
+                logger.info("🎉 AI processing successful")
+                processSuccessfulResponse(response, processingTime: processingTime)
+            } else {
+                logger.error("❌ AI processing failed")
+                processFailedResponse(result, processingTime: processingTime)
+            }
+            isProcessing = false
         }
     }
     
@@ -1046,13 +898,13 @@ struct DocumentPicker: UIViewControllerRepresentable {
                     let data = try Data(contentsOf: url)
                     
                     if let image = UIImage(data: data) {
-                        print("✅ Loaded image from file: \(image.size)")
+
                         parent.selectedImage = image
                     } else {
-                        print("❌ Could not load image from selected file")
+
                     }
                 } catch {
-                    print("❌ Error loading file: \(error.localizedDescription)")
+
                 }
                 
                 parent.isPresented = false

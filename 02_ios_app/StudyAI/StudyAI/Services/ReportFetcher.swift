@@ -18,11 +18,8 @@ class ReportFetcher: ObservableObject {
 
     /// Fetch narrative content for a report
     func fetchNarrative(reportId: String) async -> Result<NarrativeReport, ParentReportError> {
-        print("📝 Fetching narrative content for report: \(reportId)")
-
         // Try to load from cache first
         if let cachedNarrative = await localStorage.getCachedNarrative(reportId: reportId) {
-            print("📝 Narrative loaded from cache: \(reportId)")
             return .success(cachedNarrative)
         }
 
@@ -68,7 +65,6 @@ class ReportFetcher: ObservableObject {
                         // Cache the narrative for future use
                         await localStorage.cacheNarrative(narrative, reportId: reportId)
 
-                        print("✅ Narrative fetched and cached successfully: \(reportId)")
                         return .success(narrative)
                     } else {
                         let error = ParentReportError.fetchFailed("No narrative content available")
@@ -112,11 +108,8 @@ class ReportFetcher: ObservableObject {
 
     /// Fetch a specific report by ID
     func fetchReport(reportId: String) async -> Result<ParentReport, ParentReportError> {
-        print("📄 Fetching report: \(reportId)")
-
         // Try to load from cache first
         if let cachedReport = await localStorage.getCachedReport(reportId: reportId) {
-            print("📄 Report loaded from cache: \(reportId)")
             return .success(cachedReport)
         }
 
@@ -172,8 +165,6 @@ class ReportFetcher: ObservableObject {
                     // Cache the fetched report
                     await localStorage.cacheReport(report)
 
-                    print("✅ Report fetched and cached successfully: \(reportId)")
-
                     return .success(report)
                 } catch {
                     throw error
@@ -214,8 +205,6 @@ class ReportFetcher: ObservableObject {
         offset: Int = 0,
         reportType: ReportType? = nil
     ) async -> Result<StudentReportsResponse, ParentReportError> {
-
-        print("📋 Fetching student reports for: \(studentId)")
 
         guard let authToken = AuthenticationService.shared.getAuthToken() else {
             let error = ParentReportError.notAuthenticated
@@ -263,7 +252,6 @@ class ReportFetcher: ObservableObject {
                 let reportsResponse = try decoder.decode(StudentReportsResponse.self, from: data)
 
                 if reportsResponse.success {
-                    print("✅ Fetched \(reportsResponse.reports.count) reports for student")
                     return .success(reportsResponse)
                 } else {
                     let errorMessage = reportsResponse.error ?? "Failed to fetch reports"

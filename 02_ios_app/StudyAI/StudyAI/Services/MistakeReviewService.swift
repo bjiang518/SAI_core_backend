@@ -18,17 +18,17 @@ class MistakeReviewService: ObservableObject {
 
     private let networkService = NetworkService.shared
 
-    func fetchSubjectsWithMistakes() async {
+    func fetchSubjectsWithMistakes(timeRange: MistakeTimeRange? = nil) async {
         isLoading = true
         errorMessage = nil
 
         do {
-            let subjects = try await networkService.getMistakeSubjects()
+            let subjects = try await networkService.getMistakeSubjects(timeRange: timeRange?.apiValue)
             self.subjectsWithMistakes = subjects
         } catch {
             self.errorMessage = error.localizedDescription
             self.subjectsWithMistakes = []
-            print("❌ Error fetching mistake subjects: \(error)")
+
         }
 
         isLoading = false
@@ -47,7 +47,7 @@ class MistakeReviewService: ObservableObject {
         } catch {
             self.errorMessage = error.localizedDescription
             self.mistakes = []
-            print("❌ Error fetching mistakes: \(error)")
+
         }
 
         isLoading = false
@@ -57,7 +57,7 @@ class MistakeReviewService: ObservableObject {
         do {
             return try await networkService.getMistakeStats()
         } catch {
-            print("❌ Error fetching mistake stats: \(error)")
+
             return nil
         }
     }

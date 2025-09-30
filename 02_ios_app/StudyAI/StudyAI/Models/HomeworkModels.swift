@@ -239,24 +239,24 @@ struct MistakeStats: Codable {
 }
 
 enum MistakeTimeRange: String, CaseIterable, Identifiable {
-    case lastWeek = "Last Week"
-    case lastMonth = "Last Month"
+    case thisWeek = "This Week"
+    case thisMonth = "This Month"
     case allTime = "All Time"
 
     var id: String { self.rawValue }
 
     var apiValue: String {
         switch self {
-        case .lastWeek: return "last_week"
-        case .lastMonth: return "last_month"
+        case .thisWeek: return "last_week"
+        case .thisMonth: return "last_month"
         case .allTime: return "all_time"
         }
     }
 
     var icon: String {
         switch self {
-        case .lastWeek: return "calendar.badge.clock"
-        case .lastMonth: return "calendar"
+        case .thisWeek: return "calendar.badge.clock"
+        case .thisMonth: return "calendar"
         case .allTime: return "clock"
         }
     }
