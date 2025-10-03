@@ -61,7 +61,7 @@ struct DirectAIHomeworkView: View {
     @State private var showingErrorAlert = false
 
     // Image source selection states
-    @State private var showingCamera = false
+    @State private var showingCameraPicker = false
     @State private var showingPhotoPicker = false
     @State private var showingFilePicker = false
 
@@ -129,15 +129,15 @@ struct DirectAIHomeworkView: View {
                 Text(error)
             }
         }
-        .sheet(isPresented: $showingCamera) {
-            ImageSourceSelectionView(selectedImage: Binding(
+        .sheet(isPresented: $showingCameraPicker) {
+            CameraPickerView(selectedImage: Binding(
                 get: { stateManager.originalImage },
                 set: { newImage in
                     if let image = newImage {
                         stateManager.originalImage = image
                     }
                 }
-            ), isPresented: $showingCamera)
+            ), isPresented: $showingCameraPicker)
         }
         .sheet(isPresented: $showingFilePicker) {
             DocumentPicker(selectedImage: Binding(
@@ -625,7 +625,7 @@ struct DirectAIHomeworkView: View {
             let hasPermission = await CameraPermissionManager.requestCameraPermission()
             await MainActor.run {
                 if hasPermission {
-                    showingCamera = true
+                    showingCameraPicker = true
                 } else {
                     cameraPermissionDenied = true
                 }
@@ -863,6 +863,45 @@ struct ImageSourceOption: View {
             .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Camera Picker (Direct to Camera)
+struct CameraPickerView: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    @Binding var isPresented: Bool
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.allowsEditing = false
+        picker.sourceType = .camera
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraPickerView
+
+        init(_ parent: CameraPickerView) {
+            self.parent = parent
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.selectedImage = image
+            }
+            parent.isPresented = false
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.isPresented = false
+        }
     }
 }
 
