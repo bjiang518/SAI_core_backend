@@ -398,7 +398,12 @@ struct HomeworkResultsView: View {
         VStack(spacing: 16) {
             Button(action: {
                 print("🎯 DEBUG: Mark Progress button tapped!")
+                print("🎯 DEBUG: Current todayProgress BEFORE: \(pointsManager.todayProgress?.totalQuestions ?? 0) questions, \(pointsManager.todayProgress?.correctAnswers ?? 0) correct")
+
                 trackHomeworkUsage()
+
+                print("🎯 DEBUG: Current todayProgress AFTER: \(pointsManager.todayProgress?.totalQuestions ?? 0) questions, \(pointsManager.todayProgress?.correctAnswers ?? 0) correct")
+
                 hasMarkedProgress = true
                 saveProgressState() // Persist the state
 

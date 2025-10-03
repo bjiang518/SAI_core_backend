@@ -14,7 +14,8 @@ struct HomeView: View {
     @StateObject private var networkService = NetworkService.shared
     @StateObject private var voiceService = VoiceInteractionService.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
-    @State private var userName = UserDefaults.standard.string(forKey: "user_name") ?? "Student"
+    @ObservedObject private var profileService = ProfileService.shared
+    @State private var userName = ""
     @State private var navigateToSession = false
     @State private var showingProfile = false
     @State private var showingMistakeReview = false
@@ -56,7 +57,14 @@ struct HomeView: View {
             .background(DesignTokens.Colors.surface.ignoresSafeArea())
             .navigationBarHidden(true)
             .onAppear {
-                // HomeView appeared
+                // Load user name from ProfileService using displayName field
+                if let profile = profileService.currentProfile {
+                    userName = profile.fullName
+                } else if let cachedProfile = profileService.loadCachedProfile() {
+                    userName = cachedProfile.fullName
+                } else {
+                    userName = "there"
+                }
             }
             .sheet(isPresented: $showingProfile) {
                 ModernProfileView(onLogout: {
@@ -78,9 +86,9 @@ struct HomeView: View {
 
     // MARK: - Engaging Hero Header
     private var engagingHeroHeader: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: DesignTokens.Spacing.md) {
             // Greeting card with gradient background
-            ZStack(alignment: .topTrailing) {
+            ZStack(alignment: .trailing) {
                 // Brighter gradient background card
                 // cornerRadius controls rounded corners (default: 24pt)
                 RoundedRectangle(cornerRadius: 24)
@@ -105,101 +113,92 @@ struct HomeView: View {
                     )
                     .shadow(color: DesignTokens.Colors.aiBlue.opacity(0.4), radius: 12, x: 0, y: 6)
 
-                // Content inside the greeting card
-                // VStack spacing controls gap between greeting and stats
-                VStack(spacing: DesignTokens.Spacing.sm) {
-                    // Compact greeting section
-                    HStack(alignment: .center, spacing: DesignTokens.Spacing.sm) {
-                        Spacer()
-                            .frame(width: 8)  // Space before animation - adjust this value
+                // Content inside the greeting card - only greeting now
+                HStack(alignment: .center, spacing: DesignTokens.Spacing.md) {
+                    Spacer()
+                        .frame(width: 8)  // Space before animation - adjust this value
 
-                        // User Avatar - AI Spiral Loading animation
-                        LottieView(
-                            animationName: "AI Spiral Loading",
-                            loopMode: .loop,
-                            animationSpeed: 1.0
-                        )
-                        .frame(width: 10, height: 10)  // Avatar size (default: 40pt)
-                        .scaleEffect(0.1)
+                    // User Avatar - AI Spiral Loading animation - ENLARGED
+                    LottieView(
+                        animationName: "AI Spiral Loading",
+                        loopMode: .loop,
+                        animationSpeed: 1.0
+                    )
+                    .frame(width: 60, height: 60)  // Enlarged from 10x10
+                    .scaleEffect(0.17)  // Increased from 0.1
 
-                        // Original white circle avatar (commented out for easy recovery)
-                        // Circle()
-                        //     .fill(Color.white)
-                        //     .frame(width: 40, height: 40)
-                        //     .overlay(
-                        //         Text(String(userName.prefix(1)).uppercased())
-                        //             .font(DesignTokens.Typography.subheadline)
-                        //             .foregroundColor(DesignTokens.Colors.aiBlue)
-                        //             .fontWeight(.bold)
-                        //     )
+                    // Greeting with larger fonts
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(greetingText)
+                            .font(.body)
+                            .foregroundColor(.white.opacity(0.9))
 
-                        // Compact Greeting
-                        // Font sizes: .caption2 (smaller), .subheadline (medium), .title3 (larger)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(greetingText)
-                                .font(DesignTokens.Typography.caption2)
-                                .foregroundColor(.white.opacity(0.9))
-
-                            Text(userName)
-                                .font(DesignTokens.Typography.subheadline)
-                                .foregroundColor(.white)
-                                .fontWeight(.semibold)
-                        }
-                        .padding(.leading, 26)  // Move text to the right - adjust this value
-
-                        Spacer()
+                        Text(userName)
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .fontWeight(.bold)
                     }
+                    .padding(.leading, 8)
 
-                    // Today's Progress Stats inside the card
-                    HStack(spacing: DesignTokens.Spacing.md) {
-                        if let todayProgress = pointsManager.todayProgress {
-                            StatBadge(
-                                icon: "questionmark.circle.fill",
-                                value: "\(todayProgress.totalQuestions)",
-                                label: "Questions",
-                                color: .white
-                            )
-
-                            StatBadge(
-                                icon: "target",
-                                value: "\(Int(todayProgress.accuracy))%",
-                                label: "Accuracy",
-                                color: .white
-                            )
-
-                            StatBadge(
-                                icon: "flame.fill",
-                                value: "\(pointsManager.currentStreak)",
-                                label: "Streak",
-                                color: .white
-                            )
-                        } else {
-                            Text("Start learning to track progress")
-                                .font(DesignTokens.Typography.caption2)
-                                .foregroundColor(.white.opacity(0.8))
-                                .frame(maxWidth: .infinity)
-                        }
-                    }
-                    .padding(.horizontal, DesignTokens.Spacing.sm)
-                    .padding(.vertical, DesignTokens.Spacing.xs)
-                    .background(Color.white.opacity(0.2))
-                    .cornerRadius(10)
+                    Spacer()
                 }
                 .padding(DesignTokens.Spacing.md)  // Internal padding inside the card
 
-                // Settings button in top-right corner
+                // Settings button - centered vertically on the right edge, enlarged
                 Button(action: { showingProfile = true }) {
                     Image(systemName: "gearshape.fill")
-                        .font(.system(size: 18))
+                        .font(.system(size: 24))  // Enlarged from 18
                         .foregroundColor(.white.opacity(0.9))
-                        .frame(width: 36, height: 36)
+                        .frame(width: 48, height: 48)  // Enlarged from 36x36
                         .background(Color.white.opacity(0.2))
                         .clipShape(Circle())
                 }
-                .padding(DesignTokens.Spacing.sm)
+                .padding(.trailing, DesignTokens.Spacing.md)
             }
-            .frame(height: 110)  // Total height of the greeting card (adjust if needed)
+            .frame(height: 90)  // Reduced height since we removed stats
             .padding(.top, DesignTokens.Spacing.md)  // Top spacing - reduced to move greeting up
+
+            // Today's Progress - moved outside the gradient box
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
+                Text("Today's Progress")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+
+                HStack(spacing: DesignTokens.Spacing.md) {
+                    if let todayProgress = pointsManager.todayProgress {
+                        StatBadge(
+                            icon: "questionmark.circle.fill",
+                            value: "\(todayProgress.totalQuestions)",
+                            label: "Questions",
+                            color: DesignTokens.Colors.aiBlue
+                        )
+
+                        StatBadge(
+                            icon: "target",
+                            value: "\(Int(todayProgress.accuracy))%",
+                            label: "Accuracy",
+                            color: DesignTokens.Colors.learningGreen
+                        )
+
+                        StatBadge(
+                            icon: "flame.fill",
+                            value: "\(pointsManager.currentStreak)",
+                            label: "Streak",
+                            color: DesignTokens.Colors.reviewOrange
+                        )
+                    } else {
+                        Text("Start learning to track progress")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(DesignTokens.Spacing.md)
+                .background(DesignTokens.Colors.cardBackground)
+                .cornerRadius(16)
+                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+            }
         }
         .padding(.horizontal, DesignTokens.Spacing.xl)  // Left and right margins
     }
@@ -237,21 +236,21 @@ struct StatBadge: View {
     let color: Color
 
     var body: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 4) {
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
                 Image(systemName: icon)
                     .foregroundColor(color)
-                    .font(.system(size: 12))
+                    .font(.system(size: 16))
 
                 Text(value)
-                    .font(DesignTokens.Typography.title3)
+                    .font(.title)
                     .foregroundColor(color)
                     .fontWeight(.bold)
             }
 
             Text(label)
-                .font(DesignTokens.Typography.caption2)
-                .foregroundColor(color.opacity(0.9))
+                .font(.subheadline)
+                .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -271,14 +270,18 @@ extension HomeView {
                     title: "Homework Grader",
                     subtitle: "Scan & grade",
                     color: DesignTokens.Colors.aiBlue,
+                    lottieAnimation: "Checklist",
+                    lottieScale: 0.29,  // Adjust this value to change size (0.1 to 1.0)
                     action: { onSelectTab(.grader) }
                 )
 
                 QuickActionCard_New(
                     icon: "message.fill",
-                    title: "Chat Session",
+                    title: "Chat",
                     subtitle: "Conversational AI",
                     color: DesignTokens.Colors.aiBlue,
+                    lottieAnimation: "Chat",
+                    lottieScale: 0.2,  // Adjust this value to change size (0.1 to 1.0)
                     action: { onSelectTab(.chat) }
                 )
 
@@ -287,6 +290,8 @@ extension HomeView {
                     title: "Library",
                     subtitle: "Study sessions",
                     color: DesignTokens.Colors.libraryTeal,
+                    lottieAnimation: "Books",
+                    lottieScale: 0.12,  // Adjust this value to change size (0.1 to 1.0)
                     action: { onSelectTab(.library) }
                 )
 
@@ -295,6 +300,8 @@ extension HomeView {
                     title: "Progress",
                     subtitle: "Track learning",
                     color: DesignTokens.Colors.analyticsPlum,
+                    lottieAnimation: "Chart Graph",
+                    lottieScale: 0.45,  // Adjust this value to change size (0.1 to 1.0)
                     action: { onSelectTab(.progress) }
                 )
             }
@@ -340,10 +347,34 @@ struct QuickActionCard_New: View {
     let subtitle: String
     let color: Color
     let action: () -> Void
+    let lottieAnimation: String?  // Optional Lottie animation name
+    let lottieScale: CGFloat  // Scale for Lottie animation
 
     @State private var isPressed = false
     @State private var rotationAngle: Double = 0
     @State private var scale: CGFloat = 1.0
+
+    // Default initializer without Lottie animation
+    init(icon: String, title: String, subtitle: String, color: Color, action: @escaping () -> Void) {
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.color = color
+        self.action = action
+        self.lottieAnimation = nil
+        self.lottieScale = 1.0
+    }
+
+    // Initializer with Lottie animation
+    init(icon: String, title: String, subtitle: String, color: Color, lottieAnimation: String, lottieScale: CGFloat = 1.0, action: @escaping () -> Void) {
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.color = color
+        self.action = action
+        self.lottieAnimation = lottieAnimation
+        self.lottieScale = lottieScale
+    }
 
     var body: some View {
         Button(action: {
@@ -366,32 +397,49 @@ struct QuickActionCard_New: View {
         }) {
             VStack(spacing: 12) {
                 ZStack {
-                    Circle()
-                        .fill(color.opacity(isPressed ? 0.3 : 0.15))
-                        .frame(width: 50, height: 50)
-                        .scaleEffect(isPressed ? 0.9 : 1.0)
-
-                    Image(systemName: icon)
-                        .font(.system(size: 22))
-                        .foregroundColor(isPressed ? color.opacity(0.7) : color)
-                        .rotationEffect(.degrees(rotationAngle))
-                        .scaleEffect(scale)
-                }
-                .onAppear {
-                    // Gentle floating animation
-                    withAnimation(
-                        Animation.easeInOut(duration: 2.0)
-                            .repeatForever(autoreverses: true)
-                    ) {
-                        scale = 1.05
+                    // Only show circular background for SF Symbols, not Lottie
+                    if lottieAnimation == nil {
+                        Circle()
+                            .fill(color.opacity(isPressed ? 0.3 : 0.15))
+                            .frame(width: 50, height: 50)
+                            .scaleEffect(isPressed ? 0.9 : 1.0)
                     }
 
-                    // Slight rotation animation for some visual interest
-                    withAnimation(
-                        Animation.easeInOut(duration: 3.0)
-                            .repeatForever(autoreverses: true)
-                    ) {
-                        rotationAngle = 3
+                    // Use Lottie animation if provided, otherwise use SF Symbol
+                    if let animationName = lottieAnimation {
+                        LottieView(
+                            animationName: animationName,
+                            loopMode: .loop,
+                            animationSpeed: 1.0
+                        )
+                        .frame(width: 50, height: 50)
+                        .scaleEffect(isPressed ? lottieScale * 0.95 : lottieScale)
+                    } else {
+                        Image(systemName: icon)
+                            .font(.system(size: 22))
+                            .foregroundColor(isPressed ? color.opacity(0.7) : color)
+                            .rotationEffect(.degrees(rotationAngle))
+                            .scaleEffect(scale)
+                    }
+                }
+                .onAppear {
+                    // Only apply animations to SF Symbols, not Lottie animations
+                    if lottieAnimation == nil {
+                        // Gentle floating animation
+                        withAnimation(
+                            Animation.easeInOut(duration: 2.0)
+                                .repeatForever(autoreverses: true)
+                        ) {
+                            scale = 1.05
+                        }
+
+                        // Slight rotation animation for some visual interest
+                        withAnimation(
+                            Animation.easeInOut(duration: 3.0)
+                                .repeatForever(autoreverses: true)
+                        ) {
+                            rotationAngle = 3
+                        }
                     }
                 }
 

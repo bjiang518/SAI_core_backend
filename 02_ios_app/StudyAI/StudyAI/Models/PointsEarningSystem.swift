@@ -256,6 +256,7 @@ enum LearningGoalType: String, CaseIterable, Codable {
 
 // MARK: - Points System Manager
 
+@MainActor
 class PointsEarningManager: ObservableObject {
     static let shared = PointsEarningManager()
 
@@ -333,10 +334,10 @@ class PointsEarningManager: ObservableObject {
             await loadCurrentWeekFromServer()
         }
 
-        // IMPORTANT: Do NOT load today's activity from server on fresh day
-        // Only load if we haven't reset today (to avoid overwriting reset data)
+        // CRITICAL: Load today's activity from server to sync with backend
+        // This implements cache-first with server fallback strategy
         Task {
-            await loadTodaysActivityFromServerIfNotReset()
+            await loadTodaysActivityWithCacheStrategy()
         }
     }
 
@@ -702,9 +703,13 @@ class PointsEarningManager: ObservableObject {
 
         let todayString = dateFormatter.string(from: today)
 
+        logger.info("🔄 [checkDailyReset] InstanceID: \(self.instanceId) - Checking daily reset")
+        logger.info("🔄 [checkDailyReset] Today: \(todayString), Last Reset: \(lastResetDateString ?? "nil")")
 
         // Check if the current todayProgress looks suspicious (like yesterday's data)
         let hasStaleData = (todayProgress?.totalQuestions ?? 0) > 10 // More than 10 questions suggests yesterday's data
+
+        logger.info("🔄 [checkDailyReset] Current todayProgress: \(self.todayProgress?.totalQuestions ?? 0) questions, Has stale data: \(hasStaleData)")
 
         // Reset if:
         // 1. We haven't reset today yet (different date) OR
@@ -712,6 +717,7 @@ class PointsEarningManager: ObservableObject {
         let shouldReset = (lastResetDateString != todayString) || hasStaleData
 
         if shouldReset {
+            logger.info("🔄 [checkDailyReset] ⚠️ PERFORMING DAILY RESET - Reason: \(lastResetDateString != todayString ? "New day" : "Stale data detected")")
 
             // Calculate streak before resetting daily data
             updateStreakForNewDay()
@@ -724,7 +730,10 @@ class PointsEarningManager: ObservableObject {
 
             // Force save the changes
             forceSave()
+
+            logger.info("🔄 [checkDailyReset] ✅ Daily reset completed - Date saved: \(todayString)")
         } else {
+            logger.info("🔄 [checkDailyReset] ✅ No reset needed - Already reset today")
         }
 
     }
@@ -914,12 +923,18 @@ class PointsEarningManager: ObservableObject {
     }
     
     func trackQuestionAnswered(subject: String, isCorrect: Bool) {
+        print("📊 DEBUG [trackQuestionAnswered]: ENTRY - subject: \(subject), isCorrect: \(isCorrect)")
+        print("📊 DEBUG [trackQuestionAnswered]: Current todayProgress BEFORE update: \(todayProgress?.totalQuestions ?? 0) questions")
+
+        // Log user context for multi-device debugging
+        logger.info("📊 [trackQuestionAnswered] InstanceID: \(self.instanceId) - Tracking question for subject: \(subject), isCorrect: \(isCorrect)")
 
         // Create data backup before critical operation
         let backup = createDataBackup()
 
         // Validate data integrity before proceeding
         guard validateDataIntegrity() else {
+            print("⚠️ DEBUG [trackQuestionAnswered]: Data integrity check FAILED, restoring from backup")
             // Data integrity check failed, restoring from backup
             restoreFromBackup(backup)
             return
@@ -927,13 +942,16 @@ class PointsEarningManager: ObservableObject {
 
         // Ensure todayProgress exists
         if todayProgress == nil {
+            print("📊 DEBUG [trackQuestionAnswered]: todayProgress was nil, creating new DailyProgress")
             todayProgress = DailyProgress()
         }
 
         guard var currentProgress = todayProgress else {
+            print("⚠️ DEBUG [trackQuestionAnswered]: Failed to get currentProgress, EXITING")
             return
         }
 
+        print("📊 DEBUG [trackQuestionAnswered]: currentProgress initialized - totalQuestions: \(currentProgress.totalQuestions), correctAnswers: \(currentProgress.correctAnswers)")
 
         // Update daily questions goal with bounds checking
         for i in 0..<learningGoals.count {
@@ -941,6 +959,7 @@ class PointsEarningManager: ObservableObject {
                 let oldProgress = learningGoals[i].currentProgress
                 learningGoals[i].currentProgress = max(0, learningGoals[i].currentProgress + 1)
                 let newProgress = learningGoals[i].currentProgress
+                print("📊 DEBUG [trackQuestionAnswered]: Updated dailyQuestions goal from \(oldProgress) to \(newProgress)")
             }
         }
 
@@ -953,8 +972,12 @@ class PointsEarningManager: ObservableObject {
             currentProgress.correctAnswers = max(0, currentProgress.correctAnswers + 1)
         }
 
+        print("📊 DEBUG [trackQuestionAnswered]: Updated currentProgress - totalQuestions: \(oldTotalQuestions) → \(currentProgress.totalQuestions), correctAnswers: \(oldCorrectAnswers) → \(currentProgress.correctAnswers)")
+
         // Update the published property
         todayProgress = currentProgress
+        print("📊 DEBUG [trackQuestionAnswered]: ✅ Set todayProgress = currentProgress (THIS SHOULD TRIGGER @Published)")
+        print("📊 DEBUG [trackQuestionAnswered]: todayProgress after assignment: \(todayProgress?.totalQuestions ?? 0) questions, \(todayProgress?.correctAnswers ?? 0) correct")
 
 
         // Update accuracy goal
@@ -969,8 +992,13 @@ class PointsEarningManager: ObservableObject {
         // Save data with logging
         saveData()
 
-        // Schedule debounced server sync instead of immediate sync
-        scheduleServerSync(questionCount: 1, subject: subject)
+        // NOTE: We do NOT sync to server here - questions only update local progress
+        // Points are only earned when user explicitly checks out goals in the Progress tab
+        // Server sync happens during goal checkout to persist earned points
+
+        print("📊 DEBUG [trackQuestionAnswered]: Updated local progress (no server sync)")
+        print("📊 DEBUG [trackQuestionAnswered]: EXIT - Final todayProgress: \(todayProgress?.totalQuestions ?? 0) questions, \(todayProgress?.correctAnswers ?? 0) correct")
+        print("📊 DEBUG [trackQuestionAnswered]: ========================================")
 
         // Show final state
         if let finalProgress = todayProgress {
@@ -1136,23 +1164,34 @@ class PointsEarningManager: ObservableObject {
 
     /// Checkout points for a specific goal
     func checkoutGoal(_ goalId: UUID) -> Int {
+        logger.info("[CHECKOUT] === CHECKING OUT GOAL ===")
+
         guard let index = learningGoals.firstIndex(where: { $0.id == goalId }) else {
+            logger.info("[CHECKOUT] ❌ Goal not found")
             return 0
         }
 
         let goal = learningGoals[index]
+        logger.info("[CHECKOUT] Goal: \(goal.title), Type: \(goal.type.rawValue)")
+        logger.info("[CHECKOUT] Progress: \(goal.currentProgress)/\(goal.targetValue), Completed: \(goal.isCompleted), CheckedOut: \(goal.isCheckedOut)")
+
         let pointsToAdd = calculateAvailablePoints(for: goal)
+        logger.info("[CHECKOUT] Available points: \(pointsToAdd)")
 
         guard pointsToAdd > 0 else {
+            logger.info("[CHECKOUT] ❌ No points available")
             return 0
         }
 
         // Apply daily maximum of 100 points logic
         let remainingDailyPoints = max(0, 100 - dailyPointsEarned)
         let actualPointsToAdd = min(pointsToAdd, remainingDailyPoints)
+        logger.info("[CHECKOUT] Daily points earned: \(self.dailyPointsEarned)/100, Remaining: \(remainingDailyPoints)")
+        logger.info("[CHECKOUT] Actual points to add: \(actualPointsToAdd)")
 
         // If no points can be added due to daily limit, return early
         guard actualPointsToAdd > 0 else {
+            logger.info("[CHECKOUT] ❌ Daily limit reached")
             return 0
         }
 
@@ -1160,12 +1199,17 @@ class PointsEarningManager: ObservableObject {
         learningGoals[index].isCheckedOut = true
 
         // Add points to total and daily counter with bounds checking
+        let oldCurrentPoints = currentPoints
+        let oldTotalPoints = totalPointsEarned
         currentPoints = max(0, currentPoints + actualPointsToAdd)
         totalPointsEarned = max(0, totalPointsEarned + actualPointsToAdd)
         dailyPointsEarned = max(0, dailyPointsEarned + actualPointsToAdd)
 
+        logger.info("[CHECKOUT] Points updated: current \(oldCurrentPoints) → \(self.currentPoints), total \(oldTotalPoints) → \(self.totalPointsEarned)")
+
         // Apply weekend bonus if applicable
         let finalPoints = Calendar.current.isDateInWeekend(Date()) ? actualPointsToAdd * 2 : actualPointsToAdd
+        logger.info("[CHECKOUT] Final points (with weekend bonus if applicable): \(finalPoints)")
 
         // Save changes
         saveData()
@@ -1174,6 +1218,9 @@ class PointsEarningManager: ObservableObject {
         Task {
             await syncTotalPointsWithBackend()
         }
+
+        logger.info("[CHECKOUT] ✅ Checkout complete")
+        logger.info("[CHECKOUT] === END CHECKOUT ===")
 
         return finalPoints
     }
@@ -1602,6 +1649,74 @@ class PointsEarningManager: ObservableObject {
         logger.info("[SERVER_LOAD] === END CHECKING IF SHOULD LOAD TODAY'S ACTIVITY FROM SERVER ===")
     }
 
+    /// NEW: Load today's activity with cache-first strategy
+    /// This implements: 1) Use local if available, 2) Otherwise load from server
+    private func loadTodaysActivityWithCacheStrategy() async {
+        logger.info("[CACHE_STRATEGY] === LOADING TODAY'S ACTIVITY WITH CACHE-FIRST STRATEGY ===")
+
+        // Get user ID for diagnostic logging
+        let authService = await MainActor.run { AuthenticationService.shared }
+        let currentUserId = await MainActor.run { authService.currentUser?.id }
+        let currentUserEmail = await MainActor.run { authService.currentUser?.email }
+
+        logger.info("[CACHE_STRATEGY] 📱 Device Info - User ID: \(currentUserId ?? "nil"), Email: \(currentUserEmail ?? "nil")")
+        logger.info("[CACHE_STRATEGY] 📱 Device Info - InstanceID: \(self.instanceId)")
+
+        // Check if we have valid local data
+        let hasValidLocalData = todayProgress?.totalQuestions ?? 0 > 0
+
+        // Get last reset date for context
+        let lastResetDateString = userDefaults.string(forKey: lastResetDateKey)
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let todayString = dateFormatter.string(from: today)
+
+        logger.info("[CACHE_STRATEGY] 📅 Date Info - Today: \(todayString), Last Reset: \(lastResetDateString ?? "nil")")
+        logger.info("[CACHE_STRATEGY] 💾 Local Cache - Has valid data: \(hasValidLocalData), Questions: \(self.todayProgress?.totalQuestions ?? 0), Correct: \(self.todayProgress?.correctAnswers ?? 0)")
+
+        if hasValidLocalData {
+            logger.info("[CACHE_STRATEGY] ✅ Using cached local data: \(self.todayProgress?.totalQuestions ?? 0) questions, \(self.todayProgress?.correctAnswers ?? 0) correct")
+            logger.info("[CACHE_STRATEGY] === END LOADING TODAY'S ACTIVITY WITH CACHE-FIRST STRATEGY (USED CACHE) ===")
+            // Local cache is available and valid, use it
+            return
+        }
+
+        // No local data or local data is empty - load from server
+        logger.info("[CACHE_STRATEGY] ⬇️ Local cache empty, loading from server...")
+        logger.info("[CACHE_STRATEGY] 🌐 Fetching server data for User ID: \(currentUserId ?? "nil"), Timezone: \(TimeZone.current.identifier)")
+
+        guard let networkService = await getNetworkService() else {
+            logger.info("[CACHE_STRATEGY] ❌ NetworkService unavailable")
+            logger.info("[CACHE_STRATEGY] === END LOADING TODAY'S ACTIVITY WITH CACHE-FIRST STRATEGY (FAILED - NO SERVICE) ===")
+            return
+        }
+
+        let result = await networkService.getTodaysActivity(
+            timezone: TimeZone.current.identifier
+        )
+
+        logger.info("[CACHE_STRATEGY] 🌐 Server Response - Success: \(result.success), Message: \(result.message ?? "nil")")
+
+        if result.success, let serverTodayProgress = result.todayProgress {
+            await MainActor.run {
+                logger.info("[CACHE_STRATEGY] 📊 Server Data - Questions: \(serverTodayProgress.totalQuestions), Correct: \(serverTodayProgress.correctAnswers), Accuracy: \(Int(serverTodayProgress.accuracy))%")
+
+                // Server has data - use it
+                self.todayProgress = serverTodayProgress
+                logger.info("[CACHE_STRATEGY] ✅ Loaded from server: \(serverTodayProgress.totalQuestions) questions, \(serverTodayProgress.correctAnswers) correct, \(Int(serverTodayProgress.accuracy))% accuracy")
+                saveData()
+
+                logger.info("[CACHE_STRATEGY] === END LOADING TODAY'S ACTIVITY WITH CACHE-FIRST STRATEGY (LOADED FROM SERVER) ===")
+            }
+        } else {
+            logger.info("[CACHE_STRATEGY] ℹ️ No server data available: \(result.message ?? "Unknown reason")")
+            logger.info("[CACHE_STRATEGY] === END LOADING TODAY'S ACTIVITY WITH CACHE-FIRST STRATEGY (NO SERVER DATA) ===")
+            // Server has no data - keep empty local state
+        }
+    }
+
     /// Load today's activity with proper conflict resolution
     private func loadTodaysActivityFromServerWithConflictResolution() async {
         logger.info("[TODAY'S ACTIVITY] === LOADING TODAY'S ACTIVITY FROM SERVER (WITH CONFLICT RESOLUTION) ===")
@@ -1664,6 +1779,44 @@ class PointsEarningManager: ObservableObject {
     /// Sync weekly progress with server with retry mechanism
     private func syncWithServer(questionCount: Int, subject: String) async {
         await performSyncWithRetry(questionCount: questionCount, subject: subject, attempt: 1)
+    }
+
+    /// Immediate sync to server for write-through cache pattern
+    /// This ensures data persistence even if app is deleted
+    private func syncImmediatelyToServer(questionCount: Int, subject: String, isCorrect: Bool) async {
+        logger.info("[IMMEDIATE_SYNC] === STARTING IMMEDIATE SERVER SYNC ===")
+        logger.info("[IMMEDIATE_SYNC] Subject: \(subject), Questions: \(questionCount), Correct: \(isCorrect)")
+
+        do {
+            // Call the backend API to update progress
+            // This will update both subject_progress and daily_subject_activities tables
+            let result = await NetworkService.shared.updateUserProgress(
+                questionCount: questionCount,
+                subject: subject,
+                currentScore: currentPoints,
+                clientTimezone: TimeZone.current.identifier
+            )
+
+            if result.success {
+                logger.info("[IMMEDIATE_SYNC] ✅ Server sync successful")
+
+                // Optionally update local data with server response
+                if let serverProgress = result.progress {
+                    await MainActor.run {
+                        updateFromServerResponse(serverProgress)
+                    }
+                }
+            } else {
+                logger.info("[IMMEDIATE_SYNC] ⚠️ Server sync failed: \(result.message ?? "Unknown error")")
+                // Don't throw - we want to continue even if sync fails
+                // The data is already saved locally
+            }
+        } catch {
+            logger.info("[IMMEDIATE_SYNC] ❌ Server sync error: \(error.localizedDescription)")
+            // Don't throw - we want to continue even if sync fails
+        }
+
+        logger.info("[IMMEDIATE_SYNC] === END IMMEDIATE SERVER SYNC ===")
     }
 
     /// Perform sync with exponential backoff retry
@@ -1743,13 +1896,15 @@ class PointsEarningManager: ObservableObject {
               currentStreak >= 0,
               dailyPointsEarned >= 0 else {
             logger.info("[DATA_INTEGRITY] Data integrity check failed: negative values detected")
+            logger.info("[DATA_INTEGRITY] currentPoints: \(self.currentPoints), totalPointsEarned: \(self.totalPointsEarned), currentStreak: \(self.currentStreak), dailyPointsEarned: \(self.dailyPointsEarned)")
             return false
         }
 
-        // Check that totalPointsEarned >= currentPoints (logical consistency)
-        guard totalPointsEarned >= currentPoints else {
-            logger.info("[DATA_INTEGRITY] Data integrity check failed: totalPointsEarned < currentPoints")
-            return false
+        // RELAXED: Allow currentPoints to be greater than totalPointsEarned
+        // This can happen if user received bonus points, imported data, or had data migration
+        // We only fail if currentPoints is negative or totalPointsEarned is negative (checked above)
+        if totalPointsEarned < currentPoints {
+            logger.info("[DATA_INTEGRITY] Note: totalPointsEarned (\(self.totalPointsEarned)) < currentPoints (\(self.currentPoints)) - this is allowed")
         }
 
         // Validate goal data

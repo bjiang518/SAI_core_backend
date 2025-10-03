@@ -824,10 +824,22 @@ class NetworkService: ObservableObject {
     
     /// Update user progress on server (for weekly progress sync)
     func updateUserProgress(questionCount: Int = 1, subject: String, currentScore: Int, clientTimezone: String) async -> (success: Bool, progress: [String: Any]?, message: String?) {
+        print("📤 [updateUserProgress] === UPDATING USER PROGRESS ON SERVER ===")
+
+        // Get user info for logging
+        let currentUser = await MainActor.run {
+            return AuthenticationService.shared.currentUser
+        }
+        let userId = currentUser?.id ?? "unknown"
+        let userEmail = currentUser?.email ?? "unknown"
+
+        print("📤 [updateUserProgress] 📱 User ID: \(userId), Email: \(userEmail)")
+        print("📤 [updateUserProgress] 📊 Data - Questions: \(questionCount), Subject: \(subject), Score: \(currentScore), Timezone: \(clientTimezone)")
 
         let updateURL = "\(baseURL)/api/progress/update"
 
         guard let url = URL(string: updateURL) else {
+            print("📤 [updateUserProgress] ❌ Invalid URL")
             return (false, nil, "Invalid URL")
         }
 
@@ -846,6 +858,7 @@ class NetworkService: ObservableObject {
         // Log auth state
         let authToken = AuthenticationService.shared.getAuthToken()
         if let token = authToken {
+            print("📤 [updateUserProgress] 🔑 Auth token present (length: \(token.count))")
         }
 
         do {
@@ -854,6 +867,7 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
+                print("📤 [updateUserProgress] 📊 Server Response Status: \(httpResponse.statusCode)")
 
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -861,28 +875,38 @@ class NetworkService: ObservableObject {
                         let progressData = (json["data"] as? [String: Any])?["progress"] as? [String: Any]
                         let message = (json["data"] as? [String: Any])?["message"] as? String
 
+                        print("📤 [updateUserProgress] Response - Success: \(success), Message: \(message ?? "nil")")
 
                         if let progress = progressData {
                             for (key, value) in progress {
+                                print("📤 [updateUserProgress] 📊 Progress Data - \(key): \(value)")
                             }
                         } else {
+                            print("📤 [updateUserProgress] ℹ️ No progress data in response")
                         }
 
+                        print("📤 [updateUserProgress] === END UPDATING USER PROGRESS (SUCCESS) ===")
                         return (success, progressData, message)
                     }
                 } else {
                     let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
+                    print("📤 [updateUserProgress] ❌ Error: \(errorMessage)")
 
                     // Try to get error details from response body
                     if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        print("📤 [updateUserProgress] ❌ Error Details: \(errorData)")
                     }
 
+                    print("📤 [updateUserProgress] === END UPDATING USER PROGRESS (ERROR) ===")
                     return (false, nil, errorMessage)
                 }
             }
 
+            print("📤 [updateUserProgress] === END UPDATING USER PROGRESS (INVALID RESPONSE) ===")
             return (false, nil, "Invalid response")
         } catch {
+            print("📤 [updateUserProgress] ❌ Exception: \(error.localizedDescription)")
+            print("📤 [updateUserProgress] === END UPDATING USER PROGRESS (EXCEPTION) ===")
             return (false, nil, error.localizedDescription)
         }
     }
@@ -3311,6 +3335,7 @@ class NetworkService: ObservableObject {
 
     /// Get today's specific activity from server
     func getTodaysActivity(timezone: String) async -> (success: Bool, todayProgress: DailyProgress?, message: String?) {
+        print("🌐 [getTodaysActivity] === FETCHING TODAY'S ACTIVITY FROM SERVER ===")
 
         // Get user ID from AuthenticationService (same as other working APIs)
         let currentUser = await MainActor.run {
@@ -3318,21 +3343,29 @@ class NetworkService: ObservableObject {
         }
 
         guard let user = currentUser else {
+            print("🌐 [getTodaysActivity] ❌ User not authenticated")
             return (false, nil, "User not authenticated")
         }
 
         let userId = user.id
+        let userEmail = user.email
+        print("🌐 [getTodaysActivity] 📱 User ID: \(userId), Email: \(userEmail)")
+
         let todayURL = "\(baseURL)/api/progress/today/\(userId)"
 
         guard let url = URL(string: todayURL) else {
+            print("🌐 [getTodaysActivity] ❌ Invalid URL: \(todayURL)")
             return (false, nil, "Invalid URL")
         }
 
+        let todayDateString = getCurrentDateString(timezone: timezone)
         let requestData: [String: Any] = [
             "timezone": timezone,
-            "date": getCurrentDateString(timezone: timezone)
+            "date": todayDateString
         ]
 
+        print("🌐 [getTodaysActivity] 📅 Request - Date: \(todayDateString), Timezone: \(timezone)")
+        print("🌐 [getTodaysActivity] 🔗 URL: \(todayURL)")
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -3342,6 +3375,7 @@ class NetworkService: ObservableObject {
         // Log auth state
         let authToken = AuthenticationService.shared.getAuthToken()
         if let token = authToken {
+            print("🌐 [getTodaysActivity] 🔑 Auth token present (length: \(token.count))")
         }
 
         do {
@@ -3350,15 +3384,18 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
+                print("🌐 [getTodaysActivity] 📊 Server Response Status: \(httpResponse.statusCode)")
 
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                         let success = json["success"] as? Bool ?? false
                         let message = json["message"] as? String
 
+                        print("🌐 [getTodaysActivity] Response - Success: \(success), Message: \(message ?? "nil")")
 
                         if success, let todayData = json["todayProgress"] as? [String: Any] {
                             for (key, value) in todayData {
+                                print("🌐 [getTodaysActivity] 📊 Server Data - \(key): \(value)")
                             }
 
                             // Parse today's activity data
@@ -3367,6 +3404,8 @@ class NetworkService: ObservableObject {
                             let studyTimeMinutes = todayData["studyTimeMinutes"] as? Int ?? 0
                             let subjectsStudied = Set(todayData["subjectsStudied"] as? [String] ?? [])
 
+                            print("🌐 [getTodaysActivity] ✅ Parsed Data - Questions: \(totalQuestions), Correct: \(correctAnswers), Accuracy: \(totalQuestions > 0 ? Int((Double(correctAnswers) / Double(totalQuestions)) * 100) : 0)%")
+
                             let todayProgress = DailyProgress(
                                 totalQuestions: totalQuestions,
                                 correctAnswers: correctAnswers,
@@ -3374,18 +3413,24 @@ class NetworkService: ObservableObject {
                                 subjectsStudied: subjectsStudied
                             )
 
+                            print("🌐 [getTodaysActivity] === END FETCHING TODAY'S ACTIVITY (SUCCESS) ===")
                             return (true, todayProgress, message)
                         } else {
+                            print("🌐 [getTodaysActivity] ℹ️ No today's data available")
+                            print("🌐 [getTodaysActivity] === END FETCHING TODAY'S ACTIVITY (NO DATA) ===")
                             return (success, nil, message ?? "No today's data available")
                         }
                     }
                 } else {
                     let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
+                    print("🌐 [getTodaysActivity] ❌ Error: \(errorMessage)")
 
                     // Try to get error details from response body
                     if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        print("🌐 [getTodaysActivity] ❌ Error Details: \(errorData)")
                     }
 
+                    print("🌐 [getTodaysActivity] === END FETCHING TODAY'S ACTIVITY (ERROR) ===")
                     return (false, nil, errorMessage)
                 }
             }
