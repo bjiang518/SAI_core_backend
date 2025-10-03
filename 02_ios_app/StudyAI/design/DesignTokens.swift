@@ -180,38 +180,6 @@ struct Shadow {
     let y: CGFloat
 }
 
-// MARK: - Accessibility Helpers
-
-extension View {
-    func accessibilityLabelForConversation(_ conversation: Conversation) -> some View {
-        self.accessibilityLabel(conversationAccessibilityLabel(conversation))
-    }
-    
-    func accessibilityHintForArchiveAction(_ isArchived: Bool) -> some View {
-        self.accessibilityHint(isArchived ? "Double tap to unarchive" : "Double tap to archive")
-    }
-    
-    private func conversationAccessibilityLabel(_ conversation: Conversation) -> String {
-        var label = "Conversation: \(conversation.title)"
-        
-        if let lastMessage = conversation.lastMessage {
-            label += ". Last message: \(lastMessage)"
-        }
-        
-        if conversation.isArchived {
-            label += ". Archived"
-        }
-        
-        label += ". Updated \(DateFormatter.accessibilityFormatter.string(from: conversation.updatedAt))"
-        
-        if !conversation.participants.isEmpty {
-            label += ". Participants: \(conversation.participants.joined(separator: ", "))"
-        }
-        
-        return label
-    }
-}
-
 // MARK: - Date Formatter Extension
 
 extension DateFormatter {

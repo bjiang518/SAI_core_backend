@@ -442,7 +442,7 @@ class AuthRoutes {
   async getUserProfileDetails(request, reply) {
     try {
       const authHeader = request.headers.authorization;
-      
+
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return reply.status(401).send({
           success: false,
@@ -453,7 +453,7 @@ class AuthRoutes {
 
       const token = authHeader.substring(7);
       const sessionData = await db.verifyUserSession(token);
-      
+
       if (!sessionData) {
         return reply.status(401).send({
           success: false,
@@ -462,9 +462,9 @@ class AuthRoutes {
         });
       }
 
-      // Get enhanced profile data
+      // Get enhanced profile data with ALL fields
       const profileData = await db.getEnhancedUserProfile(sessionData.user_id);
-      
+
       if (profileData) {
         return reply.send({
           success: true,
@@ -476,12 +476,19 @@ class AuthRoutes {
             authProvider: profileData.auth_provider,
             firstName: profileData.first_name,
             lastName: profileData.last_name,
+            displayName: profileData.display_name,
             gradeLevel: profileData.grade_level,
+            dateOfBirth: profileData.date_of_birth,
             kidsAges: profileData.kids_ages || [],
             gender: profileData.gender,
             city: profileData.city,
             stateProvince: profileData.state_province,
             country: profileData.country,
+            favoriteSubjects: profileData.favorite_subjects || [],
+            learningStyle: profileData.learning_style,
+            timezone: profileData.timezone || 'UTC',
+            languagePreference: profileData.language_preference || 'en',
+            profileCompletionPercentage: profileData.profile_completion_percentage || 0,
             lastUpdated: profileData.updated_at
           }
         });
@@ -527,7 +534,7 @@ class AuthRoutes {
   async updateUserProfile(request, reply) {
     try {
       const authHeader = request.headers.authorization;
-      
+
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return reply.status(401).send({
           success: false,
@@ -538,7 +545,7 @@ class AuthRoutes {
 
       const token = authHeader.substring(7);
       const sessionData = await db.verifyUserSession(token);
-      
+
       if (!sessionData) {
         return reply.status(401).send({
           success: false,
@@ -548,14 +555,18 @@ class AuthRoutes {
       }
 
       const profileData = request.body;
-      
+
+      this.fastify.log.info(`📝 === UPDATE USER PROFILE ===`);
       this.fastify.log.info(`📝 Updating profile for user: ${sessionData.email}`);
+      this.fastify.log.info(`📝 Profile data received: ${JSON.stringify(profileData, null, 2)}`);
 
       // Update profile in database
       const updatedProfile = await db.updateUserProfileEnhanced(sessionData.user_id, profileData);
-      
+
+      this.fastify.log.info(`✅ === UPDATE USER PROFILE ===`);
+      this.fastify.log.info(`✅ Update Profile Status: 200`);
       this.fastify.log.info(`✅ Profile updated successfully for user: ${sessionData.email}`);
-      
+
       return reply.send({
         success: true,
         message: 'Profile updated successfully',
@@ -564,18 +575,25 @@ class AuthRoutes {
           email: updatedProfile.email,
           firstName: updatedProfile.first_name,
           lastName: updatedProfile.last_name,
+          displayName: updatedProfile.display_name,
           gradeLevel: updatedProfile.grade_level,
+          dateOfBirth: updatedProfile.date_of_birth,
           kidsAges: updatedProfile.kids_ages || [],
           gender: updatedProfile.gender,
           city: updatedProfile.city,
           stateProvince: updatedProfile.state_province,
           country: updatedProfile.country,
+          favoriteSubjects: updatedProfile.favorite_subjects || [],
+          learningStyle: updatedProfile.learning_style,
+          timezone: updatedProfile.timezone || 'UTC',
+          languagePreference: updatedProfile.language_preference || 'en',
+          profileCompletionPercentage: updatedProfile.profile_completion_percentage || 0,
           lastUpdated: updatedProfile.updated_at
         }
       });
-      
+
     } catch (error) {
-      this.fastify.log.error('Update user profile error:', error);
+      this.fastify.log.error('❌ Update user profile error:', error);
       return reply.status(500).send({
         success: false,
         message: 'Failed to update profile',

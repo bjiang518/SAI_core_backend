@@ -27,102 +27,20 @@ struct SubjectProgressData: Codable, Identifiable {
     // Custom initializer for JSON decoding - generates UUID if not provided
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        print("🔍 DEBUG: Decoding SubjectProgressData...")
-        
+
         // Generate UUID for id since it's not in JSON
         self.id = UUID()
-        print("✅ Generated UUID for SubjectProgressData")
-        
-        do {
-            self.subject = try container.decode(SubjectCategory.self, forKey: .subject)
-            print("✅ Decoded subject: \(self.subject)")
-        } catch {
-            print("❌ Failed to decode subject: \(error)")
-            throw error
-        }
-        
-        do {
-            self.questionsAnswered = try container.decode(Int.self, forKey: .questionsAnswered)
-            print("✅ Decoded questionsAnswered: \(self.questionsAnswered)")
-        } catch {
-            print("❌ Failed to decode questionsAnswered: \(error)")
-            throw error
-        }
-        
-        do {
-            self.correctAnswers = try container.decode(Int.self, forKey: .correctAnswers)
-            print("✅ Decoded correctAnswers: \(self.correctAnswers)")
-        } catch {
-            print("❌ Failed to decode correctAnswers: \(error)")
-            throw error
-        }
-        
-        do {
-            self.totalStudyTimeMinutes = try container.decode(Int.self, forKey: .totalStudyTimeMinutes)
-            print("✅ Decoded totalStudyTimeMinutes: \(self.totalStudyTimeMinutes)")
-        } catch {
-            print("❌ Failed to decode totalStudyTimeMinutes: \(error)")
-            throw error
-        }
-        
-        do {
-            self.streakDays = try container.decode(Int.self, forKey: .streakDays)
-            print("✅ Decoded streakDays: \(self.streakDays)")
-        } catch {
-            print("❌ Failed to decode streakDays: \(error)")
-            throw error
-        }
-        
-        do {
-            self.lastStudiedDate = try container.decode(String.self, forKey: .lastStudiedDate)
-            print("✅ Decoded lastStudiedDate: \(self.lastStudiedDate)")
-        } catch {
-            print("❌ Failed to decode lastStudiedDate: \(error)")
-            throw error
-        }
-        
-        do {
-            self.recentActivity = try container.decode([DailySubjectActivity].self, forKey: .recentActivity)
-            print("✅ Decoded recentActivity: \(self.recentActivity.count) activities")
-        } catch {
-            print("❌ Failed to decode recentActivity: \(error)")
-            throw error
-        }
-        
-        do {
-            self.weakAreas = try container.decode([String].self, forKey: .weakAreas)
-            print("✅ Decoded weakAreas: \(self.weakAreas)")
-        } catch {
-            print("❌ Failed to decode weakAreas: \(error)")
-            throw error
-        }
-        
-        do {
-            self.strongAreas = try container.decode([String].self, forKey: .strongAreas)
-            print("✅ Decoded strongAreas: \(self.strongAreas)")
-        } catch {
-            print("❌ Failed to decode strongAreas: \(error)")
-            throw error
-        }
-        
-        do {
-            self.difficultyProgression = try container.decode([DifficultyLevel: Int].self, forKey: .difficultyProgression)
-            print("✅ Decoded difficultyProgression: \(self.difficultyProgression)")
-        } catch {
-            print("⚠️ difficultyProgression decoding failed, using empty dictionary: \(error)")
-            self.difficultyProgression = [:]
-        }
-        
-        do {
-            self.topicBreakdown = try container.decode([String: Int].self, forKey: .topicBreakdown)
-            print("✅ Decoded topicBreakdown: \(self.topicBreakdown)")
-        } catch {
-            print("⚠️ topicBreakdown decoding failed, using empty dictionary: \(error)")
-            self.topicBreakdown = [:]
-        }
-        
-        print("✅ SubjectProgressData decoding completed successfully")
+        self.subject = try container.decode(SubjectCategory.self, forKey: .subject)
+        self.questionsAnswered = try container.decode(Int.self, forKey: .questionsAnswered)
+        self.correctAnswers = try container.decode(Int.self, forKey: .correctAnswers)
+        self.totalStudyTimeMinutes = try container.decode(Int.self, forKey: .totalStudyTimeMinutes)
+        self.streakDays = try container.decode(Int.self, forKey: .streakDays)
+        self.lastStudiedDate = try container.decode(String.self, forKey: .lastStudiedDate)
+        self.recentActivity = try container.decode([DailySubjectActivity].self, forKey: .recentActivity)
+        self.weakAreas = try container.decode([String].self, forKey: .weakAreas)
+        self.strongAreas = try container.decode([String].self, forKey: .strongAreas)
+        self.difficultyProgression = (try? container.decode([DifficultyLevel: Int].self, forKey: .difficultyProgression)) ?? [:]
+        self.topicBreakdown = (try? container.decode([String: Int].self, forKey: .topicBreakdown)) ?? [:]
     }
     
     // Regular initializer for programmatic creation
@@ -288,9 +206,7 @@ struct SubjectBreakdownSummary: Codable {
     // Custom initializer for JSON decoding - handles empty dictionaries
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        print("🔍 DEBUG: Decoding SubjectBreakdownSummary...")
-        
+
         self.totalSubjectsStudied = try container.decode(Int.self, forKey: .totalSubjectsStudied)
         self.mostStudiedSubject = try container.decodeIfPresent(SubjectCategory.self, forKey: .mostStudiedSubject)
         self.leastStudiedSubject = try container.decodeIfPresent(SubjectCategory.self, forKey: .leastStudiedSubject)
@@ -298,42 +214,20 @@ struct SubjectBreakdownSummary: Codable {
         self.lowestPerformingSubject = try container.decodeIfPresent(SubjectCategory.self, forKey: .lowestPerformingSubject)
         self.totalQuestionsAcrossSubjects = try container.decode(Int.self, forKey: .totalQuestionsAcrossSubjects)
         self.overallAccuracy = try container.decode(Double.self, forKey: .overallAccuracy)
-        
+
         // Handle empty dictionaries that can't be decoded as specific types
-        do {
-            self.subjectDistribution = try container.decode([SubjectCategory: Int].self, forKey: .subjectDistribution)
-            print("✅ Decoded subjectDistribution with \(self.subjectDistribution.count) entries")
-        } catch {
-            print("⚠️ subjectDistribution decoding failed, using empty dictionary: \(error)")
-            self.subjectDistribution = [:]
-        }
-        
-        do {
-            self.subjectPerformance = try container.decode([SubjectCategory: Double].self, forKey: .subjectPerformance)
-            print("✅ Decoded subjectPerformance with \(self.subjectPerformance.count) entries")
-        } catch {
-            print("⚠️ subjectPerformance decoding failed, using empty dictionary: \(error)")
-            self.subjectPerformance = [:]
-        }
-        
-        do {
-            self.studyTimeDistribution = try container.decode([SubjectCategory: Int].self, forKey: .studyTimeDistribution)
-            print("✅ Decoded studyTimeDistribution with \(self.studyTimeDistribution.count) entries")
-        } catch {
-            print("⚠️ studyTimeDistribution decoding failed, using empty dictionary: \(error)")
-            self.studyTimeDistribution = [:]
-        }
-        
+        self.subjectDistribution = (try? container.decode([SubjectCategory: Int].self, forKey: .subjectDistribution)) ?? [:]
+        self.subjectPerformance = (try? container.decode([SubjectCategory: Double].self, forKey: .subjectPerformance)) ?? [:]
+        self.studyTimeDistribution = (try? container.decode([SubjectCategory: Int].self, forKey: .studyTimeDistribution)) ?? [:]
+
         // Handle lastUpdated as ISO string
         let lastUpdatedString = try container.decode(String.self, forKey: .lastUpdated)
         let formatter = ISO8601DateFormatter()
         self.lastUpdated = formatter.date(from: lastUpdatedString) ?? Date()
-        
+
         self.totalQuestionsAnswered = try container.decode(Int.self, forKey: .totalQuestionsAnswered)
         self.totalStudyTime = TimeInterval(try container.decode(Int.self, forKey: .totalStudyTime))
         self.improvementRate = try container.decode(Double.self, forKey: .improvementRate)
-        
-        print("✅ SubjectBreakdownSummary decoding completed successfully")
     }
     
     // Regular initializer for programmatic creation
@@ -404,69 +298,17 @@ struct SubjectInsights: Codable {
     // Custom initializer for JSON decoding - handles empty dictionaries and arrays
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        print("🔍 DEBUG: Decoding SubjectInsights...")
-        
-        do {
-            self.subjectToFocus = try container.decode([SubjectCategory].self, forKey: .subjectToFocus)
-            print("✅ Decoded subjectToFocus: \(self.subjectToFocus)")
-        } catch {
-            print("⚠️ subjectToFocus decoding failed, using empty array: \(error)")
-            self.subjectToFocus = []
-        }
-        
-        do {
-            self.subjectsToMaintain = try container.decode([SubjectCategory].self, forKey: .subjectsToMaintain)
-            print("✅ Decoded subjectsToMaintain: \(self.subjectsToMaintain)")
-        } catch {
-            print("⚠️ subjectsToMaintain decoding failed, using empty array: \(error)")
-            self.subjectsToMaintain = []
-        }
-        
-        do {
-            self.studyTimeRecommendations = try container.decode([SubjectCategory: Int].self, forKey: .studyTimeRecommendations)
-            print("✅ Decoded studyTimeRecommendations with \(self.studyTimeRecommendations.count) entries")
-        } catch {
-            print("⚠️ studyTimeRecommendations decoding failed, using empty dictionary: \(error)")
-            self.studyTimeRecommendations = [:]
-        }
-        
-        do {
-            self.crossSubjectConnections = try container.decode([SubjectConnection].self, forKey: .crossSubjectConnections)
-            print("✅ Decoded crossSubjectConnections: \(self.crossSubjectConnections.count) connections")
-        } catch {
-            print("⚠️ crossSubjectConnections decoding failed, using empty array: \(error)")
-            self.crossSubjectConnections = []
-        }
-        
-        do {
-            self.achievementOpportunities = try container.decode([SubjectAchievement].self, forKey: .achievementOpportunities)
-            print("✅ Decoded achievementOpportunities: \(self.achievementOpportunities.count) achievements")
-        } catch {
-            print("⚠️ achievementOpportunities decoding failed, using empty array: \(error)")
-            self.achievementOpportunities = []
-        }
-        
-        do {
-            self.personalizedTips = try container.decode([String].self, forKey: .personalizedTips)
-            print("✅ Decoded personalizedTips: \(self.personalizedTips)")
-        } catch {
-            print("⚠️ personalizedTips decoding failed, using empty array: \(error)")
-            self.personalizedTips = []
-        }
-        
-        do {
-            self.optimalStudySchedule = try container.decode(WeeklyStudySchedule.self, forKey: .optimalStudySchedule)
-            print("✅ Decoded optimalStudySchedule")
-        } catch {
-            print("⚠️ optimalStudySchedule decoding failed, using empty schedule: \(error)")
-            self.optimalStudySchedule = WeeklyStudySchedule(
-                monday: [], tuesday: [], wednesday: [], thursday: [],
-                friday: [], saturday: [], sunday: []
-            )
-        }
-        
-        print("✅ SubjectInsights decoding completed successfully")
+
+        self.subjectToFocus = (try? container.decode([SubjectCategory].self, forKey: .subjectToFocus)) ?? []
+        self.subjectsToMaintain = (try? container.decode([SubjectCategory].self, forKey: .subjectsToMaintain)) ?? []
+        self.studyTimeRecommendations = (try? container.decode([SubjectCategory: Int].self, forKey: .studyTimeRecommendations)) ?? [:]
+        self.crossSubjectConnections = (try? container.decode([SubjectConnection].self, forKey: .crossSubjectConnections)) ?? []
+        self.achievementOpportunities = (try? container.decode([SubjectAchievement].self, forKey: .achievementOpportunities)) ?? []
+        self.personalizedTips = (try? container.decode([String].self, forKey: .personalizedTips)) ?? []
+        self.optimalStudySchedule = (try? container.decode(WeeklyStudySchedule.self, forKey: .optimalStudySchedule)) ?? WeeklyStudySchedule(
+            monday: [], tuesday: [], wednesday: [], thursday: [],
+            friday: [], saturday: [], sunday: []
+        )
     }
     
     // Regular initializer for programmatic creation

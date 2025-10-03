@@ -2905,123 +2905,24 @@ class NetworkService: ObservableObject {
     func fetchSubjectBreakdown(userId: String, timeframe: String = "current_week") async throws -> SubjectBreakdownResponse {
         let endpoint = "/api/progress/subject/breakdown/\(userId)"
         let fullURL = "\(baseURL)\(endpoint)?timeframe=\(timeframe)"
-        
-        print("🔗 Base URL: \(baseURL)")
-        print("📍 Endpoint: \(endpoint)")
-        print("🌐 Full URL: \(fullURL)")
-        print("👤 User ID: \(userId)")
-        print("⏰ Timeframe: \(timeframe)")
-        print("🔐 Auth Token Available: \(AuthenticationService.shared.getAuthToken() != nil)")
-        
+
         guard let url = URL(string: fullURL) else {
-            print("❌ Invalid URL constructed: \(fullURL)")
             throw NetworkError.invalidURL
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         addAuthHeader(to: &request)
-        
-        print("📤 Making subject breakdown request...")
-        print("🔍 Request Headers: \(request.allHTTPHeaderFields ?? [:])")
-        
-        do {
-            let (data, response) = try await performRequest(request)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Subject Breakdown Response Status: \(httpResponse.statusCode)")
-                
-                if httpResponse.statusCode == 200 {
-                    print("🎉 Subject breakdown API call successful")
-                    
-                    // Add comprehensive JSON debugging
-                    let rawResponseString = String(data: data, encoding: .utf8) ?? "Unable to decode raw response"
-                    print("🔍 === RAW API RESPONSE DEBUG ===")
-                    print("📄 Raw JSON Response: \(rawResponseString)")
-                    print("📏 Response Length: \(data.count) bytes")
-                    print("🔍 Response Preview: \(String(rawResponseString.prefix(500)))...")
-                    print("=====================================")
-                    
-                    do {
-                        let decodedResponse = try JSONDecoder().decode(SubjectBreakdownResponse.self, from: data)
-                        print("✅ JSON decoding successful!")
-                        print("📊 Decoded response with \(decodedResponse.data?.subjectProgress.count ?? 0) subjects")
-                        return decodedResponse
-                    } catch {
-                        print("❌ === JSON DECODING FAILED ===")
-                        print("🚨 Decoding Error: \(error)")
-                        print("🔍 Error Details: \(error.localizedDescription)")
-                        
-                        if let decodingError = error as? DecodingError {
-                            switch decodingError {
-                            case .typeMismatch(let type, let context):
-                                print("🔴 Type Mismatch: Expected \(type), Context: \(context)")
-                            case .valueNotFound(let type, let context):
-                                print("🔴 Value Not Found: \(type), Context: \(context)")
-                            case .keyNotFound(let key, let context):
-                                print("🔴 Key Not Found: \(key), Context: \(context)")
-                            case .dataCorrupted(let context):
-                                print("🔴 Data Corrupted: \(context)")
-                            @unknown default:
-                                print("🔴 Unknown decoding error: \(decodingError)")
-                            }
-                        }
-                        
-                        // Try to decode as generic JSON to see the structure
-                        do {
-                            if let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                                print("🔍 === JSON STRUCTURE ANALYSIS ===")
-                                print("📊 Root Keys: \(Array(jsonObject.keys))")
-                                
-                                if let success = jsonObject["success"] as? Bool {
-                                    print("✅ Success Field: \(success)")
-                                }
-                                
-                                if let data = jsonObject["data"] as? [String: Any] {
-                                    print("📦 Data Keys: \(Array(data.keys))")
-                                    
-                                    if let subjectProgress = data["subjectProgress"] as? [[String: Any]] {
-                                        print("📚 Subject Progress Array Count: \(subjectProgress.count)")
-                                        if let firstSubject = subjectProgress.first {
-                                            print("🔍 First Subject Keys: \(Array(firstSubject.keys))")
-                                            print("🔍 First Subject Data: \(firstSubject)")
-                                        }
-                                    }
-                                    
-                                    if let summary = data["summary"] as? [String: Any] {
-                                        print("📋 Summary Keys: \(Array(summary.keys))")
-                                    }
-                                    
-                                    if let insights = data["insights"] as? [String: Any] {
-                                        print("💡 Insights Keys: \(Array(insights.keys))")
-                                    }
-                                } else {
-                                    print("❌ No 'data' field found in response")
-                                }
-                                print("===================================")
-                            }
-                        } catch {
-                            print("❌ Failed to parse as generic JSON: \(error)")
-                        }
-                        
-                        throw error
-                    }
-                } else {
-                    let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                    print("❌ Subject breakdown failed with status \(httpResponse.statusCode)")
-                    print("📄 Raw response: \(rawResponse)")
-                }
-            }
-            
-            return try JSONDecoder().decode(SubjectBreakdownResponse.self, from: data)
-        } catch {
-            print("❌ Subject breakdown request failed: \(error.localizedDescription)")
-            if let networkError = error as? NetworkError {
-                print("🔍 Network error details: \(networkError.errorDescription ?? "Unknown")")
-            }
-            throw error
+
+        let (data, response) = try await performRequest(request)
+
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw NetworkError.serverError(statusCode)
         }
+
+        return try JSONDecoder().decode(SubjectBreakdownResponse.self, from: data)
     }
     
     func updateSubjectProgress(

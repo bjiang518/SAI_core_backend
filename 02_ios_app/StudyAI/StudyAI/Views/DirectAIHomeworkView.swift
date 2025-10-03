@@ -10,6 +10,7 @@ import UIKit
 import os.log
 import UniformTypeIdentifiers
 import Combine
+import Lottie
 
 // MARK: - Persistent State Manager
 class AIHomeworkStateManager: ObservableObject {
@@ -261,17 +262,27 @@ struct DirectAIHomeworkView: View {
     // MARK: - Image Source Selection View
     private var imageSourceSelectionView: some View {
         VStack(spacing: 24) {
+            // Lottie Animation
+            LottieView(
+                animationName: "Education edit",
+                loopMode: .loop,
+                animationSpeed: 1.0
+            )
+            .frame(width: 80, height: 80)
+            .scaleEffect(0.4)
+            .padding(.top, 20)
+            .padding(.bottom, 90)
+
             // Header
             VStack(spacing: 8) {
                 Text("Select Image Source")
                     .font(.title2)
                     .fontWeight(.semibold)
-                
+
                 Text("Choose how you'd like to upload your homework")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
-            .padding(.top)
             
             Spacer()
             

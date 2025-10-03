@@ -1272,44 +1272,28 @@ const db = {
   },
 
   /**
-   * Enhanced Profile Management Functions - Update existing profile with new fields
+   * Enhanced Profile Management Functions - Supports partial updates (only update fields that are provided)
    */
   async updateUserProfileEnhanced(userId, profileData) {
-    const {
-      firstName,
-      lastName,
-      displayName,
-      gradeLevel,
-      dateOfBirth,
-      kidsAges = [],
-      gender,
-      city,
-      stateProvince,
-      country,
-      favoriteSubjects = [],
-      learningStyle,
-      timezone = 'UTC',
-      languagePreference = 'en'
-    } = profileData;
-
-    // First, get the user's email for the profile
+    // First, get the user's email and existing profile
     const userQuery = `SELECT email FROM users WHERE id = $1`;
     const userResult = await this.query(userQuery, [userId]);
-    
+
     if (userResult.rows.length === 0) {
       throw new Error('User not found');
     }
-    
+
     const userEmail = userResult.rows[0].email;
 
-    // Convert grade level string to appropriate format for database
-    // Handle both old INTEGER columns and new VARCHAR columns
-    let processedGradeLevel = gradeLevel;
-    
+    // Get existing profile to merge with new data
+    const existingProfileQuery = `SELECT * FROM profiles WHERE email = $1`;
+    const existingProfileResult = await this.query(existingProfileQuery, [userEmail]);
+    const existingProfile = existingProfileResult.rows[0] || {};
+
     // Map grade level strings to integers for legacy database compatibility
     const gradeLevelMap = {
       'Pre-K': -1,
-      'Kindergarten': 0, 
+      'Kindergarten': 0,
       '1st Grade': 1,
       '2nd Grade': 2,
       '3rd Grade': 3,
@@ -1326,83 +1310,192 @@ const db = {
       'Adult Learner': 14
     };
 
-    // Calculate profile completion percentage
-    const completionFields = [
-      firstName, lastName, gradeLevel, dateOfBirth, 
-      city, stateProvince, country, favoriteSubjects?.length > 0
-    ];
-    const completedFields = completionFields.filter(field => field).length;
-    const profileCompletionPercentage = Math.round((completedFields / completionFields.length) * 100);
+    // Build UPDATE query dynamically based on provided fields
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
 
-    // Try inserting with string grade level first (newer schema)
-    const query = `
-      INSERT INTO profiles (
-        email, first_name, last_name, grade_level, 
-        kids_ages, gender, city, state_province, country,
-        created_at, updated_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
-      )
-      ON CONFLICT (email) 
-      DO UPDATE SET 
-        first_name = EXCLUDED.first_name,
-        last_name = EXCLUDED.last_name,
-        grade_level = EXCLUDED.grade_level,
-        kids_ages = EXCLUDED.kids_ages,
-        gender = EXCLUDED.gender,
-        city = EXCLUDED.city,
-        state_province = EXCLUDED.state_province,
-        country = EXCLUDED.country,
-        updated_at = NOW()
-      RETURNING *
-    `;
+    // Only update fields that are explicitly provided in profileData
+    if (profileData.firstName !== undefined) {
+      updates.push(`first_name = $${paramIndex++}`);
+      values.push(profileData.firstName);
+    }
+
+    if (profileData.lastName !== undefined) {
+      updates.push(`last_name = $${paramIndex++}`);
+      values.push(profileData.lastName);
+    }
+
+    if (profileData.displayName !== undefined) {
+      updates.push(`display_name = $${paramIndex++}`);
+      values.push(profileData.displayName);
+    }
+
+    if (profileData.gradeLevel !== undefined) {
+      // Try string first, fall back to integer if needed
+      let processedGradeLevel = profileData.gradeLevel;
+      updates.push(`grade_level = $${paramIndex++}`);
+      values.push(processedGradeLevel);
+    }
+
+    if (profileData.dateOfBirth !== undefined) {
+      updates.push(`date_of_birth = $${paramIndex++}`);
+      values.push(profileData.dateOfBirth);
+    }
+
+    if (profileData.kidsAges !== undefined) {
+      updates.push(`kids_ages = $${paramIndex++}`);
+      values.push(profileData.kidsAges);
+    }
+
+    if (profileData.gender !== undefined) {
+      updates.push(`gender = $${paramIndex++}`);
+      values.push(profileData.gender);
+    }
+
+    if (profileData.city !== undefined) {
+      updates.push(`city = $${paramIndex++}`);
+      values.push(profileData.city);
+    }
+
+    if (profileData.stateProvince !== undefined) {
+      updates.push(`state_province = $${paramIndex++}`);
+      values.push(profileData.stateProvince);
+    }
+
+    if (profileData.country !== undefined) {
+      updates.push(`country = $${paramIndex++}`);
+      values.push(profileData.country);
+    }
+
+    if (profileData.favoriteSubjects !== undefined) {
+      updates.push(`favorite_subjects = $${paramIndex++}`);
+      values.push(profileData.favoriteSubjects);
+    }
+
+    if (profileData.learningStyle !== undefined) {
+      updates.push(`learning_style = $${paramIndex++}`);
+      values.push(profileData.learningStyle);
+    }
+
+    if (profileData.timezone !== undefined) {
+      updates.push(`timezone = $${paramIndex++}`);
+      values.push(profileData.timezone);
+    }
+
+    if (profileData.languagePreference !== undefined) {
+      updates.push(`language_preference = $${paramIndex++}`);
+      values.push(profileData.languagePreference);
+    }
+
+    // Always update the updated_at timestamp
+    updates.push(`updated_at = NOW()`);
+
+    // If no fields to update, just return existing profile
+    if (updates.length === 1) { // Only updated_at
+      console.log(`⚠️ No fields to update for ${userEmail}`);
+      return existingProfile;
+    }
+
+    // Build the query
+    let query;
+
+    if (existingProfile && existingProfile.email) {
+      // UPDATE existing profile
+      query = `
+        UPDATE profiles
+        SET ${updates.join(', ')}
+        WHERE email = $${paramIndex}
+        RETURNING *
+      `;
+      values.push(userEmail);
+    } else {
+      // INSERT new profile with only provided fields
+      const columns = ['email', 'created_at', 'updated_at'];
+      const placeholders = [`$${paramIndex}`, 'NOW()', 'NOW()'];
+      values.push(userEmail);
+      paramIndex++;
+
+      // Add provided fields to INSERT
+      if (profileData.firstName !== undefined) { columns.push('first_name'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.lastName !== undefined) { columns.push('last_name'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.displayName !== undefined) { columns.push('display_name'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.gradeLevel !== undefined) { columns.push('grade_level'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.dateOfBirth !== undefined) { columns.push('date_of_birth'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.kidsAges !== undefined) { columns.push('kids_ages'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.gender !== undefined) { columns.push('gender'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.city !== undefined) { columns.push('city'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.stateProvince !== undefined) { columns.push('state_province'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.country !== undefined) { columns.push('country'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.favoriteSubjects !== undefined) { columns.push('favorite_subjects'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.learningStyle !== undefined) { columns.push('learning_style'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.timezone !== undefined) { columns.push('timezone'); placeholders.push(`$${paramIndex++}`); }
+      if (profileData.languagePreference !== undefined) { columns.push('language_preference'); placeholders.push(`$${paramIndex++}`); }
+
+      query = `
+        INSERT INTO profiles (${columns.join(', ')})
+        VALUES (${placeholders.join(', ')})
+        RETURNING *
+      `;
+    }
 
     try {
-      // First attempt: use string grade level (for newer VARCHAR schema)
-      const values = [
-        userEmail, firstName, lastName, processedGradeLevel,
-        kidsAges, gender, city, stateProvince, country
-      ];
-
       const result = await this.query(query, values);
+      console.log(`✅ === UPDATE USER PROFILE ===`);
+      console.log(`✅ Profile updated successfully for: ${userEmail}`);
+      console.log(`✅ Fields updated: ${Object.keys(profileData).join(', ')}`);
       return result.rows[0];
-      
-    } catch (error) {
-      // Check if error is related to integer type conversion
-      if (error.message.includes('invalid input syntax for type integer') || 
-          error.message.includes('integer')) {
-        
-        // Second attempt: use integer grade level (for legacy INTEGER schema)
-        const integerGradeLevel = gradeLevelMap[gradeLevel];
-        
-        if (integerGradeLevel === undefined) {
-          // If no mapping exists, use 0 as default
-          processedGradeLevel = 0;
-        } else {
-          processedGradeLevel = integerGradeLevel;
-        }
-        
-        const valuesWithIntegerGrade = [
-          userEmail, firstName, lastName, processedGradeLevel,
-          kidsAges, gender, city, stateProvince, country
-        ];
 
-        const result = await this.query(query, valuesWithIntegerGrade);
-        return result.rows[0];
-      } else {
-        // Re-throw non-grade-level related errors
-        throw error;
+    } catch (error) {
+      // Check if error is related to integer type conversion for grade_level
+      if (error.message.includes('invalid input syntax for type integer') && profileData.gradeLevel) {
+        console.log(`⚠️ Retrying with integer grade level mapping...`);
+
+        // Find the grade_level parameter and replace it with integer
+        const gradeIndex = updates.findIndex(u => u.includes('grade_level'));
+        if (gradeIndex !== -1) {
+          const integerGradeLevel = gradeLevelMap[profileData.gradeLevel] ?? 0;
+          // Find the corresponding value index
+          const valueIndex = updates.slice(0, gradeIndex).filter(u => u.includes('=')).length;
+          values[valueIndex] = integerGradeLevel;
+
+          const result = await this.query(query, values);
+          console.log(`✅ Profile updated successfully for: ${userEmail} (with integer grade)`);
+          return result.rows[0];
+        }
       }
+
+      // Re-throw other errors
+      console.error(`❌ Profile update failed for ${userEmail}:`, error);
+      throw error;
     }
   },
 
   /**
-   * Get enhanced user profile by user ID
+   * Get enhanced user profile by user ID - Returns ALL profile fields
    */
   async getEnhancedUserProfile(userId) {
     const query = `
-      SELECT 
-        p.*,
+      SELECT
+        p.id,
+        p.email,
+        p.first_name,
+        p.last_name,
+        p.display_name,
+        p.grade_level,
+        p.date_of_birth,
+        p.kids_ages,
+        p.gender,
+        p.city,
+        p.state_province,
+        p.country,
+        p.favorite_subjects,
+        p.learning_style,
+        p.timezone,
+        p.language_preference,
+        p.profile_completion_percentage,
+        p.created_at,
+        p.updated_at,
         u.name as user_name,
         u.email as user_email,
         u.profile_image_url,
@@ -1411,7 +1504,7 @@ const db = {
       LEFT JOIN users u ON p.email = u.email
       WHERE u.id = $1 AND u.is_active = true
     `;
-    
+
     const result = await this.query(query, [userId]);
     return result.rows[0];
   },
@@ -2195,64 +2288,95 @@ async function runDatabaseMigrations() {
       console.log(`⚠️ Progress tables migration issue: ${error.message}`);
     }
     
-    // Check if profile enhancement migration has been applied
+    // Check if complete profile enhancement migration has been applied
     const profileFieldsCheck = await db.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'profiles' 
-      AND column_name IN ('kids_ages', 'gender', 'city', 'state_province', 'country')
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'profiles'
+      AND column_name IN ('display_name', 'date_of_birth', 'favorite_subjects', 'learning_style', 'timezone', 'language_preference', 'profile_completion_percentage')
     `);
-    
-    if (profileFieldsCheck.rows.length < 5) {
+
+    if (profileFieldsCheck.rows.length < 7) {
       console.log('📋 Applying profile enhancement migration...');
-      
+
       // Add new profile fields for comprehensive user profile management
       await db.query(`
         -- Add new profile fields for enhanced user information
-        ALTER TABLE profiles 
+        ALTER TABLE profiles
+        ADD COLUMN IF NOT EXISTS display_name VARCHAR(150),
+        ADD COLUMN IF NOT EXISTS date_of_birth DATE,
         ADD COLUMN IF NOT EXISTS kids_ages INTEGER[],
         ADD COLUMN IF NOT EXISTS gender VARCHAR(50),
-        ADD COLUMN IF NOT EXISTS city VARCHAR(100),
-        ADD COLUMN IF NOT EXISTS state_province VARCHAR(100),
-        ADD COLUMN IF NOT EXISTS country VARCHAR(100);
+        ADD COLUMN IF NOT EXISTS city VARCHAR(150),
+        ADD COLUMN IF NOT EXISTS state_province VARCHAR(150),
+        ADD COLUMN IF NOT EXISTS country VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS favorite_subjects TEXT[],
+        ADD COLUMN IF NOT EXISTS learning_style VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS timezone VARCHAR(100) DEFAULT 'UTC',
+        ADD COLUMN IF NOT EXISTS language_preference VARCHAR(10) DEFAULT 'en',
+        ADD COLUMN IF NOT EXISTS profile_completion_percentage INTEGER DEFAULT 0;
 
         -- Add indexes for better query performance
         CREATE INDEX IF NOT EXISTS idx_profiles_location ON profiles(country, state_province, city);
         CREATE INDEX IF NOT EXISTS idx_profiles_gender ON profiles(gender);
 
         -- Add comments to document the new columns
-        COMMENT ON COLUMN profiles.kids_ages IS 'Array of children ages for parent profiles';
-        COMMENT ON COLUMN profiles.gender IS 'Optional gender identification';
-        COMMENT ON COLUMN profiles.city IS 'City of residence';
-        COMMENT ON COLUMN profiles.state_province IS 'State or province of residence';
-        COMMENT ON COLUMN profiles.country IS 'Country of residence';
+        COMMENT ON COLUMN profiles.display_name IS 'Preferred display name (optional, different from first_name + last_name)';
+        COMMENT ON COLUMN profiles.date_of_birth IS 'User date of birth for age-appropriate content';
+        COMMENT ON COLUMN profiles.kids_ages IS 'Array of children ages (for parents tracking multiple students)';
+        COMMENT ON COLUMN profiles.gender IS 'User gender (optional)';
+        COMMENT ON COLUMN profiles.city IS 'User city location';
+        COMMENT ON COLUMN profiles.state_province IS 'User state or province';
+        COMMENT ON COLUMN profiles.country IS 'User country';
+        COMMENT ON COLUMN profiles.favorite_subjects IS 'Array of user favorite subjects';
+        COMMENT ON COLUMN profiles.learning_style IS 'Preferred learning style (visual, auditory, kinesthetic, etc.)';
+        COMMENT ON COLUMN profiles.timezone IS 'User timezone for scheduling and time-based features';
+        COMMENT ON COLUMN profiles.language_preference IS 'Preferred interface language (ISO 639-1 code)';
+        COMMENT ON COLUMN profiles.profile_completion_percentage IS 'Profile completion percentage (0-100)';
       `);
-      
+
+      // Update existing profiles to have default values
+      await db.query(`
+        UPDATE profiles
+        SET
+          kids_ages = COALESCE(kids_ages, ARRAY[]::INTEGER[]),
+          favorite_subjects = COALESCE(favorite_subjects, ARRAY[]::TEXT[]),
+          timezone = COALESCE(timezone, 'UTC'),
+          language_preference = COALESCE(language_preference, 'en'),
+          profile_completion_percentage = COALESCE(profile_completion_percentage, 0)
+        WHERE kids_ages IS NULL OR favorite_subjects IS NULL OR timezone IS NULL OR language_preference IS NULL OR profile_completion_percentage IS NULL;
+      `);
+
       // Record the migration as completed
       await db.query(`
-        INSERT INTO migration_history (migration_name) 
-        VALUES ('002_add_profile_fields') 
+        INSERT INTO migration_history (migration_name)
+        VALUES ('002_add_profile_fields')
         ON CONFLICT (migration_name) DO NOTHING;
       `);
-      
+
       console.log('✅ Profile enhancement migration completed successfully!');
       console.log('📊 Profiles table now supports:');
+      console.log('   - Display name (optional preferred name)');
+      console.log('   - Date of birth for age-appropriate content');
       console.log('   - Children ages for parent accounts');
       console.log('   - Gender identification (optional)');
       console.log('   - Location information (city, state, country)');
-      console.log('   - Enhanced user profile management');
+      console.log('   - Favorite subjects array');
+      console.log('   - Learning style preference');
+      console.log('   - Timezone and language preferences');
+      console.log('   - Profile completion tracking');
     } else {
       console.log('✅ Profile enhancement migration already applied');
     }
-    
+
     // Check if progress enhancement migration has been applied
     const progressEnhancementCheck = await db.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
+      SELECT table_name
+      FROM information_schema.tables
       WHERE table_name IN ('daily_progress', 'progress_milestones', 'user_achievements')
       AND table_schema = 'public'
     `);
-    
+
     if (progressEnhancementCheck.rows.length < 3) {
       console.log('📋 Applying progress enhancement migration...');
       
