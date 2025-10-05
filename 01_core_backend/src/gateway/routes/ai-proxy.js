@@ -38,6 +38,25 @@ class AIProxyRoutes {
             student_id: { type: 'string' }
           }
         }
+      },
+      config: {
+        rateLimit: {
+          max: 10,  // 10 requests per hour
+          timeWindow: '1 hour',
+          keyGenerator: async (request) => {
+            // Rate limit by authenticated user ID
+            const userId = await this.getUserIdFromToken(request);
+            return userId || request.ip;  // Fallback to IP if no user ID
+          },
+          errorResponseBuilder: (request, context) => {
+            return {
+              error: 'Rate limit exceeded',
+              code: 'RATE_LIMIT_EXCEEDED',
+              message: `You can only process ${context.max} homework images per hour. Please try again later.`,
+              retryAfter: context.after
+            };
+          }
+        }
       }
     }, this.processHomeworkImageJSON.bind(this));
 
@@ -526,8 +545,25 @@ class AIProxyRoutes {
 
   async processHomeworkImageJSON(request, reply) {
     const startTime = Date.now();
-    
+
     try {
+      // Validate payload size (prevent DoS attacks with huge payloads)
+      const MAX_PAYLOAD_SIZE = 3 * 1024 * 1024;  // 3MB max (includes base64 overhead)
+      const payloadSize = JSON.stringify(request.body).length;
+
+      if (payloadSize > MAX_PAYLOAD_SIZE) {
+        this.fastify.log.warn(`❌ Payload too large: ${(payloadSize / 1024 / 1024).toFixed(2)} MB`);
+        return reply.status(413).send({
+          error: 'Image payload too large',
+          code: 'PAYLOAD_TOO_LARGE',
+          message: `Maximum allowed size is ${(MAX_PAYLOAD_SIZE / 1024 / 1024).toFixed(1)} MB. Your payload is ${(payloadSize / 1024 / 1024).toFixed(2)} MB.`,
+          maxSizeMB: MAX_PAYLOAD_SIZE / 1024 / 1024,
+          actualSizeMB: payloadSize / 1024 / 1024
+        });
+      }
+
+      this.fastify.log.info(`📦 Processing homework image: ${(payloadSize / 1024).toFixed(2)} KB`);
+
       // Proxy JSON request directly to AI Engine
       const result = await this.aiClient.proxyRequest(
         'POST',
@@ -559,13 +595,29 @@ class AIProxyRoutes {
 
   async processChatImage(request, reply) {
     const startTime = Date.now();
-    
+
     try {
+      // Validate payload size (prevent DoS attacks with huge payloads)
+      const MAX_PAYLOAD_SIZE = 3 * 1024 * 1024;  // 3MB max (includes base64 overhead)
+      const payloadSize = JSON.stringify(request.body).length;
+
+      if (payloadSize > MAX_PAYLOAD_SIZE) {
+        this.fastify.log.warn(`❌ Chat image payload too large: ${(payloadSize / 1024 / 1024).toFixed(2)} MB`);
+        return reply.status(413).send({
+          error: 'Image payload too large',
+          code: 'PAYLOAD_TOO_LARGE',
+          message: `Maximum allowed size is ${(MAX_PAYLOAD_SIZE / 1024 / 1024).toFixed(1)} MB. Your payload is ${(payloadSize / 1024 / 1024).toFixed(2)} MB.`,
+          maxSizeMB: MAX_PAYLOAD_SIZE / 1024 / 1024,
+          actualSizeMB: payloadSize / 1024 / 1024
+        });
+      }
+
       this.fastify.log.info('🖼️ === CHAT IMAGE PROCESSING REQUEST ===');
       this.fastify.log.info(`📝 Prompt: ${request.body.prompt}`);
       this.fastify.log.info(`🆔 Session: ${request.body.session_id || 'none'}`);
       this.fastify.log.info(`📚 Subject: ${request.body.subject || 'general'}`);
-      
+      this.fastify.log.info(`📦 Payload size: ${(payloadSize / 1024).toFixed(2)} KB`);
+
       // Proxy JSON request directly to AI Engine chat-image endpoint
       const result = await this.aiClient.proxyRequest(
         'POST',

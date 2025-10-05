@@ -35,6 +35,15 @@
 		73BEB15D842A4FB3B7E6B147 /* ImageCropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84F4782308454D1A98C2741E /* ImageCropView.swift */; };
 		7454ECCF0700400CAB3D9062 /* WeeklyProgressGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 172B88920E5545748C6B70F2 /* WeeklyProgressGrid.swift */; };
 		762793B2FEB2456CA1FFD512 /* ScannedImageActionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8B9760D87F648899A6633CB /* ScannedImageActionView.swift */; };
+		7B1961962E92805B0024317A /* AI_Robot_Grades_Homework_Periodically.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 7B1961952E92805B0024317A /* AI_Robot_Grades_Homework_Periodically.mp4 */; };
+		7B1961972E92805B0024317A /* AI_Robot_Grades_Homework_Periodically.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 7B1961952E92805B0024317A /* AI_Robot_Grades_Homework_Periodically.mp4 */; };
+		7B1961982E92805B0024317A /* AI_Robot_Grades_Homework_Periodically.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 7B1961952E92805B0024317A /* AI_Robot_Grades_Homework_Periodically.mp4 */; };
+		7B19619B2E9285F20024317A /* Sandy_Loading.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B19619A2E9285F20024317A /* Sandy_Loading.json */; };
+		7B19619C2E9285F20024317A /* Customised_report.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B1961992E9285F20024317A /* Customised_report.json */; };
+		7B19619D2E9285F20024317A /* Sandy_Loading.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B19619A2E9285F20024317A /* Sandy_Loading.json */; };
+		7B19619E2E9285F20024317A /* Customised_report.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B1961992E9285F20024317A /* Customised_report.json */; };
+		7B19619F2E9285F20024317A /* Sandy_Loading.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B19619A2E9285F20024317A /* Sandy_Loading.json */; };
+		7B1961A02E9285F20024317A /* Customised_report.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B1961992E9285F20024317A /* Customised_report.json */; };
 		7B1ED83B2E829AA600E5E57D /* ParentReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED83A2E829AA600E5E57D /* ParentReportsView.swift */; };
 		7B1ED83E2E829B1700E5E57D /* ReportDateRangeSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED83C2E829B1700E5E57D /* ReportDateRangeSelector.swift */; };
 		7B1ED83F2E829B1700E5E57D /* ReportDetailComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED83D2E829B1700E5E57D /* ReportDetailComponents.swift */; };
@@ -175,6 +184,9 @@
 		6C137BECD88E403C95DB4167 /* ReportGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportGenerator.swift; path = StudyAI/Services/ReportGenerator.swift; sourceTree = SOURCE_ROOT; };
 		6C25B8960EFF470BBE31F73A /* SessionChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionChatView.swift; path = StudyAI/Views/SessionChatView.swift; sourceTree = SOURCE_ROOT; };
 		740D132F82A14ABAA94D79CC /* VoiceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceModels.swift; path = StudyAI/Models/VoiceModels.swift; sourceTree = SOURCE_ROOT; };
+		7B1961952E92805B0024317A /* AI_Robot_Grades_Homework_Periodically.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = AI_Robot_Grades_Homework_Periodically.mp4; sourceTree = "<group>"; };
+		7B1961992E9285F20024317A /* Customised_report.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Customised_report.json; sourceTree = "<group>"; };
+		7B19619A2E9285F20024317A /* Sandy_Loading.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Sandy_Loading.json; sourceTree = "<group>"; };
 		7B1ED83A2E829AA600E5E57D /* ParentReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentReportsView.swift; path = StudyAI/Views/ParentReportsView.swift; sourceTree = SOURCE_ROOT; };
 		7B1ED83C2E829B1700E5E57D /* ReportDateRangeSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportDateRangeSelector.swift; path = StudyAI/Views/ReportDateRangeSelector.swift; sourceTree = SOURCE_ROOT; };
 		7B1ED83D2E829B1700E5E57D /* ReportDetailComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportDetailComponents.swift; path = StudyAI/Views/ReportDetailComponents.swift; sourceTree = SOURCE_ROOT; };
@@ -293,6 +305,7 @@
 		7B9EC4642E61663B005E4BFB = {
 			isa = PBXGroup;
 			children = (
+				7B1961952E92805B0024317A /* AI_Robot_Grades_Homework_Periodically.mp4 */,
 				7BEEB6292E8EFFCA00957748 /* Lottie */,
 				7BEEB6152E8E3A3E00957748 /* design */,
 				7BEDA5FA2E7EB99100D57B15 /* app */,
@@ -441,6 +454,8 @@
 		7BEEB6292E8EFFCA00957748 /* Lottie */ = {
 			isa = PBXGroup;
 			children = (
+				7B1961992E9285F20024317A /* Customised_report.json */,
+				7B19619A2E9285F20024317A /* Sandy_Loading.json */,
 				7B9045212E8FB5DD00E5DDFA /* Chart Graph.json */,
 				7B9045222E8FB5DD00E5DDFA /* Chat.json */,
 				7B90451D2E8FB42E00E5DDFA /* Checklist.json */,
@@ -579,11 +594,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				7BC00E702E714D67002DF625 /* GoogleService-Info.plist in Resources */,
+				7B1961982E92805B0024317A /* AI_Robot_Grades_Homework_Periodically.mp4 in Resources */,
 				7B9045252E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045262E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7BEEB62B2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
 				7BEEB61C2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451A2E8FB1FE00E5DDFA /* Books.json in Resources */,
+				7B19619B2E9285F20024317A /* Sandy_Loading.json in Resources */,
+				7B19619C2E9285F20024317A /* Customised_report.json in Resources */,
 				7B9045202E8FB42E00E5DDFA /* Checklist.json in Resources */,
 				7BEEB6272E8EFB9100957748 /* Holographic gradient.json in Resources */,
 			);
@@ -594,11 +612,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				7BC00E6E2E714D67002DF625 /* GoogleService-Info.plist in Resources */,
+				7B1961962E92805B0024317A /* AI_Robot_Grades_Homework_Periodically.mp4 in Resources */,
 				7B9045272E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045282E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7BEEB62C2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
 				7BEEB61E2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */,
+				7B19619F2E9285F20024317A /* Sandy_Loading.json in Resources */,
+				7B1961A02E9285F20024317A /* Customised_report.json in Resources */,
 				7B90451E2E8FB42E00E5DDFA /* Checklist.json in Resources */,
 				7BEEB6282E8EFB9100957748 /* Holographic gradient.json in Resources */,
 			);
@@ -609,11 +630,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				7BC00E6F2E714D67002DF625 /* GoogleService-Info.plist in Resources */,
+				7B1961972E92805B0024317A /* AI_Robot_Grades_Homework_Periodically.mp4 in Resources */,
 				7B9045232E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045242E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7BEEB62D2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
 				7BEEB61D2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */,
+				7B19619D2E9285F20024317A /* Sandy_Loading.json in Resources */,
+				7B19619E2E9285F20024317A /* Customised_report.json in Resources */,
 				7B90451F2E8FB42E00E5DDFA /* Checklist.json in Resources */,
 				7BEEB6262E8EFB9100957748 /* Holographic gradient.json in Resources */,
 			);

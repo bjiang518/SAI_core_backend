@@ -7,8 +7,8 @@ const services = {
   aiEngine: {
     name: 'AI Engine',
     url: process.env.AI_ENGINE_URL || 'http://localhost:8000',
-    timeout: parseInt(process.env.AI_ENGINE_TIMEOUT) || 30000,
-    retries: parseInt(process.env.AI_ENGINE_RETRIES) || 3,
+    timeout: parseInt(process.env.AI_ENGINE_TIMEOUT) || 180000, // 3 minutes for complex homework with 10+ questions
+    retries: parseInt(process.env.AI_ENGINE_RETRIES) || 2, // Reduce retries to avoid cascading delays
     healthEndpoint: '/health',
     enabled: process.env.AI_ENGINE_ENABLED !== 'false'
   },

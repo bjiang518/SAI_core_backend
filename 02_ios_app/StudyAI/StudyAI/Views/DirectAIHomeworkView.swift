@@ -11,11 +11,55 @@ import os.log
 import UniformTypeIdentifiers
 import Combine
 import Lottie
+import AVKit
+import AVFoundation
+
+// MARK: - Processing Stage Tracking
+enum ProcessingStage {
+    case idle
+    case compressing
+    case uploading
+    case analyzing
+    case grading
+    case parsing
+    case complete
+
+    var message: String {
+        switch self {
+        case .idle:
+            return "Select an image to analyze homework"
+        case .compressing:
+            return "📦 Optimizing image..."
+        case .uploading:
+            return "📤 Uploading to AI..."
+        case .analyzing:
+            return "🔍 AI reading homework..."
+        case .grading:
+            return "✏️ Grading answers..."
+        case .parsing:
+            return "📊 Preparing results..."
+        case .complete:
+            return "✅ Analysis complete!"
+        }
+    }
+
+    var progress: Float {
+        switch self {
+        case .idle: return 0.0
+        case .compressing: return 0.15
+        case .uploading: return 0.3
+        case .analyzing: return 0.5
+        case .grading: return 0.7
+        case .parsing: return 0.9
+        case .complete: return 1.0
+        }
+    }
+}
 
 // MARK: - Persistent State Manager
 class AIHomeworkStateManager: ObservableObject {
     static let shared = AIHomeworkStateManager()
-    
+
     @Published var originalImage: UIImage?
     @Published var originalImageUrl: String?
     @Published var parsingResult: HomeworkParsingResult?
@@ -23,6 +67,8 @@ class AIHomeworkStateManager: ObservableObject {
     @Published var processingStatus = "Select an image to analyze homework"
     @Published var parsingError: String?
     @Published var sessionId: String?
+    @Published var currentStage: ProcessingStage = .idle
+    @Published var uploadProgress: Float = 0.0
     
     private let logger = Logger(subsystem: "com.studyai", category: "AIHomeworkStateManager")
     
@@ -45,7 +91,9 @@ class AIHomeworkStateManager: ObservableObject {
         processingStatus = "Select an image to analyze homework"
         parsingError = nil
         sessionId = nil
-        
+        currentStage = .idle
+        uploadProgress = 0.0
+
         // Also clear CameraViewModel
         CameraViewModel.shared.clearForNextCapture()
         
@@ -329,8 +377,8 @@ struct DirectAIHomeworkView: View {
         ScrollView {
             VStack(spacing: 20) {
                 if isProcessing {
-                    // Show hand writing animation during processing
-                    HandWritingAnimation()
+                    // Show random Lottie animation during processing
+                    RandomLottieAnimation()
                 } else {
                     // Show initial image preview
                     initialImagePreview
@@ -463,163 +511,212 @@ struct DirectAIHomeworkView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
                 .font(.headline)
+                .foregroundColor(.primary)
                 .padding(.horizontal)
-            
+
+            // Enhanced image display with rounded corners and shadow
             Image(uiImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(maxHeight: 300)
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(12)
+                .frame(maxHeight: 200)
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(20)
+                .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                )
                 .padding(.horizontal)
+                .onTapGesture {
+                    showFullScreenImage(image, title: title)
+                }
+
+            // Tap to zoom hint
+            HStack {
+                Spacer()
+                Label("Tap to zoom", systemImage: "viewfinder")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
         }
     }
     
-    // MARK: - Results Section  
+    // MARK: - Results Section
     private func resultsSection(_ result: HomeworkParsingResult) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("AI Analysis Results")
-                    .font(.headline)
-                    .padding(.horizontal)
-                
-                Spacer()
-                
-                // Enhanced indicators
-                if let enhanced = stateManager.enhancedResult {
-                    HStack(spacing: 4) {
-                        if enhanced.isReliableParsing {
-                            Image(systemName: "checkmark.seal.fill")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                            Text("Enhanced")
-                                .font(.caption2)
-                                .foregroundColor(.green)
-                        } else {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                            Text("Fallback")
-                                .font(.caption2)
-                                .foregroundColor(.orange)
-                        }
-                    }
-                    .padding(.horizontal)
-                }
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Analysis Complete!")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+
+                Text("Your homework has been analyzed")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
-            
-            VStack(spacing: 12) {
-                // Subject detection display
+
+            Divider()
+
+            // Stats Grid
+            HStack(spacing: 16) {
+                // Subject Badge
                 if let enhanced = stateManager.enhancedResult {
-                    HStack {
-                        Text("Detected Subject:")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        HStack(spacing: 4) {
-                            Text(enhanced.detectedSubject)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.primary)
-                            
-                            if enhanced.isHighConfidenceSubject {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
-                            }
-                            
-                            Text("(\(String(format: "%.0f%%", enhanced.subjectConfidence * 100)))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
+                    StatsBadge(
+                        icon: "book.fill",
+                        value: enhanced.detectedSubject,
+                        label: "Subject",
+                        color: .blue,
+                        hasCheckmark: false,
+                        confidence: nil
+                    )
                 }
-                
-                HStack {
-                    Text("Questions Found:")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text("\(result.questionCount)")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.green)
-                }
-                
-                HStack {
-                    Text("Confidence:")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(String(format: "%.1f%%", result.overallConfidence * 100))
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(result.overallConfidence > 0.8 ? .green : result.overallConfidence > 0.6 ? .orange : .red)
-                }
-                
-                // View Details Button
-                Button(action: {
-                    showingResults = true
-                }) {
-                    HStack {
-                        Image(systemName: "eye.fill")
-                        Text("View Detailed Results")
-                    }
-                    .foregroundColor(.white)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(result.questionCount > 0 ? Color.blue : Color.gray)
-                    .cornerRadius(12)
-                }
-                .disabled(result.questionCount == 0)
-            }
-        }
-        .padding()
-        .background(
-            (stateManager.enhancedResult?.isReliableParsing == true) ? 
-                Color.green.opacity(0.05) : 
-                Color.blue.opacity(0.05)
-        )
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(
-                    (stateManager.enhancedResult?.isReliableParsing == true) ? 
-                        Color.green.opacity(0.3) : 
-                        Color.blue.opacity(0.3), 
-                    lineWidth: 1
+
+                // Questions Badge
+                StatsBadge(
+                    icon: "questionmark.circle.fill",
+                    value: "\(result.questionCount)",
+                    label: "Questions",
+                    color: .green
                 )
+
+                // Accuracy Badge
+                StatsBadge(
+                    icon: "target",
+                    value: String(format: "%.0f%%", (stateManager.enhancedResult?.calculatedAccuracy ?? result.calculatedAccuracy) * 100),
+                    label: "Accuracy",
+                    color: accuracyColor(stateManager.enhancedResult?.calculatedAccuracy ?? result.calculatedAccuracy)
+                )
+            }
+
+            // View Details Button
+            Button(action: {
+                // Haptic feedback
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
+
+                showingResults = true
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.title3)
+                    Text("View Detailed Results")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    LinearGradient(
+                        colors: result.questionCount > 0 ?
+                            [Color.blue, Color.blue.opacity(0.8)] :
+                            [Color.gray, Color.gray.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(16)
+                .shadow(
+                    color: (result.questionCount > 0 ? Color.blue : Color.gray).opacity(0.3),
+                    radius: 8,
+                    x: 0,
+                    y: 4
+                )
+            }
+            .disabled(result.questionCount == 0)
+        }
+        .padding(20)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.blue.opacity(0.05),
+                    Color.purple.opacity(0.05)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         )
+        .cornerRadius(20)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
     
     // MARK: - Controls Section
     private var controlsSection: some View {
-        VStack(spacing: 12) {
-            // Analyze New Image Button
-            Button("📸 Analyze New Image") {
+        HStack(spacing: 12) {
+            // New Button
+            Button(action: {
+                // Haptic feedback
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
+
                 stateManager.clearSession()
-            }
-            .foregroundColor(.white)
-            .padding()
-            .frame(maxWidth: .infinity)
-            .background(Color.purple)
-            .cornerRadius(12)
-            
-            if stateManager.originalImage != nil || stateManager.parsingResult != nil {
-                // Clear Session Button
-                Button("Clear Session") {
-                    stateManager.clearSession()
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                    Text("New")
+                        .font(.headline)
+                        .fontWeight(.semibold)
                 }
-                .foregroundColor(.red)
-                .padding()
+                .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .background(Color.red.opacity(0.1))
-                .cornerRadius(12)
+                .padding()
+                .background(
+                    LinearGradient(
+                        colors: [Color.purple, Color.purple.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(16)
+                .shadow(color: Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+
+            // Clear Button
+            Button(action: {
+                // Haptic feedback
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
+
+                stateManager.clearSession()
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "trash.fill")
+                        .font(.title3)
+                    Text("Clear")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    LinearGradient(
+                        colors: [Color.red, Color.red.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(16)
+                .shadow(color: Color.red.opacity(0.3), radius: 8, x: 0, y: 4)
             }
         }
     }
     
     // MARK: - Helper Methods
+
+    private func accuracyColor(_ accuracy: Float) -> Color {
+        if accuracy >= 0.9 {
+            return .green
+        } else if accuracy >= 0.7 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+
     private func requestCameraPermissionAndShow() {
         Task {
             let hasPermission = await CameraPermissionManager.requestCameraPermission()
@@ -659,7 +756,8 @@ struct DirectAIHomeworkView: View {
     // MARK: - Send to AI Method
     private func sendToAI(image: UIImage) async {
         await MainActor.run {
-            stateManager.processingStatus = "Preparing image for AI analysis..."
+            stateManager.currentStage = .compressing
+            stateManager.processingStatus = stateManager.currentStage.message
             stateManager.parsingError = nil
         }
 
@@ -673,6 +771,7 @@ struct DirectAIHomeworkView: View {
             await MainActor.run {
                 stateManager.parsingError = "Failed to compress image for upload"
                 stateManager.processingStatus = "❌ Image compression failed"
+                stateManager.currentStage = .idle
                 showingErrorAlert = true
                 isProcessing = false
             }
@@ -685,10 +784,20 @@ struct DirectAIHomeworkView: View {
 
         await MainActor.run {
             stateManager.originalImageUrl = "temp://homework-image-\(UUID().uuidString)"
-            stateManager.processingStatus = "🤖 AI is analyzing your homework..."
+            stateManager.currentStage = .uploading
+            stateManager.processingStatus = stateManager.currentStage.message
         }
 
         logger.info("📡 Sending to AI for processing...")
+
+        // Simulate upload progress
+        await simulateUploadProgress()
+
+        // Update to analyzing stage
+        await MainActor.run {
+            stateManager.currentStage = .analyzing
+            stateManager.processingStatus = stateManager.currentStage.message
+        }
 
         // Process with AI
         let result = await NetworkService.shared.processHomeworkImageWithSubjectDetection(
@@ -699,6 +808,9 @@ struct DirectAIHomeworkView: View {
         let processingTime = Date().timeIntervalSince(startTime)
 
         await MainActor.run {
+            stateManager.currentStage = .parsing
+            stateManager.processingStatus = stateManager.currentStage.message
+
             if result.success, let response = result.response {
                 logger.info("🎉 AI processing successful")
                 processSuccessfulResponse(response, processingTime: processingTime)
@@ -709,9 +821,20 @@ struct DirectAIHomeworkView: View {
             isProcessing = false
         }
     }
+
+    private func simulateUploadProgress() async {
+        // Simulate upload progress for better UX
+        for progress in stride(from: 0.0, through: 1.0, by: 0.1) {
+            await MainActor.run {
+                stateManager.uploadProgress = Float(progress)
+            }
+            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        }
+    }
     
     private func processSuccessfulResponse(_ response: String, processingTime: TimeInterval) {
-        stateManager.processingStatus = "🔍 Parsing AI response..."
+        stateManager.currentStage = .parsing
+        stateManager.processingStatus = stateManager.currentStage.message
         
         // Extract response from JSON if needed
         let actualResponse: String
@@ -766,33 +889,60 @@ struct DirectAIHomeworkView: View {
     }
     
     private func compressPreprocessedImage(_ image: UIImage) -> Data? {
-        logger.info("🗜️ === COMPRESSING PREPROCESSED IMAGE ===")
+        logger.info("🗜️ === SMART BINARY SEARCH COMPRESSION ===")
         logger.info("📊 Input image size: \(image.size.width)x\(image.size.height)")
 
-        // For binary preprocessed images, we can be more aggressive with compression
-        let maxDimension: CGFloat = 1024  // Larger than before since binary images compress better
+        // Security limit: Maximum 2MB after compression to prevent abuse
+        let maxSizeBytes = 2 * 1024 * 1024 // 2MB limit (server allows 3MB for base64 overhead)
+
+        // Resize to reasonable dimensions for OCR
+        let maxDimension: CGFloat = 2048  // Higher resolution for better OCR accuracy
         let resizedImage = resizeImage(image, maxDimension: maxDimension)
         logger.info("📐 Resized to: \(resizedImage.size.width)x\(resizedImage.size.height)")
 
-        let maxSizeBytes = 500 * 1024 // 500KB limit for binary images (much smaller than 1MB)
+        let minQuality: CGFloat = 0.5   // Don't go below 50% quality for OCR accuracy
 
-        // Try different compression levels - binary images compress very well
-        let compressionLevels: [CGFloat] = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2]
+        // Binary search for optimal compression (much faster than linear search)
+        var low: CGFloat = minQuality
+        var high: CGFloat = 1.0
+        var bestData: Data? = nil
+        var iterations = 0
 
-        for quality in compressionLevels {
-            if let data = resizedImage.jpegData(compressionQuality: quality) {
-                logger.info("🔍 Quality \(quality): \(data.count) bytes")
-                if data.count <= maxSizeBytes {
-                    logger.info("✅ Final compressed size: \(data.count) bytes at quality \(quality)")
-                    return data
-                }
+        while high - low > 0.05 && iterations < 10 {
+            iterations += 1
+            let mid = (low + high) / 2.0
+
+            guard let data = resizedImage.jpegData(compressionQuality: mid) else {
+                high = mid
+                continue
+            }
+
+            logger.info("🔍 Iteration \(iterations): quality=\(String(format: "%.2f", mid)), size=\(data.count) bytes")
+
+            if data.count <= maxSizeBytes {
+                bestData = data
+                low = mid  // Found acceptable, try higher quality
+            } else {
+                high = mid  // Too large, try lower quality
             }
         }
 
-        // If still too large, try PNG (sometimes better for binary images)
-        if let pngData = resizedImage.pngData(), pngData.count <= maxSizeBytes {
-            logger.info("✅ Final PNG size: \(pngData.count) bytes")
-            return pngData
+        if let finalData = bestData {
+            logger.info("✅ Compression complete in \(iterations) iterations: \(finalData.count) bytes")
+            return finalData
+        }
+
+        // Fallback to minimum quality if binary search fails
+        if let fallbackData = resizedImage.jpegData(compressionQuality: minQuality) {
+            logger.warning("⚠️ Using fallback compression at minimum quality: \(fallbackData.count) bytes")
+
+            // Final security check: reject if still too large
+            if fallbackData.count > maxSizeBytes {
+                logger.error("❌ Image too large even at minimum quality: \(fallbackData.count) bytes > \(maxSizeBytes) bytes")
+                return nil
+            }
+
+            return fallbackData
         }
 
         logger.error("❌ Could not compress image to acceptable size")
@@ -1006,163 +1156,50 @@ struct PhotosPickerView: UIViewControllerRepresentable {
     }
 }
 
-// MARK: - Hand Writing Animation Component
-struct HandWritingAnimation: View {
-    @State private var currentMessageIndex = 0
-    @State private var revealedCharacters = 0
-    @State private var handOffset = CGSize.zero
-    @State private var isWriting = false
-    
-    private let messages = [
-        "Examining your homework... 🔍",
-        "Looking closely at each problem... 👀",
-        "Finding the right answers... ✨",
-        "Almost done checking! 🎯"
+// MARK: - Random Lottie Animation Component
+struct RandomLottieAnimation: View {
+    @State private var selectedAnimation: String = ""
+
+    // Available Lottie animations for homework processing
+    private let animations = [
+        "Customised_report",
+        "Sandy_Loading"
     ]
-    
-    private let animationDuration: Double = 0.1
-    
+
     var body: some View {
-        VStack(spacing: 20) {
-            // Notebook Paper Background
-            ZStack {
-                // Paper background
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white)
-                    .overlay(
-                        // Notebook lines
-                        VStack(spacing: 28) {
-                            ForEach(0..<4, id: \.self) { _ in
-                                Rectangle()
-                                    .fill(Color.blue.opacity(0.3))
-                                    .frame(height: 1)
-                            }
-                        }
-                        .padding(.horizontal, 40)
-                    )
-                    .overlay(
-                        // Spiral binding
-                        HStack {
-                            VStack(spacing: 15) {
-                                ForEach(0..<8, id: \.self) { _ in
-                                    Circle()
-                                        .fill(Color.gray.opacity(0.3))
-                                        .frame(width: 8, height: 8)
-                                }
-                            }
-                            .padding(.leading, 10)
-                            Spacer()
-                        }
-                    )
-                    .frame(height: 200)
-                    .shadow(color: .gray.opacity(0.2), radius: 4, x: 2, y: 2)
-                
-                // Writing content
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(0..<messages.count, id: \.self) { index in
-                        HStack {
-                            Text(getDisplayText(for: index))
-                                .font(.custom("Bradley Hand", size: 18))
-                                .foregroundColor(.primary)
-                                .multilineTextAlignment(.leading)
-                            Spacer()
-                        }
-                    }
+        ZStack {
+            // Background
+            Color.black.opacity(0.02)
+                .ignoresSafeArea()
+
+            VStack(spacing: 30) {
+                Spacer()
+
+                // Lottie animation
+                if !selectedAnimation.isEmpty {
+                    LottieView(animationName: selectedAnimation, loopMode: .loop)
+                        .frame(width: 350, height: 350)
+                        .scaleEffect(1.2)
+                } else {
+                    ProgressView()
+                        .scaleEffect(1.5)
                 }
-                .padding(.horizontal, 40)
-                .padding(.vertical, 20)
-                
-                // Animated Magnifying Glass
-                if isWriting {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            ZStack {
-                                // Magnifying glass
-                                Text("🔍")
-                                    .font(.system(size: 35))
-                                    .rotationEffect(.degrees(-15))
-                                    .scaleEffect(1.2)
-                                
-                                // Sparkle effect
-                                Text("✨")
-                                    .font(.system(size: 15))
-                                    .offset(x: 20, y: -15)
-                                    .opacity(0.8)
-                            }
-                            .offset(handOffset)
-                            .animation(.easeInOut(duration: animationDuration), value: handOffset)
-                        }
-                        Spacer()
-                    }
-                    .padding(.horizontal, 40)
+
+                Spacer()
+
+                // Status text at bottom
+                Text("AI is carefully examining your homework!")
+                    .font(.headline)
+                    .foregroundColor(.purple)
+                    .opacity(0.8)
                     .padding(.vertical, 20)
-                }
+                    .padding(.bottom, 80) // Space for tab bar
             }
-            
-            // Status text
-            Text("AI is carefully examining your homework!")
-                .font(.headline)
-                .foregroundColor(.purple)
-                .opacity(0.8)
         }
         .onAppear {
-            startWritingAnimation()
-        }
-        .padding()
-    }
-    
-    private func getDisplayText(for messageIndex: Int) -> String {
-        if messageIndex < currentMessageIndex {
-            return messages[messageIndex]
-        } else if messageIndex == currentMessageIndex {
-            let message = messages[messageIndex]
-            let endIndex = min(revealedCharacters, message.count)
-            return String(message.prefix(endIndex))
-        } else {
-            return ""
-        }
-    }
-    
-    private func startWritingAnimation() {
-        isWriting = true
-        currentMessageIndex = 0
-        revealedCharacters = 0
-        animateCurrentMessage()
-    }
-    
-    private func animateCurrentMessage() {
-        guard currentMessageIndex < messages.count else {
-            // Restart animation
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                startWritingAnimation()
-            }
-            return
-        }
-        
-        let message = messages[currentMessageIndex]
-        
-        if revealedCharacters < message.count {
-            // Continue writing current message
-            let xOffset = CGFloat(revealedCharacters) * 8 - 50
-            let yOffset = CGFloat(currentMessageIndex) * 35
-            let newOffset = CGSize(width: xOffset, height: yOffset)
-            
-            withAnimation(.easeInOut(duration: animationDuration)) {
-                handOffset = newOffset
-            }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration) {
-                revealedCharacters += 1
-                animateCurrentMessage()
-            }
-        } else {
-            // Move to next message
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                currentMessageIndex += 1
-                revealedCharacters = 0
-                animateCurrentMessage()
-            }
+            // Randomly pick an animation when view appears
+            selectedAnimation = animations.randomElement() ?? "Customised_report"
+            print("✨ Selected animation: \(selectedAnimation)")
         }
     }
 }
@@ -1243,17 +1280,16 @@ struct ImageZoomView: View {
 
     var body: some View {
         ZStack {
-            // Black background
+            // Black background (no tap gesture - use Close button to dismiss)
             Color.black
                 .ignoresSafeArea(.all)
 
-            // Image container
+            // Image container - now fully interactive
             Image(uiImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .scaleEffect(scale)
                 .offset(offset)
-                .clipped()
                 .gesture(
                     SimultaneousGesture(
                         MagnificationGesture()
@@ -1295,19 +1331,23 @@ struct ImageZoomView: View {
                 // Top toolbar
                 HStack {
                     Button(action: {
-                        isPresented = false
+                        // Dismiss the full screen cover
+                        withAnimation {
+                            isPresented = false
+                        }
                     }) {
                         HStack {
-                            Image(systemName: "chevron.left")
-                            Text("Done")
+                            Image(systemName: "xmark.circle.fill")
+                            Text("Close")
                         }
                         .foregroundColor(.white)
                         .font(.system(size: 17, weight: .medium))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
-                        .background(Color.black.opacity(0.3))
+                        .background(Color.black.opacity(0.5))
                         .cornerRadius(20)
                     }
+                    .buttonStyle(.plain) // Prevent button styling conflicts
 
                     Spacer()
 
@@ -1335,7 +1375,7 @@ struct ImageZoomView: View {
                 Spacer()
 
                 // Bottom instructions
-                Text("Pinch to zoom • Double tap to reset • Tap Done to close")
+                Text("Pinch to zoom • Drag to pan • Double tap to reset • Use Close button to exit")
                     .foregroundColor(.white.opacity(0.8))
                     .font(.system(size: 14, weight: .medium))
                     .multilineTextAlignment(.center)
@@ -1353,6 +1393,104 @@ struct ImageZoomView: View {
             offset = .zero
             lastOffset = .zero
         }
+    }
+}
+
+// MARK: - Custom Badge Components
+
+/// Stats Badge Component
+struct StatsBadge: View {
+    let icon: String
+    let value: String
+    let label: String
+    let color: Color
+    var hasCheckmark: Bool = false
+    var confidence: Int? = nil
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .foregroundColor(color)
+                    .font(.system(size: 16))
+
+                Text(value)
+                    .font(.headline)
+                    .foregroundColor(color)
+                    .fontWeight(.bold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                if hasCheckmark {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                }
+            }
+
+            VStack(spacing: 2) {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                if let conf = confidence {
+                    Text("\(conf)%")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .opacity(0.7)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 8)
+        .background(color.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
+
+/// Confidence Badge with Circular Progress
+struct ConfidenceBadge: View {
+    let confidence: Float
+
+    private var confidencePercentage: Int {
+        Int(confidence * 100)
+    }
+
+    private var confidenceColor: Color {
+        if confidence > 0.8 { return .green }
+        else if confidence > 0.6 { return .orange }
+        else { return .red }
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                // Background circle
+                Circle()
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 6)
+                    .frame(width: 50, height: 50)
+
+                // Progress circle
+                Circle()
+                    .trim(from: 0, to: CGFloat(confidence))
+                    .stroke(confidenceColor, lineWidth: 6)
+                    .frame(width: 50, height: 50)
+                    .rotationEffect(.degrees(-90))
+
+                // Percentage text
+                Text("\(confidencePercentage)%")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(confidenceColor)
+            }
+
+            Text("Confidence")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
     }
 }
 

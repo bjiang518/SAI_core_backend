@@ -15,8 +15,9 @@ const fastify = require('fastify')({
   logger: process.env.NODE_ENV === 'production' ? true : {
     level: process.env.LOG_LEVEL || 'info'
   },
-  bodyLimit: 15 * 1024 * 1024, // 15MB body limit for large image uploads
-  requestTimeout: 120000 // 2 minute timeout for AI processing
+  bodyLimit: 5 * 1024 * 1024, // 5MB body limit - reasonable for base64 encoded images (~3.7MB original)
+  connectionTimeout: 240000, // 4 minutes - must be longer than AI engine timeout (Fastify v5 change)
+  requestIdLogLabel: 'reqId' // Fastify v5: explicit request ID label
 });
 
 // Import our enhanced components
@@ -41,10 +42,10 @@ const { dailyResetService } = require('../services/daily-reset-service');
 // Register multipart support for file uploads
 fastify.register(require('@fastify/multipart'), {
   limits: {
-    fileSize: 15 * 1024 * 1024, // 15MB limit to match bodyLimit
-    files: 1,
+    fileSize: 5 * 1024 * 1024, // 5MB limit - matches bodyLimit for security
+    files: 1, // Only allow 1 file at a time
     fieldNameSize: 100,
-    fieldSize: 15 * 1024 * 1024, // Allow large base64 fields
+    fieldSize: 5 * 1024 * 1024, // Allow large base64 fields (matches bodyLimit)
     fields: 10
   }
 });
@@ -54,6 +55,26 @@ fastify.register(require('@fastify/compress'), {
   encodings: ['gzip', 'deflate'],
   threshold: 1024 // Only compress responses > 1KB
 });
+
+// Register rate limiting for API protection
+fastify.register(require('@fastify/rate-limit'), {
+  global: false,  // Apply per-route basis
+  max: 100,       // Default: 100 requests
+  timeWindow: '1 minute',  // Per minute
+  cache: 10000,   // Store 10k rate limit entries
+  addHeadersOnExceeding: {
+    'x-ratelimit-limit': true,
+    'x-ratelimit-remaining': true,
+    'x-ratelimit-reset': true
+  },
+  addHeaders: {
+    'x-ratelimit-limit': true,
+    'x-ratelimit-remaining': true,
+    'x-ratelimit-reset': true,
+    'retry-after': true
+  }
+});
+fastify.log.info('✅ Rate limiting registered');
 
 // Register CORS if needed
 fastify.register(require('@fastify/cors'), {

@@ -30,11 +30,31 @@ class AIServiceClient {
       (config) => {
         config.metadata = { startTime: Date.now() };
         
-        // Debug logging for AI Engine requests
+        // Debug logging for AI Engine requests (sanitized for security)
         console.log(`🚀 === AI ENGINE REQUEST DEBUG ===`);
         console.log(`🔗 URL: ${config.baseURL}${config.url}`);
         console.log(`📡 Method: ${config.method.toUpperCase()}`);
-        console.log(`📦 Request payload:`, JSON.stringify(config.data, null, 2));
+
+        // Log payload metadata without sensitive image data
+        const payloadSize = config.data ? JSON.stringify(config.data).length : 0;
+        console.log(`📦 Request payload size: ${(payloadSize / 1024).toFixed(2)} KB`);
+        if (config.data) {
+          const keys = Object.keys(config.data);
+          console.log(`📦 Request keys: ${keys.join(', ')}`);
+
+          // Log only metadata for base64 image data
+          if (config.data.base64_image) {
+            console.log(`📦 Image data: ${config.data.base64_image.length} chars (base64, redacted for security)`);
+          }
+
+          // Log other fields safely
+          const safeData = { ...config.data };
+          if (safeData.base64_image) {
+            safeData.base64_image = `[REDACTED: ${safeData.base64_image.length} chars]`;
+          }
+          console.log(`📦 Request data (sanitized):`, JSON.stringify(safeData, null, 2));
+        }
+
         console.log(`🎯 Headers:`, config.headers);
         console.log(`=====================================`);
         
@@ -43,17 +63,33 @@ class AIServiceClient {
       (error) => Promise.reject(error)
     );
 
-    // Response interceptor  
+    // Response interceptor
     this.client.interceptors.response.use(
       (response) => {
         const duration = Date.now() - response.config.metadata.startTime;
-        
+
         console.log(`✅ === AI ENGINE RESPONSE DEBUG ===`);
         console.log(`⏱️ Duration: ${duration}ms`);
         console.log(`📊 Status: ${response.status}`);
-        console.log(`📦 Response data:`, JSON.stringify(response.data, null, 2));
+
+        // Log response metadata without full content
+        const responseSize = response.data ? JSON.stringify(response.data).length : 0;
+        console.log(`📦 Response size: ${(responseSize / 1024).toFixed(2)} KB`);
+
+        // Log structure instead of full data
+        if (response.data) {
+          const keys = Object.keys(response.data);
+          console.log(`📦 Response keys: ${keys.join(', ')}`);
+
+          // Only log first 200 chars of response text if present
+          if (response.data.response && typeof response.data.response === 'string') {
+            const preview = response.data.response.substring(0, 200);
+            console.log(`📦 Response preview: ${preview}${response.data.response.length > 200 ? '...' : ''}`);
+          }
+        }
+
         console.log(`=====================================`);
-        
+
         return response;
       },
       (error) => {
@@ -92,44 +128,91 @@ class AIServiceClient {
   }
 
   async proxyRequest(method, path, data = null, headers = {}) {
-    try {
-      // Don't add service authentication headers since AI Engine doesn't support them yet
-      // const authHeaders = serviceAuth.addServiceHeaders('ai-engine', headers);
-      
-      // Remove sensitive headers that shouldn't be forwarded
-      const cleanHeaders = secretsManager.maskHeaders(headers);
-      
-      const response = await this.client.request({
-        method,
-        url: path,
-        data,
-        headers: {
-          ...headers,
-          // Remove hop-by-hop headers
-          connection: undefined,
-          'keep-alive': undefined,
-          'proxy-authenticate': undefined,
-          'proxy-authorization': undefined,
-          te: undefined,
-          trailers: undefined,
-          'transfer-encoding': undefined,
-          upgrade: undefined
-        }
-      });
+    const maxRetries = this.config.retries;
+    let lastError;
 
-      return {
-        success: true,
-        data: response.data,
-        status: response.status,
-        headers: response.headers
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error,
-        status: error.status || 500
-      };
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Don't add service authentication headers since AI Engine doesn't support them yet
+        // const authHeaders = serviceAuth.addServiceHeaders('ai-engine', headers);
+
+        // Remove sensitive headers that shouldn't be forwarded
+        const cleanHeaders = secretsManager.maskHeaders(headers);
+
+        // Increase timeout for retries (give more time on subsequent attempts)
+        const attemptTimeout = this.config.timeout * attempt;
+
+        console.log(`🔄 AI Engine request attempt ${attempt}/${maxRetries} (timeout: ${attemptTimeout}ms)`);
+
+        const response = await this.client.request({
+          method,
+          url: path,
+          data,
+          timeout: attemptTimeout, // Progressive timeout increase
+          headers: {
+            ...headers,
+            // Remove hop-by-hop headers
+            connection: undefined,
+            'keep-alive': undefined,
+            'proxy-authenticate': undefined,
+            'proxy-authorization': undefined,
+            te: undefined,
+            trailers: undefined,
+            'transfer-encoding': undefined,
+            upgrade: undefined
+          }
+        });
+
+        console.log(`✅ AI Engine request succeeded on attempt ${attempt}`);
+
+        return {
+          success: true,
+          data: response.data,
+          status: response.status,
+          headers: response.headers
+        };
+      } catch (error) {
+        lastError = error;
+        const isTimeout = error.code === 'ECONNABORTED' || error.message.includes('timeout');
+        const isServerError = error.response?.status >= 500;
+        const isClientError = error.response?.status >= 400 && error.response?.status < 500;
+
+        console.error(`❌ AI Engine request attempt ${attempt}/${maxRetries} failed: ${error.message}`);
+
+        // Log detailed error info for debugging
+        if (error.response) {
+          console.error(`   Response status: ${error.response.status}`);
+        } else if (error.request) {
+          console.error(`   No response received (timeout or connection error)`);
+        }
+
+        // Retry logic: retry timeouts, connection errors, and 5xx server errors
+        // Don't retry 4xx client errors (bad request, auth, etc.)
+        const shouldRetry = isTimeout || isServerError || !error.response;
+
+        if (!shouldRetry && isClientError) {
+          console.log(`⚠️ Not retrying - client error (${error.response?.status})`);
+          break;
+        }
+
+        // Don't retry if this was the last attempt
+        if (attempt >= maxRetries) {
+          console.error(`❌ AI Engine request failed after ${maxRetries} attempts`);
+          break;
+        }
+
+        // Exponential backoff: 1s, 2s, 4s...
+        const backoffDelay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`⏳ Waiting ${backoffDelay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, backoffDelay));
+      }
     }
+
+    return {
+      success: false,
+      error: lastError,
+      status: lastError?.response?.status || 500
+    };
   }
 
   async healthCheck() {

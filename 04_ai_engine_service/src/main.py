@@ -782,32 +782,66 @@ async def process_homework_image(request: HomeworkParsingRequest):
     start_time = time.time()
     
     try:
+        print(f"📥 === HOMEWORK PARSING REQUEST ===")
+        print(f"📊 Student ID: {request.student_id}")
+        print(f"📏 Image length: {len(request.base64_image)} chars")
+        print(f"📝 Prompt: {request.prompt[:200]}..." if len(request.prompt) > 200 else f"📝 Prompt: {request.prompt}")
+        print(f"=====================================")
+
         # Use the AI service to parse homework with structured prompt
         result = await ai_service.parse_homework_image(
             base64_image=request.base64_image,
             custom_prompt=request.prompt,
             student_context={"student_id": request.student_id}
         )
-        
+
+        print(f"🔍 === AI SERVICE RESULT ===")
+        print(f"✅ Success: {result.get('success', False)}")
+        print(f"📊 Parsing method: {result.get('parsing_method', 'unknown')}")
+        print(f"📝 Response length: {len(result.get('structured_response', ''))} chars")
+        print(f"❌ Error: {result.get('error', 'None')}")
+        print(f"=====================================")
+
         if not result["success"]:
-            raise HTTPException(status_code=500, detail=result.get("error", "Homework parsing failed"))
-        
+            error_msg = result.get("error", "Homework parsing failed")
+            print(f"❌ Parsing failed with error: {error_msg}")
+            raise HTTPException(status_code=500, detail=error_msg)
+
         # Calculate processing time
         processing_time = int((time.time() - start_time) * 1000)
-        
+
         return HomeworkParsingResponse(
             success=True,
             response=result["structured_response"],
             processing_time_ms=processing_time,
             error=None
         )
-        
-    except Exception as e:
+
+    except HTTPException as he:
+        # Re-raise HTTP exceptions
+        processing_time = int((time.time() - start_time) * 1000)
+        print(f"❌ HTTP Exception: {he.detail}")
         return HomeworkParsingResponse(
             success=False,
             response="",
-            processing_time_ms=int((time.time() - start_time) * 1000),
-            error=f"Homework parsing error: {str(e)}"
+            processing_time_ms=processing_time,
+            error=f"Homework parsing error: {he.detail}"
+        )
+    except Exception as e:
+        processing_time = int((time.time() - start_time) * 1000)
+        print(f"❌ === UNEXPECTED ERROR ===")
+        print(f"💥 Error type: {type(e).__name__}")
+        print(f"💥 Error message: {str(e)}")
+        print(f"💥 Error details: {repr(e)}")
+        import traceback
+        print(f"📚 Traceback:")
+        traceback.print_exc()
+        print(f"=====================================")
+        return HomeworkParsingResponse(
+            success=False,
+            response="",
+            processing_time_ms=processing_time,
+            error=f"Homework parsing error: {type(e).__name__}: {str(e)}"
         )
 
 # NEW: Question Generation Request/Response Models
@@ -1556,7 +1590,7 @@ if __name__ == "__main__":
         # Increase limits for large image uploads
         limit_max_requests=1000,
         limit_concurrency=100,
-        timeout_keep_alive=30,
+        timeout_keep_alive=180,  # 3 minutes - match AI processing timeout expectations for complex homework
         # These are handled by Railway/nginx proxy, but good to set
         access_log=True
     )

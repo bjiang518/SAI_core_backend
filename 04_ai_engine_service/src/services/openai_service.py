@@ -599,7 +599,7 @@ Please evaluate this answer and provide helpful feedback."""
     ) -> Dict[str, Any]:
         """
         Parse homework images with structured response format for iOS app.
-        
+
         Returns responses in the exact format expected by the iOS device:
         QUESTION_NUMBER: [number]
         QUESTION: [question text]
@@ -607,22 +607,34 @@ Please evaluate this answer and provide helpful feedback."""
         CONFIDENCE: [0.0-1.0]
         HAS_VISUALS: [true/false]
         ═══QUESTION_SEPARATOR═══
-        
+
         Args:
             base64_image: Base64 encoded homework image
             custom_prompt: Optional custom prompt (uses default if not provided)
             student_context: Optional student information
-            
+
         Returns:
             Structured response formatted for iOS parsing
         """
-        
+
         try:
+            print(f"🔬 === PARSE HOMEWORK IMAGE DEBUG ===")
+            print(f"📏 Image length: {len(base64_image)} chars")
+            print(f"📝 Has custom prompt: {custom_prompt is not None}")
+            print(f"👤 Has student context: {student_context is not None}")
+
             # Create structured homework parsing prompt
             if custom_prompt:
                 system_prompt = custom_prompt
+                print(f"✅ Using custom prompt (length: {len(custom_prompt)})")
             else:
                 system_prompt = self._create_homework_parsing_prompt()
+                print(f"✅ Using default homework parsing prompt")
+
+            print(f"🤖 Model: gpt-4o")
+            print(f"🌡️ Temperature: 0.1")
+            print(f"🎯 Max tokens: 3000")
+            print(f"=====================================")
 
             # Use GPT-4o for vision + reasoning capabilities
             response = await self.client.chat.completions.create(
@@ -648,21 +660,35 @@ Please evaluate this answer and provide helpful feedback."""
                 temperature=0.1,  # Very low temperature for consistent formatting
                 max_tokens=3000
             )
-            
+
+            print(f"✅ === OPENAI RESPONSE RECEIVED ===")
+            print(f"📊 Response length: {len(response.choices[0].message.content)} chars")
+            print(f"=====================================")
+
             structured_response = response.choices[0].message.content
-            
+
             # Validate that the response follows the expected format
             if "═══QUESTION_SEPARATOR═══" not in structured_response:
+                print(f"⚠️ WARNING: Response missing question separator")
+                print(f"📄 Response preview: {structured_response[:300]}...")
                 # If no proper structure, create a fallback response
                 structured_response = self._create_fallback_homework_response()
-            
+
             return {
                 "success": True,
                 "structured_response": structured_response,
                 "processing_method": "openai_vision_gpt4o_homework"
             }
-            
+
         except Exception as e:
+            print(f"❌ === PARSE HOMEWORK IMAGE ERROR ===")
+            print(f"💥 Error type: {type(e).__name__}")
+            print(f"💥 Error message: {str(e)}")
+            print(f"💥 Error repr: {repr(e)}")
+            import traceback
+            print(f"📚 Traceback:")
+            traceback.print_exc()
+            print(f"=====================================")
             return {
                 "success": False,
                 "error": str(e),
