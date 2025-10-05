@@ -110,6 +110,7 @@ struct DirectAIHomeworkView: View {
 
     // Image source selection states
     @State private var showingCameraPicker = false
+    @State private var showingDocumentScanner = false
     @State private var showingPhotoPicker = false
     @State private var showingFilePicker = false
 
@@ -120,7 +121,10 @@ struct DirectAIHomeworkView: View {
     // Image editing functionality
     @State private var showingImageEditor = false
     @State private var editedImage: UIImage?
-    
+
+    // Animation state for entry animation
+    @State private var animationCompleted = false
+
     private let logger = Logger(subsystem: "com.studyai", category: "DirectAIHomeworkView")
     
     var body: some View {
@@ -186,6 +190,15 @@ struct DirectAIHomeworkView: View {
                     }
                 }
             ), isPresented: $showingCameraPicker)
+        }
+        .sheet(isPresented: $showingDocumentScanner) {
+            EnhancedCameraView(isPresented: $showingDocumentScanner)
+                .onDisappear {
+                    // Transfer captured image from CameraViewModel to stateManager
+                    if let capturedImage = CameraViewModel.shared.capturedImage {
+                        stateManager.originalImage = capturedImage
+                    }
+                }
         }
         .sheet(isPresented: $showingFilePicker) {
             DocumentPicker(selectedImage: Binding(
@@ -309,7 +322,7 @@ struct DirectAIHomeworkView: View {
     
     // MARK: - Image Source Selection View
     private var imageSourceSelectionView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 0) {
             // Lottie Animation
             LottieView(
                 animationName: "Education edit",
@@ -317,58 +330,76 @@ struct DirectAIHomeworkView: View {
                 animationSpeed: 1.0
             )
             .frame(width: 80, height: 80)
-            .scaleEffect(0.4)
-            .padding(.top, 20)
-            .padding(.bottom, 90)
+            .scaleEffect(0.55)
+            .padding(.top, 55)
+            .padding(.bottom, 140)  // 👈 EDIT THIS VALUE to adjust gap between animation and title (increase = larger gap)
 
             // Header
             VStack(spacing: 8) {
                 Text("Select Image Source")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 20, weight: .semibold, design: .default))
+                    .foregroundColor(.primary)
 
                 Text("Choose how you'd like to upload your homework")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 15, weight: .regular, design: .default))
+                    .foregroundColor(Color(red: 0.43, green: 0.43, blue: 0.45))
             }
-            
+
             Spacer()
-            
+
             // Image Source Options
             VStack(spacing: 16) {
-                // Camera Option
+                // Camera Option - Prominent with blue highlight
                 ImageSourceOption(
                     icon: "camera.fill",
                     title: "Take Photo",
                     subtitle: "Use camera to scan homework",
-                    color: .blue
+                    color: .blue,
+                    isProminent: true
                 ) {
-                    requestCameraPermissionAndShow()
+                    // Haptic feedback
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
+
+                    requestCameraPermissionAndShowScanner()
                 }
-                
+
                 // Photo Library Option
                 ImageSourceOption(
                     icon: "photo.on.rectangle.angled",
                     title: "Choose from Photos",
                     subtitle: "Select from photo library",
-                    color: .green
+                    color: .green,
+                    isProminent: false
                 ) {
                     showingPhotoPicker = true
                 }
-                
+
                 // Files Option
                 ImageSourceOption(
                     icon: "folder.fill",
                     title: "Choose from Files",
                     subtitle: "Import from Files app",
-                    color: .orange
+                    color: .orange,
+                    isProminent: false
                 ) {
                     showingFilePicker = true
                 }
             }
             .padding(.horizontal)
-            
+            .opacity(animationCompleted ? 1 : 0)
+            .offset(y: animationCompleted ? 0 : 20)
+            .animation(.easeOut(duration: 0.6).delay(0.3), value: animationCompleted)
+
             Spacer()
+        }
+        .onAppear {
+            // Trigger entry animation after Lottie finishes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                withAnimation {
+                    animationCompleted = true
+                }
+            }
         }
     }
     
@@ -729,6 +760,19 @@ struct DirectAIHomeworkView: View {
             }
         }
     }
+
+    private func requestCameraPermissionAndShowScanner() {
+        Task {
+            let hasPermission = await CameraPermissionManager.requestCameraPermission()
+            await MainActor.run {
+                if hasPermission {
+                    showingDocumentScanner = true
+                } else {
+                    cameraPermissionDenied = true
+                }
+            }
+        }
+    }
     
     private func processImage(_ image: UIImage) {
         isProcessing = true
@@ -983,34 +1027,51 @@ struct ImageSourceOption: View {
     let title: String
     let subtitle: String
     let color: Color
+    let isProminent: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack {
                 Image(systemName: icon)
                     .font(.title2)
-                    .foregroundColor(color)
+                    .foregroundColor(isProminent ? .white : color)
                     .frame(width: 40)
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundColor(isProminent ? .white : .primary)
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(isProminent ? .white.opacity(0.9) : .secondary)
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(isProminent ? .white.opacity(0.7) : .gray)
             }
             .padding()
-            .background(color.opacity(0.1))
-            .cornerRadius(12)
+            .background(
+                Group {
+                    if isProminent {
+                        // Blue prominent style with shadow
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color(red: 0, green: 0.478, blue: 1.0)) // #007AFF
+                            .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                            )
+                    } else {
+                        // Standard style
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(color.opacity(0.1))
+                    }
+                }
+            )
         }
         .buttonStyle(PlainButtonStyle())
     }
