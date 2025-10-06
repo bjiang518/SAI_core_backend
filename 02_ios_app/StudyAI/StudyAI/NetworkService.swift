@@ -1888,7 +1888,88 @@ class NetworkService: ObservableObject {
             return (false, error.localizedDescription)
         }
     }
-    
+
+    // MARK: - Batch Homework Processing
+
+    /// Process multiple homework images with batch API
+    func processHomeworkImagesBatch(base64Images: [String], prompt: String = "") async -> (success: Bool, responses: [[String: Any]]?, totalImages: Int, successCount: Int) {
+        print("📝 Processing \(base64Images.count) homework images in batch...")
+        print("🤖 Using batch AI parsing with subject detection")
+
+        guard let url = URL(string: "\(baseURL)/api/ai/process-homework-images-batch") else {
+            print("❌ Invalid batch homework parsing URL")
+            return (false, nil, base64Images.count, 0)
+        }
+
+        // Enhanced prompt for batch processing
+        let enhancedPrompt = """
+        Please analyze this homework image and provide:
+        1. SUBJECT_DETECTION: Identify the academic subject (Mathematics, Physics, Chemistry, Biology, English, History, Geography, Computer Science, Foreign Language, Arts, or Other)
+        2. CONFIDENCE_LEVEL: Your confidence in the subject detection (0.0-1.0)
+        3. QUESTIONS_AND_ANSWERS: Extract and solve all questions as usual
+
+        Format your response exactly as follows:
+        SUBJECT: [detected subject]
+        SUBJECT_CONFIDENCE: [0.0-1.0]
+
+        Then continue with the normal question format using ═══QUESTION_SEPARATOR═══ between questions.
+
+        Additional context: \(prompt.isEmpty ? "General homework analysis" : prompt)
+        """
+
+        let requestData: [String: Any] = [
+            "base64_images": base64Images,
+            "prompt": enhancedPrompt,
+            "student_id": "ios_user",
+            "include_subject_detection": true
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 180.0 // 3 minutes timeout for batch processing
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+
+            print("📡 Sending \(base64Images.count) homework images to AI engine for batch parsing...")
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                print("✅ Batch Homework Parsing Response Status: \(httpResponse.statusCode)")
+
+                if httpResponse.statusCode == 200 {
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        print("✅ Batch homework parsing successful")
+
+                        let totalImages = json["totalImages"] as? Int ?? base64Images.count
+                        let successfulImages = json["successfulImages"] as? Int ?? 0
+                        let results = json["results"] as? [[String: Any]] ?? []
+
+                        print("📊 Batch results: \(successfulImages)/\(totalImages) images processed successfully")
+
+                        return (true, results, totalImages, successfulImages)
+                    } else {
+                        print("❌ Failed to parse batch response JSON")
+                        return (false, nil, base64Images.count, 0)
+                    }
+                } else {
+                    print("❌ Batch homework parsing failed: HTTP \(httpResponse.statusCode)")
+                    if let responseData = String(data: data, encoding: .utf8) {
+                        print("❌ Error response: \(responseData)")
+                    }
+                    return (false, nil, base64Images.count, 0)
+                }
+            } else {
+                print("❌ No HTTP response for batch homework parsing")
+                return (false, nil, base64Images.count, 0)
+            }
+        } catch {
+            print("❌ Batch homework parsing request failed: \(error.localizedDescription)")
+            return (false, nil, base64Images.count, 0)
+        }
+    }
+
     // MARK: - Homework Parsing (Original)
     
     /// Send homework image for AI-powered parsing and question extraction

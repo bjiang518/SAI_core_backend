@@ -216,60 +216,45 @@ class CameraSessionManager: NSObject, ObservableObject {
         let newSessionId = UUID()
         sessionId = newSessionId
         sessionCreationTime = Date()
-        
+
         guard isCameraAvailable else {
             logger.warning("❌ Camera not available for usage - auth status: \(self.cameraAuthStatus.rawValue)")
             return
         }
-        
+
         logger.info("🔄 === PREPARING CAMERA FOR USAGE ===")
         logger.info("🆔 New Session ID: \(newSessionId.uuidString.prefix(8))")
-        logger.info("📱 Device Model: \(UIDevice.current.model)")
-        logger.info("📱 iOS Version: \(UIDevice.current.systemVersion)")
-        logger.info("🔋 Battery Level: \(UIDevice.current.batteryLevel)")
-        logger.info("🌡️ Thermal State: \(ProcessInfo.processInfo.thermalState.rawValue)")
-        
-        // CRITICAL: Force complete session cleanup before new usage
-        sessionQueue.sync {
-            if let existingSession = captureSession {
-                logger.warning("⚠️ Found existing session during prepare - FORCE CLEANUP")
-                logger.info("🔍 Existing session running: \(existingSession.isRunning)")
-                logger.info("🔍 Existing session inputs: \(existingSession.inputs.count)")
-                logger.info("🔍 Existing session outputs: \(existingSession.outputs.count)")
-                
+
+        // OPTIMIZED: Async cleanup without blocking main thread
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+
+            if let existingSession = self.captureSession {
+                self.logger.info("⚠️ Found existing session - cleaning up")
+
                 if existingSession.isRunning {
-                    logger.info("⏹️ Stopping existing session...")
                     existingSession.stopRunning()
                 }
-                
-                // Remove all connections
+
+                // Quick cleanup without detailed logging
                 for input in existingSession.inputs {
-                    logger.info("🔌 Removing input: \(input)")
                     existingSession.removeInput(input)
                 }
                 for output in existingSession.outputs {
-                    logger.info("📤 Removing output: \(output)")
                     existingSession.removeOutput(output)
                 }
-                
-                captureSession = nil
-                logger.info("🗑️ Existing session cleared")
+
+                self.captureSession = nil
             }
+
+            // Reset error state
+            self.errorCount = 0
+            self.lastErrorCode = nil
+            self.lastErrorTime = nil
+            self.consecutiveErrors = 0
+
+            self.logger.info("✅ Camera prepared")
         }
-        
-        // Reset all error state
-        errorCount = 0
-        lastErrorCode = nil
-        lastErrorTime = nil
-        consecutiveErrors = 0
-        
-        logger.info("🧹 Error state reset - count: \(self.errorCount)")
-        
-        // Enhanced delay to ensure cleanup is complete
-        logger.info("⏳ Waiting for session cleanup to complete...")
-        Thread.sleep(forTimeInterval: 0.5)
-        
-        logger.info("✅ === CAMERA PREPARED WITH CLEAN STATE ===")
     }
     
     func cleanupAfterCameraUsage() {

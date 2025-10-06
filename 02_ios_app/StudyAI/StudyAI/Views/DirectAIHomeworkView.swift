@@ -98,11 +98,12 @@ class AIHomeworkStateManager: ObservableObject {
             return false
         }
 
+        // Store original image WITHOUT compression (compression happens before AI processing)
         capturedImages.append(image)
         selectedImageIndex = capturedImages.count - 1  // Select the newly added image
         selectedImageIndices.insert(capturedImages.count - 1)  // Auto-select for AI
         originalImage = image  // Backward compatibility
-        logger.info("📸 Added image #\(self.capturedImages.count) of \(Self.maxImagesLimit)")
+        logger.info("📸 Added original image #\(self.capturedImages.count) of \(Self.maxImagesLimit) (uncompressed)")
         return true
     }
 
@@ -165,6 +166,7 @@ struct DirectAIHomeworkView: View {
     // Image editing functionality
     @State private var showingImageEditor = false
     @State private var editedImage: UIImage?
+    @State private var showingEditMultipleAlert = false  // Alert when multiple images selected for edit
 
     // Animation state for entry animation
     @State private var animationCompleted = false
@@ -248,24 +250,29 @@ struct DirectAIHomeworkView: View {
             EnhancedCameraView(isPresented: $showingDocumentScanner)
                 .onDisappear {
                     logger.info("📸 === DOCUMENT SCANNER SHEET DISMISSED ===")
-                    logger.info("🖼️ CameraViewModel has image: \(CameraViewModel.shared.capturedImage != nil)")
+                    logger.info("🖼️ CameraViewModel has images: \(CameraViewModel.shared.capturedImages.count)")
 
-                    // Transfer captured image from CameraViewModel to stateManager
-                    if let capturedImage = CameraViewModel.shared.capturedImage {
-                        logger.info("✅ Transferring captured image to stateManager")
-                        logger.info("📐 Image size: \(capturedImage.size.width)x\(capturedImage.size.height)")
+                    // Transfer ALL captured images from CameraViewModel to stateManager
+                    let capturedImages = CameraViewModel.shared.capturedImages
 
-                        // NEW: Check limit before adding
-                        let added = stateManager.addImage(capturedImage)
+                    if !capturedImages.isEmpty {
+                        logger.info("✅ Transferring \(capturedImages.count) images to stateManager")
 
-                        if added {
-                            logger.info("✅ Image transferred - should now show Ask AI preview page")
-                        } else {
-                            logger.warning("⚠️ Image limit reached, showing alert")
-                            showingImageLimitAlert = true
+                        // Add each image to stateManager
+                        for (index, image) in capturedImages.enumerated() {
+                            logger.info("📐 Image \(index + 1) size: \(image.size.width)x\(image.size.height)")
+
+                            let added = stateManager.addImage(image)
+                            if !added {
+                                logger.warning("⚠️ Image limit reached at image \(index + 1)")
+                                showingImageLimitAlert = true
+                                break
+                            }
                         }
+
+                        logger.info("✅ Transferred \(stateManager.capturedImages.count) images - should now show Ask AI preview page")
                     } else {
-                        logger.warning("⚠️ No captured image found in CameraViewModel")
+                        logger.warning("⚠️ No captured images found in CameraViewModel")
                     }
                 }
         }
@@ -316,7 +323,16 @@ struct DirectAIHomeworkView: View {
             .onDisappear {
                 // Update the image in state manager when editing is complete
                 if let edited = editedImage {
+                    // Update both originalImage and the corresponding image in capturedImages array
                     stateManager.originalImage = edited
+
+                    // Update the image in the capturedImages array
+                    let currentIndex = stateManager.selectedImageIndex
+                    if currentIndex < stateManager.capturedImages.count {
+                        stateManager.capturedImages[currentIndex] = edited
+                        logger.info("✅ Updated edited image at index \(currentIndex)")
+                    }
+
                     editedImage = nil
                 }
             }
@@ -345,6 +361,11 @@ struct DirectAIHomeworkView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("You can add up to \(AIHomeworkStateManager.maxImagesLimit) images. Please remove an image to add a new one.")
+        }
+        .alert("Select One Image", isPresented: $showingEditMultipleAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Please select 1 image at a time to edit.")
         }
         .fullScreenCover(isPresented: $showingFullScreenImage) {
             if let image = fullScreenImage {
@@ -509,19 +530,26 @@ struct DirectAIHomeworkView: View {
         VStack(spacing: 16) {
             // Compact Header
             HStack {
-                Text("Preview Images")
+                Text(stateManager.capturedImages.count == 1 ? "Preview Image" : "Preview Images")
                     .font(.title3)
                     .fontWeight(.bold)
                 Spacer()
-                Text("\(stateManager.selectedImageIndices.count) selected")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                if stateManager.capturedImages.count > 1 {
+                    Text("\(stateManager.selectedImageIndices.count) selected")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
             }
             .padding(.top, 8)
             .padding(.horizontal)
 
-            // Grid layout for all images
-            if !stateManager.capturedImages.isEmpty {
+            // Show enlarged single image or grid for multiple images
+            if stateManager.capturedImages.count == 1 {
+                // Enlarged single image view
+                singleImageEnlargedView
+                    .transition(.scale.combined(with: .opacity))
+            } else if !stateManager.capturedImages.isEmpty {
+                // Grid layout for multiple images
                 imageGridView
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -538,86 +566,212 @@ struct DirectAIHomeworkView: View {
             ) {
                 // Process selected images
                 if !self.stateManager.selectedImageIndices.isEmpty {
-                    // For now, process first selected image (can be extended to process multiple)
-                    if let firstIndex = self.stateManager.selectedImageIndices.sorted().first {
-                        self.processImage(self.stateManager.capturedImages[firstIndex])
-                    }
+                    // NEW: Batch process all selected images
+                    let selectedIndices = self.stateManager.selectedImageIndices.sorted()
+                    let selectedImages = selectedIndices.map { self.stateManager.capturedImages[$0] }
+                    self.processMultipleImages(selectedImages)
                 }
             }
             .disabled(isProcessing || stateManager.selectedImageIndices.isEmpty)
             .padding(.horizontal)
-            .padding(.top, 8)
+            .padding(.top, 24)  // Increased from 8 to 24 to move buttons down
             .transition(.scale.combined(with: .opacity))
+
+            // Secondary Actions - Edit and Clear
+            HStack(spacing: 12) {
+                // Edit Image Button
+                Button(action: {
+                    // Haptic feedback
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
+
+                    // Check if exactly 1 image is selected
+                    if stateManager.selectedImageIndices.count == 1 {
+                        // Edit the selected image
+                        if let selectedIndex = stateManager.selectedImageIndices.first {
+                            stateManager.selectedImageIndex = selectedIndex
+                            stateManager.originalImage = stateManager.capturedImages[selectedIndex]
+                            showingImageEditor = true
+                        }
+                    } else if stateManager.selectedImageIndices.count > 1 {
+                        // Show alert for multiple selection
+                        showingEditMultipleAlert = true
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.title3)
+                        Text("Edit")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.orange, Color.orange.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(14)
+                    .shadow(color: Color.orange.opacity(0.3), radius: 6, x: 0, y: 3)
+                }
+                .disabled(stateManager.selectedImageIndices.isEmpty)
+
+                // Clear Session Button
+                Button(action: {
+                    // Haptic feedback
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
+
+                    // Clear session and return to image source selection
+                    stateManager.clearSession()
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "trash.circle.fill")
+                            .font(.title3)
+                        Text("Clear")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.red, Color.red.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(14)
+                    .shadow(color: Color.red.opacity(0.3), radius: 6, x: 0, y: 3)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
         }
         .animation(.easeOut(duration: 0.4), value: stateManager.capturedImages.count)
+    }
+
+    // MARK: - Single Image Enlarged View
+    private var singleImageEnlargedView: some View {
+        VStack(spacing: 0) {
+            if let image = stateManager.capturedImages.first {
+                ZStack(alignment: .topTrailing) {
+                    // Large preview image
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxHeight: UIScreen.main.bounds.height * 0.55)
+                        .background(Color.gray.opacity(0.05))
+                        .cornerRadius(16)
+                        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
+                        .padding(.horizontal, 16)
+
+                    // X delete button in top-right corner
+                    Button(action: {
+                        withAnimation {
+                            stateManager.removeImage(at: 0)
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(.white)
+                            .background(Circle().fill(Color.black.opacity(0.6)))
+                            .shadow(color: Color.black.opacity(0.3), radius: 4, x: 0, y: 2)
+                    }
+                    .padding(24)
+                }
+            }
+        }
     }
 
     // MARK: - Image Grid View (for all images)
     private var imageGridView: some View {
         let _ = logger.info("🖼️ GRID VIEW RENDERING: \(self.stateManager.capturedImages.count) images in array")
 
-        return LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 12),
-            GridItem(.flexible(), spacing: 12)
-        ], spacing: 12) {
-            ForEach(Array(self.stateManager.capturedImages.enumerated()), id: \.offset) { index, image in
-                ZStack(alignment: .topTrailing) {
-                    // Image with selection border
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(height: 160)
-                        .clipped()
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(
-                                    stateManager.selectedImageIndices.contains(index) ? Color.blue : Color.gray.opacity(0.3),
-                                    lineWidth: stateManager.selectedImageIndices.contains(index) ? 3 : 1
-                                )
-                        )
-                        .onTapGesture {
-                            // Toggle selection
-                            withAnimation {
-                                if self.stateManager.selectedImageIndices.contains(index) {
-                                    self.stateManager.selectedImageIndices.remove(index)
-                                } else {
-                                    self.stateManager.selectedImageIndices.insert(index)
+        let imageCount = self.stateManager.capturedImages.count
+        let rows = (imageCount + 1) / 2  // Calculate number of rows (2 columns)
+        let gridHeight: CGFloat = CGFloat(rows) * 180 + CGFloat(rows - 1) * 16  // height per row + spacing
+
+        return GeometryReader { geometry in
+            let gridPadding: CGFloat = 16  // Horizontal padding
+            let gridSpacing: CGFloat = 16  // Space between columns
+            let availableWidth = geometry.size.width - (2 * gridPadding) - gridSpacing
+            let itemWidth = availableWidth / 2  // Two columns
+
+            LazyVGrid(columns: [
+                GridItem(.fixed(itemWidth), spacing: gridSpacing),
+                GridItem(.fixed(itemWidth), spacing: gridSpacing)
+            ], spacing: 16) {
+                ForEach(Array(self.stateManager.capturedImages.enumerated()), id: \.offset) { index, image in
+                    ZStack(alignment: .topTrailing) {
+                        // Image with selection border
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: itemWidth, height: 180)
+                            .clipped()
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(
+                                        stateManager.selectedImageIndices.contains(index) ? Color.blue : Color.gray.opacity(0.3),
+                                        lineWidth: stateManager.selectedImageIndices.contains(index) ? 3 : 1
+                                    )
+                            )
+                            .onTapGesture {
+                                // Toggle selection
+                                withAnimation {
+                                    if self.stateManager.selectedImageIndices.contains(index) {
+                                        self.stateManager.selectedImageIndices.remove(index)
+                                    } else {
+                                        self.stateManager.selectedImageIndices.insert(index)
+                                    }
                                 }
                             }
-                        }
 
-                    // X delete button
-                    Button(action: {
-                        withAnimation {
-                            self.stateManager.removeImage(at: index)
-                        }
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.white)
-                            .background(Circle().fill(Color.black.opacity(0.6)))
-                    }
-                    .padding(8)
-
-                    // Selection checkmark
-                    if stateManager.selectedImageIndices.contains(index) {
-                        VStack {
-                            Spacer()
-                            HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 24))
-                                    .foregroundColor(.blue)
-                                    .background(Circle().fill(Color.white))
-                                Spacer()
+                        // X delete button
+                        Button(action: {
+                            withAnimation {
+                                self.stateManager.removeImage(at: index)
                             }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.white)
+                                .background(Circle().fill(Color.black.opacity(0.6)))
                         }
                         .padding(8)
+
+                        // Selection checkmark
+                        if stateManager.selectedImageIndices.contains(index) {
+                            VStack {
+                                Spacer()
+                                HStack {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.blue)
+                                        .background(Circle().fill(Color.white))
+                                    Spacer()
+                                }
+                            }
+                            .padding(8)
+                        }
                     }
+                    .frame(width: itemWidth, height: 180)
                 }
             }
+            .padding(.horizontal, gridPadding)
         }
-        .padding(.horizontal)
+        .frame(height: gridHeight)  // Set explicit height
     }
 
     // MARK: - Image Gallery View (for multiple images)
@@ -690,20 +844,26 @@ struct DirectAIHomeworkView: View {
             VStack(spacing: 20) {
                 // Status Section
                 statusSection
-                
-                // Image Section
-                if let image = stateManager.originalImage {
+
+                // Image Section - Show all captured images in deck style
+                if !stateManager.capturedImages.isEmpty {
+                    imageDeckSection(
+                        title: stateManager.capturedImages.count == 1 ? "Scanned Document" : "Scanned Documents",
+                        images: stateManager.capturedImages
+                    )
+                } else if let image = stateManager.originalImage {
+                    // Fallback for backward compatibility
                     imageSection(title: "Scanned Document", image: image)
                 }
-                
+
                 // Results Section
                 if let result = stateManager.parsingResult {
                     resultsSection(result)
                 }
-                
+
                 // Controls Section
                 controlsSection
-                
+
                 Spacer(minLength: 100)
             }
             .padding()
@@ -761,18 +921,54 @@ struct DirectAIHomeworkView: View {
                         .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                 )
                 .padding(.horizontal)
-                .onTapGesture {
-                    showFullScreenImage(image, title: title)
-                }
+        }
+    }
 
-            // Tap to zoom hint
+    // MARK: - Image Deck Section (for multiple images)
+    private func imageDeckSection(title: String, images: [UIImage]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
+                Text(title)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+
                 Spacer()
-                Label("Tap to zoom", systemImage: "viewfinder")
+
+                // Image count badge
+                Text("\(images.count)")
                     .font(.caption)
-                    .foregroundColor(.secondary)
-                Spacer()
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .frame(minWidth: 24, minHeight: 24)
+                    .background(Color.blue)
+                    .clipShape(Circle())
             }
+            .padding(.horizontal)
+
+            // Deck-style stacked images display
+            ZStack {
+                ForEach(Array(images.enumerated().reversed()), id: \.offset) { index, image in
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxHeight: 200)
+                        .background(Color.gray.opacity(0.05))
+                        .cornerRadius(20)
+                        .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
+                        .offset(
+                            x: CGFloat(index) * 8,
+                            y: CGFloat(index) * 8
+                        )
+                        .scaleEffect(1.0 - (CGFloat(index) * 0.02))
+                        .zIndex(Double(images.count - index))
+                }
+            }
+            .padding(.horizontal)
+            .padding(.bottom, CGFloat(images.count - 1) * 8) // Add padding for deck offset
         }
     }
 
@@ -1023,7 +1219,169 @@ struct DirectAIHomeworkView: View {
         }
     }
 
-    // MARK: - Send to AI Method
+    // MARK: - Process Multiple Images (Batch)
+    private func processMultipleImages(_ images: [UIImage]) {
+        isProcessing = true
+        stateManager.processingStatus = "Processing \(images.count) homework images with AI..."
+        stateManager.parsingError = nil
+
+        logger.info("🚀 === BATCH HOMEWORK IMAGE PROCESSING STARTED ===")
+        logger.info("📊 Processing \(images.count) images")
+
+        Task {
+            // Preprocess all images
+            var processedImages: [UIImage] = []
+            for (index, image) in images.enumerated() {
+                logger.info("🔧 Preprocessing image \(index + 1)/\(images.count)")
+                let processed = ImageProcessingService.shared.preprocessImageForAI(image) ?? image
+                processedImages.append(processed)
+            }
+
+            await MainActor.run {
+                stateManager.processingStatus = "🤖 AI is analyzing \(images.count) homework images..."
+            }
+
+            await sendBatchToAI(images: processedImages)
+        }
+    }
+
+    // MARK: - Send Batch to AI Method
+    private func sendBatchToAI(images: [UIImage]) async {
+        await MainActor.run {
+            stateManager.currentStage = .compressing
+            stateManager.processingStatus = "📦 Compressing \(images.count) images..."
+            stateManager.parsingError = nil
+        }
+
+        logger.info("📡 === SENDING \(images.count) IMAGES TO AI ===")
+        let startTime = Date()
+
+        // Compress all images
+        var base64Images: [String] = []
+        for (index, image) in images.enumerated() {
+            logger.info("🗜️ Compressing image \(index + 1)/\(images.count)")
+            guard let imageData = compressPreprocessedImage(image) else {
+                await MainActor.run {
+                    stateManager.parsingError = "Failed to compress image \(index + 1)"
+                    stateManager.processingStatus = "❌ Image compression failed"
+                    stateManager.currentStage = .idle
+                    showingErrorAlert = true
+                    isProcessing = false
+                }
+                return
+            }
+
+            let base64String = imageData.base64EncodedString()
+            base64Images.append(base64String)
+            logger.info("✅ Image \(index + 1) compressed: \(imageData.count) bytes")
+        }
+
+        await MainActor.run {
+            stateManager.currentStage = .uploading
+            stateManager.processingStatus = "📤 Uploading \(images.count) images to AI..."
+        }
+
+        logger.info("📡 Sending batch to AI for processing...")
+
+        // Simulate upload progress
+        await simulateUploadProgress()
+
+        // Update to analyzing stage
+        await MainActor.run {
+            stateManager.currentStage = .analyzing
+            stateManager.processingStatus = "🔍 AI analyzing \(images.count) images..."
+        }
+
+        // Process with batch AI API
+        let result = await NetworkService.shared.processHomeworkImagesBatch(
+            base64Images: base64Images,
+            prompt: ""
+        )
+
+        let processingTime = Date().timeIntervalSince(startTime)
+
+        await MainActor.run {
+            stateManager.currentStage = .parsing
+            stateManager.processingStatus = "📊 Preparing batch results..."
+
+            if result.success, let responses = result.responses {
+                logger.info("🎉 Batch AI processing successful: \(result.successCount)/\(result.totalImages) images")
+                processBatchResponse(responses, processingTime: processingTime)
+            } else {
+                logger.error("❌ Batch AI processing failed")
+                stateManager.parsingError = "Batch processing failed: Only \(result.successCount)/\(result.totalImages) images processed"
+                stateManager.processingStatus = "❌ Batch AI processing failed"
+                showingErrorAlert = true
+            }
+            isProcessing = false
+        }
+    }
+
+    // MARK: - Process Batch Response
+    private func processBatchResponse(_ responses: [[String: Any]], processingTime: TimeInterval) {
+        stateManager.currentStage = .parsing
+        stateManager.processingStatus = "📊 Parsing batch results..."
+
+        // Combine results from all successful images
+        var allQuestions: [ParsedQuestion] = []
+        var firstSubject = "Unknown"
+        var firstConfidence: Float = 0.0
+
+        for (index, responseDict) in responses.enumerated() {
+            if let success = responseDict["success"] as? Bool, success,
+               let data = responseDict["data"] as? [String: Any],
+               let response = data["response"] as? String {
+
+                logger.info("📄 Processing response from image \(index + 1)")
+
+                // Parse this image's response
+                if let parsed = EnhancedHomeworkParser.shared.parseEnhancedHomeworkResponse(response) {
+                    // Take subject from first image
+                    if index == 0 {
+                        firstSubject = parsed.detectedSubject
+                        firstConfidence = parsed.subjectConfidence
+                    }
+
+                    // Add all questions from this image
+                    allQuestions.append(contentsOf: parsed.questions)
+                    logger.info("✅ Image \(index + 1): Found \(parsed.questions.count) questions")
+                }
+            }
+        }
+
+        logger.info("📊 Total questions from batch: \(allQuestions.count)")
+
+        // Create combined result
+        let overallConfidence = allQuestions.isEmpty ? 0.0 : allQuestions.map { $0.confidence }.reduce(0.0, +) / Float(allQuestions.count)
+
+        stateManager.enhancedResult = EnhancedHomeworkParsingResult(
+            questions: allQuestions,
+            detectedSubject: firstSubject,
+            subjectConfidence: firstConfidence,
+            processingTime: processingTime,
+            overallConfidence: overallConfidence,
+            parsingMethod: "Batch AI Processing (\(responses.count) images)",
+            rawAIResponse: "Batch processing of \(responses.count) images",
+            totalQuestionsFound: allQuestions.count,
+            jsonParsingUsed: false,
+            performanceSummary: nil
+        )
+
+        stateManager.parsingResult = HomeworkParsingResult(
+            questions: allQuestions,
+            processingTime: processingTime,
+            overallConfidence: overallConfidence,
+            parsingMethod: "Batch AI Processing (\(responses.count) images)",
+            rawAIResponse: "Batch processing of \(responses.count) images",
+            performanceSummary: nil
+        )
+
+        stateManager.processingStatus = allQuestions.count > 0 ?
+            "✅ Batch analysis complete: \(allQuestions.count) questions found" :
+            "⚠️ Batch analysis complete: No questions detected"
+    }
+
+    // MARK: - Send to AI Method (Single Image - Kept for backward compatibility)
     private func sendToAI(image: UIImage) async {
         await MainActor.run {
             stateManager.currentStage = .compressing
@@ -1130,7 +1488,7 @@ struct DirectAIHomeworkView: View {
                 jsonParsingUsed: enhanced.jsonParsingUsed,
                 performanceSummary: enhanced.performanceSummary
             )
-            
+
             stateManager.parsingResult = HomeworkParsingResult(
                 questions: enhanced.questions,
                 processingTime: processingTime,
@@ -1139,15 +1497,37 @@ struct DirectAIHomeworkView: View {
                 rawAIResponse: enhanced.rawAIResponse,
                 performanceSummary: enhanced.performanceSummary
             )
-            
+
             stateManager.processingStatus = enhanced.questions.count > 0 ?
                 "✅ Analysis complete: \(enhanced.questions.count) questions found" :
                 "⚠️ Analysis complete: No questions detected"
         } else {
-            // Fallback parsing
-            stateManager.processingStatus = "🔄 Using fallback parsing..."
-            // TODO: Add fallback parsing if needed
-            stateManager.processingStatus = "❌ Could not parse homework content"
+            // Parser returned nil - create empty result for "no questions detected" case
+            logger.info("⚠️ Parser returned nil - creating empty result")
+
+            stateManager.enhancedResult = EnhancedHomeworkParsingResult(
+                questions: [],
+                detectedSubject: "Unknown",
+                subjectConfidence: 0.0,
+                processingTime: processingTime,
+                overallConfidence: 0.0,
+                parsingMethod: "No questions detected",
+                rawAIResponse: actualResponse,
+                totalQuestionsFound: 0,
+                jsonParsingUsed: false,
+                performanceSummary: nil
+            )
+
+            stateManager.parsingResult = HomeworkParsingResult(
+                questions: [],
+                processingTime: processingTime,
+                overallConfidence: 0.0,
+                parsingMethod: "No questions detected",
+                rawAIResponse: actualResponse,
+                performanceSummary: nil
+            )
+
+            stateManager.processingStatus = "⚠️ Analysis complete: No questions detected"
         }
     }
     

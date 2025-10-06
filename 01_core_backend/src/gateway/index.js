@@ -242,6 +242,30 @@ if (features.useGateway) {
   // Health and monitoring routes
   new HealthRoutes(fastify);
 
+  // PHASE 1 OPTIMIZATION: Database pool monitoring endpoint
+  const { getPoolHealth } = require('../utils/railway-database');
+
+  fastify.get('/api/metrics/database-pool', async (request, reply) => {
+    try {
+      const poolHealth = getPoolHealth();
+      return {
+        success: true,
+        timestamp: new Date().toISOString(),
+        pool: poolHealth,
+        message: poolHealth.isHealthy ? '✅ Database pool is healthy' : '⚠️ Database pool issues detected'
+      };
+    } catch (error) {
+      fastify.log.error('Error getting pool stats:', error);
+      return {
+        success: false,
+        error: 'Failed to retrieve pool statistics',
+        timestamp: new Date().toISOString()
+      };
+    }
+  });
+
+  fastify.log.info('✅ Database pool monitoring endpoint registered at /api/metrics/database-pool');
+
   // Authentication routes
   new AuthRoutes(fastify);
 

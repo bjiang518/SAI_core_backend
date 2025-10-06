@@ -157,19 +157,44 @@ class EnhancedHomeworkParser {
     
     /// Parse questions from response using existing delimiter logic
     private func parseQuestionsFromResponse(_ response: String) -> [ParsedQuestion] {
+        // Check if the response explicitly indicates no questions were found
+        let lowercaseResponse = response.lowercased()
+        if lowercaseResponse.contains("no questions detected") ||
+           lowercaseResponse.contains("no questions found") ||
+           lowercaseResponse.contains("unable to detect any questions") ||
+           lowercaseResponse.contains("could not find any questions") {
+            print("📊 AI explicitly reported no questions detected")
+            return []
+        }
+
         let questionBlocks = response.components(separatedBy: "═══QUESTION_SEPARATOR═══")
         var questions: [ParsedQuestion] = []
-        
+
         for (index, block) in questionBlocks.enumerated() {
             let trimmedBlock = block.trimmingCharacters(in: .whitespacesAndNewlines)
-            
+
             guard !trimmedBlock.isEmpty else { continue }
-            
+
+            // Skip blocks that are just "no questions" messages
+            let lowercaseBlock = trimmedBlock.lowercased()
+            if lowercaseBlock.contains("no questions detected") ||
+               lowercaseBlock.contains("no questions found") ||
+               lowercaseBlock.contains("unable to detect") {
+                print("📊 Skipping 'no questions' message block")
+                continue
+            }
+
             let question = parseQuestionBlock(trimmedBlock, defaultNumber: index + 1)
-            questions.append(question)
+
+            // Filter out invalid questions (empty text or confidence 0)
+            if !question.questionText.isEmpty && question.confidence > 0 {
+                questions.append(question)
+            } else {
+                print("📊 Filtered out invalid question block")
+            }
         }
-        
-        print("📊 Parsed \(questions.count) questions from enhanced response")
+
+        print("📊 Parsed \(questions.count) valid questions from enhanced response")
         return questions
     }
     
@@ -256,11 +281,24 @@ class EnhancedHomeworkParser {
             answerText = correctAnswer
         }
         
-        // Fallback: if no structured format found, treat entire block as question
+        // Fallback: if no structured format found, check if this looks like a real question
         if questionText.isEmpty && mainAnswer.isEmpty {
-            questionText = block.trimmingCharacters(in: .whitespacesAndNewlines)
-            answerText = "Unable to parse answer from response"
-            confidence = 0.3
+            // Check if block contains "no questions" indicators
+            let lowercaseBlock = block.lowercased()
+            if lowercaseBlock.contains("no questions") ||
+               lowercaseBlock.contains("unable to detect") ||
+               lowercaseBlock.contains("could not find") ||
+               lowercaseBlock.count < 10 { // Too short to be a real question
+                // Don't create a dummy question - this will be filtered out
+                questionText = ""
+                answerText = ""
+                confidence = 0.0
+            } else {
+                // Treat entire block as question only if it looks substantial
+                questionText = block.trimmingCharacters(in: .whitespacesAndNewlines)
+                answerText = "Unable to parse answer from response"
+                confidence = 0.3
+            }
         }
         
         // Create ParsedQuestion with new grading fields

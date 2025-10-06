@@ -51,6 +51,7 @@ class CameraViewModel: ObservableObject {
     
     // MARK: - Published Properties
     @Published var capturedImage: UIImage?
+    @Published var capturedImages: [UIImage] = []  // NEW: Support multiple images from document scanner
     @Published var isProcessingImage = false
     @Published var lastCameraError: String?
     @Published var captureState: CaptureFlowState = .idle
@@ -136,26 +137,57 @@ class CameraViewModel: ObservableObject {
         }
     }
     
+    /// NEW: Store multiple captured images (for document scanner with multiple pages)
+    func storeMultipleImages(_ images: [UIImage], source: String) async {
+        await MainActor.run {
+            isProcessingImage = true
+            captureState = .capturing
+            logger.info("🔄 Starting processing of \(images.count) images...")
+        }
+
+        var processedImages: [UIImage] = []
+
+        for (index, image) in images.enumerated() {
+            logger.info("📄 Processing image \(index + 1)/\(images.count)")
+            let processed = await processImageForStorage(image)
+            processedImages.append(processed)
+        }
+
+        await MainActor.run {
+            self.capturedImages = processedImages
+            self.capturedImage = processedImages.first  // Backward compatibility
+            self.captureState = .preview
+            self.lastCameraError = nil
+            self.suppressNextCleanup = true
+
+            logger.info("✅ === \(processedImages.count) IMAGES SUCCESSFULLY STORED ===")
+            isProcessingImage = false
+        }
+    }
+
     /// Clear stored image and reset state - only call after successful upload or explicit reset
     func clearForNextCapture() {
         Task { @MainActor in
             let hadImage = capturedImage != nil
+            let hadImages = !self.capturedImages.isEmpty
             logger.info("🧹 === CLEARING CAPTURED IMAGE FOR NEXT CAPTURE ===")
-            logger.info("📄 Had image before clear: \(hadImage)")
+            logger.info("📄 Had single image before clear: \(hadImage)")
+            logger.info("📄 Had multiple images before clear: \(hadImages) (\(self.capturedImages.count) images)")
             logger.info("🎯 Current state: \(self.captureState)")
-            
+
             capturedImage = nil
+            capturedImages = []  // Clear multiple images
             lastCameraError = nil
             isProcessingImage = false
             captureState = .idle
             suppressNextCleanup = false
-            
+
             logger.info("✅ ViewModel cleared for next capture")
-            
+
             // Verification
             try? await Task.sleep(nanoseconds: 50_000_000) // 0.05 second
-            let finalCheck = capturedImage == nil
-            logger.info("🗑️ Final clear verification: Image cleared = \(finalCheck)")
+            let finalCheck = capturedImage == nil && self.capturedImages.isEmpty
+            logger.info("🗑️ Final clear verification: All images cleared = \(finalCheck)")
             logger.info("🎯 Final state: \(self.captureState)")
         }
     }

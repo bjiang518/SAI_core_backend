@@ -60,6 +60,47 @@ class AIProxyRoutes {
       }
     }, this.processHomeworkImageJSON.bind(this));
 
+    // Process multiple homework images in batch - for iOS app multi-image support
+    this.fastify.post('/api/ai/process-homework-images-batch', {
+      schema: {
+        description: 'Process multiple homework images with base64 JSON data in batch',
+        tags: ['AI', 'Batch'],
+        body: {
+          type: 'object',
+          required: ['base64_images'],
+          properties: {
+            base64_images: {
+              type: 'array',
+              items: { type: 'string' },
+              minItems: 1,
+              maxItems: 4  // Maximum 4 images per batch
+            },
+            prompt: { type: 'string' },
+            student_id: { type: 'string' },
+            include_subject_detection: { type: 'boolean', default: true }
+          }
+        }
+      },
+      config: {
+        rateLimit: {
+          max: 5,  // 5 batch requests per hour (stricter than single image)
+          timeWindow: '1 hour',
+          keyGenerator: async (request) => {
+            const userId = await this.getUserIdFromToken(request);
+            return userId || request.ip;
+          },
+          errorResponseBuilder: (request, context) => {
+            return {
+              error: 'Rate limit exceeded',
+              code: 'RATE_LIMIT_EXCEEDED',
+              message: `You can only process ${context.max} batch homework requests per hour. Please try again later.`,
+              retryAfter: context.after
+            };
+          }
+        }
+      }
+    }, this.processHomeworkImagesBatch.bind(this));
+
     // Process chat image - optimized for fast chat interactions
     this.fastify.post('/api/ai/chat-image', {
       schema: {
@@ -589,6 +630,132 @@ class AIProxyRoutes {
       return reply.status(500).send({
         error: 'Internal server error processing image JSON',
         code: 'PROCESSING_ERROR'
+      });
+    }
+  }
+
+  async processHomeworkImagesBatch(request, reply) {
+    const startTime = Date.now();
+
+    try {
+      const { base64_images, prompt = '', student_id, include_subject_detection = true } = request.body;
+
+      // Validate image count
+      if (!base64_images || !Array.isArray(base64_images) || base64_images.length === 0) {
+        return reply.status(400).send({
+          error: 'Invalid request',
+          code: 'INVALID_REQUEST',
+          message: 'base64_images must be a non-empty array'
+        });
+      }
+
+      if (base64_images.length > 4) {
+        return reply.status(400).send({
+          error: 'Too many images',
+          code: 'TOO_MANY_IMAGES',
+          message: 'Maximum 4 images allowed per batch request',
+          maxImages: 4,
+          providedImages: base64_images.length
+        });
+      }
+
+      // Validate payload size (8MB for up to 4 images)
+      const MAX_PAYLOAD_SIZE = 8 * 1024 * 1024;  // 8MB max for batch
+      const payloadSize = JSON.stringify(request.body).length;
+
+      if (payloadSize > MAX_PAYLOAD_SIZE) {
+        this.fastify.log.warn(`❌ Batch payload too large: ${(payloadSize / 1024 / 1024).toFixed(2)} MB`);
+        return reply.status(413).send({
+          error: 'Payload too large',
+          code: 'PAYLOAD_TOO_LARGE',
+          message: `Maximum allowed size is ${(MAX_PAYLOAD_SIZE / 1024 / 1024).toFixed(1)} MB for batch requests. Your payload is ${(payloadSize / 1024 / 1024).toFixed(2)} MB.`,
+          maxSizeMB: MAX_PAYLOAD_SIZE / 1024 / 1024,
+          actualSizeMB: payloadSize / 1024 / 1024
+        });
+      }
+
+      this.fastify.log.info(`📦 Processing ${base64_images.length} homework images in batch: ${(payloadSize / 1024).toFixed(2)} KB`);
+
+      // Process images sequentially (for now - can be optimized to parallel later)
+      const results = [];
+      let totalProcessingTime = 0;
+
+      for (let i = 0; i < base64_images.length; i++) {
+        const imageStartTime = Date.now();
+        this.fastify.log.info(`Processing image ${i + 1}/${base64_images.length}...`);
+
+        try {
+          const requestBody = {
+            base64_image: base64_images[i],
+            prompt: prompt,
+            student_id: student_id,
+            include_subject_detection: include_subject_detection
+          };
+
+          const result = await this.aiClient.proxyRequest(
+            'POST',
+            '/api/v1/process-homework-image',
+            requestBody,
+            { 'Content-Type': 'application/json' }
+          );
+
+          const imageDuration = Date.now() - imageStartTime;
+          totalProcessingTime += imageDuration;
+
+          if (result.success) {
+            results.push({
+              imageIndex: i,
+              success: true,
+              data: result.data,
+              processingTime: imageDuration
+            });
+            this.fastify.log.info(`✅ Image ${i + 1}/${base64_images.length} processed successfully (${imageDuration}ms)`);
+          } else {
+            results.push({
+              imageIndex: i,
+              success: false,
+              error: result.error || 'Processing failed',
+              processingTime: imageDuration
+            });
+            this.fastify.log.error(`❌ Image ${i + 1}/${base64_images.length} processing failed: ${result.error}`);
+          }
+        } catch (error) {
+          const imageDuration = Date.now() - imageStartTime;
+          totalProcessingTime += imageDuration;
+
+          results.push({
+            imageIndex: i,
+            success: false,
+            error: error.message || 'Unexpected error',
+            processingTime: imageDuration
+          });
+          this.fastify.log.error(`❌ Image ${i + 1}/${base64_images.length} processing error:`, error);
+        }
+      }
+
+      const totalDuration = Date.now() - startTime;
+      const successCount = results.filter(r => r.success).length;
+
+      return reply.send({
+        success: successCount > 0,
+        totalImages: base64_images.length,
+        successfulImages: successCount,
+        failedImages: base64_images.length - successCount,
+        results: results,
+        _gateway: {
+          totalProcessTime: totalDuration,
+          averageProcessTime: totalProcessingTime / base64_images.length,
+          service: 'ai-engine',
+          batchMode: true
+        }
+      });
+
+    } catch (error) {
+      this.fastify.log.error('Error processing homework images batch:', error);
+      return reply.status(500).send({
+        error: 'Internal server error processing images batch',
+        code: 'BATCH_PROCESSING_ERROR',
+        message: error.message
       });
     }
   }

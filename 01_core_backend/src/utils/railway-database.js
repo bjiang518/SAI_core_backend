@@ -8,17 +8,29 @@ const crypto = require('crypto');
 const NodeCache = require('node-cache');
 const { promisify } = require('util');
 
-// Enhanced connection pool with optimization
+// PHASE 1 OPTIMIZATION: Enhanced connection pool configuration
+// Optimized for Railway's PostgreSQL limits (20 connections max)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 30, // Increased pool size for better concurrency
-  min: 5,  // Minimum connections to maintain
-  idleTimeoutMillis: 60000, // Keep connections alive longer
-  connectionTimeoutMillis: 5000,
-  statement_timeout: 30000,
-  query_timeout: 30000,
-  application_name: 'StudyAI_Backend'
+
+  // OPTIMIZED: Connection limits for Railway
+  max: 20,  // Railway max connections (reduced from 30 for safety)
+  min: 2,   // Keep 2 warm connections (reduced from 5 to save resources)
+
+  // OPTIMIZED: Timeout configuration
+  idleTimeoutMillis: 30000, // Close idle connections after 30s (was 60s)
+  connectionTimeoutMillis: 2000, // Fail fast if no connection (was 5s)
+
+  // OPTIMIZED: Query timeouts
+  statement_timeout: 10000,  // 10s statement timeout (was 30s)
+  query_timeout: 10000,      // 10s query timeout (was 30s)
+
+  // Metadata
+  application_name: 'StudyAI_Backend',
+
+  // PHASE 1: Prevent connection leaks
+  allowExitOnIdle: false  // Don't exit on idle connections
 });
 
 // Multi-level caching system
@@ -44,21 +56,39 @@ let queryMetrics = {
   cacheHits: 0,
   cacheMisses: 0,
   averageQueryTime: 0,
-  slowQueries: []
+  slowQueries: [],
+  // PHASE 1: Pool health tracking
+  poolHealthChecks: 0,
+  connectionTimeouts: 0,
+  poolExhaustion: 0
 };
 
-// Connection monitoring with detailed logging
+// PHASE 1 OPTIMIZATION: Improved connection monitoring (less verbose)
 pool.on('connect', (client) => {
-  console.log('✅ New PostgreSQL client connected - Pool size:', pool.totalCount);
+  console.log('✅ PostgreSQL client connected - Pool: total=' + pool.totalCount + ', idle=' + pool.idleCount);
 });
 
 pool.on('acquire', (client) => {
-  console.log('📊 Client acquired from pool - Active:', pool.idleCount, 'Idle:', pool.waitingCount, 'Waiting');
+  // OPTIMIZED: Only log if pool is getting full (potential bottleneck)
+  const activeConnections = pool.totalCount - pool.idleCount;
+  if (activeConnections > 15) {  // Alert when > 75% of pool is active
+    console.warn(`⚠️ High pool usage: ${activeConnections}/20 active, ${pool.waitingCount} waiting`);
+  }
+
+  // Track pool exhaustion for metrics
+  if (pool.waitingCount > 0) {
+    queryMetrics.poolExhaustion++;
+  }
 });
 
 pool.on('error', (err, client) => {
-  console.error('❌ Unexpected error on idle PostgreSQL client', err);
-  // Don't exit - let the pool handle it
+  console.error('❌ Unexpected PostgreSQL error:', err.message);
+  // Log connection timeouts separately
+  if (err.message && err.message.includes('timeout')) {
+    queryMetrics.connectionTimeouts++;
+    console.error('⚠️ Connection timeout count:', queryMetrics.connectionTimeouts);
+  }
+  // Don't exit - let the pool handle reconnection
 });
 
 // Query result preparation helper
@@ -2992,7 +3022,54 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
+// PHASE 1 OPTIMIZATION: Pool statistics for monitoring
+function getPoolStats() {
+  return {
+    // Connection pool status
+    totalConnections: pool.totalCount,
+    idleConnections: pool.idleCount,
+    activeConnections: pool.totalCount - pool.idleCount,
+    waitingRequests: pool.waitingCount,
+
+    // Pool configuration
+    maxConnections: 20,
+    minConnections: 2,
+
+    // Health indicators
+    poolUtilization: ((pool.totalCount - pool.idleCount) / 20 * 100).toFixed(1) + '%',
+    isHealthy: pool.waitingCount === 0 && (pool.totalCount - pool.idleCount) < 18,
+
+    // Performance metrics
+    connectionTimeouts: queryMetrics.connectionTimeouts,
+    poolExhaustion: queryMetrics.poolExhaustion,
+
+    // Recommendations
+    warnings: []
+  };
+}
+
+// Add warnings based on pool health
+function getPoolHealth() {
+  const stats = getPoolStats();
+
+  if (stats.waitingRequests > 0) {
+    stats.warnings.push('⚠️ Requests are waiting for connections - consider increasing pool size');
+  }
+
+  if (stats.activeConnections > 15) {
+    stats.warnings.push('⚠️ High pool utilization (>75%) - monitor for bottlenecks');
+  }
+
+  if (stats.connectionTimeouts > 10) {
+    stats.warnings.push('❌ High connection timeout rate - check database performance');
+  }
+
+  return stats;
+}
+
 module.exports = {
   db,
-  initializeDatabase
+  initializeDatabase,
+  getPoolStats,      // PHASE 1: Export pool statistics
+  getPoolHealth      // PHASE 1: Export pool health check
 };

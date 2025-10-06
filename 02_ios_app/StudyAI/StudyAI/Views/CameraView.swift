@@ -762,32 +762,36 @@ struct EnhancedCameraView: UIViewControllerRepresentable {
         
         func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
             logger.info("📸 Enhanced document scan completed: \(scan.pageCount) pages")
-            
+
             Task { @MainActor in
                 if scan.pageCount > 0 {
-                    // Extract image BEFORE any dismissal operations
-                    let rawImage = scan.imageOfPage(at: 0)
-                    logger.info("✅ Raw scan extracted: \(rawImage.size.width)x\(rawImage.size.height)")
-                    
-                    // Store in ViewModel (prevents loss during dismissal)
-                    parent.cameraViewModel.storeCapturedImage(rawImage, source: "document_scanner")
-                    
-                    // Enhanced cleanup timing for -17281 error prevention
-                    logger.info("⏳ Starting enhanced camera session cleanup...")
-                    try? await Task.sleep(nanoseconds: 600_000_000) // 0.6 second delay
-                    
-                    // CRITICAL: Force aggressive cleanup before dismissal
+                    // Extract ALL pages from the scan
+                    var allImages: [UIImage] = []
+
+                    for pageIndex in 0..<scan.pageCount {
+                        let rawImage = scan.imageOfPage(at: pageIndex)
+                        logger.info("✅ Extracted page \(pageIndex + 1)/\(scan.pageCount): \(rawImage.size.width)x\(rawImage.size.height)")
+                        allImages.append(rawImage)
+                    }
+
+                    // Store ALL images in ViewModel
+                    await parent.cameraViewModel.storeMultipleImages(allImages, source: "document_scanner")
+
+                    // OPTIMIZED: Reduced delays - XPC/FigCapture -17281 errors are benign simulator issues
+                    logger.info("⏳ Quick camera cleanup...")
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second (reduced from 0.6s)
+
                     parent.cameraManager.cleanupAfterCameraUsage()
-                    
-                    // Additional delay to ensure cleanup completes
-                    try? await Task.sleep(nanoseconds: 400_000_000) // 0.4 second post-cleanup
-                    
+
+                    // Minimal delay after cleanup
+                    try? await Task.sleep(nanoseconds: 50_000_000) // 0.05 second (reduced from 0.4s)
+
                     parent.isPresented = false
-                    logger.info("✅ Enhanced document scan flow completed")
+                    logger.info("✅ Enhanced document scan flow completed with \(allImages.count) pages")
                 } else {
                     logger.warning("❌ No pages scanned")
                     parent.cameraManager.cleanupAfterCameraUsage()
-                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    try? await Task.sleep(nanoseconds: 100_000_000)
                     parent.isPresented = false
                 }
             }
@@ -795,26 +799,26 @@ struct EnhancedCameraView: UIViewControllerRepresentable {
         
         func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFailWithError error: Error) {
             logger.error("❌ Enhanced document scan failed: \(error.localizedDescription)")
-            
+
             Task { @MainActor in
                 parent.cameraViewModel.handleCameraError(error.localizedDescription, source: "document_scanner")
-                
-                // CRITICAL: Force immediate termination on error
+
+                // OPTIMIZED: Faster cleanup on error
                 parent.cameraManager.terminateSessionOnViewClose()
                 parent.cameraManager.cleanupAfterCameraUsage()
-                try? await Task.sleep(nanoseconds: 500_000_000) // Longer delay on error
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s (reduced from 0.5s)
                 parent.isPresented = false
             }
         }
-        
+
         func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
             logger.info("🚫 Enhanced document scan cancelled")
-            
+
             Task { @MainActor in
-                // CRITICAL: Force immediate termination on cancel
+                // OPTIMIZED: Faster cleanup on cancel
                 parent.cameraManager.terminateSessionOnViewClose()
                 parent.cameraManager.cleanupAfterCameraUsage()
-                try? await Task.sleep(nanoseconds: 500_000_000) // Longer delay on cancel
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s (reduced from 0.5s)
                 parent.isPresented = false
             }
         }
@@ -823,40 +827,40 @@ struct EnhancedCameraView: UIViewControllerRepresentable {
         
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
             logger.info("📱 Enhanced image picker completed")
-            
+
             Task { @MainActor in
                 if let image = info[.originalImage] as? UIImage {
                     logger.info("✅ Image extracted from picker: \(image.size.width)x\(image.size.height)")
-                    
+
                     // Store in ViewModel (prevents loss during dismissal)
                     parent.cameraViewModel.storeCapturedImage(image, source: "camera_picker")
-                    
-                    // CRITICAL: Force immediate termination after image capture
+
+                    // OPTIMIZED: Faster cleanup
                     parent.cameraManager.terminateSessionOnViewClose()
                     parent.cameraManager.cleanupAfterCameraUsage()
-                    try? await Task.sleep(nanoseconds: 300_000_000)
-                    
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s (reduced from 0.3s)
+
                     parent.isPresented = false
                 } else {
                     logger.error("❌ No image found in picker result")
                     parent.cameraViewModel.handleCameraError("No image found", source: "camera_picker")
-                    
+
                     parent.cameraManager.terminateSessionOnViewClose()
                     parent.cameraManager.cleanupAfterCameraUsage()
-                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s (reduced from 0.2s)
                     parent.isPresented = false
                 }
             }
         }
-        
+
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             logger.info("🚫 Enhanced image picker cancelled")
-            
+
             Task { @MainActor in
-                // CRITICAL: Force immediate termination on cancel
+                // OPTIMIZED: Faster cleanup on cancel
                 parent.cameraManager.terminateSessionOnViewClose()
                 parent.cameraManager.cleanupAfterCameraUsage()
-                try? await Task.sleep(nanoseconds: 300_000_000)
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s (reduced from 0.3s)
                 parent.isPresented = false
             }
         }

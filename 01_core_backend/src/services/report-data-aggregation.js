@@ -9,6 +9,89 @@ class ReportDataAggregationService {
     constructor() {
         this.cacheTimeout = 300000; // 5 minutes cache
         this.cache = new Map();
+
+        // PHASE 1 OPTIMIZATION: Query result caching (feature flag)
+        this.queryCache = new Map();
+        this.queryCacheTTL = 300000; // 5 minutes
+        this.enableQueryCache = process.env.ENABLE_QUERY_CACHE !== 'false'; // Default: enabled
+
+        // Performance monitoring
+        this.metrics = {
+            cacheHits: 0,
+            cacheMisses: 0,
+            totalQueries: 0
+        };
+    }
+
+    /**
+     * PHASE 1 OPTIMIZATION: Execute query with caching
+     * @param {string} cacheKey - Unique key for this query
+     * @param {Function} queryFn - Function that returns query promise
+     * @returns {Promise<Object>} Query result (cached or fresh)
+     */
+    async executeWithCache(cacheKey, queryFn) {
+        // Feature flag check
+        if (!this.enableQueryCache) {
+            return await queryFn();
+        }
+
+        this.metrics.totalQueries++;
+
+        // Check cache
+        if (this.queryCache.has(cacheKey)) {
+            const cached = this.queryCache.get(cacheKey);
+            if (Date.now() - cached.timestamp < this.queryCacheTTL) {
+                this.metrics.cacheHits++;
+                console.log(`✅ Query cache HIT: ${cacheKey}`);
+                return cached.data;
+            } else {
+                // Expired, remove from cache
+                this.queryCache.delete(cacheKey);
+            }
+        }
+
+        // Cache miss - execute query
+        this.metrics.cacheMisses++;
+        console.log(`⚠️ Query cache MISS: ${cacheKey}`);
+
+        const result = await queryFn();
+
+        // Store in cache
+        this.queryCache.set(cacheKey, {
+            data: result,
+            timestamp: Date.now()
+        });
+
+        // Cleanup old cache entries if cache gets too large (keep under 1000 entries)
+        if (this.queryCache.size > 1000) {
+            const entriesToDelete = this.queryCache.size - 800; // Remove oldest 200
+            const sortedEntries = Array.from(this.queryCache.entries())
+                .sort((a, b) => a[1].timestamp - b[1].timestamp);
+
+            for (let i = 0; i < entriesToDelete; i++) {
+                this.queryCache.delete(sortedEntries[i][0]);
+            }
+
+            console.log(`🧹 Cleaned ${entriesToDelete} old cache entries`);
+        }
+
+        return result;
+    }
+
+    /**
+     * Get cache metrics for monitoring
+     */
+    getCacheMetrics() {
+        const hitRate = this.metrics.totalQueries > 0
+            ? (this.metrics.cacheHits / this.metrics.totalQueries * 100).toFixed(2)
+            : 0;
+
+        return {
+            ...this.metrics,
+            cacheHitRate: `${hitRate}%`,
+            cacheSize: this.queryCache.size,
+            enabled: this.enableQueryCache
+        };
     }
 
     /**
@@ -110,159 +193,179 @@ class ReportDataAggregationService {
 
     /**
      * Fetch academic performance data (questions, answers, grades)
+     * PHASE 1 OPTIMIZATION: Now uses query caching
      */
     async fetchAcademicPerformance(userId, startDate, endDate) {
-        const query = `
-            SELECT
-                aq.id,
-                aq.question_text,
-                aq.subject,
-                'medium' as difficulty_level, -- Default since not available in archived_questions
-                aq.archived_at as created_at,
-                0.8 as confidence_score, -- Default confidence
-                -- Additional metadata
-                '' as topic,
-                aq.answer_text as ai_solution,
-                -- Student answers and grade from archived_questions table
-                aq.student_answer,
-                CASE WHEN aq.grade = 'CORRECT' THEN true ELSE false END as is_correct
-            FROM archived_questions aq
-            WHERE aq.user_id = $1
-              AND aq.archived_at >= $2
-              AND aq.archived_at <= $3
-            ORDER BY aq.archived_at DESC;
-        `;
+        const cacheKey = `academic_${userId}_${startDate.toISOString()}_${endDate.toISOString()}`;
 
-        const result = await db.query(query, [userId, startDate, endDate]);
+        return await this.executeWithCache(cacheKey, async () => {
+            const query = `
+                SELECT
+                    aq.id,
+                    aq.question_text,
+                    aq.subject,
+                    'medium' as difficulty_level, -- Default since not available in archived_questions
+                    aq.archived_at as created_at,
+                    0.8 as confidence_score, -- Default confidence
+                    -- Additional metadata
+                    '' as topic,
+                    aq.answer_text as ai_solution,
+                    -- Student answers and grade from archived_questions table
+                    aq.student_answer,
+                    CASE WHEN aq.grade = 'CORRECT' THEN true ELSE false END as is_correct
+                FROM archived_questions aq
+                WHERE aq.user_id = $1
+                  AND aq.archived_at >= $2
+                  AND aq.archived_at <= $3
+                ORDER BY aq.archived_at DESC;
+            `;
 
-        return {
-            questions: result.rows,
-            summary: {
-                totalQuestions: result.rows.length,
-                correctAnswers: result.rows.filter(q => q.is_correct === true).length,
-                averageConfidence: this.calculateAverage(result.rows.map(q => q.confidence_score)),
-                totalTimeSpent: 0, // Time data not available in current schema
-                subjects: [...new Set(result.rows.map(q => q.subject))],
-                difficultyLevels: [...new Set(result.rows.map(q => q.difficulty_level))]
-            }
-        };
+            const result = await db.query(query, [userId, startDate, endDate]);
+
+            return {
+                questions: result.rows,
+                summary: {
+                    totalQuestions: result.rows.length,
+                    correctAnswers: result.rows.filter(q => q.is_correct === true).length,
+                    averageConfidence: this.calculateAverage(result.rows.map(q => q.confidence_score)),
+                    totalTimeSpent: 0, // Time data not available in current schema
+                    subjects: [...new Set(result.rows.map(q => q.subject))],
+                    difficultyLevels: [...new Set(result.rows.map(q => q.difficulty_level))]
+                }
+            };
+        });
     }
 
     /**
      * Fetch session activity data
+     * PHASE 1 OPTIMIZATION: Now uses query caching
      */
     async fetchSessionActivity(userId, startDate, endDate) {
-        const query = `
-            SELECT
-                s.id,
-                s.subject,
-                s.session_type,
-                s.start_time,
-                s.end_time,
-                EXTRACT(EPOCH FROM (s.end_time - s.start_time))/60 as duration_minutes,
-                s.status,
-                s.title,
-                -- Count related conversations
-                COUNT(c.id) as conversation_count,
-                -- Calculate session engagement metrics (use 0 if no conversations)
-                COALESCE(AVG(LENGTH(c.message_text)), 0) as avg_message_length
-            FROM sessions s
-            LEFT JOIN conversations c ON s.id = c.session_id
-                AND c.created_at >= $2
-                AND c.created_at <= $3
-            WHERE s.user_id = $1
-              AND s.start_time >= $2
-              AND s.start_time <= $3
-            GROUP BY s.id, s.subject, s.session_type, s.start_time, s.end_time,
-                     s.status, s.title
-            ORDER BY s.start_time DESC;
-        `;
+        const cacheKey = `sessions_${userId}_${startDate.toISOString()}_${endDate.toISOString()}`;
 
-        const result = await db.query(query, [userId, startDate, endDate]);
+        return await this.executeWithCache(cacheKey, async () => {
+            const query = `
+                SELECT
+                    s.id,
+                    s.subject,
+                    s.session_type,
+                    s.start_time,
+                    s.end_time,
+                    EXTRACT(EPOCH FROM (s.end_time - s.start_time))/60 as duration_minutes,
+                    s.status,
+                    s.title,
+                    -- Count related conversations
+                    COUNT(c.id) as conversation_count,
+                    -- Calculate session engagement metrics (use 0 if no conversations)
+                    COALESCE(AVG(LENGTH(c.message_text)), 0) as avg_message_length
+                FROM sessions s
+                LEFT JOIN conversations c ON s.id = c.session_id
+                    AND c.created_at >= $2
+                    AND c.created_at <= $3
+                WHERE s.user_id = $1
+                  AND s.start_time >= $2
+                  AND s.start_time <= $3
+                GROUP BY s.id, s.subject, s.session_type, s.start_time, s.end_time,
+                         s.status, s.title
+                ORDER BY s.start_time DESC;
+            `;
 
-        return {
-            sessions: result.rows,
-            summary: {
-                totalSessions: result.rows.length,
-                totalStudyTime: result.rows.reduce((sum, s) => sum + (s.duration_minutes || 0), 0),
-                averageSessionLength: this.calculateAverage(result.rows.map(s => s.duration_minutes)),
-                activeSubjects: [...new Set(result.rows.map(s => s.subject))],
-                activeDays: new Set(result.rows.map(s => s.start_time.toISOString().split('T')[0])).size
-            }
-        };
+            const result = await db.query(query, [userId, startDate, endDate]);
+
+            return {
+                sessions: result.rows,
+                summary: {
+                    totalSessions: result.rows.length,
+                    totalStudyTime: result.rows.reduce((sum, s) => sum + (s.duration_minutes || 0), 0),
+                    averageSessionLength: this.calculateAverage(result.rows.map(s => s.duration_minutes)),
+                    activeSubjects: [...new Set(result.rows.map(s => s.subject))],
+                    activeDays: new Set(result.rows.map(s => s.start_time.toISOString().split('T')[0])).size
+                }
+            };
+        });
     }
 
     /**
      * Fetch conversation insights
+     * PHASE 1 OPTIMIZATION: Now uses query caching
      */
     async fetchConversationInsights(userId, startDate, endDate) {
-        const query = `
-            SELECT
-                ac.id,
-                ac.subject,
-                ac.topic,
-                ac.conversation_content,
-                ac.archived_date,
-                ac.created_at,
-                -- Extract message count from content if available
-                CASE
-                    WHEN ac.conversation_content LIKE '%Messages: %'
-                    THEN CAST(SUBSTRING(ac.conversation_content FROM 'Messages: ([0-9]+)') AS INTEGER)
-                    ELSE 0
-                END as estimated_message_count
-            FROM archived_conversations_new ac
-            WHERE ac.user_id = $1
-              AND ac.archived_date >= $2
-              AND ac.archived_date <= $3
-              AND ac.conversation_content IS NOT NULL
-              AND LENGTH(ac.conversation_content) > 50
-            ORDER BY ac.archived_date DESC;
-        `;
+        const cacheKey = `conversations_${userId}_${startDate.toISOString()}_${endDate.toISOString()}`;
 
-        const result = await db.query(query, [userId, startDate, endDate]);
+        return await this.executeWithCache(cacheKey, async () => {
+            const query = `
+                SELECT
+                    ac.id,
+                    ac.subject,
+                    ac.topic,
+                    ac.conversation_content,
+                    ac.archived_date,
+                    ac.created_at,
+                    -- Extract message count from content if available
+                    CASE
+                        WHEN ac.conversation_content LIKE '%Messages: %'
+                        THEN CAST(SUBSTRING(ac.conversation_content FROM 'Messages: ([0-9]+)') AS INTEGER)
+                        ELSE 0
+                    END as estimated_message_count
+                FROM archived_conversations_new ac
+                WHERE ac.user_id = $1
+                  AND ac.archived_date >= $2
+                  AND ac.archived_date <= $3
+                  AND ac.conversation_content IS NOT NULL
+                  AND LENGTH(ac.conversation_content) > 50
+                ORDER BY ac.archived_date DESC;
+            `;
 
-        return {
-            conversations: result.rows,
-            summary: {
-                totalConversations: result.rows.length,
-                totalMessages: result.rows.reduce((sum, c) => sum + (c.estimated_message_count || 0), 0),
-                conversationSubjects: [...new Set(result.rows.map(c => c.subject))],
-                averageMessagesPerConversation: this.calculateAverage(result.rows.map(c => c.estimated_message_count)),
-                topicsDiscussed: [...new Set(result.rows.map(c => c.topic).filter(Boolean))]
-            }
-        };
+            const result = await db.query(query, [userId, startDate, endDate]);
+
+            return {
+                conversations: result.rows,
+                summary: {
+                    totalConversations: result.rows.length,
+                    totalMessages: result.rows.reduce((sum, c) => sum + (c.estimated_message_count || 0), 0),
+                    conversationSubjects: [...new Set(result.rows.map(c => c.subject))],
+                    averageMessagesPerConversation: this.calculateAverage(result.rows.map(c => c.estimated_message_count)),
+                    topicsDiscussed: [...new Set(result.rows.map(c => c.topic).filter(Boolean))]
+                }
+            };
+        });
     }
 
     /**
      * Fetch mental health indicators
+     * PHASE 1 OPTIMIZATION: Now uses query caching
      */
     async fetchMentalHealthIndicators(userId, startDate, endDate) {
-        // Since mental_health_indicators table may not exist, we'll generate basic indicators
-        // from question confidence and session patterns
-        try {
-            const query = `
-                SELECT
-                    'confidence' as indicator_type,
-                    confidence_score as score,
-                    0.8 as confidence_level,
-                    'Based on question confidence' as evidence_text,
-                    created_at as detected_at,
-                    null as context_data,
-                    'derived' as detection_method
-                FROM questions
-                WHERE user_id = $1
-                  AND created_at >= $2
-                  AND created_at <= $3
-                  AND confidence_score IS NOT NULL
-                ORDER BY created_at DESC;
-            `;
+        const cacheKey = `mental_health_${userId}_${startDate.toISOString()}_${endDate.toISOString()}`;
 
-            const result = await db.query(query, [userId, startDate, endDate]);
-            return result.rows;
-        } catch (error) {
-            console.log('Mental health indicators table not available, using fallback data');
-            return []; // Return empty array if table doesn't exist
-        }
+        return await this.executeWithCache(cacheKey, async () => {
+            // Since mental_health_indicators table may not exist, we'll generate basic indicators
+            // from question confidence and session patterns
+            try {
+                const query = `
+                    SELECT
+                        'confidence' as indicator_type,
+                        confidence_score as score,
+                        0.8 as confidence_level,
+                        'Based on question confidence' as evidence_text,
+                        created_at as detected_at,
+                        null as context_data,
+                        'derived' as detection_method
+                    FROM questions
+                    WHERE user_id = $1
+                      AND created_at >= $2
+                      AND created_at <= $3
+                      AND confidence_score IS NOT NULL
+                    ORDER BY created_at DESC;
+                `;
+
+                const result = await db.query(query, [userId, startDate, endDate]);
+                return result.rows;
+            } catch (error) {
+                console.log('Mental health indicators table not available, using fallback data');
+                return []; // Return empty array if table doesn't exist
+            }
+        });
     }
 
     /**
