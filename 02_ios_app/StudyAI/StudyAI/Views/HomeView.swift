@@ -269,7 +269,7 @@ extension HomeView {
                     icon: "camera.fill",
                     title: "Homework Grader",
                     subtitle: "Scan & grade",
-                    color: DesignTokens.Colors.aiBlue,
+                    color: DesignTokens.Colors.homeworkGraderCoral,
                     lottieAnimation: "Checklist",
                     lottieScale: 0.29,  // Adjust this value to change size (0.1 to 1.0)
                     action: { onSelectTab(.grader) }
@@ -279,7 +279,7 @@ extension HomeView {
                     icon: "message.fill",
                     title: "Chat",
                     subtitle: "Conversational AI",
-                    color: DesignTokens.Colors.aiBlue,
+                    color: DesignTokens.Colors.chatYellow,
                     lottieAnimation: "Chat",
                     lottieScale: 0.2,  // Adjust this value to change size (0.1 to 1.0)
                     action: { onSelectTab(.chat) }
@@ -289,7 +289,7 @@ extension HomeView {
                     icon: "books.vertical.fill",
                     title: "Library",
                     subtitle: "Study sessions",
-                    color: DesignTokens.Colors.libraryTeal,
+                    color: DesignTokens.Colors.libraryPurple,
                     lottieAnimation: "Books",
                     lottieScale: 0.12,  // Adjust this value to change size (0.1 to 1.0)
                     action: { onSelectTab(.library) }
@@ -299,7 +299,7 @@ extension HomeView {
                     icon: "chart.bar.fill",
                     title: "Progress",
                     subtitle: "Track learning",
-                    color: DesignTokens.Colors.analyticsPlum,
+                    color: DesignTokens.Colors.progressGreen,
                     lottieAnimation: "Chart Graph",
                     lottieScale: 0.45,  // Adjust this value to change size (0.1 to 1.0)
                     action: { onSelectTab(.progress) }
@@ -458,13 +458,49 @@ struct QuickActionCard_New: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 120)
-            .background(isPressed ? color.opacity(0.05) : DesignTokens.Colors.cardBackground)
-            .cornerRadius(16)
+            .background(
+                ZStack {
+                    // White card background
+                    DesignTokens.Colors.cardBackground
+
+                    // Subtle gradient overlay with the card's color
+                    LinearGradient(
+                        colors: [
+                            color.opacity(0.12),
+                            color.opacity(0.05),
+                            Color.clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+            )
+            .cornerRadius(18)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                color.opacity(isPressed ? 0.5 : 0.3),
+                                color.opacity(isPressed ? 0.3 : 0.15)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: isPressed ? 2.5 : 1.5
+                    )
+            )
             .shadow(
-                color: isPressed ? color.opacity(0.3) : Color.black.opacity(0.05),
-                radius: isPressed ? 8 : 4,
+                color: color.opacity(isPressed ? 0.4 : 0.2),
+                radius: isPressed ? 16 : 10,
                 x: 0,
-                y: isPressed ? 4 : 2
+                y: isPressed ? 8 : 5
+            )
+            .shadow(
+                color: Color.black.opacity(0.06),
+                radius: 3,
+                x: 0,
+                y: 2
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }

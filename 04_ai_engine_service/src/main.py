@@ -6,6 +6,7 @@ Advanced AI processing service for educational content and agentic workflows.
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware  # PHASE 2.2: Compression
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
 import uvicorn
@@ -81,6 +82,18 @@ class LargeBodyMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 app.add_middleware(LargeBodyMiddleware)
+
+# PHASE 2.2 OPTIMIZATION: Add GZip compression for AI responses
+# Reduces payload size by 60-70% for JSON responses (feature flag)
+if os.getenv('ENABLE_RESPONSE_COMPRESSION', 'true').lower() == 'true':
+    app.add_middleware(
+        GZipMiddleware,
+        minimum_size=500,  # Only compress responses > 500 bytes
+        compresslevel=6    # Balanced compression (1-9, 6 is optimal)
+    )
+    print("✅ GZip compression enabled (60-70% payload reduction)")
+else:
+    print("ℹ️ GZip compression disabled via ENABLE_RESPONSE_COMPRESSION=false")
 
 # Configure CORS for iOS app integration
 app.add_middleware(

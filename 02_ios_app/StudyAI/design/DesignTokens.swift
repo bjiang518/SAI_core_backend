@@ -10,7 +10,13 @@ struct DesignTokens {
         static let primary = Color(hex: "3B82F6") // Blue - AI features
         static let primaryVariant = Color(hex: "2563EB") // Darker blue
 
-        // Feature Colors
+        // Feature Colors - Harmonious Palette for Main Cards
+        static let homeworkGraderCoral = Color(hex: "FF6B6B") // Homework Grader - Vibrant Coral Red
+        static let chatYellow = Color(hex: "FFD93D") // Chat - Bright Yellow
+        static let libraryPurple = Color(hex: "A78BFA") // Library - Soft Purple
+        static let progressGreen = Color(hex: "51CF66") // Progress - Fresh Green
+
+        // Legacy Feature Colors (kept for compatibility)
         static let aiBlue = Color(hex: "3B82F6") // AI/Chat features
         static let learningGreen = Color(hex: "10B981") // Learning/Growth
         static let analyticsPlum = Color(hex: "8B5CF6") // Analytics/Progress

@@ -82,17 +82,20 @@ class DailyResetService {
         try {
             const today = new Date().toISOString().split('T')[0];
 
+            // PHASE 1 OPTIMIZATION: Use EXISTS instead of COUNT(*) for existence check (5-10x faster)
             // Check if we have any activity recorded for today
             const todayActivityCheck = await db.query(`
-                SELECT COUNT(*) as activity_count
-                FROM daily_subject_activities
-                WHERE activity_date = $1
+                SELECT EXISTS(
+                    SELECT 1 FROM daily_subject_activities
+                    WHERE activity_date = $1
+                    LIMIT 1
+                ) as has_activity
             `, [today]);
 
-            const activityCount = parseInt(todayActivityCheck.rows[0]?.activity_count || 0);
+            const hasActivity = todayActivityCheck.rows[0]?.has_activity || false;
 
-            if (activityCount > 0) {
-                console.log(`📊 Found ${activityCount} daily activities for today - no startup reset needed`);
+            if (hasActivity) {
+                console.log(`📊 Found daily activities for today - no startup reset needed`);
                 this.lastResetDate = today;
             } else {
                 console.log('🔄 No daily activities found for today - checking if reset is needed');

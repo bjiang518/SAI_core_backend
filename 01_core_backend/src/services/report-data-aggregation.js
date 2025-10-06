@@ -15,16 +15,52 @@ class ReportDataAggregationService {
         this.queryCacheTTL = 300000; // 5 minutes
         this.enableQueryCache = process.env.ENABLE_QUERY_CACHE !== 'false'; // Default: enabled
 
+        // PHASE 2.1 OPTIMIZATION: Redis caching layer
+        this.redisCache = null;
+        this.useRedis = process.env.USE_REDIS_FOR_REPORTS !== 'false'; // Default: enabled
+        this.initializeRedisCache();
+
         // Performance monitoring
         this.metrics = {
             cacheHits: 0,
             cacheMisses: 0,
-            totalQueries: 0
+            totalQueries: 0,
+            // PHASE 2.1: Redis metrics
+            redisHits: 0,
+            redisMisses: 0,
+            memoryHits: 0,
+            memoryMisses: 0
         };
     }
 
     /**
-     * PHASE 1 OPTIMIZATION: Execute query with caching
+     * PHASE 2.1 OPTIMIZATION: Initialize Redis cache for report data
+     */
+    async initializeRedisCache() {
+        if (!this.useRedis) {
+            console.log('ℹ️ Redis caching disabled for reports (using memory cache)');
+            return;
+        }
+
+        try {
+            // Lazy load redis cache manager
+            const { redisCacheManager } = require('../gateway/services/redis-cache');
+
+            if (redisCacheManager && redisCacheManager.connected) {
+                this.redisCache = redisCacheManager;
+                console.log('✅ Redis caching enabled for report aggregation service');
+            } else {
+                console.log('⚠️ Redis not available, falling back to memory cache for reports');
+                this.useRedis = false;
+            }
+        } catch (error) {
+            console.log('⚠️ Could not initialize Redis for reports:', error.message);
+            this.useRedis = false;
+        }
+    }
+
+    /**
+     * PHASE 1 + PHASE 2.1 OPTIMIZATION: Execute query with Redis + memory caching
      * @param {string} cacheKey - Unique key for this query
      * @param {Function} queryFn - Function that returns query promise
      * @returns {Promise<Object>} Query result (cached or fresh)
@@ -37,12 +73,47 @@ class ReportDataAggregationService {
 
         this.metrics.totalQueries++;
 
-        // Check cache
+        // PHASE 2.1: Try Redis cache first (distributed, persistent)
+        if (this.useRedis && this.redisCache) {
+            try {
+                const redisKey = `reports:${cacheKey}`;
+                const cached = await this.redisCache.get(redisKey);
+
+                if (cached) {
+                    this.metrics.cacheHits++;
+                    this.metrics.redisHits++;
+                    console.log(`✅ Redis cache HIT: ${cacheKey}`);
+                    return typeof cached === 'string' ? JSON.parse(cached) : cached;
+                }
+
+                this.metrics.redisMisses++;
+                console.log(`⚠️ Redis cache MISS: ${cacheKey}`);
+
+                // Execute query
+                const result = await queryFn();
+
+                // Store in Redis with TTL
+                await this.redisCache.set(
+                    redisKey,
+                    JSON.stringify(result),
+                    Math.floor(this.queryCacheTTL / 1000) // Convert ms to seconds
+                );
+
+                return result;
+
+            } catch (redisError) {
+                console.warn(`⚠️ Redis error, falling back to memory cache:`, redisError.message);
+                // Fall through to memory cache
+            }
+        }
+
+        // PHASE 1: Fallback to memory cache (original implementation)
         if (this.queryCache.has(cacheKey)) {
             const cached = this.queryCache.get(cacheKey);
             if (Date.now() - cached.timestamp < this.queryCacheTTL) {
                 this.metrics.cacheHits++;
-                console.log(`✅ Query cache HIT: ${cacheKey}`);
+                this.metrics.memoryHits++;
+                console.log(`✅ Memory cache HIT: ${cacheKey}`);
                 return cached.data;
             } else {
                 // Expired, remove from cache
@@ -52,11 +123,12 @@ class ReportDataAggregationService {
 
         // Cache miss - execute query
         this.metrics.cacheMisses++;
-        console.log(`⚠️ Query cache MISS: ${cacheKey}`);
+        this.metrics.memoryMisses++;
+        console.log(`⚠️ Memory cache MISS: ${cacheKey}`);
 
         const result = await queryFn();
 
-        // Store in cache
+        // Store in memory cache
         this.queryCache.set(cacheKey, {
             data: result,
             timestamp: Date.now()
@@ -89,8 +161,12 @@ class ReportDataAggregationService {
         return {
             ...this.metrics,
             cacheHitRate: `${hitRate}%`,
-            cacheSize: this.queryCache.size,
-            enabled: this.enableQueryCache
+            memoryCacheSize: this.queryCache.size,
+            enabled: this.enableQueryCache,
+            // PHASE 2.1: Redis status
+            redisEnabled: this.useRedis,
+            redisConnected: this.redisCache?.connected || false,
+            cacheBackend: this.useRedis && this.redisCache?.connected ? 'redis' : 'memory'
         };
     }
 
