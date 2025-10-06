@@ -696,33 +696,35 @@ struct PhotoPermissionManager {
 /// Enhanced camera view that uses ViewModel to prevent state loss
 struct EnhancedCameraView: UIViewControllerRepresentable {
     @Binding var isPresented: Bool
-    
+
     private let logger = Logger(subsystem: "com.studyai", category: "EnhancedCameraView")
     @StateObject private var cameraViewModel = CameraViewModel.shared
     @StateObject private var cameraManager = CameraSessionManager.shared
-    
+
     private var shouldUseNativeScanner: Bool {
         return VNDocumentCameraViewController.isSupported
     }
-    
+
     func makeUIViewController(context: Context) -> UIViewController {
         logger.info("Creating enhanced camera view controller")
-        
+
         // CRITICAL: Prepare both session manager and view model for clean start
         cameraViewModel.prepareForNewSession()
         cameraManager.prepareForCameraUsage()
-        
-        if shouldUseNativeScanner {
-            let scanner = VNDocumentCameraViewController()
-            scanner.delegate = context.coordinator
-            return scanner
-        } else {
-            let picker = UIImagePickerController()
-            picker.delegate = context.coordinator
-            picker.sourceType = .camera
-            picker.allowsEditing = false
-            return picker
-        }
+
+        // ALWAYS use document scanner (required for auto review screen)
+        let scanner = VNDocumentCameraViewController()
+        scanner.delegate = context.coordinator
+
+        // Note: VNDocumentCameraViewController behavior:
+        // - After capture, shows edge detection with thumbnail in bottom-left
+        // - User MUST tap the thumbnail to advance to review/edit screen
+        // - There's no API to auto-advance or skip the thumbnail tap
+        // - This is native iOS behavior and cannot be customized
+
+        context.coordinator.scanner = scanner
+        logger.info("📸 Document scanner created - user must tap thumbnail after capture to access review screen")
+        return scanner
     }
     
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
@@ -734,9 +736,26 @@ struct EnhancedCameraView: UIViewControllerRepresentable {
     class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate, VNDocumentCameraViewControllerDelegate {
         let parent: EnhancedCameraView
         private let logger = Logger(subsystem: "com.studyai", category: "EnhancedCameraView.Coordinator")
-        
+        var scanner: VNDocumentCameraViewController?
+
         init(_ parent: EnhancedCameraView) {
             self.parent = parent
+        }
+
+        // MARK: - Custom Save Button Action
+
+        @objc func saveButtonTapped() {
+            logger.info("💾 Custom save button tapped")
+
+            guard let scanner = scanner else {
+                logger.error("❌ Scanner reference not available")
+                return
+            }
+
+            // Note: VNDocumentCameraViewController should auto-advance to review screen after capture
+            // The native "Save" button on the review screen triggers didFinishWith delegate
+            // If stuck at edge detection, user may need to tap the preview thumbnail
+            logger.info("⚠️ If stuck at edge detection, the scanner is waiting for user to tap preview thumbnail or native Save button")
         }
         
         // MARK: - Document Scanner Delegate

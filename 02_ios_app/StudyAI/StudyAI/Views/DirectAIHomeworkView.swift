@@ -60,7 +60,12 @@ enum ProcessingStage {
 class AIHomeworkStateManager: ObservableObject {
     static let shared = AIHomeworkStateManager()
 
-    @Published var originalImage: UIImage?
+    static let maxImagesLimit = 4  // Maximum 4 images allowed
+
+    @Published var originalImage: UIImage?  // Deprecated: kept for backward compatibility
+    @Published var capturedImages: [UIImage] = []  // NEW: Support multiple images
+    @Published var selectedImageIndex: Int = 0  // NEW: Track which image is selected
+    @Published var selectedImageIndices: Set<Int> = []  // NEW: Track multiple selected images for AI
     @Published var originalImageUrl: String?
     @Published var parsingResult: HomeworkParsingResult?
     @Published var enhancedResult: EnhancedHomeworkParsingResult?
@@ -69,22 +74,58 @@ class AIHomeworkStateManager: ObservableObject {
     @Published var sessionId: String?
     @Published var currentStage: ProcessingStage = .idle
     @Published var uploadProgress: Float = 0.0
-    
+
     private let logger = Logger(subsystem: "com.studyai", category: "AIHomeworkStateManager")
-    
+
     private init() {}
-    
+
     func startNewSession() {
         sessionId = UUID().uuidString
         logger.info("🆕 Started new AI homework session: \(self.sessionId ?? "unknown")")
     }
-    
+
     func saveSessionState() {
         logger.info("💾 AI homework session state saved")
     }
-    
+
+    var canAddMoreImages: Bool {
+        return capturedImages.count < Self.maxImagesLimit
+    }
+
+    func addImage(_ image: UIImage) -> Bool {
+        guard canAddMoreImages else {
+            logger.warning("⚠️ Cannot add image: limit of \(Self.maxImagesLimit) reached")
+            return false
+        }
+
+        capturedImages.append(image)
+        selectedImageIndex = capturedImages.count - 1  // Select the newly added image
+        selectedImageIndices.insert(capturedImages.count - 1)  // Auto-select for AI
+        originalImage = image  // Backward compatibility
+        logger.info("📸 Added image #\(self.capturedImages.count) of \(Self.maxImagesLimit)")
+        return true
+    }
+
+    func removeImage(at index: Int) {
+        guard index < capturedImages.count else { return }
+        capturedImages.remove(at: index)
+
+        // Update selection indices
+        selectedImageIndices.remove(index)
+        selectedImageIndices = Set(selectedImageIndices.compactMap { $0 > index ? $0 - 1 : $0 })
+
+        if selectedImageIndex >= capturedImages.count {
+            selectedImageIndex = max(0, capturedImages.count - 1)
+        }
+        originalImage = capturedImages.isEmpty ? nil : capturedImages[selectedImageIndex]
+        logger.info("🗑️ Removed image, \(self.capturedImages.count) remaining")
+    }
+
     func clearSession() {
         originalImage = nil
+        capturedImages = []
+        selectedImageIndex = 0
+        selectedImageIndices = []
         originalImageUrl = nil
         parsingResult = nil
         enhancedResult = nil
@@ -96,7 +137,7 @@ class AIHomeworkStateManager: ObservableObject {
 
         // Also clear CameraViewModel
         CameraViewModel.shared.clearForNextCapture()
-        
+
         logger.info("🧹 Cleared AI homework session")
     }
 }
@@ -117,6 +158,9 @@ struct DirectAIHomeworkView: View {
     // Permission states
     @State private var photoPermissionDenied = false
     @State private var cameraPermissionDenied = false
+
+    // Image limit state
+    @State private var showingImageLimitAlert = false
 
     // Image editing functionality
     @State private var showingImageEditor = false
@@ -142,12 +186,21 @@ struct DirectAIHomeworkView: View {
             if stateManager.parsingResult != nil {
                 // Show existing session with results
                 existingSessionView
-            } else if stateManager.originalImage != nil {
+                    .onAppear {
+                        logger.info("📊 Showing: existingSessionView (results available)")
+                    }
+            } else if !stateManager.capturedImages.isEmpty {
                 // Show image preview with Ask AI button
                 imagePreviewView
+                    .onAppear {
+                        logger.info("🖼️ Showing: imagePreviewView (Ask AI preview page)")
+                    }
             } else {
                 // Show image source selection directly
                 imageSourceSelectionView
+                    .onAppear {
+                        logger.info("📷 Showing: imageSourceSelectionView (main selection page)")
+                    }
             }
         }
         .navigationBarHidden(true) // Hide iOS back button
@@ -194,9 +247,25 @@ struct DirectAIHomeworkView: View {
         .sheet(isPresented: $showingDocumentScanner) {
             EnhancedCameraView(isPresented: $showingDocumentScanner)
                 .onDisappear {
+                    logger.info("📸 === DOCUMENT SCANNER SHEET DISMISSED ===")
+                    logger.info("🖼️ CameraViewModel has image: \(CameraViewModel.shared.capturedImage != nil)")
+
                     // Transfer captured image from CameraViewModel to stateManager
                     if let capturedImage = CameraViewModel.shared.capturedImage {
-                        stateManager.originalImage = capturedImage
+                        logger.info("✅ Transferring captured image to stateManager")
+                        logger.info("📐 Image size: \(capturedImage.size.width)x\(capturedImage.size.height)")
+
+                        // NEW: Check limit before adding
+                        let added = stateManager.addImage(capturedImage)
+
+                        if added {
+                            logger.info("✅ Image transferred - should now show Ask AI preview page")
+                        } else {
+                            logger.warning("⚠️ Image limit reached, showing alert")
+                            showingImageLimitAlert = true
+                        }
+                    } else {
+                        logger.warning("⚠️ No captured image found in CameraViewModel")
                     }
                 }
         }
@@ -205,7 +274,11 @@ struct DirectAIHomeworkView: View {
                 get: { stateManager.originalImage },
                 set: { newImage in
                     if let image = newImage {
-                        stateManager.originalImage = image
+                        // NEW: Use addImage to properly add to capturedImages array
+                        let added = stateManager.addImage(image)
+                        if !added {
+                            showingImageLimitAlert = true
+                        }
                     }
                 }
             ), isPresented: $showingFilePicker)
@@ -216,8 +289,13 @@ struct DirectAIHomeworkView: View {
                     get: { stateManager.originalImage },
                     set: { newImage in
                         if let image = newImage {
-                            stateManager.originalImage = image
-                            showingPhotoPicker = false
+                            // NEW: Use addImage to properly add to capturedImages array
+                            let added = stateManager.addImage(image)
+                            if added {
+                                showingPhotoPicker = false
+                            } else {
+                                showingImageLimitAlert = true
+                            }
                         }
                     }
                 ),
@@ -262,6 +340,11 @@ struct DirectAIHomeworkView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("Please allow camera access in Settings to take photos.")
+        }
+        .alert("Image Limit Reached", isPresented: $showingImageLimitAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("You can add up to \(AIHomeworkStateManager.maxImagesLimit) images. Please remove an image to add a new one.")
         }
         .fullScreenCover(isPresented: $showingFullScreenImage) {
             if let image = fullScreenImage {
@@ -395,7 +478,7 @@ struct DirectAIHomeworkView: View {
         }
         .onAppear {
             // Trigger entry animation after Lottie finishes
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 withAnimation {
                     animationCompleted = true
                 }
@@ -423,60 +506,180 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Initial Image Preview
     private var initialImagePreview: some View {
-        VStack(spacing: 20) {
-            // Header
-            VStack(spacing: 8) {
-                Text("Preview Selected Image")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text("Review your image before sending to AI")
+        VStack(spacing: 16) {
+            // Compact Header
+            HStack {
+                Text("Preview Images")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                Spacer()
+                Text("\(stateManager.selectedImageIndices.count) selected")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
-            .padding(.top)
+            .padding(.top, 8)
+            .padding(.horizontal)
 
-            // Image Preview Section
-            if let image = stateManager.originalImage {
-                imageSection(title: "Selected Image", image: image)
-
-                // Edit Image Button
-                Button("✏️ Edit Image") {
-                    showingImageEditor = true
-                }
-                .foregroundColor(.purple)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(Color.purple.opacity(0.1))
-                .cornerRadius(12)
-                .padding(.horizontal)
+            // Grid layout for all images
+            if !stateManager.capturedImages.isEmpty {
+                imageGridView
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .opacity
+                    ))
             }
 
-            // Ask AI Button
-            VStack(spacing: 12) {
-                Button("🤖 Ask AI") {
-                    if let image = stateManager.originalImage {
-                        processImage(image)
+            // Primary Action - Ask AI Button (Most Prominent)
+            AnimatedGradientButton(
+                title: stateManager.selectedImageIndices.count > 1 ?
+                    "Analyze \(stateManager.selectedImageIndices.count) Images with AI" :
+                    "Analyze with AI",
+                isProcessing: isProcessing
+            ) {
+                // Process selected images
+                if !self.stateManager.selectedImageIndices.isEmpty {
+                    // For now, process first selected image (can be extended to process multiple)
+                    if let firstIndex = self.stateManager.selectedImageIndices.sorted().first {
+                        self.processImage(self.stateManager.capturedImages[firstIndex])
                     }
                 }
-                .foregroundColor(.white)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(Color.blue)
-                .cornerRadius(12)
-                .disabled(isProcessing)
-
-                // Clear Session Button
-                Button("Clear Session") {
-                    stateManager.clearSession()
-                }
-                .foregroundColor(.red)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(Color.red.opacity(0.1))
-                .cornerRadius(12)
             }
+            .disabled(isProcessing || stateManager.selectedImageIndices.isEmpty)
             .padding(.horizontal)
+            .padding(.top, 8)
+            .transition(.scale.combined(with: .opacity))
+        }
+        .animation(.easeOut(duration: 0.4), value: stateManager.capturedImages.count)
+    }
+
+    // MARK: - Image Grid View (for all images)
+    private var imageGridView: some View {
+        let _ = logger.info("🖼️ GRID VIEW RENDERING: \(self.stateManager.capturedImages.count) images in array")
+
+        return LazyVGrid(columns: [
+            GridItem(.flexible(), spacing: 12),
+            GridItem(.flexible(), spacing: 12)
+        ], spacing: 12) {
+            ForEach(Array(self.stateManager.capturedImages.enumerated()), id: \.offset) { index, image in
+                ZStack(alignment: .topTrailing) {
+                    // Image with selection border
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(height: 160)
+                        .clipped()
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(
+                                    stateManager.selectedImageIndices.contains(index) ? Color.blue : Color.gray.opacity(0.3),
+                                    lineWidth: stateManager.selectedImageIndices.contains(index) ? 3 : 1
+                                )
+                        )
+                        .onTapGesture {
+                            // Toggle selection
+                            withAnimation {
+                                if self.stateManager.selectedImageIndices.contains(index) {
+                                    self.stateManager.selectedImageIndices.remove(index)
+                                } else {
+                                    self.stateManager.selectedImageIndices.insert(index)
+                                }
+                            }
+                        }
+
+                    // X delete button
+                    Button(action: {
+                        withAnimation {
+                            self.stateManager.removeImage(at: index)
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white)
+                            .background(Circle().fill(Color.black.opacity(0.6)))
+                    }
+                    .padding(8)
+
+                    // Selection checkmark
+                    if stateManager.selectedImageIndices.contains(index) {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.blue)
+                                    .background(Circle().fill(Color.white))
+                                Spacer()
+                            }
+                        }
+                        .padding(8)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - Image Gallery View (for multiple images)
+    private var imageGalleryView: some View {
+        VStack(spacing: 12) {
+            // Main large preview of selected image
+            if stateManager.selectedImageIndex < stateManager.capturedImages.count {
+                Image(uiImage: stateManager.capturedImages[stateManager.selectedImageIndex])
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxHeight: UIScreen.main.bounds.height * 0.45)
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(12)
+                    .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.gray.opacity(0.15), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 12)
+            }
+
+            // Thumbnail gallery strip at bottom
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(Array(self.stateManager.capturedImages.enumerated()), id: \.offset) { index, image in
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 80, height: 80)
+                            .clipped()
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(
+                                        index == stateManager.selectedImageIndex ? Color.blue : Color.gray.opacity(0.3),
+                                        lineWidth: index == stateManager.selectedImageIndex ? 3 : 1
+                                    )
+                            )
+                            .scaleEffect(index == stateManager.selectedImageIndex ? 1.0 : 0.9)
+                            .onTapGesture {
+                                withAnimation {
+                                    self.stateManager.selectedImageIndex = index
+                                    self.stateManager.originalImage = image  // Update for backward compatibility
+                                }
+                            }
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    self.stateManager.removeImage(at: index)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                    }
+                }
+                .padding(.horizontal)
+            }
+            .frame(height: 90)
+
+            // Image counter
+            Text("\(stateManager.selectedImageIndex + 1) of \(self.stateManager.capturedImages.count)")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
     }
 
@@ -570,6 +773,29 @@ struct DirectAIHomeworkView: View {
                     .foregroundColor(.secondary)
                 Spacer()
             }
+        }
+    }
+
+    // MARK: - Compact Image Section (for Preview Page)
+    private func compactImageSection(image: UIImage) -> some View {
+        VStack(spacing: 0) {
+            // Almost full screen image display
+            // 👉 CONTROL IMAGE SIZE HERE: Change maxHeight value
+            // Current: ~70% of screen (UIScreen.main.bounds.height * 0.7)
+            // Leaves space for header + 3 buttons at bottom
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.55) // 👈 ADJUST THIS VALUE
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gray.opacity(0.15), lineWidth: 1)
+                )
+                .padding(.horizontal, 12)
+                // Removed: tap to enlarge functionality
         }
     }
     
@@ -1552,6 +1778,90 @@ struct ConfidenceBadge: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
+    }
+}
+
+// MARK: - Animated Gradient Button Component
+struct AnimatedGradientButton: View {
+    let title: String
+    let isProcessing: Bool
+    let action: () -> Void
+
+    @State private var animateGradient = false
+    @State private var glowOpacity = 0.5
+    @State private var buttonScale: CGFloat = 1.0
+
+    var body: some View {
+        Button(action: {
+            // Haptic feedback
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+
+            // Scale animation
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                buttonScale = 0.95
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    buttonScale = 1.0
+                }
+            }
+
+            action()
+        }) {
+            Text(title)
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+        }
+        .background(
+            ZStack {
+                // Animated gradient background
+                LinearGradient(
+                    colors: animateGradient ?
+                        [Color.blue, Color.purple, Color.blue] :
+                        [Color.purple, Color.blue, Color.purple],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+
+                // Glowing overlay
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.3),
+                        Color.clear,
+                        Color.white.opacity(0.3)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .opacity(glowOpacity)
+            }
+        )
+        .cornerRadius(16)
+        .shadow(
+            color: Color.blue.opacity(0.4),
+            radius: glowOpacity * 20,
+            x: 0,
+            y: glowOpacity * 8
+        )
+        .scaleEffect(buttonScale)
+        .onAppear {
+            // Start gradient animation
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                animateGradient.toggle()
+            }
+
+            // Start glow animation
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                glowOpacity = 0.8
+            }
+        }
+        .disabled(isProcessing)
+        .opacity(isProcessing ? 0.6 : 1.0)
     }
 }
 

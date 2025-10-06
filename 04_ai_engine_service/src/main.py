@@ -211,16 +211,47 @@ class AIAnalyticsResponse(BaseModel):
 # Health Check with optional authentication
 @app.get("/health")
 async def health_check(service_info = optional_service_auth()):
-    """Enhanced health check with system status for Railway monitoring"""
+    """Enhanced health check with system status and cache metrics for Railway monitoring"""
     import psutil
     import time
-    
+
     # System metrics for monitoring
     memory_usage = psutil.virtual_memory()
     cpu_usage = psutil.cpu_percent(interval=1)
-    
+
+    # OPTIMIZED: Include cache performance metrics (with backward compatibility)
+    cache_metrics = {}
+
+    # Check if optimized service with new metrics
+    if hasattr(ai_service, 'cache_hits') and hasattr(ai_service, 'cache_misses'):
+        total_cache_requests = ai_service.cache_hits + ai_service.cache_misses
+        cache_hit_rate = (ai_service.cache_hits / total_cache_requests * 100) if total_cache_requests > 0 else 0
+
+        cache_metrics = {
+            "cache_size": len(ai_service.memory_cache) if hasattr(ai_service, 'memory_cache') else 0,
+            "cache_limit": getattr(ai_service, 'cache_size_limit', 0),
+            "cache_hit_rate_percent": round(cache_hit_rate, 2),
+            "total_requests": getattr(ai_service, 'request_count', 0),
+            "cache_hits": ai_service.cache_hits,
+            "cache_misses": ai_service.cache_misses,
+            "tokens_saved": getattr(ai_service, 'total_tokens_saved', 0),
+            "estimated_cost_savings_usd": round(getattr(ai_service, 'total_tokens_saved', 0) * 0.000002, 2)
+        }
+
+        # PHASE 2: Add model usage stats
+        if hasattr(ai_service, 'improved_service') and hasattr(ai_service.improved_service, 'get_model_usage_stats'):
+            cache_metrics["model_usage"] = ai_service.improved_service.get_model_usage_stats()
+
+    else:
+        # Fallback for older service version
+        cache_metrics = {
+            "cache_size": len(ai_service.memory_cache) if hasattr(ai_service, 'memory_cache') else 0,
+            "cache_limit": getattr(ai_service, 'cache_size_limit', 1000),
+            "message": "Upgrade to optimized service for detailed cache metrics"
+        }
+
     status_data = {
-        "status": "healthy", 
+        "status": "healthy",
         "service": "StudyAI AI Engine",
         "version": "2.0.0",
         "timestamp": datetime.now().isoformat(),
@@ -234,13 +265,14 @@ async def health_check(service_info = optional_service_auth()):
             "cpu_usage_percent": cpu_usage,
             "redis_connected": redis_client is not None,
             "keep_alive_enabled": os.getenv('RAILWAY_KEEP_ALIVE') == 'true'
-        }
+        },
+        "cache_metrics": cache_metrics
     }
-    
+
     # Set start time on first health check
     if not hasattr(app.state, 'start_time'):
         app.state.start_time = time.time()
-    
+
     return status_data
 
 # Authenticated health check for service monitoring
