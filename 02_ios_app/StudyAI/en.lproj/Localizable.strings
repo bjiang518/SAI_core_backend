@@ -1,0 +1,73 @@
+/*
+  Localizable.strings (English)
+  StudyAI
+*/
+
+// Main Tabs
+"tab.home" = "Home";
+"tab.grader" = "Grader";
+"tab.chat" = "Chat";
+"tab.progress" = "Progress";
+"tab.library" = "Library";
+
+// Settings
+"settings.title" = "Settings";
+"settings.account" = "Account";
+"settings.editProfile" = "Edit Profile";
+"settings.signOut" = "Sign Out";
+"settings.security" = "Security & Privacy";
+"settings.passwordManager" = "Password Manager";
+"settings.privacySettings" = "Privacy Settings";
+"settings.appSettings" = "App Settings";
+"settings.studyReminders" = "Study Reminders";
+"settings.textSize" = "Text Size";
+"settings.language" = "Language";
+"settings.voiceAudio" = "Voice & Audio";
+"settings.voiceSettings" = "Voice Settings";
+"settings.learning" = "Learning";
+"settings.learningGoals" = "Learning Goals & Progress";
+"settings.support" = "Support";
+"settings.help" = "Help & FAQ";
+"settings.contact" = "Contact Support";
+"settings.rateApp" = "Rate App";
+"settings.shareApp" = "Share App";
+
+// Profile
+"profile.complete" = "Profile %d%% complete";
+"profile.biometricLogin" = "%@ Login";
+
+// Study Reminders
+"studyReminders.title" = "Study Reminders";
+"studyReminders.permissions" = "Permissions";
+"studyReminders.notificationPermission" = "Notification Permission";
+"studyReminders.enabled" = "Notifications enabled";
+"studyReminders.denied" = "Notifications denied";
+"studyReminders.notConfigured" = "Not configured";
+"studyReminders.enable" = "Enable Notifications";
+"studyReminders.description" = "Enable notifications to receive study reminders and stay on track with your learning goals.";
+"studyReminders.daily" = "Daily Study Reminders";
+"studyReminders.dailyDescription" = "Get reminded to study at your scheduled time each day.";
+"studyReminders.schedule" = "Schedule";
+"studyReminders.studyTime" = "Study Time";
+"studyReminders.timeDescription" = "You'll be reminded to study at %@";
+"studyReminders.studyDays" = "Study Days";
+"studyReminders.daysDescription" = "Reminders will be sent on %@";
+"studyReminders.weekdays" = "Weekdays";
+"studyReminders.everyDay" = "Every Day";
+"studyReminders.clear" = "Clear";
+"studyReminders.save" = "Save";
+"studyReminders.cancel" = "Cancel";
+
+// Days of Week
+"day.monday" = "Monday";
+"day.tuesday" = "Tuesday";
+"day.wednesday" = "Wednesday";
+"day.thursday" = "Thursday";
+"day.friday" = "Friday";
+"day.saturday" = "Saturday";
+"day.sunday" = "Sunday";
+
+// Common
+"common.done" = "Done";
+"common.cancel" = "Cancel";
+"common.save" = "Save";

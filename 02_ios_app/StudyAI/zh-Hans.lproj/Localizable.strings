@@ -1,0 +1,73 @@
+/*
+  Localizable.strings (Simplified Chinese)
+  StudyAI
+*/
+
+// Main Tabs
+"tab.home" = "首页";
+"tab.grader" = "评分器";
+"tab.chat" = "聊天";
+"tab.progress" = "进度";
+"tab.library" = "资料库";
+
+// Settings
+"settings.title" = "设置";
+"settings.account" = "账户";
+"settings.editProfile" = "编辑资料";
+"settings.signOut" = "退出登录";
+"settings.security" = "安全与隐私";
+"settings.passwordManager" = "密码管理器";
+"settings.privacySettings" = "隐私设置";
+"settings.appSettings" = "应用设置";
+"settings.studyReminders" = "学习提醒";
+"settings.textSize" = "文字大小";
+"settings.language" = "语言";
+"settings.voiceAudio" = "语音与音频";
+"settings.voiceSettings" = "语音设置";
+"settings.learning" = "学习";
+"settings.learningGoals" = "学习目标与进度";
+"settings.support" = "支持";
+"settings.help" = "帮助与常见问题";
+"settings.contact" = "联系支持";
+"settings.rateApp" = "评价应用";
+"settings.shareApp" = "分享应用";
+
+// Profile
+"profile.complete" = "资料完成度 %d%%";
+"profile.biometricLogin" = "%@ 登录";
+
+// Study Reminders
+"studyReminders.title" = "学习提醒";
+"studyReminders.permissions" = "权限";
+"studyReminders.notificationPermission" = "通知权限";
+"studyReminders.enabled" = "通知已启用";
+"studyReminders.denied" = "通知已拒绝";
+"studyReminders.notConfigured" = "未配置";
+"studyReminders.enable" = "启用通知";
+"studyReminders.description" = "启用通知以接收学习提醒，并保持学习进度。";
+"studyReminders.daily" = "每日学习提醒";
+"studyReminders.dailyDescription" = "在您预定的时间收到学习提醒。";
+"studyReminders.schedule" = "时间安排";
+"studyReminders.studyTime" = "学习时间";
+"studyReminders.timeDescription" = "您将在 %@ 收到学习提醒";
+"studyReminders.studyDays" = "学习日期";
+"studyReminders.daysDescription" = "提醒将在 %@ 发送";
+"studyReminders.weekdays" = "工作日";
+"studyReminders.everyDay" = "每天";
+"studyReminders.clear" = "清除";
+"studyReminders.save" = "保存";
+"studyReminders.cancel" = "取消";
+
+// Days of Week
+"day.monday" = "星期一";
+"day.tuesday" = "星期二";
+"day.wednesday" = "星期三";
+"day.thursday" = "星期四";
+"day.friday" = "星期五";
+"day.saturday" = "星期六";
+"day.sunday" = "星期日";
+
+// Common
+"common.done" = "完成";
+"common.cancel" = "取消";
+"common.save" = "保存";

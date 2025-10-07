@@ -32,7 +32,77 @@ class ProgressRoutes {
     await ensureDbInitialized();
   }
 
+  /**
+   * Map database subject names to iOS SubjectCategory enum values
+   * This ensures compatibility between backend data and iOS Swift enums
+   */
+  mapSubjectToiOSEnum(dbSubject) {
+    // Normalize subject string (trim, lowercase for comparison)
+    const normalized = (dbSubject || '').toString().toLowerCase().trim();
+
+    // Map common variations to iOS SubjectCategory enum raw values
+    const subjectMap = {
+      // Math variations
+      'math': 'Mathematics',
+      'maths': 'Mathematics',
+      'mathematics': 'Mathematics',
+      'algebra': 'Mathematics',
+      'geometry': 'Mathematics',
+      'calculus': 'Mathematics',
+
+      // Science subjects
+      'physics': 'Physics',
+      'chemistry': 'Chemistry',
+      'biology': 'Biology',
+      'bio': 'Biology',
+      'chem': 'Chemistry',
+
+      // Language subjects
+      'english': 'English',
+      'language': 'Foreign Language',
+      'foreign language': 'Foreign Language',
+      'spanish': 'Foreign Language',
+      'french': 'Foreign Language',
+      'chinese': 'Foreign Language',
+      'japanese': 'Foreign Language',
+
+      // Humanities
+      'history': 'History',
+      'geography': 'Geography',
+      'geo': 'Geography',
+
+      // Tech and Arts
+      'computer science': 'Computer Science',
+      'cs': 'Computer Science',
+      'programming': 'Computer Science',
+      'coding': 'Computer Science',
+      'arts': 'Arts',
+      'art': 'Arts',
+      'music': 'Arts',
+      'drawing': 'Arts',
+
+      // Default
+      'other': 'Other'
+    };
+
+    // Return mapped value or 'Other' as fallback
+    const mapped = subjectMap[normalized] || 'Other';
+
+    this.fastify.log.info(`🔄 Subject mapping: "${dbSubject}" -> "${mapped}"`);
+
+    return mapped;
+  }
+
   setupRoutes() {
+    // Get enhanced progress data (used by iOS EngagingProgressView)
+    this.fastify.get('/api/progress/enhanced', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get enhanced progress data for iOS EngagingProgressView',
+        tags: ['Progress']
+      }
+    }, this.getEnhancedProgress.bind(this));
+
     // Get subject breakdown for a user
     this.fastify.get('/api/progress/subject/breakdown/:userId', {
       preHandler: authPreHandler,
@@ -133,11 +203,200 @@ class ProgressRoutes {
 
   // Get user ID from request (flexible - could be from JWT, header, or query)
   getUserId(request) {
-    return request.user?.id || 
-           request.user?.email || 
-           request.headers['x-user-id'] || 
+    return request.user?.id ||
+           request.user?.email ||
+           request.headers['x-user-id'] ||
            request.query.userId ||
            'anonymous';
+  }
+
+  async getEnhancedProgress(request, reply) {
+    try {
+      // Get userId from authenticated user
+      const userId = this.getUserId(request);
+
+      this.fastify.log.info(`📊 === GET ENHANCED PROGRESS ===`);
+      this.fastify.log.info(`📊 User ID: ${userId}`);
+
+      if (!userId || userId === 'anonymous') {
+        this.fastify.log.error(`❌ No authenticated user found`);
+        return reply.status(401).send({
+          success: false,
+          error: 'Authentication required'
+        });
+      }
+
+      // Query overall statistics
+      const overallQuery = `
+        SELECT
+          COUNT(DISTINCT subject) as total_subjects,
+          COALESCE(SUM(total_questions_attempted), 0) as total_questions,
+          COALESCE(SUM(total_questions_correct), 0) as total_correct,
+          COALESCE(AVG(accuracy_rate), 0) as avg_accuracy,
+          COALESCE(SUM(total_time_spent), 0) as total_time,
+          COALESCE(MAX(streak_count), 0) as current_streak,
+          COALESCE(MAX(streak_count), 0) as longest_streak
+        FROM subject_progress
+        WHERE user_id = $1
+      `;
+
+      const overallResult = await db.query(overallQuery, [userId]);
+      const overall = overallResult.rows[0] || {};
+
+      // Calculate XP and level (10 XP per correct answer)
+      const totalXP = (parseInt(overall.total_correct) || 0) * 10;
+      const currentLevel = Math.floor(totalXP / 100) + 1;
+      const xpForCurrentLevel = (currentLevel - 1) * 100;
+      const xpForNextLevel = currentLevel * 100;
+      const xpInCurrentLevel = totalXP - xpForCurrentLevel;
+      const xpToNextLevel = xpForNextLevel - totalXP;
+      const xpProgress = (xpInCurrentLevel / 100.0) * 100;
+
+      // Query today's progress
+      const today = new Date().toISOString().split('T')[0];
+      const todayQuery = `
+        SELECT
+          COALESCE(SUM(questions_attempted), 0) as questions_answered,
+          COALESCE(SUM(questions_correct), 0) as correct_answers,
+          COALESCE(SUM(time_spent), 0) as study_time,
+          COALESCE(SUM(points_earned), 0) as xp_earned
+        FROM daily_subject_activities
+        WHERE user_id = $1 AND DATE(activity_date) = $2
+      `;
+
+      const todayResult = await db.query(todayQuery, [userId, today]);
+      const todayData = todayResult.rows[0] || {};
+      const todayAccuracy = (parseInt(todayData.questions_answered) || 0) > 0
+        ? Math.round(((parseInt(todayData.correct_answers) || 0) / (parseInt(todayData.questions_answered) || 0)) * 100)
+        : 0;
+
+      // Query this week's progress
+      const weekQuery = `
+        SELECT
+          COUNT(DISTINCT DATE(activity_date)) as days_active,
+          COALESCE(SUM(questions_attempted), 0) as total_questions,
+          COALESCE(SUM(questions_correct), 0) as total_correct
+        FROM daily_subject_activities
+        WHERE user_id = $1 AND activity_date >= NOW() - INTERVAL '7 days'
+      `;
+
+      const weekResult = await db.query(weekQuery, [userId]);
+      const weekData = weekResult.rows[0] || {};
+      const weekAccuracy = (parseInt(weekData.total_questions) || 0) > 0
+        ? Math.round(((parseInt(weekData.total_correct) || 0) / (parseInt(weekData.total_questions) || 0)) * 100)
+        : 0;
+
+      // Query subject data
+      const subjectsQuery = `
+        SELECT
+          subject,
+          total_questions_attempted as questions,
+          total_questions_correct as correct,
+          accuracy_rate as accuracy,
+          total_time_spent as xp,
+          'Intermediate' as proficiency
+        FROM subject_progress
+        WHERE user_id = $1
+        ORDER BY last_activity_date DESC
+      `;
+
+      const subjectsResult = await db.query(subjectsQuery, [userId]);
+
+      // Query achievements (mock data for now)
+      const achievementsQuery = `
+        SELECT
+          'First Steps' as achievement_name,
+          'Answered your first question!' as description,
+          'common' as rarity,
+          10 as xp_reward,
+          'star.fill' as icon
+        LIMIT 0
+      `;
+
+      const achievementsResult = await db.query(achievementsQuery);
+
+      // Build the response in the format iOS expects: { success, data: { ... } }
+      const data = {
+        overall: {
+          current_level: currentLevel,
+          total_xp: totalXP,
+          xp_progress: xpProgress,
+          xp_to_next_level: xpToNextLevel
+        },
+        today: {
+          xp_earned: parseInt(todayData.xp_earned) || 0,
+          questions_answered: parseInt(todayData.questions_answered) || 0,
+          correct_answers: parseInt(todayData.correct_answers) || 0,
+          accuracy: todayAccuracy
+        },
+        streak: {
+          current: parseInt(overall.current_streak) || 0,
+          longest: parseInt(overall.longest_streak) || 0
+        },
+        week: {
+          days_active: parseInt(weekData.days_active) || 0,
+          total_questions: parseInt(weekData.total_questions) || 0,
+          accuracy: weekAccuracy
+        },
+        daily_goal: {
+          target: 5,
+          current: parseInt(todayData.questions_answered) || 0,
+          completed: (parseInt(todayData.questions_answered) || 0) >= 5,
+          progress_percentage: Math.min(((parseInt(todayData.questions_answered) || 0) / 5.0) * 100, 100)
+        },
+        subjects: subjectsResult.rows.map(row => ({
+          name: row.subject,
+          questions: parseInt(row.questions) || 0,
+          correct: parseInt(row.correct) || 0,
+          accuracy: Math.round(parseFloat(row.accuracy) || 0),
+          xp: parseInt(row.xp) || 0,
+          proficiency: row.proficiency
+        })),
+        achievements: {
+          total_unlocked: achievementsResult.rows.length,
+          available_count: 10,
+          recent: achievementsResult.rows
+        },
+        next_milestones: [
+          {
+            title: "Question Master",
+            icon: "questionmark.circle.fill",
+            progress: parseInt(overall.total_questions) || 0,
+            target: 100
+          },
+          {
+            title: "Accuracy Expert",
+            icon: "target",
+            progress: Math.round(parseFloat(overall.avg_accuracy) || 0),
+            target: 90
+          },
+          {
+            title: "Streak Champion",
+            icon: "flame.fill",
+            progress: parseInt(overall.current_streak) || 0,
+            target: 7
+          }
+        ],
+        ai_message: "Great progress! Keep up the momentum and you'll reach your goals in no time. 🚀"
+      };
+
+      this.fastify.log.info(`✅ Enhanced progress data prepared`);
+      this.fastify.log.info(`📊 Data keys: ${Object.keys(data).join(", ")}`);
+
+      return reply.send({
+        success: true,
+        data: data
+      });
+
+    } catch (error) {
+      this.fastify.log.error('❌ Error in getEnhancedProgress:', error);
+      this.fastify.log.error('❌ Error stack:', error.stack);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to fetch enhanced progress',
+        message: error.message
+      });
+    }
   }
 
   async getSubjectBreakdown(request, reply) {
@@ -247,7 +506,7 @@ class ProgressRoutes {
         subjectProgress: subjectProgress.rows.map((row, index) => {
           // Map database fields to iOS SubjectProgressData model
           const mapped = {
-            subject: row.subject, // This should map to SubjectCategory enum
+            subject: this.mapSubjectToiOSEnum(row.subject), // ✅ FIX: Map to iOS SubjectCategory enum
             questionsAnswered: parseInt(row.total_questions_attempted) || 0,
             correctAnswers: parseInt(row.total_questions_correct) || 0,
             totalStudyTimeMinutes: Math.floor((parseInt(row.total_time_spent) || 0) / 60),
@@ -259,12 +518,12 @@ class ProgressRoutes {
             difficultyProgression: {}, // TODO: Implement difficulty tracking
             topicBreakdown: {} // TODO: Implement topic analysis
           };
-          
-          this.fastify.log.info(`🔍 DEBUG: Mapping subject ${index} (${row.subject}):`);
+
+          this.fastify.log.info(`🔍 DEBUG: Mapping subject ${index} (DB: "${row.subject}" -> iOS: "${mapped.subject}"):`);
           this.fastify.log.info(`🔍 DEBUG:   DB -> iOS: ${row.total_questions_attempted} -> ${mapped.questionsAnswered}`);
           this.fastify.log.info(`🔍 DEBUG:   DB -> iOS: ${row.total_questions_correct} -> ${mapped.correctAnswers}`);
           this.fastify.log.info(`🔍 DEBUG:   DB -> iOS: ${row.total_time_spent} -> ${mapped.totalStudyTimeMinutes}`);
-          
+
           return mapped;
         }),
         insights: {
