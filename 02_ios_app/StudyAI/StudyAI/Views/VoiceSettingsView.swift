@@ -73,8 +73,12 @@ struct VoiceSettingsView: View {
                         voiceType: voiceType,
                         isSelected: tempSettings.voiceType == voiceType,
                         onSelect: {
+                            // Stop any playing voice first
+                            voiceService.stopSpeech()
+                            showingPreview = false
+
+                            // Update voice type (no auto-play)
                             tempSettings.voiceType = voiceType
-                            playPreview(for: voiceType)
                         }
                     )
                 }
@@ -83,11 +87,13 @@ struct VoiceSettingsView: View {
     }
     
     // MARK: - Voice Controls Section
-    
+
     private var voiceControlsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let voiceColor = tempSettings.voiceType == .adam ? Color.blue : Color.purple
+
+        return VStack(alignment: .leading, spacing: 16) {
             sectionHeader("Voice Controls", icon: "slider.horizontal.3")
-            
+
             VStack(spacing: 20) {
                 // Speaking Rate
                 VStack(alignment: .leading, spacing: 8) {
@@ -95,19 +101,19 @@ struct VoiceSettingsView: View {
                         Text("Speaking Speed")
                             .font(.subheadline)
                             .fontWeight(.medium)
-                        
+
                         Spacer()
-                        
+
                         Text(speedLabel)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Image(systemName: "tortoise.fill")
                             .foregroundColor(.secondary)
                             .font(.caption)
-                        
+
                         Slider(value: $tempSettings.speakingRate, in: 0.25...1.0) {
                             Text("Speaking Rate")
                         } minimumValueLabel: {
@@ -115,37 +121,37 @@ struct VoiceSettingsView: View {
                         } maximumValueLabel: {
                             EmptyView()
                         }
-                        .tint(.blue)
+                        .tint(voiceColor)
                         .onChange(of: tempSettings.speakingRate) {
                             // Provide real-time feedback for rate changes
                             playQuickPreview()
                         }
-                        
+
                         Image(systemName: "hare.fill")
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
                 }
-                
+
                 // Voice Pitch
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Voice Pitch")
                             .font(.subheadline)
                             .fontWeight(.medium)
-                        
+
                         Spacer()
-                        
+
                         Text(pitchLabel)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Image(systemName: "arrow.down")
                             .foregroundColor(.secondary)
                             .font(.caption)
-                        
+
                         Slider(value: $tempSettings.voicePitch, in: 0.7...1.3) {
                             Text("Voice Pitch")
                         } minimumValueLabel: {
@@ -153,37 +159,37 @@ struct VoiceSettingsView: View {
                         } maximumValueLabel: {
                             EmptyView()
                         }
-                        .tint(.blue)
+                        .tint(voiceColor)
                         .onChange(of: tempSettings.voicePitch) {
                             // Provide real-time feedback for pitch changes
                             playQuickPreview()
                         }
-                        
+
                         Image(systemName: "arrow.up")
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
                 }
-                
+
                 // Volume
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Volume")
                             .font(.subheadline)
                             .fontWeight(.medium)
-                        
+
                         Spacer()
-                        
+
                         Text("\(Int(tempSettings.volume * 100))%")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Image(systemName: "speaker.fill")
                             .foregroundColor(.secondary)
                             .font(.caption)
-                        
+
                         Slider(value: $tempSettings.volume, in: 0.3...1.0) {
                             Text("Volume")
                         } minimumValueLabel: {
@@ -191,12 +197,12 @@ struct VoiceSettingsView: View {
                         } maximumValueLabel: {
                             EmptyView()
                         }
-                        .tint(.blue)
+                        .tint(voiceColor)
                         .onChange(of: tempSettings.volume) {
                             // Provide real-time feedback for volume changes
                             playQuickPreview()
                         }
-                        
+
                         Image(systemName: "speaker.wave.3.fill")
                             .foregroundColor(.secondary)
                             .font(.caption)
@@ -207,27 +213,29 @@ struct VoiceSettingsView: View {
     }
     
     // MARK: - Auto-Speak Section
-    
+
     private var autoSpeakSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let voiceColor = tempSettings.voiceType == .adam ? Color.blue : Color.purple
+
+        return VStack(alignment: .leading, spacing: 16) {
             sectionHeader("Auto-Speak Settings", icon: "autostartstop.trianglebadge.exclamationmark")
-            
+
             VStack(spacing: 12) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Auto-Speak AI Responses")
                             .font(.subheadline)
                             .fontWeight(.medium)
-                        
+
                         Text("Automatically read AI responses aloud")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     Spacer()
-                    
+
                     Toggle("", isOn: $tempSettings.autoSpeakResponses)
-                        .tint(.blue)
+                        .tint(voiceColor)
                 }
                 .padding()
                 .background(Color(.systemGray6))
@@ -237,29 +245,31 @@ struct VoiceSettingsView: View {
     }
     
     // MARK: - Voice Preview Section
-    
+
     private var voicePreviewSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let voiceColor = tempSettings.voiceType == .adam ? Color.blue : Color.purple
+
+        return VStack(alignment: .leading, spacing: 16) {
             sectionHeader("Voice Preview", icon: "play.circle.fill")
-            
+
             VStack(spacing: 12) {
                 Text("Tap to hear how your AI assistant will sound with these settings:")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
-                
+
                 Button(action: playCurrentPreview) {
                     HStack {
                         Image(systemName: showingPreview ? "stop.circle.fill" : "play.circle.fill")
                             .font(.title2)
-                        
+
                         Text(showingPreview ? "Stop Preview" : "Play Preview")
                             .fontWeight(.semibold)
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
+                    .background(voiceColor.opacity(0.1))
+                    .foregroundColor(voiceColor)
                     .cornerRadius(12)
                 }
                 .disabled(!voiceService.isVoiceEnabled)
@@ -420,22 +430,27 @@ struct VoiceTypeCard: View {
     let voiceType: VoiceType
     let isSelected: Bool
     let onSelect: () -> Void
-    
+
+    // Dynamic color based on voice type
+    private var cardColor: Color {
+        voiceType == .adam ? .blue : .purple
+    }
+
     var body: some View {
         Button(action: onSelect) {
             VStack(spacing: 12) {
                 // Icon
                 Image(systemName: voiceType.icon)
                     .font(.title2)
-                    .foregroundColor(isSelected ? .white : .blue)
-                
+                    .foregroundColor(isSelected ? .white : cardColor)
+
                 // Title
                 Text(voiceType.displayName)
                     .font(.headline)
                     .fontWeight(.semibold)
                     .foregroundColor(isSelected ? .white : .primary)
                     .multilineTextAlignment(.center)
-                
+
                 // Description
                 Text(voiceType.description)
                     .font(.caption)
@@ -447,11 +462,11 @@ struct VoiceTypeCard: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? Color.blue : Color(.systemGray6))
+                    .fill(isSelected ? cardColor : Color(.systemGray6))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? cardColor : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(.plain)

@@ -1,19 +1,18 @@
 # Railway Deployment Configuration
-# Using non-Alpine image to fix npm issues
-# Force rebuild timestamp: 1757230981
+# Using Alpine for faster pulls and smaller size
+# Force rebuild timestamp: 1757231300
 
-FROM node:18-slim AS base
+FROM node:18-alpine AS base
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies for Debian
-RUN apt-get update && apt-get install -y \
+# Install system dependencies for Alpine
+RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+    curl
 
 # Copy package files (cache bust)
 COPY package*.json ./
@@ -27,9 +26,9 @@ RUN npm cache clean --force
 # Copy application code
 COPY . .
 
-# Create non-root user for security (Debian syntax)
-RUN groupadd -g 1001 nodejs && \
-    useradd -r -u 1001 -g nodejs studyai
+# Create non-root user for security (Alpine syntax)
+RUN addgroup -g 1001 nodejs && \
+    adduser -D -u 1001 -G nodejs studyai
 
 # Create directories for logs and reports
 RUN mkdir -p logs reports && \

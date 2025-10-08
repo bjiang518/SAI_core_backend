@@ -843,21 +843,26 @@ struct LearningProgressView: View {
     // MARK: - Data Loading
     
     private func loadProgressData() {
+        print("🔄 ========================================")
+        print("🔄 === LEARNING PROGRESS VIEW: LOAD START ===")
+        print("🔄 === User ID: \(userId) ===")
+        print("🔄 ========================================")
         isLoading = true
         errorMessage = ""
-        
+
         Task {
             await loadProgressDataAsync()
         }
     }
-    
+
     private func loadProgressDataAsync() async {
+        print("📡 LearningProgressView: loadProgressDataAsync() started")
         // Check if task was cancelled before starting
         if Task.isCancelled {
-
+            print("⚠️ LearningProgressView: Task cancelled before starting")
             return
         }
-        
+
 
         await MainActor.run {
             isLoading = true
@@ -890,39 +895,58 @@ struct LearningProgressView: View {
     }
     
     private func loadSubjectBreakdown() async {
+        print("📡 ========================================")
+        print("📡 === LOAD SUBJECT BREAKDOWN START ===")
+        print("📡 === LearningProgressView.loadSubjectBreakdown() ===")
+        print("📡 ========================================")
+
         // Check if task was cancelled before starting
         if Task.isCancelled {
-
+            print("⚠️ LearningProgressView: Task cancelled before loadSubjectBreakdown")
             return
         }
-        
-        // Avoid duplicate requests if already loading subject breakdown specifically
-        guard !isLoadingSubjectBreakdown else { 
 
-            return 
+        // Avoid duplicate requests if already loading subject breakdown specifically
+        guard !isLoadingSubjectBreakdown else {
+            print("⚠️ LearningProgressView: Already loading subject breakdown, skipping duplicate request")
+            return
         }
-        
+
         await MainActor.run {
             isLoadingSubjectBreakdown = true
         }
-        
+
+        print("📡 Calling fetchSubjectBreakdown with:")
+        print("📡   userId: \(userId)")
+        print("📡   timeframe: \(selectedTimeframe.apiValue)")
+
         do {
-
-
-
-
             let response = try await networkService.fetchSubjectBreakdown(
                 userId: userId,
                 timeframe: selectedTimeframe.apiValue
             )
 
+            print("📥 ========================================")
+            print("📥 === RECEIVED SUBJECT BREAKDOWN RESPONSE ===")
+            print("📥 Response success: \(response.success)")
+            print("📥 Response message: \(response.message ?? "nil")")
+            print("📥 Response data exists: \(response.data != nil)")
 
-
-
+            if let data = response.data {
+                print("📊 Subject breakdown data structure:")
+                print("📊   - Subject count: \(data.subjectProgress.count)")
+                print("📊   - Total subjects studied: \(data.summary.totalSubjectsStudied)")
+                print("📊   - Total questions: \(data.summary.totalQuestionsAnswered)")
+                print("📊   - Overall accuracy: \(data.summary.overallAccuracy)")
+                print("📊   - Last updated: \(data.lastUpdated)")
+            } else {
+                print("❌ Response data is nil")
+            }
+            print("📥 ========================================")
 
             // Check if task was cancelled during network call
             if Task.isCancelled {
-
+                print("⚠️ LearningProgressView: Task cancelled after network call")
                 await MainActor.run {
                     isLoadingSubjectBreakdown = false
                 }
@@ -932,26 +956,39 @@ struct LearningProgressView: View {
             await MainActor.run {
                 isLoadingSubjectBreakdown = false
                 if response.success, let data = response.data {
+                    print("✅ SUCCESS: Setting subjectBreakdownData")
                     self.subjectBreakdownData = data
-
-
-
+                    print("✅ subjectBreakdownData now set with \(data.subjectProgress.count) subjects")
                 } else {
+                    print("❌ FAILURE: Cannot set subjectBreakdownData")
+                    print("❌ Success: \(response.success)")
+                    print("❌ Data exists: \(response.data != nil)")
 
                     if !Task.isCancelled {
-                        errorMessage = response.message ?? "Failed to load subject breakdown"
+                        let errorMsg = response.message ?? "Failed to load subject breakdown"
+                        print("❌ Setting errorMessage: \(errorMsg)")
+                        errorMessage = errorMsg
                     }
                 }
             }
         } catch {
+            print("❌ ========================================")
+            print("❌ === EXCEPTION IN LOAD SUBJECT BREAKDOWN ===")
+            print("❌ Error: \(error)")
+            print("❌ Error description: \(error.localizedDescription)")
+            print("❌ Is cancellation error: \(error.localizedDescription.contains("cancelled"))")
+            print("❌ ========================================")
+
             await MainActor.run {
                 isLoadingSubjectBreakdown = false
 
                 // Only log as error if not cancelled (which is common during view changes)
                 if !error.localizedDescription.contains("cancelled") && !Task.isCancelled {
-                    errorMessage = "Failed to load subject breakdown: \(error.localizedDescription)"
+                    let errorMsg = "Failed to load subject breakdown: \(error.localizedDescription)"
+                    print("❌ Setting errorMessage: \(errorMsg)")
+                    errorMessage = errorMsg
                 } else {
-
+                    print("⚠️ Cancelled error - not setting errorMessage")
                 }
             }
         }

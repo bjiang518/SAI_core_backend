@@ -237,10 +237,20 @@ class EnhancedHomeworkParser {
                 correctAnswer = trimmedLine.replacingOccurrences(of: "CORRECT_ANSWER:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
             } else if trimmedLine.hasPrefix("GRADE:") {
                 grade = trimmedLine.replacingOccurrences(of: "GRADE:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("POINTS:") {
+                // New compact format: "POINTS: X/Y"
+                let pointsString = trimmedLine.replacingOccurrences(of: "POINTS:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let components = pointsString.components(separatedBy: "/")
+                if components.count == 2 {
+                    pointsEarned = Float(components[0].trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0.0
+                    pointsPossible = Float(components[1].trimmingCharacters(in: .whitespacesAndNewlines)) ?? 1.0
+                }
             } else if trimmedLine.hasPrefix("POINTS_EARNED:") {
+                // Legacy format support
                 let pointsString = trimmedLine.replacingOccurrences(of: "POINTS_EARNED:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
                 pointsEarned = Float(pointsString) ?? 0.0
             } else if trimmedLine.hasPrefix("POINTS_POSSIBLE:") {
+                // Legacy format support
                 let pointsString = trimmedLine.replacingOccurrences(of: "POINTS_POSSIBLE:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
                 pointsPossible = Float(pointsString) ?? 1.0
             } else if trimmedLine.hasPrefix("FEEDBACK:") {

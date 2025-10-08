@@ -91,7 +91,7 @@ enum VoiceType: String, CaseIterable, Codable {
         case .adam:
             return 0.95 // Slightly lower pitch for boy voice
         case .eva:
-            return 1.15 // Higher pitch for girl voice
+            return 1.25 // Cute, higher pitch for girl voice
         }
     }
     

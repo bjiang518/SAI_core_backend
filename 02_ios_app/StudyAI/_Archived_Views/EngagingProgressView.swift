@@ -6,8 +6,10 @@
 //
 
 import SwiftUI
+import os.log
 
 struct EngagingProgressView: View {
+    private let logger = Logger(subsystem: "com.studyai", category: "EngagingProgressView")
     @StateObject private var networkService = NetworkService.shared
     @State private var progressData: [String: Any]?
     @State private var isLoading = true
@@ -1066,18 +1068,56 @@ struct EngagingProgressView: View {
     }
     
     // MARK: - Helper Functions
-    
+
     private func loadProgressData() {
+        logger.info("🔄 ========================================")
+        logger.info("🔄 === ENGAGING PROGRESS VIEW: LOADING PROGRESS DATA ===")
+        logger.info("🔄 === ENDPOINT: /api/progress/enhanced ===")
+        logger.info("🔄 ========================================")
         isLoading = true
-        
+
         Task {
+            logger.info("📡 EngagingProgressView: About to call networkService.getEnhancedProgress()")
             let result = await networkService.getEnhancedProgress()
-            
+
+            logger.info("📥 EngagingProgressView: Received result - success: \(result.success)")
+
+            if let progress = result.progress {
+                logger.info("📊 Progress dictionary exists with \(progress.keys.count) keys")
+                logger.info("📊 Progress keys: \(progress.keys.joined(separator: ", "))")
+
+                // Log the full structure
+                if let jsonData = try? JSONSerialization.data(withJSONObject: progress, options: .prettyPrinted),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    logger.info("📊 Full progress structure:\n\(jsonString)")
+                }
+            } else {
+                logger.error("❌ Progress dictionary is nil")
+            }
+
             await MainActor.run {
                 isLoading = false
                 if result.success, let data = result.progress?["data"] as? [String: Any] {
+                    logger.info("✅ Successfully extracted data from progress['data']")
+                    logger.info("📊 Data keys: \(data.keys.joined(separator: ", "))")
                     progressData = data
                 } else {
+                    logger.error("❌ Failed to load progress data")
+
+                    if !result.success {
+                        logger.error("❌ Result.success is false")
+                    }
+
+                    if result.progress == nil {
+                        logger.error("❌ Result.progress is nil")
+                    } else if result.progress?["data"] == nil {
+                        logger.error("❌ Result.progress['data'] is nil")
+                        logger.error("❌ Available keys in progress: \(result.progress?.keys.joined(separator: ", ") ?? "none")")
+                    } else {
+                        logger.error("❌ Result.progress['data'] exists but is not a [String: Any] dictionary")
+                        logger.error("❌ Type: \(type(of: result.progress?["data"]))")
+                    }
+
                     progressData = nil
                 }
             }

@@ -72,16 +72,60 @@ class EnhancedTTSService: NSObject, ObservableObject {
     }
     
     // MARK: - Public Methods
-    
+
     func speak(_ text: String, with settings: VoiceSettings? = nil) {
         let voiceSettings = settings ?? currentVoiceSettings
         let processedText = addCharacterPersonality(to: text, for: voiceSettings.voiceType)
         let request = TTSRequest(text: processedText, voiceSettings: voiceSettings)
-        
+
         print("🎵 EnhancedTTSService: Speaking request - Text: '\(String(processedText.prefix(50)))...', Voice: \(voiceSettings.voiceType)")
-        
+
         DispatchQueue.main.async {
             self.processRequest(request)
+        }
+    }
+
+    // Preload audio without playing it - just populate the cache
+    func preloadAudio(_ text: String, with settings: VoiceSettings? = nil) async throws {
+        let voiceSettings = settings ?? currentVoiceSettings
+        let processedText = addCharacterPersonality(to: text, for: voiceSettings.voiceType)
+        let request = TTSRequest(text: processedText, voiceSettings: voiceSettings)
+
+        let cacheKey = createCacheKey(for: request)
+
+        // Check if already cached in memory
+        if audioCache.object(forKey: cacheKey as NSString) != nil {
+            print("🎵 EnhancedTTSService: Audio already cached in memory for: '\(String(text.prefix(30)))...'")
+            return
+        }
+
+        // Check if already cached on disk
+        if loadFromDiskCache(cacheKey: cacheKey) != nil {
+            print("🎵 EnhancedTTSService: Audio already cached on disk for: '\(String(text.prefix(30)))...'")
+            return
+        }
+
+        // Only preload if we should use OpenAI TTS
+        guard shouldUseOpenAITTS(for: voiceSettings.voiceType) else {
+            print("🎵 EnhancedTTSService: Skipping preload for non-OpenAI voice")
+            return
+        }
+
+        print("🎵 EnhancedTTSService: Preloading audio for: '\(String(text.prefix(30)))...'")
+
+        do {
+            let audioData = try await requestServerTTS(for: request)
+
+            // Cache the audio data in memory
+            audioCache.setObject(audioData as NSData, forKey: cacheKey as NSString)
+
+            // Save to disk cache for persistence
+            saveToDiskCache(audioData: audioData, cacheKey: cacheKey)
+
+            print("🎵 EnhancedTTSService: Successfully preloaded and cached audio (\(audioData.count) bytes)")
+        } catch {
+            print("🎵 EnhancedTTSService: Preload failed: \(error)")
+            throw error
         }
     }
     
@@ -157,24 +201,36 @@ class EnhancedTTSService: NSObject, ObservableObject {
     
     private func generateOpenAIAudio(for request: TTSRequest) {
         isProcessing = true
-        
+
         let cacheKey = createCacheKey(for: request)
-        
-        // Check cache first
+
+        // Check memory cache first
         if let cachedData = audioCache.object(forKey: cacheKey as NSString) {
-            print("🎵 EnhancedTTSService: Found cached audio")
+            print("🎵 EnhancedTTSService: Found cached audio in memory")
             playAudioData(cachedData as Data, for: request)
             return
         }
-        
+
+        // Check disk cache
+        if let diskData = loadFromDiskCache(cacheKey: cacheKey) {
+            print("🎵 EnhancedTTSService: Found cached audio on disk")
+            // Store in memory cache for faster access next time
+            audioCache.setObject(diskData as NSData, forKey: cacheKey as NSString)
+            playAudioData(diskData, for: request)
+            return
+        }
+
         // Generate audio via server-side TTS endpoint
         Task {
             do {
                 let audioData = try await requestServerTTS(for: request)
-                
-                // Cache the audio data
+
+                // Cache the audio data in memory
                 audioCache.setObject(audioData as NSData, forKey: cacheKey as NSString)
-                
+
+                // Save to disk cache for persistence across app launches
+                saveToDiskCache(audioData: audioData, cacheKey: cacheKey)
+
                 await MainActor.run {
                     self.playAudioData(audioData, for: request)
                 }
@@ -184,6 +240,36 @@ class EnhancedTTSService: NSObject, ObservableObject {
                     self.useFallbackTTS(for: request)
                 }
             }
+        }
+    }
+
+    // MARK: - Disk Cache Methods
+
+    private func loadFromDiskCache(cacheKey: String) -> Data? {
+        let fileURL = cacheDirectory.appendingPathComponent("\(cacheKey).mp3")
+
+        guard fileManager.fileExists(atPath: fileURL.path) else {
+            return nil
+        }
+
+        do {
+            let data = try Data(contentsOf: fileURL)
+            print("🎵 EnhancedTTSService: Loaded \(data.count) bytes from disk cache")
+            return data
+        } catch {
+            print("🎵 EnhancedTTSService: Failed to load from disk cache: \(error)")
+            return nil
+        }
+    }
+
+    private func saveToDiskCache(audioData: Data, cacheKey: String) {
+        let fileURL = cacheDirectory.appendingPathComponent("\(cacheKey).mp3")
+
+        do {
+            try audioData.write(to: fileURL)
+            print("🎵 EnhancedTTSService: Saved \(audioData.count) bytes to disk cache")
+        } catch {
+            print("🎵 EnhancedTTSService: Failed to save to disk cache: \(error)")
         }
     }
     

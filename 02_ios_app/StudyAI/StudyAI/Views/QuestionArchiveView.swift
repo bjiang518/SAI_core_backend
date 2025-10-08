@@ -14,8 +14,10 @@ struct QuestionArchiveView: View {
     @Binding var questionTags: [[String]]
     let originalImageUrl: String
     let processingTime: Double
+    let initialDetectedSubject: String?
+    let initialSubjectConfidence: Float?
     let onArchive: (String, Float, [String], [[String]]) -> Void
-    
+
     @State private var detectedSubject = "Other"
     @State private var subjectConfidence: Float = 0.5
     @State private var customSubject = ""
@@ -56,8 +58,20 @@ struct QuestionArchiveView: View {
             }
         }
         .onAppear {
-            // Auto-detect subject from questions (simple heuristic)
-            autoDetectSubject()
+            // Use AI-detected subject if available, otherwise auto-detect from questions
+            if let initialSubject = initialDetectedSubject, !initialSubject.isEmpty {
+                detectedSubject = initialSubject
+                print("📚 Using AI-detected subject: \(initialSubject)")
+            } else {
+                // Fallback to auto-detect subject from questions (simple heuristic)
+                autoDetectSubject()
+            }
+
+            // Use AI-provided confidence if available
+            if let initialConfidence = initialSubjectConfidence {
+                subjectConfidence = initialConfidence
+                print("🎯 Using AI subject confidence: \(initialConfidence)")
+            }
         }
     }
     
@@ -404,8 +418,10 @@ struct TagView: View {
         selectedIndices: .constant(Set([0, 1])),
         questionNotes: .constant(["", ""]),
         questionTags: .constant([[], []]),
-        originalImageUrl: "test-url", 
+        originalImageUrl: "test-url",
         processingTime: 2.3,
+        initialDetectedSubject: "Mathematics",
+        initialSubjectConfidence: 0.95,
         onArchive: { _, _, _, _ in }
     )
 }

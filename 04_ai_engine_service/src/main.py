@@ -713,6 +713,7 @@ class HomeworkParsingRequest(BaseModel):
     base64_image: str
     prompt: Optional[str] = None
     student_id: Optional[str] = "anonymous"
+    parsing_mode: Optional[str] = "hierarchical"  # "hierarchical" or "baseline"
 
 class HomeworkParsingResponse(BaseModel):
     success: bool
@@ -830,6 +831,7 @@ async def process_homework_image(request: HomeworkParsingRequest):
         print(f"📥 === HOMEWORK PARSING REQUEST ===")
         print(f"📊 Student ID: {request.student_id}")
         print(f"📏 Image length: {len(request.base64_image)} chars")
+        print(f"🔧 Parsing mode: {request.parsing_mode}")
         print(f"📝 Prompt: {request.prompt[:200]}..." if len(request.prompt) > 200 else f"📝 Prompt: {request.prompt}")
         print(f"=====================================")
 
@@ -837,7 +839,8 @@ async def process_homework_image(request: HomeworkParsingRequest):
         result = await ai_service.parse_homework_image(
             base64_image=request.base64_image,
             custom_prompt=request.prompt,
-            student_context={"student_id": request.student_id}
+            student_context={"student_id": request.student_id},
+            parsing_mode=request.parsing_mode
         )
 
         print(f"🔍 === AI SERVICE RESULT ===")
@@ -855,12 +858,20 @@ async def process_homework_image(request: HomeworkParsingRequest):
         # Calculate processing time
         processing_time = int((time.time() - start_time) * 1000)
 
-        return HomeworkParsingResponse(
+        response_obj = HomeworkParsingResponse(
             success=True,
             response=result["structured_response"],
             processing_time_ms=processing_time,
             error=None
         )
+
+        print(f"📤 === SENDING RESPONSE BACK TO CLIENT ===")
+        print(f"✅ Success: True")
+        print(f"⏱️ Total processing time: {processing_time}ms")
+        print(f"📦 Response size: {len(result['structured_response'])} chars")
+        print(f"=====================================")
+
+        return response_obj
 
     except HTTPException as he:
         # Re-raise HTTP exceptions

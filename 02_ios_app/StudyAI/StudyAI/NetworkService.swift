@@ -722,44 +722,74 @@ class NetworkService: ObservableObject {
     // MARK: - Enhanced Progress Tracking
 
     func getEnhancedProgress() async -> (success: Bool, progress: [String: Any]?) {
+        print("📊 ========================================")
         print("📊 === GET ENHANCED PROGRESS ===")
-        
+        print("📊 === NetworkService.getEnhancedProgress() ===")
+        print("📊 ========================================")
+
         let progressURL = "\(baseURL)/api/progress/enhanced"
-        
+        print("📡 Full Progress URL: \(progressURL)")
+        print("📡 Base URL: \(baseURL)")
+        print("📡 Endpoint: /api/progress/enhanced")
+
         guard let url = URL(string: progressURL) else {
+            print("❌ Invalid progress URL: \(progressURL)")
             return (false, nil)
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        
+
         // Add authentication header
         addAuthHeader(to: &request)
-        
+
+        // Log the request headers (without sensitive data)
+        if let headers = request.allHTTPHeaderFields {
+            print("📋 Request headers: \(headers.keys.joined(separator: ", "))")
+        }
+
         do {
+            print("📡 Sending request to: \(progressURL)")
             let (data, response) = try await URLSession.shared.data(for: request)
-            
+
             if let httpResponse = response as? HTTPURLResponse {
                 print("✅ Enhanced Progress Status: \(httpResponse.statusCode)")
-                
+
                 if httpResponse.statusCode == 200 {
+                    print("📊 Received \(data.count) bytes of data")
+
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("✅ Enhanced Progress Response: \(json)")
+                        print("✅ Successfully parsed JSON response")
+                        print("📊 Response keys: \(json.keys.joined(separator: ", "))")
+
+                        // Log the full response for debugging
+                        if let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted),
+                           let jsonString = String(data: jsonData, encoding: .utf8) {
+                            print("📊 Full response:\n\(jsonString)")
+                        }
+
                         return (true, json)
+                    } else {
+                        print("❌ Failed to parse JSON response")
+                        let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                        print("❌ Raw response: \(String(rawResponse.prefix(500)))")
                     }
                 } else if httpResponse.statusCode == 401 {
                     print("❌ Authentication expired in getEnhancedProgress")
+                    print("❌ User session may have expired or token is invalid")
                     return (false, nil)
                 }
-                
+
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                print("❌ Enhanced Progress HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
+                print("❌ Enhanced Progress HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(500)))")
                 return (false, nil)
             }
-            
+
+            print("❌ Response is not an HTTPURLResponse")
             return (false, nil)
         } catch {
             print("❌ Enhanced progress request failed: \(error.localizedDescription)")
+            print("❌ Error details: \(error)")
             return (false, nil)
         }
     }
@@ -1892,42 +1922,74 @@ class NetworkService: ObservableObject {
     // MARK: - Batch Homework Processing
 
     /// Process multiple homework images with batch API
-    func processHomeworkImagesBatch(base64Images: [String], prompt: String = "") async -> (success: Bool, responses: [[String: Any]]?, totalImages: Int, successCount: Int) {
+    func processHomeworkImagesBatch(base64Images: [String], prompt: String = "", subject: String? = nil, parsingMode: String = "hierarchical") async -> (success: Bool, responses: [[String: Any]]?, totalImages: Int, successCount: Int) {
         print("📝 Processing \(base64Images.count) homework images in batch...")
         print("🤖 Using batch AI parsing with subject detection")
+        print("🔧 Parsing mode: \(parsingMode)")
+        if let selectedSubject = subject {
+            print("📚 User-selected subject: \(selectedSubject)")
+        }
 
         guard let url = URL(string: "\(baseURL)/api/ai/process-homework-images-batch") else {
             print("❌ Invalid batch homework parsing URL")
             return (false, nil, base64Images.count, 0)
         }
 
-        // Enhanced prompt for batch processing
-        let enhancedPrompt = """
-        Please analyze this homework image and provide:
-        1. SUBJECT_DETECTION: Identify the academic subject (Mathematics, Physics, Chemistry, Biology, English, History, Geography, Computer Science, Foreign Language, Arts, or Other)
-        2. CONFIDENCE_LEVEL: Your confidence in the subject detection (0.0-1.0)
-        3. QUESTIONS_AND_ANSWERS: Extract and solve all questions as usual
+        // Enhanced prompt for batch processing with optional subject
+        var enhancedPrompt = ""
+        if let selectedSubject = subject {
+            enhancedPrompt = """
+            SUBJECT: \(selectedSubject)
+            The user has indicated this homework is for \(selectedSubject). Please grade accordingly using subject-specific criteria.
 
-        Format your response exactly as follows:
-        SUBJECT: [detected subject]
-        SUBJECT_CONFIDENCE: [0.0-1.0]
+            Please analyze this \(selectedSubject) homework and provide:
+            1. Grade all questions using \(selectedSubject)-specific grading standards
+            2. Extract and solve all questions
+            3. Provide detailed feedback (up to 30 words per question)
 
-        Then continue with the normal question format using ═══QUESTION_SEPARATOR═══ between questions.
+            Format your response exactly as follows using ═══QUESTION_SEPARATOR═══ between questions.
 
-        Additional context: \(prompt.isEmpty ? "General homework analysis" : prompt)
-        """
+            Additional context: \(prompt.isEmpty ? "General homework analysis" : prompt)
+            """
+        } else {
+            enhancedPrompt = """
+            Please analyze this homework image and provide:
+            1. SUBJECT_DETECTION: Identify the academic subject (Mathematics, Physics, Chemistry, Biology, English, History, Geography, Computer Science, Foreign Language, Arts, or Other)
+            2. CONFIDENCE_LEVEL: Your confidence in the subject detection (0.0-1.0)
+            3. QUESTIONS_AND_ANSWERS: Extract and solve all questions as usual
 
-        let requestData: [String: Any] = [
+            Format your response exactly as follows:
+            SUBJECT: [detected subject]
+            SUBJECT_CONFIDENCE: [0.0-1.0]
+
+            Then continue with the normal question format using ═══QUESTION_SEPARATOR═══ between questions.
+
+            Additional context: \(prompt.isEmpty ? "General homework analysis" : prompt)
+            """
+        }
+
+        var requestData: [String: Any] = [
             "base64_images": base64Images,
             "prompt": enhancedPrompt,
             "student_id": "ios_user",
-            "include_subject_detection": true
+            "include_subject_detection": true,
+            "parsing_mode": parsingMode  // Pass parsing mode to backend
         ]
+
+        // Add subject if provided by user
+        if let selectedSubject = subject {
+            requestData["subject"] = selectedSubject
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 180.0 // 3 minutes timeout for batch processing
+
+        // Dynamic timeout based on parsing mode
+        // Hierarchical: 5 minutes (more complex parsing)
+        // Baseline: 3 minutes (faster flat parsing)
+        request.timeoutInterval = parsingMode == "hierarchical" ? 300.0 : 180.0
+        print("⏱️ Request timeout: \(request.timeoutInterval)s for \(parsingMode) mode")
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestData)

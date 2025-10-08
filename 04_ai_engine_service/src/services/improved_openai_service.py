@@ -23,7 +23,8 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import gzip
 import time
-from tenacity import retry, stop_after_attempt, wait_exponential
+# REMOVED: from tenacity import retry, stop_after_attempt, wait_exponential
+# (No longer needed - OpenAI client has built-in retry logic)
 
 load_dotenv()
 
@@ -86,9 +87,9 @@ class OptimizedEducationalAIService:
             self.client = openai.AsyncOpenAI(
                 api_key=api_key,
                 max_retries=3,
-                timeout=60.0
+                timeout=120.0  # 2 minutes for complex homework parsing (was 60s)
             )
-            print(f"✅ OpenAI AsyncClient initialized: {type(self.client)}")
+            print(f"✅ OpenAI AsyncClient initialized with 120s timeout: {type(self.client)}")
         except Exception as e:
             print(f"❌ Failed to initialize OpenAI client: {e}")
             raise
@@ -263,25 +264,27 @@ class OptimizedEducationalAIService:
 
     # MARK: - Image Hash Caching (New Optimization)
 
-    def _get_image_hash(self, base64_image: str) -> str:
-        """Generate SHA256 hash for image caching."""
-        return hashlib.sha256(base64_image.encode()).hexdigest()[:16]
+    def _get_image_hash(self, base64_image: str, parsing_mode: Optional[str] = None) -> str:
+        """Generate SHA256 hash for image caching, including parsing mode to prevent cross-contamination."""
+        # Include parsing mode in hash to ensure different modes don't share cache
+        mode_suffix = f":{parsing_mode}" if parsing_mode else ""
+        combined = f"{base64_image}{mode_suffix}"
+        return hashlib.sha256(combined.encode()).hexdigest()[:16]
 
     def _get_cached_image_result(self, image_hash: str) -> Optional[Dict]:
-        """Get cached homework parsing result for similar image."""
+        """Get cached homework parsing result for similar image with same parsing mode."""
         if image_hash in self.image_cache:
             cached_data = self.image_cache[image_hash]
             # 1 hour cache for images (homework is time-sensitive)
             if time.time() - cached_data['timestamp'] < 3600:
                 self.image_cache_hits += 1
-                print(f"✅ IMAGE CACHE HIT: Saved OpenAI API call")
                 return cached_data['result']
             else:
                 del self.image_cache[image_hash]
         return None
 
     def _set_cached_image_result(self, image_hash: str, result: Dict):
-        """Cache homework parsing result by image hash."""
+        """Cache homework parsing result by image hash (includes parsing mode in hash)."""
         # Clean old entries if cache is full
         if len(self.image_cache) >= self.image_cache_limit:
             oldest_keys = sorted(
@@ -454,12 +457,14 @@ class OptimizedEducationalAIService:
         print(f"🔍 Aggressive extraction found {len(questions)} question patterns")
         return questions[:5]  # Limit to 5 questions max
     
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    # REMOVED: @retry decorator - causes excessive timeout (374s total)
+    # OpenAI client already has max_retries=3 built-in, so this is redundant
     async def parse_homework_image_json(
         self,
         base64_image: str,
         custom_prompt: Optional[str] = None,
-        student_context: Optional[Dict] = None
+        student_context: Optional[Dict] = None,
+        parsing_mode: Optional[str] = None  # "hierarchical" or "baseline"
     ) -> Dict[str, Any]:
         """
         Parse homework images with guaranteed JSON structure using OpenAI structured outputs.
@@ -470,6 +475,7 @@ class OptimizedEducationalAIService:
         - High detail: "high" for better OCR accuracy (was "auto")
         - Temperature 0.1: More natural while still consistent (was 0)
         - Dynamic tokens: Adaptive allocation based on image size (was fixed 8000)
+        - Parsing mode: Hierarchical (default) or baseline (boost) parsing
 
         This method guarantees 100% consistent response format by:
         1. Using OpenAI's beta.chat.completions.parse with Pydantic models
@@ -481,20 +487,22 @@ class OptimizedEducationalAIService:
             base64_image: Base64 encoded image data
             custom_prompt: Optional additional context
             student_context: Optional student learning context
+            parsing_mode: "hierarchical" (default) or "baseline" for faster parsing
 
         Returns:
             Structured response with guaranteed consistent formatting
         """
 
         try:
-            # OPTIMIZATION 1: Check image cache first
-            image_hash = self._get_image_hash(base64_image)
+            # OPTIMIZATION 1: Check image cache first (include parsing_mode to prevent cross-contamination)
+            image_hash = self._get_image_hash(base64_image, parsing_mode)
             cached_result = self._get_cached_image_result(image_hash)
             if cached_result:
+                print(f"✅ IMAGE CACHE HIT for parsing_mode={parsing_mode}")
                 return cached_result
 
             # Create the strict JSON schema prompt
-            system_prompt = self._create_json_schema_prompt(custom_prompt, student_context)
+            system_prompt = self._create_json_schema_prompt(custom_prompt, student_context, parsing_mode)
 
             # Prepare image message for OpenAI Vision API
             image_url = f"data:image/jpeg;base64,{base64_image}"
@@ -507,30 +515,58 @@ class OptimizedEducationalAIService:
             # Call OpenAI with structured output (guaranteed JSON)
             # Note: Structured outputs are only available in certain OpenAI SDK versions
             # For now, use regular chat completions with JSON mode
-            response = await self.client.chat.completions.create(
-                model=self.structured_output_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"Grade ALL questions in this homework. {custom_prompt or ''}"
-                            },
-                            {
-                                "type": "image_url",
-                                # OPTIMIZATION 3: "high" detail for better OCR (was "auto")
-                                "image_url": {"url": image_url, "detail": "high"}
-                            }
-                        ]
-                    }
-                ],
-                response_format={"type": "json_object"},  # JSON mode instead of beta parse
-                # OPTIMIZATION 4: Temperature 0.1 for natural explanations (was 0)
-                temperature=0.1,
-                max_tokens=max_tokens,  # Dynamic allocation
-            )
+
+            print(f"🚀 === CALLING OPENAI API ===")
+            print(f"📊 Model: {self.structured_output_model}")
+            print(f"🎯 Max tokens: {max_tokens}")
+            print(f"🔧 Parsing mode: {parsing_mode}")
+            print(f"📏 System prompt length: {len(system_prompt)} chars")
+            print(f"📸 Image size: {len(base64_image)} chars")
+            print(f"⏱️ Client timeout: 120s (for complex parsing)")
+            print(f"=====================================")
+
+            import time
+            api_call_start = time.time()
+
+            try:
+                response = await self.client.chat.completions.create(
+                    model=self.structured_output_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": f"Grade ALL questions in this homework. {custom_prompt or ''}"
+                                },
+                                {
+                                    "type": "image_url",
+                                    # OPTIMIZATION 3: "high" detail for better OCR (was "auto")
+                                    "image_url": {"url": image_url, "detail": "high"}
+                                }
+                            ]
+                        }
+                    ],
+                    response_format={"type": "json_object"},  # JSON mode instead of beta parse
+                    # OPTIMIZATION 4: Temperature 0.1 for natural explanations (was 0)
+                    temperature=0.1,
+                    max_tokens=max_tokens,  # Dynamic allocation
+                )
+
+                api_call_duration = time.time() - api_call_start
+                print(f"✅ === OPENAI API CALL COMPLETED ===")
+                print(f"⏱️ Duration: {api_call_duration:.2f}s")
+                print(f"=====================================")
+
+            except Exception as api_error:
+                api_call_duration = time.time() - api_call_start
+                print(f"❌ === OPENAI API CALL FAILED ===")
+                print(f"⏱️ Duration: {api_call_duration:.2f}s")
+                print(f"❌ Error type: {type(api_error).__name__}")
+                print(f"❌ Error message: {str(api_error)}")
+                print(f"=====================================")
+                raise
 
             # Parse JSON response manually
             raw_response = response.choices[0].message.content
@@ -623,12 +659,35 @@ class OptimizedEducationalAIService:
         return 8000  # Reduced from 14000 for faster processing
 
     def _convert_json_to_legacy_format(self, result_dict: Dict) -> str:
-        """Convert JSON dict to legacy iOS-compatible text format."""
+        """Convert JSON dict to legacy iOS-compatible text format.
+
+        HIERARCHICAL SUPPORT: Handles both flat and hierarchical structures.
+        - Flat: questions array at top level (backward compatibility)
+        - Hierarchical: sections array with nested questions and subquestions
+
+        COMPACT OUTPUT OPTIMIZATION (v2.0):
+        - Reduced from 15+ fields to 10 essential fields per question
+        - Removed internal metadata: QUESTION_ID, SECTION_ID, OCR_CONFIDENCE,
+          LEGIBILITY, UNCLEAR_PORTIONS, SUB_PARTS
+        - Kept RAW_QUESTION for archival/analysis purposes
+        - Kept CONFIDENCE and HAS_VISUALS for database archiving
+        - Result: ~50% smaller output = faster AI generation = no timeouts
+        - Essential fields: QUESTION_NUMBER, RAW_QUESTION, QUESTION, STUDENT_ANSWER,
+          CORRECT_ANSWER, GRADE, POINTS, CONFIDENCE, HAS_VISUALS, FEEDBACK
+        """
         lines = []
 
         # Subject line
         lines.append(f"SUBJECT: {result_dict.get('subject', 'Other')}")
         lines.append(f"CONFIDENCE: {result_dict.get('subject_confidence', 0.5):.2f}")
+
+        # Add hierarchical metadata if present
+        if "total_sections" in result_dict:
+            lines.append(f"TOTAL_SECTIONS: {result_dict.get('total_sections', 0)}")
+            lines.append(f"HIERARCHICAL: true")
+        else:
+            lines.append(f"HIERARCHICAL: false")
+
         lines.append("")
 
         # Performance summary (if present)
@@ -642,24 +701,90 @@ class OptimizedEducationalAIService:
             lines.append(f"Summary: {perf.get('summary_text', '')}")
             lines.append("")
 
-        # Questions - with proper separator for iOS parsing
-        questions = result_dict.get('questions', [])
-        for i, q in enumerate(questions):
-            lines.append(f"QUESTION_NUMBER: {q.get('question_number', i + 1)}")
-            lines.append(f"RAW_QUESTION: {q.get('raw_question_text', q.get('question_text', ''))}")
-            lines.append(f"QUESTION: {q.get('question_text', '')}")
-            lines.append(f"STUDENT_ANSWER: {q.get('student_answer', '')}")
-            lines.append(f"CORRECT_ANSWER: {q.get('correct_answer', '')}")
-            lines.append(f"GRADE: {q.get('grade', 'UNKNOWN')}")
-            lines.append(f"POINTS: {q.get('points_earned', 0)}/{q.get('points_possible', 1)}")
-            lines.append(f"CONFIDENCE: {q.get('confidence', 0.5):.2f}")
-            lines.append(f"FEEDBACK: {q.get('feedback', '')}")
-            lines.append(f"HAS_VISUALS: {q.get('has_visuals', False)}")
-            if q.get('sub_parts'):
-                lines.append(f"SUB_PARTS: {', '.join(q['sub_parts'])}")
+        # Process questions based on structure type
+        all_questions = []
+
+        # HIERARCHICAL STRUCTURE: sections with nested questions
+        if "sections" in result_dict and isinstance(result_dict["sections"], list):
+            for section in result_dict["sections"]:
+                section_info = {
+                    "section_id": section.get("section_id", ""),
+                    "section_title": section.get("section_title", ""),
+                    "section_type": section.get("section_type", ""),
+                }
+
+                # Add section header - COMPACT FORMAT (only if section has title/instructions)
+                if section_info['section_title'] or section.get("section_instructions"):
+                    lines.append(f"═══SECTION_HEADER═══")
+                    if section_info['section_title']:
+                        lines.append(f"SECTION_TITLE: {section_info['section_title']}")
+                    if section.get("section_instructions"):
+                        lines.append(f"INSTRUCTIONS: {section['section_instructions']}")
+                    lines.append(f"═══SECTION_HEADER_END═══")
+                    lines.append("")
+
+                # Process questions in section
+                for question in section.get("questions", []):
+                    all_questions.append((question, section_info))
+
+        # FLAT STRUCTURE: questions array at top level (backward compatibility)
+        elif "questions" in result_dict:
+            questions = result_dict.get('questions', [])
+            for question in questions:
+                all_questions.append((question, None))
+
+        # Format all questions with proper separators
+        for idx, (q, section_info) in enumerate(all_questions):
+            # Check if this is a parent question with subquestions
+            if q.get("is_parent") and q.get("has_subquestions"):
+                # Parent question header - COMPACT FORMAT
+                lines.append(f"═══PARENT_QUESTION_START═══")
+                lines.append(f"QUESTION_NUMBER: {q.get('question_number', '')}")
+                lines.append(f"PARENT_CONTENT: {q.get('parent_content', '')}")
+                lines.append("")
+
+                # Process subquestions - COMPACT FORMAT (with archive metadata)
+                for sub_idx, subq in enumerate(q.get("subquestions", [])):
+                    lines.append(f"SUBQUESTION_NUMBER: {subq.get('subquestion_number', '')}")
+                    lines.append(f"RAW_QUESTION: {subq.get('raw_question_text', subq.get('question_text', ''))}")
+                    lines.append(f"QUESTION: {subq.get('question_text', '')}")
+                    lines.append(f"STUDENT_ANSWER: {subq.get('student_answer', '')}")
+                    lines.append(f"CORRECT_ANSWER: {subq.get('correct_answer', '')}")
+                    lines.append(f"GRADE: {subq.get('grade', 'UNKNOWN')}")
+                    lines.append(f"POINTS: {subq.get('points_earned', 0)}/{subq.get('points_possible', 1)}")
+                    lines.append(f"CONFIDENCE: {subq.get('confidence', 0.5):.2f}")
+                    lines.append(f"HAS_VISUALS: {subq.get('has_visuals', False)}")
+                    lines.append(f"FEEDBACK: {subq.get('feedback', '')}")
+
+                    # Add subquestion separator if not last
+                    if sub_idx < len(q.get("subquestions", [])) - 1:
+                        lines.append("───SUBQUESTION_SEPARATOR───")
+                    lines.append("")
+
+                # Parent summary - COMPACT FORMAT
+                if "parent_summary" in q:
+                    summary = q["parent_summary"]
+                    lines.append(f"TOTAL_POINTS: {summary.get('total_earned', 0)}/{summary.get('total_possible', 0)}")
+                    if summary.get('overall_feedback'):
+                        lines.append(f"OVERALL_FEEDBACK: {summary['overall_feedback']}")
+
+                lines.append(f"═══PARENT_QUESTION_END═══")
+
+            else:
+                # Regular single question - COMPACT FORMAT (essential fields for iOS + archive metadata)
+                lines.append(f"QUESTION_NUMBER: {q.get('question_number', idx + 1)}")
+                lines.append(f"RAW_QUESTION: {q.get('raw_question_text', q.get('question_text', ''))}")
+                lines.append(f"QUESTION: {q.get('question_text', '')}")
+                lines.append(f"STUDENT_ANSWER: {q.get('student_answer', '')}")
+                lines.append(f"CORRECT_ANSWER: {q.get('correct_answer', '')}")
+                lines.append(f"GRADE: {q.get('grade', 'UNKNOWN')}")
+                lines.append(f"POINTS: {q.get('points_earned', 0)}/{q.get('points_possible', 1)}")
+                lines.append(f"CONFIDENCE: {q.get('confidence', 0.5):.2f}")
+                lines.append(f"HAS_VISUALS: {q.get('has_visuals', False)}")
+                lines.append(f"FEEDBACK: {q.get('feedback', '')}")
 
             # Add separator between questions (not after the last one)
-            if i < len(questions) - 1:
+            if idx < len(all_questions) - 1:
                 lines.append("═══QUESTION_SEPARATOR═══")
             else:
                 lines.append("")  # Empty line at the end
@@ -669,69 +794,214 @@ class OptimizedEducationalAIService:
     def _convert_pydantic_to_legacy_format(self, result_dict: Dict) -> str:
         """Legacy method - now calls _convert_json_to_legacy_format."""
         return self._convert_json_to_legacy_format(result_dict)
-    
-    def _create_json_schema_prompt(self, custom_prompt: Optional[str], student_context: Optional[Dict]) -> str:
-        """Create a concise prompt that enforces strict JSON schema for grading.
 
-        PHASE 1 OPTIMIZATION: Compressed prompts for 60% token reduction.
-        Feature flag: USE_OPTIMIZED_PROMPTS (default: true)
+    def _get_subject_specific_rules(self, subject: Optional[str]) -> str:
+        """
+        Get subject-specific grading criteria and rules.
+
+        NEW: Different subjects require different grading approaches.
+        This provides specialized rules for more accurate grading.
         """
 
-        # PHASE 1: Check feature flag for optimized prompts
-        use_optimized = os.getenv('USE_OPTIMIZED_PROMPTS', 'true').lower() == 'true'
+        if not subject:
+            return ""
 
-        if use_optimized:
-            # OPTIMIZED PROMPT (180 tokens - 60% reduction from 448 tokens)
-            base_prompt = """Grade HW. Return JSON:
-{"subject":"Math|Phys|Chem|Bio|Eng|Hist|Geo|CS|Other","confidence":0.95,"total":<N>,
-"questions":[{"num":1,"raw":"exact","text":"clean","ans":"student","correct":"expected",
-"grade":"CORRECT|INCORRECT|EMPTY|PARTIAL","pts":1.0,"conf":0.9,"visuals":false,"feedback":"<15w"}],
-"summary":{"correct":<N>,"incorrect":<N>,"empty":<N>,"rate":0.0-1.0,"text":"brief"}}
+        subject_lower = subject.lower()
 
-Rules: a,b,c=separate Qs. 1a,1b=sub_parts. CORRECT=1.0, INCORRECT/EMPTY=0.0, PARTIAL=0.5. Extract ALL."""
+        if subject_lower in ['mathematics', 'math']:
+            return """
+MATHEMATICS GRADING RULES:
+- Exact numerical answers required (e.g., 0.5 not 1/2 unless specified)
+- Check calculation steps if shown
+- Verify units (m, kg, s, etc.) - missing units = PARTIAL_CREDIT
+- Award PARTIAL_CREDIT (0.5) for: correct method but arithmetic error, missing units, incomplete work
+- Feedback must explain WHERE the error occurred and HOW to fix it"""
+
+        elif subject_lower == 'physics':
+            return """
+PHYSICS GRADING RULES:
+- Numerical answers must include UNITS (e.g., 9.8 m/s²)
+- Missing or wrong units = PARTIAL_CREDIT (0.5) even if number correct
+- Check vector directions (positive/negative signs matter)
+- Free body diagrams must show all forces
+- Award PARTIAL_CREDIT for: correct formula but calculation error, missing units, incomplete diagrams
+- Feedback should explain the physics concept, not just the math"""
+
+        elif subject_lower == 'chemistry':
+            return """
+CHEMISTRY GRADING RULES:
+- Chemical formulas must be exact (H₂O not H2O, CO₂ not CO2)
+- Balanced equations required (check atom counts)
+- Include states of matter (s, l, g, aq) if question requires
+- Significant figures matter (3 sig figs if question specifies)
+- Award PARTIAL_CREDIT for: unbalanced equations if species correct, missing states, sig fig errors
+- Feedback should explain the chemistry principle"""
+
+        elif subject_lower == 'biology':
+            return """
+BIOLOGY GRADING RULES:
+- Scientific terminology expected (use proper terms, not colloquial)
+- Diagrams must be labeled correctly
+- Process descriptions should be sequential (Step 1, 2, 3...)
+- Accept conceptually correct answers even if wording differs
+- Award PARTIAL_CREDIT for: incomplete explanations, missing labels, correct concept but imprecise terminology
+- Feedback should clarify the biological concept"""
+
+        elif subject_lower == 'english':
+            return """
+ENGLISH GRADING RULES:
+- Accept paraphrased answers if meaning is preserved
+- Check for: thesis/main idea, supporting evidence, analysis/explanation
+- Grammar/spelling errors don't affect grade unless they obscure meaning
+- Award CORRECT if: thesis + evidence + analysis present
+- Award PARTIAL_CREDIT (0.5-0.7) if: thesis + evidence only, or thesis only
+- Feedback should be constructive and explain what's missing"""
+
+        elif subject_lower == 'history':
+            return """
+HISTORY GRADING RULES:
+- Dates can have reasonable margin (1-2 years acceptable for ancient history)
+- Accept equivalent terms (e.g., "World War 1" = "WWI" = "Great War")
+- Check for: historical accuracy, cause-effect reasoning, context
+- Award CORRECT if: main facts correct even if details imprecise
+- Award PARTIAL_CREDIT if: partially correct facts, missing context, one-sided explanation
+- Feedback should provide historical context"""
+
+        elif subject_lower == 'geography':
+            return """
+GEOGRAPHY GRADING RULES:
+- Spelling of place names matters (Cairo not Kairo)
+- Accept alternate names if commonly used (e.g., "Myanmar" or "Burma")
+- Maps/diagrams must be labeled accurately
+- Award CORRECT for conceptually accurate answers
+- Award PARTIAL_CREDIT for: minor spelling errors, incomplete explanations, missing map labels
+- Feedback should clarify geographical concepts"""
+
+        elif subject_lower in ['computer science', 'cs', 'coding', 'programming']:
+            return """
+COMPUTER SCIENCE GRADING RULES:
+- Code syntax matters (Python ≠ Java ≠ C++)
+- Logic correctness more important than minor syntax errors
+- Check for: correct algorithm, proper data structures, edge cases handled
+- Award CORRECT if: logic correct even with minor syntax errors
+- Award PARTIAL_CREDIT for: correct approach but incomplete implementation, logic errors, missing edge cases
+- Feedback should explain the programming concept and logic"""
+
         else:
-            # ORIGINAL PROMPT (448 tokens - for rollback)
-            base_prompt = """Grade this completed homework. Return ONLY valid JSON:
+            # Generic rules for other subjects
+            return """
+GENERAL GRADING RULES:
+- Accept answers that demonstrate understanding even if wording differs
+- Award PARTIAL_CREDIT for partially correct or incomplete answers
+- Provide constructive feedback explaining what's correct and what needs improvement"""
 
-{
-  "subject": "Mathematics|Physics|Chemistry|Biology|English|History|Geography|Computer Science|Other",
+    def _create_json_schema_prompt(self, custom_prompt: Optional[str], student_context: Optional[Dict], parsing_mode: Optional[str] = None) -> str:
+        """Create a concise prompt that enforces strict JSON schema for grading.
+
+        HIERARCHICAL PARSING: Feature flag controlled (USE_HIERARCHICAL_PARSING or parsing_mode parameter)
+        SUBJECT-SPECIFIC RULES: Always included for better grading accuracy.
+        """
+
+        # Extract subject from custom_prompt if provided
+        subject = None
+        if custom_prompt and "SUBJECT:" in custom_prompt:
+            # Extract subject from prompt
+            for line in custom_prompt.split('\n'):
+                if line.startswith('SUBJECT:'):
+                    subject = line.replace('SUBJECT:', '').strip()
+                    break
+
+        # Get subject-specific grading rules
+        subject_rules = self._get_subject_specific_rules(subject) if subject else ""
+
+        # Feature flag: Use hierarchical parsing
+        # Priority: parsing_mode parameter > environment variable > default (false)
+        if parsing_mode is not None:
+            use_hierarchical = parsing_mode.lower() == 'hierarchical'
+        else:
+            use_hierarchical = os.getenv('USE_HIERARCHICAL_PARSING', 'false').lower() == 'true'
+
+        print(f"🔧 Parsing mode: {'hierarchical' if use_hierarchical else 'baseline (fast)'}")
+
+        if use_hierarchical:
+            # OPTIMIZED HIERARCHICAL PROMPT: Compact version for faster processing
+            base_prompt = f"""Grade HW hierarchically. Return JSON:
+
+{{
+  "subject": "Math|Phys|Chem|Bio|Eng|Hist|Geo|CS|Other",
   "subject_confidence": 0.95,
-  "total_questions_found": <COUNT>,
-  "questions": [
-    {
-      "question_number": 1,
-      "raw_question_text": "exact text from image",
-      "question_text": "cleaned text",
-      "student_answer": "what student wrote",
-      "correct_answer": "expected answer",
-      "grade": "CORRECT|INCORRECT|EMPTY|PARTIAL_CREDIT",
-      "points_earned": 1.0,
-      "points_possible": 1.0,
-      "confidence": 0.9,
-      "has_visuals": false,
-      "feedback": "brief feedback",
-      "sub_parts": []
-    }
+  "total_questions_found": <N>,
+  "sections": [
+    {{
+      "section_id": "s1",
+      "section_type": "multiple_choice|fill_blank|short_answer|long_answer|calculation|diagram",
+      "section_title": "Part A: Multiple Choice",
+      "questions": [
+        {{
+          "question_id": "q1",
+          "question_number": "1",
+          "is_parent": false,
+          "raw_question_text": "exact",
+          "question_text": "clean",
+          "student_answer": "student wrote",
+          "correct_answer": "expected",
+          "grade": "CORRECT|INCORRECT|EMPTY|PARTIAL_CREDIT",
+          "points_earned": 1.0,
+          "confidence": 0.9,
+          "feedback": "<30w",
+          "recognition_confidence": {{"student_answer": 0.9, "legibility": "clear|readable|unclear"}}
+        }}
+      ]
+    }}
   ],
-  "performance_summary": {
-    "total_correct": <N>,
-    "total_incorrect": <N>,
-    "total_empty": <N>,
-    "accuracy_rate": <0.0-1.0>,
-    "summary_text": "concise summary"
-  },
-  "processing_notes": "optional notes"
-}
+  "performance_summary": {{"total_correct": <N>, "total_incorrect": <N>, "total_empty": <N>, "accuracy_rate": 0.0-1.0, "summary_text": "brief"}}
+}}
+
+{subject_rules}
 
 RULES:
-1. Questions a,b,c,d = separate questions (NOT sub-parts)
-2. Questions 1a,1b,2a,2b = sub_parts under parent
-3. Grade: CORRECT (1.0 pts), INCORRECT (0.0 pts), EMPTY (0.0 pts), PARTIAL_CREDIT (0.5 pts)
-4. Feedback: Keep under 15 words
-5. Extract ALL questions and student answers from image"""
+1. Sections: Group by type (headers/patterns). Types: multiple_choice, fill_blank, calculation, short_answer, long_answer
+2. Parent-child: 1a,1b,1c = subquestions under parent Q1. Store in "subquestions":[...] with parent_id
+3. Numbering: Preserve exact numbers. Multi-page: Q1-5 p1, Q6-10 p2 (no restart)
+4. OCR: Track legibility (clear/readable/unclear), confidence 0-1. Flag <0.7 for review
+5. Grading: CORRECT=1.0, INCORRECT/EMPTY=0.0, PARTIAL_CREDIT=0.5. Feedback <30w
+6. Extract ALL Qs, sections, subquestions. No skip/merge"""
+        else:
+            # FLAT STRUCTURE (FAST & STABLE): Optimized for reliability
+            base_prompt = f"""Grade HW. Return JSON:
+
+{{
+  "subject": "Math|Phys|Chem|Bio|Eng|Hist|Geo|CS|Other",
+  "subject_confidence": 0.95,
+  "total_questions_found": <N>,
+  "questions": [
+    {{
+      "question_number": 1,
+      "raw_question_text": "exact",
+      "question_text": "clean",
+      "student_answer": "student wrote",
+      "correct_answer": "expected",
+      "grade": "CORRECT|INCORRECT|EMPTY|PARTIAL_CREDIT",
+      "points_earned": 1.0,
+      "confidence": 0.9,
+      "feedback": "<30w",
+      "recognition_confidence": {{"student_answer": 0.9, "legibility": "clear|readable|unclear"}}
+    }}
+  ],
+  "performance_summary": {{"total_correct": <N>, "total_incorrect": <N>, "total_empty": <N>, "accuracy_rate": 0.0-1.0, "summary_text": "brief"}}
+}}
+
+{subject_rules}
+
+RULES:
+1. Questions: 1a,1b = subquestions under parent Q1 (store in "subquestions":[...])
+2. Numbering: Preserve exact. Multi-page: Q1-5 p1, Q6-10 p2 (no restart)
+3. OCR: Track legibility, confidence. Flag <0.7
+4. Grading: CORRECT=1.0, INCORRECT/EMPTY=0.0, PARTIAL=0.5. Feedback <30w
+5. Extract ALL questions"""
 
         if student_context:
-            base_prompt += f"\nStudent: {student_context.get('student_id', 'anonymous')}"
+            base_prompt += f"\n\nStudent: {student_context.get('student_id', 'anonymous')}"
 
         if custom_prompt:
             base_prompt += f"\nContext: {custom_prompt}"
@@ -743,50 +1013,76 @@ RULES:
         Validate that JSON has required grading structure.
 
         OPTIMIZED: Added early returns for faster validation.
-        PHASE 1 OPTIMIZATION: Support both optimized and original field names.
+        HIERARCHICAL: Support both flat and hierarchical structures.
         """
 
         # Early return: Check type first
         if not isinstance(json_data, dict):
             return False
 
-        # PHASE 1: Normalize optimized field names to original format
+        # Normalize optimized field names to original format
         json_data = self._normalize_field_names(json_data)
 
-        # Early return: Check required top-level fields
-        required_fields = ["subject", "questions", "performance_summary"]
-        for field in required_fields:
-            if field not in json_data:
-                return False  # Early exit
+        # Check required top-level fields
+        if "subject" not in json_data or "performance_summary" not in json_data:
+            return False
 
-        # Early return: Validate questions is a list
-        if not isinstance(json_data.get("questions"), list):
-            return False  # Early exit
+        # HIERARCHICAL SUPPORT: Check for either "sections" (new) or "questions" (old)
+        has_sections = "sections" in json_data and isinstance(json_data["sections"], list)
+        has_questions = "questions" in json_data and isinstance(json_data["questions"], list)
 
-        # Early return: Check if empty
-        if len(json_data["questions"]) == 0:
-            return False  # Early exit
+        if not has_sections and not has_questions:
+            return False  # Must have either sections or questions
 
-        # Validate first question structure for grading
-        first_question = json_data["questions"][0]
-        question_fields = ["raw_question_text", "question_text", "student_answer", "correct_answer", "grade"]
+        # Validate hierarchical structure (sections with nested questions)
+        if has_sections:
+            if len(json_data["sections"]) == 0:
+                return False
 
+            # Validate first section structure
+            first_section = json_data["sections"][0]
+            section_fields = ["section_id", "section_type", "questions"]
+            for field in section_fields:
+                if field not in first_section:
+                    return False
+
+            # Check if section has questions
+            if not isinstance(first_section["questions"], list) or len(first_section["questions"]) == 0:
+                return False
+
+            # Validate first question in first section
+            first_question = first_section["questions"][0]
+
+        # Validate flat structure (backward compatibility)
+        elif has_questions:
+            if len(json_data["questions"]) == 0:
+                return False
+            first_question = json_data["questions"][0]
+
+        # Validate question structure (works for both hierarchical and flat)
+        question_fields = ["question_text", "student_answer", "correct_answer", "grade"]
         for field in question_fields:
             if field not in first_question:
-                return False  # Early exit per field
+                # Check if this is a parent question with subquestions
+                if first_question.get("is_parent") and "subquestions" in first_question:
+                    # Parent questions may not have student_answer/correct_answer/grade
+                    continue
+                return False
 
         # Validate performance_summary structure
         performance_summary = json_data.get("performance_summary", {})
         summary_fields = ["total_correct", "total_incorrect", "accuracy_rate", "summary_text"]
-
         for field in summary_fields:
             if field not in performance_summary:
-                return False  # Early exit per field
+                return False
 
-        # Validate grade values (support both formats)
+        # Validate grade values
         valid_grades = ["CORRECT", "INCORRECT", "EMPTY", "PARTIAL_CREDIT", "PARTIAL"]
-        if first_question.get("grade") not in valid_grades:
-            return False  # Early exit
+        grade = first_question.get("grade")
+
+        # Parent questions may not have grades
+        if grade and grade not in valid_grades:
+            return False
 
         return True
 
@@ -1273,7 +1569,7 @@ class EducationalAIService:
         self.client = openai.AsyncOpenAI(
             api_key=os.getenv('OPENAI_API_KEY'),
             max_retries=3,
-            timeout=60.0
+            timeout=120.0  # Match timeout with OptimizedEducationalAIService
         )
         self.prompt_service = AdvancedPromptService()
         self.model = "gpt-4o-mini"
@@ -1294,20 +1590,22 @@ class EducationalAIService:
         self,
         base64_image: str,
         custom_prompt: Optional[str] = None,
-        student_context: Optional[Dict] = None
+        student_context: Optional[Dict] = None,
+        parsing_mode: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Enhanced homework parsing with improved consistency.
-        
+
         This method now uses the improved AI service for better results while
         maintaining backward compatibility with the existing iOS app.
         """
-        
+
         # Use the improved service for better consistency
         return await self.improved_service.parse_homework_image_json(
             base64_image=base64_image,
             custom_prompt=custom_prompt,
-            student_context=student_context
+            student_context=student_context,
+            parsing_mode=parsing_mode
         )
     
     async def process_session_conversation(

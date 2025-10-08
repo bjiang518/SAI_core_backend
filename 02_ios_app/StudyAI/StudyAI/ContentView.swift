@@ -18,11 +18,11 @@ enum MainTab: Int, CaseIterable {
     
     var title: String {
         switch self {
-        case .home: return "Home"
-        case .grader: return "Grader"
-        case .chat: return "Chat"
-        case .progress: return "Progress"
-        case .library: return "Library"
+        case .home: return NSLocalizedString("tab.home", comment: "")
+        case .grader: return NSLocalizedString("tab.grader", comment: "")
+        case .chat: return NSLocalizedString("tab.chat", comment: "")
+        case .progress: return NSLocalizedString("tab.progress", comment: "")
+        case .library: return NSLocalizedString("tab.library", comment: "")
         }
     }
     
@@ -162,7 +162,11 @@ struct ModernProfileView: View {
     @State private var showingBiometricSetup = false
     @State private var showingEditProfile = false
     @State private var showingLearningGoals = false
-    
+    @State private var showingVoiceSettings = false
+    @State private var showingNotificationSettings = false
+    @State private var showingLanguageSettings = false
+    @State private var showingPasswordManagement = false
+
     var body: some View {
         NavigationView {
             List {
@@ -241,75 +245,99 @@ struct ModernProfileView: View {
                 }
                 
                 // Account Section
-                Section("Account") {
+                Section(NSLocalizedString("settings.account", comment: "")) {
                     Button(action: { showingEditProfile = true }) {
                         SettingsRow(
-                            icon: "person.crop.circle.fill", 
-                            title: "Edit Profile", 
+                            icon: "person.crop.circle.fill",
+                            title: NSLocalizedString("settings.editProfile", comment: ""),
                             color: .blue
                         )
                     }
                     .buttonStyle(.plain)
-                    
+
                     Button(action: onLogout) {
                         HStack {
                             Image(systemName: "arrow.right.square.fill")
                                 .foregroundColor(.red)
                                 .frame(width: 20)
-                            Text("Sign Out")
+                            Text(NSLocalizedString("settings.signOut", comment: ""))
                                 .foregroundColor(.red)
                         }
                     }
                 }
                 
                 // Security Section
-                Section("Security & Privacy") {
+                Section(NSLocalizedString("settings.security", comment: "")) {
                     if authService.getBiometricType() != "None" {
                         HStack {
                             SettingsRow(
                                 icon: authService.getBiometricType() == "Face ID" ? "faceid" : "touchid",
-                                title: "\(authService.getBiometricType()) Login",
+                                title: "\(authService.getBiometricType()) \(NSLocalizedString("profile.biometricLogin", comment: ""))",
                                 color: .green
                             )
-                            
+
                             Spacer()
-                            
+
                             Toggle("", isOn: .constant(authService.canUseBiometrics()))
                                 .disabled(true)
                         }
                     }
-                    
-                    SettingsRow(icon: "key.fill", title: "Password Manager", color: .blue)
-                    SettingsRow(icon: "lock.shield.fill", title: "Privacy Settings", color: .orange)
+
+                    Button(action: {
+                        showingPasswordManagement = true
+                    }) {
+                        SettingsRow(icon: "key.fill", title: NSLocalizedString("settings.passwordManager", comment: ""), color: .blue)
+                    }
+                    .buttonStyle(.plain)
+
+                    SettingsRow(icon: "lock.shield.fill", title: NSLocalizedString("settings.privacySettings", comment: ""), color: .orange)
                 }
                 
                 // App Settings Section
-                Section("App Settings") {
-                    SettingsRow(icon: "bell.fill", title: "Notifications", color: .orange)
-                    SettingsRow(icon: "textformat.size", title: "Text Size", color: .green)
-                    SettingsRow(icon: "globe", title: "Language", color: .blue)
+                Section(NSLocalizedString("settings.appSettings", comment: "")) {
+                    Button(action: {
+                        showingNotificationSettings = true
+                    }) {
+                        SettingsRow(icon: "bell.fill", title: NSLocalizedString("settings.studyReminders", comment: ""), color: .orange)
+                    }
+                    .buttonStyle(.plain)
+
+                    SettingsRow(icon: "textformat.size", title: NSLocalizedString("settings.textSize", comment: ""), color: .green)
+
+                    Button(action: {
+                        showingLanguageSettings = true
+                    }) {
+                        SettingsRow(icon: "globe", title: NSLocalizedString("settings.language", comment: ""), color: .blue)
+                    }
+                    .buttonStyle(.plain)
                 }
-                
+
+                // Voice & Audio Section
+                Section(NSLocalizedString("settings.voiceAudio", comment: "")) {
+                    Button(action: {
+                        showingVoiceSettings = true
+                    }) {
+                        SettingsRow(icon: "waveform", title: NSLocalizedString("settings.voiceSettings", comment: ""), color: .indigo)
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 // Learning Section
-                Section("Learning") {
+                Section(NSLocalizedString("settings.learning", comment: "")) {
                     Button(action: {
                         showingLearningGoals = true
                     }) {
-                        SettingsRow(icon: "target", title: "Learning Goals & Progress", color: .red)
+                        SettingsRow(icon: "target", title: NSLocalizedString("settings.learningGoals", comment: ""), color: .red)
                     }
                     .buttonStyle(.plain)
-                    
-                    SettingsRow(icon: "book.fill", title: "Subjects", color: .purple)
-                    SettingsRow(icon: "clock.fill", title: "Study Reminders", color: .orange)
-                    SettingsRow(icon: "archivebox.fill", title: "Question Archive", color: .teal)
                 }
-                
+
                 // Support Section
-                Section("Support") {
-                    SettingsRow(icon: "questionmark.circle.fill", title: "Help & FAQ", color: .blue)
-                    SettingsRow(icon: "envelope.fill", title: "Contact Support", color: .green)
-                    SettingsRow(icon: "star.fill", title: "Rate App", color: .yellow)
-                    SettingsRow(icon: "square.and.arrow.up.fill", title: "Share App", color: .cyan)
+                Section(NSLocalizedString("settings.support", comment: "")) {
+                    SettingsRow(icon: "questionmark.circle.fill", title: NSLocalizedString("settings.help", comment: ""), color: .blue)
+                    SettingsRow(icon: "envelope.fill", title: NSLocalizedString("settings.contact", comment: ""), color: .green)
+                    SettingsRow(icon: "star.fill", title: NSLocalizedString("settings.rateApp", comment: ""), color: .yellow)
+                    SettingsRow(icon: "square.and.arrow.up.fill", title: NSLocalizedString("settings.shareApp", comment: ""), color: .cyan)
                 }
                 
                 // App Info Section
@@ -331,7 +359,7 @@ struct ModernProfileView: View {
                     .listRowBackground(Color.clear)
                 }
             }
-            .navigationTitle("Settings")
+            .navigationTitle(NSLocalizedString("settings.title", comment: ""))
             .onAppear {
                 Task {
                     await profileService.loadProfileAfterLogin()
@@ -344,8 +372,20 @@ struct ModernProfileView: View {
         .sheet(isPresented: $showingLearningGoals) {
             LearningGoalsSettingsView()
         }
+        .sheet(isPresented: $showingVoiceSettings) {
+            VoiceSettingsView()
+        }
+        .sheet(isPresented: $showingNotificationSettings) {
+            NotificationSettingsView()
+        }
+        .sheet(isPresented: $showingLanguageSettings) {
+            LanguageSettingsView()
+        }
+        .sheet(isPresented: $showingPasswordManagement) {
+            PasswordManagementView()
+        }
     }
-    
+
     private func authProviderIcon(_ provider: AuthProvider) -> String {
         switch provider {
         case .email:

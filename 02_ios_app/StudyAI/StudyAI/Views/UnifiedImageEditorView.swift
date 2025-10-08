@@ -26,14 +26,10 @@ struct UnifiedImageEditorView: View {
     @State private var croppedAdjustedImage: UIImage? // Image with crop applied
     @State private var resizedAdjustedImage: UIImage? // Image with resize applied
 
-    // Crop state with four corner points
-    @State private var cropCorners: [CGPoint] = [
-        CGPoint(x: 0.1, y: 0.1), // Top-left
-        CGPoint(x: 0.9, y: 0.1), // Top-right
-        CGPoint(x: 0.9, y: 0.9), // Bottom-right
-        CGPoint(x: 0.1, y: 0.9)  // Bottom-left
-    ]
-    @State private var draggedCornerIndex: Int? = nil
+    // Crop state with simple rectangle (relative coordinates 0-1)
+    @State private var cropRect: CGRect = CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8)
+    @State private var isDraggingRect = false
+    @State private var dragStartLocation: CGPoint = .zero
 
     // Size reduction options
     @State private var selectedSizeReduction: SizeReductionOption = .raw
@@ -197,59 +193,144 @@ struct UnifiedImageEditorView: View {
             )
         }
 
-        return ZStack {
-            // Scanner-style crop overlay with four adjustable corners
-            Path { path in
-                let points = cropCorners.map { point in
-                    CGPoint(
-                        x: imageOffset.x + point.x * displayedImageSize.width,
-                        y: imageOffset.y + point.y * displayedImageSize.height
-                    )
-                }
-                path.move(to: points[0])
-                for i in 1..<points.count {
-                    path.addLine(to: points[i])
-                }
-                path.closeSubpath()
-            }
-            .stroke(Color.blue, lineWidth: 2)
-            .background(
-                Path { path in
-                    let points = cropCorners.map { point in
-                        CGPoint(
-                            x: imageOffset.x + point.x * displayedImageSize.width,
-                            y: imageOffset.y + point.y * displayedImageSize.height
-                        )
-                    }
-                    path.move(to: points[0])
-                    for i in 1..<points.count {
-                        path.addLine(to: points[i])
-                    }
-                    path.closeSubpath()
-                }
-                .fill(Color.blue.opacity(0.1))
-            )
+        // Calculate the crop rectangle in screen coordinates
+        let cropRectScreen = CGRect(
+            x: imageOffset.x + cropRect.origin.x * displayedImageSize.width,
+            y: imageOffset.y + cropRect.origin.y * displayedImageSize.height,
+            width: cropRect.width * displayedImageSize.width,
+            height: cropRect.height * displayedImageSize.height
+        )
 
-            // Four corner handles
-            ForEach(0..<4, id: \.self) { index in
+        return ZStack {
+            // Dimmed overlay outside crop area
+            Rectangle()
+                .fill(Color.black.opacity(0.5))
+                .mask(
+                    Rectangle()
+                        .fill(Color.white)
+                        .overlay(
+                            Rectangle()
+                                .fill(Color.black)
+                                .frame(width: cropRectScreen.width, height: cropRectScreen.height)
+                                .position(x: cropRectScreen.midX, y: cropRectScreen.midY)
+                                .blendMode(.destinationOut)
+                        )
+                )
+
+            // Crop rectangle border
+            Rectangle()
+                .strokeBorder(Color.white, lineWidth: 2)
+                .background(Rectangle().fill(Color.clear))
+                .frame(width: cropRectScreen.width, height: cropRectScreen.height)
+                .position(x: cropRectScreen.midX, y: cropRectScreen.midY)
+
+            // Grid lines (rule of thirds)
+            Path { path in
+                // Vertical lines
+                let oneThirdWidth = cropRectScreen.width / 3
+                path.move(to: CGPoint(x: cropRectScreen.minX + oneThirdWidth, y: cropRectScreen.minY))
+                path.addLine(to: CGPoint(x: cropRectScreen.minX + oneThirdWidth, y: cropRectScreen.maxY))
+                path.move(to: CGPoint(x: cropRectScreen.minX + 2 * oneThirdWidth, y: cropRectScreen.minY))
+                path.addLine(to: CGPoint(x: cropRectScreen.minX + 2 * oneThirdWidth, y: cropRectScreen.maxY))
+
+                // Horizontal lines
+                let oneThirdHeight = cropRectScreen.height / 3
+                path.move(to: CGPoint(x: cropRectScreen.minX, y: cropRectScreen.minY + oneThirdHeight))
+                path.addLine(to: CGPoint(x: cropRectScreen.maxX, y: cropRectScreen.minY + oneThirdHeight))
+                path.move(to: CGPoint(x: cropRectScreen.minX, y: cropRectScreen.minY + 2 * oneThirdHeight))
+                path.addLine(to: CGPoint(x: cropRectScreen.maxX, y: cropRectScreen.minY + 2 * oneThirdHeight))
+            }
+            .stroke(Color.white.opacity(0.5), lineWidth: 1)
+
+            // Corner handles for resizing
+            ForEach(0..<4, id: \.self) { corner in
                 Circle()
-                    .fill(Color.blue)
-                    .frame(width: 20, height: 20)
-                    .position(
-                        x: imageOffset.x + cropCorners[index].x * displayedImageSize.width,
-                        y: imageOffset.y + cropCorners[index].y * displayedImageSize.height
-                    )
+                    .fill(Color.white)
+                    .frame(width: 24, height: 24)
+                    .overlay(Circle().stroke(Color.blue, lineWidth: 2))
+                    .position(getCornerPosition(corner, cropRectScreen: cropRectScreen))
                     .gesture(
                         DragGesture()
                             .onChanged { value in
-                                // Convert drag position back to relative coordinates
-                                let relativeX = max(0, min(1, (value.location.x - imageOffset.x) / displayedImageSize.width))
-                                let relativeY = max(0, min(1, (value.location.y - imageOffset.y) / displayedImageSize.height))
-                                cropCorners[index] = CGPoint(x: relativeX, y: relativeY)
+                                resizeCropRect(corner: corner, dragLocation: value.location, imageOffset: imageOffset, displayedImageSize: displayedImageSize)
                             }
                     )
             }
+
+            // Drag gesture for moving the entire rectangle
+            Rectangle()
+                .fill(Color.clear)
+                .frame(width: cropRectScreen.width, height: cropRectScreen.height)
+                .position(x: cropRectScreen.midX, y: cropRectScreen.midY)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            moveCropRect(dragLocation: value.location, imageOffset: imageOffset, displayedImageSize: displayedImageSize)
+                        }
+                )
         }
+    }
+
+    // MARK: - Crop Helper Functions
+
+    private func getCornerPosition(_ corner: Int, cropRectScreen: CGRect) -> CGPoint {
+        switch corner {
+        case 0: return CGPoint(x: cropRectScreen.minX, y: cropRectScreen.minY) // Top-left
+        case 1: return CGPoint(x: cropRectScreen.maxX, y: cropRectScreen.minY) // Top-right
+        case 2: return CGPoint(x: cropRectScreen.maxX, y: cropRectScreen.maxY) // Bottom-right
+        case 3: return CGPoint(x: cropRectScreen.minX, y: cropRectScreen.maxY) // Bottom-left
+        default: return .zero
+        }
+    }
+
+    private func resizeCropRect(corner: Int, dragLocation: CGPoint, imageOffset: CGPoint, displayedImageSize: CGSize) {
+        // Convert drag location to relative coordinates
+        let relativeX = max(0, min(1, (dragLocation.x - imageOffset.x) / displayedImageSize.width))
+        let relativeY = max(0, min(1, (dragLocation.y - imageOffset.y) / displayedImageSize.height))
+
+        var newRect = cropRect
+
+        switch corner {
+        case 0: // Top-left
+            let newWidth = max(0.1, cropRect.maxX - relativeX)
+            let newHeight = max(0.1, cropRect.maxY - relativeY)
+            newRect = CGRect(x: relativeX, y: relativeY, width: newWidth, height: newHeight)
+        case 1: // Top-right
+            let newWidth = max(0.1, relativeX - cropRect.minX)
+            let newHeight = max(0.1, cropRect.maxY - relativeY)
+            newRect = CGRect(x: cropRect.minX, y: relativeY, width: newWidth, height: newHeight)
+        case 2: // Bottom-right
+            let newWidth = max(0.1, relativeX - cropRect.minX)
+            let newHeight = max(0.1, relativeY - cropRect.minY)
+            newRect = CGRect(x: cropRect.minX, y: cropRect.minY, width: newWidth, height: newHeight)
+        case 3: // Bottom-left
+            let newWidth = max(0.1, cropRect.maxX - relativeX)
+            let newHeight = max(0.1, relativeY - cropRect.minY)
+            newRect = CGRect(x: relativeX, y: cropRect.minY, width: newWidth, height: newHeight)
+        default:
+            break
+        }
+
+        // Ensure the crop rect stays within bounds
+        if newRect.minX >= 0 && newRect.maxX <= 1 && newRect.minY >= 0 && newRect.maxY <= 1 {
+            cropRect = newRect
+        }
+    }
+
+    private func moveCropRect(dragLocation: CGPoint, imageOffset: CGPoint, displayedImageSize: CGSize) {
+        // Convert drag location to relative coordinates
+        let relativeX = (dragLocation.x - imageOffset.x) / displayedImageSize.width
+        let relativeY = (dragLocation.y - imageOffset.y) / displayedImageSize.height
+
+        // Calculate new origin (center the rect on the drag location)
+        let newX = relativeX - cropRect.width / 2
+        let newY = relativeY - cropRect.height / 2
+
+        // Ensure the crop rect stays within bounds
+        let clampedX = max(0, min(1 - cropRect.width, newX))
+        let clampedY = max(0, min(1 - cropRect.height, newY))
+
+        cropRect.origin = CGPoint(x: clampedX, y: clampedY)
     }
 
     // MARK: - Brightness Controls
@@ -333,14 +414,14 @@ struct UnifiedImageEditorView: View {
     // MARK: - Crop Controls
     private var cropControls: some View {
         VStack(spacing: 16) {
-            Text("Drag the corners to select the area to crop")
+            Text("Drag corners to resize • Drag center to move")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 16) {
                 Button("Apply Crop") {
-                    applyScannerCrop()
+                    applyRectangleCrop()
                 }
                 .font(.subheadline)
                 .fontWeight(.medium)
@@ -475,7 +556,7 @@ struct UnifiedImageEditorView: View {
         brightnessValue = 0.0
         contrastValue = 0.0
         selectedSizeReduction = .raw
-        resetCropCorners()
+        cropRect = CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8)
     }
 
     private func resetToOriginal() {
@@ -484,7 +565,75 @@ struct UnifiedImageEditorView: View {
         contrastValue = 0.0
         selectedSizeReduction = .raw
         croppedImage = nil
-        resetCropCorners()
+        cropRect = CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8)
+    }
+
+    private func applyRectangleCrop() {
+        guard let image = currentImage else { return }
+
+        print("📐 === RECTANGLE CROP ===")
+        print("📐 Original image size: \(image.size)")
+        print("📐 Crop rect (relative): \(cropRect)")
+
+        // Calculate pixel coordinates from relative coordinates
+        let pixelRect = CGRect(
+            x: cropRect.origin.x * image.size.width,
+            y: cropRect.origin.y * image.size.height,
+            width: cropRect.width * image.size.width,
+            height: cropRect.height * image.size.height
+        )
+
+        print("📐 Crop rect (pixels): \(pixelRect)")
+
+        // Validate crop rect
+        guard pixelRect.width > 0 && pixelRect.height > 0,
+              pixelRect.minX >= 0 && pixelRect.minY >= 0,
+              pixelRect.maxX <= image.size.width && pixelRect.maxY <= image.size.height else {
+            print("❌ Invalid crop rect")
+            return
+        }
+
+        // Create a graphics context with the original image size
+        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+        defer { UIGraphicsEndImageContext() }
+
+        // Draw the original image (this handles orientation automatically)
+        image.draw(in: CGRect(origin: .zero, size: image.size))
+
+        // Get the properly oriented image
+        guard let orientedImage = UIGraphicsGetImageFromCurrentImageContext(),
+              let cgImage = orientedImage.cgImage else {
+            print("❌ Failed to get oriented image")
+            return
+        }
+
+        // Scale the crop rect for CGImage coordinates
+        let scaledCropRect = CGRect(
+            x: pixelRect.origin.x * image.scale,
+            y: pixelRect.origin.y * image.scale,
+            width: pixelRect.width * image.scale,
+            height: pixelRect.height * image.scale
+        )
+
+        print("📐 Scaled crop rect for CGImage: \(scaledCropRect)")
+
+        // Perform the crop
+        guard let croppedCGImage = cgImage.cropping(to: scaledCropRect) else {
+            print("❌ Failed to crop CGImage")
+            return
+        }
+
+        // Create final UIImage with .up orientation (already oriented correctly)
+        let croppedUIImage = UIImage(cgImage: croppedCGImage, scale: image.scale, orientation: .up)
+
+        print("📐 Cropped image size: \(croppedUIImage.size)")
+        print("✅ Rectangle crop successful")
+        print("📐 === END RECTANGLE CROP ===")
+
+        // Update the state
+        croppedAdjustedImage = croppedUIImage
+        rebuildCurrentImage()
+        cropRect = CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8) // Reset for next crop
     }
 
     private func applyBrightnessAdjustment() {
@@ -545,142 +694,17 @@ struct UnifiedImageEditorView: View {
         }
     }
 
-    private func resetCropCorners() {
-        cropCorners = [
-            CGPoint(x: 0.1, y: 0.1), // Top-left
-            CGPoint(x: 0.9, y: 0.1), // Top-right
-            CGPoint(x: 0.9, y: 0.9), // Bottom-right
-            CGPoint(x: 0.1, y: 0.9)  // Bottom-left
-        ]
-    }
-
     private func resetCrop() {
-        // Reset crop corners to default position
-        resetCropCorners()
+        // Reset crop rectangle to default position
+        cropRect = CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8)
         // Reset cropped image to brightness adjusted or original state
         croppedAdjustedImage = brightnessAdjustedImage ?? originalImageState
         rebuildCurrentImage()
     }
 
-    private func autoDetectCropArea() {
-        // Auto-detect edges (simplified version - in production you'd use image processing)
-        cropCorners = [
-            CGPoint(x: 0.05, y: 0.05),
-            CGPoint(x: 0.95, y: 0.05),
-            CGPoint(x: 0.95, y: 0.95),
-            CGPoint(x: 0.05, y: 0.95)
-        ]
-    }
-
-    private func applyScannerCrop() {
-        guard let image = currentImage else { return }
-
-        print("📐 === SIMPLE RECTANGULAR CROP ===")
-        print("📐 Original UIImage size: \(image.size)")
-        print("📐 Image orientation: \(image.imageOrientation.rawValue)")
-        print("📐 Crop corners (relative): \(cropCorners)")
-
-        guard let cgImage = image.cgImage else {
-            print("❌ No CGImage available")
-            return
-        }
-
-        // Use UIImage.size (orientation-aware) instead of CGImage dimensions
-        let imageSize = image.size
-        print("📐 Using orientation-aware image size: \(imageSize)")
-
-        // Convert relative crop corner coordinates to pixel coordinates using UIImage.size
-        let pixelCorners = cropCorners.map { relativePoint in
-            CGPoint(
-                x: relativePoint.x * imageSize.width,
-                y: relativePoint.y * imageSize.height
-            )
-        }
-
-        print("📐 Pixel corners: \(pixelCorners)")
-
-        // Create a simple rectangular crop using bounding box
-        if let croppedImage = createBoundingBoxCrop(image: image, corners: pixelCorners) {
-            croppedAdjustedImage = croppedImage
-            rebuildCurrentImage()
-            resetCropCorners()
-            print("✅ Simple rectangular crop successful")
-        } else {
-            print("❌ Simple rectangular crop failed")
-        }
-
-        print("📐 === END SIMPLE RECTANGULAR CROP ===")
-    }
-
-    /// Simple bounding box crop - creates a rectangular crop from the selected area
-    private func createBoundingBoxCrop(image: UIImage, corners: [CGPoint]) -> UIImage? {
-        print("📐 Starting createBoundingBoxCrop")
-        print("📐 Input image size: \(image.size)")
-        print("📐 Input corners: \(corners)")
-
-        // Create a graphics context with the image size (orientation-aware)
-        let imageSize = image.size
-        UIGraphicsBeginImageContextWithOptions(imageSize, false, image.scale)
-        defer { UIGraphicsEndImageContext() }
-
-        // Draw the original image in the context (this handles orientation automatically)
-        image.draw(in: CGRect(origin: .zero, size: imageSize))
-
-        // Get the context image (this is now properly oriented)
-        guard let contextImage = UIGraphicsGetImageFromCurrentImageContext(),
-              let cgImage = contextImage.cgImage else {
-            print("❌ Failed to get context image")
-            return nil
-        }
-
-        print("📐 Context image size: \(contextImage.size)")
-        print("📐 CGImage size: \(CGSize(width: cgImage.width, height: cgImage.height))")
-
-        // Now calculate crop frame using the properly oriented image
-        let minX = max(0, corners.map { $0.x }.min() ?? 0)
-        let maxX = min(imageSize.width, corners.map { $0.x }.max() ?? imageSize.width)
-        let minY = max(0, corners.map { $0.y }.min() ?? 0)
-        let maxY = min(imageSize.height, corners.map { $0.y }.max() ?? imageSize.height)
-
-        let cropFrame = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
-
-        print("📐 Crop frame: \(cropFrame)")
-        print("📐 Crop aspect ratio: \(cropFrame.width / cropFrame.height)")
-        print("📐 Crop is: \(cropFrame.width > cropFrame.height ? "HORIZONTAL" : "VERTICAL")")
-
-        // Validate crop frame
-        guard cropFrame.width > 0 && cropFrame.height > 0,
-              cropFrame.minX >= 0 && cropFrame.minY >= 0,
-              cropFrame.maxX <= imageSize.width && cropFrame.maxY <= imageSize.height else {
-            print("❌ Invalid crop frame")
-            return nil
-        }
-
-        // Convert to CGImage coordinates (scale by image.scale)
-        let scaledCropFrame = CGRect(
-            x: cropFrame.origin.x * image.scale,
-            y: cropFrame.origin.y * image.scale,
-            width: cropFrame.size.width * image.scale,
-            height: cropFrame.size.height * image.scale
-        )
-
-        print("📐 Scaled crop frame for CGImage: \(scaledCropFrame)")
-
-        guard let croppedCGImage = cgImage.cropping(to: scaledCropFrame) else {
-            print("❌ Failed to crop CGImage")
-            return nil
-        }
-
-        // Create final UIImage with no orientation (since we've already handled it)
-        let finalImage = UIImage(cgImage: croppedCGImage, scale: image.scale, orientation: .up)
-        print("📐 Final cropped image size: \(finalImage.size)")
-
-        return finalImage
-    }
-
     private func applyCrop() {
-        // Legacy method - redirects to scanner crop
-        applyScannerCrop()
+        // Redirect to rectangle crop method
+        applyRectangleCrop()
     }
 
     private func applyEditsAndFinish() {

@@ -113,6 +113,8 @@ struct HomeworkResultsView: View {
                     questionTags: $questionTags,
                     originalImageUrl: originalImageUrl ?? "",
                     processingTime: parsingResult.processingTime,
+                    initialDetectedSubject: enhancedResult?.detectedSubject,
+                    initialSubjectConfidence: enhancedResult?.subjectConfidence,
                     onArchive: { detectedSubject, subjectConfidence, userNotes, userTags in
                         let archiveRequest = QuestionArchiveRequest(
                             questions: parsingResult.allQuestions,

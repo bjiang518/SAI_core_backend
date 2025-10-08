@@ -13,6 +13,7 @@ import Combine
 import Lottie
 import AVKit
 import AVFoundation
+import UserNotifications
 
 // MARK: - Processing Stage Tracking
 enum ProcessingStage {
@@ -27,19 +28,19 @@ enum ProcessingStage {
     var message: String {
         switch self {
         case .idle:
-            return "Select an image to analyze homework"
+            return NSLocalizedString("aiHomework.selectImage", comment: "")
         case .compressing:
-            return "📦 Optimizing image..."
+            return "📦 " + NSLocalizedString("aiHomework.optimizing", comment: "")
         case .uploading:
-            return "📤 Uploading to AI..."
+            return "📤 " + NSLocalizedString("aiHomework.uploading", comment: "")
         case .analyzing:
-            return "🔍 AI reading homework..."
+            return "🔍 " + NSLocalizedString("aiHomework.analyzing", comment: "")
         case .grading:
-            return "✏️ Grading answers..."
+            return "✏️ " + NSLocalizedString("aiHomework.grading", comment: "")
         case .parsing:
-            return "📊 Preparing results..."
+            return "📊 " + NSLocalizedString("aiHomework.preparingResults", comment: "")
         case .complete:
-            return "✅ Analysis complete!"
+            return "✅ " + NSLocalizedString("aiHomework.analysisComplete", comment: "")
         }
     }
 
@@ -66,6 +67,7 @@ class AIHomeworkStateManager: ObservableObject {
     @Published var capturedImages: [UIImage] = []  // NEW: Support multiple images
     @Published var selectedImageIndex: Int = 0  // NEW: Track which image is selected
     @Published var selectedImageIndices: Set<Int> = []  // NEW: Track multiple selected images for AI
+    @Published var userEditedIndices: Set<Int> = []  // NEW: Track which images were user-edited (skip iOS preprocessing)
     @Published var originalImageUrl: String?
     @Published var parsingResult: HomeworkParsingResult?
     @Published var enhancedResult: EnhancedHomeworkParsingResult?
@@ -127,6 +129,7 @@ class AIHomeworkStateManager: ObservableObject {
         capturedImages = []
         selectedImageIndex = 0
         selectedImageIndices = []
+        userEditedIndices = []  // NEW: Clear user-edited tracking
         originalImageUrl = nil
         parsingResult = nil
         enhancedResult = nil
@@ -167,23 +170,79 @@ struct DirectAIHomeworkView: View {
     @State private var showingImageEditor = false
     @State private var editedImage: UIImage?
     @State private var showingEditMultipleAlert = false  // Alert when multiple images selected for edit
+    @State private var showingEditImageInfo = false  // Alert for edit image tips
 
     // Animation state for entry animation
     @State private var animationCompleted = false
+
+    // Subject selection for AI grading
+    @State private var selectedSubject: String = "Mathematics"
+    private let availableSubjects = [
+        "Mathematics",
+        "Physics",
+        "Chemistry",
+        "Biology",
+        "English",
+        "History",
+        "Geography",
+        "Computer Science"
+    ]
+
+    // Parsing mode selection
+    @State private var parsingMode: ParsingMode = .hierarchical // Default to hierarchical
+    @State private var showModeInfo: Bool = false
+
+    enum ParsingMode: String, CaseIterable {
+        case hierarchical = "Detail"
+        case baseline = "Fast"
+
+        var description: String {
+            switch self {
+            case .hierarchical:
+                return "More accurate parsing with sections, parent-child questions, and detailed structure. Best for complex homework."
+            case .baseline:
+                return "Faster parsing with flat question structure. Best for simple homework or when speed is priority."
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .hierarchical:
+                return "list.bullet.indent"
+            case .baseline:
+                return "bolt.fill"
+            }
+        }
+
+        var apiValue: String {
+            switch self {
+            case .hierarchical:
+                return "hierarchical"
+            case .baseline:
+                return "baseline"
+            }
+        }
+    }
+
+    // Background parsing state
+    @State private var isParsingInBackground: Bool = false
+    @State private var backgroundParsingTaskID: String? = nil
+    @State private var parsingStartTime: Date? = nil
+    @State private var showBackgroundOption: Bool = false
+    @State private var parsingDuration: TimeInterval = 0
+    private var parsingTimer: Timer?
 
     private let logger = Logger(subsystem: "com.studyai", category: "DirectAIHomeworkView")
     
     var body: some View {
         VStack {
-            // Header title
-            HStack {
-                Text("AI Homework")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .padding()
-                Spacer()
-            }
-            
+            // Header title - Centered
+            Text(NSLocalizedString("aiHomework.title", comment: ""))
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity)
+                .padding()
+
             // Main content area
             if stateManager.parsingResult != nil {
                 // Show existing session with results
@@ -227,14 +286,35 @@ struct DirectAIHomeworkView: View {
                 )
             }
         }
-        .alert("Processing Error", isPresented: $showingErrorAlert) {
-            Button("OK") {
+        .alert(NSLocalizedString("aiHomework.processingError", comment: ""), isPresented: $showingErrorAlert) {
+            Button(NSLocalizedString("common.ok", comment: "")) {
                 stateManager.parsingError = nil
             }
         } message: {
             if let error = stateManager.parsingError {
                 Text(error)
             }
+        }
+        .alert("This might take a while...", isPresented: $showBackgroundOption) {
+            Button(NSLocalizedString("common.continueHere", comment: "")) {
+                // User chooses to wait on this screen
+                showBackgroundOption = false
+            }
+            Button(NSLocalizedString("common.moveOnAndNotify", comment: "")) {
+                // Move to background and send notification when done
+                Task {
+                    let images = stateManager.capturedImages
+                    await continueInBackground(images: images)
+                }
+            }
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
+                // Cancel the parsing
+                isProcessing = false
+                stateManager.currentStage = .idle
+                showBackgroundOption = false
+            }
+        } message: {
+            Text(NSLocalizedString("aiHomework.continueInBackground", comment: ""))
         }
         .sheet(isPresented: $showingCameraPicker) {
             CameraPickerView(selectedImage: Binding(
@@ -330,42 +410,64 @@ struct DirectAIHomeworkView: View {
                     let currentIndex = stateManager.selectedImageIndex
                     if currentIndex < stateManager.capturedImages.count {
                         stateManager.capturedImages[currentIndex] = edited
-                        logger.info("✅ Updated edited image at index \(currentIndex)")
+                        // Mark this image as user-edited (skip iOS preprocessing)
+                        stateManager.userEditedIndices.insert(currentIndex)
+                        logger.info("✅ Updated edited image at index \(currentIndex) - marked as user-edited")
                     }
 
                     editedImage = nil
                 }
             }
         }
-        .alert("Photo Access Required", isPresented: $photoPermissionDenied) {
-            Button("Settings") {
+        .alert(NSLocalizedString("aiHomework.photoAccessRequired", comment: ""), isPresented: $photoPermissionDenied) {
+            Button(NSLocalizedString("common.settings", comment: "")) {
                 if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(settingsUrl)
                 }
             }
-            Button("Cancel", role: .cancel) { }
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
         } message: {
-            Text("Please allow access to your photo library in Settings to select images.")
+            Text(NSLocalizedString("aiHomework.photoAccessMessage", comment: ""))
         }
-        .alert("Camera Access Required", isPresented: $cameraPermissionDenied) {
-            Button("Settings") {
+        .alert(NSLocalizedString("aiHomework.cameraAccessRequired", comment: ""), isPresented: $cameraPermissionDenied) {
+            Button(NSLocalizedString("common.settings", comment: "")) {
                 if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(settingsUrl)
                 }
             }
-            Button("Cancel", role: .cancel) { }
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
         } message: {
-            Text("Please allow camera access in Settings to take photos.")
+            Text(NSLocalizedString("aiHomework.cameraAccessMessage", comment: ""))
         }
-        .alert("Image Limit Reached", isPresented: $showingImageLimitAlert) {
+        .alert(NSLocalizedString("aiHomework.imageLimitReached", comment: ""), isPresented: $showingImageLimitAlert) {
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }
+        } message: {
+            Text(String(format: NSLocalizedString("aiHomework.imageLimitMessage", comment: ""), AIHomeworkStateManager.maxImagesLimit))
+        }
+        .alert(NSLocalizedString("aiHomework.selectOneImage", comment: ""), isPresented: $showingEditMultipleAlert) {
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }
+        } message: {
+            Text(NSLocalizedString("aiHomework.selectOneImageMessage", comment: ""))
+        }
+        .alert("Image Editing Tips", isPresented: $showingEditImageInfo) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("You can add up to \(AIHomeworkStateManager.maxImagesLimit) images. Please remove an image to add a new one.")
-        }
-        .alert("Select One Image", isPresented: $showingEditMultipleAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Please select 1 image at a time to edit.")
+            Text("""
+            📸 For Best Results:
+
+            ✓ Enhanced lighting and ideal cropping improve AI accuracy
+            ✓ Clear, well-lit images help text recognition
+            ✓ Straighten the image for better OCR
+
+            ⚡ Smart Processing:
+
+            • If you edit/resize an image, your version is sent directly to AI
+            • If you skip editing, automatic iOS enhancement is applied:
+              - Enhanced lighting correction
+              - Smart contrast adjustment
+              - Binary conversion for better text recognition
+            • Compression reduces file size while maintaining quality
+            """)
         }
         .fullScreenCover(isPresented: $showingFullScreenImage) {
             if let image = fullScreenImage {
@@ -390,11 +492,11 @@ struct DirectAIHomeworkView: View {
             
             // Title and Description
             VStack(spacing: 12) {
-                Text("AI Homework Assistant")
+                Text(NSLocalizedString("aiHomework.assistant.title", comment: ""))
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                
-                Text("Scan homework images and get AI-powered solutions with step-by-step explanations")
+
+                Text(NSLocalizedString("aiHomework.assistant.description", comment: ""))
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -409,7 +511,7 @@ struct DirectAIHomeworkView: View {
             }) {
                 HStack {
                     Image(systemName: "camera.viewfinder")
-                    Text("Start Homework Analysis")
+                    Text(NSLocalizedString("aiHomework.startAnalysis", comment: ""))
                 }
                 .font(.headline)
                 .foregroundColor(.white)
@@ -440,11 +542,11 @@ struct DirectAIHomeworkView: View {
 
             // Header
             VStack(spacing: 8) {
-                Text("Select Image Source")
+                Text(NSLocalizedString("aiHomework.selectImageSource.title", comment: ""))
                     .font(.system(size: 20, weight: .semibold, design: .default))
                     .foregroundColor(.primary)
 
-                Text("Choose how you'd like to upload your homework")
+                Text(NSLocalizedString("aiHomework.selectImageSource.subtitle", comment: ""))
                     .font(.system(size: 15, weight: .regular, design: .default))
                     .foregroundColor(Color(red: 0.43, green: 0.43, blue: 0.45))
             }
@@ -456,8 +558,8 @@ struct DirectAIHomeworkView: View {
                 // Camera Option - Prominent with blue highlight
                 ImageSourceOption(
                     icon: "camera.fill",
-                    title: "Take Photo",
-                    subtitle: "Use camera to scan homework",
+                    title: NSLocalizedString("aiHomework.imageSource.takePhoto", comment: ""),
+                    subtitle: NSLocalizedString("aiHomework.imageSource.takePhotoSubtitle", comment: ""),
                     color: .blue,
                     isProminent: true
                 ) {
@@ -471,8 +573,8 @@ struct DirectAIHomeworkView: View {
                 // Photo Library Option
                 ImageSourceOption(
                     icon: "photo.on.rectangle.angled",
-                    title: "Choose from Photos",
-                    subtitle: "Select from photo library",
+                    title: NSLocalizedString("aiHomework.imageSource.choosePhotos", comment: ""),
+                    subtitle: NSLocalizedString("aiHomework.imageSource.choosePhotosSubtitle", comment: ""),
                     color: .green,
                     isProminent: false
                 ) {
@@ -482,8 +584,8 @@ struct DirectAIHomeworkView: View {
                 // Files Option
                 ImageSourceOption(
                     icon: "folder.fill",
-                    title: "Choose from Files",
-                    subtitle: "Import from Files app",
+                    title: NSLocalizedString("aiHomework.imageSource.chooseFiles", comment: ""),
+                    subtitle: NSLocalizedString("aiHomework.imageSource.chooseFilesSubtitle", comment: ""),
                     color: .orange,
                     isProminent: false
                 ) {
@@ -527,133 +629,288 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Initial Image Preview
     private var initialImagePreview: some View {
-        VStack(spacing: 16) {
-            // Compact Header
-            HStack {
-                Text(stateManager.capturedImages.count == 1 ? "Preview Image" : "Preview Images")
-                    .font(.title3)
-                    .fontWeight(.bold)
-                Spacer()
-                if stateManager.capturedImages.count > 1 {
-                    Text("\(stateManager.selectedImageIndices.count) selected")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding(.top, 8)
-            .padding(.horizontal)
-
+        VStack(spacing: 12) {  // REDUCED from 16 to 12 for more compact layout
             // Show enlarged single image or grid for multiple images
+            imageDisplaySection
+
+            // Subject Selection Dropdown
+            subjectSelectionSection
+
+            // Parsing Mode Selection
+            parsingModeSection
+
+            // Primary Action - Ask AI Button (Most Prominent)
+            analyzeButton
+
+            // Clear Session - Text link style
+            clearButton
+        }
+        .animation(.easeOut(duration: 0.4), value: stateManager.capturedImages.count)
+    }
+
+    // MARK: - Image Display Section
+    private var imageDisplaySection: some View {
+        Group {
             if stateManager.capturedImages.count == 1 {
-                // Enlarged single image view
-                singleImageEnlargedView
-                    .transition(.scale.combined(with: .opacity))
+                VStack(spacing: 8) {
+                    singleImageEnlargedView
+                        .transition(.scale.combined(with: .opacity))
+
+                    editImageButton
+                    editImageInfoButton
+                }
             } else if !stateManager.capturedImages.isEmpty {
-                // Grid layout for multiple images
                 imageGridView
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
                         removal: .opacity
                     ))
             }
-
-            // Primary Action - Ask AI Button (Most Prominent)
-            AnimatedGradientButton(
-                title: stateManager.selectedImageIndices.count > 1 ?
-                    "Analyze \(stateManager.selectedImageIndices.count) Images with AI" :
-                    "Analyze with AI",
-                isProcessing: isProcessing
-            ) {
-                // Process selected images
-                if !self.stateManager.selectedImageIndices.isEmpty {
-                    // NEW: Batch process all selected images
-                    let selectedIndices = self.stateManager.selectedImageIndices.sorted()
-                    let selectedImages = selectedIndices.map { self.stateManager.capturedImages[$0] }
-                    self.processMultipleImages(selectedImages)
-                }
-            }
-            .disabled(isProcessing || stateManager.selectedImageIndices.isEmpty)
-            .padding(.horizontal)
-            .padding(.top, 24)  // Increased from 8 to 24 to move buttons down
-            .transition(.scale.combined(with: .opacity))
-
-            // Secondary Actions - Edit and Clear
-            HStack(spacing: 12) {
-                // Edit Image Button
-                Button(action: {
-                    // Haptic feedback
-                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                    generator.impactOccurred()
-
-                    // Check if exactly 1 image is selected
-                    if stateManager.selectedImageIndices.count == 1 {
-                        // Edit the selected image
-                        if let selectedIndex = stateManager.selectedImageIndices.first {
-                            stateManager.selectedImageIndex = selectedIndex
-                            stateManager.originalImage = stateManager.capturedImages[selectedIndex]
-                            showingImageEditor = true
-                        }
-                    } else if stateManager.selectedImageIndices.count > 1 {
-                        // Show alert for multiple selection
-                        showingEditMultipleAlert = true
-                    }
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.title3)
-                        Text("Edit")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.orange, Color.orange.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .cornerRadius(14)
-                    .shadow(color: Color.orange.opacity(0.3), radius: 6, x: 0, y: 3)
-                }
-                .disabled(stateManager.selectedImageIndices.isEmpty)
-
-                // Clear Session Button
-                Button(action: {
-                    // Haptic feedback
-                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                    generator.impactOccurred()
-
-                    // Clear session and return to image source selection
-                    stateManager.clearSession()
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "trash.circle.fill")
-                            .font(.title3)
-                        Text("Clear")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.red, Color.red.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .cornerRadius(14)
-                    .shadow(color: Color.red.opacity(0.3), radius: 6, x: 0, y: 3)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.top, 8)
         }
-        .animation(.easeOut(duration: 0.4), value: stateManager.capturedImages.count)
+    }
+
+    // MARK: - Edit Image Button
+    private var editImageButton: some View {
+        Button(action: {
+            // Haptic feedback
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+
+            // Edit the image
+            if let selectedIndex = stateManager.selectedImageIndices.first {
+                stateManager.selectedImageIndex = selectedIndex
+                stateManager.originalImage = stateManager.capturedImages[selectedIndex]
+                showingImageEditor = true
+            } else {
+                // Default to first image
+                stateManager.selectedImageIndex = 0
+                stateManager.originalImage = stateManager.capturedImages[0]
+                showingImageEditor = true
+            }
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: "pencil.circle")
+                    .font(.title3)
+                Text(NSLocalizedString("aiHomework.editImage", comment: ""))
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(.orange)  // CHANGED from .blue to .orange (yellow)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.orange.opacity(0.08))  // CHANGED from .blue to .orange
+            .cornerRadius(12)
+        }
+        .padding(.horizontal)
+        .padding(.top, 4)  // REDUCED from 8 to 4 for more compact layout
+    }
+
+    // MARK: - Edit Image Info Button
+    private var editImageInfoButton: some View {
+        Button(action: {
+            showingEditImageInfo = true
+        }) {
+            HStack(spacing: 4) {
+                Image(systemName: "info.circle")
+                    .font(.caption)
+                Text("Image editing tips")
+                    .font(.caption2)
+            }
+            .foregroundColor(.secondary)
+        }
+        .padding(.horizontal)
+        .padding(.top, 2)
+    }
+
+    // MARK: - Subject Selection Section
+    private var subjectSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(NSLocalizedString("aiHomework.selectSubject", comment: ""))
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+
+            Menu {
+                ForEach(availableSubjects, id: \.self) { subject in
+                    Button(action: {
+                        selectedSubject = subject
+                    }) {
+                        HStack {
+                            Text(subject)
+                            if selectedSubject == subject {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack {
+                    Image(systemName: getSubjectIcon(selectedSubject))
+                        .foregroundColor(.purple)  // CHANGED from .blue to .purple
+                    Text(selectedSubject)
+                        .font(.body)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color.purple.opacity(0.1))  // CHANGED from .blue to .purple
+                .cornerRadius(12)
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)  // REDUCED from 16 to 8 for more compact layout
+    }
+
+    // MARK: - Parsing Mode Section
+    private var parsingModeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(NSLocalizedString("aiHomework.parsingMode.title", comment: ""))
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+
+                Button(action: {
+                    showModeInfo.toggle()
+                }) {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+            }
+
+            parsingModeButtons
+
+            if showModeInfo {
+                parsingModeInfo
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)  // REDUCED from 12 to 8 for more compact layout
+    }
+
+    // MARK: - Parsing Mode Buttons
+    private var parsingModeButtons: some View {
+        HStack(spacing: 12) {
+            ForEach(ParsingMode.allCases, id: \.self) { mode in
+                parsingModeButton(for: mode)
+            }
+        }
+    }
+
+    // MARK: - Single Parsing Mode Button
+    private func parsingModeButton(for mode: ParsingMode) -> some View {
+        let isSelected = parsingMode == mode
+        let buttonColor = mode == .baseline ? Color.green : Color.blue
+
+        return Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                parsingMode = mode
+
+                // Haptic feedback
+                let generator = UIImpactFeedbackGenerator(style: .light)
+                generator.impactOccurred()
+            }
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: mode.icon)
+                    .font(.title3)
+                    .frame(width: 24, height: 24)
+                Text(mode.rawValue)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(isSelected ? buttonColor : .secondary)
+            .frame(maxWidth: .infinity)
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? buttonColor.opacity(0.1) : Color.gray.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? buttonColor.opacity(0.4) : Color.gray.opacity(0.2), lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    // MARK: - Parsing Mode Info
+    private var parsingModeInfo: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(ParsingMode.allCases, id: \.self) { mode in
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: mode.icon)
+                        .foregroundColor(mode == .baseline ? .orange : .blue)
+                        .font(.caption)
+                        .frame(width: 20)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(mode.rawValue)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                        Text(mode.description)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .padding()
+        .background(Color.blue.opacity(0.05))
+        .cornerRadius(12)
+        .transition(.opacity.combined(with: .scale))
+    }
+
+    // MARK: - Analyze Button
+    private var analyzeButton: some View {
+        AnimatedGradientButton(
+            title: stateManager.selectedImageIndices.count > 1 ?
+                String(format: NSLocalizedString("aiHomework.analyzeMultipleImages", comment: ""), stateManager.selectedImageIndices.count) :
+                NSLocalizedString("aiHomework.analyzeWithAI", comment: ""),
+            isProcessing: isProcessing
+        ) {
+            // Process selected images
+            if !self.stateManager.selectedImageIndices.isEmpty {
+                // NEW: Batch process all selected images
+                let selectedIndices = self.stateManager.selectedImageIndices.sorted()
+                let selectedImages = selectedIndices.map { self.stateManager.capturedImages[$0] }
+                self.processMultipleImages(selectedImages)
+            }
+        }
+        .disabled(isProcessing || stateManager.selectedImageIndices.isEmpty)
+        .padding(.horizontal)
+        .padding(.top, 16)  // REDUCED from 24 to 16 for more compact layout
+        .transition(.scale.combined(with: .opacity))
+    }
+
+    // MARK: - Clear Button
+    private var clearButton: some View {
+        Button(action: {
+            // Haptic feedback
+            let generator = UIImpactFeedbackGenerator(style: .light)
+            generator.impactOccurred()
+
+            // Clear session and return to image source selection
+            stateManager.clearSession()
+        }) {
+            HStack(spacing: 6) {
+                Image(systemName: "trash")
+                    .font(.subheadline)
+                Text(NSLocalizedString("common.clearAll", comment: ""))
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(.red.opacity(0.8))
+        }
+        .padding(.top, 8)  // REDUCED from 12 to 8 for more compact layout
     }
 
     // MARK: - Single Image Enlarged View
@@ -821,7 +1078,7 @@ struct DirectAIHomeworkView: View {
                                 Button(role: .destructive) {
                                     self.stateManager.removeImage(at: index)
                                 } label: {
-                                    Label("Delete", systemImage: "trash")
+                                    Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
                                 }
                             }
                     }
@@ -831,7 +1088,7 @@ struct DirectAIHomeworkView: View {
             .frame(height: 90)
 
             // Image counter
-            Text("\(stateManager.selectedImageIndex + 1) of \(self.stateManager.capturedImages.count)")
+            Text(String(format: NSLocalizedString("aiHomework.imageCounter", comment: ""), stateManager.selectedImageIndex + 1, self.stateManager.capturedImages.count))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -842,18 +1099,15 @@ struct DirectAIHomeworkView: View {
     private var existingSessionView: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Status Section
-                statusSection
-
-                // Image Section - Show all captured images in deck style
+                // Image Section - Show all captured images in deck style (Status section removed)
                 if !stateManager.capturedImages.isEmpty {
                     imageDeckSection(
-                        title: stateManager.capturedImages.count == 1 ? "Scanned Document" : "Scanned Documents",
+                        title: stateManager.capturedImages.count == 1 ? "Your homework:" : "Your homework:",
                         images: stateManager.capturedImages
                     )
                 } else if let image = stateManager.originalImage {
                     // Fallback for backward compatibility
-                    imageSection(title: "Scanned Document", image: image)
+                    imageSection(title: "Your homework:", image: image)
                 }
 
                 // Results Section
@@ -926,13 +1180,15 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Image Deck Section (for multiple images)
     private func imageDeckSection(title: String, images: [UIImage]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .center, spacing: 12) {  // CHANGED from .leading to .center
             HStack {
+                Spacer()  // Added Spacer for centering
+
                 Text(title)
                     .font(.headline)
                     .foregroundColor(.primary)
 
-                Spacer()
+                Spacer()  // Added Spacer for centering
 
                 // Image count badge
                 Text("\(images.count)")
@@ -1000,12 +1256,12 @@ struct DirectAIHomeworkView: View {
         VStack(alignment: .leading, spacing: 20) {
             // Header
             VStack(alignment: .leading, spacing: 2) {
-                Text("Analysis Complete!")
+                Text(NSLocalizedString("aiHomework.results.complete", comment: ""))
                     .font(.title3)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
 
-                Text("Your homework has been analyzed")
+                Text(NSLocalizedString("aiHomework.results.analyzed", comment: ""))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -1019,7 +1275,7 @@ struct DirectAIHomeworkView: View {
                     StatsBadge(
                         icon: "book.fill",
                         value: enhanced.detectedSubject,
-                        label: "Subject",
+                        label: NSLocalizedString("aiHomework.results.subject", comment: ""),
                         color: .blue,
                         hasCheckmark: false,
                         confidence: nil
@@ -1030,7 +1286,7 @@ struct DirectAIHomeworkView: View {
                 StatsBadge(
                     icon: "questionmark.circle.fill",
                     value: "\(result.questionCount)",
-                    label: "Questions",
+                    label: NSLocalizedString("aiHomework.results.questions", comment: ""),
                     color: .green
                 )
 
@@ -1038,7 +1294,7 @@ struct DirectAIHomeworkView: View {
                 StatsBadge(
                     icon: "target",
                     value: String(format: "%.0f%%", (stateManager.enhancedResult?.calculatedAccuracy ?? result.calculatedAccuracy) * 100),
-                    label: "Accuracy",
+                    label: NSLocalizedString("aiHomework.results.accuracy", comment: ""),
                     color: accuracyColor(stateManager.enhancedResult?.calculatedAccuracy ?? result.calculatedAccuracy)
                 )
             }
@@ -1054,7 +1310,7 @@ struct DirectAIHomeworkView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.title3)
-                    Text("View Detailed Results")
+                    Text(NSLocalizedString("aiHomework.results.viewDetails", comment: ""))
                         .font(.headline)
                         .fontWeight(.semibold)
                 }
@@ -1109,7 +1365,7 @@ struct DirectAIHomeworkView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
                         .font(.title3)
-                    Text("New")
+                    Text(NSLocalizedString("common.new", comment: ""))
                         .font(.headline)
                         .fontWeight(.semibold)
                 }
@@ -1125,6 +1381,7 @@ struct DirectAIHomeworkView: View {
                 )
                 .cornerRadius(16)
                 .shadow(color: Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
+                .opacity(0.8)  // Added opacity to New button
             }
 
             // Clear Button
@@ -1138,7 +1395,7 @@ struct DirectAIHomeworkView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "trash.fill")
                         .font(.title3)
-                    Text("Clear")
+                    Text(NSLocalizedString("common.clear", comment: ""))
                         .font(.headline)
                         .fontWeight(.semibold)
                 }
@@ -1154,11 +1411,35 @@ struct DirectAIHomeworkView: View {
                 )
                 .cornerRadius(16)
                 .shadow(color: Color.red.opacity(0.3), radius: 8, x: 0, y: 4)
+                .opacity(0.8)  // Added opacity to Clear button
             }
         }
     }
     
     // MARK: - Helper Methods
+
+    private func getSubjectIcon(_ subject: String) -> String {
+        switch subject {
+        case "Mathematics":
+            return "function"
+        case "Physics":
+            return "atom"
+        case "Chemistry":
+            return "flask"
+        case "Biology":
+            return "leaf"
+        case "English":
+            return "book"
+        case "History":
+            return "clock"
+        case "Geography":
+            return "globe"
+        case "Computer Science":
+            return "laptopcomputer"
+        default:
+            return "doc.text"
+        }
+    }
 
     private func accuracyColor(_ accuracy: Float) -> Color {
         if accuracy >= 0.9 {
@@ -1229,12 +1510,24 @@ struct DirectAIHomeworkView: View {
         logger.info("📊 Processing \(images.count) images")
 
         Task {
-            // Preprocess all images
+            // Get the selected indices to check which images were user-edited
+            let selectedIndices = stateManager.selectedImageIndices.sorted()
+
+            // Preprocess all images (skip iOS preprocessing for user-edited images)
             var processedImages: [UIImage] = []
-            for (index, image) in images.enumerated() {
-                logger.info("🔧 Preprocessing image \(index + 1)/\(images.count)")
-                let processed = ImageProcessingService.shared.preprocessImageForAI(image) ?? image
-                processedImages.append(processed)
+            for (arrayIndex, image) in images.enumerated() {
+                let actualIndex = selectedIndices[arrayIndex]
+
+                if stateManager.userEditedIndices.contains(actualIndex) {
+                    // User edited this image - use it directly WITHOUT iOS preprocessing
+                    logger.info("👤 Image \(arrayIndex + 1)/\(images.count) was user-edited - using directly (no iOS preprocessing)")
+                    processedImages.append(image)
+                } else {
+                    // Image not user-edited - apply iOS preprocessing
+                    logger.info("🔧 Preprocessing image \(arrayIndex + 1)/\(images.count) with iOS enhancement")
+                    let processed = ImageProcessingService.shared.preprocessImageForAI(image) ?? image
+                    processedImages.append(processed)
+                }
             }
 
             await MainActor.run {
@@ -1251,10 +1544,23 @@ struct DirectAIHomeworkView: View {
             stateManager.currentStage = .compressing
             stateManager.processingStatus = "📦 Compressing \(images.count) images..."
             stateManager.parsingError = nil
+            parsingStartTime = Date() // Track start time
+            showBackgroundOption = false
         }
 
         logger.info("📡 === SENDING \(images.count) IMAGES TO AI ===")
         let startTime = Date()
+
+        // Start timer to check parsing duration
+        let timerTask = Task {
+            try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
+            await MainActor.run {
+                if isProcessing && !isParsingInBackground {
+                    showBackgroundOption = true
+                    logger.info("⏱️ Parsing taking longer than expected, showing background option")
+                }
+            }
+        }
 
         // Compress all images
         var base64Images: [String] = []
@@ -1295,7 +1601,9 @@ struct DirectAIHomeworkView: View {
         // Process with batch AI API
         let result = await NetworkService.shared.processHomeworkImagesBatch(
             base64Images: base64Images,
-            prompt: ""
+            prompt: "",
+            subject: selectedSubject,  // Pass user-selected subject
+            parsingMode: parsingMode.apiValue  // Pass parsing mode
         )
 
         let processingTime = Date().timeIntervalSince(startTime)
@@ -1314,7 +1622,11 @@ struct DirectAIHomeworkView: View {
                 showingErrorAlert = true
             }
             isProcessing = false
+            showBackgroundOption = false // Hide background option when done
         }
+
+        // Cancel the timer task
+        timerTask.cancel()
     }
 
     // MARK: - Process Batch Response
@@ -1379,6 +1691,75 @@ struct DirectAIHomeworkView: View {
         stateManager.processingStatus = allQuestions.count > 0 ?
             "✅ Batch analysis complete: \(allQuestions.count) questions found" :
             "⚠️ Batch analysis complete: No questions detected"
+    }
+
+    // MARK: - Background Parsing & Notifications
+
+    /// Request notification permissions from the user
+    private func requestNotificationPermissions() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if let error = error {
+                logger.error("❌ Notification permission error: \(error.localizedDescription)")
+            } else if granted {
+                logger.info("✅ Notification permissions granted")
+            } else {
+                logger.warning("⚠️ Notification permissions denied by user")
+            }
+        }
+    }
+
+    /// Schedule a local notification for parsing completion
+    private func scheduleParsingCompleteNotification(taskID: String, questionCount: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = NSLocalizedString("aiHomework.homeworkAnalysisComplete", comment: "")
+        content.body = String(format: NSLocalizedString("aiHomework.gradingCompleteMessage", comment: ""), questionCount)
+        content.sound = .default
+        content.badge = 1
+        content.userInfo = ["taskID": taskID, "type": "parsing_complete"]
+
+        // Trigger immediately (parsing is already done when this is called)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: taskID, content: content, trigger: trigger)
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                self.logger.error("❌ Failed to schedule notification: \(error.localizedDescription)")
+            } else {
+                self.logger.info("✅ Scheduled parsing complete notification for task \(taskID)")
+            }
+        }
+    }
+
+    /// Continue parsing in background and allow user to navigate away
+    private func continueInBackground(images: [UIImage]) async {
+        let taskID = UUID().uuidString
+        await MainActor.run {
+            isParsingInBackground = true
+            backgroundParsingTaskID = taskID
+            showBackgroundOption = false
+            logger.info("📱 Moving parsing to background with task ID: \(taskID)")
+        }
+
+        // Request notification permissions if not already requested
+        requestNotificationPermissions()
+
+        // Create a detached task to continue parsing in background
+        Task.detached {
+            // Continue the parsing task in background
+            await self.sendBatchToAI(images: images)
+
+            // When complete, send notification
+            await MainActor.run {
+                if let result = self.stateManager.parsingResult {
+                    self.scheduleParsingCompleteNotification(taskID: taskID, questionCount: result.questions.count)
+                }
+                self.isParsingInBackground = false
+                self.backgroundParsingTaskID = nil
+            }
+        }
+
+        // Allow user to navigate away immediately
+        // The task continues in the background
     }
 
     // MARK: - Send to AI Method (Single Image - Kept for backward compatibility)
@@ -1545,57 +1926,61 @@ struct DirectAIHomeworkView: View {
         // Security limit: Maximum 2MB after compression to prevent abuse
         let maxSizeBytes = 2 * 1024 * 1024 // 2MB limit (server allows 3MB for base64 overhead)
 
-        // Resize to reasonable dimensions for OCR
-        let maxDimension: CGFloat = 2048  // Higher resolution for better OCR accuracy
-        let resizedImage = resizeImage(image, maxDimension: maxDimension)
-        logger.info("📐 Resized to: \(resizedImage.size.width)x\(resizedImage.size.height)")
+        // Progressive dimension reduction strategy if compression fails
+        let dimensionLevels: [CGFloat] = [2048, 1536, 1024, 768]
 
-        let minQuality: CGFloat = 0.5   // Don't go below 50% quality for OCR accuracy
+        for maxDimension in dimensionLevels {
+            logger.info("📐 Trying max dimension: \(maxDimension)")
 
-        // Binary search for optimal compression (much faster than linear search)
-        var low: CGFloat = minQuality
-        var high: CGFloat = 1.0
-        var bestData: Data? = nil
-        var iterations = 0
+            let resizedImage = resizeImage(image, maxDimension: maxDimension)
+            logger.info("📐 Resized to: \(resizedImage.size.width)x\(resizedImage.size.height)")
 
-        while high - low > 0.05 && iterations < 10 {
-            iterations += 1
-            let mid = (low + high) / 2.0
+            let minQuality: CGFloat = 0.5   // Don't go below 50% quality for OCR accuracy
 
-            guard let data = resizedImage.jpegData(compressionQuality: mid) else {
-                high = mid
-                continue
+            // Binary search for optimal compression (much faster than linear search)
+            var low: CGFloat = minQuality
+            var high: CGFloat = 1.0
+            var bestData: Data? = nil
+            var iterations = 0
+
+            while high - low > 0.05 && iterations < 10 {
+                iterations += 1
+                let mid = (low + high) / 2.0
+
+                guard let data = resizedImage.jpegData(compressionQuality: mid) else {
+                    high = mid
+                    continue
+                }
+
+                logger.info("🔍 Iteration \(iterations): quality=\(String(format: "%.2f", mid)), size=\(data.count) bytes")
+
+                if data.count <= maxSizeBytes {
+                    bestData = data
+                    low = mid  // Found acceptable, try higher quality
+                } else {
+                    high = mid  // Too large, try lower quality
+                }
             }
 
-            logger.info("🔍 Iteration \(iterations): quality=\(String(format: "%.2f", mid)), size=\(data.count) bytes")
+            if let finalData = bestData {
+                logger.info("✅ Compression complete in \(iterations) iterations at \(maxDimension)px: \(finalData.count) bytes")
+                return finalData
+            }
 
-            if data.count <= maxSizeBytes {
-                bestData = data
-                low = mid  // Found acceptable, try higher quality
-            } else {
-                high = mid  // Too large, try lower quality
+            // Try fallback with minimum quality at this dimension
+            if let fallbackData = resizedImage.jpegData(compressionQuality: minQuality) {
+                if fallbackData.count <= maxSizeBytes {
+                    logger.info("✅ Using fallback compression at \(maxDimension)px, min quality: \(fallbackData.count) bytes")
+                    return fallbackData
+                } else {
+                    logger.warning("⚠️ Still too large at \(maxDimension)px with min quality: \(fallbackData.count) bytes > \(maxSizeBytes) bytes")
+                    // Continue to next smaller dimension
+                }
             }
         }
 
-        if let finalData = bestData {
-            logger.info("✅ Compression complete in \(iterations) iterations: \(finalData.count) bytes")
-            return finalData
-        }
-
-        // Fallback to minimum quality if binary search fails
-        if let fallbackData = resizedImage.jpegData(compressionQuality: minQuality) {
-            logger.warning("⚠️ Using fallback compression at minimum quality: \(fallbackData.count) bytes")
-
-            // Final security check: reject if still too large
-            if fallbackData.count > maxSizeBytes {
-                logger.error("❌ Image too large even at minimum quality: \(fallbackData.count) bytes > \(maxSizeBytes) bytes")
-                return nil
-            }
-
-            return fallbackData
-        }
-
-        logger.error("❌ Could not compress image to acceptable size")
+        // If we've exhausted all dimension levels, log error
+        logger.error("❌ Could not compress image to acceptable size even at smallest dimension")
         return nil
     }
     
@@ -1845,8 +2230,8 @@ struct RandomLottieAnimation: View {
                 // Lottie animation
                 if !selectedAnimation.isEmpty {
                     LottieView(animationName: selectedAnimation, loopMode: .loop)
-                        .frame(width: 350, height: 350)
-                        .scaleEffect(1.2)
+                        .frame(width: 250, height: 250)  // REDUCED from 350x350 to 250x250
+                        .scaleEffect(0.9)  // REDUCED from 1.2 to 0.9 (makes it smaller)
                 } else {
                     ProgressView()
                         .scaleEffect(1.5)
@@ -1855,7 +2240,7 @@ struct RandomLottieAnimation: View {
                 Spacer()
 
                 // Status text at bottom
-                Text("AI is carefully examining your homework!")
+                Text(NSLocalizedString("aiHomework.processing.message", comment: ""))
                     .font(.headline)
                     .foregroundColor(.purple)
                     .opacity(0.8)
@@ -2005,7 +2390,7 @@ struct ImageZoomView: View {
                     }) {
                         HStack {
                             Image(systemName: "xmark.circle.fill")
-                            Text("Close")
+                            Text(NSLocalizedString("common.close", comment: ""))
                         }
                         .foregroundColor(.white)
                         .font(.system(size: 17, weight: .medium))
@@ -2042,7 +2427,7 @@ struct ImageZoomView: View {
                 Spacer()
 
                 // Bottom instructions
-                Text("Pinch to zoom • Drag to pan • Double tap to reset • Use Close button to exit")
+                Text(NSLocalizedString("imageViewer.instructions", comment: ""))
                     .foregroundColor(.white.opacity(0.8))
                     .font(.system(size: 14, weight: .medium))
                     .multilineTextAlignment(.center)
@@ -2152,7 +2537,7 @@ struct ConfidenceBadge: View {
                     .foregroundColor(confidenceColor)
             }
 
-            Text("Confidence")
+            Text(NSLocalizedString("aiHomework.results.confidence", comment: ""))
                 .font(.caption2)
                 .foregroundColor(.secondary)
         }
@@ -2192,56 +2577,26 @@ struct AnimatedGradientButton: View {
         }) {
             Text(title)
                 .font(.headline)
-                .fontWeight(.semibold)
+                .fontWeight(.bold)
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .padding(.vertical, 18)
         }
         .background(
-            ZStack {
-                // Animated gradient background
-                LinearGradient(
-                    colors: animateGradient ?
-                        [Color.blue, Color.purple, Color.blue] :
-                        [Color.purple, Color.blue, Color.purple],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-
-                // Glowing overlay
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.3),
-                        Color.clear,
-                        Color.white.opacity(0.3)
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .opacity(glowOpacity)
-            }
+            LinearGradient(
+                colors: [
+                    Color(red: 0.4, green: 0.6, blue: 1.0),  // Light blue
+                    Color(red: 0.5, green: 0.4, blue: 1.0)   // Light purple
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
         )
         .cornerRadius(16)
-        .shadow(
-            color: Color.blue.opacity(0.4),
-            radius: glowOpacity * 20,
-            x: 0,
-            y: glowOpacity * 8
-        )
+        .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
         .scaleEffect(buttonScale)
-        .onAppear {
-            // Start gradient animation
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                animateGradient.toggle()
-            }
-
-            // Start glow animation
-            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                glowOpacity = 0.8
-            }
-        }
         .disabled(isProcessing)
-        .opacity(isProcessing ? 0.6 : 1.0)
+        .opacity(isProcessing ? 0.5 : 1.0)
     }
 }
 
