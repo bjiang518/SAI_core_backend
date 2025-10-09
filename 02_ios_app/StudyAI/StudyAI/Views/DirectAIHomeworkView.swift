@@ -83,11 +83,10 @@ class AIHomeworkStateManager: ObservableObject {
 
     func startNewSession() {
         sessionId = UUID().uuidString
-        logger.info("🆕 Started new AI homework session: \(self.sessionId ?? "unknown")")
     }
 
     func saveSessionState() {
-        logger.info("💾 AI homework session state saved")
+        // Session state saved
     }
 
     var canAddMoreImages: Bool {
@@ -96,7 +95,6 @@ class AIHomeworkStateManager: ObservableObject {
 
     func addImage(_ image: UIImage) -> Bool {
         guard canAddMoreImages else {
-            logger.warning("⚠️ Cannot add image: limit of \(Self.maxImagesLimit) reached")
             return false
         }
 
@@ -105,7 +103,6 @@ class AIHomeworkStateManager: ObservableObject {
         selectedImageIndex = capturedImages.count - 1  // Select the newly added image
         selectedImageIndices.insert(capturedImages.count - 1)  // Auto-select for AI
         originalImage = image  // Backward compatibility
-        logger.info("📸 Added original image #\(self.capturedImages.count) of \(Self.maxImagesLimit) (uncompressed)")
         return true
     }
 
@@ -121,7 +118,6 @@ class AIHomeworkStateManager: ObservableObject {
             selectedImageIndex = max(0, capturedImages.count - 1)
         }
         originalImage = capturedImages.isEmpty ? nil : capturedImages[selectedImageIndex]
-        logger.info("🗑️ Removed image, \(self.capturedImages.count) remaining")
     }
 
     func clearSession() {
@@ -141,8 +137,6 @@ class AIHomeworkStateManager: ObservableObject {
 
         // Also clear CameraViewModel
         CameraViewModel.shared.clearForNextCapture()
-
-        logger.info("🧹 Cleared AI homework session")
     }
 }
 
@@ -247,32 +241,15 @@ struct DirectAIHomeworkView: View {
             if stateManager.parsingResult != nil {
                 // Show existing session with results
                 existingSessionView
-                    .onAppear {
-                        logger.info("📊 Showing: existingSessionView (results available)")
-                    }
             } else if !stateManager.capturedImages.isEmpty {
                 // Show image preview with Ask AI button
                 imagePreviewView
-                    .onAppear {
-                        logger.info("🖼️ Showing: imagePreviewView (Ask AI preview page)")
-                    }
             } else {
                 // Show image source selection directly
                 imageSourceSelectionView
-                    .onAppear {
-                        logger.info("📷 Showing: imageSourceSelectionView (main selection page)")
-                    }
             }
         }
         .navigationBarHidden(true) // Hide iOS back button
-        .onAppear {
-            logger.info("🤖 === DIRECT AI HOMEWORK VIEW onAppear CALLED ===")
-            logger.info("🤖 DirectAIHomeworkView main content is loading")
-        }
-        .onDisappear {
-            logger.info("🤖 === DIRECT AI HOMEWORK VIEW onDisappear CALLED ===")
-            logger.info("🤖 DirectAIHomeworkView main content is disappearing")
-        }
         .sheet(isPresented: $showingResults) {
             if let enhanced = stateManager.enhancedResult {
                 HomeworkResultsView(
@@ -329,30 +306,18 @@ struct DirectAIHomeworkView: View {
         .sheet(isPresented: $showingDocumentScanner) {
             EnhancedCameraView(isPresented: $showingDocumentScanner)
                 .onDisappear {
-                    logger.info("📸 === DOCUMENT SCANNER SHEET DISMISSED ===")
-                    logger.info("🖼️ CameraViewModel has images: \(CameraViewModel.shared.capturedImages.count)")
-
                     // Transfer ALL captured images from CameraViewModel to stateManager
                     let capturedImages = CameraViewModel.shared.capturedImages
 
                     if !capturedImages.isEmpty {
-                        logger.info("✅ Transferring \(capturedImages.count) images to stateManager")
-
                         // Add each image to stateManager
                         for (index, image) in capturedImages.enumerated() {
-                            logger.info("📐 Image \(index + 1) size: \(image.size.width)x\(image.size.height)")
-
                             let added = stateManager.addImage(image)
                             if !added {
-                                logger.warning("⚠️ Image limit reached at image \(index + 1)")
                                 showingImageLimitAlert = true
                                 break
                             }
                         }
-
-                        logger.info("✅ Transferred \(stateManager.capturedImages.count) images - should now show Ask AI preview page")
-                    } else {
-                        logger.warning("⚠️ No captured images found in CameraViewModel")
                     }
                 }
         }
@@ -412,7 +377,6 @@ struct DirectAIHomeworkView: View {
                         stateManager.capturedImages[currentIndex] = edited
                         // Mark this image as user-edited (skip iOS preprocessing)
                         stateManager.userEditedIndices.insert(currentIndex)
-                        logger.info("✅ Updated edited image at index \(currentIndex) - marked as user-edited")
                     }
 
                     editedImage = nil
@@ -931,6 +895,7 @@ struct DirectAIHomeworkView: View {
                                 .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                         )
                         .padding(.horizontal, 16)
+                        .id(image) // Force refresh when image reference changes
 
                     // X delete button in top-right corner
                     Button(action: {
@@ -952,8 +917,6 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Image Grid View (for all images)
     private var imageGridView: some View {
-        let _ = logger.info("🖼️ GRID VIEW RENDERING: \(self.stateManager.capturedImages.count) images in array")
-
         let imageCount = self.stateManager.capturedImages.count
         let rows = (imageCount + 1) / 2  // Calculate number of rows (2 columns)
         let gridHeight: CGFloat = CGFloat(rows) * 180 + CGFloat(rows - 1) * 16  // height per row + spacing
@@ -1482,14 +1445,9 @@ struct DirectAIHomeworkView: View {
         stateManager.processingStatus = "Processing homework image with AI..."
         stateManager.parsingError = nil
 
-        logger.info("🚀 === HOMEWORK IMAGE PROCESSING STARTED ===")
-        logger.info("📊 Original image size: \(image.size.width)x\(image.size.height)")
-
         Task {
             // Apply preprocessing and send directly to AI
-            logger.info("🔧 === APPLYING ADVANCED IMAGE PREPROCESSING ===")
             let processedImage = ImageProcessingService.shared.preprocessImageForAI(image) ?? image
-            logger.info("📊 Preprocessed image size: \(processedImage.size.width)x\(processedImage.size.height)")
 
             // Send directly to AI without showing enhancement preview
             await MainActor.run {
@@ -1506,9 +1464,6 @@ struct DirectAIHomeworkView: View {
         stateManager.processingStatus = "Processing \(images.count) homework images with AI..."
         stateManager.parsingError = nil
 
-        logger.info("🚀 === BATCH HOMEWORK IMAGE PROCESSING STARTED ===")
-        logger.info("📊 Processing \(images.count) images")
-
         Task {
             // Get the selected indices to check which images were user-edited
             let selectedIndices = stateManager.selectedImageIndices.sorted()
@@ -1520,11 +1475,9 @@ struct DirectAIHomeworkView: View {
 
                 if stateManager.userEditedIndices.contains(actualIndex) {
                     // User edited this image - use it directly WITHOUT iOS preprocessing
-                    logger.info("👤 Image \(arrayIndex + 1)/\(images.count) was user-edited - using directly (no iOS preprocessing)")
                     processedImages.append(image)
                 } else {
                     // Image not user-edited - apply iOS preprocessing
-                    logger.info("🔧 Preprocessing image \(arrayIndex + 1)/\(images.count) with iOS enhancement")
                     let processed = ImageProcessingService.shared.preprocessImageForAI(image) ?? image
                     processedImages.append(processed)
                 }
@@ -1548,7 +1501,6 @@ struct DirectAIHomeworkView: View {
             showBackgroundOption = false
         }
 
-        logger.info("📡 === SENDING \(images.count) IMAGES TO AI ===")
         let startTime = Date()
 
         // Start timer to check parsing duration
@@ -1557,7 +1509,6 @@ struct DirectAIHomeworkView: View {
             await MainActor.run {
                 if isProcessing && !isParsingInBackground {
                     showBackgroundOption = true
-                    logger.info("⏱️ Parsing taking longer than expected, showing background option")
                 }
             }
         }
@@ -1565,7 +1516,6 @@ struct DirectAIHomeworkView: View {
         // Compress all images
         var base64Images: [String] = []
         for (index, image) in images.enumerated() {
-            logger.info("🗜️ Compressing image \(index + 1)/\(images.count)")
             guard let imageData = compressPreprocessedImage(image) else {
                 await MainActor.run {
                     stateManager.parsingError = "Failed to compress image \(index + 1)"
@@ -1579,15 +1529,12 @@ struct DirectAIHomeworkView: View {
 
             let base64String = imageData.base64EncodedString()
             base64Images.append(base64String)
-            logger.info("✅ Image \(index + 1) compressed: \(imageData.count) bytes")
         }
 
         await MainActor.run {
             stateManager.currentStage = .uploading
             stateManager.processingStatus = "📤 Uploading \(images.count) images to AI..."
         }
-
-        logger.info("📡 Sending batch to AI for processing...")
 
         // Simulate upload progress
         await simulateUploadProgress()
@@ -1613,10 +1560,8 @@ struct DirectAIHomeworkView: View {
             stateManager.processingStatus = "📊 Preparing batch results..."
 
             if result.success, let responses = result.responses {
-                logger.info("🎉 Batch AI processing successful: \(result.successCount)/\(result.totalImages) images")
                 processBatchResponse(responses, processingTime: processingTime)
             } else {
-                logger.error("❌ Batch AI processing failed")
                 stateManager.parsingError = "Batch processing failed: Only \(result.successCount)/\(result.totalImages) images processed"
                 stateManager.processingStatus = "❌ Batch AI processing failed"
                 showingErrorAlert = true
@@ -1644,8 +1589,6 @@ struct DirectAIHomeworkView: View {
                let data = responseDict["data"] as? [String: Any],
                let response = data["response"] as? String {
 
-                logger.info("📄 Processing response from image \(index + 1)")
-
                 // Parse this image's response
                 if let parsed = EnhancedHomeworkParser.shared.parseEnhancedHomeworkResponse(response) {
                     // Take subject from first image
@@ -1656,12 +1599,9 @@ struct DirectAIHomeworkView: View {
 
                     // Add all questions from this image
                     allQuestions.append(contentsOf: parsed.questions)
-                    logger.info("✅ Image \(index + 1): Found \(parsed.questions.count) questions")
                 }
             }
         }
-
-        logger.info("📊 Total questions from batch: \(allQuestions.count)")
 
         // Create combined result
         let overallConfidence = allQuestions.isEmpty ? 0.0 : allQuestions.map { $0.confidence }.reduce(0.0, +) / Float(allQuestions.count)
@@ -1698,13 +1638,7 @@ struct DirectAIHomeworkView: View {
     /// Request notification permissions from the user
     private func requestNotificationPermissions() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if let error = error {
-                logger.error("❌ Notification permission error: \(error.localizedDescription)")
-            } else if granted {
-                logger.info("✅ Notification permissions granted")
-            } else {
-                logger.warning("⚠️ Notification permissions denied by user")
-            }
+            // Permissions requested
         }
     }
 
@@ -1722,11 +1656,7 @@ struct DirectAIHomeworkView: View {
         let request = UNNotificationRequest(identifier: taskID, content: content, trigger: trigger)
 
         UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                self.logger.error("❌ Failed to schedule notification: \(error.localizedDescription)")
-            } else {
-                self.logger.info("✅ Scheduled parsing complete notification for task \(taskID)")
-            }
+            // Notification scheduled
         }
     }
 
@@ -1737,7 +1667,6 @@ struct DirectAIHomeworkView: View {
             isParsingInBackground = true
             backgroundParsingTaskID = taskID
             showBackgroundOption = false
-            logger.info("📱 Moving parsing to background with task ID: \(taskID)")
         }
 
         // Request notification permissions if not already requested
@@ -1770,9 +1699,6 @@ struct DirectAIHomeworkView: View {
             stateManager.parsingError = nil
         }
 
-        logger.info("📡 === SENDING IMAGE TO AI ===")
-        logger.info("📊 Final image size: \(image.size.width)x\(image.size.height)")
-
         let startTime = Date()
 
         // Convert to data with aggressive compression
@@ -1787,17 +1713,13 @@ struct DirectAIHomeworkView: View {
             return
         }
 
-        logger.info("📄 Final image data size: \(imageData.count) bytes")
         let base64Image = imageData.base64EncodedString()
-        logger.info("📄 Base64 string length: \(base64Image.count) characters")
 
         await MainActor.run {
             stateManager.originalImageUrl = "temp://homework-image-\(UUID().uuidString)"
             stateManager.currentStage = .uploading
             stateManager.processingStatus = stateManager.currentStage.message
         }
-
-        logger.info("📡 Sending to AI for processing...")
 
         // Simulate upload progress
         await simulateUploadProgress()
@@ -1821,10 +1743,8 @@ struct DirectAIHomeworkView: View {
             stateManager.processingStatus = stateManager.currentStage.message
 
             if result.success, let response = result.response {
-                logger.info("🎉 AI processing successful")
                 processSuccessfulResponse(response, processingTime: processingTime)
             } else {
-                logger.error("❌ AI processing failed")
                 processFailedResponse(result, processingTime: processingTime)
             }
             isProcessing = false
@@ -1884,7 +1804,6 @@ struct DirectAIHomeworkView: View {
                 "⚠️ Analysis complete: No questions detected"
         } else {
             // Parser returned nil - create empty result for "no questions detected" case
-            logger.info("⚠️ Parser returned nil - creating empty result")
 
             stateManager.enhancedResult = EnhancedHomeworkParsingResult(
                 questions: [],
@@ -1920,20 +1839,15 @@ struct DirectAIHomeworkView: View {
     }
     
     private func compressPreprocessedImage(_ image: UIImage) -> Data? {
-        logger.info("🗜️ === SMART BINARY SEARCH COMPRESSION ===")
-        logger.info("📊 Input image size: \(image.size.width)x\(image.size.height)")
-
-        // Security limit: Maximum 2MB after compression to prevent abuse
-        let maxSizeBytes = 2 * 1024 * 1024 // 2MB limit (server allows 3MB for base64 overhead)
+        // Mobile-optimized limit: Maximum 500KB after compression for reliable uploads
+        // Prevents network timeouts on slow mobile connections
+        let maxSizeBytes = 500 * 1024 // 500KB limit for fast mobile uploads
 
         // Progressive dimension reduction strategy if compression fails
         let dimensionLevels: [CGFloat] = [2048, 1536, 1024, 768]
 
         for maxDimension in dimensionLevels {
-            logger.info("📐 Trying max dimension: \(maxDimension)")
-
             let resizedImage = resizeImage(image, maxDimension: maxDimension)
-            logger.info("📐 Resized to: \(resizedImage.size.width)x\(resizedImage.size.height)")
 
             let minQuality: CGFloat = 0.5   // Don't go below 50% quality for OCR accuracy
 
@@ -1952,8 +1866,6 @@ struct DirectAIHomeworkView: View {
                     continue
                 }
 
-                logger.info("🔍 Iteration \(iterations): quality=\(String(format: "%.2f", mid)), size=\(data.count) bytes")
-
                 if data.count <= maxSizeBytes {
                     bestData = data
                     low = mid  // Found acceptable, try higher quality
@@ -1963,24 +1875,20 @@ struct DirectAIHomeworkView: View {
             }
 
             if let finalData = bestData {
-                logger.info("✅ Compression complete in \(iterations) iterations at \(maxDimension)px: \(finalData.count) bytes")
                 return finalData
             }
 
             // Try fallback with minimum quality at this dimension
             if let fallbackData = resizedImage.jpegData(compressionQuality: minQuality) {
                 if fallbackData.count <= maxSizeBytes {
-                    logger.info("✅ Using fallback compression at \(maxDimension)px, min quality: \(fallbackData.count) bytes")
                     return fallbackData
                 } else {
-                    logger.warning("⚠️ Still too large at \(maxDimension)px with min quality: \(fallbackData.count) bytes > \(maxSizeBytes) bytes")
                     // Continue to next smaller dimension
                 }
             }
         }
 
-        // If we've exhausted all dimension levels, log error
-        logger.error("❌ Could not compress image to acceptable size even at smallest dimension")
+        // If we've exhausted all dimension levels, return nil
         return nil
     }
     
@@ -2230,8 +2138,8 @@ struct RandomLottieAnimation: View {
                 // Lottie animation
                 if !selectedAnimation.isEmpty {
                     LottieView(animationName: selectedAnimation, loopMode: .loop)
-                        .frame(width: 250, height: 250)  // REDUCED from 350x350 to 250x250
-                        .scaleEffect(0.9)  // REDUCED from 1.2 to 0.9 (makes it smaller)
+                        .frame(width: 250, height: 250)
+                        .scaleEffect(0.9)
                 } else {
                     ProgressView()
                         .scaleEffect(1.5)
@@ -2239,19 +2147,33 @@ struct RandomLottieAnimation: View {
 
                 Spacer()
 
-                // Status text at bottom
-                Text(NSLocalizedString("aiHomework.processing.message", comment: ""))
-                    .font(.headline)
-                    .foregroundColor(.purple)
-                    .opacity(0.8)
-                    .padding(.vertical, 20)
-                    .padding(.bottom, 80) // Space for tab bar
+                // Status text at bottom with more details
+                VStack(spacing: 12) {
+                    Text(NSLocalizedString("aiHomework.processing.message", comment: ""))
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.purple)
+                        .multilineTextAlignment(.center)
+
+                    Text("This might take a while...")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    Text("AI is carefully analyzing your homework")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .opacity(0.7)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 32)
+                .padding(.vertical, 20)
+                .padding(.bottom, 60) // Space for tab bar
             }
         }
         .onAppear {
             // Randomly pick an animation when view appears
             selectedAnimation = animations.randomElement() ?? "Customised_report"
-            print("✨ Selected animation: \(selectedAnimation)")
         }
     }
 }

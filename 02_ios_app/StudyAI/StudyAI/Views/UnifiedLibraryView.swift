@@ -8,10 +8,18 @@
 import SwiftUI
 
 // MARK: - Content Type Filter Enum
-enum ContentTypeFilter: String, CaseIterable {
-    case all = "All Sessions"
-    case questions = "Questions Only"
-    case conversations = "Conversations Only"
+enum ContentTypeFilter: CaseIterable {
+    case all
+    case questions
+    case conversations
+
+    var displayName: String {
+        switch self {
+        case .all: return NSLocalizedString("library.contentType.allSessions", comment: "")
+        case .questions: return NSLocalizedString("library.contentType.questionsOnly", comment: "")
+        case .conversations: return NSLocalizedString("library.contentType.conversationsOnly", comment: "")
+        }
+    }
 
     var icon: String {
         switch self {
@@ -142,31 +150,31 @@ struct UnifiedLibraryView: View {
                     content
                 }
             }
-            .navigationTitle("📚 Study Library")
+            .navigationTitle("📚 " + NSLocalizedString("library.title", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
-                        Button("Refresh Library") {
+                        Button(NSLocalizedString("library.refreshLibrary", comment: "")) {
                             Task {
                                 await refreshContent()
                             }
                         }
-                        
-                        Button("Advanced Search") {
+
+                        Button(NSLocalizedString("library.advancedSearch", comment: "")) {
                             showingAdvancedSearch = true
                         }
-                        
-                        Button("Clear Filters") {
+
+                        Button(NSLocalizedString("library.clearFilters", comment: "")) {
                             clearFilters()
                         }
-                        
+
                         if !availableSubjects.isEmpty {
-                            Menu("Filter by Subject") {
-                                Button("All Subjects") {
+                            Menu(NSLocalizedString("library.filterBySubject", comment: "")) {
+                                Button(NSLocalizedString("library.allSubjects", comment: "")) {
                                     selectedSubject = nil
                                 }
-                                
+
                                 ForEach(availableSubjects, id: \.self) { subject in
                                     Button(subject) {
                                         selectedSubject = subject
@@ -174,11 +182,11 @@ struct UnifiedLibraryView: View {
                                 }
                             }
                         }
-                        
-                        Button("Debug Info") {
+
+                        Button(NSLocalizedString("library.debugInfo", comment: "")) {
                             userSession.printCurrentState()
                         }
-                        
+
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
@@ -202,7 +210,7 @@ struct UnifiedLibraryView: View {
                 )
             }
         }
-        .searchable(text: $searchText, prompt: "Search by question, subject, or content...")
+        .searchable(text: $searchText, prompt: NSLocalizedString("library.searchPlaceholder", comment: ""))
         .task {
             await loadContent()
         }
@@ -229,7 +237,7 @@ struct UnifiedLibraryView: View {
                     HStack(spacing: 12) {
                         // Date Range Quick Filters
                         QuickFilterButton(
-                            title: "This Week",
+                            title: NSLocalizedString("library.filter.thisWeek", comment: ""),
                             icon: "calendar.badge.clock",
                             isSelected: activeQuickDateFilter == .thisWeek
                         ) {
@@ -247,7 +255,7 @@ struct UnifiedLibraryView: View {
                         }
 
                         QuickFilterButton(
-                            title: "This Month",
+                            title: NSLocalizedString("library.filter.thisMonth", comment: ""),
                             icon: "calendar",
                             isSelected: activeQuickDateFilter == .thisMonth
                         ) {
@@ -263,7 +271,7 @@ struct UnifiedLibraryView: View {
                                 Task { await performAdvancedSearch(searchFilters) }
                             }
                         }
-                        
+
                         // Subject Quick Filters
                         ForEach(availableSubjects.prefix(3), id: \.self) { subject in
                             QuickFilterButton(
@@ -274,10 +282,10 @@ struct UnifiedLibraryView: View {
                                 selectedSubject = selectedSubject == subject ? nil : subject
                             }
                         }
-                        
+
                         // Visual Elements Filter
                         QuickFilterButton(
-                            title: "With Images",
+                            title: NSLocalizedString("library.filter.withImages", comment: ""),
                             icon: "photo",
                             isSelected: hasActiveImageFilter
                         ) {
@@ -352,7 +360,7 @@ struct UnifiedLibraryView: View {
                 .listStyle(.plain)
                 .overlay {
                     if libraryService.isLoading {
-                        ProgressView("Updating...")
+                        ProgressView(NSLocalizedString("library.updating", comment: ""))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .background(Color(.systemBackground).opacity(0.8))
                     }
@@ -405,7 +413,7 @@ struct QuickStatsHeader: View {
             HStack(spacing: 20) {
                 InteractiveStatPill(
                     icon: "questionmark.circle.fill",
-                    title: "Questions",
+                    title: NSLocalizedString("library.stats.questions", comment: ""),
                     count: questionCount,
                     color: .blue,
                     isSelected: selectedContentType == .questions,
@@ -414,7 +422,7 @@ struct QuickStatsHeader: View {
 
                 InteractiveStatPill(
                     icon: "bubble.left.and.bubble.right.fill",
-                    title: "Conversations",
+                    title: NSLocalizedString("library.stats.conversations", comment: ""),
                     count: conversationCount,
                     color: .green,
                     isSelected: selectedContentType == .conversations,
@@ -423,7 +431,7 @@ struct QuickStatsHeader: View {
 
                 InteractiveStatPill(
                     icon: "books.vertical.fill",
-                    title: "Total Sessions",
+                    title: NSLocalizedString("library.stats.totalSessions", comment: ""),
                     count: content.totalItems,
                     color: .purple,
                     isSelected: selectedContentType == .all,
@@ -437,13 +445,13 @@ struct QuickStatsHeader: View {
                     HStack {
                         Image(systemName: "line.3.horizontal.decrease.circle.fill")
                             .foregroundColor(selectedContentType.color)
-                        Text("Showing: \(selectedContentType.rawValue)")
+                        Text(String.localizedStringWithFormat(NSLocalizedString("library.stats.showing", comment: ""), selectedContentType.displayName))
                             .font(.caption)
                             .foregroundColor(.secondary)
 
                         Spacer()
 
-                        Button("Show All") {
+                        Button(NSLocalizedString("library.stats.showAll", comment: "")) {
                             onContentTypeSelected(.all)
                         }
                         .font(.caption)
@@ -456,7 +464,7 @@ struct QuickStatsHeader: View {
                     HStack {
                         Image(systemName: "tag.fill")
                             .foregroundColor(.orange)
-                        Text("Subject: \(selectedSubject)")
+                        Text(String.localizedStringWithFormat(NSLocalizedString("library.stats.subject", comment: ""), selectedSubject))
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()
@@ -570,11 +578,11 @@ struct LibraryItemRow: View {
                 )
                 .font(.caption)
                 .foregroundColor(.secondary)
-                
+
                 Spacer()
-                
+
                 if isClickable(item) {
-                    Text("Tap to review")
+                    Text(NSLocalizedString("library.item.tapToReview", comment: ""))
                         .font(.caption)
                         .foregroundColor(.blue)
                         .fontWeight(.medium)
@@ -622,11 +630,11 @@ struct LibraryItemRow: View {
         switch item.itemType {
         case .question:
             if item is ConversationLibraryItem {
-                return "Homework Session"
+                return NSLocalizedString("library.item.homeworkSession", comment: "")
             }
-            return "Archived Question"
+            return NSLocalizedString("library.item.archivedQuestion", comment: "")
         case .conversation:
-            return "Conversation Session"
+            return NSLocalizedString("library.item.conversationSession", comment: "")
         }
     }
     
@@ -646,13 +654,13 @@ struct UnifiedAuthenticationRequiredView: View {
             Image(systemName: "lock.fill")
                 .font(.system(size: 60))
                 .foregroundColor(.secondary)
-            
+
             VStack(spacing: 8) {
-                Text("Sign In Required")
+                Text("library.empty.signInRequired")
                     .font(.title2)
                     .fontWeight(.bold)
-                
-                Text("Please sign in to access your personal Study Library")
+
+                Text("library.empty.signInMessage")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -669,13 +677,13 @@ struct UnifiedEmptyLibraryView: View {
             Image(systemName: "books.vertical")
                 .font(.system(size: 60))
                 .foregroundColor(.secondary)
-            
+
             VStack(spacing: 8) {
-                Text("Your Study Library is Empty")
+                Text("library.empty.libraryEmpty")
                     .font(.title2)
                     .fontWeight(.bold)
-                
-                Text("Complete homework with AI Homework or start conversations to build your study library")
+
+                Text("library.empty.libraryEmptyMessage")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -691,8 +699,8 @@ struct UnifiedLoadingView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .scaleEffect(1.2)
-            
-            Text("Loading your Study Library...")
+
+            Text("library.empty.loading")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -703,28 +711,28 @@ struct UnifiedLoadingView: View {
 struct NoResultsView: View {
     let hasFilters: Bool
     let clearFilters: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 50))
                 .foregroundColor(.secondary)
-            
-            Text("No Results Found")
+
+            Text("library.noResults.title")
                 .font(.title3)
                 .fontWeight(.medium)
-            
+
             if hasFilters {
-                Text("Try adjusting your search or filters")
+                Text("library.noResults.adjustFilters")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                
-                Button("Clear Filters") {
+
+                Button(NSLocalizedString("library.clearFilters", comment: "")) {
                     clearFilters()
                 }
                 .buttonStyle(.borderedProminent)
             } else {
-                Text("No study sessions match your criteria")
+                Text("library.noResults.noMatch")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -783,17 +791,17 @@ struct AdvancedSearchView: View {
                 dateRangeSection
                 sortOrderSection
             }
-            .navigationTitle("Advanced Search")
+            .navigationTitle(NSLocalizedString("library.advancedSearch.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("library.advancedSearch.cancel", comment: "")) {
                         dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Search") {
+                    Button(NSLocalizedString("library.advancedSearch.search", comment: "")) {
                         searchFilters = localFilters
                         onSearch(localFilters)
                         dismiss()
@@ -803,7 +811,7 @@ struct AdvancedSearchView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .bottomBar) {
-                    Button("Clear Search") {
+                    Button(NSLocalizedString("library.advancedSearch.clearSearch", comment: "")) {
                         onClearSearch()
                         dismiss()
                     }
@@ -815,15 +823,15 @@ struct AdvancedSearchView: View {
     
     // Break down the Form into separate computed properties
     private var searchTextSection: some View {
-        Section("Search Text") {
-            TextField("Search questions...", text: searchTextBinding)
+        Section(NSLocalizedString("library.advancedSearch.searchText", comment: "")) {
+            TextField(NSLocalizedString("library.advancedSearch.searchPlaceholder", comment: ""), text: searchTextBinding)
         }
     }
-    
+
     private var subjectFilterSection: some View {
-        Section("Subject Filter") {
-            Picker("Subject", selection: selectedSubjectBinding) {
-                Text("All Subjects").tag("All")
+        Section(NSLocalizedString("library.advancedSearch.subjectFilter", comment: "")) {
+            Picker(NSLocalizedString("library.advancedSearch.subject", comment: ""), selection: selectedSubjectBinding) {
+                Text(NSLocalizedString("library.advancedSearch.allSubjects", comment: "")).tag("All")
                 ForEach(availableSubjects, id: \.self) { subject in
                     Text(subject).tag(subject)
                 }
@@ -831,11 +839,11 @@ struct AdvancedSearchView: View {
             .pickerStyle(.menu)
         }
     }
-    
+
     private var gradeFilterSection: some View {
-        Section("Grade Filter") {
-            Picker("Grade", selection: $localFilters.gradeFilter) {
-                Text("All Grades").tag(nil as GradeFilter?)
+        Section(NSLocalizedString("library.advancedSearch.gradeFilter", comment: "")) {
+            Picker(NSLocalizedString("library.advancedSearch.grade", comment: ""), selection: $localFilters.gradeFilter) {
+                Text(NSLocalizedString("library.advancedSearch.allGrades", comment: "")).tag(nil as GradeFilter?)
                 ForEach(GradeFilter.allCases.filter { $0 != .all }, id: \.self) { grade in
                     Text(grade.displayName).tag(grade as GradeFilter?)
                 }
@@ -843,24 +851,22 @@ struct AdvancedSearchView: View {
             .pickerStyle(.menu)
         }
     }
-    
+
     private var dateRangeSection: some View {
-        Section("Date Range") {
-            Picker("Date Range", selection: $localFilters.dateRange) {
-                Text("All Time").tag(nil as DateRange?)
-                Text("This Week").tag(DateRange.thisWeek as DateRange?)
-                Text("This Month").tag(DateRange.thisMonth as DateRange?)
-                Text("Last 7 Days").tag(DateRange.last7Days as DateRange?)
-                Text("Last 30 Days").tag(DateRange.last30Days as DateRange?)
-                Text("Last 3 Months").tag(DateRange.last3Months as DateRange?)
+        Section(NSLocalizedString("library.advancedSearch.dateRange", comment: "")) {
+            Picker(NSLocalizedString("library.advancedSearch.dateRange", comment: ""), selection: $localFilters.dateRange) {
+                Text(NSLocalizedString("library.advancedSearch.allTime", comment: "")).tag(nil as DateRange?)
+                Text(NSLocalizedString("library.advancedSearch.last7Days", comment: "")).tag(DateRange.last7Days as DateRange?)
+                Text(NSLocalizedString("library.advancedSearch.last30Days", comment: "")).tag(DateRange.last30Days as DateRange?)
+                Text(NSLocalizedString("library.advancedSearch.last3Months", comment: "")).tag(DateRange.last3Months as DateRange?)
             }
             .pickerStyle(.menu)
         }
     }
-    
+
     private var sortOrderSection: some View {
-        Section("Sort Order") {
-            Picker("Sort By", selection: $localFilters.sortOrder) {
+        Section(NSLocalizedString("library.advancedSearch.sortOrder", comment: "")) {
+            Picker(NSLocalizedString("library.advancedSearch.sortBy", comment: ""), selection: $localFilters.sortOrder) {
                 ForEach(SortOrder.allCases, id: \.self) { order in
                     Text(order.displayName).tag(order)
                 }

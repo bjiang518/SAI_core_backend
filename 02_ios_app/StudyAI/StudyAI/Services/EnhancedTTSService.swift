@@ -9,6 +9,7 @@
 import Foundation
 import AVFoundation
 import Combine
+import CryptoKit
 
 class EnhancedTTSService: NSObject, ObservableObject {
     
@@ -42,8 +43,6 @@ class EnhancedTTSService: NSObject, ObservableObject {
         setupAudioSession()
         setupCache()
         loadVoiceSettings()
-        
-        print("🎵 EnhancedTTSService: Initialized with OpenAI TTS support")
     }
     
     private func setupCache() {
@@ -55,14 +54,12 @@ class EnhancedTTSService: NSObject, ObservableObject {
     private func setupAudioSession() {
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            
+
             // Use a more compatible audio session configuration
             try audioSession.setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker, .allowBluetoothA2DP, .duckOthers])
-            
+
             // Don't activate immediately - let the system handle it
-            print("🎵 EnhancedTTSService: Audio session configured (will activate when needed)")
         } catch {
-            print("🎵 EnhancedTTSService: Audio session setup failed: \(error)")
             // Continue anyway - the system will use default settings
         }
     }
@@ -77,8 +74,6 @@ class EnhancedTTSService: NSObject, ObservableObject {
         let voiceSettings = settings ?? currentVoiceSettings
         let processedText = addCharacterPersonality(to: text, for: voiceSettings.voiceType)
         let request = TTSRequest(text: processedText, voiceSettings: voiceSettings)
-
-        print("🎵 EnhancedTTSService: Speaking request - Text: '\(String(processedText.prefix(50)))...', Voice: \(voiceSettings.voiceType)")
 
         DispatchQueue.main.async {
             self.processRequest(request)
@@ -95,23 +90,18 @@ class EnhancedTTSService: NSObject, ObservableObject {
 
         // Check if already cached in memory
         if audioCache.object(forKey: cacheKey as NSString) != nil {
-            print("🎵 EnhancedTTSService: Audio already cached in memory for: '\(String(text.prefix(30)))...'")
             return
         }
 
         // Check if already cached on disk
         if loadFromDiskCache(cacheKey: cacheKey) != nil {
-            print("🎵 EnhancedTTSService: Audio already cached on disk for: '\(String(text.prefix(30)))...'")
             return
         }
 
         // Only preload if we should use OpenAI TTS
         guard shouldUseOpenAITTS(for: voiceSettings.voiceType) else {
-            print("🎵 EnhancedTTSService: Skipping preload for non-OpenAI voice")
             return
         }
-
-        print("🎵 EnhancedTTSService: Preloading audio for: '\(String(text.prefix(30)))...'")
 
         do {
             let audioData = try await requestServerTTS(for: request)
@@ -121,10 +111,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
 
             // Save to disk cache for persistence
             saveToDiskCache(audioData: audioData, cacheKey: cacheKey)
-
-            print("🎵 EnhancedTTSService: Successfully preloaded and cached audio (\(audioData.count) bytes)")
         } catch {
-            print("🎵 EnhancedTTSService: Preload failed: \(error)")
             throw error
         }
     }
@@ -180,8 +167,6 @@ class EnhancedTTSService: NSObject, ObservableObject {
     // MARK: - Private Methods
     
     private func processRequest(_ request: TTSRequest) {
-        print("🎵 EnhancedTTSService: Processing TTS request")
-        
         // Use OpenAI TTS for premium voices, fallback to system TTS
         if shouldUseOpenAITTS(for: request.voiceSettings.voiceType) {
             generateOpenAIAudio(for: request)
@@ -206,14 +191,12 @@ class EnhancedTTSService: NSObject, ObservableObject {
 
         // Check memory cache first
         if let cachedData = audioCache.object(forKey: cacheKey as NSString) {
-            print("🎵 EnhancedTTSService: Found cached audio in memory")
             playAudioData(cachedData as Data, for: request)
             return
         }
 
         // Check disk cache
         if let diskData = loadFromDiskCache(cacheKey: cacheKey) {
-            print("🎵 EnhancedTTSService: Found cached audio on disk")
             // Store in memory cache for faster access next time
             audioCache.setObject(diskData as NSData, forKey: cacheKey as NSString)
             playAudioData(diskData, for: request)
@@ -254,10 +237,8 @@ class EnhancedTTSService: NSObject, ObservableObject {
 
         do {
             let data = try Data(contentsOf: fileURL)
-            print("🎵 EnhancedTTSService: Loaded \(data.count) bytes from disk cache")
             return data
         } catch {
-            print("🎵 EnhancedTTSService: Failed to load from disk cache: \(error)")
             return nil
         }
     }
@@ -267,61 +248,55 @@ class EnhancedTTSService: NSObject, ObservableObject {
 
         do {
             try audioData.write(to: fileURL)
-            print("🎵 EnhancedTTSService: Saved \(audioData.count) bytes to disk cache")
         } catch {
-            print("🎵 EnhancedTTSService: Failed to save to disk cache: \(error)")
+            // Silently fail - not critical
         }
     }
     
     private func requestServerTTS(for request: TTSRequest) async throws -> Data {
-        print("🎵 EnhancedTTSService: Requesting server-side TTS")
-        
         // Use same baseURL as NetworkService
         let serverTTSURL = "https://sai-backend-production.up.railway.app/api/ai/tts/generate"
-        
+
         guard let url = URL(string: serverTTSURL) else {
             throw TTSError.invalidURL
         }
-        
+
         // Map voice type to OpenAI voice
         let openAIVoice = mapToOpenAIVoice(request.voiceSettings.voiceType)
-        
+
         // Calculate final speaking rate
         let baseRate = request.voiceSettings.speakingRate
         let voiceTypeMultiplier = request.voiceSettings.voiceType.speakingRateMultiplier
         let expressiveness = request.voiceSettings.expressiveness
         let finalRate = baseRate * voiceTypeMultiplier * expressiveness
-        
+
         let requestBody = [
             "text": request.text,
             "voice": openAIVoice,
             "speed": finalRate.clamped(to: 0.25...4.0)
         ] as [String: Any]
-        
+
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.timeoutInterval = 60.0 // Increased timeout for TTS generation
-        
+
         // Add authentication header
         if let token = AuthenticationService.shared.getAuthToken() {
             urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-        
+
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        
+
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
-        
+
         if let httpResponse = response as? HTTPURLResponse {
-            print("🎵 EnhancedTTSService: Server TTS Response: \(httpResponse.statusCode)")
-            
             if httpResponse.statusCode == 200 {
-                print("🎵 EnhancedTTSService: Received audio data: \(data.count) bytes")
                 return data
             } else {
                 let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
                 print("🎵 EnhancedTTSService: Server TTS Error (\(httpResponse.statusCode)): \(errorString)")
-                
+
                 // Provide specific error messages for common issues
                 switch httpResponse.statusCode {
                 case 503:
@@ -335,7 +310,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
                 }
             }
         }
-        
+
         throw TTSError.noResponse
     }
     
@@ -350,8 +325,6 @@ class EnhancedTTSService: NSObject, ObservableObject {
     }
     
     private func playAudioData(_ data: Data, for request: TTSRequest) {
-        print("🎵 EnhancedTTSService: Playing audio data")
-        
         // Activate audio session just before playing
         do {
             let audioSession = AVAudioSession.sharedInstance()
@@ -359,21 +332,21 @@ class EnhancedTTSService: NSObject, ObservableObject {
         } catch {
             print("🎵 EnhancedTTSService: Warning - could not activate audio session: \(error)")
         }
-        
+
         do {
             audioPlayer = try AVAudioPlayer(data: data)
             audioPlayer?.delegate = self
             audioPlayer?.volume = request.voiceSettings.volume
-            
+
             isSpeaking = true
             isProcessing = false
             speechProgress = 0.0
-            
+
             // Start progress tracking
             startProgressTracking()
-            
+
             audioPlayer?.play()
-            
+
         } catch {
             print("🎵 EnhancedTTSService: Audio playback failed: \(error)")
             errorMessage = "Audio playback failed"
@@ -381,14 +354,13 @@ class EnhancedTTSService: NSObject, ObservableObject {
             useFallbackTTS(for: request)
         }
     }
-    
+
     private func useFallbackTTS(for request: TTSRequest) {
-        print("🎵 EnhancedTTSService: Using fallback system TTS")
         isProcessing = false
-        
+
         // Use your existing TextToSpeechService
         fallbackTTS.speak(request.text, with: request.voiceSettings)
-        
+
         // Sync the state
         isSpeaking = fallbackTTS.isSpeaking
         isPaused = fallbackTTS.isPaused
@@ -410,7 +382,11 @@ class EnhancedTTSService: NSObject, ObservableObject {
     private func createCacheKey(for request: TTSRequest) -> String {
         let voiceType = request.voiceSettings.voiceType.rawValue
         let rate = String(format: "%.2f", request.voiceSettings.speakingRate)
-        let textHash = String(request.text.hashValue)
+
+        // ✅ Use stable MD5 hash instead of unstable hashValue
+        // hashValue changes across app sessions, breaking disk cache!
+        let textHash = request.text.md5Hash
+
         return "tts_\(voiceType)_\(rate)_\(textHash)"
     }
     
@@ -429,19 +405,17 @@ class EnhancedTTSService: NSObject, ObservableObject {
 // MARK: - AVAudioPlayerDelegate
 
 extension EnhancedTTSService: AVAudioPlayerDelegate {
-    
+
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        print("🎵 EnhancedTTSService: Audio finished playing, success: \(flag)")
-        
         progressTimer?.invalidate()
         progressTimer = nil
-        
+
         DispatchQueue.main.async {
             self.isSpeaking = false
             self.isPaused = false
             self.speechProgress = 1.0
             self.audioPlayer = nil
-            
+
             // Process next in queue if any
             if !self.speechQueue.isEmpty {
                 let nextRequest = self.speechQueue.removeFirst()
@@ -496,5 +470,16 @@ enum TTSError: Error {
 private extension Float {
     func clamped(to range: ClosedRange<Float>) -> Float {
         return Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
+    }
+}
+
+// MARK: - String Extension for Stable Hashing
+
+extension String {
+    /// Generate a stable MD5 hash for cache keys
+    /// Unlike hashValue, this is consistent across app sessions
+    var md5Hash: String {
+        let digest = Insecure.MD5.hash(data: self.data(using: .utf8) ?? Data())
+        return digest.map { String(format: "%02hhx", $0) }.joined()
     }
 }

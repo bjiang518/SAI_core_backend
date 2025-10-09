@@ -170,6 +170,7 @@
 
 // Homework Results
 "homeworkResults.yourScore" = "您的分数";
+"homeworkResults.titleWithSubject" = "您的%@作业报告";
 "homeworkResults.archive" = "归档";
 "homeworkResults.report" = "报告";
 "homeworkResults.subject" = "科目：";
@@ -197,6 +198,7 @@
 "homeworkResults.noAnswerProvided" = "（未提供答案）";
 "homeworkResults.correctAnswer" = "正确答案：";
 "homeworkResults.feedback" = "反馈：";
+"homeworkResults.askAiForHelp" = "向AI求助";
 "homeworkResults.archiveSuccess" = "成功归档";
 "homeworkResults.archiveSuccessSuffix" = "题到您的错题本！";
 "homeworkResults.archiveFailure" = "归档题目失败：";
@@ -276,4 +278,177 @@
 "questionGeneration.conversations" = "对话";
 "questionGeneration.questions" = "题目";
 "questionGeneration.selectArchives" = "选择归档";
-"questionGeneration.conversation" = "对话";
+"questionGeneration.conversation" = "对话";"settings.textSize" = "文字大小";
+"settings.language" = "语言";
+"settings.voiceAudio" = "语音与音频";
+"settings.voiceSettings" = "语音设置";
+"settings.learning" = "学习";
+"settings.learningGoals" = "学习目标与进度";
+"settings.support" = "支持";
+"settings.help" = "帮助与常见问题";
+"settings.contact" = "联系支持";
+"settings.rateApp" = "评价应用";
+"settings.shareApp" = "分享应用";
+
+// Profile
+"profile.complete" = "资料完成度 %d%%";
+"profile.biometricLogin" = "%@ 登录";
+
+// Study Reminders
+"studyReminders.title" = "学习提醒";
+"studyReminders.permissions" = "权限";
+"studyReminders.notificationPermission" = "通知权限";
+"studyReminders.enabled" = "通知已启用";
+"studyReminders.denied" = "通知已拒绝";
+"studyReminders.notConfigured" = "未配置";
+"studyReminders.enable" = "启用通知";
+"studyReminders.description" = "启用通知以接收学习提醒，并保持学习进度。";
+"studyReminders.daily" = "每日学习提醒";
+"studyReminders.dailyDescription" = "在您预定的时间收到学习提醒。";
+"studyReminders.schedule" = "时间安排";
+"studyReminders.studyTime" = "学习时间";
+"studyReminders.timeDescription" = "您将在 %@ 收到学习提醒";
+"studyReminders.studyDays" = "学习日期";
+"studyReminders.daysDescription" = "提醒将在 %@ 发送";
+"studyReminders.weekdays" = "工作日";
+"studyReminders.everyDay" = "每天";
+"studyReminders.clear" = "清除";
+"studyReminders.save" = "保存";
+"studyReminders.cancel" = "取消";
+
+// Days of Week
+"day.monday" = "星期一";
+"day.tuesday" = "星期二";
+"day.wednesday" = "星期三";
+"day.thursday" = "星期四";
+"day.friday" = "星期五";
+"day.saturday" = "星期六";
+"day.sunday" = "星期日";
+
+// Common
+"common.done" = "完成";
+"common.cancel" = "取消";
+"common.save" = "保存";
+"progress.title" = "进度";
+"progress.loadingProgress" = "正在加载您的进度...";
+"progress.unableToLoadData" = "无法加载数据";
+"progress.tryAgain" = "重试";
+"progress.yourLearningJourney" = "您的学习之旅";
+"progress.pointsToday" = "今日积分";
+"progress.streak" = "连续天数";
+"progress.days" = "天";
+"progress.totalPoints" = "总积分";
+"progress.todaysActivity" = "今日活动";
+"progress.questions" = "题目";
+"progress.correct" = "正确";
+"progress.accuracy" = "准确率";
+"progress.weeklyActivity" = "本周活动";
+"progress.monthlyActivity" = "本月活动";
+"progress.thisWeek" = "本周";
+"progress.thisMonth" = "本月";
+"progress.lastMonth" = "上月";
+"progress.subjectBreakdown" = "科目细分";
+"progress.allSubjects" = "全部科目";
+"progress.subjects" = "科目";
+"progress.mostStudied" = "学习最多：%@";
+"progress.topPerforming" = "表现最佳：%@";
+"progress.viewAllSubjects" = "查看全部科目";
+"progress.learningGoals" = "学习目标";
+"progress.noActiveGoals" = "暂无活动学习目标";
+"progress.checkedOut" = "已签出";
+"progress.recentCheckouts" = "最近签出";
+"progress.goalsCompleted" = "%d个目标完成";
+"progress.pointsEarned" = "+%d 积分";
+"progress.weekendBonus" = "周末双倍";
+"progress.total" = "总计";
+"progress.activityLevel" = "活动水平";
+"progress.less" = "少";
+"progress.more" = "多";
+"progress.questionsThisMonth" = "本月题目";
+"progress.noSubjectData" = "暂无科目数据";
+"progress.noSubjectDataMessage" = "回答不同科目的题目以查看您的细分数据！";
+"progress.noSubjectDataForFilter" = "暂无%@数据";
+"progress.noSubjectDataForFilterMessage" = "回答关于%@的题目以查看您的进度！";
+"progress.quickInsights" = "快速洞察";
+"progress.insightsFor" = "%@的洞察";
+"progress.focusOn" = "重点关注：%@";
+"progress.keepUp" = "保持：%@";
+"progress.recommendedStudyTime" = "建议学习时间：每天%d分钟";
+"progress.subjectComparison" = "科目对比";
+"progress.topPerformingCategory" = "表现最佳";
+"progress.needsAttention" = "需要关注";
+"progress.noSubjectDataAvailable" = "暂无科目数据";
+"progress.pointsAvailable" = "+%d 积分";
+
+// Library View
+"library.title" = "学习资料库";
+"library.refreshLibrary" = "刷新资料库";
+"library.advancedSearch" = "高级搜索";
+"library.clearFilters" = "清除筛选";
+"library.filterBySubject" = "按科目筛选";
+"library.allSubjects" = "全部科目";
+"library.debugInfo" = "调试信息";
+"library.searchPlaceholder" = "搜索题目、科目或内容...";
+"library.updating" = "更新中...";
+
+// Content Type Filters
+"library.contentType.allSessions" = "全部记录";
+"library.contentType.questionsOnly" = "仅题目";
+"library.contentType.conversationsOnly" = "仅对话";
+
+// Quick Filters
+"library.filter.thisWeek" = "本周";
+"library.filter.thisMonth" = "本月";
+"library.filter.withImages" = "含图片";
+
+// Stats Header
+"library.stats.questions" = "题目";
+"library.stats.conversations" = "对话";
+"library.stats.totalSessions" = "总记录数";
+"library.stats.showing" = "显示：%@";
+"library.stats.showAll" = "显示全部";
+"library.stats.subject" = "科目：%@";
+
+// Library Item
+"library.item.tapToReview" = "点击查看";
+"library.item.homeworkSession" = "作业记录";
+"library.item.archivedQuestion" = "归档题目";
+"library.item.conversationSession" = "对话记录";
+
+// Empty States
+"library.empty.signInRequired" = "需要登录";
+"library.empty.signInMessage" = "请登录以访问您的个人学习资料库";
+"library.empty.libraryEmpty" = "学习资料库为空";
+"library.empty.libraryEmptyMessage" = "完成AI作业或开始对话来建立您的学习资料库";
+"library.empty.loading" = "正在加载学习资料库...";
+
+// No Results
+"library.noResults.title" = "未找到结果";
+"library.noResults.adjustFilters" = "请尝试调整搜索或筛选条件";
+"library.noResults.noMatch" = "没有符合条件的学习记录";
+
+// Advanced Search
+"library.advancedSearch.title" = "高级搜索";
+"library.advancedSearch.cancel" = "取消";
+"library.advancedSearch.search" = "搜索";
+"library.advancedSearch.clearSearch" = "清除搜索";
+
+"library.advancedSearch.searchText" = "搜索文本";
+"library.advancedSearch.searchPlaceholder" = "搜索题目...";
+
+"library.advancedSearch.subjectFilter" = "科目筛选";
+"library.advancedSearch.subject" = "科目";
+"library.advancedSearch.allSubjects" = "全部科目";
+
+"library.advancedSearch.gradeFilter" = "年级筛选";
+"library.advancedSearch.grade" = "年级";
+"library.advancedSearch.allGrades" = "全部年级";
+
+"library.advancedSearch.dateRange" = "日期范围";
+"library.advancedSearch.allTime" = "全部时间";
+"library.advancedSearch.last7Days" = "最近7天";
+"library.advancedSearch.last30Days" = "最近30天";
+"library.advancedSearch.last3Months" = "最近3个月";
+
+"library.advancedSearch.sortOrder" = "排序方式";
+"library.advancedSearch.sortBy" = "排序依据";

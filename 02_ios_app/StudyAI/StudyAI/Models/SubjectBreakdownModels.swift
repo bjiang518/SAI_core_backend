@@ -795,6 +795,23 @@ struct SubjectBreakdownResponse: Codable {
     let message: String?
 }
 
+struct MonthlyActivityResponse: Codable {
+    let success: Bool
+    let data: MonthlyActivityData?
+    let message: String?
+}
+
+struct MonthlyActivityData: Codable {
+    let year: Int
+    let month: Int
+    let activities: [ServerDailyActivity]
+}
+
+struct ServerDailyActivity: Codable {
+    let date: String // yyyy-MM-dd format
+    let questionCount: Int
+}
+
 struct SubjectBreakdownData: Codable {
     let summary: SubjectBreakdownSummary
     let subjectProgress: [SubjectProgressData]

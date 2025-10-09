@@ -5,6 +5,7 @@ Advanced AI processing service for educational content and agentic workflows.
 """
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware  # PHASE 2.2: Compression
 from pydantic import BaseModel
@@ -12,6 +13,7 @@ from typing import Dict, List, Optional, Any
 import uvicorn
 import os
 import base64
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -805,6 +807,78 @@ async def process_chat_image(request: ChatImageRequest):
             error=error_msg
         )
 
+
+# Chat Image Streaming Endpoint - Real-time Streaming for Chat Interactions
+@app.post("/api/v1/chat-image-stream")
+async def process_chat_image_stream(request: ChatImageRequest):
+    """
+    Process image with chat context for conversational responses with STREAMING.
+
+    This endpoint provides real-time, token-by-token streaming of AI responses,
+    perfect for chat interfaces that want to show responses as they're generated.
+
+    The response is sent using Server-Sent Events (SSE) format with JSON chunks:
+    - {"type": "start", "timestamp": "...", "model": "..."}
+    - {"type": "content", "content": "...", "delta": "..."}
+    - {"type": "end", "tokens": 123, "finish_reason": "stop"}
+    - {"type": "error", "error": "..."}
+
+    Fallback: If streaming fails, clients should fall back to /api/v1/chat-image
+    """
+
+    try:
+        print(f"🔄 === STREAMING CHAT IMAGE ENDPOINT START ===")
+        print(f"📝 Prompt: '{request.prompt}'")
+        print(f"🆔 Session ID: {request.session_id}")
+        print(f"📚 Subject: {request.subject}")
+        print(f"👤 Student ID: {request.student_id}")
+
+        # Validate request
+        if not request.base64_image:
+            raise HTTPException(status_code=400, detail="No image data provided")
+        if not request.prompt:
+            raise HTTPException(status_code=400, detail="No prompt provided")
+
+        # Create the streaming generator
+        async def stream_generator():
+            async for chunk in ai_service.analyze_image_with_chat_context_stream(
+                base64_image=request.base64_image,
+                user_prompt=request.prompt,
+                subject=request.subject,
+                session_id=request.session_id,
+                student_context={"student_id": request.student_id}
+            ):
+                # Send SSE formatted chunk
+                yield f"data: {chunk}\n\n"
+
+        # Return streaming response with SSE media type
+        return StreamingResponse(
+            stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"  # Disable nginx buffering
+            }
+        )
+
+    except Exception as e:
+        import traceback
+        error_msg = f"Streaming chat image endpoint error: {str(e)}"
+        print(f"❌ === STREAMING CHAT IMAGE ENDPOINT ERROR ===")
+        print(f"💥 Error: {error_msg}")
+        print(f"📋 Traceback: {traceback.format_exc()}")
+
+        # For errors, return a single SSE error event
+        async def error_generator():
+            yield f"data: {json.dumps({'type': 'error', 'error': error_msg})}\n\n"
+
+        return StreamingResponse(
+            error_generator(),
+            media_type="text/event-stream"
+        )
+
+
 # Homework Parsing Endpoint - Deterministic Format for iOS
 @app.post("/api/v1/process-homework-image", response_model=HomeworkParsingResponse)
 async def process_homework_image(request: HomeworkParsingRequest):
@@ -1213,41 +1287,55 @@ async def send_session_message(
     """
     Send a message in an existing session with full conversation context.
     Automatically handles context compression when token limits are approached.
+
+    🔍 DEBUG: This is the NON-STREAMING endpoint
     """
     try:
+        print(f"🔵 === SESSION MESSAGE (NON-STREAMING) ===")
+        print(f"📨 Session ID: {session_id}")
+        print(f"💬 Message: {request.message[:100]}...")
+        print(f"🔍 Using NON-STREAMING endpoint")
+        print(f"💡 For streaming, use: /api/v1/sessions/{session_id}/message/stream")
+
         # Get the session
         session = await session_service.get_session(session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
-        
+
         # Add user message to session
         await session_service.add_message_to_session(
             session_id=session_id,
             role="user",
             content=request.message
         )
-        
+
         # Create subject-specific system prompt
         system_prompt = prompt_service.create_enhanced_prompt(
             question=request.message,
             subject_string=session.subject,
             context={"student_id": session.student_id}
         )
-        
+
         # Get conversation context for AI
         context_messages = session.get_context_for_api(system_prompt)
-        
+
+        print(f"🤖 Calling OpenAI (NON-STREAMING)...")
+
         # Call OpenAI with full conversation context
         response = await ai_service.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=context_messages,
             temperature=0.3,
-            max_tokens=1500
+            max_tokens=1500,
+            stream=False  # 🔍 DEBUG: Explicitly showing non-streaming
         )
-        
+
         ai_response = response.choices[0].message.content
         tokens_used = response.usage.total_tokens
-        
+
+        print(f"✅ OpenAI response received ({tokens_used} tokens)")
+        print(f"📝 Response length: {len(ai_response)} chars")
+
         # Add AI response to session
         updated_session = await session_service.add_message_to_session(
             session_id=session_id,
@@ -1266,6 +1354,132 @@ async def send_session_message(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Session message error: {str(e)}")
+
+
+# 🚀 STREAMING VERSION - Session Message with Real-time Response
+@app.post("/api/v1/sessions/{session_id}/message/stream")
+async def send_session_message_stream(
+    session_id: str,
+    request: SessionMessageRequest
+):
+    """
+    Send a message in an existing session with STREAMING response.
+
+    Returns Server-Sent Events (SSE) with real-time token-by-token AI response.
+    Same functionality as non-streaming endpoint but with progressive delivery.
+
+    🔍 DEBUG: This is the STREAMING endpoint
+    """
+    try:
+        print(f"🟢 === SESSION MESSAGE (STREAMING) ===")
+        print(f"📨 Session ID: {session_id}")
+        print(f"💬 Message: {request.message[:100]}...")
+        print(f"🔍 Using STREAMING endpoint")
+
+        # Get the session
+        session = await session_service.get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        # Add user message to session
+        await session_service.add_message_to_session(
+            session_id=session_id,
+            role="user",
+            content=request.message
+        )
+
+        # Create subject-specific system prompt
+        system_prompt = prompt_service.create_enhanced_prompt(
+            question=request.message,
+            subject_string=session.subject,
+            context={"student_id": session.student_id}
+        )
+
+        # Get conversation context for AI
+        context_messages = session.get_context_for_api(system_prompt)
+
+        print(f"🤖 Calling OpenAI with STREAMING enabled...")
+
+        # Create streaming generator
+        async def stream_generator():
+            accumulated_content = ""
+            total_tokens = 0
+
+            try:
+                # Send start event
+                yield f"data: {json.dumps({'type': 'start', 'timestamp': datetime.now().isoformat(), 'session_id': session_id})}\n\n"
+
+                # Call OpenAI with streaming
+                stream = await ai_service.client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=context_messages,
+                    temperature=0.3,
+                    max_tokens=1500,
+                    stream=True  # 🔍 DEBUG: Streaming enabled!
+                )
+
+                # Stream the response
+                async for chunk in stream:
+                    if chunk.choices and len(chunk.choices) > 0:
+                        delta = chunk.choices[0].delta
+
+                        if delta.content:
+                            content_chunk = delta.content
+                            accumulated_content += content_chunk
+
+                            # Send content chunk
+                            yield f"data: {json.dumps({'type': 'content', 'content': accumulated_content, 'delta': content_chunk})}\n\n"
+
+                        # Check for finish
+                        if chunk.choices[0].finish_reason:
+                            finish_reason = chunk.choices[0].finish_reason
+
+                            # Add AI response to session
+                            await session_service.add_message_to_session(
+                                session_id=session_id,
+                                role="assistant",
+                                content=accumulated_content
+                            )
+
+                            print(f"✅ Streaming complete: {len(accumulated_content)} chars")
+
+                            # Send end event
+                            yield f"data: {json.dumps({'type': 'end', 'finish_reason': finish_reason, 'content': accumulated_content, 'session_id': session_id})}\n\n"
+
+            except Exception as e:
+                import traceback
+                error_msg = f"Streaming error: {str(e) or 'Unknown error'}"
+                full_traceback = traceback.format_exc()
+                print(f"❌ {error_msg}")
+                print(f"📋 Full traceback:\n{full_traceback}")
+                yield f"data: {json.dumps({'type': 'error', 'error': error_msg, 'traceback': full_traceback[:500]})}\n\n"
+
+        # Return streaming response
+        return StreamingResponse(
+            stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
+        )
+
+    except Exception as e:
+        import traceback
+        error_msg = f"Session streaming error: {str(e) or 'Unknown error'}"
+        full_traceback = traceback.format_exc()
+        print(f"❌ {error_msg}")
+        print(f"📋 Full traceback:\n{full_traceback}")
+
+        async def error_generator():
+            yield f"data: {json.dumps({'type': 'error', 'error': error_msg, 'traceback': full_traceback[:500]})}\n\n"
+
+        return StreamingResponse(
+            error_generator(),
+            media_type="text/event-stream"
+        )
+
 
 @app.get("/api/v1/sessions/{session_id}", response_model=SessionResponse)
 async def get_session(session_id: str):

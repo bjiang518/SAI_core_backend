@@ -344,16 +344,15 @@ struct SessionChatView: View {
     @StateObject private var networkService = NetworkService.shared
     @StateObject private var voiceService = VoiceInteractionService.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
-    // @StateObject private var draftManager = ChatDraftManager.shared // TODO: Re-enable when ChatMessage.swift is properly integrated
+    @StateObject private var messageManager = ChatMessageManager.shared
+    @StateObject private var actionsHandler = MessageActionsHandler()
+    @StateObject private var appState = AppState.shared
     @State private var messageText = ""
     @State private var selectedSubject = "Mathematics"
     @State private var isSubmitting = false
     @State private var errorMessage = ""
     @State private var showingSubjectPicker = false
     @State private var sessionInfo: [String: Any]?
-    // @State private var enhancedMessages: [ChatMessage] = [] // TODO: Re-enable when ChatMessage.swift is properly integrated
-    // @State private var filteredMessages: [ChatMessage] = [] // TODO: Re-enable when ChatMessage.swift is properly integrated
-    @State private var tempFilteredMessages: [String] = [] // Temporary placeholder
     @State private var showingSessionInfo = false
     @State private var showingArchiveDialog = false
     @State private var archiveTitle = ""
@@ -386,7 +385,10 @@ struct SessionChatView: View {
     
     // Focus state for message input
     @FocusState private var isMessageInputFocused: Bool
-    
+
+    // Animation state for central example card
+    @State private var exampleCardScale: CGFloat = 0.8
+
     private let subjects = [
         "Mathematics", "Physics", "Chemistry", "Biology",
         "History", "Literature", "Geography", "Computer Science",
@@ -395,17 +397,9 @@ struct SessionChatView: View {
     
     var body: some View {
         ZStack {
-            // Light gradient background
-            LinearGradient(
-                colors: [
-                    Color(red: 0.98, green: 0.98, blue: 1.0), // Very light blue-white top
-                    Color(red: 0.95, green: 0.96, blue: 0.98), // Light blue-gray middle
-                    Color(red: 0.92, green: 0.94, blue: 0.96)  // Slightly darker light gray bottom
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            // White background
+            Color.white
+                .ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Header with session info (minimal for ChatGPT style)
@@ -442,33 +436,57 @@ struct SessionChatView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .preferredColorScheme(.light) // Force light mode
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                // Subject selector button (moved to top navigation bar)
+                Button(action: {
+                    showingSubjectPicker = true
+                }) {
+                    HStack(spacing: 8) {
+                        Text(subjectIcon(for: selectedSubject))
+                            .font(.system(size: 14, weight: .medium))
+
+                        Text(selectedSubject)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.primary)
+
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.primary.opacity(0.6))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white)
+                    .cornerRadius(16)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.primary.opacity(0.15), lineWidth: 1)
+                    )
+                }
+            }
+
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button("New Session") {
                         startNewSession()
                     }
-                    
+
                     Button("Session Info") {
                         loadSessionInfo()
                         showingSessionInfo = true
                     }
-                    
-                    Button("Change Subject") {
-                        showingSubjectPicker = true
-                    }
-                    
+
                     Divider()
-                    
+
                     Button("Voice Settings") {
                         showingVoiceSettings = true
                     }
-                    
+
                     Button(voiceService.isVoiceEnabled ? "Disable Voice" : "Enable Voice") {
                         voiceService.toggleVoiceEnabled()
                     }
-                    
+
                     Divider()
-                    
+
                     Button("Archive Session") {
                         // Set default topic to current subject
                         archiveTopic = selectedSubject
@@ -519,6 +537,21 @@ struct SessionChatView: View {
             if networkService.currentSessionId == nil {
                 startNewSession()
             }
+
+            // Check for pending chat message from other tabs (e.g., grader follow-up)
+            if let pendingMessage = appState.pendingChatMessage {
+                // Set the subject if provided
+                if let pendingSubject = appState.pendingChatSubject {
+                    selectedSubject = pendingSubject
+                }
+
+                // Auto-send the pending message
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    messageText = pendingMessage
+                    sendMessage()
+                    appState.clearPendingChatMessage()
+                }
+            }
         }
         .alert("Error", isPresented: .constant(!errorMessage.isEmpty)) {
             Button("OK") {
@@ -553,26 +586,10 @@ struct SessionChatView: View {
     }
     
     // MARK: - Modern View Components (ChatGPT Style)
-    
+
     private var modernHeaderView: some View {
-        VStack(spacing: 0) {
-            HStack {
-                // Minimal header - just status indicator
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(networkService.currentSessionId != nil ? Color.green : Color.red)
-                        .frame(width: 6, height: 6)
-                    
-                    Text(networkService.currentSessionId != nil ? "Active" : "Inactive")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.primary.opacity(0.7))
-                }
-                
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-        }
+        // Header is now minimal - subject selector moved to navigation bar
+        EmptyView()
     }
     
     private var lightChatMessagesView: some View {
@@ -607,7 +624,8 @@ struct SessionChatView: View {
                                 ModernAIMessageView(
                                     message: message["content"] ?? "",
                                     voiceType: voiceService.voiceSettings.voiceType,
-                                    isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)")
+                                    isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
+                                    messageId: "message-\(index)"
                                 )
                                 .id(index)
                             }
@@ -643,13 +661,13 @@ struct SessionChatView: View {
     }
     
     private var modernMessageInputView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             // Conversation continuation buttons (like ChatGPT)
-            if !networkService.conversationHistory.isEmpty && 
+            if !networkService.conversationHistory.isEmpty &&
                networkService.conversationHistory.last?["role"] == "assistant" {
                 conversationContinuationButtons
             }
-            
+
             // WeChat-style voice input or text input
             if isVoiceMode {
                 // WeChat-style voice interface
@@ -682,7 +700,7 @@ struct SessionChatView: View {
                             .clipShape(Circle())
                     }
                     .disabled(networkService.currentSessionId == nil || isSubmitting || isProcessingImage)
-                    
+
                     // Voice mode button
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.3)) {
@@ -697,7 +715,7 @@ struct SessionChatView: View {
                             .background(Color.primary.opacity(0.1))
                             .clipShape(Circle())
                     }
-                    
+
                     // Text input field
                     HStack {
                         TextField("Message", text: $messageText, axis: .vertical)
@@ -705,17 +723,7 @@ struct SessionChatView: View {
                             .foregroundColor(.primary)
                             .focused($isMessageInputFocused)
                             .lineLimit(1...4)
-                            .onChange(of: messageText) { _, newValue in
-                                // Auto-save draft as user types
-                                // TODO: Re-enable when ChatDraftManager is properly integrated
-                                // draftManager.saveDraft(newValue)
-                            }
-                            .onAppear {
-                                // Load draft when view appears
-                                // TODO: Re-enable when ChatDraftManager is properly integrated
-                                // messageText = draftManager.currentDraft
-                            }
-                        
+
                         if !messageText.isEmpty {
                             Button(action: sendMessage) {
                                 Image(systemName: "arrow.up.circle.fill")
@@ -892,9 +900,10 @@ struct SessionChatView: View {
     
     private var modernEmptyStateView: some View {
         VStack(spacing: 24) {
-            // Character avatar
-            CharacterAvatar(voiceType: voiceService.voiceSettings.voiceType, size: 80)
-            
+            // AI Spiral Animation - idle state
+            AIAvatarAnimation(state: .idle)
+                .frame(width: 80, height: 80)
+
             VStack(spacing: 12) {
                 Text("Hi! I'm \(voiceService.voiceSettings.voiceType.displayName)")
                     .font(.system(size: 24, weight: .semibold))
@@ -906,217 +915,250 @@ struct SessionChatView: View {
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
             }
-            
-            // Example prompts
+
+            // Subject-specific example prompts
             VStack(alignment: .leading, spacing: 12) {
-                Text("💡 Try asking:")
+                Text(subjectEmoji(for: selectedSubject) + " Try asking:")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.primary)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("• Solve: 2x + 5 = 13")
-                    Text("• Explain photosynthesis")
-                    Text("• What is the derivative of x²?")
-                    Text("• How do I balance equations?")
+                    ForEach(examplePrompts(for: selectedSubject), id: \.self) { prompt in
+                        Text("• \(prompt)")
+                    }
                 }
                 .font(.system(size: 14))
                 .foregroundColor(.primary.opacity(0.7))
             }
             .padding(20)
-            .background(Color.primary.opacity(0.05))
+            .background(subjectBackgroundColor(for: selectedSubject))
             .cornerRadius(16)
+            .scaleEffect(exampleCardScale)
+            .onAppear {
+                // Trigger zoom-in animation with 0.5-second delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                        exampleCardScale = 1.0
+                    }
+                }
+            }
+            .onChange(of: selectedSubject) { _, _ in
+                // Reset and re-animate when subject changes
+                exampleCardScale = 0.8
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                        exampleCardScale = 1.0
+                    }
+                }
+            }
         }
         .padding(.vertical, 40)
     }
-    
-    // MARK: - Original View Components
-    
-    private var sessionHeaderView: some View {
-        VStack(spacing: 8) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Study Session")
-                        .font(.system(size: 22, weight: .bold))  // Increased from headline
-                        .foregroundColor(.primary)
-                    
-                    Text(selectedSubject)
-                        .font(.system(size: 18, weight: .medium))  // Increased from subheadline
-                        .foregroundColor(.blue)
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(networkService.currentSessionId != nil ? Color.green : Color.red)
-                            .frame(width: 8, height: 8)
-                        
-                        Text(networkService.currentSessionId != nil ? "Active" : "Inactive")
-                            .font(.system(size: 14, weight: .medium))  // Increased from caption
-                            .foregroundColor(networkService.currentSessionId != nil ? .green : .red)
-                    }
-                    
-                    if let info = sessionInfo,
-                       let messageCount = info["message_count"] as? Int {
-                        Text("\(messageCount) messages")
-                            .font(.system(size: 14, weight: .medium))  // Increased from caption
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            
-            // Show processing indicator
-            if isSubmitting || isProcessingImage {
-                HStack(spacing: 6) {
-                    ProgressView()
-                        .scaleEffect(0.7)
-                    Text(isProcessingImage ? "Processing image..." : "AI is thinking...")
-                        .font(.system(size: 16, weight: .medium))  // Increased from caption
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(8)
-            }
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 12)
-        .background(Color.gray.opacity(0.05))
-    }
-    
-    private var chatMessagesView: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    if networkService.conversationHistory.isEmpty {
-                        emptyStateView
-                    } else {
-                        ForEach(Array(networkService.conversationHistory.enumerated()), id: \.offset) { index, message in
-                            if message["role"] == "user" {
-                                // User message - keep simple
-                                MessageBubbleView(
-                                    message: message,
-                                    isUser: true
-                                )
-                                .id(index)
-                            } else {
-                                // AI message - use animated character bubble
-                                let messageId = "message-\(index)"
-                                CharacterMessageBubble(
-                                    message: message["content"] ?? "",
-                                    voiceType: voiceService.voiceSettings.voiceType,
-                                    isAnimating: voiceService.isMessageCurrentlySpeaking(messageId)
-                                )
-                                .id(index)
-                                .onAppear {
-                                    // Set current speaking message if this is being read
-                                    if voiceService.interactionState == .speaking {
-                                        voiceService.setCurrentSpeakingMessage(messageId)
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // Show pending user message
-                        if !pendingUserMessage.isEmpty {
-                            PendingMessageView(text: pendingUserMessage)
-                                .id("pending-user")
-                        }
-                        
-                        // Show typing indicator for AI response
-                        if showTypingIndicator {
-                            TypingIndicatorView()
-                                .id("typing-indicator")
-                        }
-                    }
-                }
-                .padding()
-            }
-            .id(refreshTrigger) // Force view recreation when refreshTrigger changes
-            .onChange(of: networkService.conversationHistory.count) { _, newCount in
-                // Auto-scroll to bottom when new messages arrive
 
-                let lastIndex = networkService.conversationHistory.count - 1
-                if lastIndex >= 0 {
-                    withAnimation(.easeOut(duration: 0.5)) {
-                        proxy.scrollTo(lastIndex, anchor: .bottom)
-                    }
-                }
-            }
-            .onChange(of: pendingUserMessage) { _, _ in
-                if !pendingUserMessage.isEmpty {
-                    withAnimation(.easeOut(duration: 0.5)) {
-                        proxy.scrollTo("pending-user", anchor: .bottom)
-                    }
-                }
-            }
-            .onChange(of: showTypingIndicator) { _, _ in
-                if showTypingIndicator {
-                    withAnimation(.easeOut(duration: 0.5)) {
-                        proxy.scrollTo("typing-indicator", anchor: .bottom)
-                    }
-                }
-            }
+    // Subject-specific emoji
+    private func subjectEmoji(for subject: String) -> String {
+        switch subject {
+        case "Mathematics": return "f(x)"
+        case "Physics": return "⚛️"
+        case "Chemistry": return "🧪"
+        case "Biology": return "🧬"
+        case "History": return "📜"
+        case "Literature": return "📚"
+        case "Geography": return "🌍"
+        case "Computer Science": return "💻"
+        case "Economics": return "📈"
+        case "Psychology": return "🧠"
+        case "Philosophy": return "💭"
+        case "General": return "💡"
+        default: return "💡"
+        }
+    }
+
+    // Subject-specific icon for navigation bar (text-based, not emoji)
+    private func subjectIcon(for subject: String) -> String {
+        switch subject {
+        case "Mathematics": return "f(x)"
+        case "Physics": return "⚛️"
+        case "Chemistry": return "🧪"
+        case "Biology": return "🧬"
+        case "History": return "📜"
+        case "Literature": return "📚"
+        case "Geography": return "🌍"
+        case "Computer Science": return "💻"
+        case "Economics": return "📈"
+        case "Psychology": return "🧠"
+        case "Philosophy": return "💭"
+        case "General": return "💡"
+        default: return "💡"
+        }
+    }
+
+    // Subject-specific background color
+    private func subjectBackgroundColor(for subject: String) -> Color {
+        switch subject {
+        case "Mathematics": return Color.blue.opacity(0.08)
+        case "Physics": return Color.purple.opacity(0.08)
+        case "Chemistry": return Color.green.opacity(0.08)
+        case "Biology": return Color.mint.opacity(0.08)
+        case "History": return Color.brown.opacity(0.08)
+        case "Literature": return Color.indigo.opacity(0.08)
+        case "Geography": return Color.teal.opacity(0.08)
+        case "Computer Science": return Color.cyan.opacity(0.08)
+        case "Economics": return Color.orange.opacity(0.08)
+        case "Psychology": return Color.pink.opacity(0.08)
+        case "Philosophy": return Color.gray.opacity(0.08)
+        case "General": return Color.primary.opacity(0.05)
+        default: return Color.primary.opacity(0.05)
+        }
+    }
+
+    // Subject-specific example prompts
+    private func examplePrompts(for subject: String) -> [String] {
+        switch subject {
+        case "Mathematics":
+            return [
+                "Solve: 2x + 5 = 13",
+                "What is the derivative of x²?",
+                "Explain the Pythagorean theorem",
+                "How do I factor x² + 5x + 6?"
+            ]
+        case "Physics":
+            return [
+                "Explain Newton's laws of motion",
+                "What is kinetic energy?",
+                "How does gravity work?",
+                "Calculate force with F = ma"
+            ]
+        case "Chemistry":
+            return [
+                "How do I balance equations?",
+                "Explain the periodic table",
+                "What are covalent bonds?",
+                "Describe the states of matter"
+            ]
+        case "Biology":
+            return [
+                "Explain photosynthesis",
+                "What is DNA?",
+                "How does cell division work?",
+                "Describe the human circulatory system"
+            ]
+        case "History":
+            return [
+                "What caused World War II?",
+                "Explain the French Revolution",
+                "Who was Julius Caesar?",
+                "Describe the Industrial Revolution"
+            ]
+        case "Literature":
+            return [
+                "Analyze Shakespeare's Hamlet",
+                "What are literary devices?",
+                "Explain the hero's journey",
+                "Compare metaphor and simile"
+            ]
+        case "Geography":
+            return [
+                "Where are the major oceans?",
+                "Explain plate tectonics",
+                "What causes climate zones?",
+                "Describe the water cycle"
+            ]
+        case "Computer Science":
+            return [
+                "What is an algorithm?",
+                "Explain binary numbers",
+                "How do loops work in programming?",
+                "What is object-oriented programming?"
+            ]
+        case "Economics":
+            return [
+                "What is supply and demand?",
+                "Explain inflation",
+                "How does GDP work?",
+                "What are market structures?"
+            ]
+        case "Psychology":
+            return [
+                "What is classical conditioning?",
+                "Explain cognitive development",
+                "How does memory work?",
+                "What are defense mechanisms?"
+            ]
+        case "Philosophy":
+            return [
+                "What is Socratic method?",
+                "Explain existentialism",
+                "What is the trolley problem?",
+                "Describe ethical theories"
+            ]
+        case "General":
+            return [
+                "Help me understand this concept",
+                "Explain this step by step",
+                "What does this mean?",
+                "Can you give me an example?"
+            ]
+        default:
+            return [
+                "Ask me any question",
+                "I'm here to help you learn",
+                "Let's explore together",
+                "What would you like to know?"
+            ]
         }
     }
     
-    private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "message.circle")
-                .font(.system(size: 60))
-                .foregroundColor(.gray.opacity(0.5))
-            
-            Text("Start Your Conversation")
-                .font(.system(size: 28, weight: .bold))  // Much larger for kids
-                .foregroundColor(.primary)
-            
-            Text("Ask any question about \(selectedSubject.lowercased()) and get detailed AI-powered explanations")
-                .font(.system(size: 18, weight: .medium))  // Increased from subheadline
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .lineSpacing(2)
-                .padding(.horizontal, 32)
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text("💡 Example questions:")
-                    .font(.system(size: 18, weight: .bold))  // Larger for kids
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("• Solve: 2x + 5 = 13")
-                    Text("• Explain photosynthesis")
-                    Text("• What is the derivative of x²?")
-                    Text("• How do I balance equations?")
-                }
-                .font(.system(size: 16, weight: .medium))  // Increased from caption to 16pt
-                .foregroundColor(.secondary)
-            }
-            .padding()
-            .background(Color.blue.opacity(0.1))
-            .cornerRadius(12)
-            .padding(.horizontal, 32)
-        }
-        .padding(.vertical, 40)
-    }
     
     private var subjectPickerView: some View {
         NavigationView {
             List(subjects, id: \.self) { subject in
-                HStack {
-                    Text(subject)
-                    Spacer()
-                    if subject == selectedSubject {
-                        Image(systemName: "checkmark")
-                            .foregroundColor(.blue)
+                Button(action: {
+                    // Visual feedback with animation
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selectedSubject = subject
                     }
+
+                    // Haptic feedback
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
+
+                    // Create new session with new subject
+                    startNewSession()
+
+                    // Close picker
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        showingSubjectPicker = false
+                    }
+                }) {
+                    HStack(spacing: 12) {
+                        // Subject emoji
+                        Text(subjectEmoji(for: subject))
+                            .font(.system(size: 24))
+
+                        // Subject name
+                        Text(subject)
+                            .font(.system(size: 17))
+                            .foregroundColor(.primary)
+
+                        Spacer()
+
+                        // Checkmark for selected subject
+                        if subject == selectedSubject {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.blue)
+                                .font(.system(size: 22))
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
                 }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    selectedSubject = subject
-                    startNewSession() // Create new session with new subject
-                    showingSubjectPicker = false
-                }
+                .buttonStyle(PlainButtonStyle())
+                .listRowBackground(
+                    subject == selectedSubject ?
+                        subjectBackgroundColor(for: subject) :
+                        Color.clear
+                )
             }
             .navigationTitle("Select Subject")
             .navigationBarTitleDisplayMode(.inline)
@@ -1361,42 +1403,7 @@ struct SessionChatView: View {
             }
         }
     }
-    
-    // MARK: - Message Management (Temporarily Disabled)
-    // TODO: Re-enable when ChatMessage models are properly integrated
-    /*
-    private func convertLegacyMessages() -> [ChatMessage] {
-        return networkService.conversationHistory.enumerated().map { index, dict in
-            ChatMessage.fromDictionary(dict, sessionId: networkService.currentSessionId)
-        }
-    }
-    
-    private func filterMessages(query: String) {
-        let convertedMessages = convertLegacyMessages()
-        
-        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            filteredMessages = []
-            return
-        }
-        
-        let lowercaseQuery = query.lowercased()
-        filteredMessages = convertedMessages.filter { message in
-            message.content.lowercased().contains(lowercaseQuery)
-        }
-    }
-    
-    private func copyMessage(_ message: ChatMessage) {
-        UIPasteboard.general.string = message.content
-        // Could show a toast notification here
-    }
-    
-    private func retryMessage(_ message: ChatMessage) {
-        // Implement retry logic if needed
-        messageText = message.content
-        sendMessage()
-    }
-    */
-    
+
     // MARK: - Keyboard Management
 
     private func dismissKeyboard() {
@@ -1415,7 +1422,85 @@ struct SessionChatView: View {
             voiceService.stopSpeech()
         }
     }
-    
+
+    // MARK: - Message Persistence
+
+    /// Unified function to save messages to BOTH conversationHistory AND SwiftData
+    /// Ensures they stay in sync and uses stable IDs to prevent duplicates
+    private func persistMessage(
+        role: String,
+        content: String,
+        hasImage: Bool = false,
+        imageData: Data? = nil,
+        addToHistory: Bool = true
+    ) {
+        guard let sessionId = networkService.currentSessionId else {
+            print("⚠️ No session ID, cannot persist message")
+            return
+        }
+
+        // 1. Add to in-memory history first (if not already added)
+        if addToHistory {
+            networkService.addToConversationHistory(role: role, content: content)
+        }
+
+        // 2. Generate stable ID based on position in conversationHistory
+        let messageIndex = networkService.conversationHistory.count - 1
+        let messageId = "\(sessionId)-msg-\(messageIndex)-\(role)"
+
+        // 3. Save to SwiftData (with deduplication built-in)
+        let persistedMsg = PersistedChatMessage(
+            id: messageId,
+            sessionId: sessionId,
+            role: role,
+            content: content,
+            timestamp: Date(),
+            hasImage: hasImage,
+            imageData: imageData,
+            subject: selectedSubject
+        )
+
+        messageManager.saveMessage(persistedMsg)
+
+        print("💾 Persisted \(role) message (ID: \(messageId)): \(content.prefix(50))...")
+    }
+
+    /// Sync conversationHistory from SwiftData before archiving
+    /// Ensures archive captures all messages, even if conversationHistory got corrupted
+    private func syncConversationHistoryFromSwiftData() {
+        guard let sessionId = networkService.currentSessionId else { return }
+
+        // Load persisted messages from SwiftData
+        let persistedMessages = messageManager.loadMessages(for: sessionId)
+
+        // Check for mismatch
+        if persistedMessages.count != networkService.conversationHistory.count {
+            print("⚠️ MISMATCH DETECTED!")
+            print("   SwiftData: \(persistedMessages.count) messages")
+            print("   conversationHistory: \(networkService.conversationHistory.count) messages")
+            print("   🔄 Syncing from SwiftData (source of truth)...")
+
+            // Rebuild conversationHistory from SwiftData
+            networkService.conversationHistory = persistedMessages
+                .sorted { $0.timestamp < $1.timestamp }
+                .map { msg in
+                    var dict: [String: String] = [
+                        "role": msg.role,
+                        "content": msg.content
+                    ]
+                    if msg.hasImage {
+                        dict["hasImage"] = "true"
+                        dict["messageId"] = msg.messageId ?? ""
+                    }
+                    return dict
+                }
+
+            print("✅ Sync complete: conversationHistory now has \(networkService.conversationHistory.count) messages")
+        } else {
+            print("✅ conversationHistory and SwiftData are in sync (\(networkService.conversationHistory.count) messages)")
+        }
+    }
+
     // MARK: - Actions
     
     private func sendMessage() {
@@ -1436,8 +1521,9 @@ struct SessionChatView: View {
         // Check if we have a session
         if let sessionId = networkService.currentSessionId {
             // For existing session: Add user message immediately (consistent with NetworkService behavior)
-            networkService.addUserMessageToHistory(message)
-            
+            // ✅ PERSIST: Save user message to both conversationHistory and SwiftData
+            persistMessage(role: "user", content: message)
+
             // Show typing indicator
             showTypingIndicator = true
             
@@ -1446,43 +1532,183 @@ struct SessionChatView: View {
             // For first message: Create session and add user message immediately
             // Add user message to conversation history right away so it shows immediately
             networkService.addUserMessageToHistory(message)
-            
+
+            // ✅ PERSIST: Save user message to SwiftData (sessionId will be set after session creation)
+            // Note: For first message, we'll save after session is created in sendFirstMessage
+
             // Show typing indicator
             showTypingIndicator = true
             
             sendFirstMessage(message: message)
         }
     }
-    
+
     // MARK: - Send Message Helpers
-    
+
+    // 🚀 Toggle for streaming (set to true to enable real-time streaming)
+    private let useStreaming = true  // Change to false to use non-streaming
+
     private func sendMessageToExistingSession(sessionId: String, message: String) {
         Task {
-            let result = await networkService.sendSessionMessage(
-                sessionId: sessionId,
-                message: message
-            )
-            
-            await MainActor.run {
-                handleSendMessageResult(result, originalMessage: message)
+            if useStreaming {
+                // 🟢 Use STREAMING endpoint
+                print("🚀 Using STREAMING mode")
+
+                await networkService.sendSessionMessageStreaming(
+                    sessionId: sessionId,
+                    message: message,
+                    onChunk: { accumulatedText in
+                        // Update UI with streaming text in real-time
+                        Task { @MainActor in
+                            // Find and update the last AI message with streaming content
+                            if networkService.conversationHistory.last?["role"] == "assistant" {
+                                // Update existing message
+                                networkService.conversationHistory[networkService.conversationHistory.count - 1]["content"] = accumulatedText
+                            } else {
+                                // Add new streaming message directly to conversationHistory
+                                networkService.conversationHistory.append([
+                                    "role": "assistant",
+                                    "content": accumulatedText
+                                ])
+                            }
+
+                            // Update UI
+                            refreshTrigger = UUID()
+                        }
+                    },
+                    onComplete: { success, fullText, tokens, compressed in
+                        Task { @MainActor in
+                            if success {
+                                print("✅ Streaming complete!")
+                                isSubmitting = false
+                                showTypingIndicator = false
+
+                                // ✅ PERSIST: Save AI response to SwiftData
+                                // Note: Message already added to conversationHistory during streaming
+                                if let fullText = fullText {
+                                    persistMessage(role: "assistant", content: fullText, addToHistory: false)
+                                }
+
+                                // Final update is already in conversation history from streaming
+                            } else {
+                                print("❌ Streaming failed - automatically falling back to non-streaming mode")
+
+                                // Remove failed streaming message if present
+                                if let lastMessage = networkService.conversationHistory.last,
+                                   lastMessage["role"] == "assistant" {
+                                    networkService.removeLastMessageFromHistory()
+                                }
+
+                                // 🔄 AUTOMATIC FALLBACK: Retry with non-streaming endpoint
+                                print("🔄 Retrying with NON-STREAMING mode...")
+
+                                let fallbackResult = await networkService.sendSessionMessage(
+                                    sessionId: sessionId,
+                                    message: message
+                                )
+
+                                await MainActor.run {
+                                    handleSendMessageResult(fallbackResult, originalMessage: message)
+                                }
+                            }
+                        }
+                    }
+                )
+            } else {
+                // 🔵 Use NON-STREAMING endpoint (original behavior)
+                print("🔵 Using NON-STREAMING mode")
+
+                let result = await networkService.sendSessionMessage(
+                    sessionId: sessionId,
+                    message: message
+                )
+
+                await MainActor.run {
+                    handleSendMessageResult(result, originalMessage: message)
+                }
             }
         }
     }
-    
+
     private func sendFirstMessage(message: String) {
         Task {
             // First create a session
             let sessionResult = await networkService.startNewSession(subject: selectedSubject.lowercased())
-            
+
             if sessionResult.success, let sessionId = networkService.currentSessionId {
                 // Session created successfully, now send the message
-                let messageResult = await networkService.sendSessionMessage(
-                    sessionId: sessionId,
-                    message: message
-                )
-                
-                await MainActor.run {
-                    handleSendMessageResult(messageResult, originalMessage: message)
+
+                // ✅ PERSIST: Save user message now that we have sessionId
+                // Note: Message already added to conversationHistory at line 1275
+                persistMessage(role: "user", content: message, addToHistory: false)
+
+                if useStreaming {
+                    // 🟢 Use STREAMING endpoint
+                    print("🚀 Using STREAMING mode for first message")
+
+                    await networkService.sendSessionMessageStreaming(
+                        sessionId: sessionId,
+                        message: message,
+                        onChunk: { accumulatedText in
+                            Task { @MainActor in
+                                if networkService.conversationHistory.last?["role"] == "assistant" {
+                                    networkService.conversationHistory[networkService.conversationHistory.count - 1]["content"] = accumulatedText
+                                } else {
+                                    // Add new streaming message directly to conversationHistory
+                                    networkService.conversationHistory.append([
+                                        "role": "assistant",
+                                        "content": accumulatedText
+                                    ])
+                                }
+                                refreshTrigger = UUID()
+                            }
+                        },
+                        onComplete: { success, fullText, tokens, compressed in
+                            Task { @MainActor in
+                                if success {
+                                    print("✅ Streaming complete!")
+                                    isSubmitting = false
+                                    showTypingIndicator = false
+
+                                    // ✅ PERSIST: Save AI response to SwiftData
+                                    // Note: Message already added to conversationHistory during streaming
+                                    if let fullText = fullText {
+                                        persistMessage(role: "assistant", content: fullText, addToHistory: false)
+                                    }
+                                } else {
+                                    print("❌ Streaming failed - automatically falling back to non-streaming mode")
+
+                                    // Remove failed streaming message if present
+                                    if let lastMessage = networkService.conversationHistory.last,
+                                       lastMessage["role"] == "assistant" {
+                                        networkService.removeLastMessageFromHistory()
+                                    }
+
+                                    // 🔄 AUTOMATIC FALLBACK: Retry with non-streaming endpoint
+                                    print("🔄 Retrying with NON-STREAMING mode...")
+
+                                    let fallbackResult = await networkService.sendSessionMessage(
+                                        sessionId: sessionId,
+                                        message: message
+                                    )
+
+                                    await MainActor.run {
+                                        handleSendMessageResult(fallbackResult, originalMessage: message)
+                                    }
+                                }
+                            }
+                        }
+                    )
+                } else {
+                    // 🔵 Use NON-STREAMING endpoint
+                    let messageResult = await networkService.sendSessionMessage(
+                        sessionId: sessionId,
+                        message: message
+                    )
+
+                    await MainActor.run {
+                        handleSendMessageResult(messageResult, originalMessage: message)
+                    }
                 }
             } else {
                 // Session creation failed
@@ -1490,14 +1716,14 @@ struct SessionChatView: View {
                     isSubmitting = false
                     showTypingIndicator = false
                     errorMessage = "Failed to create session: \(sessionResult.message)"
-                    
+
                     // Remove the user message we added optimistically
                     if let lastMessage = networkService.conversationHistory.last,
                        lastMessage["role"] == "user",
                        lastMessage["content"] == message {
                         networkService.removeLastMessageFromHistory()
                     }
-                    
+
                     // Restore message text for retry
                     messageText = message
                 }
@@ -1514,10 +1740,15 @@ struct SessionChatView: View {
             // Force UI refresh to ensure new messages are displayed
             refreshTrigger = UUID()
 
-            
+            // ✅ PERSIST: Save AI response to SwiftData (non-streaming)
+            // Note: Message already added to conversationHistory by NetworkService
+            if let aiResponse = result.aiResponse {
+                persistMessage(role: "assistant", content: aiResponse, addToHistory: false)
+            }
+
             // Track progress for this question using new points system
             trackChatInteraction(subject: selectedSubject, userMessage: originalMessage, aiResponse: result.aiResponse)
-            
+
         } else {
             // Enhanced error handling with recovery options
             let errorDetail = result.aiResponse ?? "Failed to get AI response"
@@ -1843,6 +2074,9 @@ struct SessionChatView: View {
         errorMessage = ""
         
         Task {
+            // ✅ SYNC FIRST: Ensure conversationHistory matches SwiftData before archiving
+            syncConversationHistoryFromSwiftData()
+
             let result = await networkService.archiveSession(
                 sessionId: sessionId,
                 title: archiveTitle.isEmpty ? nil : archiveTitle,
@@ -1925,13 +2159,13 @@ struct MessageBubbleView: View {
                         .font(.caption)
                         .foregroundColor(.blue)
                 }
-                
+
                 Text(isUser ? "You" : "AI Assistant")
                     .font(.system(size: 16, weight: .semibold))  // Increased from caption to 16pt
                     .foregroundColor(.secondary)
-                
+
                 Spacer()
-                
+
                 // Voice controls for AI responses
                 if !isUser {
                     MessageVoiceControls(
@@ -1940,18 +2174,22 @@ struct MessageBubbleView: View {
                         autoSpeak: false  // Disable auto-speak, user must manually tap to play
                     )
                 }
-                
+
                 if isUser {
                     Image(systemName: "person.fill")
                         .font(.caption)
                         .foregroundColor(.blue)
                 }
             }
-            
+
             // Use proper math rendering for AI messages
             let rawContent = message["content"] ?? ""
-            
-            MathFormattedText(rawContent, fontSize: 20)  // Use proper math renderer instead of plain text
+
+            MathFormattedText(
+                rawContent,
+                fontSize: 20,
+                mathBackgroundColor: isUser ? Color.green.opacity(0.15) : Color.blue.opacity(0.15)
+            )  // Use proper math renderer with character-specific colors
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
@@ -1964,11 +2202,11 @@ struct MessageBubbleView: View {
                 }
         }
         .padding(12)
-        .background(isUser ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
+        .background(isUser ? Color.green.opacity(0.15) : Color.blue.opacity(0.15))  // Updated colors
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(isUser ? Color.blue.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
+                .stroke(isUser ? Color.green.opacity(0.3) : Color.blue.opacity(0.3), lineWidth: 1)  // Updated border colors
         )
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -1978,21 +2216,21 @@ struct MessageBubbleView: View {
 
 struct ModernUserMessageView: View {
     let message: [String: String]
-    
+
     var body: some View {
         HStack {
             Spacer(minLength: 60)  // More space like ChatGPT
-            
+
             Text(message["content"] ?? "")
                 .font(.system(size: 18))  // Larger font for better readability
                 .foregroundColor(.primary.opacity(0.95))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(Color.primary.opacity(0.08))  // More subtle background
+                .background(Color.green.opacity(0.15))  // Light green background
                 .cornerRadius(18)  // Slightly more rounded
                 .overlay(
                     RoundedRectangle(cornerRadius: 18)
-                        .stroke(Color.primary.opacity(0.15), lineWidth: 0.5)  // Thinner border
+                        .stroke(Color.green.opacity(0.3), lineWidth: 0.5)  // Green border
                 )
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -2004,28 +2242,28 @@ struct ModernAIMessageView: View {
     let message: String
     let voiceType: VoiceType
     let isStreaming: Bool
-    
+    let messageId: String
+
     @StateObject private var voiceService = VoiceInteractionService.shared
-    
+    @State private var animationState: AIAvatarState = .idle
+    @State private var isCurrentlyPlaying = false
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Character avatar - ChatGPT style
-            Circle()
-                .fill(characterColor.opacity(0.8))
-                .frame(width: 32, height: 32)  // Smaller like ChatGPT
-                .overlay(
-                    Image(systemName: voiceType.icon)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                )
-                .scaleEffect(isStreaming ? 1.1 : 1.0)
-                .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isStreaming)
-            
+            // AI Avatar Animation - clickable to play/stop audio
+            Button(action: toggleSpeech) {
+                AIAvatarAnimation(state: animationState)
+                    .frame(width: 24, height: 24)  // ⚙️ SIZE CONTROL: Smaller animation (was 32x32)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
             VStack(alignment: .leading, spacing: 8) {
                 // Character name
                 Text(voiceType.displayName)
                     .font(.system(size: 16, weight: .semibold))  // Larger for better readability
                     .foregroundColor(.primary.opacity(0.9))
+                    .padding(.leading, 8)  // ⚙️ POSITION CONTROL: Move name inside with left padding
 
                 // ChatGPT-style streaming audio box
                 if isStreaming {
@@ -2033,36 +2271,134 @@ struct ModernAIMessageView: View {
                         .padding(.bottom, 8)
                 }
 
-                // Message content with larger typography for better readability
-                MathFormattedText(message, fontSize: 18)  // Larger font for better readability
-                    .foregroundColor(.primary.opacity(0.95))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                
-                // Voice controls - enhanced for character interaction with individual control
-                HStack {
-                    MessageVoiceControls(
-                        text: message,
-                        messageId: "modern-ai-\(message.hashValue)",
-                        autoSpeak: voiceService.isVoiceEnabled &&
-                                   (voiceType == .eva || voiceService.voiceSettings.autoSpeakResponses)
-                    )
-                    
-                    Spacer()
+                // Message content with character-specific background color
+                VStack(alignment: .leading, spacing: 8) {
+                    // Message content with larger typography for better readability
+                    MathFormattedText(message, fontSize: 18, mathBackgroundColor: characterMathBackgroundColor)  // Pass character-specific color
+                        .foregroundColor(.primary.opacity(0.95))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(characterBackgroundColor)  // Character-specific background
+                .cornerRadius(18)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(characterBorderColor, lineWidth: 0.5)  // Character-specific border
+                )
             }
             .fixedSize(horizontal: false, vertical: true)
-            
+
             Spacer()  // This pushes content to the left like ChatGPT
         }
         .padding(.horizontal, 0)  // Remove center padding
         .fixedSize(horizontal: false, vertical: true)
+        .onAppear {
+            // Set initial state - message likely already has content when view appears
+            animationState = .processing
+            // After a brief moment, transition to idle (TTS ready)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                if voiceService.currentSpeakingMessageId != "modern-ai-\(message.hashValue)" {
+                    animationState = .idle
+                }
+            }
+
+            // Auto-speak if enabled
+            if voiceService.isVoiceEnabled &&
+               (voiceType == .eva || voiceService.voiceSettings.autoSpeakResponses) &&
+               !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    startSpeaking()
+                }
+            }
+        }
+        .onChange(of: message) { oldValue, newValue in
+            // When message content changes (streaming in progress), show processing state
+            if !newValue.isEmpty && animationState != .speaking {
+                animationState = .processing
+                // After text stabilizes (0.8s without changes), transition to idle
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    if voiceService.currentSpeakingMessageId != "modern-ai-\(message.hashValue)" {
+                        animationState = .idle
+                    }
+                }
+            }
+        }
+        .onReceive(voiceService.$currentSpeakingMessageId) { currentMessageId in
+            // Update animation state based on which message is speaking
+            let thisMsgId = "modern-ai-\(message.hashValue)"
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isCurrentlyPlaying = (currentMessageId == thisMsgId)
+            }
+            if currentMessageId == thisMsgId {
+                animationState = .speaking
+            } else if currentMessageId == nil {
+                // No message is playing, back to idle
+                animationState = .idle
+            }
+        }
+        .onReceive(voiceService.$interactionState) { state in
+            // Update animation based on voice service state
+            if state == .speaking && voiceService.currentSpeakingMessageId == "modern-ai-\(message.hashValue)" {
+                animationState = .speaking
+            } else if state == .idle {
+                animationState = .idle
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isCurrentlyPlaying = false
+                }
+            }
+        }
     }
-    
-    private var characterColor: Color {
+
+    // MARK: - Audio Control Functions
+
+    private func toggleSpeech() {
+        if isCurrentlyPlaying {
+            stopSpeaking()
+        } else {
+            startSpeaking()
+        }
+    }
+
+    private func startSpeaking() {
+        guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+        print("🔊 ModernAIMessageView: Starting TTS for message: \(messageId)")
+
+        // Set this message as the current speaking message
+        voiceService.setCurrentSpeakingMessage("modern-ai-\(message.hashValue)")
+
+        // Use VoiceInteractionService to speak the text
+        voiceService.speakText(message, autoSpeak: false)
+    }
+
+    private func stopSpeaking() {
+        print("🔊 ModernAIMessageView: Stopping TTS for message: \(messageId)")
+        voiceService.stopSpeech()
+    }
+
+    // Character-specific background color
+    private var characterBackgroundColor: Color {
         switch voiceType {
-        case .adam: return .blue      // Boy color
-        case .eva: return .pink       // Girl color
+        case .adam: return Color.blue.opacity(0.15)   // Light blue for Adam
+        case .eva: return Color.pink.opacity(0.15)    // Light pink for Eva
+        }
+    }
+
+    // Character-specific border color
+    private var characterBorderColor: Color {
+        switch voiceType {
+        case .adam: return Color.blue.opacity(0.3)
+        case .eva: return Color.pink.opacity(0.3)
+        }
+    }
+
+    // Character-specific math background color (matches message box)
+    private var characterMathBackgroundColor: Color {
+        switch voiceType {
+        case .adam: return Color.blue.opacity(0.15)   // Match Adam's box color
+        case .eva: return Color.pink.opacity(0.15)    // Match Eva's box color
         }
     }
 }
@@ -2168,15 +2504,19 @@ struct ChatGPTStyleAudioPlayer: View {
 
 struct ModernTypingIndicatorView: View {
     @State private var bounceIndex = 0
-    
+    @StateObject private var voiceService = VoiceInteractionService.shared
+
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            CharacterAvatar(voiceType: .adam, size: 50)
-            
+            // Use AI Avatar Animation in waiting state (fast, small, blinking)
+            AIAvatarAnimation(state: .waiting)
+                .frame(width: 24, height: 24)  // ⚙️ SIZE CONTROL: Smaller animation (was 32x32)
+
             VStack(alignment: .leading, spacing: 8) {
-                Text("Adam")
+                Text(voiceService.voiceSettings.voiceType.displayName)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.primary)
+                    .padding(.leading, 8)  // ⚙️ POSITION CONTROL: Move name inside with left padding
 
                 HStack(spacing: 4) {
                     ForEach(0..<3, id: \.self) { index in
@@ -2191,7 +2531,7 @@ struct ModernTypingIndicatorView: View {
                 .background(Color.primary.opacity(0.05))
                 .cornerRadius(16)
             }
-            
+
             Spacer()
         }
         .onAppear {
@@ -2648,31 +2988,31 @@ struct WeChatStyleVoiceInput: View {
             
             // Voice input area
             HStack(spacing: 12) {
-                // Back to text button (keyboard icon - replaces microphone position)
+                // Camera button (moved to left)
+                Button(action: onCameraAction) {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.black)
+                        .frame(width: 44, height: 44)
+                        .background(Color.black.opacity(0.1))
+                        .clipShape(Circle())
+                }
+                .disabled(isCameraDisabled)
+
+                // WeChat-style voice button
+                weChatVoiceButton
+
+                // Back to text button (keyboard icon - moved to right)
                 Button(action: {
                     onModeToggle()
                 }) {
                     Image(systemName: "keyboard")
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(.black)
                         .frame(width: 44, height: 44)
-                        .background(Color.white.opacity(0.1))
+                        .background(Color.black.opacity(0.1))
                         .clipShape(Circle())
                 }
-                
-                // WeChat-style voice button
-                weChatVoiceButton
-                
-                // Camera button (keep in original position)
-                Button(action: onCameraAction) {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
-                        .frame(width: 44, height: 44)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Circle())
-                }
-                .disabled(isCameraDisabled)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)

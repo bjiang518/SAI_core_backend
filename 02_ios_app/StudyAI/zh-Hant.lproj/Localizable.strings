@@ -170,6 +170,7 @@
 
 // Homework Results
 "homeworkResults.yourScore" = "您的分數";
+"homeworkResults.titleWithSubject" = "您的%@作業報告";
 "homeworkResults.archive" = "歸檔";
 "homeworkResults.report" = "報告";
 "homeworkResults.subject" = "科目：";
@@ -197,6 +198,7 @@
 "homeworkResults.noAnswerProvided" = "（未提供答案）";
 "homeworkResults.correctAnswer" = "正確答案：";
 "homeworkResults.feedback" = "回饋：";
+"homeworkResults.askAiForHelp" = "向AI求助";
 "homeworkResults.archiveSuccess" = "成功歸檔";
 "homeworkResults.archiveSuccessSuffix" = "題到您的錯題本！";
 "homeworkResults.archiveFailure" = "歸檔題目失敗：";
@@ -277,3 +279,127 @@
 "questionGeneration.questions" = "題目";
 "questionGeneration.selectArchives" = "選擇歸檔";
 "questionGeneration.conversation" = "對話";
+"settings.textSize" = "文字大小";
+"progress.title" = "進度";
+"progress.loadingProgress" = "正在載入您的進度...";
+"progress.unableToLoadData" = "無法載入數據";
+"progress.tryAgain" = "重試";
+"progress.yourLearningJourney" = "您的學習之旅";
+"progress.pointsToday" = "今日積分";
+"progress.streak" = "連續天數";
+"progress.days" = "天";
+"progress.totalPoints" = "總積分";
+"progress.todaysActivity" = "今日活動";
+"progress.questions" = "題目";
+"progress.correct" = "正確";
+"progress.accuracy" = "準確率";
+"progress.weeklyActivity" = "本週活動";
+"progress.monthlyActivity" = "本月活動";
+"progress.thisWeek" = "本週";
+"progress.thisMonth" = "本月";
+"progress.lastMonth" = "上月";
+"progress.subjectBreakdown" = "科目細分";
+"progress.allSubjects" = "全部科目";
+"progress.subjects" = "科目";
+"progress.mostStudied" = "學習最多：%@";
+"progress.topPerforming" = "表現最佳：%@";
+"progress.viewAllSubjects" = "查看全部科目";
+"progress.learningGoals" = "學習目標";
+"progress.noActiveGoals" = "暫無活動學習目標";
+"progress.checkedOut" = "已簽出";
+"progress.recentCheckouts" = "最近簽出";
+"progress.goalsCompleted" = "%d個目標完成";
+"progress.pointsEarned" = "+%d 積分";
+"progress.weekendBonus" = "週末雙倍";
+"progress.total" = "總計";
+"progress.activityLevel" = "活動水平";
+"progress.less" = "少";
+"progress.more" = "多";
+"progress.questionsThisMonth" = "本月題目";
+"progress.noSubjectData" = "暫無科目數據";
+"progress.noSubjectDataMessage" = "回答不同科目的題目以查看您的細分數據！";
+"progress.noSubjectDataForFilter" = "暫無%@數據";
+"progress.noSubjectDataForFilterMessage" = "回答關於%@的題目以查看您的進度！";
+"progress.quickInsights" = "快速洞察";
+"progress.insightsFor" = "%@的洞察";
+"progress.focusOn" = "重點關注：%@";
+"progress.keepUp" = "保持：%@";
+"progress.recommendedStudyTime" = "建議學習時間：每天%d分鐘";
+"progress.subjectComparison" = "科目對比";
+"progress.topPerformingCategory" = "表現最佳";
+"progress.needsAttention" = "需要關注";
+"progress.noSubjectDataAvailable" = "暫無科目數據";
+"progress.pointsAvailable" = "+%d 積分";
+
+// Library View
+"library.title" = "學習資料庫";
+"library.refreshLibrary" = "重新整理資料庫";
+"library.advancedSearch" = "進階搜尋";
+"library.clearFilters" = "清除篩選";
+"library.filterBySubject" = "按科目篩選";
+"library.allSubjects" = "全部科目";
+"library.debugInfo" = "偵錯資訊";
+"library.searchPlaceholder" = "搜尋題目、科目或內容...";
+"library.updating" = "更新中...";
+
+// Content Type Filters
+"library.contentType.allSessions" = "全部記錄";
+"library.contentType.questionsOnly" = "僅題目";
+"library.contentType.conversationsOnly" = "僅對話";
+
+// Quick Filters
+"library.filter.thisWeek" = "本週";
+"library.filter.thisMonth" = "本月";
+"library.filter.withImages" = "含圖片";
+
+// Stats Header
+"library.stats.questions" = "題目";
+"library.stats.conversations" = "對話";
+"library.stats.totalSessions" = "總記錄數";
+"library.stats.showing" = "顯示：%@";
+"library.stats.showAll" = "顯示全部";
+"library.stats.subject" = "科目：%@";
+
+// Library Item
+"library.item.tapToReview" = "點擊查看";
+"library.item.homeworkSession" = "作業記錄";
+"library.item.archivedQuestion" = "歸檔題目";
+"library.item.conversationSession" = "對話記錄";
+
+// Empty States
+"library.empty.signInRequired" = "需要登入";
+"library.empty.signInMessage" = "請登入以存取您的個人學習資料庫";
+"library.empty.libraryEmpty" = "學習資料庫為空";
+"library.empty.libraryEmptyMessage" = "完成AI作業或開始對話來建立您的學習資料庫";
+"library.empty.loading" = "正在載入學習資料庫...";
+
+// No Results
+"library.noResults.title" = "未找到結果";
+"library.noResults.adjustFilters" = "請嘗試調整搜尋或篩選條件";
+"library.noResults.noMatch" = "沒有符合條件的學習記錄";
+
+// Advanced Search
+"library.advancedSearch.title" = "進階搜尋";
+"library.advancedSearch.cancel" = "取消";
+"library.advancedSearch.search" = "搜尋";
+"library.advancedSearch.clearSearch" = "清除搜尋";
+
+"library.advancedSearch.searchText" = "搜尋文字";
+"library.advancedSearch.searchPlaceholder" = "搜尋題目...";
+
+"library.advancedSearch.subjectFilter" = "科目篩選";
+"library.advancedSearch.subject" = "科目";
+"library.advancedSearch.allSubjects" = "全部科目";
+
+"library.advancedSearch.gradeFilter" = "年級篩選";
+"library.advancedSearch.grade" = "年級";
+"library.advancedSearch.allGrades" = "全部年級";
+
+"library.advancedSearch.dateRange" = "日期範圍";
+"library.advancedSearch.allTime" = "全部時間";
+"library.advancedSearch.last7Days" = "最近7天";
+"library.advancedSearch.last30Days" = "最近30天";
+"library.advancedSearch.last3Months" = "最近3個月";
+
+"library.advancedSearch.sortOrder" = "排序方式";
+"library.advancedSearch.sortBy" = "排序依據";

@@ -14,6 +14,7 @@ struct UnifiedImageEditorView: View {
     @Binding var isPresented: Bool
 
     @State private var currentImage: UIImage?
+    @State private var imageUpdateTrigger = UUID() // Force image refresh when this changes
     @State private var brightnessValue: Float = 0.0
     @State private var contrastValue: Float = 0.0
     @State private var showingCropView = false
@@ -30,9 +31,13 @@ struct UnifiedImageEditorView: View {
     @State private var cropRect: CGRect = CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8)
     @State private var isDraggingRect = false
     @State private var dragStartLocation: CGPoint = .zero
+    @State private var isCropApplied = false  // Track if crop has been applied
 
     // Size reduction options
     @State private var selectedSizeReduction: SizeReductionOption = .raw
+    @State private var isResizeApplied = false  // Track if resize has been applied
+    @State private var appliedSizeReduction: SizeReductionOption = .raw  // Track which size was applied
+    @State private var previewResizedImage: UIImage?  // Preview of selected resize (not yet applied)
 
 
     private let imageEnhancer = ImageEnhancer.shared
@@ -63,10 +68,10 @@ struct UnifiedImageEditorView: View {
 
         var scale: CGFloat {
             switch self {
-            case .raw: return 1.0
-            case .large: return 0.75
-            case .medium: return 0.5
-            case .small: return 0.25
+            case .raw: return 1.0      // 100% - Original size
+            case .large: return 0.5    // 50% - Was 75%, now more aggressive
+            case .medium: return 0.3   // 30% - Was 50%, much more aggressive
+            case .small: return 0.15   // 15% - Was 25%, very aggressive
             }
         }
     }
@@ -85,15 +90,19 @@ struct UnifiedImageEditorView: View {
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: geometry.size.width, height: geometry.size.height)
                                 .clipped()
+                                .id(imageUpdateTrigger) // Force refresh when trigger changes
 
-                            // Show crop overlay when crop tab is selected
-                            if selectedTab == .crop {
+                            // Show crop overlay only when:
+                            // 1. Crop tab is selected AND
+                            // 2. Crop has not been applied yet (user is still adjusting)
+                            if selectedTab == .crop && !isCropApplied {
                                 buildCropOverlay(image: image, geometry: geometry)
                             }
                         }
                     }
                     .frame(height: 400)
                     .background(Color.black.opacity(0.05))
+                    .padding(.top, 20) // Add spacing at the top
                 }
 
                 // Tab Selector
@@ -157,10 +166,12 @@ struct UnifiedImageEditorView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Edit Image")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 setupInitialImage()
+            }
+            .onChange(of: selectedSizeReduction) { newSize in
+                updateResizePreview()
             }
         }
     }
@@ -414,13 +425,21 @@ struct UnifiedImageEditorView: View {
     // MARK: - Crop Controls
     private var cropControls: some View {
         VStack(spacing: 16) {
-            Text("Drag corners to resize • Drag center to move")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+            // Status indicator
+            if isCropApplied {
+                Text("Crop applied • Press Reset to adjust again")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            } else {
+                Text("Drag corners to resize • Drag center to move")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
 
             HStack(spacing: 16) {
-                Button("Apply Crop") {
+                Button(isCropApplied ? "Applied" : "Apply Crop") {
                     applyRectangleCrop()
                 }
                 .font(.subheadline)
@@ -428,8 +447,9 @@ struct UnifiedImageEditorView: View {
                 .foregroundColor(.white)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
-                .background(Color.blue)
+                .background(isCropApplied ? Color.secondary : Color.blue)
                 .cornerRadius(10)
+                .disabled(isCropApplied)
 
                 Button("Reset Crop") {
                     resetCrop()
@@ -448,6 +468,24 @@ struct UnifiedImageEditorView: View {
     // MARK: - Resize Controls
     private var resizeControls: some View {
         VStack(spacing: 16) {
+            // Status indicator
+            if isResizeApplied {
+                Text("\(appliedSizeReduction.rawValue) size applied • Final dimensions locked")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            } else if selectedSizeReduction != .raw {
+                Text("Preview: \(selectedSizeReduction.rawValue) • Click Apply to confirm")
+                    .font(.subheadline)
+                    .foregroundColor(.blue)
+                    .multilineTextAlignment(.center)
+            } else {
+                Text("Select size to see live preview")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
             // Size Selection
             VStack(spacing: 8) {
                 Text("Size")
@@ -467,25 +505,70 @@ struct UnifiedImageEditorView: View {
 
             // Size Info and Actions
             VStack(spacing: 12) {
-                if let image = currentImage {
-                    HStack {
-                        Text("Current: \(formatImageSize(image))")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                // Show dimension comparison (base image vs preview/applied)
+                if let baseImage = getCombinedImageForResize() {
+                    VStack(alignment: .leading, spacing: 6) {
+                        // Current dimensions and size
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(isResizeApplied ? "Before resize:" : "Original:")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Text("\(Int(baseImage.size.width)) × \(Int(baseImage.size.height)) px")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.primary)
+                                Text(formatImageSize(baseImage))
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
 
-                        if selectedSizeReduction != .raw {
-                            Text("→ \(formatReducedImageSize(image, scale: selectedSizeReduction.scale))")
-                                .font(.caption)
-                                .foregroundColor(.blue)
+                            if selectedSizeReduction != .raw && !isResizeApplied {
+                                Image(systemName: "arrow.right")
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                                    .padding(.horizontal, 4)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Preview:")
+                                        .font(.caption2)
+                                        .foregroundColor(.blue)
+                                    Text("\(Int(baseImage.size.width * selectedSizeReduction.scale)) × \(Int(baseImage.size.height * selectedSizeReduction.scale)) px")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.blue)
+                                    Text(formatReducedImageSize(baseImage, scale: selectedSizeReduction.scale))
+                                        .font(.caption2)
+                                        .foregroundColor(.blue)
+                                }
+                            } else if isResizeApplied, let resized = resizedAdjustedImage {
+                                Image(systemName: "arrow.right")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                                    .padding(.horizontal, 4)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Applied:")
+                                        .font(.caption2)
+                                        .foregroundColor(.green)
+                                    Text("\(Int(resized.size.width)) × \(Int(resized.size.height)) px")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.green)
+                                    Text(formatImageSize(resized))
+                                        .font(.caption2)
+                                        .foregroundColor(.green)
+                                }
+                            }
+
+                            Spacer()
                         }
-
-                        Spacer()
                     }
                 }
 
                 // Independent Action Buttons
                 HStack(spacing: 16) {
-                    Button("Apply Size") {
+                    Button(isResizeApplied ? "Applied" : "Apply Size") {
                         applySizeReduction()
                     }
                     .font(.subheadline)
@@ -493,9 +576,9 @@ struct UnifiedImageEditorView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
-                    .background(selectedSizeReduction == .raw ? Color.gray : Color.blue)
+                    .background((selectedSizeReduction == .raw || isResizeApplied) ? Color.secondary : Color.blue)
                     .cornerRadius(10)
-                    .disabled(selectedSizeReduction == .raw)
+                    .disabled(selectedSizeReduction == .raw || isResizeApplied)
 
                     Button("Reset Size") {
                         resetToOriginalSize()
@@ -514,35 +597,74 @@ struct UnifiedImageEditorView: View {
 
     // MARK: - Independent State Management Helper Methods
 
+    /// Get the base image for brightness/contrast adjustments
+    /// If crop has been applied, use cropped image; otherwise use original
+    private func getBaseImageForBrightness() -> UIImage? {
+        // Priority: resized > cropped > original
+        // This ensures brightness can be applied after resize
+        if isResizeApplied, let resized = resizedAdjustedImage {
+            return resized
+        }
+        if isCropApplied, let cropped = croppedAdjustedImage {
+            return cropped
+        }
+        return originalImageState
+    }
+
     /// Rebuild current image by combining all active edits
     private func rebuildCurrentImage() {
-        // Start with brightness/contrast adjusted image (or original if no brightness adjustments)
-        var baseImage = brightnessAdjustedImage ?? originalImageState
+        // The brightness adjustment methods already handle applying to cropped or original
+        // So just use brightnessAdjustedImage as the base
+        var baseImage = brightnessAdjustedImage ?? (isCropApplied ? croppedAdjustedImage : originalImageState)
 
-        // Apply crop if different from original
-        if let croppedImage = croppedAdjustedImage, croppedImage != originalImageState {
-            baseImage = croppedImage
+        // Show resize preview if selected but not applied
+        if !isResizeApplied && selectedSizeReduction != .raw, let preview = previewResizedImage {
+            baseImage = preview
         }
-
-        // Apply resize if different from raw
-        if selectedSizeReduction != .raw, let resizedImage = resizedAdjustedImage {
+        // Or apply actual resize if applied
+        else if isResizeApplied, let resizedImage = resizedAdjustedImage {
             baseImage = resizedImage
         }
 
         currentImage = baseImage
+        imageUpdateTrigger = UUID() // Force preview to refresh
     }
 
     /// Get combined image for resize operations (brightness + crop, but not previous resize)
     private func getCombinedImageForResize() -> UIImage? {
-        // Start with brightness/contrast adjusted image
-        var baseImage = brightnessAdjustedImage ?? originalImageState
+        // Use brightness adjusted image as base (which already includes crop if applied)
+        return brightnessAdjustedImage ?? (isCropApplied ? croppedAdjustedImage : originalImageState)
+    }
 
-        // Apply crop if different from original
-        if let croppedImage = croppedAdjustedImage, croppedImage != originalImageState {
-            baseImage = croppedImage
+    /// Generate a preview of the resize without applying it
+    private func updateResizePreview() {
+        // If resize is already applied, don't generate preview (user must reset first)
+        if isResizeApplied {
+            return
         }
 
-        return baseImage
+        // If raw selected, clear preview and show base image
+        if selectedSizeReduction == .raw {
+            previewResizedImage = nil
+            rebuildCurrentImage()
+            return
+        }
+
+        // Generate preview for the selected size
+        guard let baseImage = getCombinedImageForResize() else { return }
+
+        let newSize = CGSize(
+            width: baseImage.size.width * selectedSizeReduction.scale,
+            height: baseImage.size.height * selectedSizeReduction.scale
+        )
+
+        UIGraphicsBeginImageContextWithOptions(newSize, false, baseImage.scale)
+        baseImage.draw(in: CGRect(origin: .zero, size: newSize))
+        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+
+        previewResizedImage = resizedImage
+        rebuildCurrentImage()
     }
 
     // MARK: - Helper Methods
@@ -557,6 +679,10 @@ struct UnifiedImageEditorView: View {
         contrastValue = 0.0
         selectedSizeReduction = .raw
         cropRect = CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8)
+        isCropApplied = false  // Initialize crop state
+        isResizeApplied = false  // Initialize resize state
+        appliedSizeReduction = .raw
+        previewResizedImage = nil  // Initialize preview
     }
 
     private func resetToOriginal() {
@@ -569,11 +695,8 @@ struct UnifiedImageEditorView: View {
     }
 
     private func applyRectangleCrop() {
+        // Get the appropriate base image (includes brightness and/or resize if applied)
         guard let image = currentImage else { return }
-
-        print("📐 === RECTANGLE CROP ===")
-        print("📐 Original image size: \(image.size)")
-        print("📐 Crop rect (relative): \(cropRect)")
 
         // Calculate pixel coordinates from relative coordinates
         let pixelRect = CGRect(
@@ -583,13 +706,10 @@ struct UnifiedImageEditorView: View {
             height: cropRect.height * image.size.height
         )
 
-        print("📐 Crop rect (pixels): \(pixelRect)")
-
         // Validate crop rect
         guard pixelRect.width > 0 && pixelRect.height > 0,
               pixelRect.minX >= 0 && pixelRect.minY >= 0,
               pixelRect.maxX <= image.size.width && pixelRect.maxY <= image.size.height else {
-            print("❌ Invalid crop rect")
             return
         }
 
@@ -603,7 +723,6 @@ struct UnifiedImageEditorView: View {
         // Get the properly oriented image
         guard let orientedImage = UIGraphicsGetImageFromCurrentImageContext(),
               let cgImage = orientedImage.cgImage else {
-            print("❌ Failed to get oriented image")
             return
         }
 
@@ -615,47 +734,85 @@ struct UnifiedImageEditorView: View {
             height: pixelRect.height * image.scale
         )
 
-        print("📐 Scaled crop rect for CGImage: \(scaledCropRect)")
-
         // Perform the crop
         guard let croppedCGImage = cgImage.cropping(to: scaledCropRect) else {
-            print("❌ Failed to crop CGImage")
             return
         }
 
         // Create final UIImage with .up orientation (already oriented correctly)
         let croppedUIImage = UIImage(cgImage: croppedCGImage, scale: image.scale, orientation: .up)
 
-        print("📐 Cropped image size: \(croppedUIImage.size)")
-        print("✅ Rectangle crop successful")
-        print("📐 === END RECTANGLE CROP ===")
+        // Update the state - crop is applied on top of any existing edits
+        // If resize was applied, we need to reset it and apply crop to the pre-resize state
+        if isResizeApplied {
+            // User cropped after resize - reset resize and apply crop
+            isResizeApplied = false
+            selectedSizeReduction = .raw
+            appliedSizeReduction = .raw
+            resizedAdjustedImage = originalImageState
+            previewResizedImage = nil
+        }
 
-        // Update the state
         croppedAdjustedImage = croppedUIImage
+
+        // Don't reset brightness - keep the existing brightness settings
+        // Just update brightnessAdjustedImage to match the cropped image
+        if brightnessValue != 0.0 || contrastValue != 0.0 {
+            // Reapply brightness to the cropped image
+            let adjustedImage = imageEnhancer.adjustBrightnessAndContrast(croppedUIImage, brightness: brightnessValue, contrast: contrastValue)
+            brightnessAdjustedImage = adjustedImage
+        } else {
+            brightnessAdjustedImage = croppedUIImage
+        }
+
         rebuildCurrentImage()
+        isCropApplied = true  // Hide the crop overlay after applying
         cropRect = CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8) // Reset for next crop
     }
 
     private func applyBrightnessAdjustment() {
-        guard let original = originalImageState else { return }
+        guard let baseImage = getBaseImageForBrightness() else { return }
         // Apply both brightness and contrast adjustments together
-        let adjustedImage = imageEnhancer.adjustBrightnessAndContrast(original, brightness: brightnessValue, contrast: contrastValue)
-        brightnessAdjustedImage = adjustedImage
+        let adjustedImage = imageEnhancer.adjustBrightnessAndContrast(baseImage, brightness: brightnessValue, contrast: contrastValue)
+
+        // Update the appropriate state based on what's applied
+        if isResizeApplied {
+            // If resize is applied, update the resized image with brightness
+            resizedAdjustedImage = adjustedImage
+        } else {
+            brightnessAdjustedImage = adjustedImage
+        }
+
         rebuildCurrentImage()
     }
 
     private func applyContrastAdjustment() {
-        guard let original = originalImageState else { return }
+        guard let baseImage = getBaseImageForBrightness() else { return }
         // Apply both brightness and contrast adjustments together
-        let adjustedImage = imageEnhancer.adjustBrightnessAndContrast(original, brightness: brightnessValue, contrast: contrastValue)
-        brightnessAdjustedImage = adjustedImage
+        let adjustedImage = imageEnhancer.adjustBrightnessAndContrast(baseImage, brightness: brightnessValue, contrast: contrastValue)
+
+        // Update the appropriate state based on what's applied
+        if isResizeApplied {
+            // If resize is applied, update the resized image with contrast
+            resizedAdjustedImage = adjustedImage
+        } else {
+            brightnessAdjustedImage = adjustedImage
+        }
+
         rebuildCurrentImage()
     }
 
     private func autoEnhanceImage() {
-        guard let original = originalImageState else { return }
-        let enhancedImage = imageEnhancer.preprocessForSegmentation(original)
-        brightnessAdjustedImage = enhancedImage
+        guard let baseImage = getBaseImageForBrightness() else { return }
+        let enhancedImage = imageEnhancer.preprocessForSegmentation(baseImage)
+
+        // Update the appropriate state based on what's applied
+        if isResizeApplied {
+            resizedAdjustedImage = enhancedImage
+        } else {
+            brightnessAdjustedImage = enhancedImage
+        }
+
         // Update the slider values to reflect the enhancement
         brightnessValue = 0.1 // Indicate that enhancement was applied
         contrastValue = 0.1
@@ -665,33 +822,40 @@ struct UnifiedImageEditorView: View {
     private func resetBrightness() {
         brightnessValue = 0.0
         contrastValue = 0.0
-        brightnessAdjustedImage = originalImageState
+        // Reset brightness to the base image (resized if resize applied, cropped if crop applied, otherwise original)
+        let baseImage = getBaseImageForBrightness()
+
+        if isResizeApplied {
+            resizedAdjustedImage = baseImage
+        } else {
+            brightnessAdjustedImage = baseImage
+        }
+
         rebuildCurrentImage()
     }
 
     private func resetToOriginalSize() {
         selectedSizeReduction = .raw
         resizedAdjustedImage = originalImageState
+        isResizeApplied = false
+        appliedSizeReduction = .raw
+        previewResizedImage = nil  // Clear preview
         rebuildCurrentImage()
     }
 
     private func applySizeReduction() {
-        guard let baseImage = getCombinedImageForResize(), selectedSizeReduction != .raw else { return }
+        // Commit the previewed resize
+        guard selectedSizeReduction != .raw, let preview = previewResizedImage else { return }
 
-        let newSize = CGSize(
-            width: baseImage.size.width * selectedSizeReduction.scale,
-            height: baseImage.size.height * selectedSizeReduction.scale
-        )
+        // Move preview to the applied state
+        resizedAdjustedImage = preview
+        isResizeApplied = true
+        appliedSizeReduction = selectedSizeReduction
 
-        UIGraphicsBeginImageContextWithOptions(newSize, false, baseImage.scale)
-        baseImage.draw(in: CGRect(origin: .zero, size: newSize))
-        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
+        // Clear preview since it's now applied
+        previewResizedImage = nil
 
-        if let resized = resizedImage {
-            resizedAdjustedImage = resized
-            rebuildCurrentImage()
-        }
+        rebuildCurrentImage()
     }
 
     private func resetCrop() {
@@ -700,6 +864,7 @@ struct UnifiedImageEditorView: View {
         // Reset cropped image to brightness adjusted or original state
         croppedAdjustedImage = brightnessAdjustedImage ?? originalImageState
         rebuildCurrentImage()
+        isCropApplied = false  // Show the crop overlay again
     }
 
     private func applyCrop() {
@@ -719,9 +884,28 @@ struct UnifiedImageEditorView: View {
     }
 
     private func formatReducedImageSize(_ image: UIImage, scale: CGFloat) -> String {
-        let originalBytes = image.jpegData(compressionQuality: 0.8)?.count ?? 0
-        let reducedBytes = Int(Double(originalBytes) * Double(scale * scale))
-        let sizeInMB = Double(reducedBytes) / (1024 * 1024)
+        // Actually resize the image to get accurate size measurement
+        let newSize = CGSize(
+            width: image.size.width * scale,
+            height: image.size.height * scale
+        )
+
+        UIGraphicsBeginImageContextWithOptions(newSize, false, image.scale)
+        image.draw(in: CGRect(origin: .zero, size: newSize))
+        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+
+        guard let resized = resizedImage else {
+            // Fallback to estimation if resize fails
+            let originalBytes = image.jpegData(compressionQuality: 0.8)?.count ?? 0
+            let reducedBytes = Int(Double(originalBytes) * Double(scale * scale))
+            let sizeInMB = Double(reducedBytes) / (1024 * 1024)
+            return String(format: "%.1f MB (est.)", sizeInMB)
+        }
+
+        // Get actual JPEG size of resized image
+        let actualBytes = resized.jpegData(compressionQuality: 0.8)?.count ?? 0
+        let sizeInMB = Double(actualBytes) / (1024 * 1024)
         return String(format: "%.1f MB", sizeInMB)
     }
 }

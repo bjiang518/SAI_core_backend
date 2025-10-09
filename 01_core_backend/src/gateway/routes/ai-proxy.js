@@ -120,6 +120,31 @@ class AIProxyRoutes {
       }
     }, this.processChatImage.bind(this));
 
+    // Process chat image with STREAMING - real-time responses
+    this.fastify.post('/api/ai/chat-image-stream', {
+      schema: {
+        description: 'Process image with chat context for conversational responses with STREAMING',
+        tags: ['AI', 'Chat', 'Streaming'],
+        body: {
+          type: 'object',
+          required: ['base64_image', 'prompt'],
+          properties: {
+            base64_image: { type: 'string' },
+            prompt: { type: 'string' },
+            session_id: { type: 'string' },
+            subject: { type: 'string' },
+            student_id: { type: 'string' }
+          }
+        },
+        response: {
+          200: {
+            description: 'Server-Sent Events stream',
+            type: 'string'
+          }
+        }
+      }
+    }, this.processChatImageStream.bind(this));
+
     // Process individual question
     this.fastify.post('/api/ai/process-question', {
       schema: {
@@ -220,6 +245,34 @@ class AIProxyRoutes {
         }
       }
     }, this.sendSessionMessage.bind(this));
+
+    // Send session message with STREAMING - Real-time token-by-token response
+    this.fastify.post('/api/ai/sessions/:sessionId/message/stream', {
+      schema: {
+        description: 'Send message to session and get AI response with STREAMING',
+        tags: ['AI', 'Sessions', 'Streaming'],
+        params: {
+          type: 'object',
+          properties: {
+            sessionId: { type: 'string' }
+          }
+        },
+        body: {
+          type: 'object',
+          required: ['message'],
+          properties: {
+            message: { type: 'string' },
+            context: { type: 'object', additionalProperties: true }
+          }
+        },
+        response: {
+          200: {
+            description: 'Server-Sent Events stream',
+            type: 'string'
+          }
+        }
+      }
+    }, this.sendSessionMessageStream.bind(this));
 
     // Archive session conversation - NEW
     this.fastify.post('/api/ai/sessions/:sessionId/archive', {
@@ -830,6 +883,137 @@ class AIProxyRoutes {
     }
   }
 
+  async processChatImageStream(request, reply) {
+    const startTime = Date.now();
+    const fetch = require('node-fetch');
+
+    try {
+      // Validate payload size (prevent DoS attacks with huge payloads)
+      const MAX_PAYLOAD_SIZE = 3 * 1024 * 1024;  // 3MB max (includes base64 overhead)
+      const payloadSize = JSON.stringify(request.body).length;
+
+      if (payloadSize > MAX_PAYLOAD_SIZE) {
+        this.fastify.log.warn(`❌ Streaming chat image payload too large: ${(payloadSize / 1024 / 1024).toFixed(2)} MB`);
+        return reply.status(413).send({
+          error: 'Image payload too large',
+          code: 'PAYLOAD_TOO_LARGE',
+          message: `Maximum allowed size is ${(MAX_PAYLOAD_SIZE / 1024 / 1024).toFixed(1)} MB. Your payload is ${(payloadSize / 1024 / 1024).toFixed(2)} MB.`,
+          maxSizeMB: MAX_PAYLOAD_SIZE / 1024 / 1024,
+          actualSizeMB: payloadSize / 1024 / 1024
+        });
+      }
+
+      this.fastify.log.info('🖼️ === STREAMING CHAT IMAGE PROCESSING REQUEST ===');
+      this.fastify.log.info(`📝 Prompt: ${request.body.prompt}`);
+      this.fastify.log.info(`🆔 Session: ${request.body.session_id || 'none'}`);
+      this.fastify.log.info(`📚 Subject: ${request.body.subject || 'general'}`);
+      this.fastify.log.info(`📦 Payload size: ${(payloadSize / 1024).toFixed(2)} KB`);
+
+      // Get AI Engine URL from client or environment
+      const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:5001';
+      const streamUrl = `${AI_ENGINE_URL}/api/v1/chat-image-stream`;
+
+      this.fastify.log.info(`📡 Proxying to: ${streamUrl}`);
+
+      // Make streaming request to AI Engine
+      const response = await fetch(streamUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          ...(process.env.SERVICE_AUTH_SECRET ? {
+            'X-Service-Auth': process.env.SERVICE_AUTH_SECRET
+          } : {})
+        },
+        body: JSON.stringify({
+          base64_image: request.body.base64_image,
+          prompt: request.body.prompt,
+          subject: request.body.subject || 'general',
+          session_id: request.body.session_id,
+          student_id: request.body.student_id || 'anonymous'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI Engine returned ${response.status}: ${response.statusText}`);
+      }
+
+      // Set SSE headers
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no'
+      });
+
+      // Stream the response from AI Engine to client
+      this.fastify.log.info('✅ Starting SSE stream to client...');
+
+      // Track if we've received any data
+      let hasReceivedData = false;
+      let errorOccurred = false;
+
+      // Pipe the stream from AI Engine to client
+      response.body.on('data', (chunk) => {
+        hasReceivedData = true;
+        reply.raw.write(chunk);
+      });
+
+      response.body.on('end', () => {
+        const duration = Date.now() - startTime;
+        this.fastify.log.info('✅ === STREAMING CHAT IMAGE PROCESSING COMPLETE ===');
+        this.fastify.log.info(`⏱️ Total streaming time: ${duration}ms`);
+        this.fastify.log.info(`📊 Data received: ${hasReceivedData}`);
+        reply.raw.end();
+      });
+
+      response.body.on('error', (error) => {
+        errorOccurred = true;
+        this.fastify.log.error('❌ Stream error from AI Engine:', error);
+
+        // Send error event if we haven't sent data yet
+        if (!hasReceivedData) {
+          const errorEvent = `data: ${JSON.stringify({
+            type: 'error',
+            error: 'Stream error from AI Engine',
+            message: error.message
+          })}\n\n`;
+          reply.raw.write(errorEvent);
+        }
+        reply.raw.end();
+      });
+
+      // Handle client disconnect
+      request.raw.on('close', () => {
+        this.fastify.log.info('⚠️ Client disconnected from stream');
+        response.body.destroy();
+      });
+
+    } catch (error) {
+      this.fastify.log.error('❌ Error setting up streaming chat image:', error);
+
+      // If headers not sent yet, send error response
+      if (!reply.raw.headersSent) {
+        return reply.status(500).send({
+          success: false,
+          response: 'I\'m having trouble analyzing this image right now. Please try again with the non-streaming endpoint.',
+          error: 'Internal server error setting up streaming',
+          code: 'CHAT_IMAGE_STREAM_ERROR',
+          processing_time_ms: Date.now() - startTime,
+          fallback_endpoint: '/api/ai/chat-image'  // Suggest fallback
+        });
+      } else {
+        // If streaming already started, send SSE error event
+        const errorEvent = `data: ${JSON.stringify({
+          type: 'error',
+          error: error.message
+        })}\n\n`;
+        reply.raw.write(errorEvent);
+        reply.raw.end();
+      }
+    }
+  }
+
   async processQuestion(request, reply) {
     const result = await this.aiClient.proxyRequest(
       'POST',
@@ -1038,7 +1222,36 @@ class AIProxyRoutes {
       
       // Build comprehensive prompt with conversation history for AI Engine
       let enhancedQuestion = message;
-      
+
+      // Check if subject requires mathematical formatting rules
+      const subject = (sessionInfo.subject || '').toLowerCase();
+      const isMathSubject = ['mathematics', 'math', 'physics', 'chemistry'].includes(subject);
+
+      // Math formatting rules (only for mathematical subjects)
+      const mathFormattingRules = `
+CRITICAL MATHEMATICAL FORMATTING RULES:
+You MUST use backslash delimiters for ALL mathematical expressions. Here are EXACT examples:
+
+CORRECT EXAMPLES (copy this format exactly):
+1. Inline math: "Consider the function \\(f(x) = 2x^2 - 4x + 1\\). The vertex is at \\(x = 1\\)."
+2. Display math: "The quadratic formula is: \\[x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\\]"
+3. Multiple expressions: "We have \\(a = 2\\), \\(b = -4\\), and \\(c = 1\\). Substituting: \\[x = \\frac{4 \\pm \\sqrt{16 - 8}}{4} = \\frac{4 \\pm \\sqrt{8}}{4}\\]"
+
+WRONG EXAMPLES (never do this):
+- "Consider the function $f$(x) = 2x$^2 - 4x + 1$" ❌
+- "The solution is $x = 3$" ❌
+- "$$x^2 + 1 = 0$$" ❌
+
+FORMATTING RULES:
+- Inline math: \\(expression\\)
+- Display math: \\[expression\\]
+- Variables: \\(x\\), \\(y\\), \\(f(x)\\)
+- Exponents: \\(x^2\\), \\(2^n\\)
+- Fractions: \\(\\frac{a}{b}\\)
+- Square roots: \\(\\sqrt{x}\\)
+- NEVER use $ or $$ anywhere
+- ALWAYS wrap math expressions in \\( \\) or \\[ \\]`;
+
       if (conversationHistory.length > 0) {
         // Create a conversation context string
         const conversationContext = conversationHistory
@@ -1052,64 +1265,18 @@ ${conversationContext}
 
 Student: ${message}
 
-Please provide a helpful response that takes into account our previous conversation. Be consistent with what we've discussed before and build upon previous topics when relevant.
+Please provide a helpful response that takes into account our previous conversation. Be consistent with what we've discussed before and build upon previous topics when relevant.${isMathSubject ? mathFormattingRules : ''}`;
 
-CRITICAL MATHEMATICAL FORMATTING RULES:
-You MUST use backslash delimiters for ALL mathematical expressions. Here are EXACT examples:
-
-CORRECT EXAMPLES (copy this format exactly):
-1. Inline math: "Consider the function \\(f(x) = 2x^2 - 4x + 1\\). The vertex is at \\(x = 1\\)."
-2. Display math: "The quadratic formula is: \\[x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\\]"
-3. Multiple expressions: "We have \\(a = 2\\), \\(b = -4\\), and \\(c = 1\\). Substituting: \\[x = \\frac{4 \\pm \\sqrt{16 - 8}}{4} = \\frac{4 \\pm \\sqrt{8}}{4}\\]"
-
-WRONG EXAMPLES (never do this):
-- "Consider the function $f$(x) = 2x$^2 - 4x + 1$" ❌
-- "The solution is $x = 3$" ❌  
-- "$$x^2 + 1 = 0$$" ❌
-
-FORMATTING RULES:
-- Inline math: \\(expression\\) 
-- Display math: \\[expression\\]
-- Variables: \\(x\\), \\(y\\), \\(f(x)\\)
-- Exponents: \\(x^2\\), \\(2^n\\)
-- Fractions: \\(\\frac{a}{b}\\)
-- Square roots: \\(\\sqrt{x}\\)
-- NEVER use $ or $$ anywhere
-- ALWAYS wrap math expressions in \\( \\) or \\[ \\]`;
-
-        this.fastify.log.info(`📝 Enhanced question with conversation context (${conversationHistory.length} previous messages)`);
+        this.fastify.log.info(`📝 Enhanced question with conversation context (${conversationHistory.length} previous messages)${isMathSubject ? ' + math formatting' : ''}`);
       } else {
-        // No conversation history, but still include LaTeX formatting instructions
+        // No conversation history - conditionally include formatting instructions
         enhancedQuestion = `You are an AI tutor helping a student in ${sessionInfo.subject || 'general studies'}.
 
 Student: ${message}
 
-Please provide a helpful response to the student's question.
+Please provide a helpful response to the student's question.${isMathSubject ? mathFormattingRules : ''}`;
 
-CRITICAL MATHEMATICAL FORMATTING RULES:
-You MUST use backslash delimiters for ALL mathematical expressions. Here are EXACT examples:
-
-CORRECT EXAMPLES (copy this format exactly):
-1. Inline math: "Consider the function \\(f(x) = 2x^2 - 4x + 1\\). The vertex is at \\(x = 1\\)."
-2. Display math: "The quadratic formula is: \\[x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\\]"
-3. Multiple expressions: "We have \\(a = 2\\), \\(b = -4\\), and \\(c = 1\\). Substituting: \\[x = \\frac{4 \\pm \\sqrt{16 - 8}}{4} = \\frac{4 \\pm \\sqrt{8}}{4}\\]"
-
-WRONG EXAMPLES (never do this):
-- "Consider the function $f$(x) = 2x$^2 - 4x + 1$" ❌
-- "The solution is $x = 3$" ❌  
-- "$$x^2 + 1 = 0$$" ❌
-
-FORMATTING RULES:
-- Inline math: \\(expression\\) 
-- Display math: \\[expression\\]
-- Variables: \\(x\\), \\(y\\), \\(f(x)\\)
-- Exponents: \\(x^2\\), \\(2^n\\)
-- Fractions: \\(\\frac{a}{b}\\)
-- Square roots: \\(\\sqrt{x}\\)
-- NEVER use $ or $$ anywhere
-- ALWAYS wrap math expressions in \\( \\) or \\[ \\]`;
-
-        this.fastify.log.info(`📝 Enhanced question with LaTeX formatting instructions (no conversation history)`);
+        this.fastify.log.info(`📝 Enhanced question${isMathSubject ? ' with math formatting' : ''} (no conversation history)`);
       }
       
       // Process the message using the same logic as processQuestion
@@ -1391,6 +1558,145 @@ FORMATTING RULES:
     } catch (error) {
       this.fastify.log.error('Error storing conversation:', error);
       // Don't fail the request if storage fails
+    }
+  }
+
+  async sendSessionMessageStream(request, reply) {
+    const startTime = Date.now();
+    const { sessionId } = request.params;
+    const { message, context } = request.body;
+    const fetch = require('node-fetch');
+
+    try {
+      // Get authenticated user ID from token
+      const authenticatedUserId = await this.getUserIdFromToken(request);
+
+      if (!authenticatedUserId) {
+        return reply.status(401).send({
+          error: 'Authentication required to send messages',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      this.fastify.log.info(`🟢 === STREAMING SESSION MESSAGE REQUEST ===`);
+      this.fastify.log.info(`📨 Session: ${sessionId.substring(0, 8)}... User: ${authenticatedUserId}`);
+      this.fastify.log.info(`💬 Message: ${message.substring(0, 100)}...`);
+
+      // Get session info and verify ownership
+      const sessionInfo = await this.getSessionFromDatabase(sessionId);
+      if (!sessionInfo) {
+        return reply.status(404).send({
+          error: 'Session not found',
+          code: 'SESSION_NOT_FOUND'
+        });
+      }
+
+      // Verify session belongs to authenticated user
+      if (sessionInfo.user_id !== authenticatedUserId) {
+        return reply.status(403).send({
+          error: 'Access denied - session belongs to different user',
+          code: 'ACCESS_DENIED'
+        });
+      }
+
+      // Get AI Engine URL
+      const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:5001';
+      const streamUrl = `${AI_ENGINE_URL}/api/v1/sessions/${sessionId}/message/stream`;
+
+      this.fastify.log.info(`📡 Proxying streaming request to: ${streamUrl}`);
+
+      // Make streaming request to AI Engine
+      const response = await fetch(streamUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          ...(process.env.SERVICE_AUTH_SECRET ? {
+            'X-Service-Auth': process.env.SERVICE_AUTH_SECRET
+          } : {})
+        },
+        body: JSON.stringify({
+          message: message
+          // Note: context is not part of SessionMessageRequest, removed
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI Engine returned ${response.status}: ${response.statusText}`);
+      }
+
+      // Set SSE headers
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no'
+      });
+
+      this.fastify.log.info('✅ Streaming connection established, proxying to client...');
+
+      // Track streaming metrics
+      let hasReceivedData = false;
+      let eventCount = 0;
+
+      // Pipe the stream from AI Engine to client
+      response.body.on('data', (chunk) => {
+        hasReceivedData = true;
+        eventCount++;
+        reply.raw.write(chunk);
+      });
+
+      response.body.on('end', () => {
+        const duration = Date.now() - startTime;
+        this.fastify.log.info('✅ === STREAMING SESSION MESSAGE COMPLETE ===');
+        this.fastify.log.info(`⏱️ Total streaming time: ${duration}ms`);
+        this.fastify.log.info(`📊 Events streamed: ${eventCount}`);
+        this.fastify.log.info(`📈 Data received: ${hasReceivedData}`);
+        reply.raw.end();
+      });
+
+      response.body.on('error', (error) => {
+        this.fastify.log.error('❌ Stream error from AI Engine:', error);
+
+        // Send error event if we haven't sent data yet
+        if (!hasReceivedData) {
+          const errorEvent = `data: ${JSON.stringify({
+            type: 'error',
+            error: 'Stream error from AI Engine',
+            message: error.message
+          })}\n\n`;
+          reply.raw.write(errorEvent);
+        }
+        reply.raw.end();
+      });
+
+      // Handle client disconnect
+      request.raw.on('close', () => {
+        this.fastify.log.info('⚠️ Client disconnected from streaming session message');
+        response.body.destroy();
+      });
+
+    } catch (error) {
+      this.fastify.log.error('❌ Error setting up streaming session message:', error);
+
+      // If headers not sent yet, send error response
+      if (!reply.raw.headersSent) {
+        return reply.status(500).send({
+          success: false,
+          error: 'Internal server error setting up streaming',
+          code: 'SESSION_MESSAGE_STREAM_ERROR',
+          processing_time_ms: Date.now() - startTime,
+          fallback_endpoint: `/api/ai/sessions/${sessionId}/message`  // Suggest fallback
+        });
+      } else {
+        // If streaming already started, send SSE error event
+        const errorEvent = `data: ${JSON.stringify({
+          type: 'error',
+          error: error.message
+        })}\n\n`;
+        reply.raw.write(errorEvent);
+        reply.raw.end();
+      }
     }
   }
 

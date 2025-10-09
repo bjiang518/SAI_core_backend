@@ -114,7 +114,7 @@ struct PDFPreviewView: View {
             }
             .sheet(isPresented: $showingEmailComposer) {
                 if let url = pdfURL {
-                    MailComposeView(
+                    PDFMailComposeView(
                         subject: "Study Practice Questions - \(subject)",
                         messageBody: createEmailBody(),
                         attachmentURL: url,
@@ -248,7 +248,8 @@ struct PDFKitView: UIViewRepresentable {
     }
 }
 
-struct MailComposeView: UIViewControllerRepresentable {
+// MailComposeView for PDF attachments (different from the one in ContactSupportView)
+struct PDFMailComposeView: UIViewControllerRepresentable {
     let subject: String
     let messageBody: String
     let attachmentURL: URL
@@ -276,9 +277,9 @@ struct MailComposeView: UIViewControllerRepresentable {
     }
 
     class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
-        let parent: MailComposeView
+        let parent: PDFMailComposeView
 
-        init(_ parent: MailComposeView) {
+        init(_ parent: PDFMailComposeView) {
             self.parent = parent
         }
 

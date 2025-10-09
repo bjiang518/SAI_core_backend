@@ -35,7 +35,15 @@ struct HomeworkResultsView: View {
     private var progressMarkedKey: String {
         return "homework_progress_marked_\(sessionId)"
     }
-    
+
+    // Dynamic navigation title with subject
+    private var navigationTitle: String {
+        if let subject = enhancedResult?.detectedSubject {
+            return String(format: NSLocalizedString("homeworkResults.titleWithSubject", comment: ""), subject)
+        }
+        return NSLocalizedString("homeworkResults.yourScore", comment: "")
+    }
+
     // Enhanced initializer that can accept either type
     init(parsingResult: HomeworkParsingResult, originalImageUrl: String?) {
         self.parsingResult = parsingResult
@@ -89,8 +97,8 @@ struct HomeworkResultsView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Your Score")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle(navigationTitle)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
@@ -98,7 +106,7 @@ struct HomeworkResultsView: View {
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "archivebox")
-                            Text("Archive")
+                            Text(NSLocalizedString("homeworkResults.archive", comment: ""))
                         }
                         .foregroundColor(.blue)
                     }
@@ -150,50 +158,39 @@ struct HomeworkResultsView: View {
     
     private var resultsSummarySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Report")
-                    .font(.headline)
-                    .foregroundColor(.black)
-                Spacer()
-            }
-            
             // Enhanced subject detection display
             if let enhanced = enhancedResult {
                 HStack {
-                    Text("Subject:")
+                    Text(NSLocalizedString("homeworkResults.subject", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.gray)
                     Text(enhanced.detectedSubject)
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(.black)
-                    
+
                     if enhanced.isHighConfidenceSubject {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.caption)
                             .foregroundColor(.green)
                     }
-                    
+
                     Spacer()
-                    
-                    Text(String(format: "%.0f%% confidence", enhanced.subjectConfidence * 100))
-                        .font(.caption)
-                        .foregroundColor(.gray)
                 }
                 .padding(.bottom, 4)
             }
-            
+
             HStack(spacing: 16) {
                 StatCard(
-                    title: "Questions",
+                    title: NSLocalizedString("homeworkResults.questions", comment: ""),
                     value: "\(parsingResult.questionCount)",
                     icon: "questionmark.circle.fill",
                     color: .blue
                 )
-                
+
                 StatCard(
-                    title: "Accuracy",
-                    value: String(format: "%.0f%%", 
+                    title: NSLocalizedString("homeworkResults.accuracy", comment: ""),
+                    value: String(format: "%.0f%%",
                         (enhancedResult?.calculatedAccuracy ?? parsingResult.calculatedAccuracy) * 100),
                     icon: "target",
                     color: accuracyColor(enhancedResult?.calculatedAccuracy ?? parsingResult.calculatedAccuracy)
@@ -213,46 +210,46 @@ struct HomeworkResultsView: View {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(.title3)
                     .foregroundColor(.blue)
-                
-                Text("Performance Summary")
+
+                Text(NSLocalizedString("homeworkResults.performanceSummary", comment: ""))
                     .font(.headline)
                     .foregroundColor(.black)
-                
+
                 Spacer()
             }
-            
+
             // AI Summary Text
             Text(summary.summaryText)
                 .font(.body)
                 .foregroundColor(.black)
                 .multilineTextAlignment(.leading)
                 .lineLimit(nil)
-            
+
             // Score breakdown (if there are incorrect answers)
             if summary.totalIncorrect > 0 || summary.totalEmpty > 0 {
                 HStack(spacing: 16) {
                     if summary.totalCorrect > 0 {
                         ScoreBreakdownItem(
-                            count: summary.totalCorrect, 
-                            label: "Correct", 
+                            count: summary.totalCorrect,
+                            label: NSLocalizedString("homeworkResults.correct", comment: ""),
                             color: .green,
                             icon: "checkmark.circle.fill"
                         )
                     }
-                    
+
                     if summary.totalIncorrect > 0 {
                         ScoreBreakdownItem(
-                            count: summary.totalIncorrect, 
-                            label: "Incorrect", 
+                            count: summary.totalIncorrect,
+                            label: NSLocalizedString("homeworkResults.incorrect", comment: ""),
                             color: .red,
                             icon: "xmark.circle.fill"
                         )
                     }
-                    
+
                     if summary.totalEmpty > 0 {
                         ScoreBreakdownItem(
-                            count: summary.totalEmpty, 
-                            label: "Empty", 
+                            count: summary.totalEmpty,
+                            label: NSLocalizedString("homeworkResults.empty", comment: ""),
                             color: .gray,
                             icon: "minus.circle.fill"
                         )
@@ -269,11 +266,11 @@ struct HomeworkResultsView: View {
     
     private var questionsListSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Questions & Answers")
+            Text(NSLocalizedString("homeworkResults.questionsAndAnswers", comment: ""))
                 .font(.headline)
                 .foregroundColor(.black) // Fixed: explicit black text
                 .padding(.horizontal)
-            
+
             // Numbered Questions
             if !parsingResult.numberedQuestions.isEmpty {
                 ForEach(Array(parsingResult.numberedQuestions.enumerated()), id: \.element.id) { index, question in
@@ -291,7 +288,7 @@ struct HomeworkResultsView: View {
                     )
                 }
             }
-            
+
             // Unnumbered Questions (as bullet points)
             if !parsingResult.unnumberedQuestions.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
@@ -299,13 +296,13 @@ struct HomeworkResultsView: View {
                         Divider()
                             .padding(.vertical, 8)
                     }
-                    
-                    Text("Additional Items")
+
+                    Text(NSLocalizedString("homeworkResults.additionalItems", comment: ""))
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(.gray) // Fixed: explicit gray text
                         .padding(.horizontal)
-                    
+
                     ForEach(Array(parsingResult.unnumberedQuestions.enumerated()), id: \.element.id) { index, question in
                         let adjustedIndex = parsingResult.numberedQuestions.count + index
                         QuestionAnswerCard(
@@ -335,7 +332,7 @@ struct HomeworkResultsView: View {
                 showingRawResponse.toggle()
             }) {
                 HStack {
-                    Text("Debug Info")
+                    Text(NSLocalizedString("homeworkResults.debugInfo", comment: ""))
                         .font(.caption)
                         .foregroundColor(.gray) // Fixed: explicit gray text
                     Spacer()
@@ -344,7 +341,7 @@ struct HomeworkResultsView: View {
                         .foregroundColor(.gray) // Fixed: explicit gray text
                 }
             }
-            
+
             if showingRawResponse {
                 ScrollView {
                     Text(parsingResult.rawAIResponse)
@@ -367,11 +364,11 @@ struct HomeworkResultsView: View {
     private var questionSelectionSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Select Questions to Archive")
+                Text(NSLocalizedString("homeworkResults.selectQuestionsToArchive", comment: ""))
                     .font(.headline)
                     .foregroundColor(.black)
                 Spacer()
-                Button(selectedQuestionIndices.count == parsingResult.allQuestions.count ? "Deselect All" : "Select All") {
+                Button(selectedQuestionIndices.count == parsingResult.allQuestions.count ? NSLocalizedString("common.deselectAll", comment: "") : NSLocalizedString("common.selectAll", comment: "")) {
                     if selectedQuestionIndices.count == parsingResult.allQuestions.count {
                         selectedQuestionIndices.removeAll()
                     } else {
@@ -381,9 +378,9 @@ struct HomeworkResultsView: View {
                 .font(.subheadline)
                 .foregroundColor(.blue)
             }
-            
+
             HStack {
-                Text("\(selectedQuestionIndices.count) of \(parsingResult.allQuestions.count) questions selected")
+                Text("\(selectedQuestionIndices.count) \(NSLocalizedString("common.of", comment: "")) \(parsingResult.allQuestions.count) \(NSLocalizedString("homeworkResults.questionsSelected", comment: ""))")
                     .font(.caption)
                     .foregroundColor(.gray)
                 Spacer()
@@ -416,7 +413,7 @@ struct HomeworkResultsView: View {
                 HStack {
                     Image(systemName: hasMarkedProgress ? "checkmark.circle.fill" : "chart.line.uptrend.xyaxis")
                         .font(.title3)
-                    Text(hasMarkedProgress ? "Progress Marked!" : "Mark Progress")
+                    Text(hasMarkedProgress ? NSLocalizedString("homeworkResults.progressMarked", comment: "") : NSLocalizedString("homeworkResults.markProgress", comment: ""))
                         .font(.headline)
                         .fontWeight(.semibold)
                 }
@@ -434,20 +431,20 @@ struct HomeworkResultsView: View {
                 .shadow(color: (hasMarkedProgress ? Color.green : Color.blue).opacity(0.3), radius: 8, x: 0, y: 4)
             }
             .disabled(hasMarkedProgress)
-            
+
             if hasMarkedProgress {
-                Text("✅ Your study progress has been updated!")
+                Text(NSLocalizedString("homeworkResults.progressUpdated", comment: ""))
                     .font(.subheadline)
                     .foregroundColor(.green)
                     .multilineTextAlignment(.center)
             } else {
                 VStack(spacing: 4) {
-                    Text("💡 Tip: Progress is automatically tracked when you archive questions!")
+                    Text(NSLocalizedString("homeworkResults.progressTip", comment: ""))
                         .font(.caption)
                         .foregroundColor(.blue)
                         .multilineTextAlignment(.center)
 
-                    Text("Or tap here to manually add these \(parsingResult.allQuestions.count) questions to your daily learning goals")
+                    Text(NSLocalizedString("homeworkResults.manuallyAddPrefix", comment: "") + "\(parsingResult.allQuestions.count)" + NSLocalizedString("homeworkResults.manuallyAddSuffix", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -526,7 +523,8 @@ struct QuestionAnswerCard: View {
     let onSelectionToggle: (() -> Void)?
     let showAsBullet: Bool
     let showSelection: Bool
-    
+    @StateObject private var appState = AppState.shared
+
     init(question: ParsedQuestion, isExpanded: Bool, isSelected: Bool = false, onToggle: @escaping () -> Void, onSelectionToggle: (() -> Void)? = nil, showAsBullet: Bool = false, showSelection: Bool = false) {
         self.question = question
         self.isExpanded = isExpanded
@@ -604,7 +602,7 @@ struct QuestionAnswerCard: View {
                                     Image(systemName: "photo.fill")
                                         .font(.caption2)
                                         .foregroundColor(.blue)
-                                    Text("Has Visual")
+                                    Text(NSLocalizedString("homeworkResults.hasVisual", comment: ""))
                                         .font(.caption2)
                                         .foregroundColor(.gray)
                                 }
@@ -638,20 +636,20 @@ struct QuestionAnswerCard: View {
                                     .padding(.top, 2)
                                 Spacer()
                             }
-                            
+
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Raw Question:")
+                                Text(NSLocalizedString("homeworkResults.rawQuestion", comment: ""))
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.gray)
-                                
+
                                 Text(rawQuestion)
                                     .font(.body)
                                     .foregroundColor(.black)
                                     .multilineTextAlignment(.leading)
                                     .textSelection(.enabled)
                             }
-                            
+
                             Spacer()
                         }
                         .padding(.horizontal)
@@ -670,9 +668,9 @@ struct QuestionAnswerCard: View {
                                         .padding(.top, 2)
                                     Spacer()
                                 }
-                                
+
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Student Answer:")
+                                    Text(NSLocalizedString("homeworkResults.studentAnswer", comment: ""))
                                         .font(.caption)
                                         .fontWeight(.semibold)
                                         .foregroundColor(.gray)
@@ -699,12 +697,12 @@ struct QuestionAnswerCard: View {
                                 }
                                 
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Student Answer:")
+                                    Text(NSLocalizedString("homeworkResults.studentAnswer", comment: ""))
                                         .font(.caption)
                                         .fontWeight(.semibold)
                                         .foregroundColor(.gray)
-                                    
-                                    Text("(No answer provided)")
+
+                                    Text(NSLocalizedString("homeworkResults.noAnswerProvided", comment: ""))
                                         .font(.body)
                                         .italic()
                                         .foregroundColor(.gray)
@@ -728,7 +726,7 @@ struct QuestionAnswerCard: View {
                                 }
                                 
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Correct Answer:")
+                                    Text(NSLocalizedString("homeworkResults.correctAnswer", comment: ""))
                                         .font(.caption)
                                         .fontWeight(.semibold)
                                         .foregroundColor(.gray)
@@ -757,7 +755,7 @@ struct QuestionAnswerCard: View {
                                 }
                                 
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Feedback:")
+                                    Text(NSLocalizedString("homeworkResults.feedback", comment: ""))
                                         .font(.caption)
                                         .fontWeight(.semibold)
                                         .foregroundColor(.gray)
@@ -795,7 +793,49 @@ struct QuestionAnswerCard: View {
                         }
                         .padding(.horizontal)
                     }
-                    
+
+                    // Follow Up Button - Navigate to chat with this question
+                    Button(action: {
+                        // Construct prompt for chat
+                        let chatPrompt = """
+I need help understanding this question from my homework:
+
+Question: \(question.questionText)
+
+\(question.isGraded && question.studentAnswer != nil && !question.studentAnswer!.isEmpty ? "My answer was: \(question.studentAnswer!)\n\n" : "")I'm unclear about how to approach this problem. Can you help me understand it better?
+"""
+                        // Detect subject from question or use default
+                        let detectedSubject = detectSubjectFromQuestion(question.questionText)
+
+                        // Navigate to chat with the question
+                        appState.navigateToChatWithMessage(chatPrompt, subject: detectedSubject)
+
+                        // Haptic feedback
+                        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                        impactFeedback.impactOccurred()
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "message.fill")
+                                .font(.system(size: 14, weight: .medium))
+
+                            Text(NSLocalizedString("homeworkResults.askAiForHelp", comment: ""))
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.blue, Color.blue.opacity(0.8)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
                     // Bottom padding
                     Color.clear.frame(height: 4)
                 }
@@ -853,6 +893,46 @@ struct QuestionAnswerCard: View {
         } else {
             return .red
         }
+    }
+
+    /// Simple subject detection from question text
+    private func detectSubjectFromQuestion(_ questionText: String) -> String {
+        let lowercaseText = questionText.lowercased()
+
+        // Math keywords
+        if lowercaseText.contains("equation") || lowercaseText.contains("solve") ||
+           lowercaseText.contains("calculate") || lowercaseText.contains("algebra") ||
+           lowercaseText.contains("geometry") || lowercaseText.contains("integral") ||
+           lowercaseText.contains("derivative") || lowercaseText.contains("function") {
+            return "Mathematics"
+        }
+
+        // Physics keywords
+        if lowercaseText.contains("force") || lowercaseText.contains("velocity") ||
+           lowercaseText.contains("acceleration") || lowercaseText.contains("energy") ||
+           lowercaseText.contains("momentum") || lowercaseText.contains("wave") ||
+           lowercaseText.contains("electric") || lowercaseText.contains("magnetic") {
+            return "Physics"
+        }
+
+        // Chemistry keywords
+        if lowercaseText.contains("element") || lowercaseText.contains("compound") ||
+           lowercaseText.contains("reaction") || lowercaseText.contains("molecule") ||
+           lowercaseText.contains("atom") || lowercaseText.contains("chemical") ||
+           lowercaseText.contains("periodic") || lowercaseText.contains("bond") {
+            return "Chemistry"
+        }
+
+        // Biology keywords
+        if lowercaseText.contains("cell") || lowercaseText.contains("organism") ||
+           lowercaseText.contains("dna") || lowercaseText.contains("gene") ||
+           lowercaseText.contains("evolution") || lowercaseText.contains("ecosystem") ||
+           lowercaseText.contains("species") || lowercaseText.contains("protein") {
+            return "Biology"
+        }
+
+        // Default to General if no specific subject detected
+        return "General"
     }
 }
 

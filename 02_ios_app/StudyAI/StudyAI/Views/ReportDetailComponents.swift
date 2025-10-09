@@ -512,7 +512,7 @@ import Charts
 
 // MARK: - Chart Data Models
 
-struct SubjectChartData {
+struct SubjectStudyTimeChartData {
     let subject: String
     let studyTime: Double
     let percentage: Double

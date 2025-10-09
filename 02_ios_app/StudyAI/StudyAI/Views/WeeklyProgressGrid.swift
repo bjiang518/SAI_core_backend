@@ -36,10 +36,9 @@ struct WeeklyProgressGrid: View {
             }
         }
         .onAppear {
-            // Ensure weekly progress is initialized
-            if pointsManager.currentWeeklyProgress == nil {
-                pointsManager.checkWeeklyReset()
-            }
+            // Don't call checkWeeklyReset here - it can overwrite today's data!
+            // Weekly reset should only happen on app launch, not when view appears
+            // Weekly progress will be created automatically when questions are answered
         }
         .onTapGesture(count: 3) {
             // Triple tap to show debug info
@@ -52,26 +51,21 @@ struct WeeklyProgressGrid: View {
     private func weekHeader(_ weeklyProgress: WeeklyProgress) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Weekly Progress")
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.black)
-                
+                Text(weeklyProgress.weekDisplayString)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
                 Spacer()
-                
+
                 Text("\(weeklyProgress.totalQuestionsThisWeek)")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(.blue)
             }
-            
+
             HStack {
-                Text(weeklyProgress.weekDisplayString)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
                 Spacer()
-                
+
                 Text("questions this week")
                     .font(.subheadline)
                     .foregroundColor(.secondary)

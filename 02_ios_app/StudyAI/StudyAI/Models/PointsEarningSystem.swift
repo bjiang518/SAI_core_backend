@@ -50,9 +50,9 @@ struct DailyQuestionActivity: Codable, Identifiable {
     var intensityLevel: ActivityIntensity {
         switch questionCount {
         case 0: return .none
-        case 1...10: return .light
-        case 11...20: return .medium
-        case 21...: return .high
+        case 1...5: return .light
+        case 6...15: return .medium
+        case 16...: return .high
         default: return .none
         }
     }
@@ -80,9 +80,9 @@ enum ActivityIntensity: String, CaseIterable, Codable {
     var color: Color {
         switch self {
         case .none: return Color.gray.opacity(0.1)
-        case .light: return Color.green.opacity(0.3)
-        case .medium: return Color.green.opacity(0.6)
-        case .high: return Color.green.opacity(0.9)
+        case .light: return Color.green.opacity(0.4)
+        case .medium: return Color.green.opacity(0.7)
+        case .high: return Color.green // Solid green for maximum contrast
         }
     }
 }
@@ -548,12 +548,14 @@ class PointsEarningManager: ObservableObject {
 
         lastTimezoneUpdate = userDefaults.object(forKey: lastTimezoneKey) as? Date
 
-        if let todayData = userDefaults.data(forKey: todayProgressKey),
-           let decodedTodayProgress = try? JSONDecoder().decode(DailyProgress.self, from: todayData) {
-            todayProgress = decodedTodayProgress
-        } else {
-            todayProgress = DailyProgress()
-        }
+        // ✅ CRITICAL FIX: Never load todayProgress from disk in loadStoredData()
+        // This prevents loading stale data from previous days or earlier launches today.
+        // The proper data will be loaded by either:
+        // 1. checkDailyReset() if we haven't reset yet today
+        // 2. loadTodaysActivityWithCacheStrategy() from server
+        // 3. trackQuestionAnswered() when user answers questions
+        todayProgress = DailyProgress()
+        logger.info("📊 [loadStoredData] Initialized todayProgress as empty (will be populated by cache strategy or question tracking)")
     }
     
     // MARK: - Batched UserDefaults Operations
@@ -706,18 +708,15 @@ class PointsEarningManager: ObservableObject {
         logger.info("🔄 [checkDailyReset] InstanceID: \(self.instanceId) - Checking daily reset")
         logger.info("🔄 [checkDailyReset] Today: \(todayString), Last Reset: \(lastResetDateString ?? "nil")")
 
-        // Check if the current todayProgress looks suspicious (like yesterday's data)
-        let hasStaleData = (todayProgress?.totalQuestions ?? 0) > 10 // More than 10 questions suggests yesterday's data
+        // ✅ FIX: Only reset on date change, never mid-day
+        // Previous logic incorrectly reset when question count > 10, causing data loss
+        logger.info("🔄 [checkDailyReset] Current todayProgress: \(self.todayProgress?.totalQuestions ?? 0) questions, \(self.todayProgress?.correctAnswers ?? 0) correct")
 
-        logger.info("🔄 [checkDailyReset] Current todayProgress: \(self.todayProgress?.totalQuestions ?? 0) questions, Has stale data: \(hasStaleData)")
-
-        // Reset if:
-        // 1. We haven't reset today yet (different date) OR
-        // 2. We have suspicious stale data (indicating server overwrote our reset)
-        let shouldReset = (lastResetDateString != todayString) || hasStaleData
+        // Reset ONLY if we haven't reset today yet (different date)
+        let shouldReset = (lastResetDateString != todayString)
 
         if shouldReset {
-            logger.info("🔄 [checkDailyReset] ⚠️ PERFORMING DAILY RESET - Reason: \(lastResetDateString != todayString ? "New day" : "Stale data detected")")
+            logger.info("🔄 [checkDailyReset] ⚠️ PERFORMING DAILY RESET - Reason: New day (was: \(lastResetDateString ?? "never"), now: \(todayString))")
 
             // Calculate streak before resetting daily data
             updateStreakForNewDay()
@@ -764,8 +763,9 @@ class PointsEarningManager: ObservableObject {
         // CRITICAL: Reset daily points earned to 0 for new day
         dailyPointsEarned = 0
 
-        // Reset streak update tracking for new day
-        lastStreakUpdateDate = nil
+        // ✅ FIX: Do NOT reset lastStreakUpdateDate here!
+        // It's managed by updateStreakForNewDay() and updateActivityBasedStreak()
+        // to prevent multiple streak updates on the same day
 
 
         // Final state verification
@@ -785,8 +785,15 @@ class PointsEarningManager: ObservableObject {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         dateFormatter.timeZone = TimeZone.current
+        let todayString = dateFormatter.string(from: today)
         let yesterdayString = dateFormatter.string(from: yesterday)
 
+        // ✅ FIX: Prevent multiple streak updates on same day
+        // Check if we've already updated the streak for this transition
+        if let lastUpdate = lastStreakUpdateDate, lastUpdate == todayString {
+            logger.info("🔥 [STREAK] Already updated streak for today (\(todayString)), skipping")
+            return
+        }
 
         // Check if user had any activity yesterday
         let hadActivityYesterday = checkActivityOnDate(yesterday)
@@ -794,11 +801,17 @@ class PointsEarningManager: ObservableObject {
         if hadActivityYesterday {
             // User was active yesterday, continue/increment streak
             currentStreak += 1
+            logger.info("🔥 [STREAK] User was active yesterday (\(yesterdayString)), incrementing streak to \(self.currentStreak)")
         } else {
             // User was not active yesterday, reset streak to 0
             // Streak will be set to 1 when user becomes active today
             currentStreak = 0
+            logger.info("🔥 [STREAK] User was NOT active yesterday (\(yesterdayString)), resetting streak to 0")
         }
+
+        // Mark that we've updated the streak for today's transition
+        lastStreakUpdateDate = todayString
+        logger.info("🔥 [STREAK] Set lastStreakUpdateDate to \(todayString)")
 
         // Update streak-related goals
         updateWeeklyStreakGoal()
@@ -988,6 +1001,9 @@ class PointsEarningManager: ObservableObject {
 
         // Update weekly progress tracking
         updateWeeklyProgress(questionCount: 1, subject: subject)
+
+        // Validate consistency between today's progress and weekly grid
+        validateTodayConsistency()
 
         // Save data with logging
         saveData()
@@ -1324,12 +1340,16 @@ class PointsEarningManager: ObservableObject {
 
         // Create or update current week progress
         if currentWeeklyProgress == nil {
+            print("📊 [updateLocalWeeklyProgress] Creating new currentWeeklyProgress")
             currentWeeklyProgress = createCurrentWeekProgress(timezone: timezone)
         }
 
         guard var weeklyProgress = currentWeeklyProgress else {
+            print("❌ [updateLocalWeeklyProgress] Failed to get weeklyProgress")
             return
         }
+
+        print("📊 [updateLocalWeeklyProgress] Current weeklyProgress has \(weeklyProgress.dailyActivities.count) activities")
 
         // Get today's date string
         let dateFormatter = DateFormatter()
@@ -1337,17 +1357,21 @@ class PointsEarningManager: ObservableObject {
         dateFormatter.timeZone = TimeZone.current
         let todayString = dateFormatter.string(from: currentDate)
 
+        print("📊 [updateLocalWeeklyProgress] Today's date: \(todayString), adding \(questionCount) questions")
+
         // Find or create today's activity
         if let existingIndex = weeklyProgress.dailyActivities.firstIndex(where: { $0.date == todayString }) {
             // Update existing day with bounds checking
             let currentCount = weeklyProgress.dailyActivities[existingIndex].questionCount
             weeklyProgress.dailyActivities[existingIndex].questionCount = max(0, currentCount + questionCount)
+            print("📊 [updateLocalWeeklyProgress] ✅ Updated existing activity at index \(existingIndex): \(currentCount) → \(weeklyProgress.dailyActivities[existingIndex].questionCount)")
         } else {
             // Add new day activity
             let dayOfWeek = calendar.component(.weekday, from: currentDate)
             let adjustedDayOfWeek = dayOfWeek == 1 ? 7 : dayOfWeek - 1 // Convert Sunday=1 to Sunday=7, Monday=2 to Monday=1
 
             guard adjustedDayOfWeek >= 1 && adjustedDayOfWeek <= 7 else {
+                print("❌ [updateLocalWeeklyProgress] Invalid dayOfWeek: \(adjustedDayOfWeek)")
                 return
             }
 
@@ -1358,10 +1382,14 @@ class PointsEarningManager: ObservableObject {
                 timezone: timezone
             )
             weeklyProgress.dailyActivities.append(newActivity)
+            print("📊 [updateLocalWeeklyProgress] ✅ Created new activity: date=\(todayString), dayOfWeek=\(adjustedDayOfWeek), count=\(questionCount)")
         }
 
         // Update total questions for the week with bounds checking
         weeklyProgress.totalQuestionsThisWeek = max(0, weeklyProgress.dailyActivities.reduce(0) { $0 + $1.questionCount })
+
+        print("📊 [updateLocalWeeklyProgress] Total questions this week: \(weeklyProgress.totalQuestionsThisWeek)")
+        print("📊 [updateLocalWeeklyProgress] Final dailyActivities count: \(weeklyProgress.dailyActivities.count)")
 
         // Save updated progress
         currentWeeklyProgress = weeklyProgress
@@ -1461,6 +1489,46 @@ class PointsEarningManager: ObservableObject {
 
         // Force create fresh weekly progress
         checkWeeklyReset()
+    }
+
+    /// Validate consistency between todayProgress and weekly grid today
+    private func validateTodayConsistency() {
+        guard let todayProgress = todayProgress,
+              let weeklyProgress = currentWeeklyProgress else {
+            return
+        }
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.timeZone = TimeZone.current
+        let today = dateFormatter.string(from: Date())
+
+        // Find today's activity in weekly progress
+        guard let weeklyToday = weeklyProgress.dailyActivities.first(where: { $0.date == today }) else {
+            logger.warning("[CONSISTENCY] Today (\(today)) not found in weekly progress")
+            return
+        }
+
+        // Check if counts match
+        if todayProgress.totalQuestions != weeklyToday.questionCount {
+            logger.warning("[CONSISTENCY] ⚠️ MISMATCH DETECTED:")
+            logger.warning("[CONSISTENCY]   todayProgress.totalQuestions = \(todayProgress.totalQuestions)")
+            logger.warning("[CONSISTENCY]   weeklyProgress today = \(weeklyToday.questionCount)")
+            logger.warning("[CONSISTENCY] ✅ Auto-fixing: Using weekly progress as source of truth")
+
+            // Auto-fix: Use weekly progress as source of truth
+            self.todayProgress = DailyProgress(
+                totalQuestions: weeklyToday.questionCount,
+                correctAnswers: todayProgress.correctAnswers, // Keep original correct count
+                studyTimeMinutes: todayProgress.studyTimeMinutes,
+                subjectsStudied: todayProgress.subjectsStudied
+            )
+
+            saveData()
+            logger.info("[CONSISTENCY] ✅ Fixed todayProgress to match weekly grid")
+        } else {
+            logger.debug("[CONSISTENCY] ✅ todayProgress and weekly grid are consistent: \(todayProgress.totalQuestions) questions")
+        }
     }
 
     /// Check if we need to start a new week (called on app launch)
@@ -1652,15 +1720,10 @@ class PointsEarningManager: ObservableObject {
     /// NEW: Load today's activity with cache-first strategy
     /// This implements: 1) Use local if available, 2) Otherwise load from server
     private func loadTodaysActivityWithCacheStrategy() async {
-        logger.info("[CACHE_STRATEGY] === LOADING TODAY'S ACTIVITY WITH CACHE-FIRST STRATEGY ===")
-
         // Get user ID for diagnostic logging
         let authService = await MainActor.run { AuthenticationService.shared }
         let currentUserId = await MainActor.run { authService.currentUser?.id }
         let currentUserEmail = await MainActor.run { authService.currentUser?.email }
-
-        logger.info("[CACHE_STRATEGY] 📱 Device Info - User ID: \(currentUserId ?? "nil"), Email: \(currentUserEmail ?? "nil")")
-        logger.info("[CACHE_STRATEGY] 📱 Device Info - InstanceID: \(self.instanceId)")
 
         // Check if we have valid local data
         let hasValidLocalData = todayProgress?.totalQuestions ?? 0 > 0
@@ -1673,23 +1736,13 @@ class PointsEarningManager: ObservableObject {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let todayString = dateFormatter.string(from: today)
 
-        logger.info("[CACHE_STRATEGY] 📅 Date Info - Today: \(todayString), Last Reset: \(lastResetDateString ?? "nil")")
-        logger.info("[CACHE_STRATEGY] 💾 Local Cache - Has valid data: \(hasValidLocalData), Questions: \(self.todayProgress?.totalQuestions ?? 0), Correct: \(self.todayProgress?.correctAnswers ?? 0)")
-
         if hasValidLocalData {
-            logger.info("[CACHE_STRATEGY] ✅ Using cached local data: \(self.todayProgress?.totalQuestions ?? 0) questions, \(self.todayProgress?.correctAnswers ?? 0) correct")
-            logger.info("[CACHE_STRATEGY] === END LOADING TODAY'S ACTIVITY WITH CACHE-FIRST STRATEGY (USED CACHE) ===")
             // Local cache is available and valid, use it
             return
         }
 
         // No local data or local data is empty - load from server
-        logger.info("[CACHE_STRATEGY] ⬇️ Local cache empty, loading from server...")
-        logger.info("[CACHE_STRATEGY] 🌐 Fetching server data for User ID: \(currentUserId ?? "nil"), Timezone: \(TimeZone.current.identifier)")
-
         guard let networkService = await getNetworkService() else {
-            logger.info("[CACHE_STRATEGY] ❌ NetworkService unavailable")
-            logger.info("[CACHE_STRATEGY] === END LOADING TODAY'S ACTIVITY WITH CACHE-FIRST STRATEGY (FAILED - NO SERVICE) ===")
             return
         }
 
@@ -1697,22 +1750,56 @@ class PointsEarningManager: ObservableObject {
             timezone: TimeZone.current.identifier
         )
 
-        logger.info("[CACHE_STRATEGY] 🌐 Server Response - Success: \(result.success), Message: \(result.message ?? "nil")")
-
         if result.success, let serverTodayProgress = result.todayProgress {
             await MainActor.run {
-                logger.info("[CACHE_STRATEGY] 📊 Server Data - Questions: \(serverTodayProgress.totalQuestions), Correct: \(serverTodayProgress.correctAnswers), Accuracy: \(Int(serverTodayProgress.accuracy))%")
+                // ✅ SAFETY: Validate server data before using it
+                guard serverTodayProgress.totalQuestions >= 0,
+                      serverTodayProgress.correctAnswers >= 0,
+                      serverTodayProgress.correctAnswers <= serverTodayProgress.totalQuestions else {
+                    return
+                }
 
-                // Server has data - use it
-                self.todayProgress = serverTodayProgress
-                logger.info("[CACHE_STRATEGY] ✅ Loaded from server: \(serverTodayProgress.totalQuestions) questions, \(serverTodayProgress.correctAnswers) correct, \(Int(serverTodayProgress.accuracy))% accuracy")
+                // ✅ CRITICAL: Cross-reference with weekly progress to detect stale data
+                // The "today" endpoint sometimes returns stale data from previous days
+                // If today's date doesn't appear in weekly progress, use 0 instead
+                let calendar = Calendar.current
+                let today = calendar.startOfDay(for: Date())
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+                dateFormatter.timeZone = TimeZone.current
+                let todayString = dateFormatter.string(from: today)
+
+                // Check if today exists in weekly progress data
+                var todayActivityFromWeekly: DailyQuestionActivity? = nil
+                if let weeklyProgress = self.currentWeeklyProgress {
+                    todayActivityFromWeekly = weeklyProgress.dailyActivities.first { $0.date == todayString }
+                }
+
+                if let weeklyActivity = todayActivityFromWeekly {
+                    // Today's date exists in weekly progress - use that as the source of truth
+                    let weeklyQuestions = weeklyActivity.questionCount
+
+                    if weeklyQuestions != serverTodayProgress.totalQuestions {
+                        // Use weekly progress data (more reliable)
+                        self.todayProgress = DailyProgress(
+                            totalQuestions: weeklyQuestions,
+                            correctAnswers: weeklyQuestions, // Assume all correct if we don't have breakdown
+                            studyTimeMinutes: serverTodayProgress.studyTimeMinutes,
+                            subjectsStudied: serverTodayProgress.subjectsStudied
+                        )
+                    } else {
+                        // Data matches, use server data
+                        self.todayProgress = serverTodayProgress
+                    }
+                } else {
+                    // Today doesn't exist in weekly progress - this means NO activity today
+                    // Override with empty progress (no activity today)
+                    self.todayProgress = DailyProgress()
+                }
+
                 saveData()
-
-                logger.info("[CACHE_STRATEGY] === END LOADING TODAY'S ACTIVITY WITH CACHE-FIRST STRATEGY (LOADED FROM SERVER) ===")
             }
         } else {
-            logger.info("[CACHE_STRATEGY] ℹ️ No server data available: \(result.message ?? "Unknown reason")")
-            logger.info("[CACHE_STRATEGY] === END LOADING TODAY'S ACTIVITY WITH CACHE-FIRST STRATEGY (NO SERVER DATA) ===")
             // Server has no data - keep empty local state
         }
     }
@@ -1734,6 +1821,14 @@ class PointsEarningManager: ObservableObject {
 
         if result.success, let serverTodayProgress = result.todayProgress {
             await MainActor.run {
+                // ✅ SAFETY: Validate server data before using it
+                guard serverTodayProgress.totalQuestions >= 0,
+                      serverTodayProgress.correctAnswers >= 0,
+                      serverTodayProgress.correctAnswers <= serverTodayProgress.totalQuestions else {
+                    logger.info("[TODAY'S ACTIVITY] ⚠️ Server data is invalid, rejecting")
+                    return
+                }
+
                 // Smart merge with timestamp consideration
                 if let localProgress = self.todayProgress {
                     // Only update if server data is significantly more complete

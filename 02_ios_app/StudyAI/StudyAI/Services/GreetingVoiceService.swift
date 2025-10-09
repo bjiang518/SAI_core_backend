@@ -57,8 +57,6 @@ class GreetingVoiceService: ObservableObject {
             self.isPreloading = true
         }
 
-        print("🎤 GreetingVoiceService: Starting to preload \(greetings.count) greetings...")
-
         // Use user's voice settings for preloading
         let userSettings = voiceInteractionService.voiceSettings
         let voiceSettings = VoiceSettings(
@@ -69,22 +67,17 @@ class GreetingVoiceService: ObservableObject {
             expressiveness: 1.2  // More expressive for greetings
         )
 
-        for (index, greeting) in greetings.enumerated() {
+        for greeting in greetings {
             do {
                 // Use the new preloadAudio method to actually cache the audio
                 try await ttsService.preloadAudio(greeting, with: voiceSettings)
 
-                print("🎤 GreetingVoiceService: Preloaded greeting \(index + 1)/\(greetings.count)")
-
                 // Small delay to avoid overwhelming the server
                 try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
             } catch {
-                print("🎤 GreetingVoiceService: Failed to preload greeting \(index + 1): \(error)")
                 // Continue with next greeting even if one fails
             }
         }
-
-        print("🎤 GreetingVoiceService: Finished preloading all greetings!")
 
         // Set preloading state to false when done
         await MainActor.run {

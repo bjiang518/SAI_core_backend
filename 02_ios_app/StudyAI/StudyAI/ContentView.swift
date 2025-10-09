@@ -68,12 +68,12 @@ struct ContentView: View {
 
 struct MainTabView: View {
     let onLogout: () -> Void
-    @State private var selectedTab: MainTab = .home
+    @StateObject private var appState = AppState.shared
 
     var body: some View {
         TabView(selection: Binding(
-            get: { selectedTab.rawValue },
-            set: { selectedTab = MainTab(rawValue: $0) ?? .home }
+            get: { appState.selectedTab.rawValue },
+            set: { appState.selectedTab = MainTab(rawValue: $0) ?? .home }
         )) {
             // Home Tab
             NavigationStack {
@@ -142,16 +142,16 @@ struct MainTabView: View {
             .tag(MainTab.library.rawValue)
         }
         .tint(.blue)
-        .onChange(of: selectedTab) { oldTab, newTab in
+        .onChange(of: appState.selectedTab) { oldTab, newTab in
             // Tab selection changed
         }
         .onAppear {
             // MainTabView appeared
         }
     }
-    
+
     private func selectTab(_ tab: MainTab) {
-        selectedTab = tab
+        appState.selectedTab = tab
     }
 }
 
@@ -166,6 +166,9 @@ struct ModernProfileView: View {
     @State private var showingNotificationSettings = false
     @State private var showingLanguageSettings = false
     @State private var showingPasswordManagement = false
+    @State private var showingHelpCenter = false
+    @State private var showingContactSupport = false
+    @State private var showingShareSheet = false
 
     var body: some View {
         NavigationView {
@@ -224,18 +227,6 @@ struct ModernProfileView: View {
                                 .background(Color.blue.opacity(0.1))
                                 .foregroundColor(.blue)
                                 .cornerRadius(8)
-                            }
-                            
-                            // Profile completion indicator
-                            if let profile = profileService.currentProfile {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "person.circle.fill")
-                                        .font(.caption)
-                                        .foregroundColor(profile.isProfileComplete ? .green : .orange)
-                                    Text("Profile \(profile.profileCompletionPercentage)% complete")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
                             }
                         }
                         
@@ -334,10 +325,33 @@ struct ModernProfileView: View {
 
                 // Support Section
                 Section(NSLocalizedString("settings.support", comment: "")) {
-                    SettingsRow(icon: "questionmark.circle.fill", title: NSLocalizedString("settings.help", comment: ""), color: .blue)
-                    SettingsRow(icon: "envelope.fill", title: NSLocalizedString("settings.contact", comment: ""), color: .green)
-                    SettingsRow(icon: "star.fill", title: NSLocalizedString("settings.rateApp", comment: ""), color: .yellow)
-                    SettingsRow(icon: "square.and.arrow.up.fill", title: NSLocalizedString("settings.shareApp", comment: ""), color: .cyan)
+                    Button(action: {
+                        showingHelpCenter = true
+                    }) {
+                        SettingsRow(icon: "questionmark.circle.fill", title: NSLocalizedString("settings.help", comment: ""), color: .blue)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: {
+                        showingContactSupport = true
+                    }) {
+                        SettingsRow(icon: "envelope.fill", title: NSLocalizedString("settings.contact", comment: ""), color: .green)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: {
+                        rateApp()
+                    }) {
+                        SettingsRow(icon: "star.fill", title: NSLocalizedString("settings.rateApp", comment: ""), color: .yellow)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: {
+                        showingShareSheet = true
+                    }) {
+                        SettingsRow(icon: "square.and.arrow.up.fill", title: NSLocalizedString("settings.shareApp", comment: ""), color: .cyan)
+                    }
+                    .buttonStyle(.plain)
                 }
                 
                 // App Info Section
@@ -383,6 +397,21 @@ struct ModernProfileView: View {
         }
         .sheet(isPresented: $showingPasswordManagement) {
             PasswordManagementView()
+        }
+        .sheet(isPresented: $showingHelpCenter) {
+            HelpCenterView()
+        }
+        .sheet(isPresented: $showingContactSupport) {
+            ContactSupportView()
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            ShareAppView()
+        }
+    }
+
+    private func rateApp() {
+        if let url = URL(string: "https://apps.apple.com/app/id6504105201?action=write-review") {
+            UIApplication.shared.open(url)
         }
     }
 

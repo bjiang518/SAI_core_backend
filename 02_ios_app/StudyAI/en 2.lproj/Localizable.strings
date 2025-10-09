@@ -170,6 +170,7 @@
 
 // Homework Results
 "homeworkResults.yourScore" = "Your Score";
+"homeworkResults.titleWithSubject" = "Your %@ Homework Report";
 "homeworkResults.archive" = "Archive";
 "homeworkResults.report" = "Report";
 "homeworkResults.subject" = "Subject:";
@@ -197,6 +198,7 @@
 "homeworkResults.noAnswerProvided" = "(No answer provided)";
 "homeworkResults.correctAnswer" = "Correct Answer:";
 "homeworkResults.feedback" = "Feedback:";
+"homeworkResults.askAiForHelp" = "Ask AI for Help";
 "homeworkResults.archiveSuccess" = "Successfully archived ";
 "homeworkResults.archiveSuccessSuffix" = " question(s) to your Mistake Notebook!";
 "homeworkResults.archiveFailure" = "Failed to archive questions: ";
@@ -277,3 +279,177 @@
 "questionGeneration.questions" = "Questions";
 "questionGeneration.selectArchives" = "Select Archives";
 "questionGeneration.conversation" = "Conversation";
+"settings.textSize" = "Text Size";
+"settings.language" = "Language";
+"settings.voiceAudio" = "Voice & Audio";
+"settings.voiceSettings" = "Voice Settings";
+"settings.learning" = "Learning";
+"settings.learningGoals" = "Learning Goals & Progress";
+"settings.support" = "Support";
+"settings.help" = "Help & FAQ";
+"settings.contact" = "Contact Support";
+"settings.rateApp" = "Rate App";
+"settings.shareApp" = "Share App";
+
+// Profile
+"profile.complete" = "Profile %d%% complete";
+"profile.biometricLogin" = "%@ Login";
+
+// Study Reminders
+"studyReminders.title" = "Study Reminders";
+"studyReminders.permissions" = "Permissions";
+"studyReminders.notificationPermission" = "Notification Permission";
+"studyReminders.enabled" = "Notifications enabled";
+"studyReminders.denied" = "Notifications denied";
+"studyReminders.notConfigured" = "Not configured";
+"studyReminders.enable" = "Enable Notifications";
+"studyReminders.description" = "Enable notifications to receive study reminders and stay on track with your learning goals.";
+"studyReminders.daily" = "Daily Study Reminders";
+"studyReminders.dailyDescription" = "Get reminded to study at your scheduled time each day.";
+"studyReminders.schedule" = "Schedule";
+"studyReminders.studyTime" = "Study Time";
+"studyReminders.timeDescription" = "You'll be reminded to study at %@";
+"studyReminders.studyDays" = "Study Days";
+"studyReminders.daysDescription" = "Reminders will be sent on %@";
+"studyReminders.weekdays" = "Weekdays";
+"studyReminders.everyDay" = "Every Day";
+"studyReminders.clear" = "Clear";
+"studyReminders.save" = "Save";
+"studyReminders.cancel" = "Cancel";
+
+// Days of Week
+"day.monday" = "Monday";
+"day.tuesday" = "Tuesday";
+"day.wednesday" = "Wednesday";
+"day.thursday" = "Thursday";
+"day.friday" = "Friday";
+"day.saturday" = "Saturday";
+"day.sunday" = "Sunday";
+
+// Common
+"common.done" = "Done";
+"common.cancel" = "Cancel";
+"common.save" = "Save";
+"progress.title" = "Progress";
+"progress.loadingProgress" = "Loading your progress...";
+"progress.unableToLoadData" = "Unable to Load Data";
+"progress.tryAgain" = "Try Again";
+"progress.yourLearningJourney" = "Your Learning Journey";
+"progress.pointsToday" = "Points Today";
+"progress.streak" = "Streak";
+"progress.days" = "days";
+"progress.totalPoints" = "Total Points";
+"progress.todaysActivity" = "Today's Activity";
+"progress.questions" = "Questions";
+"progress.correct" = "Correct";
+"progress.accuracy" = "Accuracy";
+"progress.weeklyActivity" = "Weekly Activity";
+"progress.monthlyActivity" = "Monthly Activity";
+"progress.thisWeek" = "This Week";
+"progress.thisMonth" = "This Month";
+"progress.lastMonth" = "Last Month";
+"progress.subjectBreakdown" = "Subject Breakdown";
+"progress.allSubjects" = "All Subjects";
+"progress.subjects" = "Subjects";
+"progress.mostStudied" = "Most Studied: %@";
+"progress.topPerforming" = "Top Performing: %@";
+"progress.viewAllSubjects" = "View All Subjects";
+"progress.learningGoals" = "Learning Goals";
+"progress.noActiveGoals" = "No active learning goals";
+"progress.checkedOut" = "Checked out";
+"progress.recentCheckouts" = "Recent Checkouts";
+"progress.goalsCompleted" = "%d goals completed";
+"progress.pointsEarned" = "+%d pts";
+"progress.weekendBonus" = "Weekend 2x";
+"progress.total" = "Total";
+"progress.activityLevel" = "Activity Level";
+"progress.less" = "Less";
+"progress.more" = "More";
+"progress.questionsThisMonth" = "questions this month";
+"progress.noSubjectData" = "No Subject Data Yet";
+"progress.noSubjectDataMessage" = "Answer questions across different subjects to see your breakdown!";
+"progress.noSubjectDataForFilter" = "No %@ Data Yet";
+"progress.noSubjectDataForFilterMessage" = "Ask questions about %@ to see your progress here!";
+"progress.quickInsights" = "Quick Insights";
+"progress.insightsFor" = "Insights for %@";
+"progress.focusOn" = "Focus on: %@";
+"progress.keepUp" = "Keep up: %@";
+"progress.recommendedStudyTime" = "Recommended study time: %d minutes per day";
+"progress.subjectComparison" = "Subject Comparison";
+"progress.topPerformingCategory" = "Top Performing";
+"progress.needsAttention" = "Needs Attention";
+"progress.noSubjectDataAvailable" = "No subject data available";
+"progress.pointsAvailable" = "+%d pts";
+
+// Library View
+"library.title" = "Study Library";
+"library.refreshLibrary" = "Refresh Library";
+"library.advancedSearch" = "Advanced Search";
+"library.clearFilters" = "Clear Filters";
+"library.filterBySubject" = "Filter by Subject";
+"library.allSubjects" = "All Subjects";
+"library.debugInfo" = "Debug Info";
+"library.searchPlaceholder" = "Search by question, subject, or content...";
+"library.updating" = "Updating...";
+
+// Content Type Filters
+"library.contentType.allSessions" = "All Sessions";
+"library.contentType.questionsOnly" = "Questions Only";
+"library.contentType.conversationsOnly" = "Conversations Only";
+
+// Quick Filters
+"library.filter.thisWeek" = "This Week";
+"library.filter.thisMonth" = "This Month";
+"library.filter.withImages" = "With Images";
+
+// Stats Header
+"library.stats.questions" = "Questions";
+"library.stats.conversations" = "Conversations";
+"library.stats.totalSessions" = "Total Sessions";
+"library.stats.showing" = "Showing: %@";
+"library.stats.showAll" = "Show All";
+"library.stats.subject" = "Subject: %@";
+
+// Library Item
+"library.item.tapToReview" = "Tap to review";
+"library.item.homeworkSession" = "Homework Session";
+"library.item.archivedQuestion" = "Archived Question";
+"library.item.conversationSession" = "Conversation Session";
+
+// Empty States
+"library.empty.signInRequired" = "Sign In Required";
+"library.empty.signInMessage" = "Please sign in to access your personal Study Library";
+"library.empty.libraryEmpty" = "Your Study Library is Empty";
+"library.empty.libraryEmptyMessage" = "Complete homework with AI Homework or start conversations to build your study library";
+"library.empty.loading" = "Loading your Study Library...";
+
+// No Results
+"library.noResults.title" = "No Results Found";
+"library.noResults.adjustFilters" = "Try adjusting your search or filters";
+"library.noResults.noMatch" = "No study sessions match your criteria";
+
+// Advanced Search
+"library.advancedSearch.title" = "Advanced Search";
+"library.advancedSearch.cancel" = "Cancel";
+"library.advancedSearch.search" = "Search";
+"library.advancedSearch.clearSearch" = "Clear Search";
+
+"library.advancedSearch.searchText" = "Search Text";
+"library.advancedSearch.searchPlaceholder" = "Search questions...";
+
+"library.advancedSearch.subjectFilter" = "Subject Filter";
+"library.advancedSearch.subject" = "Subject";
+"library.advancedSearch.allSubjects" = "All Subjects";
+
+"library.advancedSearch.gradeFilter" = "Grade Filter";
+"library.advancedSearch.grade" = "Grade";
+"library.advancedSearch.allGrades" = "All Grades";
+
+"library.advancedSearch.dateRange" = "Date Range";
+"library.advancedSearch.allTime" = "All Time";
+"library.advancedSearch.last7Days" = "Last 7 Days";
+"library.advancedSearch.last30Days" = "Last 30 Days";
+"library.advancedSearch.last3Months" = "Last 3 Months";
+
+"library.advancedSearch.sortOrder" = "Sort Order";
+"library.advancedSearch.sortBy" = "Sort By";

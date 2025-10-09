@@ -181,7 +181,7 @@ class MathFormattingService {
             "\\\\\\[.*?\\\\\\]", // LaTeX display math \[...\] - NEW PRIMARY
             "\\$.*?\\$", // LaTeX inline math $...$ - FALLBACK
             "\\$\\$.*?\\$\\$", // LaTeX display math $$...$$ - FALLBACK
-            
+
             // LaTeX commands and functions
             "\\\\sqrt\\{.*?\\}", // LaTeX square root
             "\\\\frac\\{.*?\\}\\{.*?\\}", // LaTeX fractions
@@ -189,7 +189,13 @@ class MathFormattingService {
             "\\\\int_\\{.*?\\}", // Integral with bounds
             "\\\\sum_\\{.*?\\}", // Summation
             "\\\\[a-zA-Z]+\\{.*?\\}", // Generic LaTeX commands
-            
+
+            // Subscripts (PHASE 1 ENHANCEMENT)
+            "_\\d+", // Simple subscripts: _2, _10
+            "_\\{[^}]+\\}", // Braced subscripts: _{10}, _{i+1}
+            "[a-zA-Z]+_\\d+", // Function subscripts: log_2, x_1
+            "[a-zA-Z]+_\\{[^}]+\\}", // Braced function subscripts: log_{10}
+
             // Mathematical symbols and patterns
             "\\d+[x-z]", // Variables like 2x, 3y
             "[x-z]\\s*[+\\-*/=]", // Variables with operators
@@ -197,7 +203,7 @@ class MathFormattingService {
             "\\d+/\\d+", // Fractions like 3/4
             "[+\\-*/=]\\s*\\d", // Basic math operations
             "\\([^)]*[+\\-*/][^)]*\\)", // Expressions in parentheses
-            
+
             // Greek letters (common in math)
             "\\\\(alpha|beta|gamma|delta|epsilon|theta|phi|psi|omega|sigma)", // LaTeX Greek
             "[αβγδεθφψωσ]", // Unicode Greek
@@ -512,15 +518,17 @@ enum TextComponent {
 struct MathFormattedText: View {
     let content: String
     let fontSize: CGFloat
-    
-    init(_ content: String, fontSize: CGFloat = 16) {
+    let mathBackgroundColor: Color
+
+    init(_ content: String, fontSize: CGFloat = 16, mathBackgroundColor: Color = Color.blue.opacity(0.1)) {
         self.content = content
         self.fontSize = fontSize
+        self.mathBackgroundColor = mathBackgroundColor
     }
-    
+
     var body: some View {
         let components = MathFormattingService.shared.parseTextWithMath(content)
-        
+
         return VStack(alignment: .leading, spacing: 8) {
             ForEach(Array(components.enumerated()), id: \.offset) { index, component in
                 switch component {
@@ -537,7 +545,7 @@ struct MathFormattedText: View {
                         .font(.system(size: fontSize, design: .monospaced))
                         .padding(.vertical, 4)
                         .padding(.horizontal, 8)
-                        .background(Color.blue.opacity(0.1))
+                        .background(mathBackgroundColor)
                         .cornerRadius(8)
                         .frame(minHeight: 40)
                         .onAppear {

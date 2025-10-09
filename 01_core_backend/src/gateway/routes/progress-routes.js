@@ -42,13 +42,13 @@ class ProgressRoutes {
 
     // Map common variations to iOS SubjectCategory enum raw values
     const subjectMap = {
-      // Math variations
-      'math': 'Mathematics',
-      'maths': 'Mathematics',
-      'mathematics': 'Mathematics',
-      'algebra': 'Mathematics',
-      'geometry': 'Mathematics',
-      'calculus': 'Mathematics',
+      // Math variations - CRITICAL: Must match iOS enum raw value "Math"
+      'math': 'Math',
+      'maths': 'Math',
+      'mathematics': 'Math',
+      'algebra': 'Math',
+      'geometry': 'Math',
+      'calculus': 'Math',
 
       // Science subjects
       'physics': 'Physics',
@@ -191,6 +191,30 @@ class ProgressRoutes {
         }
       }
     }, this.getSubjectInsights.bind(this));
+
+    // Get monthly activity data
+    this.fastify.post('/api/progress/monthly/:userId', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get monthly activity data for calendar view',
+        tags: ['Progress'],
+        params: {
+          type: 'object',
+          properties: {
+            userId: { type: 'string' }
+          }
+        },
+        body: {
+          type: 'object',
+          properties: {
+            year: { type: 'integer', description: 'Year (e.g., 2025)' },
+            month: { type: 'integer', description: 'Month (1-12)' },
+            timezone: { type: 'string', description: 'Client timezone (e.g., America/Los_Angeles)' }
+          },
+          required: ['year', 'month']
+        }
+      }
+    }, this.getMonthlyActivity.bind(this));
 
     // Health check for progress service
     this.fastify.get('/api/progress/health', {
@@ -402,34 +426,81 @@ class ProgressRoutes {
   async getSubjectBreakdown(request, reply) {
     try {
       const { userId } = request.params;
-      
-      this.fastify.log.info(`📊 Fetching subject breakdown for user: ${userId}`);
+      const { timeframe = 'current_week' } = request.query; // Get timeframe from query
 
-      // Get subject progress summary
+      this.fastify.log.info(`📊 Fetching subject breakdown for user: ${userId}, timeframe: ${timeframe}`);
+
+      // Calculate date range based on timeframe
+      let startDate, endDate;
+      const now = new Date();
+
+      if (timeframe === 'current_week') {
+        // Current week: Monday to Sunday
+        const dayOfWeek = now.getDay();
+        const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - daysFromMonday);
+        startDate.setHours(0, 0, 0, 0);
+
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+        endDate.setHours(23, 59, 59, 999);
+      } else if (timeframe === 'current_month') {
+        // Current month: First day to last day of current month
+        const firstDayCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDayCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        startDate = firstDayCurrentMonth;
+        endDate = lastDayCurrentMonth;
+      } else if (timeframe === 'last_month') {
+        // Last month: First day to last day of previous month (for backward compatibility)
+        const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+        startDate = firstDayLastMonth;
+        endDate = lastDayLastMonth;
+      } else {
+        // Default to current week
+        const dayOfWeek = now.getDay();
+        const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - daysFromMonday);
+        startDate.setHours(0, 0, 0, 0);
+
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+        endDate.setHours(23, 59, 59, 999);
+      }
+
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+
+      this.fastify.log.info(`📊 Date range: ${startDateStr} to ${endDateStr}`);
+
+      // Query daily activities for the timeframe and aggregate by subject
       const subjectProgressQuery = `
-        SELECT 
-          sp.subject,
-          sp.total_questions_attempted,
-          sp.total_questions_correct,
-          sp.accuracy_rate,
-          sp.total_time_spent,
-          sp.average_confidence,
-          sp.streak_count,
-          sp.last_activity_date,
-          sp.performance_trend,
-          COUNT(DISTINCT qs.id) as recent_sessions
-        FROM subject_progress sp
-        LEFT JOIN question_sessions qs ON sp.user_id = qs.user_id 
-          AND sp.subject = qs.subject 
-          AND qs.session_date >= NOW() - INTERVAL '7 days'
-        WHERE sp.user_id = $1
-        GROUP BY sp.subject, sp.total_questions_attempted, sp.total_questions_correct, 
-                 sp.accuracy_rate, sp.total_time_spent, sp.average_confidence, 
-                 sp.streak_count, sp.last_activity_date, sp.performance_trend
-        ORDER BY sp.last_activity_date DESC
+        SELECT
+          subject,
+          SUM(questions_attempted) as total_questions_attempted,
+          SUM(questions_correct) as total_questions_correct,
+          CASE
+            WHEN SUM(questions_attempted) > 0
+            THEN (SUM(questions_correct)::float / SUM(questions_attempted)::float * 100)
+            ELSE 0
+          END as accuracy_rate,
+          SUM(time_spent) as total_time_spent,
+          0.8 as average_confidence,
+          0 as streak_count,
+          MAX(activity_date) as last_activity_date,
+          'stable' as performance_trend,
+          COUNT(DISTINCT DATE(activity_date)) as recent_sessions
+        FROM daily_subject_activities
+        WHERE user_id = $1
+          AND DATE(activity_date) >= $2
+          AND DATE(activity_date) <= $3
+        GROUP BY subject
+        ORDER BY last_activity_date DESC
       `;
 
-      const subjectProgress = await db.query(subjectProgressQuery, [userId]);
+      const subjectProgress = await db.query(subjectProgressQuery, [userId, startDateStr, endDateStr]);
       
       this.fastify.log.info(`🔍 DEBUG: Raw database query results:`);
       this.fastify.log.info(`🔍 DEBUG: Found ${subjectProgress.rows.length} subjects`);
@@ -441,9 +512,9 @@ class ProgressRoutes {
         this.fastify.log.info(`🔍 DEBUG:   - total_time_spent: ${row.total_time_spent}`);
       });
 
-      // Get daily activities for the last 7 days
+      // Get daily activities for the selected timeframe
       const dailyActivitiesQuery = `
-        SELECT 
+        SELECT
           activity_date,
           subject,
           questions_attempted,
@@ -451,11 +522,13 @@ class ProgressRoutes {
           time_spent,
           points_earned
         FROM daily_subject_activities
-        WHERE user_id = $1 AND activity_date >= NOW() - INTERVAL '7 days'
+        WHERE user_id = $1
+          AND DATE(activity_date) >= $2
+          AND DATE(activity_date) <= $3
         ORDER BY activity_date DESC, subject
       `;
 
-      const dailyActivities = await db.query(dailyActivitiesQuery, [userId]);
+      const dailyActivities = await db.query(dailyActivitiesQuery, [userId, startDateStr, endDateStr]);
 
       // Get subject insights
       const insightsQuery = `
@@ -700,11 +773,31 @@ class ProgressRoutes {
         this.fastify.log.info(`🔍 DEBUG:   total_time_spent: ${result.total_time_spent}`);
       }
 
-      // Record daily activity
-      const today = new Date().toISOString().split('T')[0];
+      // ✅ CRITICAL FIX: Use client's timezone to determine today's date
+      // This prevents timezone-related date mismatches where server UTC midnight
+      // doesn't match client's local date
+      let today;
+      if (clientTimezone) {
+        try {
+          // Calculate today's date in client's timezone
+          const now = new Date();
+          const clientDate = new Date(now.toLocaleString('en-US', { timeZone: clientTimezone }));
+          today = clientDate.toISOString().split('T')[0];
+          this.fastify.log.info(`📅 Using client timezone (${clientTimezone}) for date: ${today}`);
+        } catch (error) {
+          // Fallback to server date if timezone parsing fails
+          this.fastify.log.warn(`⚠️ Failed to parse client timezone ${clientTimezone}, using server date`);
+          today = new Date().toISOString().split('T')[0];
+        }
+      } else {
+        // No client timezone provided, use server date
+        today = new Date().toISOString().split('T')[0];
+        this.fastify.log.info(`📅 No client timezone provided, using server date: ${today}`);
+      }
+
       const upsertDailyQuery = `
         INSERT INTO daily_subject_activities (
-          user_id, activity_date, subject, questions_attempted, 
+          user_id, activity_date, subject, questions_attempted,
           questions_correct, time_spent, points_earned
         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (user_id, activity_date, subject) DO UPDATE SET
@@ -851,14 +944,27 @@ class ProgressRoutes {
       this.fastify.log.info(`📱 TODAY'S ACTIVITY: timezone: ${timezone}`);
       this.fastify.log.info(`📱 TODAY'S ACTIVITY: client date: ${date}`);
 
-      // Use the date provided by client, or calculate today's date
+      // Use the date provided by client, or calculate today's date in client's timezone
       let today;
       if (date && typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
         today = date;
         this.fastify.log.info(`📱 TODAY'S ACTIVITY: Using client provided date: ${today}`);
+      } else if (timezone) {
+        // ✅ CRITICAL FIX: Calculate today's date in client's timezone
+        try {
+          const now = new Date();
+          const clientDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+          today = clientDate.toISOString().split('T')[0];
+          this.fastify.log.info(`📱 TODAY'S ACTIVITY: Calculated date from client timezone (${timezone}): ${today}`);
+        } catch (error) {
+          // Fallback to server date if timezone parsing fails
+          this.fastify.log.warn(`⚠️ Failed to parse timezone ${timezone}, using server date`);
+          today = new Date().toISOString().split('T')[0];
+          this.fastify.log.info(`📱 TODAY'S ACTIVITY: Using server fallback date: ${today}`);
+        }
       } else {
-        today = new Date().toISOString().split('T')[0]; // For now, use server date
-        this.fastify.log.info(`📱 TODAY'S ACTIVITY: Using server calculated date: ${today}`);
+        today = new Date().toISOString().split('T')[0];
+        this.fastify.log.info(`📱 TODAY'S ACTIVITY: No timezone provided, using server date: ${today}`);
       }
 
       // Query today's activities from daily_subject_activities table
@@ -971,6 +1077,76 @@ class ProgressRoutes {
       return reply.status(500).send({
         success: false,
         error: 'Failed to fetch subject insights',
+        message: error.message
+      });
+    }
+  }
+
+  async getMonthlyActivity(request, reply) {
+    try {
+      const { userId } = request.params;
+      const { year, month, timezone = 'UTC' } = request.body || {};
+
+      this.fastify.log.info(`📅 === GET MONTHLY ACTIVITY ===`);
+      this.fastify.log.info(`📅 User ID: ${userId}`);
+      this.fastify.log.info(`📅 Year: ${year}, Month: ${month}`);
+      this.fastify.log.info(`📅 Timezone: ${timezone}`);
+
+      // Validate year and month
+      if (!year || !month || month < 1 || month > 12) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Invalid year or month',
+          message: 'Year and month (1-12) are required'
+        });
+      }
+
+      // Calculate the first and last day of the month
+      const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
+      const lastDayDate = new Date(year, month, 0); // Day 0 of next month = last day of current month
+      const lastDay = `${year}-${String(month).padStart(2, '0')}-${String(lastDayDate.getDate()).padStart(2, '0')}`;
+
+      this.fastify.log.info(`📅 Date range: ${firstDay} to ${lastDay}`);
+
+      // Query daily activities for the entire month
+      const monthlyQuery = `
+        SELECT
+          DATE(activity_date) as date,
+          SUM(questions_attempted) as question_count
+        FROM daily_subject_activities
+        WHERE user_id = $1
+          AND DATE(activity_date) >= $2
+          AND DATE(activity_date) <= $3
+        GROUP BY DATE(activity_date)
+        ORDER BY date
+      `;
+
+      const result = await db.query(monthlyQuery, [userId, firstDay, lastDay]);
+
+      this.fastify.log.info(`📅 Found ${result.rows.length} days with activity`);
+
+      // Transform to iOS-compatible format
+      const monthlyActivities = result.rows.map(row => ({
+        date: row.date.toISOString().split('T')[0], // yyyy-MM-dd format
+        questionCount: parseInt(row.question_count) || 0
+      }));
+
+      return reply.send({
+        success: true,
+        data: {
+          year: year,
+          month: month,
+          activities: monthlyActivities
+        },
+        message: `Retrieved ${monthlyActivities.length} days of activity for ${year}-${month}`
+      });
+
+    } catch (error) {
+      this.fastify.log.error('📅 Error fetching monthly activity:', error);
+      this.fastify.log.error('📅 Error stack:', error.stack);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to fetch monthly activity',
         message: error.message
       });
     }

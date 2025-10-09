@@ -68,11 +68,10 @@ struct LearningProgressView: View {
     }
     
     var body: some View {
-
-        return ScrollView {
+        ScrollView {
             LazyVStack(spacing: 20) {
                 if isLoading {
-                    ProgressView("Loading your progress...")
+                    ProgressView("progress.loadingProgress")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding()
                 } else if !errorMessage.isEmpty {
@@ -85,17 +84,17 @@ struct LearningProgressView: View {
             }
             .padding()
         }
-        .navigationTitle("📊 Progress")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationTitle(NSLocalizedString("progress.title", comment: "Progress tab title"))
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Menu {
-                    Button(selectedSubjectFilter?.displayName ?? "All Subjects") {}
+                    Button(selectedSubjectFilter?.displayName ?? NSLocalizedString("progress.allSubjects", comment: "All subjects filter option")) {}
                         .disabled(true)
 
                     Divider()
 
-                    Button("All Subjects") {
+                    Button(NSLocalizedString("progress.allSubjects", comment: "All subjects filter option")) {
                         selectedSubjectFilter = nil
                         loadingTask?.cancel()
                         loadingTask = Task {
@@ -206,7 +205,7 @@ struct LearningProgressView: View {
 
         }
 
-        // Weekly Progress Grid
+        // Weekly Progress Section
         WeeklyProgressSection()
 
         // Subject Breakdown Section (Main Feature)
@@ -226,27 +225,27 @@ struct LearningProgressView: View {
     @ViewBuilder
     private func OverviewMetricsCard() -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Your Learning Journey")
+            Text("progress.yourLearningJourney")
                 .font(.headline)
                 .fontWeight(.bold)
 
             HStack(spacing: 20) {
                 ProgressMetric(
-                    title: "Points Today",
+                    title: NSLocalizedString("progress.pointsToday", comment: "Points earned today"),
                     value: "\(calculateTodayPoints())",
                     icon: "star.fill",
                     color: .blue
                 )
 
                 ProgressMetric(
-                    title: "Streak",
-                    value: "\(pointsManager.currentStreak) days",
+                    title: NSLocalizedString("progress.streak", comment: "Current streak"),
+                    value: "\(pointsManager.currentStreak) \(NSLocalizedString("progress.days", comment: "days unit"))",
                     icon: "flame.fill",
                     color: .orange
                 )
 
                 ProgressMetric(
-                    title: "Total Points",
+                    title: NSLocalizedString("progress.totalPoints", comment: "Total points earned"),
                     value: "\(pointsManager.totalPointsEarned)",
                     icon: "star.circle.fill",
                     color: .green
@@ -263,7 +262,7 @@ struct LearningProgressView: View {
     @ViewBuilder
     private func WeeklyProgressSection() -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(selectedTimeframe == .currentWeek ? "Weekly Activity" : "Monthly Activity")
+            Text(selectedTimeframe == .currentWeek ? NSLocalizedString("progress.weeklyActivity", comment: "Weekly activity title") : NSLocalizedString("progress.monthlyActivity", comment: "Monthly activity title"))
                 .font(.headline)
                 .fontWeight(.bold)
 
@@ -276,8 +275,8 @@ struct LearningProgressView: View {
                             pointsManager.checkWeeklyReset()
                         }
                     }
-            } else if selectedTimeframe == .lastMonth {
-                // Show monthly calendar for last month
+            } else if selectedTimeframe == .currentMonth {
+                // Show monthly calendar for current month
                 MonthlyProgressGrid()
             }
         }
@@ -291,12 +290,14 @@ struct LearningProgressView: View {
     @ViewBuilder
     private func SubjectBreakdownSection() -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("📚 Subject Breakdown")
+            HStack(alignment: .center) {
+                Text("progress.subjectBreakdown")
                     .font(.headline)
                     .fontWeight(.bold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
-                Spacer()
+                Spacer(minLength: 8)
 
                 HStack(spacing: 4) {
                     if let filter = selectedSubjectFilter {
@@ -320,15 +321,11 @@ struct LearningProgressView: View {
                         .foregroundColor(.blue)
                     }
                 }
+                .fixedSize(horizontal: true, vertical: false)
             }
 
             if let data = subjectBreakdownData {
                 let filteredData = applySubjectFilter(data)
-
-                // Overall Summary
-                if filteredData.summary.totalSubjectsStudied > 0 {
-                    SubjectSummaryCard(summary: filteredData.summary, filter: selectedSubjectFilter)
-                }
 
                 // Enhanced Visualizations with Charts
                 if !filteredData.subjectProgress.isEmpty && selectedSubjectFilter == nil {
@@ -357,7 +354,7 @@ struct LearningProgressView: View {
     @ViewBuilder
     private func LearningGoalsSection() -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Learning Goals")
+            Text("progress.learningGoals")
                 .font(.headline)
                 .fontWeight(.bold)
 
@@ -365,7 +362,7 @@ struct LearningProgressView: View {
             let filteredGoals = pointsManager.learningGoals.filter { $0.type != .weeklyStreak }
 
             if filteredGoals.isEmpty {
-                Text("No active learning goals")
+                Text("progress.noActiveGoals")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -392,27 +389,27 @@ struct LearningProgressView: View {
 
 
         return VStack(alignment: .leading, spacing: 16) {
-            Text("Today's Activity")
+            Text("progress.todaysActivity")
                 .font(.headline)
                 .fontWeight(.bold)
 
             HStack(spacing: 20) {
                 ProgressMetric(
-                    title: "Questions",
+                    title: NSLocalizedString("progress.questions", comment: "Questions count"),
                     value: "\(todayProgress.totalQuestions)",
                     icon: "questionmark.circle.fill",
                     color: .blue
                 )
 
                 ProgressMetric(
-                    title: "Correct",
+                    title: NSLocalizedString("progress.correct", comment: "Correct answers count"),
                     value: "\(todayProgress.correctAnswers)",
                     icon: "checkmark.circle.fill",
                     color: .green
                 )
 
                 ProgressMetric(
-                    title: "Accuracy",
+                    title: NSLocalizedString("progress.accuracy", comment: "Accuracy percentage"),
                     value: "\(Int(todayProgress.accuracy))%",
                     icon: "target",
                     color: .orange
@@ -429,7 +426,7 @@ struct LearningProgressView: View {
     @ViewBuilder
     private func RecentCheckoutsSection() -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Recent Checkouts")
+            Text("progress.recentCheckouts")
                 .font(.headline)
                 .fontWeight(.bold)
             
@@ -445,23 +442,9 @@ struct LearningProgressView: View {
     // MARK: - Helper Methods
 
     private func calculateTodayPoints() -> Int {
-        // Calculate points based on today's progress and checked out daily goals
-        guard let todayProgress = pointsManager.todayProgress else { return 0 }
-
-        var points = 0
-
-        // Add points for questions answered (basic calculation)
-        points += todayProgress.correctAnswers * 10 // 10 points per correct answer
-        points += (todayProgress.totalQuestions - todayProgress.correctAnswers) * 5 // 5 points per wrong answer
-
-        // Add points from checked out daily goals (this is what the user requested)
-        let checkedOutDailyGoals = pointsManager.learningGoals.filter { $0.isDaily && $0.isCheckedOut }
-        for goal in checkedOutDailyGoals {
-            points += pointsManager.calculateAvailablePoints(for: goal)
-        }
-
-        // Apply daily maximum of 100 points as requested by user
-        return min(points, 100)
+        // Return the actual daily points earned from PointsEarningManager
+        // This is automatically tracked when goals are checked out
+        return pointsManager.dailyPointsEarned
     }
 
     // Helper method to apply subject filtering
@@ -520,7 +503,7 @@ struct LearningProgressView: View {
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.blue)
-                    Text("Subjects")
+                    Text("progress.subjects")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -532,7 +515,7 @@ struct LearningProgressView: View {
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.green)
-                    Text("Accuracy")
+                    Text("progress.accuracy")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -547,16 +530,16 @@ struct LearningProgressView: View {
                         Image(systemName: "star.fill")
                             .foregroundColor(.yellow)
                             .font(.caption)
-                        Text("Most Studied: \(mostStudied.displayName)")
+                        Text(String.localizedStringWithFormat(NSLocalizedString("progress.mostStudied", comment: ""), mostStudied.displayName))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Image(systemName: "trophy.fill")
                             .foregroundColor(.gold)
                             .font(.caption)
-                        Text("Top Performing: \(topPerforming.displayName)")
+                        Text(String.localizedStringWithFormat(NSLocalizedString("progress.topPerforming", comment: ""), topPerforming.displayName))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -584,7 +567,7 @@ struct LearningProgressView: View {
         }
         
         if subjectProgress.count > 6 {
-            Button("View All Subjects") {
+            Button(NSLocalizedString("progress.viewAllSubjects", comment: "View all subjects button")) {
                 // Could navigate to full subject breakdown view
             }
             .font(.caption)
@@ -622,8 +605,8 @@ struct LearningProgressView: View {
                         .fontWeight(.medium)
                         .multilineTextAlignment(.leading)
                         .lineLimit(1)
-                    
-                    Text("\(progress.questionsAnswered) questions")
+
+                    Text("\(progress.questionsAnswered) \(NSLocalizedString("progress.questions", comment: "Questions label"))")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -647,24 +630,24 @@ struct LearningProgressView: View {
                 Image(systemName: "lightbulb.fill")
                     .foregroundColor(.yellow)
                     .font(.caption)
-                Text(filter != nil ? "Insights for \(filter!.displayName)" : "Quick Insights")
+                Text(filter != nil ? String.localizedStringWithFormat(NSLocalizedString("progress.insightsFor", comment: ""), filter!.displayName) : NSLocalizedString("progress.quickInsights", comment: ""))
                     .font(.subheadline)
                     .fontWeight(.semibold)
             }
-            
+
             if !insights.subjectToFocus.isEmpty {
                 InsightRow(
                     icon: "exclamationmark.triangle.fill",
                     color: .orange,
-                    text: "Focus on: \(insights.subjectToFocus.map { $0.displayName }.joined(separator: ", "))"
+                    text: String.localizedStringWithFormat(NSLocalizedString("progress.focusOn", comment: ""), insights.subjectToFocus.map { $0.displayName }.joined(separator: ", "))
                 )
             }
-            
+
             if !insights.subjectsToMaintain.isEmpty {
                 InsightRow(
                     icon: "checkmark.circle.fill",
                     color: .green,
-                    text: "Keep up: \(insights.subjectsToMaintain.map { $0.displayName }.joined(separator: ", "))"
+                    text: String.localizedStringWithFormat(NSLocalizedString("progress.keepUp", comment: ""), insights.subjectsToMaintain.map { $0.displayName }.joined(separator: ", "))
                 )
             }
             
@@ -682,7 +665,7 @@ struct LearningProgressView: View {
                 InsightRow(
                     icon: "clock.fill",
                     color: .purple,
-                    text: "Recommended study time: \(recommendedTime) minutes per day"
+                    text: String.localizedStringWithFormat(NSLocalizedString("progress.recommendedStudyTime", comment: ""), recommendedTime)
                 )
             }
         }
@@ -712,12 +695,12 @@ struct LearningProgressView: View {
             Image(systemName: subject.icon)
                 .font(.title2)
                 .foregroundColor(subject.swiftUIColor)
-            
-            Text("No \(subject.displayName) Data Yet")
+
+            Text(String.localizedStringWithFormat(NSLocalizedString("progress.noSubjectDataForFilter", comment: ""), subject.displayName))
                 .font(.subheadline)
                 .fontWeight(.medium)
-            
-            Text("Ask questions about \(subject.displayName) to see your progress here!")
+
+            Text(String.localizedStringWithFormat(NSLocalizedString("progress.noSubjectDataForFilterMessage", comment: ""), subject.displayName))
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -736,7 +719,7 @@ struct LearningProgressView: View {
                 Image(systemName: "chart.bar.xaxis")
                     .foregroundColor(.blue)
                     .font(.caption)
-                Text("Subject Comparison")
+                Text("progress.subjectComparison")
                     .font(.subheadline)
                     .fontWeight(.semibold)
             }
@@ -751,7 +734,7 @@ struct LearningProgressView: View {
                             Image(systemName: "trophy.fill")
                                 .foregroundColor(.gold)
                                 .font(.caption2)
-                            Text("Top Performing")
+                            Text("progress.topPerformingCategory")
                                 .font(.caption)
                                 .fontWeight(.medium)
                         }
@@ -773,7 +756,7 @@ struct LearningProgressView: View {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
                                 .font(.caption2)
-                            Text("Needs Attention")
+                            Text("progress.needsAttention")
                                 .font(.caption)
                                 .fontWeight(.medium)
                         }
@@ -824,12 +807,12 @@ struct LearningProgressView: View {
             Image(systemName: "book.closed")
                 .font(.title2)
                 .foregroundColor(.secondary)
-            
-            Text("No Subject Data Yet")
+
+            Text("progress.noSubjectData")
                 .font(.subheadline)
                 .fontWeight(.medium)
-            
-            Text("Answer questions across different subjects to see your breakdown!")
+
+            Text("progress.noSubjectDataMessage")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -1000,109 +983,126 @@ struct LearningProgressView: View {
 struct SubjectAccuracyBarChart: View {
     let subjectProgress: [SubjectProgressData]
 
-    private var chartData: [SubjectAccuracyChartData] {
-        let data = subjectProgress.map { progress in
-            SubjectAccuracyChartData(
-                subject: progress.subject.displayName,
-                accuracy: progress.averageAccuracy,
-                color: getAccuracyColor(progress.averageAccuracy)
-            )
-        }.sorted { $0.accuracy > $1.accuracy }
+    private var chartData: [SubjectChartData] {
+        // Remove duplicates by subject name and keep the one with more questions
+        let grouped = Dictionary(grouping: subjectProgress) { $0.subject.displayName }
+        let deduplicated = grouped.compactMap { (key, values) -> SubjectProgressData? in
+            values.max(by: { $0.questionsAnswered < $1.questionsAnswered })
+        }
 
-        return data
+        return deduplicated.map { progress in
+            SubjectChartData(
+                subject: progress.subject.displayName,
+                totalQuestions: progress.questionsAnswered,
+                correctAnswers: progress.correctAnswers,
+                accuracy: progress.averageAccuracy,
+                color: progress.subject.swiftUIColor
+            )
+        }.sorted { $0.totalQuestions > $1.totalQuestions }
     }
 
-    private var averageAccuracy: Double {
-        guard !subjectProgress.isEmpty else { return 0 }
-        let total = subjectProgress.reduce(0) { $0 + $1.averageAccuracy }
-        return total / Double(subjectProgress.count)
+    private var maxQuestions: Int {
+        chartData.map { $0.totalQuestions }.max() ?? 1
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Subject Accuracy Comparison")
-                .font(.headline)
-                .fontWeight(.bold)
-
+        VStack(alignment: .leading, spacing: 12) {
             if !chartData.isEmpty {
-                VStack(spacing: 12) {
-                    // Average line indicator
-                    HStack {
-                        Rectangle()
-                            .fill(Color.gray)
-                            .frame(width: 20, height: 2)
-                        Text("Average: \(String(format: "%.1f", averageAccuracy))%")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-
-                    // Horizontal Bar Chart
-                    Chart(chartData, id: \.subject) { data in
-                        BarMark(
-                            x: .value("Accuracy", data.accuracy),
-                            y: .value("Subject", data.subject),
-                            height: .fixed(20)
-                        )
-                        .foregroundStyle(data.color.gradient)
-                        .cornerRadius(4)
-
-                        // Average reference line
-                        RuleMark(x: .value("Average", averageAccuracy))
-                            .foregroundStyle(Color.gray)
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
-                    }
-                    .frame(height: max(120, CGFloat(chartData.count * 35)))
-                    .chartXScale(domain: 0...100)
-                    .chartXAxis {
-                        AxisMarks(values: [0, 25, 50, 75, 100]) { value in
-                            AxisGridLine()
-                            AxisTick()
-                            AxisValueLabel {
-                                if let intValue = value.as(Int.self) {
-                                    Text("\(intValue)%")
-                                        .font(.caption2)
-                                }
-                            }
-                        }
-                    }
-                    .chartYAxis {
-                        AxisMarks { value in
-                            AxisValueLabel {
-                                if let stringValue = value.as(String.self) {
-                                    Text(stringValue)
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                }
-                            }
-                        }
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(chartData, id: \.subject) { data in
+                        SubjectBarRow(data: data, maxValue: maxQuestions)
                     }
                 }
             } else {
-                Text("No accuracy data available")
+                Text("progress.noSubjectDataAvailable")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 40)
             }
         }
-        .padding()
+        .padding(.horizontal, 12)
+        .padding(.vertical, 16)
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(12)
     }
+}
 
-    private func getAccuracyColor(_ accuracy: Double) -> Color {
-        switch accuracy {
-        case 90...: return .green
-        case 80..<90: return .blue
-        case 70..<80: return .yellow
-        case 60..<70: return .orange
-        default: return .red
+// MARK: - Subject Bar Row
+
+struct SubjectBarRow: View {
+    let data: SubjectChartData
+    let maxValue: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Subject name and accuracy in one row
+            HStack {
+                Text(data.subject)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+
+                Spacer()
+
+                // Accuracy percentage on the right
+                Text("\(Int(data.accuracy))%")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundColor(data.color)
+            }
+
+            // Bars below the subject name
+            HStack(spacing: 8) {
+                // Overlapping bars
+                ZStack(alignment: .leading) {
+                    // Background bar (total questions) - light gray
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(height: 24)
+
+                    // Total questions bar (semi-transparent subject color)
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(data.color.opacity(0.3))
+                        .frame(width: barWidth(for: data.totalQuestions), height: 24)
+
+                    // Correct answers bar (solid subject color) - overlaps on top
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(data.color)
+                        .frame(width: barWidth(for: data.correctAnswers), height: 24)
+
+                    // Question counts inside the bar
+                    HStack {
+                        Text("\(data.correctAnswers)/\(data.totalQuestions)")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                            .padding(.leading, 8)
+                        Spacer()
+                    }
+                    .frame(width: barWidth(for: data.totalQuestions), height: 24)
+                }
+            }
         }
+    }
+
+    private func barWidth(for value: Int) -> CGFloat {
+        guard maxValue > 0 else { return 0 }
+        let screenWidth = UIScreen.main.bounds.width
+        let maxBarWidth = screenWidth - 80 // Account for padding (40 on each side)
+        return max(40, maxBarWidth * CGFloat(value) / CGFloat(maxValue)) // Minimum 40 width
     }
 }
 
 // MARK: - Chart Data Models
+
+struct SubjectChartData {
+    let subject: String
+    let totalQuestions: Int
+    let correctAnswers: Int
+    let accuracy: Double
+    let color: Color
+}
 
 struct SubjectAccuracyChartData {
     let subject: String
@@ -1117,17 +1117,17 @@ struct ProgressMetric: View {
     let value: String
     let icon: String
     let color: Color
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(.largeTitle)
                 .foregroundColor(color)
-            
+
             Text(value)
                 .font(.title3)
                 .fontWeight(.bold)
-            
+
             Text(title)
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -1160,7 +1160,7 @@ struct LearningGoalProgressRow: View {
                         // Show available points for checkout
                         let availablePoints = pointsManager.calculateAvailablePoints(for: goal)
                         if availablePoints > 0 {
-                            Text("+\(availablePoints) pts")
+                            Text(String.localizedStringWithFormat(NSLocalizedString("progress.pointsAvailable", comment: ""), availablePoints))
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .foregroundColor(.blue)
@@ -1171,7 +1171,7 @@ struct LearningGoalProgressRow: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
                                 .font(.caption)
-                            Text("Checked out")
+                            Text("progress.checkedOut")
                                 .font(.caption)
                                 .foregroundColor(.green)
                         }
@@ -1272,22 +1272,22 @@ struct CheckoutHistoryRow: View {
                 Text(checkout.displayDate)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                
-                Text("\(checkout.goalsCompleted) goals completed")
+
+                Text(String.localizedStringWithFormat(NSLocalizedString("progress.goalsCompleted", comment: ""), checkout.goalsCompleted))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
+
             VStack(alignment: .trailing, spacing: 2) {
-                Text("+\(checkout.finalPoints) pts")
+                Text(String.localizedStringWithFormat(NSLocalizedString("progress.pointsEarned", comment: ""), checkout.finalPoints))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.green)
-                
+
                 if checkout.isWeekend {
-                    Text("Weekend 2x")
+                    Text("progress.weekendBonus")
                         .font(.caption)
                         .foregroundColor(.orange)
                 }
@@ -1306,17 +1306,17 @@ struct ErrorStateView: View {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 50))
                 .foregroundColor(.orange)
-            
-            Text("Unable to Load Data")
+
+            Text("progress.unableToLoadData")
                 .font(.title2)
                 .fontWeight(.bold)
-            
+
             Text(message)
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-            
-            Button("Try Again", action: onRetry)
+
+            Button(NSLocalizedString("progress.tryAgain", comment: "Try again button"), action: onRetry)
                 .buttonStyle(.borderedProminent)
         }
         .padding()
@@ -1327,12 +1327,12 @@ struct ErrorStateView: View {
 
 enum TimeframeOption: String, CaseIterable {
     case currentWeek = "current_week"
-    case lastMonth = "last_month"
+    case currentMonth = "current_month"
 
     var displayName: String {
         switch self {
-        case .currentWeek: return "This Week"
-        case .lastMonth: return "Last Month"
+        case .currentWeek: return NSLocalizedString("progress.thisWeek", comment: "")
+        case .currentMonth: return NSLocalizedString("progress.thisMonth", comment: "")
         }
     }
 
@@ -1345,8 +1345,17 @@ enum TimeframeOption: String, CaseIterable {
 
 struct MonthlyProgressGrid: View {
     @ObservedObject private var pointsManager = PointsEarningManager.shared
+    @StateObject private var networkService = NetworkService.shared
     @State private var monthlyActivities: [DailyActivity] = []
     @State private var isLoading = false
+
+    // Get actual user ID from authentication service
+    private var userId: String {
+        if let user = AuthenticationService.shared.currentUser {
+            return user.id
+        }
+        return "guest_user"
+    }
 
     private let calendar = Calendar.current
     private let dateFormatter: DateFormatter = {
@@ -1416,13 +1425,13 @@ struct MonthlyProgressGrid: View {
 
     private var activityLegend: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Activity Level")
+            Text("progress.activityLevel")
                 .font(.caption)
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
 
             HStack(spacing: 12) {
-                Text("Less")
+                Text("progress.less")
                     .font(.caption2)
                     .foregroundColor(.secondary)
 
@@ -1434,13 +1443,13 @@ struct MonthlyProgressGrid: View {
                     }
                 }
 
-                Text("More")
+                Text("progress.more")
                     .font(.caption2)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
-                Text("questions this month")
+                Text("progress.questionsThisMonth")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -1450,10 +1459,10 @@ struct MonthlyProgressGrid: View {
     // MARK: - Computed Properties
 
     private var monthTitle: String {
-        let lastMonth = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        let currentMonth = Date() // Current month, not last month
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: lastMonth)
+        return formatter.string(from: currentMonth)
     }
 
     private var weekdayHeaders: [String] {
@@ -1463,15 +1472,15 @@ struct MonthlyProgressGrid: View {
     }
 
     private var calendarDays: [CalendarDay] {
-        let lastMonth = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        let currentMonth = Date() // Current month, not last month
 
-        guard let monthInterval = calendar.dateInterval(of: .month, for: lastMonth),
-              let firstOfMonth = calendar.dateInterval(of: .month, for: lastMonth)?.start else {
+        guard let monthInterval = calendar.dateInterval(of: .month, for: currentMonth),
+              let firstOfMonth = calendar.dateInterval(of: .month, for: currentMonth)?.start else {
             return []
         }
 
         let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
-        let daysInMonth = calendar.range(of: .day, in: .month, for: lastMonth)?.count ?? 30
+        let daysInMonth = calendar.range(of: .day, in: .month, for: currentMonth)?.count ?? 30
 
         var days: [CalendarDay] = []
 
@@ -1502,9 +1511,50 @@ struct MonthlyProgressGrid: View {
     // MARK: - Helper Methods
 
     private func loadMonthlyData() {
-        // For now, use mock data. In production, this would fetch from server
-        // or calculate from stored weekly progress data
-        monthlyActivities = generateMockMonthlyData()
+        // ALWAYS fetch from server for consistency with Subject Breakdown
+        // This ensures the monthly calendar always shows the same data as subject breakdown
+        print("📅 Monthly: Fetching from server for consistency...")
+        Task {
+            await fetchMonthlyDataFromServer()
+        }
+    }
+
+    private func fetchMonthlyDataFromServer() async {
+        let currentMonth = Date() // Fetch current month data
+        let components = calendar.dateComponents([.year, .month], from: currentMonth)
+
+        guard let year = components.year, let month = components.month else {
+            print("📅 Monthly: Failed to get year/month components")
+            return
+        }
+
+        print("📅 Monthly: Fetching data for \(year)-\(month) for user: \(userId)")
+
+        do {
+            let response = try await networkService.fetchMonthlyActivity(
+                userId: userId,
+                year: year,
+                month: month
+            )
+
+            if response.success, let data = response.data {
+                print("📅 Monthly: Server returned \(data.activities.count) days")
+
+                await MainActor.run {
+                    // Convert server data to DailyActivity format
+                    monthlyActivities = data.activities.map { serverActivity in
+                        DailyActivity(
+                            date: serverActivity.date,
+                            questionCount: serverActivity.questionCount
+                        )
+                    }
+                }
+            } else {
+                print("📅 Monthly: Server returned no data")
+            }
+        } catch {
+            print("📅 Monthly: Error fetching from server: \(error)")
+        }
     }
 
     private func getActivityForDay(_ date: Date) -> DailyActivity? {
@@ -1512,23 +1562,43 @@ struct MonthlyProgressGrid: View {
         return monthlyActivities.first { $0.date == dateString }
     }
 
-    private func generateMockMonthlyData() -> [DailyActivity] {
+    private func generateRealMonthlyData() -> [DailyActivity] {
         var activities: [DailyActivity] = []
-        let lastMonth = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        let currentMonth = Date() // Use current month, not last month
 
-        guard let monthInterval = calendar.dateInterval(of: .month, for: lastMonth) else {
+        guard let monthInterval = calendar.dateInterval(of: .month, for: currentMonth) else {
             return activities
         }
 
+        // Collect all daily activities from weekly progress history
+        var allDailyActivities: [String: Int] = [:] // date -> questionCount
+
+        // Add current week's data
+        if let currentWeek = pointsManager.currentWeeklyProgress {
+            for activity in currentWeek.dailyActivities {
+                allDailyActivities[activity.date] = activity.questionCount
+            }
+        }
+
+        // Add historical weeks' data
+        for weekProgress in pointsManager.weeklyProgressHistory {
+            for activity in weekProgress.dailyActivities {
+                allDailyActivities[activity.date] = activity.questionCount
+            }
+        }
+
+        // Filter activities that fall within the target month
         var currentDate = monthInterval.start
         while currentDate < monthInterval.end {
-            let questionCount = Int.random(in: 0...25) // Random activity for demo
-            if questionCount > 0 {
+            let dateString = dateFormatter.string(from: currentDate)
+
+            if let questionCount = allDailyActivities[dateString], questionCount > 0 {
                 activities.append(DailyActivity(
-                    date: dateFormatter.string(from: currentDate),
+                    date: dateString,
                     questionCount: questionCount
                 ))
             }
+
             currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
         }
 

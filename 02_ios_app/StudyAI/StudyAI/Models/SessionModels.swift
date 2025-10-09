@@ -143,7 +143,7 @@ struct ArchiveSessionRequest {
 // MARK: - Subject Categories
 
 enum SubjectCategory: String, CaseIterable, Codable {
-    case mathematics = "Mathematics"
+    case mathematics = "Math"
     case physics = "Physics"
     case chemistry = "Chemistry"
     case biology = "Biology"
