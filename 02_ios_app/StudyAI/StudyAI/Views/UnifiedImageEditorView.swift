@@ -100,8 +100,8 @@ struct UnifiedImageEditorView: View {
                             }
                         }
                     }
-                    .frame(height: 400)
-                    .background(Color.black.opacity(0.05))
+                    .frame(height: UIScreen.main.bounds.height * 0.5)
+                    .background(Color.white)
                     .padding(.top, 20) // Add spacing at the top
                 }
 
@@ -129,42 +129,45 @@ struct UnifiedImageEditorView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 8)
 
-                // Editor Controls
+                // Editor Controls with grey background extending to bottom
                 VStack(spacing: 12) {
-                    switch selectedTab {
-                    case .brightness:
-                        brightnessControls
-                    case .crop:
-                        cropControls
-                    case .resize:
-                        resizeControls
+                    // Controls section
+                    VStack(spacing: 12) {
+                        switch selectedTab {
+                        case .brightness:
+                            brightnessControls
+                        case .crop:
+                            cropControls
+                        case .resize:
+                            resizeControls
+                        }
                     }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+
+                    Spacer()
+
+                    // Action Button - Centered and Enlarged Done Button
+                    HStack {
+                        Spacer()
+
+                        Button("Done") {
+                            applyEditsAndFinish()
+                        }
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 60)
+                        .padding(.vertical, 16)
+                        .background(Color.blue)
+                        .cornerRadius(12)
+
+                        Spacer()
+                    }
+                    .padding()
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity, maxHeight: 180, alignment: .top)
+                .frame(maxWidth: .infinity)
                 .background(Color(.systemGroupedBackground))
-
-                Spacer()
-
-                // Action Button - Centered and Enlarged Done Button
-                HStack {
-                    Spacer()
-
-                    Button("Done") {
-                        applyEditsAndFinish()
-                    }
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 60)
-                    .padding(.vertical, 16)
-                    .background(Color.blue)
-                    .cornerRadius(12)
-
-                    Spacer()
-                }
-                .padding()
             }
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
@@ -474,16 +477,6 @@ struct UnifiedImageEditorView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
-            } else if selectedSizeReduction != .raw {
-                Text("Preview: \(selectedSizeReduction.rawValue) • Click Apply to confirm")
-                    .font(.subheadline)
-                    .foregroundColor(.blue)
-                    .multilineTextAlignment(.center)
-            } else {
-                Text("Select size to see live preview")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
             }
 
             // Size Selection
@@ -505,64 +498,56 @@ struct UnifiedImageEditorView: View {
 
             // Size Info and Actions
             VStack(spacing: 12) {
-                // Show dimension comparison (base image vs preview/applied)
+                // Show file size comparison (centralized)
                 if let baseImage = getCombinedImageForResize() {
-                    VStack(alignment: .leading, spacing: 6) {
-                        // Current dimensions and size
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(isResizeApplied ? "Before resize:" : "Original:")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                                Text("\(Int(baseImage.size.width)) × \(Int(baseImage.size.height)) px")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.primary)
-                                Text(formatImageSize(baseImage))
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
+                    HStack(spacing: 8) {
+                        Spacer()
 
-                            if selectedSizeReduction != .raw && !isResizeApplied {
-                                Image(systemName: "arrow.right")
+                        // Original size
+                        VStack(spacing: 2) {
+                            Text(isResizeApplied ? "Before:" : "Original:")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text(formatImageSize(baseImage))
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+
+                        // Arrow and preview/applied size
+                        if selectedSizeReduction != .raw && !isResizeApplied {
+                            Image(systemName: "arrow.right")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                                .padding(.horizontal, 4)
+
+                            VStack(spacing: 2) {
+                                Text("Preview:")
                                     .font(.caption2)
                                     .foregroundColor(.blue)
-                                    .padding(.horizontal, 4)
+                                Text(formatReducedImageSize(baseImage, scale: selectedSizeReduction.scale))
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.blue)
+                            }
+                        } else if isResizeApplied, let resized = resizedAdjustedImage {
+                            Image(systemName: "arrow.right")
+                                .font(.caption2)
+                                .foregroundColor(.green)
+                                .padding(.horizontal, 4)
 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Preview:")
-                                        .font(.caption2)
-                                        .foregroundColor(.blue)
-                                    Text("\(Int(baseImage.size.width * selectedSizeReduction.scale)) × \(Int(baseImage.size.height * selectedSizeReduction.scale)) px")
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.blue)
-                                    Text(formatReducedImageSize(baseImage, scale: selectedSizeReduction.scale))
-                                        .font(.caption2)
-                                        .foregroundColor(.blue)
-                                }
-                            } else if isResizeApplied, let resized = resizedAdjustedImage {
-                                Image(systemName: "arrow.right")
+                            VStack(spacing: 2) {
+                                Text("Applied:")
                                     .font(.caption2)
                                     .foregroundColor(.green)
-                                    .padding(.horizontal, 4)
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Applied:")
-                                        .font(.caption2)
-                                        .foregroundColor(.green)
-                                    Text("\(Int(resized.size.width)) × \(Int(resized.size.height)) px")
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.green)
-                                    Text(formatImageSize(resized))
-                                        .font(.caption2)
-                                        .foregroundColor(.green)
-                                }
+                                Text(formatImageSize(resized))
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.green)
                             }
-
-                            Spacer()
                         }
+
+                        Spacer()
                     }
                 }
 

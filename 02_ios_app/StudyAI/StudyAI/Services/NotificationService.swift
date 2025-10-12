@@ -172,6 +172,40 @@ class NotificationService: NSObject, ObservableObject {
         notificationCenter.removeAllPendingNotificationRequests()
         print("📱 NotificationService: Removed all pending notifications")
     }
+
+    // MARK: - Homework Completion Notification
+
+    func sendHomeworkCompletionNotification(questionCount: Int) {
+        guard settings.isEnabled else {
+            print("📱 NotificationService: Notifications disabled, skipping homework completion notification")
+            return
+        }
+
+        let identifier = "com.studyai.homeworkComplete.\(UUID().uuidString)"
+
+        // Create notification content
+        let content = UNMutableNotificationContent()
+        content.title = "Homework Graded! 🎉"
+        content.body = "Your homework has been analyzed. \(questionCount) question\(questionCount == 1 ? "" : "s") graded. Tap to view results!"
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "HOMEWORK_COMPLETE"
+
+        // Deliver immediately
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+
+        // Create request
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+        // Add notification
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("📱 NotificationService: Failed to send homework completion notification: \(error)")
+            } else {
+                print("📱 NotificationService: Sent homework completion notification for \(questionCount) questions")
+            }
+        }
+    }
 }
 
 // MARK: - UNUserNotificationCenterDelegate

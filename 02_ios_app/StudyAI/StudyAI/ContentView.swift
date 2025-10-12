@@ -85,6 +85,7 @@ struct MainTabView: View {
             .tabItem {
                 Image(systemName: MainTab.home.icon)
                 Text(MainTab.home.title)
+                    .font(.caption2)
             }
             .tag(MainTab.home.rawValue)
             
@@ -98,6 +99,7 @@ struct MainTabView: View {
             .tabItem {
                 Image(systemName: MainTab.grader.icon)
                 Text(MainTab.grader.title)
+                    .font(.caption2)
             }
             .tag(MainTab.grader.rawValue)
             
@@ -111,6 +113,7 @@ struct MainTabView: View {
             .tabItem {
                 Image(systemName: MainTab.chat.icon)
                 Text(MainTab.chat.title)
+                    .font(.caption2)
             }
             .tag(MainTab.chat.rawValue)
             
@@ -125,6 +128,7 @@ struct MainTabView: View {
             .tabItem {
                 Image(systemName: MainTab.progress.icon)
                 Text(MainTab.progress.title)
+                    .font(.caption2)
             }
             .tag(MainTab.progress.rawValue)
             
@@ -138,6 +142,7 @@ struct MainTabView: View {
             .tabItem {
                 Image(systemName: MainTab.library.icon)
                 Text(MainTab.library.title)
+                    .font(.caption2)
             }
             .tag(MainTab.library.rawValue)
         }

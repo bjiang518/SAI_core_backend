@@ -382,12 +382,17 @@ struct SessionChatView: View {
     @State private var isVoiceMode = false
     @State private var pendingUserMessage = ""
     @State private var showTypingIndicator = false
-    
+
     // Focus state for message input
     @FocusState private var isMessageInputFocused: Bool
 
     // Animation state for central example card
     @State private var exampleCardScale: CGFloat = 0.8
+
+    // Alert for existing chat session when "Ask AI for help" is clicked
+    @State private var showingExistingSessionAlert = false
+    @State private var pendingHomeworkQuestion = ""
+    @State private var pendingHomeworkSubject = ""
 
     private let subjects = [
         "Mathematics", "Physics", "Chemistry", "Biology",
@@ -533,25 +538,49 @@ struct SessionChatView: View {
             Text("StudyAI needs camera access to scan homework questions. Please enable camera permission in Settings.")
         }
         .onAppear {
-            // Create initial session if none exists
-            if networkService.currentSessionId == nil {
-                startNewSession()
-            }
-
             // Check for pending chat message from other tabs (e.g., grader follow-up)
+            // If there's a pending message, check if current session has messages
             if let pendingMessage = appState.pendingChatMessage {
-                // Set the subject if provided
-                if let pendingSubject = appState.pendingChatSubject {
-                    selectedSubject = pendingSubject
-                }
+                // Store the pending message and subject
+                pendingHomeworkQuestion = pendingMessage
+                pendingHomeworkSubject = appState.pendingChatSubject ?? "General"
 
-                // Auto-send the pending message
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    messageText = pendingMessage
-                    sendMessage()
-                    appState.clearPendingChatMessage()
+                // Check if current session has messages
+                if !networkService.conversationHistory.isEmpty {
+                    // Current session has messages - show alert
+                    showingExistingSessionAlert = true
+                    // Don't clear pending message yet - wait for user choice
+                } else {
+                    // No messages in current session - proceed directly
+                    proceedWithHomeworkQuestion()
+                }
+            } else {
+                // No pending message - create initial session if none exists
+                if networkService.currentSessionId == nil {
+                    startNewSession()
                 }
             }
+        }
+        .alert("Current Chat Exists", isPresented: $showingExistingSessionAlert) {
+            Button("Archive Current Chat") {
+                // Option A: Don't create new session, return to chat view for manual archive
+                // Clear the pending message and let user manually archive
+                appState.clearPendingChatMessage()
+                showingExistingSessionAlert = false
+                // User stays in chat view to archive manually
+            }
+            Button("Discard & Start New", role: .destructive) {
+                // Option B: Discard current conversation and create new session
+                proceedWithHomeworkQuestion()
+                showingExistingSessionAlert = false
+            }
+            Button("Cancel", role: .cancel) {
+                // Cancel and clear pending message
+                appState.clearPendingChatMessage()
+                showingExistingSessionAlert = false
+            }
+        } message: {
+            Text("You have an active chat session. Would you like to archive it first, or discard it and start a new session with this homework question?")
         }
         .alert("Error", isPresented: .constant(!errorMessage.isEmpty)) {
             Button("OK") {
@@ -901,7 +930,7 @@ struct SessionChatView: View {
     private var modernEmptyStateView: some View {
         VStack(spacing: 24) {
             // AI Spiral Animation - idle state
-            AIAvatarAnimation(state: .idle)
+            AIAvatarAnimation(state: .idle, voiceType: voiceService.voiceSettings.voiceType)
                 .frame(width: 80, height: 80)
 
             VStack(spacing: 12) {
@@ -1799,10 +1828,35 @@ struct SessionChatView: View {
     private func startNewSession() {
         Task {
             let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
-            
+
             await MainActor.run {
                 if !result.success {
                     errorMessage = "Failed to create session: \(result.message)"
+                }
+            }
+        }
+    }
+
+    /// Proceed with homework question from grading report
+    private func proceedWithHomeworkQuestion() {
+        // Set the subject
+        selectedSubject = pendingHomeworkSubject
+
+        // Create a new session for homework follow-up questions
+        Task {
+            let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
+
+            await MainActor.run {
+                if result.success {
+                    // New session created successfully, now send the message
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        messageText = pendingHomeworkQuestion
+                        sendMessage()
+                        appState.clearPendingChatMessage()
+                    }
+                } else {
+                    errorMessage = "Failed to create new session: \(result.message)"
+                    appState.clearPendingChatMessage()
                 }
             }
         }
@@ -2252,7 +2306,7 @@ struct ModernAIMessageView: View {
         HStack(alignment: .top, spacing: 12) {
             // AI Avatar Animation - clickable to play/stop audio
             Button(action: toggleSpeech) {
-                AIAvatarAnimation(state: animationState)
+                AIAvatarAnimation(state: animationState, voiceType: voiceType)
                     .frame(width: 24, height: 24)  // ⚙️ SIZE CONTROL: Smaller animation (was 32x32)
             }
             .buttonStyle(PlainButtonStyle())
@@ -2509,7 +2563,7 @@ struct ModernTypingIndicatorView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             // Use AI Avatar Animation in waiting state (fast, small, blinking)
-            AIAvatarAnimation(state: .waiting)
+            AIAvatarAnimation(state: .waiting, voiceType: voiceService.voiceSettings.voiceType)
                 .frame(width: 24, height: 24)  // ⚙️ SIZE CONTROL: Smaller animation (was 32x32)
 
             VStack(alignment: .leading, spacing: 8) {

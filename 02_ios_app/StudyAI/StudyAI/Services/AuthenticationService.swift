@@ -308,7 +308,105 @@ final class AuthenticationService: ObservableObject {
             throw specificError
         }
     }
-    
+
+    // MARK: - Email Verification
+
+    /// Send verification code to user's email
+    func sendVerificationCode(email: String, name: String) async throws {
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
+
+        defer {
+            Task { @MainActor in
+                isLoading = false
+            }
+        }
+
+        let result = await networkService.sendVerificationCode(email: email, name: name)
+
+        if !result.success {
+            let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
+            throw specificError
+        }
+    }
+
+    /// Verify email code and complete registration
+    func verifyEmailCode(email: String, code: String, name: String, password: String) async throws {
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
+
+        defer {
+            Task { @MainActor in
+                isLoading = false
+            }
+        }
+
+        let result = await networkService.verifyEmailCode(
+            email: email,
+            code: code,
+            name: name,
+            password: password
+        )
+
+        if result.success {
+            // Save authentication token
+            if let token = result.token {
+                try await keychainService.saveAuthToken(token)
+            }
+
+            // Create user object
+            if let userData = result.userData {
+                let user = User(
+                    id: userData["id"] as? String ?? "",
+                    email: userData["email"] as? String ?? email,
+                    name: userData["name"] as? String ?? name,
+                    profileImageURL: userData["profileImageUrl"] as? String,
+                    authProvider: .email,
+                    createdAt: Date(),
+                    lastLoginAt: Date()
+                )
+
+                // Save user data
+                try await keychainService.saveUser(user)
+
+                await MainActor.run {
+                    currentUser = user
+                    isAuthenticated = true
+                }
+
+                authLogger.info("✅ Email verified and user logged in: \(user.email)")
+            }
+        } else {
+            let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
+            throw specificError
+        }
+    }
+
+    /// Resend verification code
+    func resendVerificationCode(email: String) async throws {
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
+
+        defer {
+            Task { @MainActor in
+                isLoading = false
+            }
+        }
+
+        let result = await networkService.resendVerificationCode(email: email)
+
+        if !result.success {
+            let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
+            throw specificError
+        }
+    }
+
     // MARK: - Apple Sign In
     
     func signInWithApple() async throws {
@@ -578,6 +676,10 @@ final class AuthenticationService: ObservableObject {
             return .invalidCredentials
             
         case 404:
+            // Check if it's a route not found error (API gateway issue)
+            if lowercaseMessage.contains("route") {
+                return .networkError("API endpoint not configured. Please contact support or try again later.")
+            }
             return .accountNotFound
             
         case 429:

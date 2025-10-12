@@ -47,24 +47,24 @@ struct QuestionGenerationView: View {
 
         var displayName: String {
             switch self {
-            case .randomPractice: return "Random Practice"
-            case .fromMistakes: return "From Mistakes"
-            case .fromArchives: return "From Archives"
+            case .randomPractice: return NSLocalizedString("questionGeneration.template.randomPractice", comment: "")
+            case .fromMistakes: return NSLocalizedString("questionGeneration.template.fromMistakes", comment: "")
+            case .fromArchives: return NSLocalizedString("questionGeneration.template.fromArchives", comment: "")
             }
         }
 
         var description: String {
             switch self {
-            case .randomPractice: return "Generate fresh practice questions"
-            case .fromMistakes: return "Target your weak areas"
-            case .fromArchives: return "Build on archived sessions"
+            case .randomPractice: return NSLocalizedString("questionGeneration.description.randomPractice", comment: "")
+            case .fromMistakes: return NSLocalizedString("questionGeneration.description.fromMistakes", comment: "")
+            case .fromArchives: return NSLocalizedString("questionGeneration.description.fromArchives", comment: "")
             }
         }
 
         var iconName: String {
             switch self {
             case .randomPractice: return "dice.fill"
-            case .fromMistakes: return "exclamationmark.triangle.fill"
+            case .fromMistakes: return "xmark.circle.fill"
             case .fromArchives: return "archivebox.fill"
             }
         }
@@ -82,9 +82,6 @@ struct QuestionGenerationView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 32) {
-                    // Header Section
-                    headerSection
-
                     // Generation Type Selection
                     generationTypeSelection
 
@@ -111,8 +108,8 @@ struct QuestionGenerationView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Generate Questions")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle(NSLocalizedString("questionGeneration.title", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showingQuestionsList) {
                 GeneratedQuestionsListView(questions: generatedQuestions)
             }
@@ -130,8 +127,8 @@ struct QuestionGenerationView: View {
                     selectedQuestions: $selectedQuestions
                 )
             }
-            .alert("Generation Error", isPresented: $showingErrorAlert) {
-                Button("OK") { }
+            .alert(NSLocalizedString("questionGeneration.error.title", comment: ""), isPresented: $showingErrorAlert) {
+                Button(NSLocalizedString("common.ok", comment: "")) { }
             } message: {
                 Text(errorMessage)
             }
@@ -141,35 +138,9 @@ struct QuestionGenerationView: View {
         }
     }
 
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("AI Question Generator")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.primary)
-
-                    Text("Generate personalized practice questions powered by AI")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "brain.head.profile.fill")
-                    .font(.title)
-                    .foregroundColor(.purple)
-            }
-        }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(16)
-    }
-
     private var generationTypeSelection: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Choose Template")
+            Text(NSLocalizedString("questionGeneration.chooseTemplate", comment: ""))
                 .font(.title3)
                 .fontWeight(.semibold)
 
@@ -187,7 +158,7 @@ struct QuestionGenerationView: View {
 
     private var configurationSection: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Configuration")
+            Text(NSLocalizedString("questionGeneration.configuration", comment: ""))
                 .font(.title3)
                 .fontWeight(.semibold)
 
@@ -219,7 +190,7 @@ struct QuestionGenerationView: View {
 
     private var generalConfigurationSection: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("General Settings")
+            Text(NSLocalizedString("questionGeneration.generalSettings", comment: ""))
                 .font(.title3)
                 .fontWeight(.semibold)
 
@@ -230,7 +201,7 @@ struct QuestionGenerationView: View {
                         Image(systemName: "slider.horizontal.3")
                             .font(.subheadline)
                             .foregroundColor(.purple)
-                        Text("Difficulty Level")
+                        Text(NSLocalizedString("questionGeneration.difficultyLevel", comment: ""))
                             .font(.body)
                             .fontWeight(.medium)
                         Spacer()
@@ -245,11 +216,11 @@ struct QuestionGenerationView: View {
 
                     VStack(spacing: 8) {
                         HStack {
-                            Text("Beginner")
+                            Text(NSLocalizedString("questionGeneration.difficulty.beginner", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             Spacer()
-                            Text("Advanced")
+                            Text(NSLocalizedString("questionGeneration.difficulty.advanced", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -270,7 +241,7 @@ struct QuestionGenerationView: View {
                         Image(systemName: "number.circle")
                             .font(.subheadline)
                             .foregroundColor(.blue)
-                        Text("Number of Questions")
+                        Text(NSLocalizedString("questionGeneration.numberOfQuestions", comment: ""))
                             .font(.body)
                             .fontWeight(.medium)
                         Spacer()
@@ -320,7 +291,7 @@ struct QuestionGenerationView: View {
                         .font(.headline)
                 }
 
-                Text(questionService.isGenerating ? "Generating..." : "Generate Questions")
+                Text(questionService.isGenerating ? NSLocalizedString("questionGeneration.generating", comment: "") : NSLocalizedString("questionGeneration.generateQuestions", comment: ""))
                     .font(.body.bold())
             }
             .foregroundColor(.white)
@@ -359,13 +330,13 @@ struct QuestionGenerationView: View {
     private var recentQuestionsPreview: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
-                Text("Generated Questions")
+                Text(NSLocalizedString("questionGeneration.generatedQuestions", comment: ""))
                     .font(.title3)
                     .fontWeight(.semibold)
 
                 Spacer()
 
-                Button("View All") {
+                Button(NSLocalizedString("questionGeneration.viewAll", comment: "")) {
                     showingQuestionsList = true
                 }
                 .font(.subheadline)
@@ -502,7 +473,7 @@ struct QuestionGenerationView: View {
 
         case .fromMistakes:
             guard !selectedMistakes.isEmpty else {
-                throw NSError(domain: "QuestionGeneration", code: -1, userInfo: [NSLocalizedDescriptionKey: "No mistakes selected for question generation"])
+                throw NSError(domain: "QuestionGeneration", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("questionGeneration.noMistakes", comment: "")])
             }
 
             // Filter to only selected mistakes
@@ -547,7 +518,7 @@ struct QuestionGenerationView: View {
 
         case .fromArchives:
             guard !availableConversations.isEmpty else {
-                throw NSError(domain: "QuestionGeneration", code: -1, userInfo: [NSLocalizedDescriptionKey: "No conversations available for question generation"])
+                throw NSError(domain: "QuestionGeneration", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("questionGeneration.noArchives", comment: "")])
             }
 
             // Convert real conversation data using the adapter
@@ -716,7 +687,7 @@ struct RandomQuestionConfig: View {
                 Image(systemName: "dice.fill")
                     .font(.subheadline)
                     .foregroundColor(.blue)
-                Text("Random Practice Settings")
+                Text(NSLocalizedString("questionGeneration.randomPracticeSettings", comment: ""))
                     .font(.body)
                     .fontWeight(.medium)
             }
@@ -730,7 +701,7 @@ struct RandomQuestionConfig: View {
                     }
                 } label: {
                     HStack {
-                        Text(selectedSubject.isEmpty ? "Choose subject" : selectedSubject)
+                        Text(selectedSubject.isEmpty ? NSLocalizedString("questionGeneration.chooseSubject", comment: "") : selectedSubject)
                             .foregroundColor(selectedSubject.isEmpty ? .secondary : .primary)
                         Spacer()
                         Image(systemName: "chevron.down")
@@ -742,7 +713,7 @@ struct RandomQuestionConfig: View {
                     .cornerRadius(8)
                 }
             } else {
-                Text("Using general math topics")
+                Text(NSLocalizedString("questionGeneration.usingGeneralMath", comment: ""))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .italic()
@@ -771,7 +742,7 @@ struct MistakeBasedConfig: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.subheadline)
                     .foregroundColor(.orange)
-                Text("Mistake-Based Settings")
+                Text(NSLocalizedString("questionGeneration.mistakeBasedSettings", comment: ""))
                     .font(.body)
                     .fontWeight(.medium)
             }
@@ -780,7 +751,7 @@ struct MistakeBasedConfig: View {
                 HStack {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("Loading mistakes...")
+                    Text(NSLocalizedString("questionGeneration.loadingMistakes", comment: ""))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -788,17 +759,17 @@ struct MistakeBasedConfig: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("\(mistakes.count) mistakes available")
+                            Text("\(mistakes.count) \(NSLocalizedString("questionGeneration.mistakesAvailable", comment: ""))")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
 
                             if selectedMistakes.isEmpty {
-                                Text("Tap to select mistakes")
+                                Text(NSLocalizedString("questionGeneration.tapToSelectMistakes", comment: ""))
                                     .font(.caption2)
                                     .foregroundColor(.orange)
                                     .italic()
                             } else {
-                                Text("\(selectedMistakes.count) mistakes selected")
+                                Text("\(selectedMistakes.count) \(NSLocalizedString("questionGeneration.mistakesSelected", comment: ""))")
                                     .font(.caption2)
                                     .foregroundColor(.orange)
                                     .fontWeight(.medium)
@@ -811,7 +782,7 @@ struct MistakeBasedConfig: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "list.bullet")
                                     .font(.caption)
-                                Text("Select")
+                                Text(NSLocalizedString("common.select", comment: ""))
                                     .font(.caption)
                                     .fontWeight(.medium)
                             }
@@ -836,7 +807,7 @@ struct MistakeBasedConfig: View {
                             .sorted(by: { $0.value > $1.value })
 
                         if subjectCounts.count > 0 {
-                            Text("Selected: \(subjectCounts.prefix(3).map { "\($0.key) (\($0.value))" }.joined(separator: ", "))")
+                            Text("\(NSLocalizedString("common.selected", comment: "")): \(subjectCounts.prefix(3).map { "\($0.key) (\($0.value))" }.joined(separator: ", "))")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                                 .italic()
@@ -844,7 +815,7 @@ struct MistakeBasedConfig: View {
                     }
                 }
             } else {
-                Text("No mistakes found. Complete some homework first.")
+                Text(NSLocalizedString("questionGeneration.noMistakes", comment: ""))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .italic()
@@ -870,7 +841,7 @@ struct ArchiveBasedConfig: View {
                 Image(systemName: "archivebox.fill")
                     .font(.subheadline)
                     .foregroundColor(.green)
-                Text("Archive-Based Settings")
+                Text(NSLocalizedString("questionGeneration.archiveBasedSettings", comment: ""))
                     .font(.body)
                     .fontWeight(.medium)
             }
@@ -879,7 +850,7 @@ struct ArchiveBasedConfig: View {
                 HStack {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("Loading archive data...")
+                    Text(NSLocalizedString("questionGeneration.loadingArchiveData", comment: ""))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -887,17 +858,17 @@ struct ArchiveBasedConfig: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("\(conversations.count) conversations, \(questions.count) questions available")
+                            Text("\(conversations.count) \(NSLocalizedString("questionGeneration.conversationsCount", comment: ""))\(questions.count) \(NSLocalizedString("questionGeneration.questionsAvailable", comment: ""))")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
 
                             if selectedConversations.isEmpty && selectedQuestions.isEmpty {
-                                Text("Tap to select archives")
+                                Text(NSLocalizedString("questionGeneration.tapToSelectArchives", comment: ""))
                                     .font(.caption2)
                                     .foregroundColor(.green)
                                     .italic()
                             } else {
-                                Text("\(selectedConversations.count) conversations, \(selectedQuestions.count) questions selected")
+                                Text("\(selectedConversations.count) \(NSLocalizedString("questionGeneration.conversationsCount", comment: ""))\(selectedQuestions.count) \(NSLocalizedString("questionGeneration.questionsSelected", comment: ""))")
                                     .font(.caption2)
                                     .foregroundColor(.green)
                                     .fontWeight(.medium)
@@ -910,7 +881,7 @@ struct ArchiveBasedConfig: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "list.bullet")
                                     .font(.caption)
-                                Text("Select")
+                                Text(NSLocalizedString("common.select", comment: ""))
                                     .font(.caption)
                                     .fontWeight(.medium)
                             }
@@ -928,7 +899,7 @@ struct ArchiveBasedConfig: View {
                     }
 
                     if conversations.isEmpty && questions.isEmpty {
-                        Text("No archived content found. Have some conversations or complete homework first.")
+                        Text(NSLocalizedString("questionGeneration.noArchives", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .italic()
@@ -956,7 +927,7 @@ struct ConversationSelectionCard: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
-                Text("Conversation") // Temporary placeholder for subject
+                Text(NSLocalizedString("questionGeneration.conversation", comment: "")) // Temporary placeholder for subject
                     .font(.caption2)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
@@ -987,7 +958,7 @@ struct QuestionSelectionCard: View {
                     .fontWeight(.medium)
                     .lineLimit(1)
 
-                Text("\(question.totalQuestions) questions")
+                Text("\(question.totalQuestions) \(NSLocalizedString("questionGeneration.questions", comment: ""))")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -1064,11 +1035,11 @@ struct MistakeSelectionView: View {
                             .font(.system(size: 64))
                             .foregroundColor(.green)
 
-                        Text("No mistakes found!")
+                        Text(NSLocalizedString("questionGeneration.noMistakesFound", comment: ""))
                             .font(.title2)
                             .fontWeight(.bold)
 
-                        Text("Complete some homework to build your mistake collection.")
+                        Text(NSLocalizedString("questionGeneration.completeHomeworkToCreateMistakes", comment: ""))
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -1084,14 +1055,14 @@ struct MistakeSelectionView: View {
                                 selectedMistakes = Set(mistakes.map { $0.id })
                             }
                         }) {
-                            Text(selectedMistakes.count == mistakes.count ? "Deselect All" : "Select All")
+                            Text(selectedMistakes.count == mistakes.count ? NSLocalizedString("common.deselectAll", comment: "") : NSLocalizedString("common.selectAll", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.orange)
                         }
 
                         Spacer()
 
-                        Text("\(selectedMistakes.count) selected")
+                        Text("\(selectedMistakes.count) \(NSLocalizedString("common.selected", comment: ""))")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -1119,17 +1090,17 @@ struct MistakeSelectionView: View {
                     .listStyle(.plain)
                 }
             }
-            .navigationTitle("Select Mistakes")
+            .navigationTitle(NSLocalizedString("questionGeneration.selectMistakes", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                     .fontWeight(.semibold)
@@ -1156,11 +1127,11 @@ struct ArchiveSelectionView: View {
                             .font(.system(size: 64))
                             .foregroundColor(.green)
 
-                        Text("No archives found!")
+                        Text(NSLocalizedString("questionGeneration.noArchivesFound", comment: ""))
                             .font(.title2)
                             .fontWeight(.bold)
 
-                        Text("Have some conversations or complete homework to build your archive collection.")
+                        Text(NSLocalizedString("questionGeneration.createArchivesMessage", comment: ""))
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -1184,14 +1155,14 @@ struct ArchiveSelectionView: View {
                             let totalItems = conversations.count + questions.count
                             let selectedItems = selectedConversations.count + selectedQuestions.count
 
-                            Text(selectedItems == totalItems ? "Deselect All" : "Select All")
+                            Text(selectedItems == totalItems ? NSLocalizedString("common.deselectAll", comment: "") : NSLocalizedString("common.selectAll", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.green)
                         }
 
                         Spacer()
 
-                        Text("\(selectedConversations.count + selectedQuestions.count) selected")
+                        Text("\(selectedConversations.count + selectedQuestions.count) \(NSLocalizedString("common.selected", comment: ""))")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -1201,7 +1172,7 @@ struct ArchiveSelectionView: View {
                     // Archive List
                     List {
                         if !conversations.isEmpty {
-                            Section("Conversations") {
+                            Section(NSLocalizedString("questionGeneration.conversations", comment: "")) {
                                 ForEach(conversations, id: \.self) { conversation in
                                     ArchiveConversationSelectionCard(
                                         conversationTitle: conversation,
@@ -1219,7 +1190,7 @@ struct ArchiveSelectionView: View {
                         }
 
                         if !questions.isEmpty {
-                            Section("Questions") {
+                            Section(NSLocalizedString("questionGeneration.questions", comment: "")) {
                                 ForEach(questions) { question in
                                     ArchiveQuestionSelectionCard(
                                         question: question,
@@ -1239,17 +1210,17 @@ struct ArchiveSelectionView: View {
                     .listStyle(.insetGrouped)
                 }
             }
-            .navigationTitle("Select Archives")
+            .navigationTitle(NSLocalizedString("questionGeneration.selectArchives", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                     .fontWeight(.semibold)
@@ -1330,7 +1301,7 @@ struct ArchiveConversationSelectionCard: View {
                         .fontWeight(.medium)
                         .multilineTextAlignment(.leading)
 
-                    Text("Conversation")
+                    Text(NSLocalizedString("questionGeneration.conversation", comment: ""))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

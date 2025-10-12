@@ -327,97 +327,9 @@ struct QuestionView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(showOCRWarning ? Color.orange.opacity(0.3) : Color.green.opacity(0.3), lineWidth: 1)
                 )
-            
-            // Processing options
-            processingOptionsView
         }
     }
-    
-    private var processingOptionsView: some View {
-        VStack(spacing: 16) {
-            Text("🎯 Choose Analysis Method:")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            
-            HStack(spacing: 12) {
-                // Use OCR Result
-                Button(action: {
-                    if !questionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        submitQuestion()
-                    } else {
-                        errorMessage = "Please enter a question or use extracted content"
-                    }
-                }) {
-                    VStack(spacing: 4) {
-                        if isSubmitting {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "doc.text")
-                                .font(.title2)
-                        }
-                        Text("Use Text")
-                            .font(.caption)
-                        Text(isSubmitting ? "Processing..." : "(Quick)")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(isSubmitting ? Color.gray.opacity(0.1) : Color.blue.opacity(0.1))
-                    .foregroundColor(isSubmitting ? .gray : .blue)
-                    .cornerRadius(12)
-                }
-                .disabled(questionText.isEmpty && combinedOCRResult.isEmpty || isSubmitting)
-                
-                // Use Server Analysis - Always show this button
-                VStack(spacing: 8) {
-                    Button(action: {
-                        processWithServerAnalysis()
-                    }) {
-                        VStack(spacing: 4) {
-                            Image(systemName: showOCRWarning ? "brain.head.profile.fill" : "brain.head.profile")
-                                .font(.title2)
-                            Text("Direct Analysis")
-                                .font(.caption)
-                            Text(showOCRWarning ? "(Recommended)" : "(Advanced)")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(showOCRWarning ? Color.green.opacity(0.2) : Color.purple.opacity(0.1))
-                        .foregroundColor(showOCRWarning ? .green : .purple)
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(showOCRWarning ? Color.green : Color.clear, lineWidth: 2)
-                        )
-                    }
-                    .disabled(isWaitingForAI)
-                }
-            }
-            
-            // Prompt Template Section
-            promptTemplateSection
-            
-            if isWaitingForAI {
-                HStack {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("AI is analyzing your image...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(8)
-            }
-        }
-    }
-    
+
     private var promptTemplateSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {

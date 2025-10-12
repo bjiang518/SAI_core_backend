@@ -50,7 +50,7 @@ struct ReportDetailView: View {
                         VStack(spacing: 16) {
                             ProgressView()
                                 .scaleEffect(1.2)
-                            Text("Loading narrative content...")
+                            Text(NSLocalizedString("parentReport.loadingNarrative", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -69,11 +69,11 @@ struct ReportDetailView: View {
                     }
                 }
             }
-            .navigationTitle("Report Details")
+            .navigationTitle(NSLocalizedString("parentReport.reportDetails", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                 }
@@ -89,8 +89,8 @@ struct ReportDetailView: View {
             .sheet(isPresented: $showingExportOptions) {
                 ReportExportView(report: report)
             }
-            .alert("Error", isPresented: $showingErrorAlert) {
-                Button("OK") {
+            .alert(NSLocalizedString("common.error", comment: ""), isPresented: $showingErrorAlert) {
+                Button(NSLocalizedString("common.ok", comment: "")) {
                     showingErrorAlert = false
                 }
             } message: {
@@ -175,7 +175,7 @@ struct ReportDetailView: View {
                 VStack(spacing: 16) {
                     ProgressView()
                         .scaleEffect(1.2)
-                    Text("Loading narrative content...")
+                    Text(NSLocalizedString("parentReport.loadingNarrative", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -188,7 +188,7 @@ struct ReportDetailView: View {
                         HStack {
                             Image(systemName: "doc.text.fill")
                                 .foregroundColor(.blue)
-                            Text("Summary")
+                            Text(NSLocalizedString("parentReport.summary", comment: ""))
                                 .font(.title2)
                                 .fontWeight(.bold)
                         }
@@ -207,7 +207,7 @@ struct ReportDetailView: View {
                             HStack {
                                 Image(systemName: "lightbulb.fill")
                                     .foregroundColor(.orange)
-                                Text("Key Insights")
+                                Text(NSLocalizedString("parentReport.keyInsights", comment: ""))
                                     .font(.title2)
                                     .fontWeight(.bold)
                             }
@@ -245,7 +245,7 @@ struct ReportDetailView: View {
                             HStack {
                                 Image(systemName: "star.fill")
                                     .foregroundColor(.green)
-                                Text("Recommendations")
+                                Text(NSLocalizedString("parentReport.recommendations", comment: ""))
                                     .font(.title2)
                                     .fontWeight(.bold)
                             }

@@ -42,13 +42,25 @@ class EnhancedTTSService: NSObject, ObservableObject {
         super.init()
         setupAudioSession()
         setupCache()
+        clearOldCache() // Clear old cache to ensure new voice settings take effect
         loadVoiceSettings()
     }
-    
+
     private func setupCache() {
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         audioCache.countLimit = 50 // Cache up to 50 audio clips
         audioCache.totalCostLimit = 50 * 1024 * 1024 // 50MB cache limit
+    }
+
+    private func clearOldCache() {
+        // Clear memory cache
+        audioCache.removeAllObjects()
+
+        // Clear disk cache
+        if fileManager.fileExists(atPath: cacheDirectory.path) {
+            try? fileManager.removeItem(at: cacheDirectory)
+            try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        }
     }
     
     private func setupAudioSession() {
@@ -318,9 +330,9 @@ class EnhancedTTSService: NSObject, ObservableObject {
         // Map character voice types to OpenAI's available voices with personality matching
         switch voiceType {
         case .adam:
-            return "echo" // Clear, youthful male voice for Adam
+            return "alloy" // More neutral, younger-sounding voice for Adam (boy)
         case .eva:
-            return "nova" // Sweet, engaging female voice for Eva
+            return "coral" // Warm, upbeat female voice for Eva (girl)
         }
     }
     

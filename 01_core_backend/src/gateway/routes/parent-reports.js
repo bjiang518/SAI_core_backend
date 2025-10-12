@@ -318,10 +318,9 @@ class ParentReportsRoutes {
 
             if (existingReport) {
                 this.fastify.log.info(`📋 Found cached report: ${existingReport.id}`);
-                this.fastify.log.info('📈 Updating view metrics and returning cached report');
+                this.fastify.log.info('📈 Report viewed (metrics logging only)');
 
-                // Update view count
-                await this.updateReportMetrics(existingReport.id, 'view');
+                // Log view action (database storage removed in migration 005)
 
                 // Get the cached report's narrative
                 const cachedNarrative = await this.narrativeService.getNarrativeByReportId(existingReport.id);
@@ -373,9 +372,9 @@ class ParentReportsRoutes {
 
             this.fastify.log.info(`💾 Report stored with ID: ${reportId}`);
 
-            // Store report metrics
-            this.fastify.log.info('📊 Storing report metrics...');
-            await this.storeReportMetrics(reportId, {
+            // Log report metrics (database storage removed in migration 005)
+            this.fastify.log.info('📊 Report metrics:', {
+                reportId,
                 dataFetchTime: reportData.metadata.generationTimeMs,
                 totalGenerationTime: Date.now() - startTime,
                 questionsAnalyzed: reportData.metadata.dataPoints.questions,
@@ -384,9 +383,8 @@ class ParentReportsRoutes {
                 mentalHealthIndicatorsCount: reportData.metadata.dataPoints.mentalHealthIndicators
             });
 
-            // Store progress history for future comparisons
-            this.fastify.log.info('📈 Storing progress history for future comparisons...');
-            await this.storeProgressHistory(student_id, reportId, startDate, endDate, reportData);
+            // Log progress history (database storage removed in migration 005)
+            this.fastify.log.info('📈 Progress history logged for report:', reportId);
 
             // Generate human-readable narrative
             this.fastify.log.info('📝 Generating human-readable narrative...');
@@ -449,12 +447,9 @@ class ParentReportsRoutes {
             const query = `
                 SELECT
                     pr.*,
-                    u.name as student_name,
-                    rm.viewed_count,
-                    rm.exported_count
+                    u.name as student_name
                 FROM parent_reports pr
                 JOIN users u ON pr.user_id = u.id
-                LEFT JOIN report_metrics rm ON pr.id = rm.report_id
                 WHERE pr.id = $1 AND pr.status = 'completed' AND pr.expires_at > NOW()
             `;
 
@@ -480,8 +475,8 @@ class ParentReportsRoutes {
                 });
             }
 
-            // Update view count
-            await this.updateReportMetrics(reportId, 'view');
+            // Log view action (database storage removed in migration 005)
+            this.fastify.log.info(`📊 Report ${reportId} viewed`);
 
             return reply.send({
                 success: true,
@@ -547,11 +542,8 @@ class ParentReportsRoutes {
                     pr.generated_at,
                     pr.expires_at,
                     pr.ai_analysis_included,
-                    rm.viewed_count,
-                    rm.exported_count,
-                    rm.total_generation_time_ms
+                    pr.generation_time_ms as total_generation_time_ms
                 FROM parent_reports pr
-                LEFT JOIN report_metrics rm ON pr.id = rm.report_id
                 WHERE pr.user_id = $1 AND pr.status = 'completed' AND pr.expires_at > NOW()
             `;
 
@@ -699,8 +691,8 @@ class ParentReportsRoutes {
                 });
             }
 
-            // Update export count
-            await this.updateReportMetrics(reportId, 'export');
+            // Log export action (database storage removed in migration 005)
+            this.fastify.log.info(`📊 Report ${reportId} exported as ${format}`);
 
             if (format === 'json') {
                 this.fastify.log.info(`✅ JSON export completed in ${Date.now() - startTime}ms`);
@@ -823,18 +815,8 @@ class ParentReportsRoutes {
             const result = await db.query(query);
             const analytics = result.rows[0];
 
-            const metricsQuery = `
-                SELECT
-                    AVG(total_generation_time_ms) as avg_total_time,
-                    AVG(questions_analyzed) as avg_questions_per_report,
-                    AVG(conversations_analyzed) as avg_conversations_per_report,
-                    SUM(viewed_count) as total_views,
-                    SUM(exported_count) as total_exports
-                FROM report_metrics
-            `;
-
-            const metricsResult = await db.query(metricsQuery);
-            const metrics = metricsResult.rows[0];
+            // Note: Metrics previously from report_metrics table (removed in migration 005)
+            // Using zeros as these are no longer tracked in database
 
             return reply.send({
                 success: true,
@@ -848,13 +830,13 @@ class ParentReportsRoutes {
                     },
                     performance: {
                         avgGenerationTimeMs: Math.round(parseFloat(analytics.avg_generation_time) || 0),
-                        avgTotalTimeMs: Math.round(parseFloat(metrics.avg_total_time) || 0),
-                        avgQuestionsPerReport: Math.round(parseFloat(metrics.avg_questions_per_report) || 0),
-                        avgConversationsPerReport: Math.round(parseFloat(metrics.avg_conversations_per_report) || 0)
+                        avgTotalTimeMs: 0, // Removed: was from report_metrics table
+                        avgQuestionsPerReport: 0, // Removed: was from report_metrics table
+                        avgConversationsPerReport: 0 // Removed: was from report_metrics table
                     },
                     usage: {
-                        totalViews: parseInt(metrics.total_views) || 0,
-                        totalExports: parseInt(metrics.total_exports) || 0
+                        totalViews: 0, // Removed: was from report_metrics table
+                        totalExports: 0 // Removed: was from report_metrics table
                     }
                 }
             });
@@ -1018,83 +1000,12 @@ class ParentReportsRoutes {
         return result.rows[0].id;
     }
 
-    async storeReportMetrics(reportId, metrics) {
-        const query = `
-            INSERT INTO report_metrics (
-                report_id, data_fetch_time_ms, total_generation_time_ms,
-                questions_analyzed, conversations_analyzed, sessions_analyzed,
-                mental_health_indicators_count
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        `;
-
-        const values = [
-            reportId,
-            metrics.dataFetchTime,
-            metrics.totalGenerationTime,
-            metrics.questionsAnalyzed,
-            metrics.conversationsAnalyzed,
-            metrics.sessionsAnalyzed,
-            metrics.mentalHealthIndicatorsCount
-        ];
-
-        await db.query(query, values);
-    }
-
-    async storeProgressHistory(userId, reportId, startDate, endDate, reportData) {
-        const academic = reportData.academic;
-        const activity = reportData.activity;
-        const mentalHealth = reportData.mentalHealth;
-
-        // Determine period type
-        const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-        let periodType = 'custom';
-        if (daysDiff <= 7) periodType = 'week';
-        else if (daysDiff <= 31) periodType = 'month';
-        else if (daysDiff <= 93) periodType = 'quarter';
-
-        const query = `
-            INSERT INTO student_progress_history (
-                user_id, report_id, period_start, period_end, period_type,
-                total_questions, correct_answers, accuracy_rate, average_confidence,
-                subject_performance, study_hours, active_days, sessions_count,
-                average_engagement, consistency_score
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-        `;
-
-        const values = [
-            userId,
-            reportId,
-            startDate,
-            endDate,
-            periodType,
-            academic.totalQuestions || 0,
-            academic.correctAnswers || 0,
-            academic.overallAccuracy || 0,
-            academic.averageConfidence || 0,
-            JSON.stringify(reportData.subjects || {}),
-            (activity.studyTime?.totalMinutes || 0) / 60, // Convert to hours
-            activity.studyTime?.activeDays || 0,
-            reportData.metadata.dataPoints.sessions || 0,
-            mentalHealth.overallWellbeing || 0.5,
-            academic.consistencyScore || 0.5
-        ];
-
-        await db.query(query, values);
-    }
-
-    async updateReportMetrics(reportId, action) {
-        const column = action === 'view' ? 'viewed_count' :
-                     action === 'export' ? 'exported_count' : 'shared_count';
-
-        const query = `
-            UPDATE report_metrics
-            SET ${column} = COALESCE(${column}, 0) + 1,
-                last_viewed_at = CASE WHEN $2 = 'view' THEN NOW() ELSE last_viewed_at END
-            WHERE report_id = $1
-        `;
-
-        await db.query(query, [reportId, action]);
-    }
+    // REMOVED: storeReportMetrics, storeProgressHistory, updateReportMetrics
+    // These functions were removed because migration 005_cleanup_unused_tables dropped:
+    // - report_metrics table (use app logging instead)
+    // - student_progress_history table (superseded by time-series queries)
+    // Migration 005 intentionally removed these tables as unused to simplify the schema by 26%
+    // All metrics are now logged to console instead of being stored in the database
 
     /**
      * Email report to recipients
@@ -1190,8 +1101,8 @@ class ParentReportsRoutes {
             const fs = require('fs');
             fs.unlinkSync(pdfPath);
 
-            // Update metrics
-            await this.updateReportMetrics(reportId, 'shared');
+            // Log share action (database storage removed in migration 005)
+            this.fastify.log.info(`📊 Report ${reportId} shared via email`);
 
             const duration = Date.now() - startTime;
             this.fastify.log.info(`✅ === REPORT EMAIL SUCCESS ===`);
@@ -1301,8 +1212,8 @@ class ParentReportsRoutes {
                 // Ignore error if table doesn't exist - this is optional functionality
             });
 
-            // Update metrics
-            await this.updateReportMetrics(reportId, 'shared');
+            // Log share action (database storage removed in migration 005)
+            this.fastify.log.info(`📊 Report ${reportId} shared via link`);
 
             const duration = Date.now() - startTime;
             this.fastify.log.info(`✅ === SHARE LINK GENERATED ===`);

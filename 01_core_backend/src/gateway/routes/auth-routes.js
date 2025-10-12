@@ -45,6 +45,53 @@ class AuthRoutes {
       }
     }, this.register.bind(this));
 
+    // Email verification endpoints
+    this.fastify.post('/api/auth/send-verification-code', {
+      schema: {
+        description: 'Send verification code to email',
+        tags: ['Authentication', 'Email Verification'],
+        body: {
+          type: 'object',
+          required: ['email', 'name'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            name: { type: 'string', minLength: 1 }
+          }
+        }
+      }
+    }, this.sendVerificationCode.bind(this));
+
+    this.fastify.post('/api/auth/verify-email', {
+      schema: {
+        description: 'Verify email with code and complete registration',
+        tags: ['Authentication', 'Email Verification'],
+        body: {
+          type: 'object',
+          required: ['email', 'code', 'name', 'password'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            code: { type: 'string', minLength: 6, maxLength: 6 },
+            name: { type: 'string', minLength: 1 },
+            password: { type: 'string', minLength: 6 }
+          }
+        }
+      }
+    }, this.verifyEmail.bind(this));
+
+    this.fastify.post('/api/auth/resend-verification-code', {
+      schema: {
+        description: 'Resend verification code',
+        tags: ['Authentication', 'Email Verification'],
+        body: {
+          type: 'object',
+          required: ['email'],
+          properties: {
+            email: { type: 'string', format: 'email' }
+          }
+        }
+      }
+    }, this.resendVerificationCode.bind(this));
+
     // Google OAuth login endpoint
     this.fastify.post('/api/auth/google', {
       schema: {
@@ -705,6 +752,251 @@ class AuthRoutes {
         message: 'Failed to get API key',
         code: 'API_KEY_ERROR'
       });
+    }
+  }
+
+  async sendVerificationCode(request, reply) {
+    try {
+      const { email, name } = request.body;
+
+      this.fastify.log.info(`📧 Sending verification code to: ${email}`);
+
+      // Check if user already exists
+      const existingUser = await db.getUserByEmail(email);
+      if (existingUser) {
+        this.fastify.log.warn(`❌ Email already registered: ${email}`);
+        return reply.status(409).send({
+          success: false,
+          message: 'Email already registered',
+          code: 'EMAIL_ALREADY_EXISTS'
+        });
+      }
+
+      // Generate 6-digit code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Store verification code
+      await db.storeVerificationCode(email, verificationCode, name, expiresAt);
+
+      // Send email with code
+      await this.sendVerificationEmail(email, name, verificationCode);
+
+      this.fastify.log.info(`✅ Verification code sent to: ${email}`);
+
+      return reply.send({
+        success: true,
+        message: 'Verification code sent to your email',
+        expiresIn: 600 // 10 minutes in seconds
+      });
+    } catch (error) {
+      this.fastify.log.error('Send verification code error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to send verification code',
+        error: error.message
+      });
+    }
+  }
+
+  async verifyEmail(request, reply) {
+    try {
+      const { email, code, name, password } = request.body;
+
+      this.fastify.log.info(`✅ Verifying email code for: ${email}`);
+
+      // Validate password length
+      if (password.length < 6) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Password must be at least 6 characters',
+          code: 'WEAK_PASSWORD'
+        });
+      }
+
+      // Verify code
+      const isValid = await db.verifyCode(email, code);
+      if (!isValid) {
+        this.fastify.log.warn(`❌ Invalid verification code for: ${email}`);
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid or expired verification code',
+          code: 'INVALID_CODE'
+        });
+      }
+
+      // Check if user already exists (again, in case they registered between sending and verifying)
+      const existingUser = await db.getUserByEmail(email);
+      if (existingUser) {
+        // Delete the verification code
+        await db.deleteVerificationCode(email);
+        return reply.status(409).send({
+          success: false,
+          message: 'Email already registered',
+          code: 'EMAIL_ALREADY_EXISTS'
+        });
+      }
+
+      // Create user account
+      const userData = {
+        email: email,
+        name: name,
+        password: password,
+        authProvider: 'email',
+        emailVerified: true  // User completed email verification
+      };
+
+      const user = await db.createUser(userData);
+
+      // Delete verification code
+      await db.deleteVerificationCode(email);
+
+      // Create session token
+      const clientIP = request.ip;
+      const deviceInfo = {
+        userAgent: request.headers['user-agent'],
+        platform: 'ios'
+      };
+
+      const session = await db.createUserSession(user.id, deviceInfo, clientIP);
+
+      this.fastify.log.info(`✅ Email verified and user created: ${email} (User ID: ${user.id})`);
+
+      return reply.status(201).send({
+        success: true,
+        message: 'Email verified successfully',
+        token: session.token,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          emailVerified: true,
+          provider: user.auth_provider
+        }
+      });
+    } catch (error) {
+      this.fastify.log.error('Verify email error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Email verification failed',
+        error: error.message
+      });
+    }
+  }
+
+  async resendVerificationCode(request, reply) {
+    try {
+      const { email } = request.body;
+
+      this.fastify.log.info(`🔄 Resending verification code to: ${email}`);
+
+      // Check if there's a pending verification
+      const pendingVerification = await db.getPendingVerification(email);
+      if (!pendingVerification) {
+        return reply.status(404).send({
+          success: false,
+          message: 'No pending verification found for this email',
+          code: 'NO_VERIFICATION_FOUND'
+        });
+      }
+
+      // Generate new code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Update verification code
+      await db.updateVerificationCode(email, verificationCode, expiresAt);
+
+      // Send email with new code
+      await this.sendVerificationEmail(email, pendingVerification.name, verificationCode);
+
+      this.fastify.log.info(`✅ Verification code resent to: ${email}`);
+
+      return reply.send({
+        success: true,
+        message: 'Verification code resent',
+        expiresIn: 600 // 10 minutes in seconds
+      });
+    } catch (error) {
+      this.fastify.log.error('Resend verification code error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to resend verification code',
+        error: error.message
+      });
+    }
+  }
+
+  async sendVerificationEmail(email, name, code) {
+    // Check if Resend API key is configured
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.EMAIL_FROM || 'StudyAI <noreply@study-mates.net>';
+
+    this.fastify.log.info(`📧 Email config check: resendApiKey=${resendApiKey ? 'SET (length:' + resendApiKey.length + ')' : 'NOT SET'}, from=${fromEmail}`);
+
+    // If Resend is not configured, just log it (development mode)
+    if (!resendApiKey) {
+      this.fastify.log.warn('⚠️ Resend API not configured - logging verification code to console');
+      this.fastify.log.info(`
+📧 ===== EMAIL VERIFICATION CODE =====
+To: ${email}
+Subject: Verify your StudyAI email address
+
+Hi ${name},
+
+Welcome to StudyAI!
+
+Your verification code is: ${code}
+
+This code will expire in 10 minutes.
+
+If you didn't create an account with StudyAI, please ignore this email.
+
+Best regards,
+The StudyAI Team
+=====================================
+      `);
+      return; // Don't throw error in dev mode
+    }
+
+    // Send actual email using Resend HTTPS API
+    try {
+      const { Resend } = require('resend');
+      const resend = new Resend(resendApiKey);
+
+      const { data, error } = await resend.emails.send({
+        from: fromEmail,
+        to: [email],
+        subject: 'Verify your StudyAI email address',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #2563eb;">Welcome to StudyAI!</h2>
+            <p>Hi ${name},</p>
+            <p>Thank you for signing up! Please verify your email address to complete your registration.</p>
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
+              <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">Your verification code is:</p>
+              <p style="font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 8px; margin: 10px 0;">${code}</p>
+              <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">This code will expire in 10 minutes</p>
+            </div>
+            <p style="color: #6b7280; font-size: 14px;">If you didn't create an account with StudyAI, please ignore this email.</p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The StudyAI Team</p>
+          </div>
+        `,
+        text: `Hi ${name},\n\nWelcome to StudyAI!\n\nYour verification code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't create an account with StudyAI, please ignore this email.\n\nBest regards,\nThe StudyAI Team`
+      });
+
+      if (error) {
+        this.fastify.log.error(`❌ Resend API error:`, error);
+        throw new Error(`Resend API error: ${error.message}`);
+      }
+
+      this.fastify.log.info(`✅ Verification email sent successfully to: ${email}, Resend ID: ${data?.id}`);
+
+    } catch (error) {
+      this.fastify.log.error(`❌ Failed to send verification email to ${email}:`, error);
+      this.fastify.log.error(`Email error details: ${error.message}`);
+      throw new Error('Failed to send verification email. Please try again later.');
     }
   }
 

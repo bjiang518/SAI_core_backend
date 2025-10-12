@@ -17,12 +17,117 @@ enum AIAvatarState {
 
 struct AIAvatarAnimation: View {
     let state: AIAvatarState
+    let voiceType: VoiceType  // Voice type determines animation
     @State private var blinkingOpacity: Double = 1.0
+    @State private var pulseScale: CGFloat = 1.0
 
     var body: some View {
         ZStack {
-            // Idle state - AI Spiral Loading (slow, small size - same as waiting/processing)
-            if state == .idle {
+            // Choose animation based on voice type and state
+            if voiceType == .adam {
+                // Adam uses Siri Animation
+                adamAnimation
+            } else {
+                // Eva uses AI Spiral Loading / Wave Animation
+                evaAnimation
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: state)
+    }
+
+    // MARK: - Adam Animation (Siri Animation)
+    private var adamAnimation: some View {
+        Group {
+            switch state {
+            case .idle:
+                // Idle state - Siri Animation (slow, small size)
+                LottieView(
+                    animationName: "Siri Animation",
+                    loopMode: .loop,
+                    animationSpeed: 0.5  // Slow when idle
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)  // Small size
+                .transition(.opacity)
+
+            case .waiting:
+                // Waiting state - Siri Animation (fast, small, blinking)
+                LottieView(
+                    animationName: "Siri Animation",
+                    loopMode: .loop,
+                    animationSpeed: 2.5  // Fast when waiting
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)  // Small size
+                .opacity(blinkingOpacity)  // Blinking effect
+                .transition(.opacity)
+                .onAppear {
+                    // Start blinking animation
+                    withAnimation(
+                        Animation.easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                    ) {
+                        blinkingOpacity = 0.3
+                    }
+                }
+                .onDisappear {
+                    // Reset opacity when waiting finishes
+                    blinkingOpacity = 1.0
+                }
+
+            case .processing:
+                // Processing state - Siri Animation (fast, small, no blinking)
+                LottieView(
+                    animationName: "Siri Animation",
+                    loopMode: .loop,
+                    animationSpeed: 2.5  // Fast when processing
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)  // Small size
+                .transition(.opacity)
+
+            case .speaking:
+                // Speaking state - Siri Animation (zoom in/out and blinking)
+                LottieView(
+                    animationName: "Siri Animation",
+                    loopMode: .loop,
+                    animationSpeed: 2.5  // Fast when speaking
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12 * pulseScale)  // Zoom in/out effect
+                .opacity(blinkingOpacity)  // Blinking effect
+                .transition(.opacity)
+                .onAppear {
+                    // Start zoom in/out animation
+                    withAnimation(
+                        Animation.easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                    ) {
+                        pulseScale = 1.3  // Zoom in by 30%
+                    }
+                    // Start blinking animation
+                    withAnimation(
+                        Animation.easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                    ) {
+                        blinkingOpacity = 0.5
+                    }
+                }
+                .onDisappear {
+                    // Reset animations when speaking finishes
+                    pulseScale = 1.0
+                    blinkingOpacity = 1.0
+                }
+            }
+        }
+    }
+
+    // MARK: - Eva Animation (Original)
+    private var evaAnimation: some View {
+        Group {
+            switch state {
+            case .idle:
+                // Idle state - AI Spiral Loading (slow, small size)
                 LottieView(
                     animationName: "AI Spiral Loading",
                     loopMode: .loop,
@@ -31,10 +136,9 @@ struct AIAvatarAnimation: View {
                 .frame(width: 60, height: 60)
                 .scaleEffect(0.12)  // Same small size as waiting/processing
                 .transition(.opacity)
-            }
 
-            // Waiting state - AI Spiral Loading (fast, small, blinking)
-            if state == .waiting {
+            case .waiting:
+                // Waiting state - AI Spiral Loading (fast, small, blinking)
                 LottieView(
                     animationName: "AI Spiral Loading",
                     loopMode: .loop,
@@ -57,10 +161,9 @@ struct AIAvatarAnimation: View {
                     // Reset opacity when waiting finishes
                     blinkingOpacity = 1.0
                 }
-            }
 
-            // Processing state - AI Spiral Loading (fast, small, no blinking)
-            if state == .processing {
+            case .processing:
+                // Processing state - AI Spiral Loading (fast, small, no blinking)
                 LottieView(
                     animationName: "AI Spiral Loading",
                     loopMode: .loop,
@@ -69,10 +172,9 @@ struct AIAvatarAnimation: View {
                 .frame(width: 60, height: 60)
                 .scaleEffect(0.12)  // Small size
                 .transition(.opacity)
-            }
 
-            // Speaking state - Wave Animation (fast, same small size)
-            if state == .speaking {
+            case .speaking:
+                // Speaking state - Wave Animation (fast, same small size)
                 LottieView(
                     animationName: "Wave Animation",
                     loopMode: .loop,
@@ -83,26 +185,35 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: state)
     }
 }
 
-#Preview("Idle State") {
-    AIAvatarAnimation(state: .idle)
+#Preview("Adam - Idle State") {
+    AIAvatarAnimation(state: .idle, voiceType: .adam)
         .frame(width: 60, height: 60)
 }
 
-#Preview("Waiting State") {
-    AIAvatarAnimation(state: .waiting)
+#Preview("Adam - Waiting State") {
+    AIAvatarAnimation(state: .waiting, voiceType: .adam)
         .frame(width: 60, height: 60)
 }
 
-#Preview("Processing State") {
-    AIAvatarAnimation(state: .processing)
+#Preview("Adam - Processing State") {
+    AIAvatarAnimation(state: .processing, voiceType: .adam)
         .frame(width: 60, height: 60)
 }
 
-#Preview("Speaking State") {
-    AIAvatarAnimation(state: .speaking)
+#Preview("Adam - Speaking State") {
+    AIAvatarAnimation(state: .speaking, voiceType: .adam)
+        .frame(width: 60, height: 60)
+}
+
+#Preview("Eva - Idle State") {
+    AIAvatarAnimation(state: .idle, voiceType: .eva)
+        .frame(width: 60, height: 60)
+}
+
+#Preview("Eva - Speaking State") {
+    AIAvatarAnimation(state: .speaking, voiceType: .eva)
         .frame(width: 60, height: 60)
 }

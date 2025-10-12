@@ -21,7 +21,7 @@ struct HelpCenterView: View {
         ),
         (
             question: "How do I change the AI voice?",
-            answer: "Go to Settings > Voice & Audio > Voice Settings. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed, pitch, and volume."
+            answer: "Go to Settings > Study Mate > Select your study mate. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume."
         ),
         (
             question: "Can I review my past mistakes?",

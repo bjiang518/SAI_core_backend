@@ -432,7 +432,7 @@ class AIProxyRoutes {
           required: ['text', 'voice'],
           properties: {
             text: { type: 'string', minLength: 1, maxLength: 4096 },
-            voice: { type: 'string', enum: ['echo', 'nova'] },
+            voice: { type: 'string', enum: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer', 'coral'] },
             speed: { type: 'number', minimum: 0.25, maximum: 4.0, default: 1.0 }
           }
         }
@@ -1257,13 +1257,20 @@ FORMATTING RULES:
         const conversationContext = conversationHistory
           .map(msg => `${msg.role === 'user' ? 'Student' : 'AI Tutor'}: ${msg.content}`)
           .join('\n\n');
-        
+
         // Build enhanced prompt with full conversation context
         enhancedQuestion = `You are an AI tutor helping a student in ${sessionInfo.subject || 'general studies'}. Here is our previous conversation:
 
 ${conversationContext}
 
-Student: ${message}
+The student just said: ${message}
+
+TUTORING GUIDELINES:
+- For academic questions: Do NOT give direct answers. Instead, provide hints and guide the student to solve problems themselves through Socratic questioning.
+- For greetings or casual conversation: Respond naturally and warmly.
+- Be encouraging and supportive. Focus on helping students develop problem-solving skills.
+- Ask guiding questions that help students think through the problem step-by-step.
+- Only reveal answers after the student has made genuine effort and is close to the solution.
 
 Please provide a helpful response that takes into account our previous conversation. Be consistent with what we've discussed before and build upon previous topics when relevant.${isMathSubject ? mathFormattingRules : ''}`;
 
@@ -1272,7 +1279,14 @@ Please provide a helpful response that takes into account our previous conversat
         // No conversation history - conditionally include formatting instructions
         enhancedQuestion = `You are an AI tutor helping a student in ${sessionInfo.subject || 'general studies'}.
 
-Student: ${message}
+The student said: ${message}
+
+TUTORING GUIDELINES:
+- For academic questions: Do NOT give direct answers. Instead, provide hints and guide the student to solve problems themselves through Socratic questioning.
+- For greetings or casual conversation: Respond naturally and warmly.
+- Be encouraging and supportive. Focus on helping students develop problem-solving skills.
+- Ask guiding questions that help students think through the problem step-by-step.
+- Only reveal answers after the student has made genuine effort and is close to the solution.
 
 Please provide a helpful response to the student's question.${isMathSubject ? mathFormattingRules : ''}`;
 
@@ -1472,7 +1486,15 @@ Please provide a helpful response to the student's question.${isMathSubject ? ma
       let contextMessages = [
         {
           role: 'system',
-          content: `You are StudyAI, an AI tutor helping with ${sessionInfo.subject || 'academic'} questions. Be helpful, encouraging, and educational. Provide step-by-step explanations when appropriate.`
+          content: `You are StudyAI, an AI tutor helping with ${sessionInfo.subject || 'academic'} questions.
+
+TUTORING GUIDELINES:
+- For academic questions: Do NOT give direct answers. Instead, provide hints and guide the student to solve problems themselves through Socratic questioning.
+- For greetings or casual conversation: Respond naturally and warmly.
+- Be encouraging and supportive. Focus on helping students develop problem-solving skills.
+- Ask guiding questions that help students think through the problem step-by-step.
+- Only reveal answers after the student has made genuine effort and is close to the solution.
+- Provide step-by-step guidance when appropriate, but let the student do the thinking.`
         }
       ];
 

@@ -22,7 +22,6 @@ struct HomeView: View {
     @State private var showingMistakeReview = false
     @State private var showingQuestionGeneration = false
     @State private var showingParentReports = false
-    @State private var blinkingOpacity: Double = 1.0  // For blinking animation during preload
 
     private let logger = Logger(subsystem: "com.studyai", category: "HomeView")
 
@@ -59,13 +58,28 @@ struct HomeView: View {
             .background(DesignTokens.Colors.surface.ignoresSafeArea())
             .navigationBarHidden(true)
             .onAppear {
-                // Load user name from ProfileService - prefer displayName over fullName
+                // Load user name from ProfileService with profile completion check
                 if let profile = profileService.currentProfile {
-                    userName = profile.displayName ?? profile.fullName
+                    if !profile.isProfileComplete {
+                        // Profile not complete - prompt user to edit
+                        userName = NSLocalizedString("home.pleaseEditProfile", comment: "")
+                    } else if let displayName = profile.displayName, !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        // Use display name if available
+                        userName = displayName
+                    } else {
+                        // Default to "Student" if no display name
+                        userName = NSLocalizedString("home.defaultStudentName", comment: "")
+                    }
                 } else if let cachedProfile = profileService.loadCachedProfile() {
-                    userName = cachedProfile.displayName ?? cachedProfile.fullName
+                    if !cachedProfile.isProfileComplete {
+                        userName = NSLocalizedString("home.pleaseEditProfile", comment: "")
+                    } else if let displayName = cachedProfile.displayName, !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        userName = displayName
+                    } else {
+                        userName = NSLocalizedString("home.defaultStudentName", comment: "")
+                    }
                 } else {
-                    userName = "there"
+                    userName = NSLocalizedString("home.defaultStudentName", comment: "")
                 }
             }
             .sheet(isPresented: $showingProfile) {
@@ -119,12 +133,9 @@ struct HomeView: View {
                         y: 6
                     )
 
-                // Content inside the greeting card - only greeting now
-                HStack(alignment: .center, spacing: DesignTokens.Spacing.md) {
-                    Spacer()
-                        .frame(width: 8)  // Space before animation - adjust this value
-
-                    // User Avatar - AI Spiral Loading animation - ENLARGED and INTERACTIVE
+                // Content inside the greeting card - three-column layout
+                HStack(alignment: .center, spacing: 0) {
+                    // Left: AI Avatar Animation
                     Button(action: {
                         // Don't allow tap if preloading
                         guard !greetingVoice.isPreloading else {
@@ -139,65 +150,20 @@ struct HomeView: View {
                         // Speak random greeting
                         greetingVoice.speakRandomGreeting()
                     }) {
-                        ZStack {
-                            // Idle animation - AI Spiral Loading (slow, normal size)
-                            if !greetingVoice.isSpeaking && !greetingVoice.isPreloading {
-                                LottieView(
-                                    animationName: "AI Spiral Loading",
-                                    loopMode: .loop,
-                                    animationSpeed: 0.5  // Slow when idle
-                                )
-                                .frame(width: 60, height: 60)
-                                .scaleEffect(0.17)
-                                .transition(.opacity)
-                            }
-
-                            // Preloading animation - AI Spiral Loading (fast, small, blinking)
-                            if greetingVoice.isPreloading {
-                                LottieView(
-                                    animationName: "AI Spiral Loading",
-                                    loopMode: .loop,
-                                    animationSpeed: 2.5  // Fast when preloading/thinking
-                                )
-                                .frame(width: 60, height: 60)
-                                .scaleEffect(0.12)  // Smaller during preloading
-                                .opacity(blinkingOpacity)  // Blinking effect
-                                .transition(.opacity)
-                                .onAppear {
-                                    // Start blinking animation
-                                    withAnimation(
-                                        Animation.easeInOut(duration: 0.6)
-                                            .repeatForever(autoreverses: true)
-                                    ) {
-                                        blinkingOpacity = 0.3
-                                    }
-                                }
-                                .onDisappear {
-                                    // Reset opacity when preloading finishes
-                                    blinkingOpacity = 1.0
-                                }
-                            }
-
-                            // Speaking animation - Wave Animation (fast)
-                            if greetingVoice.isSpeaking {
-                                LottieView(
-                                    animationName: "Wave Animation",
-                                    loopMode: .loop,
-                                    animationSpeed: 2.5  // Fast wave animation
-                                )
-                                .frame(width: 60, height: 60)
-                                .scaleEffect(0.18)  // Much smaller - similar to idle spiral
-                                .transition(.opacity)
-                            }
-                        }
-                        .animation(.easeInOut(duration: 0.3), value: greetingVoice.isSpeaking)
-                        .animation(.easeInOut(duration: 0.3), value: greetingVoice.isPreloading)
+                        AIAvatarAnimation(
+                            state: greetingVoice.isSpeaking ? .speaking : (greetingVoice.isPreloading ? .waiting : .idle),
+                            voiceType: greetingVoice.currentVoiceType
+                        )
+                        .frame(width: 100, height: 100)  // Enlarged from 80x80 (1.25x factor)
                     }
                     .buttonStyle(PlainButtonStyle())
-                    .disabled(greetingVoice.isPreloading)  // Disable button during preload
+                    .disabled(greetingVoice.isPreloading)
+                    .frame(width: 116)  // Fixed width for left column (100 + 16 padding)
 
-                    // Greeting with larger fonts
-                    VStack(alignment: .leading, spacing: 2) {
+                    // Center: Greeting text - perfectly centered with flex space
+                    Spacer()
+
+                    VStack(spacing: 2) {
                         Text(greetingText)
                             .font(.body)
                             .foregroundColor(.white.opacity(0.9))
@@ -206,26 +172,29 @@ struct HomeView: View {
                             .font(.title2)
                             .foregroundColor(.white)
                             .fontWeight(.bold)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
                     }
-                    .padding(.leading, 8)
+                    .frame(minWidth: 0, maxWidth: .infinity)
 
                     Spacer()
-                }
-                .padding(DesignTokens.Spacing.md)  // Internal padding inside the card
 
-                // Settings button - centered vertically on the right edge, enlarged
-                Button(action: { showingProfile = true }) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 24))  // Enlarged from 18
-                        .foregroundColor(.white.opacity(0.9))
-                        .frame(width: 48, height: 48)  // Enlarged from 36x36
-                        .background(Color.white.opacity(0.2))
-                        .clipShape(Circle())
+                    // Right: Settings button - matching left width
+                    Button(action: { showingProfile = true }) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white.opacity(0.9))
+                            .frame(width: 48, height: 48)
+                            .background(Color.white.opacity(0.2))
+                            .clipShape(Circle())
+                    }
+                    .frame(width: 116)  // Fixed width for right column to mirror left
                 }
-                .padding(.trailing, DesignTokens.Spacing.md)
+                .padding(.horizontal, DesignTokens.Spacing.md)
+                .padding(.vertical, DesignTokens.Spacing.sm)
             }
-            .frame(height: 90)  // Reduced height since we removed stats
-            .padding(.top, DesignTokens.Spacing.md)  // Top spacing - reduced to move greeting up
+            .frame(height: 110)  // Compact height
+            .padding(.top, DesignTokens.Spacing.md)
 
             // Today's Progress - moved outside the gradient box
             VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
@@ -329,48 +298,59 @@ struct StatBadge: View {
 extension HomeView {
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
+            // Section title
+            Text(NSLocalizedString("home.quickActions", comment: ""))
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+                .padding(.horizontal, DesignTokens.Spacing.xl)
+
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: DesignTokens.Spacing.md),
                 GridItem(.flexible(), spacing: DesignTokens.Spacing.md)
             ], spacing: DesignTokens.Spacing.md) {
 
+                // Rainbow Card 1: Red
                 QuickActionCard_New(
                     icon: "camera.fill",
                     title: NSLocalizedString("home.homeworkGrader", comment: ""),
                     subtitle: NSLocalizedString("home.scanAndGrade", comment: ""),
-                    color: DesignTokens.Colors.homeworkGraderCoral,
+                    color: Color(red: 1.0, green: 0.2, blue: 0.2),  // Red
                     lottieAnimation: "Checklist",
-                    lottieScale: 0.29,  // Adjust this value to change size (0.1 to 1.0)
+                    lottieScale: 0.29,
                     action: { onSelectTab(.grader) }
                 )
 
+                // Rainbow Card 2: Orange
                 QuickActionCard_New(
                     icon: "message.fill",
                     title: NSLocalizedString("home.chat", comment: ""),
                     subtitle: NSLocalizedString("home.conversationalAI", comment: ""),
-                    color: DesignTokens.Colors.chatYellow,
+                    color: Color(red: 1.0, green: 0.6, blue: 0.0),  // Orange
                     lottieAnimation: "Chat",
-                    lottieScale: 0.2,  // Adjust this value to change size (0.1 to 1.0)
+                    lottieScale: 0.2,
                     action: { onSelectTab(.chat) }
                 )
 
+                // Rainbow Card 3: Yellow
                 QuickActionCard_New(
                     icon: "books.vertical.fill",
                     title: NSLocalizedString("home.library", comment: ""),
                     subtitle: NSLocalizedString("home.studySessions", comment: ""),
-                    color: DesignTokens.Colors.libraryPurple,
+                    color: Color(red: 1.0, green: 0.9, blue: 0.0),  // Yellow
                     lottieAnimation: "Books",
-                    lottieScale: 0.12,  // Adjust this value to change size (0.1 to 1.0)
+                    lottieScale: 0.12,
                     action: { onSelectTab(.library) }
                 )
 
+                // Rainbow Card 4: Green
                 QuickActionCard_New(
                     icon: "chart.bar.fill",
                     title: NSLocalizedString("home.progress", comment: ""),
                     subtitle: NSLocalizedString("home.trackLearning", comment: ""),
-                    color: DesignTokens.Colors.progressGreen,
+                    color: Color(red: 0.2, green: 0.8, blue: 0.2),  // Green
                     lottieAnimation: "Chart Graph",
-                    lottieScale: 0.45,  // Adjust this value to change size (0.1 to 1.0)
+                    lottieScale: 0.45,
                     action: { onSelectTab(.progress) }
                 )
             }
@@ -380,32 +360,44 @@ extension HomeView {
 
     // MARK: - Additional Actions Section
     private var additionalActionsSection: some View {
-        VStack(spacing: DesignTokens.Spacing.md) {
-            HorizontalActionButton(
-                icon: "brain.head.profile.fill",
-                title: NSLocalizedString("home.practice", comment: ""),
-                subtitle: NSLocalizedString("home.practiceDescription", comment: ""),
-                color: DesignTokens.Colors.learningGreen,
-                action: { showingQuestionGeneration = true }
-            )
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
+            // Section title - aligned with Quick Actions title
+            Text(NSLocalizedString("home.moreFeatures", comment: ""))
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+                .padding(.horizontal, DesignTokens.Spacing.xl)
 
-            HorizontalActionButton(
-                icon: "arrow.uturn.backward.circle.fill",
-                title: NSLocalizedString("home.mistakeReview", comment: ""),
-                subtitle: NSLocalizedString("home.mistakeReviewDescription", comment: ""),
-                color: DesignTokens.Colors.reviewOrange,
-                action: { showingMistakeReview = true }
-            )
-
+            // Rainbow Card 5: Blue
             HorizontalActionButton(
                 icon: "doc.text.fill",
+                title: NSLocalizedString("home.practice", comment: ""),
+                subtitle: NSLocalizedString("home.practiceDescription", comment: ""),
+                color: Color(red: 0.2, green: 0.4, blue: 1.0),  // Blue
+                action: { showingQuestionGeneration = true }
+            )
+            .padding(.horizontal, DesignTokens.Spacing.xl)
+
+            // Rainbow Card 6: Indigo
+            HorizontalActionButton(
+                icon: "xmark.circle.fill",
+                title: NSLocalizedString("home.mistakeReview", comment: ""),
+                subtitle: NSLocalizedString("home.mistakeReviewDescription", comment: ""),
+                color: Color(red: 0.3, green: 0.0, blue: 0.5),  // Indigo
+                action: { showingMistakeReview = true }
+            )
+            .padding(.horizontal, DesignTokens.Spacing.xl)
+
+            // Rainbow Card 7: Violet
+            HorizontalActionButton(
+                icon: "figure.2.and.child.holdinghands",
                 title: NSLocalizedString("home.parentReports", comment: ""),
                 subtitle: NSLocalizedString("home.parentReportsDescription", comment: ""),
-                color: DesignTokens.Colors.analyticsPlum,
+                color: Color(red: 0.58, green: 0.0, blue: 0.83),  // Violet
                 action: { showingParentReports = true }
             )
+            .padding(.horizontal, DesignTokens.Spacing.xl)
         }
-        .padding(.horizontal, DesignTokens.Spacing.xl)
     }
 }
 

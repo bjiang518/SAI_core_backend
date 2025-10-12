@@ -404,7 +404,8 @@ const db = {
       email,
       name,
       password,
-      authProvider = 'email'
+      authProvider = 'email',
+      emailVerified = false  // Default to false, but allow override for verified registrations
     } = userData;
 
     // Hash the password using bcryptjs
@@ -414,10 +415,10 @@ const db = {
 
     const query = `
       INSERT INTO users (
-        email, 
-        name, 
-        password_hash, 
-        auth_provider, 
+        email,
+        name,
+        password_hash,
+        auth_provider,
         email_verified,
         last_login_at
       ) VALUES ($1, $2, $3, $4, $5, NOW())
@@ -429,7 +430,7 @@ const db = {
       name,
       passwordHash,
       authProvider,
-      false // email_verified - false for email/password auth until verified
+      emailVerified  // Use the provided value (true for email verification flow)
     ];
 
     const result = await this.query(query, values);
@@ -466,11 +467,101 @@ const db = {
    */
   async getUserById(userId) {
     const query = `
-      SELECT * FROM users 
+      SELECT * FROM users
       WHERE id = $1 AND is_active = true
     `;
-    
+
     const result = await this.query(query, [userId]);
+    return result.rows[0];
+  },
+
+  /**
+   * Email Verification Methods
+   */
+
+  /**
+   * Store verification code for email verification
+   */
+  async storeVerificationCode(email, code, name, expiresAt) {
+    const query = `
+      INSERT INTO email_verifications (email, code, name, expires_at, attempts)
+      VALUES ($1, $2, $3, $4, 0)
+      ON CONFLICT (email)
+      DO UPDATE SET
+        code = EXCLUDED.code,
+        name = EXCLUDED.name,
+        expires_at = EXCLUDED.expires_at,
+        attempts = 0,
+        created_at = NOW()
+      RETURNING *
+    `;
+
+    const result = await this.query(query, [email, code, name, expiresAt]);
+    return result.rows[0];
+  },
+
+  /**
+   * Verify code for email verification
+   */
+  async verifyCode(email, code) {
+    const query = `
+      SELECT * FROM email_verifications
+      WHERE email = $1 AND code = $2 AND expires_at > NOW()
+    `;
+
+    const result = await this.query(query, [email, code]);
+
+    if (result.rows.length === 0) {
+      // Increment attempts if verification record exists
+      await this.query(
+        'UPDATE email_verifications SET attempts = attempts + 1 WHERE email = $1',
+        [email]
+      );
+      return false;
+    }
+
+    // Check if too many attempts
+    const verification = result.rows[0];
+    if (verification.attempts >= 5) {
+      return false;
+    }
+
+    return true;
+  },
+
+  /**
+   * Delete verification code after successful verification
+   */
+  async deleteVerificationCode(email) {
+    const query = 'DELETE FROM email_verifications WHERE email = $1';
+    await this.query(query, [email]);
+  },
+
+  /**
+   * Get pending verification for resend
+   */
+  async getPendingVerification(email) {
+    const query = `
+      SELECT email, name FROM email_verifications
+      WHERE email = $1 AND expires_at > NOW()
+    `;
+
+    const result = await this.query(query, [email]);
+    return result.rows[0];
+  },
+
+  /**
+   * Update verification code for resend
+   */
+  async updateVerificationCode(email, code, expiresAt) {
+    const query = `
+      UPDATE email_verifications
+      SET code = $1, expires_at = $2, attempts = 0, created_at = NOW()
+      WHERE email = $3
+      RETURNING *
+    `;
+
+    const result = await this.query(query, [code, expiresAt, email]);
     return result.rows[0];
   },
   /**
@@ -1932,11 +2023,58 @@ async function runDatabaseMigrations() {
       );
     `);
     
+    // Check if email_verifications table exists and create if missing
+    const emailVerificationTableCheck = await db.query(`
+      SELECT tablename
+      FROM pg_tables
+      WHERE schemaname = 'public' AND tablename = 'email_verifications'
+    `);
+
+    if (emailVerificationTableCheck.rows.length === 0) {
+      console.log('📋 Creating email_verifications table...');
+
+      try {
+        await db.query(`
+          -- Email verifications table for email verification codes
+          CREATE TABLE email_verifications (
+            id SERIAL PRIMARY KEY,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            code VARCHAR(6) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            attempts INTEGER DEFAULT 0,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+          );
+
+          -- Email verifications indexes
+          CREATE INDEX idx_email_verifications_email ON email_verifications(email);
+          CREATE INDEX idx_email_verifications_expires ON email_verifications(expires_at);
+        `);
+        console.log('✅ email_verifications table created successfully');
+
+        // Record this migration
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('add_email_verifications_table')
+          ON CONFLICT (migration_name) DO NOTHING
+        `);
+      } catch (tableError) {
+        // If table already exists, ignore the error
+        if (tableError.code === '23505' || tableError.code === '42P07') {
+          console.log('⚠️ email_verifications table already exists, skipping creation');
+        } else {
+          throw tableError;
+        }
+      }
+    } else {
+      console.log('✅ email_verifications table already exists');
+    }
+
     // Check if grading fields migration has been applied
     const gradeFieldsCheck = await db.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'archived_questions' 
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'archived_questions'
       AND column_name IN ('student_answer', 'grade', 'points', 'max_points', 'feedback', 'is_graded')
     `);
     
@@ -2855,6 +2993,21 @@ async function createInlineSchema() {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
 
+    -- Email verifications table for email verification codes
+    CREATE TABLE IF NOT EXISTS email_verifications (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      code VARCHAR(6) NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      attempts INTEGER DEFAULT 0,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+    );
+
+    -- Email verifications indexes
+    CREATE INDEX IF NOT EXISTS idx_email_verifications_email ON email_verifications(email);
+    CREATE INDEX IF NOT EXISTS idx_email_verifications_expires ON email_verifications(expires_at);
+
     -- Enhanced profiles table for comprehensive user profile management
     CREATE TABLE IF NOT EXISTS profiles (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -3066,17 +3219,82 @@ async function createInlineSchema() {
         FOR EACH ROW 
         EXECUTE FUNCTION update_updated_at_column();
 
-    CREATE TRIGGER IF NOT EXISTS update_questions_updated_at 
-        BEFORE UPDATE ON questions 
-        FOR EACH ROW 
+    CREATE TRIGGER IF NOT EXISTS update_questions_updated_at
+        BEFORE UPDATE ON questions
+        FOR EACH ROW
         EXECUTE FUNCTION update_updated_at_column();
 
-    CREATE TRIGGER IF NOT EXISTS update_progress_updated_at 
-        BEFORE UPDATE ON progress 
-        FOR EACH ROW 
+    CREATE TRIGGER IF NOT EXISTS update_progress_updated_at
+        BEFORE UPDATE ON progress
+        FOR EACH ROW
         EXECUTE FUNCTION update_updated_at_column();
+
+    -- Parent Reports Table (for weekly/monthly student progress reports)
+    -- Added to inline schema to ensure automatic creation on deployment
+    CREATE TABLE IF NOT EXISTS parent_reports (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL,
+        report_type VARCHAR(50) NOT NULL CHECK (report_type IN ('weekly', 'monthly', 'custom', 'progress')),
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+
+        -- Core Report Data
+        report_data JSONB NOT NULL,
+
+        -- Progress Comparison Data
+        previous_report_id UUID REFERENCES parent_reports(id),
+        comparison_data JSONB,
+
+        -- Report Metadata
+        generated_at TIMESTAMP DEFAULT NOW(),
+        expires_at TIMESTAMP NOT NULL DEFAULT NOW() + INTERVAL '7 days',
+        report_version VARCHAR(10) DEFAULT '1.0',
+
+        -- Status and Settings
+        status VARCHAR(20) DEFAULT 'completed' CHECK (status IN ('generating', 'completed', 'failed', 'expired')),
+        generation_time_ms INTEGER,
+        ai_analysis_included BOOLEAN DEFAULT false,
+
+        -- Foreign Key
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+
+        -- Constraints
+        CHECK (start_date <= end_date),
+        CHECK (generated_at <= expires_at)
+    );
+
+    -- Parent Reports Indexes
+    CREATE INDEX IF NOT EXISTS idx_parent_reports_user_date ON parent_reports(user_id, start_date, end_date);
+    CREATE INDEX IF NOT EXISTS idx_parent_reports_user_generated ON parent_reports(user_id, generated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_parent_reports_status ON parent_reports(status, expires_at);
+
+    -- Parent Report Narratives Table (for human-readable reports)
+    -- Added to inline schema to ensure automatic creation on deployment
+    CREATE TABLE IF NOT EXISTS parent_report_narratives (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        parent_report_id UUID NOT NULL REFERENCES parent_reports(id) ON DELETE CASCADE,
+        narrative_content TEXT NOT NULL,
+        report_summary TEXT NOT NULL,
+        key_insights JSONB DEFAULT '[]',
+        recommendations TEXT[] DEFAULT '{}',
+        tone_style VARCHAR(50) DEFAULT 'teacher_to_parent',
+        language VARCHAR(10) DEFAULT 'en',
+        generated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        ai_model_version VARCHAR(50) DEFAULT 'claude-3.5-sonnet',
+        word_count INTEGER DEFAULT 0,
+        reading_level VARCHAR(20) DEFAULT 'grade_8',
+        generation_time_ms INTEGER DEFAULT 0,
+        is_complete BOOLEAN DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Parent Report Narratives Indexes
+    CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_parent_report_id ON parent_report_narratives(parent_report_id);
+    CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_generated_at ON parent_report_narratives(generated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_tone_language ON parent_report_narratives(tone_style, language);
   `;
-  
+
   await db.query(schema);
 }
 

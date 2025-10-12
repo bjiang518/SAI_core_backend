@@ -18,6 +18,46 @@ class PDFGeneratorService: ObservableObject {
 
     // MARK: - Public Methods
 
+    /// Generate PDF for generated practice questions
+    func generatePracticePDF(
+        questions: [QuestionGenerationService.GeneratedQuestion],
+        subject: String,
+        generationType: String
+    ) async -> PDFDocument? {
+        isGenerating = true
+        generationProgress = 0.0
+
+        defer {
+            isGenerating = false
+            generationProgress = 0.0
+        }
+
+        let pdfDocument = PDFDocument()
+        let questionsPerPage = 2
+        let totalPages = Int(ceil(Double(questions.count) / Double(questionsPerPage)))
+
+        for pageIndex in 0..<totalPages {
+            let startIndex = pageIndex * questionsPerPage
+            let endIndex = min(startIndex + questionsPerPage, questions.count)
+            let pageQuestions = Array(questions[startIndex..<endIndex])
+
+            if let pdfPage = await createPracticePDFPage(
+                questions: pageQuestions,
+                pageNumber: pageIndex + 1,
+                totalPages: totalPages,
+                subject: subject,
+                generationType: generationType
+            ) {
+                pdfDocument.insert(pdfPage, at: pdfDocument.pageCount)
+            }
+
+            // Update progress
+            generationProgress = Double(pageIndex + 1) / Double(totalPages)
+        }
+
+        return pdfDocument.pageCount > 0 ? pdfDocument : nil
+    }
+
     func generateMistakesPDF(
         questions: [MistakeQuestion],
         subject: String,
@@ -58,6 +98,256 @@ class PDFGeneratorService: ObservableObject {
     }
 
     // MARK: - Private Methods
+
+    private func createPracticePDFPage(
+        questions: [QuestionGenerationService.GeneratedQuestion],
+        pageNumber: Int,
+        totalPages: Int,
+        subject: String,
+        generationType: String
+    ) async -> PDFPage? {
+        let pageSize = CGSize(width: 612, height: 792) // US Letter: 8.5" x 11" at 72 DPI
+        let renderer = UIGraphicsImageRenderer(size: pageSize)
+
+        let image = renderer.image { context in
+            let cgContext = context.cgContext
+
+            // Set up drawing context
+            cgContext.setFillColor(UIColor.white.cgColor)
+            cgContext.fill(CGRect(origin: .zero, size: pageSize))
+
+            // Draw the page content
+            drawPracticePageContent(
+                in: cgContext,
+                pageSize: pageSize,
+                questions: questions,
+                pageNumber: pageNumber,
+                totalPages: totalPages,
+                subject: subject,
+                generationType: generationType
+            )
+        }
+
+        // Convert UIImage to PDFPage
+        let pdfPage = PDFPage(image: image)
+        return pdfPage
+    }
+
+    private func drawPracticePageContent(
+        in context: CGContext,
+        pageSize: CGSize,
+        questions: [QuestionGenerationService.GeneratedQuestion],
+        pageNumber: Int,
+        totalPages: Int,
+        subject: String,
+        generationType: String
+    ) {
+        let margin: CGFloat = 54 // 0.75 inch margins at 72 DPI
+        let contentWidth = pageSize.width - (2 * margin)
+        var currentY: CGFloat = margin
+
+        // Header
+        currentY = drawPracticeHeader(
+            in: context,
+            x: margin,
+            y: currentY,
+            width: contentWidth,
+            subject: subject,
+            generationType: generationType
+        )
+
+        currentY += 30 // Space after header
+
+        // Questions
+        for (index, question) in questions.enumerated() {
+            let questionHeight = drawPracticeQuestion(
+                in: context,
+                x: margin,
+                y: currentY,
+                width: contentWidth,
+                question: question,
+                questionNumber: ((pageNumber - 1) * 2) + index + 1
+            )
+            currentY += questionHeight + 40 // Space between questions
+        }
+
+        // Footer
+        drawFooter(
+            in: context,
+            pageSize: pageSize,
+            pageNumber: pageNumber,
+            totalPages: totalPages
+        )
+    }
+
+    private func drawPracticeHeader(
+        in context: CGContext,
+        x: CGFloat,
+        y: CGFloat,
+        width: CGFloat,
+        subject: String,
+        generationType: String
+    ) -> CGFloat {
+        let titleFont = UIFont.systemFont(ofSize: 18, weight: .bold)
+        let subtitleFont = UIFont.systemFont(ofSize: 12, weight: .medium)
+        let dateFont = UIFont.systemFont(ofSize: 10, weight: .regular)
+
+        var currentY = y
+
+        // Title
+        let title = "Practice Questions"
+        drawText(
+            title,
+            in: context,
+            at: CGPoint(x: x, y: currentY),
+            width: width,
+            font: titleFont,
+            color: UIColor.black,
+            alignment: .center
+        )
+        currentY += 25
+
+        // Subject
+        let subjectText = "Subject: \(subject)"
+        drawText(
+            subjectText,
+            in: context,
+            at: CGPoint(x: x, y: currentY),
+            width: width,
+            font: subtitleFont,
+            color: UIColor.darkGray,
+            alignment: .left
+        )
+        currentY += 18
+
+        // Generation type and date
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MMMM d, yyyy"
+        let dateText = "Generated on \(dateFormatter.string(from: Date())) • \(generationType)"
+
+        drawText(
+            dateText,
+            in: context,
+            at: CGPoint(x: x, y: currentY),
+            width: width,
+            font: dateFont,
+            color: UIColor.gray,
+            alignment: .left
+        )
+        currentY += 18
+
+        // Instruction line
+        let instruction = "Answer each question in the space provided. Show your work where applicable."
+        drawText(
+            instruction,
+            in: context,
+            at: CGPoint(x: x, y: currentY),
+            width: width,
+            font: dateFont,
+            color: UIColor.gray,
+            alignment: .left
+        )
+        currentY += 20
+
+        // Divider line
+        context.setStrokeColor(UIColor.lightGray.cgColor)
+        context.setLineWidth(1)
+        context.move(to: CGPoint(x: x, y: currentY))
+        context.addLine(to: CGPoint(x: x + width, y: currentY))
+        context.strokePath()
+
+        return currentY
+    }
+
+    private func drawPracticeQuestion(
+        in context: CGContext,
+        x: CGFloat,
+        y: CGFloat,
+        width: CGFloat,
+        question: QuestionGenerationService.GeneratedQuestion,
+        questionNumber: Int
+    ) -> CGFloat {
+        let questionFont = UIFont.systemFont(ofSize: 12, weight: .semibold)
+        let bodyFont = UIFont.systemFont(ofSize: 10, weight: .regular)
+        let metaFont = UIFont.systemFont(ofSize: 8, weight: .regular)
+
+        var currentY = y
+        let answerSpaceHeight: CGFloat = 60
+
+        // Question number and metadata
+        let metadata = "Difficulty: \(question.difficulty) | Topic: \(question.topic)"
+        drawText(
+            metadata,
+            in: context,
+            at: CGPoint(x: x, y: currentY),
+            width: width,
+            font: metaFont,
+            color: UIColor.gray,
+            alignment: .left
+        )
+        currentY += 18
+
+        // Question header
+        let questionHeader = "Question \(questionNumber):"
+        drawText(
+            questionHeader,
+            in: context,
+            at: CGPoint(x: x, y: currentY),
+            width: width,
+            font: questionFont,
+            color: UIColor.black,
+            alignment: .left
+        )
+        currentY += 25
+
+        // Question content
+        let questionHeight = drawMultilineText(
+            question.question,
+            in: context,
+            at: CGPoint(x: x + 20, y: currentY),
+            width: width - 20,
+            font: bodyFont
+        )
+        currentY += questionHeight + 15
+
+        // For multiple choice, show options
+        if let options = question.options, !options.isEmpty {
+            currentY += 10
+            for (index, option) in options.enumerated() {
+                let optionLabel = "\(String(UnicodeScalar(65 + index)!))) \(option)"
+                let optionHeight = drawMultilineText(
+                    optionLabel,
+                    in: context,
+                    at: CGPoint(x: x + 30, y: currentY),
+                    width: width - 30,
+                    font: bodyFont
+                )
+                currentY += optionHeight + 8
+            }
+            currentY += 10
+        }
+
+        // Answer space
+        drawText(
+            "Your Answer:",
+            in: context,
+            at: CGPoint(x: x + 20, y: currentY),
+            width: width - 20,
+            font: bodyFont,
+            color: UIColor.darkGray,
+            alignment: .left
+        )
+        currentY += 20
+
+        // Answer box
+        let answerBox = CGRect(x: x + 20, y: currentY, width: width - 20, height: answerSpaceHeight)
+        context.setStrokeColor(UIColor.lightGray.cgColor)
+        context.setLineWidth(1)
+        context.stroke(answerBox)
+        currentY += answerSpaceHeight + 5
+
+        return currentY - y
+    }
 
     private func createPDFPage(
         questions: [MistakeQuestion],
@@ -314,8 +604,8 @@ class PDFGeneratorService: ObservableObject {
             alignment: .center
         )
 
-        // StudyAI branding
-        let brandText = "Generated by StudyAI"
+        // Study Mate branding
+        let brandText = "Generated by Study Mate"
         drawText(
             brandText,
             in: context,

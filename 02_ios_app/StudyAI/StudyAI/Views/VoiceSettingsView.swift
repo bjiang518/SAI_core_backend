@@ -122,50 +122,8 @@ struct VoiceSettingsView: View {
                             EmptyView()
                         }
                         .tint(voiceColor)
-                        .onChange(of: tempSettings.speakingRate) {
-                            // Provide real-time feedback for rate changes
-                            playQuickPreview()
-                        }
 
                         Image(systemName: "hare.fill")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    }
-                }
-
-                // Voice Pitch
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Voice Pitch")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-
-                        Spacer()
-
-                        Text(pitchLabel)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    HStack {
-                        Image(systemName: "arrow.down")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-
-                        Slider(value: $tempSettings.voicePitch, in: 0.7...1.3) {
-                            Text("Voice Pitch")
-                        } minimumValueLabel: {
-                            EmptyView()
-                        } maximumValueLabel: {
-                            EmptyView()
-                        }
-                        .tint(voiceColor)
-                        .onChange(of: tempSettings.voicePitch) {
-                            // Provide real-time feedback for pitch changes
-                            playQuickPreview()
-                        }
-
-                        Image(systemName: "arrow.up")
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
@@ -198,10 +156,6 @@ struct VoiceSettingsView: View {
                             EmptyView()
                         }
                         .tint(voiceColor)
-                        .onChange(of: tempSettings.volume) {
-                            // Provide real-time feedback for volume changes
-                            playQuickPreview()
-                        }
 
                         Image(systemName: "speaker.wave.3.fill")
                             .foregroundColor(.secondary)
@@ -309,24 +263,10 @@ struct VoiceSettingsView: View {
             return "Very Fast"
         }
     }
-    
-    private var pitchLabel: String {
-        switch tempSettings.voicePitch {
-        case 0.7..<0.9:
-            return "Low"
-        case 0.9..<1.1:
-            return "Normal"
-        case 1.1...1.3:
-            return "High"
-        default:
-            return "Normal"
-        }
-    }
-    
+
     private var hasChanges: Bool {
         tempSettings.voiceType != voiceService.voiceSettings.voiceType ||
         abs(tempSettings.speakingRate - voiceService.voiceSettings.speakingRate) > 0.01 ||
-        abs(tempSettings.voicePitch - voiceService.voiceSettings.voicePitch) > 0.01 ||
         abs(tempSettings.volume - voiceService.voiceSettings.volume) > 0.01 ||
         tempSettings.autoSpeakResponses != voiceService.voiceSettings.autoSpeakResponses
     }
@@ -386,38 +326,7 @@ struct VoiceSettingsView: View {
             }
         }
     }
-    
-    @State private var previewDebounceTask: Task<Void, Never>?
-    
-    private func playQuickPreview() {
-        // Cancel previous debounce task
-        previewDebounceTask?.cancel()
-        
-        // Create new debounced task
-        previewDebounceTask = Task {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
-            
-            guard !Task.isCancelled else { return }
-            
-            await MainActor.run {
-                // Quick preview with short text
-                let quickText = "Hello!"
-                
-                // Stop any current speech
-                voiceService.stopSpeech()
-                
-                // Use current temp settings for immediate feedback
-                if voiceService.shouldUseEnhancedTTS(for: tempSettings.voiceType) {
-                    let enhancedTTS = EnhancedTTSService()
-                    enhancedTTS.speak(quickText, with: tempSettings)
-                } else {
-                    let systemTTS = TextToSpeechService()
-                    systemTTS.speak(quickText, with: tempSettings)
-                }
-            }
-        }
-    }
-    
+
     private func saveSettings() {
         voiceService.updateVoiceSettings(tempSettings)
         dismiss()

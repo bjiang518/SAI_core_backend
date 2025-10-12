@@ -29,8 +29,8 @@ struct ParentReportsView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Parent Reports")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle(NSLocalizedString("parentReport.title", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(item: $selectedReport) { report in
                 ReportDetailView(report: report)
                     .onAppear {
@@ -55,11 +55,11 @@ struct ParentReportsView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 VStack(alignment: .leading) {
-                    Text("Study Reports")
+                    Text(NSLocalizedString("parentReport.studyReports", comment: ""))
                         .font(.title2)
                         .fontWeight(.bold)
 
-                    Text("Track your child's academic progress")
+                    Text(NSLocalizedString("parentReport.trackProgress", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -80,7 +80,7 @@ struct ParentReportsView: View {
     // MARK: - Quick Actions Section
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Quick Actions")
+            Text(NSLocalizedString("parentReport.quickActions", comment: ""))
                 .font(.headline)
 
             LazyVGrid(columns: [
@@ -93,7 +93,7 @@ struct ParentReportsView: View {
                 }) {
                     ReportActionCard(
                         icon: "calendar.badge.clock",
-                        title: "Weekly\nReport",
+                        title: NSLocalizedString("parentReport.weeklyReport", comment: ""),
                         subtitle: "",
                         color: .green
                     )
@@ -106,7 +106,7 @@ struct ParentReportsView: View {
                 }) {
                     ReportActionCard(
                         icon: "calendar",
-                        title: "Monthly\nReport",
+                        title: NSLocalizedString("parentReport.monthlyReport", comment: ""),
                         subtitle: "",
                         color: .orange
                     )
@@ -119,7 +119,7 @@ struct ParentReportsView: View {
                 }) {
                     ReportActionCard(
                         icon: "chart.line.uptrend.xyaxis",
-                        title: "Progress\nReport",
+                        title: NSLocalizedString("parentReport.progressReport", comment: ""),
                         subtitle: "",
                         color: .blue
                     )
@@ -134,13 +134,13 @@ struct ParentReportsView: View {
     private var recentReportsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Recent Reports")
+                Text(NSLocalizedString("parentReport.recentReports", comment: ""))
                     .font(.headline)
 
                 Spacer()
 
                 if !reportService.availableReports.isEmpty {
-                    Button("View All") {
+                    Button(NSLocalizedString("parentReport.viewAll", comment: "")) {
                         // Navigate to full reports list
                     }
                     .font(.caption)
@@ -372,7 +372,7 @@ struct ReportListCard: View {
 
                     HStack {
                         if report.aiAnalysisIncluded {
-                            Label("AI Analysis", systemImage: "brain.head.profile")
+                            Label(NSLocalizedString("parentReport.aiAnalysis", comment: ""), systemImage: "brain.head.profile")
                                 .font(.caption2)
                                 .foregroundColor(.blue)
                         }
@@ -418,11 +418,11 @@ struct RecentReportsEmptyState: View {
                 .foregroundColor(.secondary)
 
             VStack(spacing: 8) {
-                Text("No Reports Yet")
+                Text(NSLocalizedString("parentReport.noReportsYet", comment: ""))
                     .font(.headline)
                     .fontWeight(.medium)
 
-                Text("Generate your first report to see detailed insights about study progress")
+                Text(NSLocalizedString("parentReport.generateFirstReport", comment: ""))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -446,7 +446,7 @@ struct ReportGenerationOverlay: View {
                     .scaleEffect(1.2)
                     .tint(.white)
 
-                Text("Generating Report...")
+                Text(NSLocalizedString("parentReport.generatingReport", comment: ""))
                     .font(.headline)
                     .foregroundColor(.white)
 
@@ -454,7 +454,7 @@ struct ReportGenerationOverlay: View {
                     .frame(width: 200)
                     .tint(.white)
 
-                Text("\(Int(progress * 100))% Complete")
+                Text(String(format: NSLocalizedString("parentReport.percentComplete", comment: ""), Int(progress * 100)))
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.8))
             }

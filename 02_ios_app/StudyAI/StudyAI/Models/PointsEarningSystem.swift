@@ -1008,11 +1008,18 @@ class PointsEarningManager: ObservableObject {
         // Save data with logging
         saveData()
 
-        // NOTE: We do NOT sync to server here - questions only update local progress
-        // Points are only earned when user explicitly checks out goals in the Progress tab
-        // Server sync happens during goal checkout to persist earned points
+        // Sync to server asynchronously to update subject breakdown accuracy
+        // This ensures backend has accurate per-subject performance data
+        Task {
+            await NetworkService.shared.trackQuestionAnswered(
+                subject: subject,
+                isCorrect: isCorrect,
+                studyTimeSeconds: 0
+            )
+            print("📊 DEBUG [trackQuestionAnswered]: ✅ Synced to server - subject: \(subject), isCorrect: \(isCorrect)")
+        }
 
-        print("📊 DEBUG [trackQuestionAnswered]: Updated local progress (no server sync)")
+        print("📊 DEBUG [trackQuestionAnswered]: Updated local progress and triggered server sync")
         print("📊 DEBUG [trackQuestionAnswered]: EXIT - Final todayProgress: \(todayProgress?.totalQuestions ?? 0) questions, \(todayProgress?.correctAnswers ?? 0) correct")
         print("📊 DEBUG [trackQuestionAnswered]: ========================================")
 

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import os.log
+import PDFKit
 
 struct GeneratedQuestionsListView: View {
     let questions: [QuestionGenerationService.GeneratedQuestion]
@@ -14,6 +15,11 @@ struct GeneratedQuestionsListView: View {
     @State private var selectedQuestion: QuestionGenerationService.GeneratedQuestion?
     @State private var showingQuestionDetail = false
     @State private var searchText = ""
+
+    // PDF Generation state
+    @State private var selectedQuestions: Set<UUID> = []
+    @State private var isSelectionMode = false
+    @State private var showingPDFGenerator = false
 
     private let logger = Logger(subsystem: "com.studyai", category: "GeneratedQuestionsList")
 
@@ -31,6 +37,25 @@ struct GeneratedQuestionsListView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
+                // PDF Generation button (when not in selection mode)
+                if !questions.isEmpty && !isSelectionMode {
+                    generatePDFButton
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                }
+
+                // Selection controls (when in selection mode)
+                if isSelectionMode {
+                    selectionControls
+                        .padding()
+                }
+
+                // Generate PDF button (when in selection mode with selections)
+                if isSelectionMode && !selectedQuestions.isEmpty {
+                    confirmPDFButton
+                        .padding(.horizontal)
+                }
+
                 // Search Bar
                 if questions.count > 3 {
                     searchSection
@@ -51,9 +76,80 @@ struct GeneratedQuestionsListView: View {
                     GeneratedQuestionDetailView(question: selectedQuestion)
                 }
             }
+            .sheet(isPresented: $showingPDFGenerator) {
+                if !selectedQuestions.isEmpty {
+                    let selected = questions.filter { selectedQuestions.contains($0.id) }
+                    PracticePDFPreviewView(
+                        questions: selected,
+                        subject: getSubject(),
+                        generationType: "Custom Practice"
+                    )
+                }
+            }
             .onAppear {
                 logger.info("📝 Generated questions list appeared with \(questions.count) questions")
             }
+        }
+    }
+
+    private var generatePDFButton: some View {
+        Button(action: {
+            isSelectionMode = true
+        }) {
+            HStack {
+                Image(systemName: "doc.text.fill")
+                Text("Generate PDF")
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(Color.blue)
+            .cornerRadius(12)
+        }
+    }
+
+    private var selectionControls: some View {
+        HStack {
+            Button(action: {
+                if selectedQuestions.count == questions.count {
+                    selectedQuestions.removeAll()
+                } else {
+                    selectedQuestions = Set(questions.map { $0.id })
+                }
+            }) {
+                Text(selectedQuestions.count == questions.count ? "Deselect All" : "Select All")
+                    .font(.subheadline)
+            }
+
+            Spacer()
+
+            Text("\(selectedQuestions.count) selected")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            Spacer()
+
+            Button("Cancel") {
+                isSelectionMode = false
+                selectedQuestions.removeAll()
+            }
+            .font(.subheadline)
+        }
+    }
+
+    private var confirmPDFButton: some View {
+        Button(action: {
+            showingPDFGenerator = true
+        }) {
+            HStack {
+                Image(systemName: "doc.badge.plus")
+                Text("Generate PDF (\(selectedQuestions.count) questions)")
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(Color.green)
+            .cornerRadius(12)
         }
     }
 
@@ -104,9 +200,20 @@ struct GeneratedQuestionsListView: View {
                 ForEach(filteredQuestions) { question in
                     QuestionListCard(
                         question: question,
+                        isSelectionMode: isSelectionMode,
+                        isSelected: selectedQuestions.contains(question.id),
+                        onToggleSelection: {
+                            if selectedQuestions.contains(question.id) {
+                                selectedQuestions.remove(question.id)
+                            } else {
+                                selectedQuestions.insert(question.id)
+                            }
+                        },
                         onTap: {
-                            selectedQuestion = question
-                            showingQuestionDetail = true
+                            if !isSelectionMode {
+                                selectedQuestion = question
+                                showingQuestionDetail = true
+                            }
                         }
                     )
                 }
@@ -219,15 +326,51 @@ struct GeneratedQuestionsListView: View {
         default: return .gray
         }
     }
+
+    private func getSubject() -> String {
+        // Get the most common topic as the subject
+        let topicCounts = Dictionary(grouping: questions) { $0.topic }
+        let mostCommonTopic = topicCounts.max(by: { $0.value.count < $1.value.count })?.key ?? "Practice"
+        return mostCommonTopic
+    }
 }
 
 struct QuestionListCard: View {
     let question: QuestionGenerationService.GeneratedQuestion
+    let isSelectionMode: Bool
+    let isSelected: Bool
+    let onToggleSelection: () -> Void
     let onTap: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
+        Button(action: {
+            if isSelectionMode {
+                onToggleSelection()
+            } else {
+                onTap()
+            }
+        }) {
             VStack(alignment: .leading, spacing: 16) {
+                // Selection checkbox header (when in selection mode)
+                if isSelectionMode {
+                    HStack {
+                        Button(action: onToggleSelection) {
+                            HStack(spacing: 8) {
+                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                    .font(.title3)
+                                    .foregroundColor(isSelected ? .blue : .gray)
+
+                                Text(isSelected ? "Selected" : "Select")
+                                    .font(.subheadline)
+                                    .foregroundColor(isSelected ? .blue : .gray)
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+
+                        Spacer()
+                    }
+                }
+
                 // Header with type and difficulty
                 HStack {
                     HStack(spacing: 8) {
@@ -351,6 +494,224 @@ struct SummaryCard: View {
         .padding(.vertical, 8)
         .background(color.opacity(0.05))
         .cornerRadius(8)
+    }
+}
+
+// MARK: - Practice PDF Preview View
+
+struct PracticePDFPreviewView: View {
+    let questions: [QuestionGenerationService.GeneratedQuestion]
+    let subject: String
+    let generationType: String
+
+    @StateObject private var pdfGenerator = PDFGeneratorService()
+    @State private var pdfDocument: PDFDocument?
+    @State private var showingPrintOptions = false
+    @State private var showingEmailComposer = false
+    @State private var showingShareSheet = false
+    @State private var pdfURL: URL?
+    @Environment(\.dismiss) private var dismiss
+
+    var isLoading: Bool {
+        pdfDocument == nil || pdfGenerator.isGenerating
+    }
+
+    var body: some View {
+        NavigationView {
+            VStack {
+                if isLoading {
+                    // Loading state
+                    VStack(spacing: 20) {
+                        ProgressView(value: pdfGenerator.generationProgress)
+                            .progressViewStyle(LinearProgressViewStyle())
+                            .padding(.horizontal, 40)
+
+                        Text(pdfGenerator.isGenerating ? "Generating PDF..." : "Loading...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        Text("\(Int(pdfGenerator.generationProgress * 100))%")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } else if let document = pdfDocument {
+                    VStack(spacing: 0) {
+                        // PDF Preview
+                        PDFKitView(document: document)
+
+                        // Action buttons
+                        HStack(spacing: 16) {
+                            Button {
+                                handlePrint()
+                            } label: {
+                                VStack(spacing: 8) {
+                                    Image(systemName: "printer.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.blue)
+
+                                    Text("Print")
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(Color.blue.opacity(0.1))
+                                .cornerRadius(12)
+                            }
+
+                            Button {
+                                showingEmailComposer = true
+                            } label: {
+                                VStack(spacing: 8) {
+                                    Image(systemName: "envelope.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.green)
+
+                                    Text("Email")
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(Color.green.opacity(0.1))
+                                .cornerRadius(12)
+                            }
+
+                            Button {
+                                showingShareSheet = true
+                            } label: {
+                                VStack(spacing: 8) {
+                                    Image(systemName: "square.and.arrow.up.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.orange)
+
+                                    Text("Share")
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(Color.orange.opacity(0.1))
+                                .cornerRadius(12)
+                            }
+                        }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .shadow(color: .black.opacity(0.1), radius: 5, y: -2)
+                    }
+                } else {
+                    // Error state
+                    VStack(spacing: 20) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.orange)
+
+                        Text("Failed to Generate PDF")
+                            .font(.title3)
+                            .fontWeight(.medium)
+
+                        Text("Please try again")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        Button("Retry") {
+                            Task {
+                                await generatePDF()
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+            }
+            .navigationTitle("PDF Preview")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Close") {
+                        dismiss()
+                    }
+                }
+            }
+            .task {
+                await generatePDF()
+            }
+            .sheet(isPresented: $showingEmailComposer) {
+                if let url = pdfURL {
+                    PDFMailComposeView(
+                        subject: "Practice Questions - \(subject)",
+                        messageBody: createEmailBody(),
+                        attachmentURL: url,
+                        attachmentName: "practice-questions.pdf"
+                    )
+                }
+            }
+            .sheet(isPresented: $showingShareSheet) {
+                if let url = pdfURL {
+                    ShareSheet(items: [url])
+                }
+            }
+        }
+    }
+
+    // MARK: - PDF Generation
+
+    private func generatePDF() async {
+        let document = await pdfGenerator.generatePracticePDF(
+            questions: questions,
+            subject: subject,
+            generationType: generationType
+        )
+
+        await MainActor.run {
+            self.pdfDocument = document
+
+            // Save PDF to temporary directory for sharing
+            if let document = document {
+                savePDFForSharing(document)
+            }
+        }
+    }
+
+    private func savePDFForSharing(_ document: PDFDocument) {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("practice-questions-\(Date().timeIntervalSince1970).pdf")
+
+        if document.write(to: fileURL) {
+            self.pdfURL = fileURL
+        }
+    }
+
+    // MARK: - Actions
+
+    private func handlePrint() {
+        guard let document = pdfDocument else { return }
+
+        let printController = UIPrintInteractionController.shared
+        let printInfo = UIPrintInfo(dictionary: nil)
+        printInfo.jobName = "Practice Questions - \(subject)"
+        printInfo.outputType = .general
+        printController.printInfo = printInfo
+        printController.printingItem = document.dataRepresentation()
+
+        printController.present(animated: true) { _, completed, error in
+            if let error = error {
+                print("❌ Print error: \(error.localizedDescription)")
+            } else if completed {
+                print("✅ Print job completed")
+            }
+        }
+    }
+
+    private func createEmailBody() -> String {
+        """
+        Hi!
+
+        I'm sharing \(questions.count) practice questions for \(subject).
+
+        This PDF was generated using Study Mate, an AI-powered learning companion.
+
+        Happy studying!
+        """
     }
 }
 

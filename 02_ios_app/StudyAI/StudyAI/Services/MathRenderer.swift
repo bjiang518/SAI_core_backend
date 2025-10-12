@@ -542,12 +542,9 @@ struct MathFormattedText: View {
                 case .math(let equation):
                     // Use fallback text rendering instead of WebView for better reliability
                     Text(SimpleMathRenderer.renderMathText(equation))
-                        .font(.system(size: fontSize, design: .monospaced))
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 8)
-                        .background(mathBackgroundColor)
-                        .cornerRadius(8)
-                        .frame(minHeight: 40)
+                        .font(.system(size: fontSize))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                         .onAppear {
                             print("🧮 Rendering math: '\(equation)' -> '\(SimpleMathRenderer.renderMathText(equation))'")
                         }

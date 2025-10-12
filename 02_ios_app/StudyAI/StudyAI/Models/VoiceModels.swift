@@ -61,9 +61,9 @@ enum VoiceType: String, CaseIterable, Codable {
     var description: String {
         switch self {
         case .adam:
-            return "Friendly boy voice for learning"
+            return "A friendly boy voice"
         case .eva:
-            return "Kind girl voice for studying"
+            return "A kind girl voice"
         }
     }
     

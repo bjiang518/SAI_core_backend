@@ -22,8 +22,8 @@
 "settings.studyReminders" = "学习提醒";
 "settings.textSize" = "文字大小";
 "settings.language" = "语言";
-"settings.voiceAudio" = "语音与音频";
-"settings.voiceSettings" = "语音设置";
+"settings.voiceAudio" = "学习伙伴";
+"settings.voiceSettings" = "选择你的学习伙伴";
 "settings.learning" = "学习";
 "settings.learningGoals" = "学习目标与进度";
 "settings.support" = "支持";
@@ -95,11 +95,15 @@
 "home.goodMorning" = "早上好";
 "home.goodAfternoon" = "下午好";
 "home.goodEvening" = "晚上好";
+"home.defaultStudentName" = "同学";
+"home.pleaseEditProfile" = "请编辑您的资料";
 "home.todaysProgress" = "今日进度";
 "home.startLearningMessage" = "开始学习以追踪进度";
 "home.questions" = "题目";
 "home.accuracy" = "准确率";
 "home.streak" = "连续天数";
+"home.quickActions" = "快速操作";
+"home.moreFeatures" = "更多功能";
 "home.homeworkGrader" = "作业评分";
 "home.scanAndGrade" = "扫描并评分";
 "home.chat" = "聊天";
@@ -114,6 +118,32 @@
 "home.mistakeReviewDescription" = "从过往错误中学习";
 "home.parentReports" = "家长报告";
 "home.parentReportsDescription" = "学习进度与见解";
+
+// Parent Reports
+"parentReport.title" = "家长报告";
+"parentReport.studyReports" = "学习报告";
+"parentReport.trackProgress" = "追踪孩子的学习进度";
+"parentReport.quickActions" = "快速操作";
+"parentReport.weeklyReport" = "周报告";
+"parentReport.monthlyReport" = "月报告";
+"parentReport.progressReport" = "进度报告";
+"parentReport.recentReports" = "最近的报告";
+"parentReport.viewAll" = "查看全部";
+"parentReport.noReportsYet" = "暂无报告";
+"parentReport.generateFirstReport" = "生成第一份报告，查看学习进度的详细分析";
+"parentReport.generatingReport" = "正在生成报告...";
+"parentReport.percentComplete" = "%d%% 完成";
+"parentReport.aiAnalysis" = "AI分析";
+"parentReport.reportDetails" = "报告详情";
+"parentReport.loadingNarrative" = "正在加载内容...";
+"parentReport.summary" = "总结";
+"parentReport.keyInsights" = "重点洞察";
+"parentReport.recommendations" = "建议";
+
+// Common
+"common.done" = "完成";
+"common.ok" = "确定";
+"common.error" = "错误";
 
 // AI Homework
 "aiHomework.title" = "AI作业";
@@ -280,8 +310,8 @@
 "questionGeneration.selectArchives" = "选择归档";
 "questionGeneration.conversation" = "对话";"settings.textSize" = "文字大小";
 "settings.language" = "语言";
-"settings.voiceAudio" = "语音与音频";
-"settings.voiceSettings" = "语音设置";
+"settings.voiceAudio" = "学习伙伴";
+"settings.voiceSettings" = "选择你的学习伙伴";
 "settings.learning" = "学习";
 "settings.learningGoals" = "学习目标与进度";
 "settings.support" = "支持";

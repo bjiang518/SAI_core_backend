@@ -86,6 +86,9 @@
 		7B83523F2E9625E800199AC3 /* ChatMessageModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B83523E2E9625E800199AC3 /* ChatMessageModel.swift */; };
 		7B8352412E9636A200199AC3 /* AIAvatarAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8352402E9636A200199AC3 /* AIAvatarAnimation.swift */; };
 		7B8352432E963F0000199AC3 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8352422E963F0000199AC3 /* AppState.swift */; };
+		7B8352692E98DC9800199AC3 /* Siri Animation.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B8352682E98DC9800199AC3 /* Siri Animation.json */; };
+		7B83526A2E98DC9800199AC3 /* Siri Animation.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B8352682E98DC9800199AC3 /* Siri Animation.json */; };
+		7B83526B2E98DC9800199AC3 /* Siri Animation.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B8352682E98DC9800199AC3 /* Siri Animation.json */; };
 		7B90451A2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
 		7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
 		7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
@@ -162,6 +165,7 @@
 		PNTS789012345678EFGH0123 /* PointsEarningSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = PNTS456789012345EFGH0123 /* PointsEarningSystem.swift */; };
 		PRFS678901234567CDEF9012 /* ProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRFS234567890123BCDE8901 /* ProfileService.swift */; };
 		PROF567890123456BCDE8901 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROF123456789012ABCD7890 /* UserProfile.swift */; };
+		EMAILVER901234567890ABCD /* EmailVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EMAILVERF1234567890ABCD /* EmailVerificationView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -210,6 +214,7 @@
 		3007D1E356704A0C864FBEED /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeView.swift; path = StudyAI/Views/HomeView.swift; sourceTree = SOURCE_ROOT; };
 		32BB536B35E943F1A8FB9571 /* ImageProcessingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageProcessingService.swift; path = StudyAI/Services/ImageProcessingService.swift; sourceTree = SOURCE_ROOT; };
 		377AB348C798453AB804B3A9 /* ModernLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModernLoginView.swift; path = StudyAI/Views/ModernLoginView.swift; sourceTree = SOURCE_ROOT; };
+		EMAILVERF1234567890ABCD /* EmailVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EmailVerificationView.swift; path = StudyAI/Views/EmailVerificationView.swift; sourceTree = SOURCE_ROOT; };
 		3E2AD38EF0CF492393C1C87D /* QuestionArchiveModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionArchiveModels.swift; path = StudyAI/Models/QuestionArchiveModels.swift; sourceTree = SOURCE_ROOT; };
 		4624BD01A8D5462385D269DE /* QuestionArchiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionArchiveView.swift; path = StudyAI/Views/QuestionArchiveView.swift; sourceTree = SOURCE_ROOT; };
 		47128702183F4DCBB17F067E /* QuestionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionView.swift; path = StudyAI/Views/QuestionView.swift; sourceTree = SOURCE_ROOT; };
@@ -248,6 +253,7 @@
 		7B83523E2E9625E800199AC3 /* ChatMessageModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageModel.swift; sourceTree = "<group>"; };
 		7B8352402E9636A200199AC3 /* AIAvatarAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAvatarAnimation.swift; sourceTree = "<group>"; };
 		7B8352422E963F0000199AC3 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		7B8352682E98DC9800199AC3 /* Siri Animation.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Siri Animation.json"; sourceTree = "<group>"; };
 		7B9045192E8FB1FE00E5DDFA /* Books.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Books.json; sourceTree = "<group>"; };
 		7B90451D2E8FB42E00E5DDFA /* Checklist.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Checklist.json; sourceTree = "<group>"; };
 		7B9045212E8FB5DD00E5DDFA /* Chart Graph.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Chart Graph.json"; sourceTree = "<group>"; };
@@ -509,6 +515,7 @@
 				A495A22D3B7A4F948336AFBA /* UnifiedImageEditorView.swift */,
 				IMGPREP123456789012ABCD34 /* ImagePreprocessingView.swift */,
 				377AB348C798453AB804B3A9 /* ModernLoginView.swift */,
+				EMAILVERF1234567890ABCD /* EmailVerificationView.swift */,
 				LRNP1132738F4C03AC421E7D /* LearningProgressView.swift */,
 				4624BD01A8D5462385D269DE /* QuestionArchiveView.swift */,
 				47128702183F4DCBB17F067E /* QuestionView.swift */,
@@ -549,6 +556,7 @@
 		7BEEB6292E8EFFCA00957748 /* Lottie */ = {
 			isa = PBXGroup;
 			children = (
+				7B8352682E98DC9800199AC3 /* Siri Animation.json */,
 				7B1961A72E93AD240024317A /* Wave Animation.json */,
 				7B1961992E9285F20024317A /* Customised_report.json */,
 				7B19619A2E9285F20024317A /* Sandy_Loading.json */,
@@ -693,6 +701,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7B8352692E98DC9800199AC3 /* Siri Animation.json in Resources */,
 				7BC00E702E714D67002DF625 /* GoogleService-Info.plist in Resources */,
 				7B9045252E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045262E8FB5DD00E5DDFA /* Chat.json in Resources */,
@@ -714,6 +723,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7B83526B2E98DC9800199AC3 /* Siri Animation.json in Resources */,
 				7BC00E6E2E714D67002DF625 /* GoogleService-Info.plist in Resources */,
 				7B9045272E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045282E8FB5DD00E5DDFA /* Chat.json in Resources */,
@@ -735,6 +745,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7B83526A2E98DC9800199AC3 /* Siri Animation.json in Resources */,
 				7BC00E6F2E714D67002DF625 /* GoogleService-Info.plist in Resources */,
 				7B9045232E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045242E8FB5DD00E5DDFA /* Chat.json in Resources */,
@@ -818,6 +829,7 @@
 				43494EF404494E379A902F21 /* UnifiedImageEditorView.swift in Sources */,
 				IMGPREPBUILD123456789ABCD /* ImagePreprocessingView.swift in Sources */,
 				E892C474DD7F4C22968FF06B /* ModernLoginView.swift in Sources */,
+				EMAILVER901234567890ABCD /* EmailVerificationView.swift in Sources */,
 				LRNP36652115E4F419FE4EEEA /* LearningProgressView.swift in Sources */,
 				04A8227E20B44E2A9BB27336 /* QuestionArchiveView.swift in Sources */,
 				41384D26DC5E427FA23BC317 /* QuestionView.swift in Sources */,

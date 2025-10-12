@@ -311,6 +311,16 @@ if (features.useGateway) {
 
 const start = async () => {
   try {
+    // Initialize database schema before starting server
+    const { initializeDatabase } = require('../utils/railway-database');
+    try {
+      await initializeDatabase();
+      fastify.log.info('✅ Database schema initialized successfully');
+    } catch (dbError) {
+      fastify.log.error('❌ Failed to initialize database schema:', dbError);
+      // Continue anyway - schema might already exist
+    }
+
     const port = process.env.PORT || 3001;
     const host = process.env.HOST || '127.0.0.1';
 

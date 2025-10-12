@@ -272,7 +272,7 @@ struct DirectAIHomeworkView: View {
                 Text(error)
             }
         }
-        .alert("This might take a while...", isPresented: $showBackgroundOption) {
+        .alert(NSLocalizedString("aiHomework.continueInBackground", comment: ""), isPresented: $showBackgroundOption) {
             Button(NSLocalizedString("common.continueHere", comment: "")) {
                 // User chooses to wait on this screen
                 showBackgroundOption = false
@@ -290,8 +290,6 @@ struct DirectAIHomeworkView: View {
                 stateManager.currentStage = .idle
                 showBackgroundOption = false
             }
-        } message: {
-            Text(NSLocalizedString("aiHomework.continueInBackground", comment: ""))
         }
         .sheet(isPresented: $showingCameraPicker) {
             CameraPickerView(selectedImage: Binding(
@@ -1493,6 +1491,29 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Send Batch to AI Method
     private func sendBatchToAI(images: [UIImage]) async {
+        // Request background execution time (up to 30 seconds on iOS)
+        // This allows processing to continue even when screen is locked or app goes to background
+        var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+        await MainActor.run {
+            backgroundTaskID = UIApplication.shared.beginBackgroundTask {
+                // Called if time expires - clean up
+                print("⚠️ Background task time expired for batch processing")
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                backgroundTaskID = .invalid
+            }
+            print("✅ Background task started for batch processing (ID: \(backgroundTaskID.rawValue))")
+        }
+
+        defer {
+            // Always end background task when done
+            if backgroundTaskID != .invalid {
+                Task { @MainActor in
+                    print("✅ Ending background task for batch processing (ID: \(backgroundTaskID.rawValue))")
+                    UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                }
+            }
+        }
+
         await MainActor.run {
             stateManager.currentStage = .compressing
             stateManager.processingStatus = "📦 Compressing \(images.count) images..."
@@ -1561,6 +1582,16 @@ struct DirectAIHomeworkView: View {
 
             if result.success, let responses = result.responses {
                 processBatchResponse(responses, processingTime: processingTime)
+
+                // Success: Add vibration and notification
+                let questionCount = stateManager.parsingResult?.questionCount ?? 0
+
+                // Haptic feedback - success vibration
+                let notificationFeedback = UINotificationFeedbackGenerator()
+                notificationFeedback.notificationOccurred(.success)
+
+                // Send notification
+                NotificationService.shared.sendHomeworkCompletionNotification(questionCount: questionCount)
             } else {
                 stateManager.parsingError = "Batch processing failed: Only \(result.successCount)/\(result.totalImages) images processed"
                 stateManager.processingStatus = "❌ Batch AI processing failed"
@@ -1677,9 +1708,14 @@ struct DirectAIHomeworkView: View {
             // Continue the parsing task in background
             await self.sendBatchToAI(images: images)
 
-            // When complete, send notification
+            // When complete, send notification and vibration
             await MainActor.run {
                 if let result = self.stateManager.parsingResult {
+                    // Haptic feedback - success vibration
+                    let notificationFeedback = UINotificationFeedbackGenerator()
+                    notificationFeedback.notificationOccurred(.success)
+
+                    // Send notification
                     self.scheduleParsingCompleteNotification(taskID: taskID, questionCount: result.questions.count)
                 }
                 self.isParsingInBackground = false
@@ -1693,6 +1729,29 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Send to AI Method (Single Image - Kept for backward compatibility)
     private func sendToAI(image: UIImage) async {
+        // Request background execution time (up to 30 seconds on iOS)
+        // This allows processing to continue even when screen is locked or app goes to background
+        var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+        await MainActor.run {
+            backgroundTaskID = UIApplication.shared.beginBackgroundTask {
+                // Called if time expires - clean up
+                print("⚠️ Background task time expired for single image processing")
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                backgroundTaskID = .invalid
+            }
+            print("✅ Background task started for single image processing (ID: \(backgroundTaskID.rawValue))")
+        }
+
+        defer {
+            // Always end background task when done
+            if backgroundTaskID != .invalid {
+                Task { @MainActor in
+                    print("✅ Ending background task for single image processing (ID: \(backgroundTaskID.rawValue))")
+                    UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                }
+            }
+        }
+
         await MainActor.run {
             stateManager.currentStage = .compressing
             stateManager.processingStatus = stateManager.currentStage.message
@@ -1744,6 +1803,16 @@ struct DirectAIHomeworkView: View {
 
             if result.success, let response = result.response {
                 processSuccessfulResponse(response, processingTime: processingTime)
+
+                // Success: Add vibration and notification
+                let questionCount = stateManager.parsingResult?.questionCount ?? 0
+
+                // Haptic feedback - success vibration
+                let notificationFeedback = UINotificationFeedbackGenerator()
+                notificationFeedback.notificationOccurred(.success)
+
+                // Send notification
+                NotificationService.shared.sendHomeworkCompletionNotification(questionCount: questionCount)
             } else {
                 processFailedResponse(result, processingTime: processingTime)
             }
@@ -2155,16 +2224,16 @@ struct RandomLottieAnimation: View {
                         .foregroundColor(.purple)
                         .multilineTextAlignment(.center)
 
-                    Text("This might take a while...")
+                    Text("AI is carefully analyzing your homework")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
 
-                    Text("AI is carefully analyzing your homework")
+                    Text("Feel free to explore other features while you wait. We'll notify you when your grades are ready!")
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                        .opacity(0.7)
+                        .foregroundColor(.blue)
                         .multilineTextAlignment(.center)
+                        .padding(.top, 8)
                 }
                 .padding(.horizontal, 32)
                 .padding(.vertical, 20)

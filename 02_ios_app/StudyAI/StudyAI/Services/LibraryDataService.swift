@@ -813,49 +813,62 @@ struct ConversationLibraryItem: LibraryItem {
         if let aiParsingResult = data["aiParsingResult"] as? [String: Any] {
             let questionCount = aiParsingResult["questionCount"] as? Int ?? 0
             let questions = aiParsingResult["questions"] as? [[String: Any]] ?? []
-            
+
             if questionCount > 0 || !questions.isEmpty {
                 let count = max(questionCount, questions.count)
                 let confidence = data["overallConfidence"] as? Double ?? 0.0
                 let confidencePercent = Int(confidence * 100)
-                
+
                 return "Homework session with \(count) questions • \(confidencePercent)% confidence"
             }
         }
-        
-        // For conversation sessions, try to show first message or conversation content
-        if let conversationContent = data["conversationContent"] as? String, !conversationContent.isEmpty {
-            // Extract first few words from the conversation
-            let lines = conversationContent.components(separatedBy: .newlines)
-            for line in lines {
-                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmedLine.isEmpty && !trimmedLine.hasPrefix("User:") && !trimmedLine.hasPrefix("AI:") {
-                    let preview = String(trimmedLine.prefix(80))
-                    return preview + (trimmedLine.count > 80 ? "..." : "")
+
+        // For conversation sessions, try to show FIRST USER MESSAGE
+        if let messages = data["messages"] as? [[String: Any]], !messages.isEmpty {
+            // Look for the first user message
+            for message in messages {
+                let role = message["role"] as? String ?? ""
+                let sender = message["sender"] as? String ?? ""
+
+                // Check if this is a user message (role: "user" or sender: "user")
+                if role.lowercased() == "user" || sender.lowercased() == "user" {
+                    if let content = message["content"] as? String ?? message["message"] as? String {
+                        // Take first 100 characters of user's first message
+                        let preview = String(content.prefix(100))
+                        return preview + (content.count > 100 ? "..." : "")
+                    }
                 }
             }
         }
-        
-        // Check for first message in messages array
-        if let messages = data["messages"] as? [[String: Any]], !messages.isEmpty {
-            if let firstMessage = messages.first,
-               let content = firstMessage["content"] as? String ?? firstMessage["message"] as? String {
-                let preview = String(content.prefix(80))
-                return preview + (content.count > 80 ? "..." : "")
+
+        // Fallback: Check for conversationContent
+        if let conversationContent = data["conversationContent"] as? String, !conversationContent.isEmpty {
+            // Try to extract user's message from conversation content
+            let lines = conversationContent.components(separatedBy: .newlines)
+            for line in lines {
+                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                // Look for user message (lines starting with "User:" or not prefixed with "AI:")
+                if !trimmedLine.isEmpty && !trimmedLine.hasPrefix("AI:") {
+                    let cleanedLine = trimmedLine.replacingOccurrences(of: "^User:\\s*", with: "", options: .regularExpression)
+                    if !cleanedLine.isEmpty {
+                        let preview = String(cleanedLine.prefix(100))
+                        return preview + (cleanedLine.count > 100 ? "..." : "")
+                    }
+                }
             }
         }
-        
+
         // For conversation sessions, show message count if no content available
         let messageCount = data["message_count"] as? Int ?? data["messageCount"] as? Int ?? 0
         if messageCount > 0 {
             return "\(messageCount) messages in conversation"
         }
-        
+
         // Fallback for other session types
         if let notes = data["notes"] as? String, !notes.isEmpty {
             return notes.prefix(100) + (notes.count > 100 ? "..." : "")
         }
-        
+
         return "Study session"
     }
 }

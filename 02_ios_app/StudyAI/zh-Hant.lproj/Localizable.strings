@@ -22,8 +22,8 @@
 "settings.studyReminders" = "學習提醒";
 "settings.textSize" = "文字大小";
 "settings.language" = "語言";
-"settings.voiceAudio" = "語音與音訊";
-"settings.voiceSettings" = "語音設定";
+"settings.voiceAudio" = "學習夥伴";
+"settings.voiceSettings" = "選擇你的學習夥伴";
 "settings.learning" = "學習";
 "settings.learningGoals" = "學習目標與進度";
 "settings.support" = "支援";
@@ -95,11 +95,15 @@
 "home.goodMorning" = "早安";
 "home.goodAfternoon" = "午安";
 "home.goodEvening" = "晚安";
+"home.defaultStudentName" = "同學";
+"home.pleaseEditProfile" = "請編輯您的資料";
 "home.todaysProgress" = "今日進度";
 "home.startLearningMessage" = "開始學習以追蹤進度";
 "home.questions" = "題目";
 "home.accuracy" = "準確率";
 "home.streak" = "連續天數";
+"home.quickActions" = "快速操作";
+"home.moreFeatures" = "更多功能";
 "home.homeworkGrader" = "作業評分";
 "home.scanAndGrade" = "掃描並評分";
 "home.chat" = "聊天";
@@ -114,6 +118,32 @@
 "home.mistakeReviewDescription" = "從過往錯誤中學習";
 "home.parentReports" = "家長報告";
 "home.parentReportsDescription" = "學習進度與見解";
+
+// Parent Reports
+"parentReport.title" = "家長報告";
+"parentReport.studyReports" = "學習報告";
+"parentReport.trackProgress" = "追蹤孩子的學習進度";
+"parentReport.quickActions" = "快速操作";
+"parentReport.weeklyReport" = "週報告";
+"parentReport.monthlyReport" = "月報告";
+"parentReport.progressReport" = "進度報告";
+"parentReport.recentReports" = "最近的報告";
+"parentReport.viewAll" = "查看全部";
+"parentReport.noReportsYet" = "暫無報告";
+"parentReport.generateFirstReport" = "生成第一份報告，查看學習進度的詳細分析";
+"parentReport.generatingReport" = "正在生成報告...";
+"parentReport.percentComplete" = "%d%% 完成";
+"parentReport.aiAnalysis" = "AI分析";
+"parentReport.reportDetails" = "報告詳情";
+"parentReport.loadingNarrative" = "正在載入內容...";
+"parentReport.summary" = "總結";
+"parentReport.keyInsights" = "重點洞察";
+"parentReport.recommendations" = "建議";
+
+// Common
+"common.done" = "完成";
+"common.ok" = "確定";
+"common.error" = "錯誤";
 
 // AI Homework
 "aiHomework.title" = "AI作業";

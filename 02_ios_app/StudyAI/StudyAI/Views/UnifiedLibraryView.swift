@@ -150,8 +150,8 @@ struct UnifiedLibraryView: View {
                     content
                 }
             }
-            .navigationTitle("📚 " + NSLocalizedString("library.title", comment: ""))
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle(NSLocalizedString("library.title", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
@@ -489,10 +489,6 @@ struct InteractiveStatPill: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(isSelected ? .white : color)
-
                 Text("\(count)")
                     .font(.headline)
                     .fontWeight(.bold)
@@ -524,19 +520,14 @@ struct LibraryItemRow: View {
     let item: LibraryItem
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             // Header with type indicator
             HStack {
-                // Item type icon
-                Image(systemName: iconForItem(item))
-                    .foregroundColor(colorForItem(item))
-                    .font(.title3)
-                
                 VStack(alignment: .leading, spacing: 4) {
                     Text(item.title)
                         .font(.headline)
                         .lineLimit(2)
-                    
+
                     HStack {
                         Text(item.subject)
                             .font(.caption)
@@ -545,56 +536,46 @@ struct LibraryItemRow: View {
                             .background(Color.accentColor.opacity(0.1))
                             .foregroundColor(.accentColor)
                             .clipShape(Capsule())
-                        
+
                         Spacer()
-                        
+
                         Text(item.date, style: .date)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
                 Spacer()
-                
-                // Interactive indicator - show for all clickable items
-                if isClickable(item) {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                }
             }
-            
+
             // Enhanced preview content
             Text(item.preview)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .lineLimit(3)
-            
+
             // Item type label with action hint
             HStack {
-                Label(
-                    labelForItem(item),
-                    systemImage: iconForItem(item)
-                )
-                .font(.caption)
-                .foregroundColor(.secondary)
+                Text(labelForItem(item))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
 
                 Spacer()
 
                 if isClickable(item) {
                     Text(NSLocalizedString("library.item.tapToReview", comment: ""))
                         .font(.caption)
-                        .foregroundColor(.blue)
+                        .foregroundColor(colorForItem(item))
                         .fontWeight(.medium)
                 }
             }
         }
-        .padding()
+        .padding(12)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isClickable(item) ? Color.blue.opacity(0.2) : Color.clear, lineWidth: 1)
+                .stroke(colorForItem(item), lineWidth: 2)
         )
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         .padding(.horizontal)

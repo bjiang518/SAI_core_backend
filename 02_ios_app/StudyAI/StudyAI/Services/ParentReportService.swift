@@ -131,6 +131,30 @@ class ParentReportService: ObservableObject {
 
     // MARK: - Utility Methods
 
+    /// Delete a specific report from local storage
+    func deleteReport(reportId: String) async -> Bool {
+        let success = await localStorage.deleteReport(reportId: reportId)
+
+        if success {
+            // Remove from available reports list
+            await MainActor.run {
+                availableReports.removeAll { $0.id == reportId }
+
+                // Clear last generated report if it matches
+                if lastGeneratedReport?.id == reportId {
+                    lastGeneratedReport = nil
+                }
+            }
+        }
+
+        return success
+    }
+
+    /// Get all locally stored reports
+    func getAllCachedReports() async -> [ParentReport] {
+        return await localStorage.getAllCachedReports()
+    }
+
     /// Clear all cached report data
     func clearCache() {
         Task { @MainActor in

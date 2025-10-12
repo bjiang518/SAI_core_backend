@@ -22,8 +22,8 @@
 "settings.studyReminders" = "Study Reminders";
 "settings.textSize" = "Text Size";
 "settings.language" = "Language";
-"settings.voiceAudio" = "Voice & Audio";
-"settings.voiceSettings" = "Voice Settings";
+"settings.voiceAudio" = "Study Mate";
+"settings.voiceSettings" = "Select your study mate";
 "settings.learning" = "Learning";
 "settings.learningGoals" = "Learning Goals & Progress";
 "settings.support" = "Support";
@@ -95,11 +95,15 @@
 "home.goodMorning" = "Good morning";
 "home.goodAfternoon" = "Good afternoon";
 "home.goodEvening" = "Good evening";
+"home.defaultStudentName" = "Student";
+"home.pleaseEditProfile" = "Please edit your profile";
 "home.todaysProgress" = "Today's Progress";
 "home.startLearningMessage" = "Start learning to track progress";
 "home.questions" = "Questions";
 "home.accuracy" = "Accuracy";
 "home.streak" = "Day Streak";
+"home.quickActions" = "Quick Actions";
+"home.moreFeatures" = "More Features";
 "home.homeworkGrader" = "Homework Grader";
 "home.scanAndGrade" = "Scan & grade";
 "home.chat" = "Chat";
@@ -114,6 +118,32 @@
 "home.mistakeReviewDescription" = "Learn from past errors";
 "home.parentReports" = "Parent Reports";
 "home.parentReportsDescription" = "Study progress & insights";
+
+// Parent Reports
+"parentReport.title" = "Parent Reports";
+"parentReport.studyReports" = "Study Reports";
+"parentReport.trackProgress" = "Track your child's academic progress";
+"parentReport.quickActions" = "Quick Actions";
+"parentReport.weeklyReport" = "Weekly\nReport";
+"parentReport.monthlyReport" = "Monthly\nReport";
+"parentReport.progressReport" = "Progress\nReport";
+"parentReport.recentReports" = "Recent Reports";
+"parentReport.viewAll" = "View All";
+"parentReport.noReportsYet" = "No Reports Yet";
+"parentReport.generateFirstReport" = "Generate your first report to see detailed insights about study progress";
+"parentReport.generatingReport" = "Generating Report...";
+"parentReport.percentComplete" = "%d%% Complete";
+"parentReport.aiAnalysis" = "AI Analysis";
+"parentReport.reportDetails" = "Report Details";
+"parentReport.loadingNarrative" = "Loading narrative content...";
+"parentReport.summary" = "Summary";
+"parentReport.keyInsights" = "Key Insights";
+"parentReport.recommendations" = "Recommendations";
+
+// Common
+"common.done" = "Done";
+"common.ok" = "OK";
+"common.error" = "Error";
 
 // AI Homework
 "aiHomework.title" = "AI Homework";
@@ -281,8 +311,8 @@
 "questionGeneration.conversation" = "Conversation";
 "settings.textSize" = "Text Size";
 "settings.language" = "Language";
-"settings.voiceAudio" = "Voice & Audio";
-"settings.voiceSettings" = "Voice Settings";
+"settings.voiceAudio" = "Study Mate";
+"settings.voiceSettings" = "Select your study mate";
 "settings.learning" = "Learning";
 "settings.learningGoals" = "Learning Goals & Progress";
 "settings.support" = "Support";

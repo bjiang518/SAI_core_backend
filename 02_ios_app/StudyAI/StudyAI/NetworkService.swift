@@ -1124,7 +1124,7 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 15.0
+        request.timeoutInterval = 30.0  // Increased timeout for email verification
         
         // Add authentication header
         addAuthHeader(to: &request)
@@ -2118,7 +2118,165 @@ class NetworkService: ObservableObject {
             return (false, errorMsg, nil, nil, nil)
         }
     }
-    
+
+    // MARK: - Email Verification
+
+    /// Send verification code to user's email during registration
+    func sendVerificationCode(email: String, name: String) async -> (success: Bool, message: String, expiresIn: Int?, statusCode: Int?) {
+        print("📧 Sending verification code to: \(email)")
+
+        let verificationURL = "\(baseURL)/api/auth/send-verification-code"
+
+        guard let url = URL(string: verificationURL) else {
+            return (false, "Invalid URL", nil, nil)
+        }
+
+        let requestData = [
+            "email": email,
+            "name": name
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0  // Increased timeout for email sending
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                let statusCode = httpResponse.statusCode
+                print("📧 Verification code send status: \(statusCode)")
+
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    print("📧 Response: \(json)")
+
+                    if statusCode == 200 {
+                        let message = json["message"] as? String ?? "Verification code sent"
+                        let expiresIn = json["expiresIn"] as? Int ?? 600
+                        return (true, message, expiresIn, statusCode)
+                    } else {
+                        let message = json["message"] as? String ?? "Failed to send verification code"
+                        return (false, message, nil, statusCode)
+                    }
+                }
+            }
+
+            return (false, "Invalid response", nil, nil)
+        } catch {
+            let errorMsg = "Failed to send verification code: \(error.localizedDescription)"
+            print("❌ \(errorMsg)")
+            return (false, errorMsg, nil, nil)
+        }
+    }
+
+    /// Verify email with code and complete registration
+    func verifyEmailCode(email: String, code: String, name: String, password: String) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
+        print("✅ Verifying email code for: \(email)")
+
+        let verifyURL = "\(baseURL)/api/auth/verify-email"
+
+        guard let url = URL(string: verifyURL) else {
+            return (false, "Invalid URL", nil, nil, nil)
+        }
+
+        let requestData = [
+            "email": email,
+            "code": code,
+            "name": name,
+            "password": password
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0  // Increased timeout for email verification
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                let statusCode = httpResponse.statusCode
+                print("✅ Email verification status: \(statusCode)")
+
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    print("✅ Verification Response: \(json)")
+
+                    // Backend returns 201 (Created) for successful verification
+                    if statusCode == 200 || statusCode == 201 {
+                        let token = json["token"] as? String
+                        let userData = json["user"] as? [String: Any] ?? json
+                        let message = json["message"] as? String ?? "Email verified successfully"
+                        return (true, message, token, userData, statusCode)
+                    } else {
+                        let message = json["message"] as? String ?? "Email verification failed"
+                        return (false, message, nil, nil, statusCode)
+                    }
+                }
+            }
+
+            return (false, "Invalid response", nil, nil, nil)
+        } catch {
+            let errorMsg = "Email verification request failed: \(error.localizedDescription)"
+            print("❌ \(errorMsg)")
+            return (false, errorMsg, nil, nil, nil)
+        }
+    }
+
+    /// Resend verification code to user's email
+    func resendVerificationCode(email: String) async -> (success: Bool, message: String, expiresIn: Int?, statusCode: Int?) {
+        print("🔄 Resending verification code to: \(email)")
+
+        let resendURL = "\(baseURL)/api/auth/resend-verification-code"
+
+        guard let url = URL(string: resendURL) else {
+            return (false, "Invalid URL", nil, nil)
+        }
+
+        let requestData = [
+            "email": email
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0  // Increased timeout for email verification
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                let statusCode = httpResponse.statusCode
+                print("🔄 Resend verification status: \(statusCode)")
+
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    print("🔄 Response: \(json)")
+
+                    if statusCode == 200 {
+                        let message = json["message"] as? String ?? "Verification code resent"
+                        let expiresIn = json["expiresIn"] as? Int ?? 600
+                        return (true, message, expiresIn, statusCode)
+                    } else {
+                        let message = json["message"] as? String ?? "Failed to resend verification code"
+                        return (false, message, nil, statusCode)
+                    }
+                }
+            }
+
+            return (false, "Invalid response", nil, nil)
+        } catch {
+            let errorMsg = "Failed to resend verification code: \(error.localizedDescription)"
+            print("❌ \(errorMsg)")
+            return (false, errorMsg, nil, nil)
+        }
+    }
+
     // MARK: - Google Authentication
     func googleLogin(idToken: String, accessToken: String?, name: String, email: String, profileImageUrl: String?) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
         print("🔐 Google authentication with Railway backend...")
@@ -2525,15 +2683,8 @@ class NetworkService: ObservableObject {
             print("⚠️ Step 1: No archived sessions found")
         }
         
-        // Then, fetch archived questions (sequential, not concurrent)
-        print("🔗 Step 2: Trying archived questions...")
-        let questionsResult = await fetchArchivedQuestions(queryParams)
-        if questionsResult.success, let questions = questionsResult.sessions {
-            print("✅ Step 2: Found \(questions.count) archived questions")
-            allSessions.append(contentsOf: questions)
-        } else {
-            print("⚠️ Step 2: No archived questions found")
-        }
+        // Note: Archived questions endpoints not yet available on backend
+        // Skipping questions fetch to avoid unnecessary failed API calls
         
         print("📊 Total homework sessions found: \(allSessions.count)")
         return (allSessions.count > 0, allSessions)
@@ -2610,108 +2761,13 @@ class NetworkService: ObservableObject {
         return (false, nil)
     }
     
-    private func fetchArchivedQuestions(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
-        // Try multiple endpoints for archived questions
-        let endpoints = [
-            "\(baseURL)/api/archive/questions",
-            "\(baseURL)/api/user/questions/archived",
-            "\(baseURL)/api/archive/homework"
-        ]
-        
-        for endpoint in endpoints {
-            let result = await tryFetchQuestionsFrom(endpoint, queryParams: queryParams)
-            if result.success {
-                return result
-            }
-        }
-        
-        // If no endpoint works, try to get from user's archived questions directly
-        print("ℹ️ No questions endpoints available, will show empty list")
-        return (true, [])
-    }
-    
-    private func tryFetchQuestionsFrom(_ endpoint: String, queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
-        var urlComponents = URLComponents(string: endpoint)!
-        var allQueryParams = queryParams
-        
-        // Add user ID from centralized UserSessionManager
-        if let userId = UserSessionManager.shared.currentUserId {
-            allQueryParams["userId"] = userId
-        }
-        
-        urlComponents.queryItems = allQueryParams.map { URLQueryItem(name: $0.key, value: $0.value) }
-        
-        guard let url = urlComponents.url else {
-            return (false, nil)
-        }
-        
-        print("🔗 Trying Questions URL: \(url.absoluteString)")
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        
-        // Add authentication if available from AuthenticationService only
-        addAuthHeader(to: &request)
-        
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Questions Status (\(endpoint)): \(httpResponse.statusCode)")
-                
-                if httpResponse.statusCode == 200 {
-                    if let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
-                       let success = json["success"] as? Bool, success,
-                       let questions = json["data"] as? [[String: Any]] {
-                        
-                        print("📚 Found \(questions.count) archived questions from \(endpoint)")
-                        
-                        // Convert questions to session format for unified display
-                        let convertedSessions = questions.map { question -> [String: Any] in
-                            var session = question
-                            // Ensure consistent format for display
-                            if session["title"] == nil {
-                                session["title"] = "Homework Session - \(session["subject"] as? String ?? "Study")"
-                            }
-                            if session["type"] == nil {
-                                session["type"] = "homework"
-                            }
-                            // Add question count
-                            if let questionsData = session["questions"] as? [[String: Any]] {
-                                session["questionCount"] = questionsData.count
-                            } else {
-                                session["questionCount"] = 1 // Single question
-                            }
-                            // Add a session date if missing
-                            if session["created_at"] == nil && session["sessionDate"] == nil {
-                                session["created_at"] = ISO8601DateFormatter().string(from: Date())
-                            }
-                            return session
-                        }
-                        
-                        return (true, convertedSessions)
-                    } else if let rawResponse = String(data: data, encoding: .utf8) {
-                        print("📄 Raw response: \(String(rawResponse.prefix(200)))")
-                        // Try parsing as array directly
-                        if let questions = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
-                            print("📚 Found \(questions.count) questions in direct array format")
-                            return (true, questions)
-                        }
-                    }
-                } else if httpResponse.statusCode == 404 {
-                    print("ℹ️ Endpoint \(endpoint) not available (404)")
-                    return (false, nil)
-                } else {
-                    print("⚠️ Endpoint \(endpoint) returned \(httpResponse.statusCode)")
-                }
-            }
-        } catch {
-            print("❌ Questions request failed for \(endpoint): \(error.localizedDescription)")
-        }
-        
-        return (false, nil)
-    }
-    
+    // REMOVED: fetchArchivedQuestions and tryFetchQuestionsFrom functions
+    // These endpoints are not yet available on the backend:
+    // - /api/archive/questions
+    // - /api/user/questions/archived
+    // - /api/archive/homework
+    // Removed to eliminate unnecessary failed API calls (all return 404)
+
     private func fetchConversationSessions(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
         print("🔄 === FETCHING CONVERSATION SESSIONS ===")
         print("📄 Input Query Params: \(queryParams)")

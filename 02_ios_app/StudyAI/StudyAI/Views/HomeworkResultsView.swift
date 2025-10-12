@@ -22,6 +22,7 @@ struct HomeworkResultsView: View {
     @State private var hasMarkedProgress = false
     @StateObject private var questionArchiveService = QuestionArchiveService.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
+    @Environment(\.dismiss) private var dismiss
 
     // Generate unique session ID for this homework session
     private var sessionId: String {
@@ -284,7 +285,10 @@ struct HomeworkResultsView: View {
                         onSelectionToggle: {
                             toggleQuestionSelection(index)
                         },
-                        showSelection: true
+                        showSelection: true,
+                        onDismissParent: {
+                            dismiss()
+                        }
                     )
                 }
             }
@@ -316,7 +320,10 @@ struct HomeworkResultsView: View {
                                 toggleQuestionSelection(adjustedIndex)
                             },
                             showAsBullet: true,
-                            showSelection: true
+                            showSelection: true,
+                            onDismissParent: {
+                                dismiss()
+                            }
                         )
                     }
                 }
@@ -523,9 +530,10 @@ struct QuestionAnswerCard: View {
     let onSelectionToggle: (() -> Void)?
     let showAsBullet: Bool
     let showSelection: Bool
+    let onDismissParent: (() -> Void)?
     @StateObject private var appState = AppState.shared
 
-    init(question: ParsedQuestion, isExpanded: Bool, isSelected: Bool = false, onToggle: @escaping () -> Void, onSelectionToggle: (() -> Void)? = nil, showAsBullet: Bool = false, showSelection: Bool = false) {
+    init(question: ParsedQuestion, isExpanded: Bool, isSelected: Bool = false, onToggle: @escaping () -> Void, onSelectionToggle: (() -> Void)? = nil, showAsBullet: Bool = false, showSelection: Bool = false, onDismissParent: (() -> Void)? = nil) {
         self.question = question
         self.isExpanded = isExpanded
         self.isSelected = isSelected
@@ -533,6 +541,7 @@ struct QuestionAnswerCard: View {
         self.onSelectionToggle = onSelectionToggle
         self.showAsBullet = showAsBullet
         self.showSelection = showSelection
+        self.onDismissParent = onDismissParent
     }
     
     var body: some View {
@@ -796,23 +805,29 @@ struct QuestionAnswerCard: View {
 
                     // Follow Up Button - Navigate to chat with this question
                     Button(action: {
-                        // Construct prompt for chat
-                        let chatPrompt = """
+                        // Dismiss the parent report view first
+                        onDismissParent?()
+
+                        // Small delay to ensure view is dismissed before navigation
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            // Construct prompt for chat
+                            let chatPrompt = """
 I need help understanding this question from my homework:
 
 Question: \(question.questionText)
 
 \(question.isGraded && question.studentAnswer != nil && !question.studentAnswer!.isEmpty ? "My answer was: \(question.studentAnswer!)\n\n" : "")I'm unclear about how to approach this problem. Can you help me understand it better?
 """
-                        // Detect subject from question or use default
-                        let detectedSubject = detectSubjectFromQuestion(question.questionText)
+                            // Detect subject from question or use default
+                            let detectedSubject = detectSubjectFromQuestion(question.questionText)
 
-                        // Navigate to chat with the question
-                        appState.navigateToChatWithMessage(chatPrompt, subject: detectedSubject)
+                            // Navigate to chat with the question
+                            appState.navigateToChatWithMessage(chatPrompt, subject: detectedSubject)
 
-                        // Haptic feedback
-                        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                        impactFeedback.impactOccurred()
+                            // Haptic feedback
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                            impactFeedback.impactOccurred()
+                        }
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: "message.fill")
