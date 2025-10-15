@@ -19,8 +19,7 @@ struct EditProfileView: View {
     @State private var gradeLevel: String = ""
     @State private var dateOfBirth: Date = Date()
     @State private var hasDateOfBirth: Bool = false
-    @State private var kidsAges: [Int] = []
-    @State private var newKidAge: String = ""
+    @State private var childAge: String = ""  // Single child age as string
     @State private var gender: String = ""
     @State private var city: String = ""
     @State private var stateProvince: String = ""
@@ -55,17 +54,17 @@ struct EditProfileView: View {
                 // Optional Information Section
                 optionalInformationSection
             }
-            .navigationTitle("Edit Profile")
+            .navigationTitle(NSLocalizedString("editProfile.title", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("editProfile.cancel", comment: "")) {
                         dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
+                    Button(NSLocalizedString("editProfile.save", comment: "")) {
                         Task {
                             await saveProfile()
                         }
@@ -82,17 +81,17 @@ struct EditProfileView: View {
                     LoadingOverlay()
                 }
             }
-            .alert("Error", isPresented: $showingError) {
-                Button("OK") { }
+            .alert(NSLocalizedString("editProfile.error", comment: ""), isPresented: $showingError) {
+                Button(NSLocalizedString("common.ok", comment: "")) { }
             } message: {
                 Text(errorMessage)
             }
-            .alert("Profile Updated", isPresented: $showingSaveSuccess) {
-                Button("Done") {
+            .alert(NSLocalizedString("editProfile.profileUpdated", comment: ""), isPresented: $showingSaveSuccess) {
+                Button(NSLocalizedString("common.done", comment: "")) {
                     dismiss()
                 }
             } message: {
-                Text("Your profile has been updated successfully!")
+                Text(NSLocalizedString("editProfile.profileUpdatedMessage", comment: ""))
             }
         }
     }
@@ -102,45 +101,45 @@ struct EditProfileView: View {
     private var personalInformationSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Personal Information")
+                Text(NSLocalizedString("editProfile.personalInfo", comment: ""))
                     .font(.headline)
                     .foregroundColor(.primary)
-                
+
                 // First and Last Name
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("First Name")
+                        Text(NSLocalizedString("editProfile.firstName", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        TextField("Enter first name", text: $firstName)
+                        TextField(NSLocalizedString("editProfile.firstNamePlaceholder", comment: ""), text: $firstName)
                             .textFieldStyle(.roundedBorder)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Last Name")
+                        Text(NSLocalizedString("editProfile.lastName", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        TextField("Enter last name", text: $lastName)
+                        TextField(NSLocalizedString("editProfile.lastNamePlaceholder", comment: ""), text: $lastName)
                             .textFieldStyle(.roundedBorder)
                     }
                 }
-                
+
                 // Display Name (optional)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Display Name (Optional)")
+                    Text(NSLocalizedString("editProfile.displayName", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    TextField("Preferred name to show", text: $displayName)
+                    TextField(NSLocalizedString("editProfile.displayNamePlaceholder", comment: ""), text: $displayName)
                         .textFieldStyle(.roundedBorder)
                 }
-                
+
                 // Date of Birth
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Add Date of Birth", isOn: $hasDateOfBirth)
+                    Toggle(NSLocalizedString("editProfile.addDateOfBirth", comment: ""), isOn: $hasDateOfBirth)
                         .font(.subheadline)
-                    
+
                     if hasDateOfBirth {
-                        DatePicker("Date of Birth", selection: $dateOfBirth, displayedComponents: .date)
+                        DatePicker(NSLocalizedString("editProfile.dateOfBirth", comment: ""), selection: $dateOfBirth, displayedComponents: .date)
                             .datePickerStyle(.compact)
                     }
                 }
@@ -149,59 +148,26 @@ struct EditProfileView: View {
     }
     
     // MARK: - Children Information Section
-    
+
     private var childrenInformationSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Children Information")
+                Text(NSLocalizedString("editProfile.childrenInfo", comment: ""))
                     .font(.headline)
                     .foregroundColor(.primary)
-                
-                Text("Add ages of children you're helping with studies")
+
+                Text(NSLocalizedString("editProfile.childrenInfoDescription", comment: ""))
                     .font(.caption)
                     .foregroundColor(.secondary)
-                
-                // Current kids ages
-                if !kidsAges.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Children's Ages:")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 8) {
-                            ForEach(kidsAges.indices, id: \.self) { index in
-                                HStack {
-                                    Text("\(kidsAges[index]) years")
-                                        .font(.caption)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.blue.opacity(0.1))
-                                        .foregroundColor(.blue)
-                                        .cornerRadius(8)
-                                    
-                                    Button(action: {
-                                        kidsAges.remove(at: index)
-                                    }) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .font(.caption)
-                                            .foregroundColor(.red)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Add new kid age
-                HStack {
-                    TextField("Child's age", text: $newKidAge)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(NSLocalizedString("editProfile.childAge", comment: ""))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                    TextField(NSLocalizedString("editProfile.childAgePlaceholder", comment: ""), text: $childAge)
                         .textFieldStyle(.roundedBorder)
                         .keyboardType(.numberPad)
-                    
-                    Button("Add") {
-                        addKidAge()
-                    }
-                    .disabled(newKidAge.isEmpty)
                 }
             }
         }
@@ -212,32 +178,32 @@ struct EditProfileView: View {
     private var locationSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Location")
+                Text(NSLocalizedString("editProfile.location", comment: ""))
                     .font(.headline)
                     .foregroundColor(.primary)
-                
+
                 VStack(alignment: .leading, spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("City")
+                        Text(NSLocalizedString("editProfile.city", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        TextField("Enter city", text: $city)
+                        TextField(NSLocalizedString("editProfile.cityPlaceholder", comment: ""), text: $city)
                             .textFieldStyle(.roundedBorder)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("State/Province")
+                        Text(NSLocalizedString("editProfile.stateProvince", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        TextField("Enter state or province", text: $stateProvince)
+                        TextField(NSLocalizedString("editProfile.stateProvincePlaceholder", comment: ""), text: $stateProvince)
                             .textFieldStyle(.roundedBorder)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Country")
+                        Text(NSLocalizedString("editProfile.country", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        TextField("Enter country", text: $country)
+                        TextField(NSLocalizedString("editProfile.countryPlaceholder", comment: ""), text: $country)
                             .textFieldStyle(.roundedBorder)
                     }
                 }
@@ -250,41 +216,41 @@ struct EditProfileView: View {
     private var academicPreferencesSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Academic Preferences")
+                Text(NSLocalizedString("editProfile.academicPreferences", comment: ""))
                     .font(.headline)
                     .foregroundColor(.primary)
-                
+
                 // Grade Level
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Current Grade Level")
+                    Text(NSLocalizedString("editProfile.gradeLevel", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    
-                    Picker("Grade Level", selection: $gradeLevel) {
-                        Text("Select Grade Level").tag("")
+
+                    Picker(NSLocalizedString("editProfile.gradeLevelPicker", comment: ""), selection: $gradeLevel) {
+                        Text(NSLocalizedString("editProfile.selectGradeLevel", comment: "")).tag("")
                         ForEach(GradeLevel.allCases, id: \.rawValue) { grade in
-                            Text(grade.displayName).tag(grade.rawValue)
+                            Text(grade.displayName).tag(String(grade.integerValue))
                         }
                     }
                     .pickerStyle(.menu)
                 }
-                
+
                 // Favorite Subjects
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Favorite Subjects")
+                        Text(NSLocalizedString("editProfile.favoriteSubjects", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        
+
                         Spacer()
-                        
-                        Button("Add Subjects") {
+
+                        Button(NSLocalizedString("editProfile.addSubjects", comment: "")) {
                             showingSubjectPicker = true
                         }
                         .font(.caption)
                         .foregroundColor(.blue)
                     }
-                    
+
                     if !favoriteSubjects.isEmpty {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
                             ForEach(Array(favoriteSubjects), id: \.self) { subject in
@@ -296,7 +262,7 @@ struct EditProfileView: View {
                                         .background(Color.green.opacity(0.1))
                                         .foregroundColor(.green)
                                         .cornerRadius(8)
-                                    
+
                                     Button(action: {
                                         favoriteSubjects.remove(subject)
                                     }) {
@@ -309,15 +275,15 @@ struct EditProfileView: View {
                         }
                     }
                 }
-                
+
                 // Learning Style
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Learning Style")
+                    Text(NSLocalizedString("editProfile.learningStyle", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    
-                    Picker("Learning Style", selection: $learningStyle) {
-                        Text("Select Learning Style").tag("")
+
+                    Picker(NSLocalizedString("editProfile.learningStyle", comment: ""), selection: $learningStyle) {
+                        Text(NSLocalizedString("editProfile.selectLearningStyle", comment: "")).tag("")
                         ForEach(LearningStyle.allCases, id: \.rawValue) { style in
                             Text(style.displayName).tag(style.rawValue)
                         }
@@ -336,39 +302,39 @@ struct EditProfileView: View {
     private var optionalInformationSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Optional Information")
+                Text(NSLocalizedString("editProfile.optionalInfo", comment: ""))
                     .font(.headline)
                     .foregroundColor(.primary)
-                
+
                 // Gender
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Gender (Optional)")
+                    Text(NSLocalizedString("editProfile.gender", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    
-                    Picker("Gender", selection: $gender) {
-                        Text("Prefer not to specify").tag("")
-                        Text("Female").tag("Female")
-                        Text("Male").tag("Male")
-                        Text("Non-binary").tag("Non-binary")
-                        Text("Other").tag("Other")
+
+                    Picker(NSLocalizedString("editProfile.genderPicker", comment: ""), selection: $gender) {
+                        Text(NSLocalizedString("editProfile.genderPreferNotToSpecify", comment: "")).tag("")
+                        Text(NSLocalizedString("editProfile.genderFemale", comment: "")).tag("Female")
+                        Text(NSLocalizedString("editProfile.genderMale", comment: "")).tag("Male")
+                        Text(NSLocalizedString("editProfile.genderNonBinary", comment: "")).tag("Non-binary")
+                        Text(NSLocalizedString("editProfile.genderOther", comment: "")).tag("Other")
                     }
                     .pickerStyle(.menu)
                 }
-                
+
                 // Language Preference
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Language Preference")
+                    Text(NSLocalizedString("editProfile.languagePreference", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    
-                    Picker("Language", selection: $languagePreference) {
-                        Text("English").tag("en")
-                        Text("Spanish").tag("es")
-                        Text("French").tag("fr")
-                        Text("German").tag("de")
-                        Text("Chinese").tag("zh")
-                        Text("Japanese").tag("ja")
+
+                    Picker(NSLocalizedString("editProfile.languagePicker", comment: ""), selection: $languagePreference) {
+                        Text(NSLocalizedString("editProfile.languageEnglish", comment: "")).tag("en")
+                        Text(NSLocalizedString("editProfile.languageSpanish", comment: "")).tag("es")
+                        Text(NSLocalizedString("editProfile.languageFrench", comment: "")).tag("fr")
+                        Text(NSLocalizedString("editProfile.languageGerman", comment: "")).tag("de")
+                        Text(NSLocalizedString("editProfile.languageChinese", comment: "")).tag("zh")
+                        Text(NSLocalizedString("editProfile.languageJapanese", comment: "")).tag("ja")
                     }
                     .pickerStyle(.menu)
                 }
@@ -379,18 +345,33 @@ struct EditProfileView: View {
     // MARK: - Helper Methods
     
     private func loadCurrentProfile() {
+        print("🔵 [EditProfileView] loadCurrentProfile() called")
+
         if let profile = profileService.currentProfile {
+            print("📦 [EditProfileView] Loading profile from ProfileService")
+            print("   - City: \(profile.city ?? "nil")")
+            print("   - State/Province: \(profile.stateProvince ?? "nil")")
+            print("   - Country: \(profile.country ?? "nil")")
+            print("   - Kids Ages: \(profile.kidsAges)")
+            print("   - Display Location: \(profile.displayLocation ?? "nil")")
+
             firstName = profile.firstName ?? ""
             lastName = profile.lastName ?? ""
             displayName = profile.displayName ?? ""
+
+            // Load grade level as integer string
             gradeLevel = profile.gradeLevel ?? ""
-            
+
             if let dob = profile.dateOfBirth {
                 dateOfBirth = dob
                 hasDateOfBirth = true
             }
-            
-            kidsAges = profile.kidsAges
+
+            // Load first child age if available
+            if let firstAge = profile.kidsAges.first {
+                childAge = String(firstAge)
+            }
+
             gender = profile.gender ?? ""
             city = profile.city ?? ""
             stateProvince = profile.stateProvince ?? ""
@@ -399,28 +380,24 @@ struct EditProfileView: View {
             learningStyle = profile.learningStyle ?? ""
             timezone = profile.timezone ?? "UTC"
             languagePreference = profile.languagePreference ?? "en"
+
+            print("✅ [EditProfileView] Profile loaded into @State variables")
+            print("   - @State city: \(city)")
+            print("   - @State stateProvince: \(stateProvince)")
+            print("   - @State country: \(country)")
+            print("   - @State childAge: \(childAge)")
         } else {
+            print("⚠️ [EditProfileView] No profile in ProfileService.currentProfile")
+
             // Load from current user if no profile exists
             if let user = authService.currentUser {
                 firstName = extractFirstName(from: user.name)
                 lastName = extractLastName(from: user.name)
+                print("ℹ️ [EditProfileView] Loaded name from currentUser: \(firstName) \(lastName)")
             }
         }
     }
-    
-    private func addKidAge() {
-        guard let age = Int(newKidAge), age >= 1, age <= 18 else {
-            return
-        }
-        
-        if !kidsAges.contains(age) {
-            kidsAges.append(age)
-            kidsAges.sort()
-        }
-        
-        newKidAge = ""
-    }
-    
+
     private func saveProfile() async {
         await MainActor.run {
             isLoading = true
@@ -436,12 +413,18 @@ struct EditProfileView: View {
         guard !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             await MainActor.run {
-                errorMessage = "First name and last name are required"
+                errorMessage = NSLocalizedString("editProfile.validationNameRequired", comment: "")
                 showingError = true
             }
             return
         }
-        
+
+        // Convert child age to array (empty or single element)
+        var kidsAgesArray: [Int] = []
+        if !childAge.isEmpty, let age = Int(childAge), age >= 1 && age <= 18 {
+            kidsAgesArray = [age]
+        }
+
         // Create updated profile
         let updatedProfile = UserProfile(
             id: authService.currentUser?.id ?? "",
@@ -454,7 +437,7 @@ struct EditProfileView: View {
             displayName: displayName.isEmpty ? nil : displayName.trimmingCharacters(in: .whitespacesAndNewlines),
             gradeLevel: gradeLevel.isEmpty ? nil : gradeLevel,
             dateOfBirth: hasDateOfBirth ? dateOfBirth : nil,
-            kidsAges: kidsAges,
+            kidsAges: kidsAgesArray,
             gender: gender.isEmpty ? nil : gender,
             city: city.isEmpty ? nil : city.trimmingCharacters(in: .whitespacesAndNewlines),
             stateProvince: stateProvince.isEmpty ? nil : stateProvince.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -496,16 +479,16 @@ struct EditProfileView: View {
 struct SubjectPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var selectedSubjects: Set<String>
-    
+
     var body: some View {
         NavigationView {
             List {
                 ForEach(Subject.allCases, id: \.rawValue) { subject in
                     HStack {
                         Text(subject.displayName)
-                        
+
                         Spacer()
-                        
+
                         if selectedSubjects.contains(subject.rawValue) {
                             Image(systemName: "checkmark")
                                 .foregroundColor(.blue)
@@ -521,11 +504,11 @@ struct SubjectPickerView: View {
                     }
                 }
             }
-            .navigationTitle("Select Subjects")
+            .navigationTitle(NSLocalizedString("editProfile.selectSubjects", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                     .fontWeight(.semibold)
@@ -542,12 +525,12 @@ struct LoadingOverlay: View {
         ZStack {
             Color.black.opacity(0.3)
                 .ignoresSafeArea()
-            
+
             VStack(spacing: 16) {
                 ProgressView()
                     .scaleEffect(1.5)
-                
-                Text("Saving Profile...")
+
+                Text(NSLocalizedString("editProfile.savingProfile", comment: ""))
                     .font(.headline)
                     .foregroundColor(.primary)
             }

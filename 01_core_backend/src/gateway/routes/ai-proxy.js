@@ -1492,9 +1492,10 @@ TUTORING GUIDELINES:
 - For academic questions: Do NOT give direct answers. Instead, provide hints and guide the student to solve problems themselves through Socratic questioning.
 - For greetings or casual conversation: Respond naturally and warmly.
 - Be encouraging and supportive. Focus on helping students develop problem-solving skills.
-- Ask guiding questions that help students think through the problem step-by-step.
+- Use guiding questions when helpful for problem-solving, but respond naturally based on context - not every response needs to end with a question.
 - Only reveal answers after the student has made genuine effort and is close to the solution.
-- Provide step-by-step guidance when appropriate, but let the student do the thinking.`
+- Provide step-by-step guidance when appropriate, but let the student do the thinking.
+- When giving explanations or clarifications, provide complete information without forcing unnecessary follow-up questions.`
         }
       ];
 
@@ -2681,13 +2682,10 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
 
   async generateTTS(request, reply) {
     try {
-      this.fastify.log.info('🎵 TTS endpoint called');
-      
       // Check for authentication header and sanitize it
       const authHeader = request.headers.authorization;
-      
+
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        this.fastify.log.warn('❌ TTS: Missing or invalid auth header');
         return reply.status(401).send({
           success: false,
           message: 'Authentication required',
@@ -2697,10 +2695,9 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
 
       // Extract and sanitize the token
       const token = authHeader.substring(7).trim();
-      
+
       // Basic token validation to prevent header injection
       if (!token || token.length === 0 || /[^\w\-_.]/.test(token)) {
-        this.fastify.log.warn('❌ TTS: Invalid token format', { tokenLength: token?.length });
         return reply.status(401).send({
           success: false,
           message: 'Invalid token format',
@@ -2708,28 +2705,20 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
         });
       }
 
-      this.fastify.log.info(`🎵 TTS: Valid auth token received (length: ${token.length})`);
-
       const { text, voice, speed = 1.0 } = request.body;
-      
+
       if (!text || !voice) {
-        this.fastify.log.warn('❌ TTS: Missing required fields', { text: !!text, voice: !!voice });
         return reply.status(400).send({
           success: false,
           message: 'Missing required fields: text and voice',
           code: 'MISSING_FIELDS'
         });
       }
-      
-      this.fastify.log.info(`🎵 TTS Request: text="${text.substring(0, 50)}...", voice="${voice}", speed=${speed}`);
-      
+
       // Get OpenAI API key from environment and validate it
       const openaiApiKey = process.env.OPENAI_API_KEY;
-      
-      this.fastify.log.info(`🔑 OpenAI API Key status: ${openaiApiKey ? 'Present' : 'Missing'} (length: ${openaiApiKey?.length || 0})`);
-      
+
       if (!openaiApiKey || openaiApiKey === 'placeholder-for-local-dev' || openaiApiKey === 'your-openai-api-key') {
-        this.fastify.log.warn('⚠️ OpenAI API key not found or is placeholder value');
         return reply.status(503).send({
           success: false,
           message: 'OpenAI TTS service not available - API key not configured',
@@ -2737,38 +2726,13 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
         });
       }
 
-      // Debug: Print the actual key (first 20 chars and some analysis)
       const trimmedKey = openaiApiKey.trim();
-      this.fastify.log.info(`🔍 API Key Debug:`, {
-        originalLength: openaiApiKey.length,
-        trimmedLength: trimmedKey.length,
-        first20chars: trimmedKey.substring(0, 20),
-        last10chars: trimmedKey.substring(trimmedKey.length - 10),
-        startsWithSkProj: trimmedKey.startsWith('sk-proj-'),
-        startsWithSk: trimmedKey.startsWith('sk-'),
-        hasNewlines: /[\r\n]/.test(openaiApiKey),
-        hasTabs: /[\t]/.test(openaiApiKey),
-        hasSpaces: / /.test(openaiApiKey)
-      });
 
       // Validate API key format - support both legacy and project-based keys
       const isLegacyKey = /^sk-[A-Za-z0-9]{48}$/.test(trimmedKey);
       const isProjectKey = /^sk-proj-[A-Za-z0-9\-_]{140,200}$/.test(trimmedKey);
-      
-      this.fastify.log.info(`🔍 Key validation:`, {
-        isLegacyKey,
-        isProjectKey,
-        keyFormat: trimmedKey.startsWith('sk-proj-') ? 'project' : trimmedKey.startsWith('sk-') ? 'legacy' : 'unknown'
-      });
-      
+
       if (!isLegacyKey && !isProjectKey) {
-        this.fastify.log.error('❌ OpenAI API key has invalid format', { 
-          keyPrefix: trimmedKey?.substring(0, 15),
-          keyLength: trimmedKey?.length,
-          isLegacy: isLegacyKey,
-          isProject: isProjectKey,
-          hasLineBreaks: /[\r\n\t]/.test(trimmedKey)
-        });
         return reply.status(503).send({
           success: false,
           message: 'OpenAI API key configuration error',
@@ -2776,36 +2740,23 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
         });
       }
 
-      this.fastify.log.info(`🎵 Using ${isProjectKey ? 'project-based' : 'legacy'} OpenAI API key`);
-
-      this.fastify.log.info(`🎵 Making OpenAI TTS API call...`);
-      
       // Use native https module for better compatibility
       const https = require('https');
-      
+
       const ttsData = JSON.stringify({
         model: 'tts-1-hd',
         input: text,
         voice: voice,
         speed: speed
       });
-      
-      this.fastify.log.info(`📤 TTS Data: ${ttsData.length} bytes`);
-      
+
       // Prepare headers carefully to avoid invalid characters
       const headers = {
         'Authorization': `Bearer ${trimmedKey}`,
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(ttsData).toString()
       };
-      
-      // Log headers for debugging (without exposing the full API key)
-      this.fastify.log.info('📋 Request headers prepared', { 
-        authPrefix: headers.Authorization.substring(0, 15),
-        contentType: headers['Content-Type'],
-        contentLength: headers['Content-Length']
-      });
-      
+
       const options = {
         hostname: 'api.openai.com',
         port: 443,
@@ -2814,22 +2765,18 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
         headers: headers,
         timeout: 30000
       };
-      
+
       return new Promise((resolve, reject) => {
         const req = https.request(options, (res) => {
-          this.fastify.log.info(`🎵 OpenAI TTS Response Status: ${res.statusCode}`);
-          
           if (res.statusCode === 200) {
             const chunks = [];
-            
+
             res.on('data', (chunk) => {
               chunks.push(chunk);
             });
-            
+
             res.on('end', () => {
               const audioBuffer = Buffer.concat(chunks);
-              this.fastify.log.info(`✅ TTS audio generated successfully: ${audioBuffer.length} bytes`);
-              
               reply.type('audio/mpeg');
               resolve(reply.send(audioBuffer));
             });
@@ -2838,9 +2785,9 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
             res.on('data', (chunk) => {
               errorData += chunk.toString();
             });
-            
+
             res.on('end', () => {
-              this.fastify.log.error(`❌ OpenAI TTS API error: ${res.statusCode} - ${errorData}`);
+              this.fastify.log.error(`TTS API error: ${res.statusCode}`);
               resolve(reply.status(502).send({
                 success: false,
                 message: 'TTS generation failed',
@@ -2851,9 +2798,9 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
             });
           }
         });
-        
+
         req.on('error', (error) => {
-          this.fastify.log.error('❌ TTS request error:', error);
+          this.fastify.log.error('TTS request error:', error);
           resolve(reply.status(500).send({
             success: false,
             message: 'Failed to generate TTS audio',
@@ -2861,23 +2808,23 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
             error: error.message
           }));
         });
-        
+
         req.on('timeout', () => {
           req.destroy();
-          this.fastify.log.error('❌ TTS request timeout after 30s');
+          this.fastify.log.error('TTS request timeout');
           resolve(reply.status(504).send({
             success: false,
             message: 'TTS request timeout',
             code: 'TTS_TIMEOUT'
           }));
         });
-        
+
         req.write(ttsData);
         req.end();
       });
-      
+
     } catch (error) {
-      this.fastify.log.error('❌ TTS generation error:', error);
+      this.fastify.log.error('TTS generation error:', error);
       return reply.status(500).send({
         success: false,
         message: 'Failed to generate TTS audio',

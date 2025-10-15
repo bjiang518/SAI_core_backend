@@ -1409,6 +1409,7 @@ const db = {
 
   /**
    * Enhanced Profile Management Functions - Supports partial updates (only update fields that are provided)
+   * Handles edge cases: empty strings, null values, empty arrays, type validation
    */
   async updateUserProfileEnhanced(userId, profileData) {
     // First, get the user's email and existing profile
@@ -1425,6 +1426,49 @@ const db = {
     const existingProfileQuery = `SELECT * FROM profiles WHERE email = $1`;
     const existingProfileResult = await this.query(existingProfileQuery, [userEmail]);
     const existingProfile = existingProfileResult.rows[0] || {};
+
+    // Helper function to normalize field values (handles empty strings, null, etc.)
+    const normalizeValue = (value, fieldType) => {
+      // undefined = field not provided, don't update
+      if (value === undefined) return undefined;
+
+      // null = explicitly clear the field
+      if (value === null) return null;
+
+      // Empty string handling
+      if (value === '' && fieldType === 'string') {
+        return null; // Convert empty strings to null for nullable string fields
+      }
+
+      // Empty array handling
+      if (Array.isArray(value) && value.length === 0 && fieldType === 'array') {
+        return []; // Keep empty arrays as empty arrays (not null)
+      }
+
+      // Return the value as-is
+      return value;
+    };
+
+    // Helper function to validate and process field
+    const processField = (fieldName, value, fieldType = 'string') => {
+      const normalized = normalizeValue(value, fieldType);
+
+      // Skip undefined fields (not provided)
+      if (normalized === undefined) return null;
+
+      // Validate based on type
+      if (fieldType === 'string' && normalized !== null && typeof normalized !== 'string') {
+        console.warn(`⚠️ Field ${fieldName} expected string, got ${typeof normalized}. Converting to string.`);
+        return String(normalized);
+      }
+
+      if (fieldType === 'array' && normalized !== null && !Array.isArray(normalized)) {
+        console.warn(`⚠️ Field ${fieldName} expected array, got ${typeof normalized}. Converting to array.`);
+        return Array.isArray(normalized) ? normalized : [normalized];
+      }
+
+      return normalized;
+    };
 
     // Map grade level strings to integers for legacy database compatibility
     const gradeLevelMap = {
@@ -1451,77 +1495,93 @@ const db = {
     const values = [];
     let paramIndex = 1;
 
-    // Only update fields that are explicitly provided in profileData
-    if (profileData.firstName !== undefined) {
+    // Process each field with validation and normalization
+    const processedFields = {
+      firstName: processField('firstName', profileData.firstName, 'string'),
+      lastName: processField('lastName', profileData.lastName, 'string'),
+      displayName: processField('displayName', profileData.displayName, 'string'),
+      gradeLevel: processField('gradeLevel', profileData.gradeLevel, 'string'),
+      dateOfBirth: processField('dateOfBirth', profileData.dateOfBirth, 'string'),
+      kidsAges: processField('kidsAges', profileData.kidsAges, 'array'),
+      gender: processField('gender', profileData.gender, 'string'),
+      city: processField('city', profileData.city, 'string'),
+      stateProvince: processField('stateProvince', profileData.stateProvince, 'string'),
+      country: processField('country', profileData.country, 'string'),
+      favoriteSubjects: processField('favoriteSubjects', profileData.favoriteSubjects, 'array'),
+      learningStyle: processField('learningStyle', profileData.learningStyle, 'string'),
+      timezone: processField('timezone', profileData.timezone, 'string'),
+      languagePreference: processField('languagePreference', profileData.languagePreference, 'string')
+    };
+
+    // Only update fields that are explicitly provided (not undefined)
+    if (processedFields.firstName !== null && profileData.firstName !== undefined) {
       updates.push(`first_name = $${paramIndex++}`);
-      values.push(profileData.firstName);
+      values.push(processedFields.firstName);
     }
 
-    if (profileData.lastName !== undefined) {
+    if (processedFields.lastName !== null && profileData.lastName !== undefined) {
       updates.push(`last_name = $${paramIndex++}`);
-      values.push(profileData.lastName);
+      values.push(processedFields.lastName);
     }
 
-    if (profileData.displayName !== undefined) {
+    if (processedFields.displayName !== null && profileData.displayName !== undefined) {
       updates.push(`display_name = $${paramIndex++}`);
-      values.push(profileData.displayName);
+      values.push(processedFields.displayName);
     }
 
-    if (profileData.gradeLevel !== undefined) {
-      // Try string first, fall back to integer if needed
-      let processedGradeLevel = profileData.gradeLevel;
+    if (processedFields.gradeLevel !== null && profileData.gradeLevel !== undefined) {
       updates.push(`grade_level = $${paramIndex++}`);
-      values.push(processedGradeLevel);
+      values.push(processedFields.gradeLevel);
     }
 
-    if (profileData.dateOfBirth !== undefined) {
+    if (processedFields.dateOfBirth !== null && profileData.dateOfBirth !== undefined) {
       updates.push(`date_of_birth = $${paramIndex++}`);
-      values.push(profileData.dateOfBirth);
+      values.push(processedFields.dateOfBirth);
     }
 
-    if (profileData.kidsAges !== undefined) {
+    if (processedFields.kidsAges !== null && profileData.kidsAges !== undefined) {
       updates.push(`kids_ages = $${paramIndex++}`);
-      values.push(profileData.kidsAges);
+      values.push(processedFields.kidsAges);
     }
 
-    if (profileData.gender !== undefined) {
+    if (processedFields.gender !== null && profileData.gender !== undefined) {
       updates.push(`gender = $${paramIndex++}`);
-      values.push(profileData.gender);
+      values.push(processedFields.gender);
     }
 
-    if (profileData.city !== undefined) {
+    if (processedFields.city !== null && profileData.city !== undefined) {
       updates.push(`city = $${paramIndex++}`);
-      values.push(profileData.city);
+      values.push(processedFields.city);
     }
 
-    if (profileData.stateProvince !== undefined) {
+    if (processedFields.stateProvince !== null && profileData.stateProvince !== undefined) {
       updates.push(`state_province = $${paramIndex++}`);
-      values.push(profileData.stateProvince);
+      values.push(processedFields.stateProvince);
     }
 
-    if (profileData.country !== undefined) {
+    if (processedFields.country !== null && profileData.country !== undefined) {
       updates.push(`country = $${paramIndex++}`);
-      values.push(profileData.country);
+      values.push(processedFields.country);
     }
 
-    if (profileData.favoriteSubjects !== undefined) {
+    if (processedFields.favoriteSubjects !== null && profileData.favoriteSubjects !== undefined) {
       updates.push(`favorite_subjects = $${paramIndex++}`);
-      values.push(profileData.favoriteSubjects);
+      values.push(processedFields.favoriteSubjects);
     }
 
-    if (profileData.learningStyle !== undefined) {
+    if (processedFields.learningStyle !== null && profileData.learningStyle !== undefined) {
       updates.push(`learning_style = $${paramIndex++}`);
-      values.push(profileData.learningStyle);
+      values.push(processedFields.learningStyle);
     }
 
-    if (profileData.timezone !== undefined) {
+    if (processedFields.timezone !== null && profileData.timezone !== undefined) {
       updates.push(`timezone = $${paramIndex++}`);
-      values.push(profileData.timezone);
+      values.push(processedFields.timezone);
     }
 
-    if (profileData.languagePreference !== undefined) {
+    if (processedFields.languagePreference !== null && profileData.languagePreference !== undefined) {
       updates.push(`language_preference = $${paramIndex++}`);
-      values.push(profileData.languagePreference);
+      values.push(processedFields.languagePreference);
     }
 
     // Always update the updated_at timestamp
@@ -1547,40 +1607,84 @@ const db = {
       values.push(userEmail);
     } else {
       // INSERT new profile with only provided fields
+      // Reset values array for INSERT (don't reuse UPDATE values)
+      const insertValues = [userEmail]; // Email is always first
       const columns = ['email', 'created_at', 'updated_at'];
-      const placeholders = [`$${paramIndex}`, 'NOW()', 'NOW()'];
-      values.push(userEmail);
-      paramIndex++;
+      const placeholders = ['$1', 'NOW()', 'NOW()'];
+      let insertParamIndex = 2; // Start at $2 since $1 is email
 
-      // Add provided fields to INSERT
-      if (profileData.firstName !== undefined) { columns.push('first_name'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.lastName !== undefined) { columns.push('last_name'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.displayName !== undefined) { columns.push('display_name'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.gradeLevel !== undefined) { columns.push('grade_level'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.dateOfBirth !== undefined) { columns.push('date_of_birth'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.kidsAges !== undefined) { columns.push('kids_ages'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.gender !== undefined) { columns.push('gender'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.city !== undefined) { columns.push('city'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.stateProvince !== undefined) { columns.push('state_province'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.country !== undefined) { columns.push('country'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.favoriteSubjects !== undefined) { columns.push('favorite_subjects'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.learningStyle !== undefined) { columns.push('learning_style'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.timezone !== undefined) { columns.push('timezone'); placeholders.push(`$${paramIndex++}`); }
-      if (profileData.languagePreference !== undefined) { columns.push('language_preference'); placeholders.push(`$${paramIndex++}`); }
+      // Add provided fields to INSERT (using processed values)
+      const fieldMappings = [
+        { name: 'first_name', value: processedFields.firstName, provided: profileData.firstName !== undefined },
+        { name: 'last_name', value: processedFields.lastName, provided: profileData.lastName !== undefined },
+        { name: 'display_name', value: processedFields.displayName, provided: profileData.displayName !== undefined },
+        { name: 'grade_level', value: processedFields.gradeLevel, provided: profileData.gradeLevel !== undefined },
+        { name: 'date_of_birth', value: processedFields.dateOfBirth, provided: profileData.dateOfBirth !== undefined },
+        { name: 'kids_ages', value: processedFields.kidsAges, provided: profileData.kidsAges !== undefined },
+        { name: 'gender', value: processedFields.gender, provided: profileData.gender !== undefined },
+        { name: 'city', value: processedFields.city, provided: profileData.city !== undefined },
+        { name: 'state_province', value: processedFields.stateProvince, provided: profileData.stateProvince !== undefined },
+        { name: 'country', value: processedFields.country, provided: profileData.country !== undefined },
+        { name: 'favorite_subjects', value: processedFields.favoriteSubjects, provided: profileData.favoriteSubjects !== undefined },
+        { name: 'learning_style', value: processedFields.learningStyle, provided: profileData.learningStyle !== undefined },
+        { name: 'timezone', value: processedFields.timezone, provided: profileData.timezone !== undefined },
+        { name: 'language_preference', value: processedFields.languagePreference, provided: profileData.languagePreference !== undefined }
+      ];
+
+      for (const field of fieldMappings) {
+        if (field.provided && field.value !== null) {
+          columns.push(field.name);
+          placeholders.push(`$${insertParamIndex++}`);
+          insertValues.push(field.value);
+        }
+      }
 
       query = `
         INSERT INTO profiles (${columns.join(', ')})
         VALUES (${placeholders.join(', ')})
         RETURNING *
       `;
+
+      // Use insertValues for INSERT instead of the UPDATE values
+      values.length = 0; // Clear the UPDATE values
+      values.push(...insertValues); // Use INSERT values
     }
 
     try {
+      // Log the query and values for debugging
+      console.log(`\n📝 === PROFILE UPDATE DEBUG ===`);
+      console.log(`User: ${userEmail}`);
+      console.log(`Operation: ${existingProfile && existingProfile.email ? 'UPDATE' : 'INSERT'}`);
+      console.log(`Fields provided:`, Object.keys(profileData).filter(k => profileData[k] !== undefined));
+      console.log(`Fields with values:`, Object.entries(processedFields).filter(([k, v]) => v !== null).map(([k]) => k));
+      console.log(`SQL Query: ${query.replace(/\s+/g, ' ').trim().substring(0, 200)}...`);
+      console.log(`Values: [${values.map(v => {
+        if (Array.isArray(v)) return `[${v.join(', ')}]`;
+        if (v === null) return 'NULL';
+        if (typeof v === 'string') return `"${v.substring(0, 50)}"`;
+        return v;
+      }).join(', ')}]`);
+
       const result = await this.query(query, values);
       console.log(`✅ === UPDATE USER PROFILE ===`);
       console.log(`✅ Profile updated successfully for: ${userEmail}`);
       console.log(`✅ Fields updated: ${Object.keys(profileData).join(', ')}`);
-      return result.rows[0];
+
+      // Calculate and update profile completion percentage
+      const profile = result.rows[0];
+      const completionPercentage = this.calculateProfileCompletionPercentage(profile);
+
+      // Update the completion percentage in the database
+      await this.query(
+        `UPDATE profiles SET profile_completion_percentage = $1 WHERE email = $2`,
+        [completionPercentage, userEmail]
+      );
+
+      // Update the returned profile with the calculated percentage
+      profile.profile_completion_percentage = completionPercentage;
+      console.log(`📊 Profile completion calculated: ${completionPercentage}%`);
+
+      return profile;
 
     } catch (error) {
       // Check if error is related to integer type conversion for grade_level
@@ -1597,14 +1701,82 @@ const db = {
 
           const result = await this.query(query, values);
           console.log(`✅ Profile updated successfully for: ${userEmail} (with integer grade)`);
-          return result.rows[0];
+
+          // Calculate and update profile completion percentage
+          const profile = result.rows[0];
+          const completionPercentage = this.calculateProfileCompletionPercentage(profile);
+
+          await this.query(
+            `UPDATE profiles SET profile_completion_percentage = $1 WHERE email = $2`,
+            [completionPercentage, userEmail]
+          );
+
+          profile.profile_completion_percentage = completionPercentage;
+          console.log(`📊 Profile completion calculated: ${completionPercentage}%`);
+
+          return profile;
         }
       }
 
-      // Re-throw other errors
-      console.error(`❌ Profile update failed for ${userEmail}:`, error);
+      // Re-throw other errors with detailed context
+      console.error(`\n❌ === PROFILE UPDATE FAILED ===`);
+      console.error(`❌ User: ${userEmail}`);
+      console.error(`❌ Operation: ${existingProfile && existingProfile.email ? 'UPDATE' : 'INSERT'}`);
+      console.error(`❌ Fields attempted:`, Object.keys(profileData).filter(k => profileData[k] !== undefined));
+      console.error(`❌ Processed values:`, Object.entries(processedFields).filter(([k, v]) => v !== null).map(([k, v]) => `${k}=${JSON.stringify(v)}`));
+      console.error(`❌ SQL Query:`, query.replace(/\s+/g, ' ').trim());
+      console.error(`❌ Values:`, values);
+      console.error(`❌ Error:`, error.message);
+      console.error(`❌ Error code:`, error.code);
       throw error;
     }
+  },
+
+  /**
+   * Calculate profile completion percentage based on filled fields
+   * Total fields: 14 (required + optional but important fields)
+   */
+  calculateProfileCompletionPercentage(profile) {
+    if (!profile) return 0;
+
+    let filledFields = 0;
+    const totalFields = 14;
+
+    // Required/Important fields (weight: 1 point each)
+    const fieldsToCheck = [
+      profile.first_name,           // 1
+      profile.last_name,            // 2
+      profile.grade_level,          // 3
+      profile.date_of_birth,        // 4
+      profile.gender,               // 5
+      profile.city,                 // 6
+      profile.state_province,       // 7
+      profile.country,              // 8
+      profile.learning_style,       // 9
+      profile.timezone,             // 10
+      profile.language_preference,  // 11
+      profile.display_name,         // 12
+    ];
+
+    // Count filled fields
+    fieldsToCheck.forEach(field => {
+      if (field !== null && field !== undefined && field !== '') {
+        filledFields++;
+      }
+    });
+
+    // Check array fields (kids_ages and favorite_subjects)
+    if (profile.kids_ages && Array.isArray(profile.kids_ages) && profile.kids_ages.length > 0) {
+      filledFields++; // 13
+    }
+
+    if (profile.favorite_subjects && Array.isArray(profile.favorite_subjects) && profile.favorite_subjects.length > 0) {
+      filledFields++; // 14
+    }
+
+    // Calculate percentage
+    const percentage = Math.round((filledFields / totalFields) * 100);
+    return percentage;
   },
 
   /**
@@ -1636,12 +1808,28 @@ const db = {
         u.email as user_email,
         u.profile_image_url,
         u.auth_provider
-      FROM profiles p
-      LEFT JOIN users u ON p.email = u.email
+      FROM users u
+      LEFT JOIN profiles p ON p.email = u.email
       WHERE u.id = $1 AND u.is_active = true
     `;
 
     const result = await this.query(query, [userId]);
+
+    // Log profile fetch for debugging
+    if (result.rows.length > 0) {
+      const profile = result.rows[0];
+      console.log(`\n📖 === FETCH USER PROFILE ===`);
+      console.log(`User ID: ${userId}`);
+      console.log(`Email: ${profile.user_email}`);
+      console.log(`Profile exists: ${profile.id ? 'YES' : 'NO'}`);
+      if (profile.id) {
+        console.log(`Profile fields: firstName="${profile.first_name}", lastName="${profile.last_name}", displayName="${profile.display_name}"`);
+        console.log(`Location: city="${profile.city}", state="${profile.state_province}", country="${profile.country}"`);
+      }
+    } else {
+      console.log(`\n⚠️ No user found for ID: ${userId}`);
+    }
+
     return result.rows[0];
   },
 

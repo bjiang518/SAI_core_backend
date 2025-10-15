@@ -23,11 +23,11 @@ struct ContactSupportView: View {
                             .font(.system(size: 60))
                             .foregroundColor(.green)
 
-                        Text("Contact Support")
+                        Text(NSLocalizedString("settings.contact", comment: ""))
                             .font(.title)
                             .fontWeight(.bold)
 
-                        Text("We're here to help!")
+                        Text(NSLocalizedString("contactSupport.subtitle", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -48,9 +48,9 @@ struct ContactSupportView: View {
                         }) {
                             ContactMethodCard(
                                 icon: "envelope.fill",
-                                title: "Email Support",
+                                title: NSLocalizedString("contactSupport.emailTitle", comment: ""),
                                 subtitle: "support@studyai.com",
-                                description: "Get detailed help via email",
+                                description: NSLocalizedString("contactSupport.emailDescription", comment: ""),
                                 color: .blue
                             )
                         }
@@ -65,9 +65,9 @@ struct ContactSupportView: View {
                         }) {
                             ContactMethodCard(
                                 icon: "message.fill",
-                                title: "Live Chat",
-                                subtitle: "Available Mon-Fri 9am-5pm EST",
-                                description: "Chat with our support team",
+                                title: NSLocalizedString("contactSupport.chatTitle", comment: ""),
+                                subtitle: NSLocalizedString("contactSupport.chatSubtitle", comment: ""),
+                                description: NSLocalizedString("contactSupport.chatDescription", comment: ""),
                                 color: .green
                             )
                         }
@@ -77,9 +77,9 @@ struct ContactSupportView: View {
                         Link(destination: URL(string: "https://community.studyai.com")!) {
                             ContactMethodCard(
                                 icon: "person.3.fill",
-                                title: "Community Forum",
-                                subtitle: "Join the conversation",
-                                description: "Connect with other students",
+                                title: NSLocalizedString("contactSupport.forumTitle", comment: ""),
+                                subtitle: NSLocalizedString("contactSupport.forumSubtitle", comment: ""),
+                                description: NSLocalizedString("contactSupport.forumDescription", comment: ""),
                                 color: .purple
                             )
                         }
@@ -92,9 +92,9 @@ struct ContactSupportView: View {
                         }) {
                             ContactMethodCard(
                                 icon: "phone.fill",
-                                title: "Phone Support",
+                                title: NSLocalizedString("contactSupport.phoneTitle", comment: ""),
                                 subtitle: "+1 (800) STUDY-AI",
-                                description: "Mon-Fri 9am-5pm EST",
+                                description: NSLocalizedString("contactSupport.phoneDescription", comment: ""),
                                 color: .orange
                             )
                         }
@@ -106,18 +106,18 @@ struct ContactSupportView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "clock.fill")
                                 .foregroundColor(.secondary)
-                            Text("Average Response Time")
+                            Text(NSLocalizedString("contactSupport.averageResponseTime", comment: ""))
                                 .font(.headline)
                                 .foregroundColor(.secondary)
                         }
 
-                        Text("Email: 24-48 hours")
+                        Text(NSLocalizedString("contactSupport.emailResponseTime", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text("Live Chat: < 5 minutes")
+                        Text(NSLocalizedString("contactSupport.chatResponseTime", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text("Phone: Immediate")
+                        Text(NSLocalizedString("contactSupport.phoneResponseTime", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -133,7 +133,7 @@ struct ContactSupportView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                 }
@@ -145,10 +145,10 @@ struct ContactSupportView: View {
                 subject: "StudyAI Support Request"
             )
         }
-        .alert("Email Not Available", isPresented: $showingMailError) {
-            Button("OK", role: .cancel) { }
+        .alert(NSLocalizedString("contactSupport.emailNotAvailable", comment: ""), isPresented: $showingMailError) {
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }
         } message: {
-            Text("Please configure an email account in your device settings.")
+            Text(NSLocalizedString("contactSupport.emailNotAvailableMessage", comment: ""))
         }
     }
 }

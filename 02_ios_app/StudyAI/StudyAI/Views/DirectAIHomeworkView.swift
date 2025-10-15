@@ -222,7 +222,6 @@ struct DirectAIHomeworkView: View {
     @State private var isParsingInBackground: Bool = false
     @State private var backgroundParsingTaskID: String? = nil
     @State private var parsingStartTime: Date? = nil
-    @State private var showBackgroundOption: Bool = false
     @State private var parsingDuration: TimeInterval = 0
     private var parsingTimer: Timer?
 
@@ -270,25 +269,6 @@ struct DirectAIHomeworkView: View {
         } message: {
             if let error = stateManager.parsingError {
                 Text(error)
-            }
-        }
-        .alert(NSLocalizedString("aiHomework.continueInBackground", comment: ""), isPresented: $showBackgroundOption) {
-            Button(NSLocalizedString("common.continueHere", comment: "")) {
-                // User chooses to wait on this screen
-                showBackgroundOption = false
-            }
-            Button(NSLocalizedString("common.moveOnAndNotify", comment: "")) {
-                // Move to background and send notification when done
-                Task {
-                    let images = stateManager.capturedImages
-                    await continueInBackground(images: images)
-                }
-            }
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
-                // Cancel the parsing
-                isProcessing = false
-                stateManager.currentStage = .idle
-                showBackgroundOption = false
             }
         }
         .sheet(isPresented: $showingCameraPicker) {
@@ -1519,20 +1499,9 @@ struct DirectAIHomeworkView: View {
             stateManager.processingStatus = "📦 Compressing \(images.count) images..."
             stateManager.parsingError = nil
             parsingStartTime = Date() // Track start time
-            showBackgroundOption = false
         }
 
         let startTime = Date()
-
-        // Start timer to check parsing duration
-        let timerTask = Task {
-            try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
-            await MainActor.run {
-                if isProcessing && !isParsingInBackground {
-                    showBackgroundOption = true
-                }
-            }
-        }
 
         // Compress all images
         var base64Images: [String] = []
@@ -1598,11 +1567,7 @@ struct DirectAIHomeworkView: View {
                 showingErrorAlert = true
             }
             isProcessing = false
-            showBackgroundOption = false // Hide background option when done
         }
-
-        // Cancel the timer task
-        timerTask.cancel()
     }
 
     // MARK: - Process Batch Response
@@ -1697,7 +1662,6 @@ struct DirectAIHomeworkView: View {
         await MainActor.run {
             isParsingInBackground = true
             backgroundParsingTaskID = taskID
-            showBackgroundOption = false
         }
 
         // Request notification permissions if not already requested

@@ -58,23 +58,22 @@ struct HomeView: View {
             .background(DesignTokens.Colors.surface.ignoresSafeArea())
             .navigationBarHidden(true)
             .onAppear {
-                // Load user name from ProfileService with profile completion check
+                // Load user name from ProfileService - always show display name or first name
                 if let profile = profileService.currentProfile {
-                    if !profile.isProfileComplete {
-                        // Profile not complete - prompt user to edit
-                        userName = NSLocalizedString("home.pleaseEditProfile", comment: "")
-                    } else if let displayName = profile.displayName, !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        // Use display name if available
+                    // Determine display name
+                    if let displayName = profile.displayName, !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         userName = displayName
+                    } else if let firstName = profile.firstName, !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        userName = firstName
                     } else {
-                        // Default to "Student" if no display name
                         userName = NSLocalizedString("home.defaultStudentName", comment: "")
                     }
                 } else if let cachedProfile = profileService.loadCachedProfile() {
-                    if !cachedProfile.isProfileComplete {
-                        userName = NSLocalizedString("home.pleaseEditProfile", comment: "")
-                    } else if let displayName = cachedProfile.displayName, !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    // Determine display name
+                    if let displayName = cachedProfile.displayName, !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         userName = displayName
+                    } else if let firstName = cachedProfile.firstName, !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        userName = firstName
                     } else {
                         userName = NSLocalizedString("home.defaultStudentName", comment: "")
                     }

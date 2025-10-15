@@ -95,18 +95,32 @@ class ProfileService: ObservableObject {
         
         do {
             let profileData = profile.toDictionary()
+            print("🔍 [ProfileService] Sending profile update to backend...")
+            print("🔍 [ProfileService] Data being sent: \(profileData)")
+
             let result = await networkService.updateUserProfile(profileData)
-            
+
             if result.success, let updatedProfileData = result.profile {
+                print("✅ [ProfileService] Backend response received")
+                print("📦 [ProfileService] Response data: \(updatedProfileData)")
+
                 let updatedProfile = try UserProfile.fromDictionary(updatedProfileData)
-                
+
+                print("📝 [ProfileService] Parsed profile:")
+                print("   - City: \(updatedProfile.city ?? "nil")")
+                print("   - State/Province: \(updatedProfile.stateProvince ?? "nil")")
+                print("   - Country: \(updatedProfile.country ?? "nil")")
+                print("   - Kids Ages: \(updatedProfile.kidsAges)")
+                print("   - Display Location: \(updatedProfile.displayLocation ?? "nil")")
+
                 // Cache updated profile locally
                 try saveProfileLocally(updatedProfile)
-                
+
                 await MainActor.run {
                     currentProfile = updatedProfile
+                    print("✅ [ProfileService] currentProfile updated successfully")
                 }
-                
+
 
                 return updatedProfile
             } else {

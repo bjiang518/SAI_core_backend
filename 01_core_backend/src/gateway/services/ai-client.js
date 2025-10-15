@@ -29,35 +29,21 @@ class AIServiceClient {
     this.client.interceptors.request.use(
       (config) => {
         config.metadata = { startTime: Date.now() };
-        
-        // Debug logging for AI Engine requests (sanitized for security)
-        console.log(`🚀 === AI ENGINE REQUEST DEBUG ===`);
-        console.log(`🔗 URL: ${config.baseURL}${config.url}`);
-        console.log(`📡 Method: ${config.method.toUpperCase()}`);
 
-        // Log payload metadata without sensitive image data
-        const payloadSize = config.data ? JSON.stringify(config.data).length : 0;
-        console.log(`📦 Request payload size: ${(payloadSize / 1024).toFixed(2)} KB`);
-        if (config.data) {
-          const keys = Object.keys(config.data);
-          console.log(`📦 Request keys: ${keys.join(', ')}`);
+        // Skip verbose logging for health checks
+        const isHealthCheck = config.url && config.url.includes('/health');
 
-          // Log only metadata for base64 image data
-          if (config.data.base64_image) {
-            console.log(`📦 Image data: ${config.data.base64_image.length} chars (base64, redacted for security)`);
+        if (!isHealthCheck) {
+          // Debug logging for AI Engine requests (sanitized for security)
+          console.log(`🚀 AI Engine → ${config.method.toUpperCase()} ${config.url}`);
+
+          // Log payload size for non-health requests
+          const payloadSize = config.data ? JSON.stringify(config.data).length : 0;
+          if (payloadSize > 0) {
+            console.log(`   📦 Payload: ${(payloadSize / 1024).toFixed(2)} KB`);
           }
-
-          // Log other fields safely
-          const safeData = { ...config.data };
-          if (safeData.base64_image) {
-            safeData.base64_image = `[REDACTED: ${safeData.base64_image.length} chars]`;
-          }
-          console.log(`📦 Request data (sanitized):`, JSON.stringify(safeData, null, 2));
         }
 
-        console.log(`🎯 Headers:`, config.headers);
-        console.log(`=====================================`);
-        
         return config;
       },
       (error) => Promise.reject(error)
@@ -67,34 +53,18 @@ class AIServiceClient {
     this.client.interceptors.response.use(
       (response) => {
         const duration = Date.now() - response.config.metadata.startTime;
+        const isHealthCheck = response.config.url && response.config.url.includes('/health');
 
-        console.log(`✅ === AI ENGINE RESPONSE DEBUG ===`);
-        console.log(`⏱️ Duration: ${duration}ms`);
-        console.log(`📊 Status: ${response.status}`);
-
-        // Log response metadata without full content
-        const responseSize = response.data ? JSON.stringify(response.data).length : 0;
-        console.log(`📦 Response size: ${(responseSize / 1024).toFixed(2)} KB`);
-
-        // Log structure instead of full data
-        if (response.data) {
-          const keys = Object.keys(response.data);
-          console.log(`📦 Response keys: ${keys.join(', ')}`);
-
-          // Only log first 200 chars of response text if present
-          if (response.data.response && typeof response.data.response === 'string') {
-            const preview = response.data.response.substring(0, 200);
-            console.log(`📦 Response preview: ${preview}${response.data.response.length > 200 ? '...' : ''}`);
-          }
+        if (!isHealthCheck) {
+          const responseSize = response.data ? JSON.stringify(response.data).length : 0;
+          console.log(`✅ AI Engine ← ${response.status} (${duration}ms, ${(responseSize / 1024).toFixed(2)} KB)`);
         }
-
-        console.log(`=====================================`);
 
         return response;
       },
       (error) => {
         const duration = Date.now() - (error.config?.metadata?.startTime || Date.now());
-        console.error(`❌ AI Engine request failed after ${duration}ms:`, error.message);
+        console.error(`❌ AI Engine error (${duration}ms): ${error.message}`);
         return Promise.reject(this.formatError(error));
       }
     );

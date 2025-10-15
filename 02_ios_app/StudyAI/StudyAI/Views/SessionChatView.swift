@@ -362,6 +362,7 @@ struct SessionChatView: View {
     @State private var showingArchiveSuccess = false
     @State private var archivedSessionTitle = ""
     @State private var refreshTrigger = UUID() // Force UI refresh
+    @State private var showingArchiveInfo = false
     
     // Image upload functionality
     @State private var showingCamera = false
@@ -394,11 +395,22 @@ struct SessionChatView: View {
     @State private var pendingHomeworkQuestion = ""
     @State private var pendingHomeworkSubject = ""
 
-    private let subjects = [
-        "Mathematics", "Physics", "Chemistry", "Biology",
-        "History", "Literature", "Geography", "Computer Science",
-        "Economics", "Psychology", "Philosophy", "General"
-    ]
+    private var subjects: [String] {
+        [
+            NSLocalizedString("chat.subjects.mathematics", comment: ""),
+            NSLocalizedString("chat.subjects.physics", comment: ""),
+            NSLocalizedString("chat.subjects.chemistry", comment: ""),
+            NSLocalizedString("chat.subjects.biology", comment: ""),
+            NSLocalizedString("chat.subjects.history", comment: ""),
+            NSLocalizedString("chat.subjects.literature", comment: ""),
+            NSLocalizedString("chat.subjects.geography", comment: ""),
+            NSLocalizedString("chat.subjects.computerScience", comment: ""),
+            NSLocalizedString("chat.subjects.economics", comment: ""),
+            NSLocalizedString("chat.subjects.psychology", comment: ""),
+            NSLocalizedString("chat.subjects.philosophy", comment: ""),
+            NSLocalizedString("chat.subjects.general", comment: "")
+        ]
+    }
     
     var body: some View {
         ZStack {
@@ -471,28 +483,28 @@ struct SessionChatView: View {
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
-                    Button("New Session") {
+                    Button(NSLocalizedString("chat.menu.newSession", comment: "")) {
                         startNewSession()
                     }
 
-                    Button("Session Info") {
+                    Button(NSLocalizedString("chat.menu.sessionInfo", comment: "")) {
                         loadSessionInfo()
                         showingSessionInfo = true
                     }
 
                     Divider()
 
-                    Button("Voice Settings") {
+                    Button(NSLocalizedString("chat.menu.voiceSettings", comment: "")) {
                         showingVoiceSettings = true
                     }
 
-                    Button(voiceService.isVoiceEnabled ? "Disable Voice" : "Enable Voice") {
+                    Button(voiceService.isVoiceEnabled ? NSLocalizedString("chat.menu.disableVoice", comment: "") : NSLocalizedString("chat.menu.enableVoice", comment: "")) {
                         voiceService.toggleVoiceEnabled()
                     }
 
                     Divider()
 
-                    Button("Archive Session") {
+                    Button(NSLocalizedString("chat.menu.archiveSession", comment: "")) {
                         // Set default topic to current subject
                         archiveTopic = selectedSubject
                         showingArchiveDialog = true
@@ -527,15 +539,15 @@ struct SessionChatView: View {
                 processImageWithPrompt(image: image, prompt: prompt)
             }
         }
-        .alert("Camera Permission", isPresented: $showingPermissionAlert) {
-            Button("Settings") {
+        .alert(NSLocalizedString("chat.alert.cameraPermission.title", comment: ""), isPresented: $showingPermissionAlert) {
+            Button(NSLocalizedString("common.settings", comment: "")) {
                 if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(settingsUrl)
                 }
             }
-            Button("Cancel", role: .cancel) { }
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
         } message: {
-            Text("StudyAI needs camera access to scan homework questions. Please enable camera permission in Settings.")
+            Text(NSLocalizedString("chat.alert.cameraPermission.message", comment: ""))
         }
         .onAppear {
             // Check for pending chat message from other tabs (e.g., grader follow-up)
@@ -561,44 +573,44 @@ struct SessionChatView: View {
                 }
             }
         }
-        .alert("Current Chat Exists", isPresented: $showingExistingSessionAlert) {
-            Button("Archive Current Chat") {
+        .alert(NSLocalizedString("chat.alert.currentChatExists.title", comment: ""), isPresented: $showingExistingSessionAlert) {
+            Button(NSLocalizedString("chat.alert.currentChatExists.archiveCurrent", comment: "")) {
                 // Option A: Don't create new session, return to chat view for manual archive
                 // Clear the pending message and let user manually archive
                 appState.clearPendingChatMessage()
                 showingExistingSessionAlert = false
                 // User stays in chat view to archive manually
             }
-            Button("Discard & Start New", role: .destructive) {
+            Button(NSLocalizedString("chat.alert.currentChatExists.discardAndStart", comment: ""), role: .destructive) {
                 // Option B: Discard current conversation and create new session
                 proceedWithHomeworkQuestion()
                 showingExistingSessionAlert = false
             }
-            Button("Cancel", role: .cancel) {
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
                 // Cancel and clear pending message
                 appState.clearPendingChatMessage()
                 showingExistingSessionAlert = false
             }
         } message: {
-            Text("You have an active chat session. Would you like to archive it first, or discard it and start a new session with this homework question?")
+            Text(NSLocalizedString("chat.alert.currentChatExists.message", comment: ""))
         }
-        .alert("Error", isPresented: .constant(!errorMessage.isEmpty)) {
-            Button("OK") {
+        .alert(NSLocalizedString("chat.alert.error.title", comment: ""), isPresented: .constant(!errorMessage.isEmpty)) {
+            Button(NSLocalizedString("common.ok", comment: "")) {
                 errorMessage = ""
             }
         } message: {
             Text(errorMessage)
         }
-        .alert("Archive Successful! 🎉", isPresented: $showingArchiveSuccess) {
-            Button("View in Library") {
+        .alert(NSLocalizedString("chat.alert.archiveSuccess.title", comment: ""), isPresented: $showingArchiveSuccess) {
+            Button(NSLocalizedString("chat.alert.archiveSuccess.viewInLibrary", comment: "")) {
                 // Navigate to library tab if possible
                 showingArchiveSuccess = false
             }
-            Button("OK") {
+            Button(NSLocalizedString("common.ok", comment: "")) {
                 showingArchiveSuccess = false
             }
         } message: {
-            Text("\(archivedSessionTitle.capitalized) has been successfully archived and saved to your Study Library.")
+            Text(String(format: NSLocalizedString("chat.alert.archiveSuccess.message", comment: ""), archivedSessionTitle.capitalized))
         }
         .onDisappear {
 
@@ -747,7 +759,7 @@ struct SessionChatView: View {
 
                     // Text input field
                     HStack {
-                        TextField("Message", text: $messageText, axis: .vertical)
+                        TextField(NSLocalizedString("chat.input.placeholder", comment: ""), text: $messageText, axis: .vertical)
                             .font(.system(size: 16))
                             .foregroundColor(.primary)
                             .focused($isMessageInputFocused)
@@ -807,48 +819,76 @@ struct SessionChatView: View {
     // Generate context-aware buttons based on AI response
     private func generateContextualButtons(for message: String) -> [String] {
         let lowercaseMessage = message.lowercased()
-        
+
         // Analyze message content for intelligent suggestions
         var suggestions: [String] = []
-        
+
         // Math-related responses with intelligent detection
         if containsMathTerms(lowercaseMessage) {
-            suggestions.append(contentsOf: ["Show steps", "Try similar problem", "Explain method"])
+            suggestions.append(contentsOf: [
+                NSLocalizedString("chat.suggestion.showSteps", comment: ""),
+                NSLocalizedString("chat.suggestion.trySimilarProblem", comment: ""),
+                NSLocalizedString("chat.suggestion.explainMethod", comment: "")
+            ])
         }
-        
+
         // Science concepts
         if containsScienceTerms(lowercaseMessage) {
-            suggestions.append(contentsOf: ["Real examples", "How it works", "Connect to daily life"])
+            suggestions.append(contentsOf: [
+                NSLocalizedString("chat.suggestion.realExamples", comment: ""),
+                NSLocalizedString("chat.suggestion.howItWorks", comment: ""),
+                NSLocalizedString("chat.suggestion.connectToDailyLife", comment: "")
+            ])
         }
-        
+
         // Definition or explanation responses
         if containsDefinitionTerms(lowercaseMessage) {
-            suggestions.append(contentsOf: ["Give examples", "Compare with", "Use in sentence"])
+            suggestions.append(contentsOf: [
+                NSLocalizedString("chat.suggestion.giveExamples", comment: ""),
+                NSLocalizedString("chat.suggestion.compareWith", comment: ""),
+                NSLocalizedString("chat.suggestion.useInSentence", comment: "")
+            ])
         }
-        
+
         // Problem-solving responses
         if containsProblemSolvingTerms(lowercaseMessage) {
-            suggestions.append(contentsOf: ["Explain why", "Alternative approach", "Practice problem"])
+            suggestions.append(contentsOf: [
+                NSLocalizedString("chat.suggestion.explainWhy", comment: ""),
+                NSLocalizedString("chat.suggestion.alternativeApproach", comment: ""),
+                NSLocalizedString("chat.suggestion.practiceProblem", comment: "")
+            ])
         }
-        
+
         // Historical or factual content
         if containsHistoricalTerms(lowercaseMessage) {
-            suggestions.append(contentsOf: ["When did this happen", "Who was involved", "What caused this"])
+            suggestions.append(contentsOf: [
+                NSLocalizedString("chat.suggestion.whenDidThisHappen", comment: ""),
+                NSLocalizedString("chat.suggestion.whoWasInvolved", comment: ""),
+                NSLocalizedString("chat.suggestion.whatCausedThis", comment: "")
+            ])
         }
-        
+
         // Literature or language content
         if containsLiteratureTerms(lowercaseMessage) {
-            suggestions.append(contentsOf: ["Analyze meaning", "Find themes", "Author's intent"])
+            suggestions.append(contentsOf: [
+                NSLocalizedString("chat.suggestion.analyzeMeaning", comment: ""),
+                NSLocalizedString("chat.suggestion.findThemes", comment: ""),
+                NSLocalizedString("chat.suggestion.authorsIntent", comment: "")
+            ])
         }
-        
+
         // Remove duplicates and limit to 3 most relevant suggestions
         let uniqueSuggestions = Array(Set(suggestions))
-        
+
         // If no specific suggestions, use general ones
         if uniqueSuggestions.isEmpty {
-            return ["Explain differently", "Give example", "More details"]
+            return [
+                NSLocalizedString("chat.suggestion.explainDifferently", comment: ""),
+                NSLocalizedString("chat.suggestion.giveExample", comment: ""),
+                NSLocalizedString("chat.suggestion.moreDetails", comment: "")
+            ]
         }
-        
+
         return Array(uniqueSuggestions.prefix(3))
     }
     
@@ -885,46 +925,29 @@ struct SessionChatView: View {
     
     // Generate contextual prompts based on button and last message
     private func generateContextualPrompt(for buttonTitle: String, lastMessage: String) -> String {
-        switch buttonTitle {
-        case "Show steps":
-            return "Can you break down the solution into detailed steps?"
-        case "Try similar problem":
-            return "Can you give me a similar problem to practice?"
-        case "Explain method":
-            return "Can you explain the method or formula used here?"
-        case "More examples":
-            return "Can you provide more examples of this concept?"
-        case "Simplify further":
-            return "Can you explain this in even simpler terms?"
-        case "Related concepts":
-            return "What other concepts are related to this topic?"
-        case "Give examples":
-            return "Can you give me some concrete examples?"
-        case "Compare with":
-            return "How does this compare to similar concepts?"
-        case "Use in sentence":
-            return "Can you show me how to use this in a sentence?"
-        case "Explain why":
-            return "Why does this method work? Can you explain the reasoning?"
-        case "Alternative approach":
-            return "Is there another way to solve this problem?"
-        case "Practice problem":
-            return "Can you give me a practice problem to test my understanding?"
-        case "Real examples":
-            return "Can you give me real-world examples of this?"
-        case "How it works":
-            return "Can you explain in detail how this process works?"
-        case "Connect to daily life":
-            return "How does this concept relate to everyday life?"
-        case "Explain differently":
-            return "Can you explain this concept in a different way?"
-        case "Give example":
-            return "Can you provide a specific example?"
-        case "More details":
-            return "Can you elaborate on this topic with more details?"
-        default:
-            return buttonTitle.lowercased()
+        let localizedKeys: [String: String] = [
+            NSLocalizedString("chat.suggestion.showSteps", comment: ""): "chat.prompt.showSteps",
+            NSLocalizedString("chat.suggestion.trySimilarProblem", comment: ""): "chat.prompt.trySimilarProblem",
+            NSLocalizedString("chat.suggestion.explainMethod", comment: ""): "chat.prompt.explainMethod",
+            NSLocalizedString("chat.suggestion.giveExamples", comment: ""): "chat.prompt.giveExamples",
+            NSLocalizedString("chat.suggestion.compareWith", comment: ""): "chat.prompt.compareWith",
+            NSLocalizedString("chat.suggestion.useInSentence", comment: ""): "chat.prompt.useInSentence",
+            NSLocalizedString("chat.suggestion.explainWhy", comment: ""): "chat.prompt.explainWhy",
+            NSLocalizedString("chat.suggestion.alternativeApproach", comment: ""): "chat.prompt.alternativeApproach",
+            NSLocalizedString("chat.suggestion.practiceProblem", comment: ""): "chat.prompt.practiceProblem",
+            NSLocalizedString("chat.suggestion.realExamples", comment: ""): "chat.prompt.realExamples",
+            NSLocalizedString("chat.suggestion.howItWorks", comment: ""): "chat.prompt.howItWorks",
+            NSLocalizedString("chat.suggestion.connectToDailyLife", comment: ""): "chat.prompt.connectToDailyLife",
+            NSLocalizedString("chat.suggestion.explainDifferently", comment: ""): "chat.prompt.explainDifferently",
+            NSLocalizedString("chat.suggestion.giveExample", comment: ""): "chat.prompt.giveExample",
+            NSLocalizedString("chat.suggestion.moreDetails", comment: ""): "chat.prompt.moreDetails"
+        ]
+
+        if let key = localizedKeys[buttonTitle] {
+            return NSLocalizedString(key, comment: "")
         }
+
+        return buttonTitle.lowercased()
     }
     
     private var modernEmptyStateView: some View {
@@ -934,11 +957,11 @@ struct SessionChatView: View {
                 .frame(width: 80, height: 80)
 
             VStack(spacing: 12) {
-                Text("Hi! I'm \(voiceService.voiceSettings.voiceType.displayName)")
+                Text(String(format: NSLocalizedString("chat.emptyState.greeting", comment: ""), voiceService.voiceSettings.voiceType.displayName))
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundColor(.primary)
 
-                Text("Ask me anything about \(selectedSubject.lowercased()) and I'll help you learn!")
+                Text(String(format: NSLocalizedString("chat.emptyState.subtext", comment: ""), selectedSubject.lowercased()))
                     .font(.system(size: 16))
                     .foregroundColor(.primary.opacity(0.8))
                     .multilineTextAlignment(.center)
@@ -947,7 +970,7 @@ struct SessionChatView: View {
 
             // Subject-specific example prompts
             VStack(alignment: .leading, spacing: 12) {
-                Text(subjectEmoji(for: selectedSubject) + " Try asking:")
+                Text(subjectEmoji(for: selectedSubject) + " " + NSLocalizedString("chat.emptyState.tryAsking", comment: ""))
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.primary)
 
@@ -1043,97 +1066,111 @@ struct SessionChatView: View {
 
     // Subject-specific example prompts
     private func examplePrompts(for subject: String) -> [String] {
+        // Match localized subject names
+        let mathematics = NSLocalizedString("chat.subjects.mathematics", comment: "")
+        let physics = NSLocalizedString("chat.subjects.physics", comment: "")
+        let chemistry = NSLocalizedString("chat.subjects.chemistry", comment: "")
+        let biology = NSLocalizedString("chat.subjects.biology", comment: "")
+        let history = NSLocalizedString("chat.subjects.history", comment: "")
+        let literature = NSLocalizedString("chat.subjects.literature", comment: "")
+        let geography = NSLocalizedString("chat.subjects.geography", comment: "")
+        let computerScience = NSLocalizedString("chat.subjects.computerScience", comment: "")
+        let economics = NSLocalizedString("chat.subjects.economics", comment: "")
+        let psychology = NSLocalizedString("chat.subjects.psychology", comment: "")
+        let philosophy = NSLocalizedString("chat.subjects.philosophy", comment: "")
+        let general = NSLocalizedString("chat.subjects.general", comment: "")
+
         switch subject {
-        case "Mathematics":
+        case mathematics:
             return [
-                "Solve: 2x + 5 = 13",
-                "What is the derivative of x²?",
-                "Explain the Pythagorean theorem",
-                "How do I factor x² + 5x + 6?"
+                NSLocalizedString("chat.example.math.1", comment: ""),
+                NSLocalizedString("chat.example.math.2", comment: ""),
+                NSLocalizedString("chat.example.math.3", comment: ""),
+                NSLocalizedString("chat.example.math.4", comment: "")
             ]
-        case "Physics":
+        case physics:
             return [
-                "Explain Newton's laws of motion",
-                "What is kinetic energy?",
-                "How does gravity work?",
-                "Calculate force with F = ma"
+                NSLocalizedString("chat.example.physics.1", comment: ""),
+                NSLocalizedString("chat.example.physics.2", comment: ""),
+                NSLocalizedString("chat.example.physics.3", comment: ""),
+                NSLocalizedString("chat.example.physics.4", comment: "")
             ]
-        case "Chemistry":
+        case chemistry:
             return [
-                "How do I balance equations?",
-                "Explain the periodic table",
-                "What are covalent bonds?",
-                "Describe the states of matter"
+                NSLocalizedString("chat.example.chemistry.1", comment: ""),
+                NSLocalizedString("chat.example.chemistry.2", comment: ""),
+                NSLocalizedString("chat.example.chemistry.3", comment: ""),
+                NSLocalizedString("chat.example.chemistry.4", comment: "")
             ]
-        case "Biology":
+        case biology:
             return [
-                "Explain photosynthesis",
-                "What is DNA?",
-                "How does cell division work?",
-                "Describe the human circulatory system"
+                NSLocalizedString("chat.example.biology.1", comment: ""),
+                NSLocalizedString("chat.example.biology.2", comment: ""),
+                NSLocalizedString("chat.example.biology.3", comment: ""),
+                NSLocalizedString("chat.example.biology.4", comment: "")
             ]
-        case "History":
+        case history:
             return [
-                "What caused World War II?",
-                "Explain the French Revolution",
-                "Who was Julius Caesar?",
-                "Describe the Industrial Revolution"
+                NSLocalizedString("chat.example.history.1", comment: ""),
+                NSLocalizedString("chat.example.history.2", comment: ""),
+                NSLocalizedString("chat.example.history.3", comment: ""),
+                NSLocalizedString("chat.example.history.4", comment: "")
             ]
-        case "Literature":
+        case literature:
             return [
-                "Analyze Shakespeare's Hamlet",
-                "What are literary devices?",
-                "Explain the hero's journey",
-                "Compare metaphor and simile"
+                NSLocalizedString("chat.example.literature.1", comment: ""),
+                NSLocalizedString("chat.example.literature.2", comment: ""),
+                NSLocalizedString("chat.example.literature.3", comment: ""),
+                NSLocalizedString("chat.example.literature.4", comment: "")
             ]
-        case "Geography":
+        case geography:
             return [
-                "Where are the major oceans?",
-                "Explain plate tectonics",
-                "What causes climate zones?",
-                "Describe the water cycle"
+                NSLocalizedString("chat.example.geography.1", comment: ""),
+                NSLocalizedString("chat.example.geography.2", comment: ""),
+                NSLocalizedString("chat.example.geography.3", comment: ""),
+                NSLocalizedString("chat.example.geography.4", comment: "")
             ]
-        case "Computer Science":
+        case computerScience:
             return [
-                "What is an algorithm?",
-                "Explain binary numbers",
-                "How do loops work in programming?",
-                "What is object-oriented programming?"
+                NSLocalizedString("chat.example.computerScience.1", comment: ""),
+                NSLocalizedString("chat.example.computerScience.2", comment: ""),
+                NSLocalizedString("chat.example.computerScience.3", comment: ""),
+                NSLocalizedString("chat.example.computerScience.4", comment: "")
             ]
-        case "Economics":
+        case economics:
             return [
-                "What is supply and demand?",
-                "Explain inflation",
-                "How does GDP work?",
-                "What are market structures?"
+                NSLocalizedString("chat.example.economics.1", comment: ""),
+                NSLocalizedString("chat.example.economics.2", comment: ""),
+                NSLocalizedString("chat.example.economics.3", comment: ""),
+                NSLocalizedString("chat.example.economics.4", comment: "")
             ]
-        case "Psychology":
+        case psychology:
             return [
-                "What is classical conditioning?",
-                "Explain cognitive development",
-                "How does memory work?",
-                "What are defense mechanisms?"
+                NSLocalizedString("chat.example.psychology.1", comment: ""),
+                NSLocalizedString("chat.example.psychology.2", comment: ""),
+                NSLocalizedString("chat.example.psychology.3", comment: ""),
+                NSLocalizedString("chat.example.psychology.4", comment: "")
             ]
-        case "Philosophy":
+        case philosophy:
             return [
-                "What is Socratic method?",
-                "Explain existentialism",
-                "What is the trolley problem?",
-                "Describe ethical theories"
+                NSLocalizedString("chat.example.philosophy.1", comment: ""),
+                NSLocalizedString("chat.example.philosophy.2", comment: ""),
+                NSLocalizedString("chat.example.philosophy.3", comment: ""),
+                NSLocalizedString("chat.example.philosophy.4", comment: "")
             ]
-        case "General":
+        case general:
             return [
-                "Help me understand this concept",
-                "Explain this step by step",
-                "What does this mean?",
-                "Can you give me an example?"
+                NSLocalizedString("chat.example.general.1", comment: ""),
+                NSLocalizedString("chat.example.general.2", comment: ""),
+                NSLocalizedString("chat.example.general.3", comment: ""),
+                NSLocalizedString("chat.example.general.4", comment: "")
             ]
         default:
             return [
-                "Ask me any question",
-                "I'm here to help you learn",
-                "Let's explore together",
-                "What would you like to know?"
+                NSLocalizedString("chat.example.default.1", comment: ""),
+                NSLocalizedString("chat.example.default.2", comment: ""),
+                NSLocalizedString("chat.example.default.3", comment: ""),
+                NSLocalizedString("chat.example.default.4", comment: "")
             ]
         }
     }
@@ -1307,94 +1344,61 @@ struct SessionChatView: View {
         NavigationView {
             VStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Archive Session")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .padding(.horizontal)
-                    
-                    Text("Save this conversation for future reference. You can add a custom title and notes to help you remember what you learned.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal)
-                    
+                    // Archive Session title with info button
+                    HStack {
+                        Text(NSLocalizedString("chat.archive.title", comment: ""))
+                            .font(.title2)
+                            .fontWeight(.bold)
+
+                        Button(action: {
+                            showingArchiveInfo = true
+                        }) {
+                            Image(systemName: "info.circle")
+                                .font(.title3)
+                                .foregroundColor(.blue)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+
                     VStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Title")
+                            Text(NSLocalizedString("chat.archive.titleField", comment: ""))
                                 .font(.subheadline)
                                 .fontWeight(.medium)
-                            
-                            TextField("Enter archive title...", text: $archiveTitle)
+
+                            TextField(NSLocalizedString("chat.archive.titlePlaceholder", comment: ""), text: $archiveTitle)
                                 .textFieldStyle(.roundedBorder)
                         }
-                        
+
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Topic")
+                            Text(NSLocalizedString("chat.archive.topicField", comment: ""))
                                 .font(.subheadline)
                                 .fontWeight(.medium)
-                            
-                            TextField("Enter topic (e.g., \(selectedSubject))...", text: $archiveTopic)
+
+                            TextField(String(format: NSLocalizedString("chat.archive.topicPlaceholder", comment: ""), selectedSubject), text: $archiveTopic)
                                 .textFieldStyle(.roundedBorder)
                         }
-                        
+
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Notes (Optional)")
+                            Text(NSLocalizedString("chat.archive.notesField", comment: ""))
                                 .font(.subheadline)
                                 .fontWeight(.medium)
-                            
-                            TextField("Add any notes about this session...", text: $archiveNotes, axis: .vertical)
+
+                            TextField(NSLocalizedString("chat.archive.notesPlaceholder", comment: ""), text: $archiveNotes, axis: .vertical)
                                 .textFieldStyle(.roundedBorder)
                                 .lineLimit(3...6)
                         }
                     }
                     .padding(.horizontal)
-                    
-                    // Session info summary
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Session Summary")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .padding(.horizontal)
-                        
-                        VStack(spacing: 4) {
-                            HStack {
-                                Text("Subject:")
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Text(selectedSubject)
-                                    .foregroundColor(.blue)
-                            }
-                            
-                            HStack {
-                                Text("Messages:")
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Text("\(networkService.conversationHistory.count)")
-                                    .foregroundColor(.primary)
-                            }
-                            
-                            if let sessionId = networkService.currentSessionId {
-                                HStack {
-                                    Text("Session ID:")
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text(sessionId.prefix(8) + "...")
-                                        .font(.monospaced(.caption)())
-                                        .foregroundColor(.primary)
-                                }
-                            }
-                        }
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
-                        .padding(.horizontal)
-                    }
                 }
-                
+
                 Spacer()
-                
+
                 // Action buttons
                 HStack(spacing: 16) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         showingArchiveDialog = false
                         archiveTitle = ""
                         archiveTopic = ""
@@ -1405,8 +1409,8 @@ struct SessionChatView: View {
                     .padding()
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(10)
-                    
-                    Button("Archive Session") {
+
+                    Button(NSLocalizedString("chat.archive.buttonTitle", comment: "")) {
                         archiveCurrentSession()
                     }
                     .foregroundColor(.white)
@@ -1418,17 +1422,22 @@ struct SessionChatView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Archive Session")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         showingArchiveDialog = false
                         archiveTitle = ""
                         archiveTopic = ""
                         archiveNotes = ""
                     }
                 }
+            }
+            .alert(NSLocalizedString("chat.archive.infoTitle", comment: ""), isPresented: $showingArchiveInfo) {
+                Button(NSLocalizedString("common.ok", comment: "")) { }
+            } message: {
+                Text(NSLocalizedString("chat.archive.infoMessage", comment: ""))
             }
         }
     }
@@ -1991,17 +2000,7 @@ struct SessionChatView: View {
                     if let answer = response["answer"] as? String {
                         // Add AI response to conversation history
                         networkService.conversationHistory.append(["role": "assistant", "content": answer])
-                        
-                        // Track progress for this image question
-                        Task {
-                            await networkService.trackQuestionAnswered(
-                                subject: selectedSubject,
-                                isCorrect: true, // Assume correct for image analysis
-                                studyTimeSeconds: 0
-                            )
 
-                        }
-                        
                         // Refresh session info in background
                         Task {
                             loadSessionInfo()
@@ -2123,10 +2122,10 @@ struct SessionChatView: View {
     
     private func archiveCurrentSession() {
         guard let sessionId = networkService.currentSessionId else { return }
-        
+
         isArchiving = true
         errorMessage = ""
-        
+
         Task {
             // ✅ SYNC FIRST: Ensure conversationHistory matches SwiftData before archiving
             syncConversationHistoryFromSwiftData()
@@ -2138,18 +2137,24 @@ struct SessionChatView: View {
                 subject: selectedSubject,
                 notes: archiveNotes.isEmpty ? nil : archiveNotes
             )
-            
+
             await MainActor.run {
                 isArchiving = false
-                
+
                 if result.success {
+                    // ✅ Save to local storage immediately for instant display
+                    if let conversationData = result.conversation {
+                        print("💾 Saving archived conversation to local storage")
+                        ConversationLocalStorage.shared.saveConversation(conversationData)
+                    }
+
                     // Archive successful - close dialog and show success
                     showingArchiveDialog = false
                     archivedSessionTitle = archiveTitle.isEmpty ? "your conversation" : archiveTitle
                     archiveTitle = ""
                     archiveTopic = ""
                     archiveNotes = ""
-                    
+
                     // Show success alert
                     showingArchiveSuccess = true
                     
@@ -2165,26 +2170,13 @@ struct SessionChatView: View {
     
     /// Track chat interaction for points earning system
     private func trackChatInteraction(subject: String, userMessage: String, aiResponse: String?) {
-        // Analyze the interaction to determine if it was educational
-        let isCorrect = analyzeInteractionCorrectness(userMessage: userMessage, aiResponse: aiResponse)
-        
-        // Track the question for points earning
-        pointsManager.trackQuestionAnswered(subject: subject, isCorrect: isCorrect)
-        
+        // Chat interactions should NOT count as questions answered
+        // Only track study time, not question count
+
         // Estimate study time based on message complexity
         let wordCount = userMessage.components(separatedBy: .whitespacesAndNewlines).count
         let estimatedStudyTime = max(wordCount / 10, 1) // 1 minute per 10 words, minimum 1 minute
         pointsManager.trackStudyTime(estimatedStudyTime)
-        
-
-    }
-    
-    /// Analyze if the interaction was likely a correct learning exchange
-    private func analyzeInteractionCorrectness(userMessage: String, aiResponse: String?) -> Bool {
-        // For general chat interactions, we should not affect homework accuracy statistics
-        // Chat interactions are exploratory and don't have definitive right/wrong answers
-        // Only homework grading through the HomeworkResultsView should affect accuracy
-        return false
     }
 }
 

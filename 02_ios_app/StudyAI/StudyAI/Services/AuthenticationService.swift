@@ -518,23 +518,25 @@ final class AuthenticationService: ObservableObject {
     }
     
     // MARK: - Biometric Authentication
-    
+
+    private let faceIDEnabledKey = "faceIDEnabled"
+
     func signInWithBiometrics() async throws {
         guard biometricAuth.isBiometricAvailable() else {
             throw AuthError.biometricNotAvailable
         }
-        
+
         guard biometricAuth.isBiometricEnrolled() else {
             throw AuthError.biometricNotEnrolled
         }
-        
+
         // Check if we have stored credentials
         guard keychainService.hasStoredCredentials() else {
             throw AuthError.providerError("No stored credentials found. Please sign in with email first.")
         }
-        
+
         let success = try await biometricAuth.authenticateWithBiometrics(reason: "Authenticate to access StudyAI")
-        
+
         if success {
             // Load stored user data
             if let userData = keychainService.getUser() {
@@ -542,7 +544,7 @@ final class AuthenticationService: ObservableObject {
                     currentUser = userData
                     isAuthenticated = true
                 }
-                
+
                 // Auto-load user profile after successful login
                 await loadUserProfileAfterLogin()
             } else {
@@ -551,6 +553,58 @@ final class AuthenticationService: ObservableObject {
         } else {
             throw AuthError.biometricFailed
         }
+    }
+
+    // MARK: - Face ID Management
+
+    /// Check if Face ID is enabled for quick login
+    func isFaceIDEnabled() -> Bool {
+        return UserDefaults.standard.bool(forKey: faceIDEnabledKey)
+    }
+
+    /// Enable Face ID for future logins
+    func enableFaceID() async throws {
+        guard biometricAuth.isBiometricAvailable() else {
+            throw AuthError.biometricNotAvailable
+        }
+
+        guard biometricAuth.isBiometricEnrolled() else {
+            throw AuthError.biometricNotEnrolled
+        }
+
+        // Verify Face ID works by authenticating
+        let success = try await biometricAuth.authenticateWithBiometrics(
+            reason: "Enable \(getBiometricType()) for quick sign-in"
+        )
+
+        if success {
+            // Enable Face ID flag
+            await MainActor.run {
+                UserDefaults.standard.set(true, forKey: faceIDEnabledKey)
+            }
+
+            authLogger.info("✅ Face ID enabled for user")
+        } else {
+            throw AuthError.biometricFailed
+        }
+    }
+
+    /// Disable Face ID (credentials stay in keychain for manual login)
+    func disableFaceID() {
+        UserDefaults.standard.set(false, forKey: faceIDEnabledKey)
+        authLogger.info("🔐 Face ID disabled for user")
+    }
+
+    /// Check if should prompt for Face ID setup
+    func shouldPromptForFaceIDSetup() -> Bool {
+        // Only prompt if:
+        // 1. Device supports biometrics
+        // 2. User hasn't enabled Face ID yet
+        // 3. User has stored credentials (just logged in)
+        return biometricAuth.isBiometricAvailable() &&
+               biometricAuth.isBiometricEnrolled() &&
+               !isFaceIDEnabled() &&
+               keychainService.hasStoredCredentials()
     }
     
     // MARK: - Sign Out

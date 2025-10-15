@@ -10,40 +10,42 @@ import SwiftUI
 struct HelpCenterView: View {
     @Environment(\.dismiss) private var dismiss
 
-    private let faqItems: [(question: String, answer: String)] = [
-        (
-            question: "How do I use the Homework Grader?",
-            answer: "Take a photo of your homework or upload an image. Our AI will analyze it, detect questions, and provide detailed feedback with corrections and explanations."
-        ),
-        (
-            question: "What subjects are supported?",
-            answer: "StudyAI supports Mathematics, Physics, Chemistry, Biology, English, History, Geography, and Computer Science. We're constantly adding more subjects!"
-        ),
-        (
-            question: "How do I change the AI voice?",
-            answer: "Go to Settings > Study Mate > Select your study mate. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume."
-        ),
-        (
-            question: "Can I review my past mistakes?",
-            answer: "Yes! Use the Mistake Review feature from the home screen to revisit questions you got wrong and practice similar problems."
-        ),
-        (
-            question: "How does the streak system work?",
-            answer: "Your streak increases each day you complete at least one study session. Maintain your streak to unlock achievements and rewards!"
-        ),
-        (
-            question: "Is my data secure?",
-            answer: "Yes! We use industry-standard encryption and secure authentication. Your homework and learning data are stored securely and never shared with third parties."
-        ),
-        (
-            question: "How do I track my progress?",
-            answer: "Visit the Progress tab to see detailed statistics, accuracy trends, subject performance, and weekly learning patterns."
-        ),
-        (
-            question: "What is the difference between Detail and Fast parsing?",
-            answer: "Detail mode provides more accurate parsing with hierarchical structure and parent-child relationships. Fast mode is quicker but simpler. Use Detail for complex homework."
-        )
-    ]
+    private var faqItems: [(question: String, answer: String)] {
+        [
+            (
+                question: NSLocalizedString("helpCenter.faq1.question", comment: ""),
+                answer: NSLocalizedString("helpCenter.faq1.answer", comment: "")
+            ),
+            (
+                question: NSLocalizedString("helpCenter.faq2.question", comment: ""),
+                answer: NSLocalizedString("helpCenter.faq2.answer", comment: "")
+            ),
+            (
+                question: NSLocalizedString("helpCenter.faq3.question", comment: ""),
+                answer: NSLocalizedString("helpCenter.faq3.answer", comment: "")
+            ),
+            (
+                question: NSLocalizedString("helpCenter.faq4.question", comment: ""),
+                answer: NSLocalizedString("helpCenter.faq4.answer", comment: "")
+            ),
+            (
+                question: NSLocalizedString("helpCenter.faq5.question", comment: ""),
+                answer: NSLocalizedString("helpCenter.faq5.answer", comment: "")
+            ),
+            (
+                question: NSLocalizedString("helpCenter.faq6.question", comment: ""),
+                answer: NSLocalizedString("helpCenter.faq6.answer", comment: "")
+            ),
+            (
+                question: NSLocalizedString("helpCenter.faq7.question", comment: ""),
+                answer: NSLocalizedString("helpCenter.faq7.answer", comment: "")
+            ),
+            (
+                question: NSLocalizedString("helpCenter.faq8.question", comment: ""),
+                answer: NSLocalizedString("helpCenter.faq8.answer", comment: "")
+            )
+        ]
+    }
 
     var body: some View {
         NavigationView {
@@ -55,11 +57,11 @@ struct HelpCenterView: View {
                             .font(.system(size: 60))
                             .foregroundColor(.blue)
 
-                        Text("Help Center")
+                        Text(NSLocalizedString("settings.help", comment: ""))
                             .font(.title)
                             .fontWeight(.bold)
 
-                        Text("Find answers to common questions")
+                        Text(NSLocalizedString("helpCenter.subtitle", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -74,14 +76,14 @@ struct HelpCenterView: View {
 
                     // Quick Links
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Quick Links")
+                        Text(NSLocalizedString("helpCenter.quickLinks", comment: ""))
                             .font(.headline)
                             .padding(.horizontal)
 
                         Link(destination: URL(string: "https://studyai.com/getting-started")!) {
                             QuickLinkCard(
                                 icon: "play.circle.fill",
-                                title: "Getting Started Guide",
+                                title: NSLocalizedString("helpCenter.gettingStarted", comment: ""),
                                 color: .blue
                             )
                         }
@@ -89,7 +91,7 @@ struct HelpCenterView: View {
                         Link(destination: URL(string: "https://studyai.com/video-tutorials")!) {
                             QuickLinkCard(
                                 icon: "video.fill",
-                                title: "Video Tutorials",
+                                title: NSLocalizedString("helpCenter.videoTutorials", comment: ""),
                                 color: .purple
                             )
                         }
@@ -97,7 +99,7 @@ struct HelpCenterView: View {
                         Link(destination: URL(string: "https://studyai.com/tips")!) {
                             QuickLinkCard(
                                 icon: "lightbulb.fill",
-                                title: "Study Tips & Best Practices",
+                                title: NSLocalizedString("helpCenter.studyTips", comment: ""),
                                 color: .orange
                             )
                         }
@@ -111,7 +113,7 @@ struct HelpCenterView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                 }

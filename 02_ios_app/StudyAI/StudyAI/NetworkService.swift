@@ -2337,7 +2337,7 @@ class NetworkService: ObservableObject {
     // MARK: - Session Archive Management
     
     /// Archive a session conversation to the backend database with image processing
-    func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil) async -> (success: Bool, message: String) {
+    func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil) async -> (success: Bool, message: String, conversation: [String: Any]?) {
         print("📦 === ARCHIVE CONVERSATION SESSION (WITH IMAGE PROCESSING) ===")
         print("📁 Session ID: \(sessionId)")
         print("📝 Title: \(title ?? "Auto-generated")")
@@ -2350,7 +2350,7 @@ class NetworkService: ObservableObject {
         let token = AuthenticationService.shared.getAuthToken()
         guard let token = token else {
             print("❌ Authentication required for archiving")
-            return (false, "Authentication required. Please login first.")
+            return (false, "Authentication required. Please login first.", nil)
         }
         
         // ENHANCED: Process conversation history to handle images
@@ -2366,7 +2366,7 @@ class NetworkService: ObservableObject {
         
         guard let url = URL(string: archiveURL) else {
             print("❌ Invalid archive URL: \(archiveURL)")
-            return (false, "Invalid URL")
+            return (false, "Invalid URL", nil)
         }
         
         // Build archive request body - ENHANCED FORMAT with processed conversation
@@ -2442,7 +2442,7 @@ class NetworkService: ObservableObject {
                                 let messageCount = json["messageCount"] as? Int ?? 0
                                 let archiveId = json["archivedConversationId"] as? String ?? "unknown"
                                 let archiveType = json["type"] as? String ?? "conversation"
-                                
+
                                 print("🎉 === ARCHIVE SUCCESS ===")
                                 print("📁 Archive ID: \(archiveId)")
                                 print("💬 Messages archived: \(messageCount)")
@@ -2456,49 +2456,66 @@ class NetworkService: ObservableObject {
                                 if let currentUserId = AuthenticationService.shared.currentUser?.id {
                                     print("   - /api/user/\(currentUserId)/conversations")
                                 }
-                                
+
+                                // Build conversation object for local storage
+                                var conversationData: [String: Any] = [
+                                    "id": archiveId,
+                                    "title": archiveData["title"] as? String ?? "Study Session",
+                                    "subject": archiveData["subject"] as? String ?? "General",
+                                    "topic": archiveData["topic"] as? String ?? "General",
+                                    "conversationContent": archiveData["conversationContent"] as? String ?? "",
+                                    "archivedDate": ISO8601DateFormatter().string(from: Date()),
+                                    "createdAt": ISO8601DateFormatter().string(from: Date())
+                                ]
+
+                                if let notes = archiveData["notes"] as? String {
+                                    conversationData["notes"] = notes
+                                }
+
+                                print("💾 Built conversation data for local storage with title: \(conversationData["title"] ?? "N/A")")
+
                                 // Invalidate cache so fresh data is loaded
                                 invalidateCache()
-                                
-                                return (true, "Session archived successfully with \(messageCount) messages")
+
+                                return (true, "Session archived successfully with \(messageCount) messages", conversationData)
                             } else {
                                 let error = json["error"] as? String ?? "Archive failed"
                                 print("❌ Archive failed: \(error)")
-                                return (false, error)
+                                return (false, error, nil)
                             }
                         } else if httpResponse.statusCode == 401 {
                             print("❌ Authentication failed during archive")
                             // Let AuthenticationService handle auth state
-                            return (false, "Authentication expired. Please login again.")
+                            return (false, "Authentication expired. Please login again.", nil)
                         } else if httpResponse.statusCode == 404 {
                             print("❌ Session not found for archiving")
-                            return (false, "Session not found or already archived")
+                            return (false, "Session not found or already archived", nil)
                         } else if httpResponse.statusCode == 400 {
                             let error = json["error"] as? String ?? "Invalid request"
                             print("❌ Bad request: \(error)")
-                            return (false, error)
+                            return (false, error, nil)
                         } else {
                             let error = json["error"] as? String ?? "Archive failed"
                             print("❌ Archive HTTP \(httpResponse.statusCode): \(error)")
-                            return (false, "Server error: \(error)")
+                            return (false, "Server error: \(error)", nil)
                         }
                     } else {
                         print("❌ Failed to parse JSON response")
-                        return (false, "Invalid response format: \(rawResponse)")
+                        return (false, "Invalid response format: \(rawResponse)", nil)
                     }
                 } catch {
                     print("❌ JSON parsing error: \(error)")
                     print("📄 Raw response: \(rawResponse)")
-                    return (false, "Invalid response format")
+                    return (false, "Invalid response format", nil)
                 }
             } else {
                 print("❌ No HTTP response received")
-                return (false, "No response from server")
+                return (false, "No response from server", nil)
             }
-            
+
         } catch {
             print("❌ Archive request failed: \(error.localizedDescription)")
-            return (false, "Network error: \(error.localizedDescription)")
+            return (false, "Network error: \(error.localizedDescription)", nil)
         }
     }
     
@@ -3005,10 +3022,18 @@ class NetworkService: ObservableObject {
                 let statusCode = httpResponse.statusCode
 
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    
+
                     if statusCode == 200 {
                         let profile = json["profile"] as? [String: Any] ?? json
                         let message = json["message"] as? String ?? "Profile updated successfully"
+
+                        print("✅ [NetworkService] Update successful")
+                        print("📦 [NetworkService] Profile data from backend:")
+                        print("   - city: \(profile["city"] as? String ?? "nil")")
+                        print("   - stateProvince: \(profile["stateProvince"] as? String ?? "nil")")
+                        print("   - country: \(profile["country"] as? String ?? "nil")")
+                        print("   - kidsAges: \(profile["kidsAges"] as? [Int] ?? [])")
+
                         return (true, profile, message)
                     } else {
                         let message = json["message"] as? String ?? "Failed to update profile"

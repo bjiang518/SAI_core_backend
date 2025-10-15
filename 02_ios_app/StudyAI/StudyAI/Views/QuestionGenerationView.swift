@@ -14,8 +14,8 @@ struct QuestionGenerationView: View {
     @StateObject private var authService = AuthenticationService.shared
     @StateObject private var profileService = ProfileService.shared
     @StateObject private var mistakeService = MistakeReviewService()
-    // @StateObject private var conversationStore = ConversationStore.shared
     @StateObject private var archiveService = QuestionArchiveService.shared
+    @StateObject private var libraryService = LibraryDataService.shared
     @State private var inputSubject = ""
     @State private var selectedTemplate: TemplateType = .randomPractice
     @State private var showingQuestionsList = false
@@ -23,7 +23,7 @@ struct QuestionGenerationView: View {
     @State private var showingErrorAlert = false
     @State private var errorMessage = ""
     @State private var availableMistakes: [MistakeQuestion] = []
-    @State private var availableConversations: [String] = [] // Temporary: using [String] instead of [Conversation]
+    @State private var availableConversations: [[String: Any]] = []  // Use actual conversation objects
     @State private var availableQuestions: [QuestionSummary] = []
     @State private var selectedConversations: Set<String> = []
     @State private var selectedQuestions: Set<String> = []
@@ -363,9 +363,8 @@ struct QuestionGenerationView: View {
                 await mistakeService.fetchMistakes(subject: nil, timeRange: .thisMonth)
                 let allMistakes = mistakeService.mistakes
 
-                // Get conversations from sample data for now - TEMPORARY FIX
-                // let conversations = await conversationStore.listConversations(filter: .all, forceRefresh: false)
-                let conversations = ["Math - Algebra", "Physics - Mechanics", "Chemistry - Bonding"] // Temporary placeholder
+                // Load conversations from LibraryDataService
+                let conversations = await libraryService.fetchConversationsOnly()
 
                 // Load archived questions from QuestionArchiveService
                 let questions = try await archiveService.fetchArchivedQuestions(limit: 100)
@@ -375,12 +374,11 @@ struct QuestionGenerationView: View {
                     self.availableConversations = conversations
                     self.availableQuestions = questions
                     self.isLoadingData = false
-
                 }
             } catch {
                 await MainActor.run {
                     self.isLoadingData = false
-                    self.errorMessage = "Failed to load data: \\(error.localizedDescription)"
+                    self.errorMessage = "Failed to load data: \(error.localizedDescription)"
                     self.showingErrorAlert = true
                 }
             }
@@ -521,23 +519,35 @@ struct QuestionGenerationView: View {
                 throw NSError(domain: "QuestionGeneration", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("questionGeneration.noArchives", comment: "")])
             }
 
+            // Filter to only selected conversations
+            let selectedConversationObjects = availableConversations.filter { conversation in
+                if let conversationId = conversation["id"] as? String {
+                    return selectedConversations.contains(conversationId)
+                }
+                return false
+            }
+
             // Convert real conversation data using the adapter
-            let conversationData = availableConversations.map { conversationTitle in
-                QuestionGenerationService.ConversationData(
+            let conversationData = selectedConversationObjects.map { conversation in
+                let title = conversation["title"] as? String ?? "Untitled"
+                let subject = conversation["subject"] as? String ?? "General"
+                let content = conversation["conversationContent"] as? String ?? ""
+
+                return QuestionGenerationService.ConversationData(
                     date: ISO8601DateFormatter().string(from: Date()),
-                    topics: [conversationTitle.components(separatedBy: " - ").first ?? "General"],
-                    studentQuestions: "Discussion about \(conversationTitle)",
+                    topics: [subject],
+                    studentQuestions: content.isEmpty ? "Discussion about \(title)" : content,
                     difficultyLevel: "intermediate",
                     strengths: ["Active participation"],
                     weaknesses: ["More practice needed"],
-                    keyConcepts: conversationTitle,
+                    keyConcepts: title,
                     engagement: "high"
                 )
             }
 
             // Get the most common subject from conversations
-            let conversationSubjects = Array(Set(availableConversations.compactMap { conversationTitle in
-                conversationTitle.components(separatedBy: " - ").first
+            let conversationSubjects = Array(Set(selectedConversationObjects.compactMap { conversation in
+                conversation["subject"] as? String
             })).filter { !$0.isEmpty && $0 != "General Discussion" }
             let primarySubject = conversationSubjects.first ?? "Mathematics"
 
@@ -828,7 +838,7 @@ struct MistakeBasedConfig: View {
 }
 
 struct ArchiveBasedConfig: View {
-    let conversations: [String] // Temporary: using [String] instead of [Conversation]
+    let conversations: [[String: Any]]
     let questions: [QuestionSummary]
     @Binding var selectedConversations: Set<String>
     @Binding var selectedQuestions: Set<String>
@@ -1112,7 +1122,7 @@ struct MistakeSelectionView: View {
 }
 
 struct ArchiveSelectionView: View {
-    let conversations: [String]
+    let conversations: [[String: Any]]
     let questions: [QuestionSummary]
     @Binding var selectedConversations: Set<String>
     @Binding var selectedQuestions: Set<String>
@@ -1148,7 +1158,9 @@ struct ArchiveSelectionView: View {
                                 selectedConversations.removeAll()
                                 selectedQuestions.removeAll()
                             } else {
-                                selectedConversations = Set(conversations)
+                                // Extract conversation IDs for selection
+                                let conversationIds = conversations.compactMap { $0["id"] as? String }
+                                selectedConversations = Set(conversationIds)
                                 selectedQuestions = Set(questions.map { $0.id })
                             }
                         }) {
@@ -1173,15 +1185,19 @@ struct ArchiveSelectionView: View {
                     List {
                         if !conversations.isEmpty {
                             Section(NSLocalizedString("questionGeneration.conversations", comment: "")) {
-                                ForEach(conversations, id: \.self) { conversation in
+                                ForEach(conversations.indices, id: \.self) { index in
+                                    let conversation = conversations[index]
+                                    let conversationId = conversation["id"] as? String ?? ""
+                                    let conversationTitle = conversation["title"] as? String ?? "Untitled Conversation"
+
                                     ArchiveConversationSelectionCard(
-                                        conversationTitle: conversation,
-                                        isSelected: selectedConversations.contains(conversation),
+                                        conversationTitle: conversationTitle,
+                                        isSelected: selectedConversations.contains(conversationId),
                                         onToggle: {
-                                            if selectedConversations.contains(conversation) {
-                                                selectedConversations.remove(conversation)
+                                            if selectedConversations.contains(conversationId) {
+                                                selectedConversations.remove(conversationId)
                                             } else {
-                                                selectedConversations.insert(conversation)
+                                                selectedConversations.insert(conversationId)
                                             }
                                         }
                                     )

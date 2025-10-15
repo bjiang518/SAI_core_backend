@@ -482,3 +482,333 @@
 
 "library.advancedSearch.sortOrder" = "排序方式";
 "library.advancedSearch.sortBy" = "排序依据";
+
+// Contact Support
+"contactSupport.subtitle" = "我们随时为您提供帮助！";
+"contactSupport.emailTitle" = "电子邮件支持";
+"contactSupport.emailDescription" = "通过电子邮件获取详细帮助";
+"contactSupport.chatTitle" = "在线聊天";
+"contactSupport.chatSubtitle" = "工作日9am-5pm EST可用";
+"contactSupport.chatDescription" = "与我们的支持团队聊天";
+"contactSupport.forumTitle" = "社区论坛";
+"contactSupport.forumSubtitle" = "加入对话";
+"contactSupport.forumDescription" = "与其他学生交流";
+"contactSupport.phoneTitle" = "电话支持";
+"contactSupport.phoneDescription" = "工作日9am-5pm EST";
+"contactSupport.averageResponseTime" = "平均响应时间";
+"contactSupport.emailResponseTime" = "电子邮件：24-48小时";
+"contactSupport.chatResponseTime" = "在线聊天：<5分钟";
+"contactSupport.phoneResponseTime" = "电话：即时";
+"contactSupport.emailNotAvailable" = "电子邮件不可用";
+"contactSupport.emailNotAvailableMessage" = "请在设备设置中配置电子邮件帐户。";
+
+// Help Center
+"helpCenter.subtitle" = "查找常见问题的答案";
+"helpCenter.faq1.question" = "如何使用作业评分器？";
+"helpCenter.faq1.answer" = "拍摄作业照片或上传图片。我们的AI将对其进行分析，检测问题，并提供详细的反馈、更正和解释。";
+"helpCenter.faq2.question" = "支持哪些科目？";
+"helpCenter.faq2.answer" = "StudyAI支持数学、物理、化学、生物、英语、历史、地理和计算机科学。我们正在不断添加更多科目！";
+"helpCenter.faq3.question" = "如何更改AI语音？";
+"helpCenter.faq3.answer" = "转到设置>学习伙伴>选择你的学习伙伴。您可以在Adam（男声）和Eva（女声）之间进行选择，并自定义速度和音量。";
+"helpCenter.faq4.question" = "可以查看过去的错误吗？";
+"helpCenter.faq4.answer" = "可以！使用主屏幕上的错题复习功能重新访问您答错的问题并练习类似的问题。";
+"helpCenter.faq5.question" = "连续天数系统如何工作？";
+"helpCenter.faq5.answer" = "每天完成至少一次学习时，连续天数就会增加。保持连续天数以解锁成就和奖励！";
+"helpCenter.faq6.question" = "我的数据安全吗？";
+"helpCenter.faq6.answer" = "是的！我们使用行业标准加密和安全身份验证。您的作业和学习数据安全存储，绝不会与第三方共享。";
+"helpCenter.faq7.question" = "如何追踪我的进度？";
+"helpCenter.faq7.answer" = "访问进度选项卡查看详细统计信息、准确率趋势、科目表现和每周学习模式。";
+"helpCenter.faq8.question" = "详细模式和快速模式有什么区别？";
+"helpCenter.faq8.answer" = "详细模式提供更准确的解析，具有层次结构和父子关系。快速模式更快但更简单。对于复杂的作业使用详细模式。";
+"helpCenter.quickLinks" = "快速链接";
+"helpCenter.gettingStarted" = "入门指南";
+"helpCenter.videoTutorials" = "视频教程";
+"helpCenter.studyTips" = "学习技巧和最佳实践";
+
+// Share App
+"shareApp.subtitle" = "帮助你的朋友在学习中取得优异成绩！";
+"shareApp.messageTitle" = "分享消息";
+"shareApp.messagePreview" = "\"看看StudyAI-最好的AI驱动的作业助手！\"";
+"shareApp.feature1" = "✓ AI驱动的作业评分";
+"shareApp.feature2" = "✓ 交互式AI导师";
+"shareApp.feature3" = "✓ 错题复习和练习";
+"shareApp.feature4" = "✓ 进度追踪";
+"shareApp.downloadLink" = "立即下载：https://studyai.app";
+"shareApp.shareViaTitle" = "分享方式...";
+"shareApp.shareViaSubtitle" = "消息、电子邮件、社交媒体等";
+"shareApp.copyLinkTitle" = "复制应用链接";
+"shareApp.copyLinkSubtitle" = "在任何地方分享下载链接";
+"shareApp.scanToDownload" = "扫描下载";
+"shareApp.qrCode" = "二维码";
+"shareApp.showQRCode" = "向朋友展示此二维码";
+"shareApp.comingSoonReferral" = "即将推出：推荐奖励！";
+"shareApp.earnPoints" = "为每位加入StudyAI的朋友赚取积分";
+"shareApp.downloadNow" = "立即下载：";
+
+// Chat View
+"chat.subjects.mathematics" = "数学";
+"chat.subjects.physics" = "物理";
+"chat.subjects.chemistry" = "化学";
+"chat.subjects.biology" = "生物";
+"chat.subjects.history" = "历史";
+"chat.subjects.literature" = "文学";
+"chat.subjects.geography" = "地理";
+"chat.subjects.computerScience" = "计算机科学";
+"chat.subjects.economics" = "经济学";
+"chat.subjects.psychology" = "心理学";
+"chat.subjects.philosophy" = "哲学";
+"chat.subjects.general" = "通用";
+
+// Menu Items
+"chat.menu.newSession" = "新会话";
+"chat.menu.sessionInfo" = "会话信息";
+"chat.menu.voiceSettings" = "语音设置";
+"chat.menu.enableVoice" = "启用语音";
+"chat.menu.disableVoice" = "禁用语音";
+"chat.menu.archiveSession" = "归档会话";
+
+// Archive Dialog
+"chat.archive.title" = "归档会话";
+"chat.archive.titleField" = "标题";
+"chat.archive.topicField" = "主题";
+"chat.archive.notesField" = "备注（可选）";
+"chat.archive.titlePlaceholder" = "输入归档标题...";
+"chat.archive.topicPlaceholder" = "输入主题（例如 %@）...";
+"chat.archive.notesPlaceholder" = "添加此会话的备注...";
+"chat.archive.buttonTitle" = "归档会话";
+"chat.archive.infoTitle" = "归档信息";
+"chat.archive.infoMessage" = "保存此对话以便将来参考。您可以添加自定义标题和备注，帮助您记住所学内容。";
+
+// Input
+"chat.input.placeholder" = "消息";
+"chat.input.archiveTitle" = "输入归档标题...";
+"chat.input.archiveTopic" = "输入主题（例如 %@）...";
+"chat.input.archiveNotes" = "添加此会话的备注...";
+"chat.input.addComment" = "添加评论...";
+
+// Alerts
+"chat.alert.cameraPermission.title" = "相机权限";
+"chat.alert.cameraPermission.message" = "StudyAI需要相机访问权限来扫描作业题目。请在设置中启用相机权限。";
+"chat.alert.currentChatExists.title" = "当前聊天存在";
+"chat.alert.currentChatExists.message" = "您有一个活跃的聊天会话。您想先归档它，还是丢弃它并使用此作业题目开始新会话？";
+"chat.alert.currentChatExists.archiveCurrent" = "归档当前聊天";
+"chat.alert.currentChatExists.discardAndStart" = "丢弃并开始新会话";
+"chat.alert.error.title" = "错误";
+"chat.alert.archiveSuccess.title" = "归档成功！🎉";
+"chat.alert.archiveSuccess.message" = "%@ 已成功归档并保存到您的学习资料库。";
+"chat.alert.archiveSuccess.viewInLibrary" = "在资料库中查看";
+
+// Empty State
+"chat.emptyState.greeting" = "你好！我是 %@";
+"chat.emptyState.subtext" = "问我任何关于%@的问题，我会帮助你学习！";
+"chat.emptyState.tryAsking" = "试试问：";
+
+// Smart Suggestions
+"chat.suggestion.showSteps" = "显示步骤";
+"chat.suggestion.trySimilarProblem" = "试试类似题目";
+"chat.suggestion.explainMethod" = "解释方法";
+"chat.suggestion.realExamples" = "真实例子";
+"chat.suggestion.howItWorks" = "工作原理";
+"chat.suggestion.connectToDailyLife" = "与日常生活联系";
+"chat.suggestion.giveExamples" = "举例说明";
+"chat.suggestion.compareWith" = "比较";
+"chat.suggestion.useInSentence" = "用于句子";
+"chat.suggestion.explainWhy" = "解释原因";
+"chat.suggestion.alternativeApproach" = "替代方法";
+"chat.suggestion.practiceProblem" = "练习题";
+"chat.suggestion.whenDidThisHappen" = "这是什么时候发生的";
+"chat.suggestion.whoWasInvolved" = "谁参与了";
+"chat.suggestion.whatCausedThis" = "是什么导致的";
+"chat.suggestion.analyzeMeaning" = "分析意义";
+"chat.suggestion.findThemes" = "找主题";
+"chat.suggestion.authorsIntent" = "作者意图";
+"chat.suggestion.explainDifferently" = "换个方式解释";
+"chat.suggestion.giveExample" = "举个例子";
+"chat.suggestion.moreDetails" = "更多细节";
+
+// Contextual Prompts
+"chat.prompt.showSteps" = "你能把解决方案分解成详细的步骤吗？";
+"chat.prompt.trySimilarProblem" = "你能给我一个类似的问题来练习吗？";
+"chat.prompt.explainMethod" = "你能解释这里使用的方法或公式吗？";
+"chat.prompt.moreExamples" = "你能提供更多这个概念的例子吗？";
+"chat.prompt.relatedConcepts" = "与这个主题相关的其他概念有哪些？";
+"chat.prompt.giveExamples" = "你能给我一些具体的例子吗？";
+"chat.prompt.compareWith" = "这与类似的概念相比如何？";
+"chat.prompt.useInSentence" = "你能向我展示如何在句子中使用它吗？";
+"chat.prompt.explainWhy" = "为什么这个方法有效？你能解释其中的原理吗？";
+"chat.prompt.alternativeApproach" = "有没有其他方法来解决这个问题？";
+"chat.prompt.practiceProblem" = "你能给我一道练习题来测试我的理解吗？";
+"chat.prompt.realExamples" = "你能给我真实世界的例子吗？";
+"chat.prompt.howItWorks" = "你能详细解释这个过程是如何工作的吗？";
+"chat.prompt.connectToDailyLife" = "这个概念与日常生活有什么关系？";
+"chat.prompt.explainDifferently" = "你能用不同的方式解释这个概念吗？";
+"chat.prompt.giveExample" = "你能提供一个具体的例子吗？";
+"chat.prompt.moreDetails" = "你能详细说明这个主题吗？";
+
+// Example Prompts - Mathematics
+"chat.example.math.1" = "解方程：2x + 5 = 13";
+"chat.example.math.2" = "x²的导数是什么？";
+"chat.example.math.3" = "解释勾股定理";
+"chat.example.math.4" = "如何因式分解 x² + 5x + 6？";
+
+// Example Prompts - Physics
+"chat.example.physics.1" = "解释牛顿运动定律";
+"chat.example.physics.2" = "什么是动能？";
+"chat.example.physics.3" = "重力如何工作？";
+"chat.example.physics.4" = "用 F = ma 计算力";
+
+// Example Prompts - Chemistry
+"chat.example.chemistry.1" = "如何平衡化学方程式？";
+"chat.example.chemistry.2" = "解释元素周期表";
+"chat.example.chemistry.3" = "什么是共价键？";
+"chat.example.chemistry.4" = "描述物质的状态";
+
+// Example Prompts - Biology
+"chat.example.biology.1" = "解释光合作用";
+"chat.example.biology.2" = "什么是DNA？";
+"chat.example.biology.3" = "细胞分裂如何工作？";
+"chat.example.biology.4" = "描述人体循环系统";
+
+// Example Prompts - History
+"chat.example.history.1" = "第二次世界大战的原因是什么？";
+"chat.example.history.2" = "解释法国大革命";
+"chat.example.history.3" = "谁是凯撒大帝？";
+"chat.example.history.4" = "描述工业革命";
+
+// Example Prompts - Literature
+"chat.example.literature.1" = "分析莎士比亚的《哈姆雷特》";
+"chat.example.literature.2" = "什么是文学手法？";
+"chat.example.literature.3" = "解释英雄之旅";
+"chat.example.literature.4" = "比较隐喻和明喻";
+
+// Example Prompts - Geography
+"chat.example.geography.1" = "主要的海洋在哪里？";
+"chat.example.geography.2" = "解释板块构造";
+"chat.example.geography.3" = "什么导致气候带？";
+"chat.example.geography.4" = "描述水循环";
+
+// Example Prompts - Computer Science
+"chat.example.computerScience.1" = "什么是算法？";
+"chat.example.computerScience.2" = "解释二进制数";
+"chat.example.computerScience.3" = "编程中的循环如何工作？";
+"chat.example.computerScience.4" = "什么是面向对象编程？";
+
+// Example Prompts - Economics
+"chat.example.economics.1" = "什么是供给和需求？";
+"chat.example.economics.2" = "解释通货膨胀";
+"chat.example.economics.3" = "GDP如何运作？";
+"chat.example.economics.4" = "什么是市场结构？";
+
+// Example Prompts - Psychology
+"chat.example.psychology.1" = "什么是经典条件反射？";
+"chat.example.psychology.2" = "解释认知发展";
+"chat.example.psychology.3" = "记忆如何工作？";
+"chat.example.psychology.4" = "什么是防御机制？";
+
+// Example Prompts - Philosophy
+"chat.example.philosophy.1" = "什么是苏格拉底方法？";
+"chat.example.philosophy.2" = "解释存在主义";
+"chat.example.philosophy.3" = "什么是电车难题？";
+"chat.example.philosophy.4" = "描述伦理理论";
+
+// Example Prompts - General
+"chat.example.general.1" = "帮我理解这个概念";
+"chat.example.general.2" = "一步一步解释";
+"chat.example.general.3" = "这是什么意思？";
+"chat.example.general.4" = "你能举个例子吗？";
+
+// Default Examples
+"chat.example.default.1" = "问我任何问题";
+"chat.example.default.2" = "我在这里帮助你学习";
+"chat.example.default.3" = "让我们一起探索";
+"chat.example.default.4" = "你想知道什么？";
+
+
+// Edit Profile View
+"editProfile.title" = "编辑资料";
+"editProfile.cancel" = "取消";
+"editProfile.save" = "保存";
+"editProfile.error" = "错误";
+"editProfile.profileUpdated" = "资料已更新";
+"editProfile.profileUpdatedMessage" = "您的资料已成功更新！";
+"editProfile.savingProfile" = "保存资料中...";
+
+// Personal Information
+"editProfile.personalInfo" = "个人信息";
+"editProfile.firstName" = "名字";
+"editProfile.firstNamePlaceholder" = "输入名字";
+"editProfile.lastName" = "姓氏";
+"editProfile.lastNamePlaceholder" = "输入姓氏";
+"editProfile.displayName" = "显示名称（可选）";
+"editProfile.displayNamePlaceholder" = "显示的首选名称";
+"editProfile.addDateOfBirth" = "添加出生日期";
+"editProfile.dateOfBirth" = "出生日期";
+
+// Children Information
+"editProfile.childrenInfo" = "孩子信息";
+"editProfile.childrenInfoDescription" = "如果您正在帮助孩子学习，请输入孩子的年龄";
+"editProfile.childAge" = "孩子年龄";
+"editProfile.childAgePlaceholder" = "输入孩子年龄（1-18）";
+
+// Location
+"editProfile.location" = "位置";
+"editProfile.city" = "城市";
+"editProfile.cityPlaceholder" = "输入城市";
+"editProfile.stateProvince" = "州/省";
+"editProfile.stateProvincePlaceholder" = "输入州或省";
+"editProfile.country" = "国家";
+"editProfile.countryPlaceholder" = "输入国家";
+
+// Academic Preferences
+"editProfile.academicPreferences" = "学业偏好";
+"editProfile.gradeLevel" = "当前年级";
+"editProfile.gradeLevelPicker" = "年级";
+"editProfile.selectGradeLevel" = "选择年级";
+"editProfile.favoriteSubjects" = "喜欢的科目";
+"editProfile.addSubjects" = "添加科目";
+"editProfile.learningStyle" = "学习风格";
+"editProfile.selectLearningStyle" = "选择学习风格";
+
+// Optional Information
+"editProfile.optionalInfo" = "可选信息";
+"editProfile.gender" = "性别（可选）";
+"editProfile.genderPicker" = "性别";
+"editProfile.genderPreferNotToSpecify" = "不愿透露";
+"editProfile.genderFemale" = "女";
+"editProfile.genderMale" = "男";
+"editProfile.genderNonBinary" = "非二元";
+"editProfile.genderOther" = "其他";
+"editProfile.languagePreference" = "语言偏好";
+"editProfile.languagePicker" = "语言";
+"editProfile.languageEnglish" = "英语";
+"editProfile.languageSpanish" = "西班牙语";
+"editProfile.languageFrench" = "法语";
+"editProfile.languageGerman" = "德语";
+"editProfile.languageChinese" = "中文";
+"editProfile.languageJapanese" = "日语";
+
+// Subject Picker
+"editProfile.selectSubjects" = "选择科目";
+
+// Validation
+"editProfile.validationNameRequired" = "名字和姓氏为必填项";
+
+// Session Detail View
+"sessionDetail.loading" = "加载中...";
+"sessionDetail.errorLoading" = "加载内容时出错";
+"sessionDetail.contentNotFound" = "未找到内容";
+"sessionDetail.conversationDetails" = "对话详情";
+"sessionDetail.sessionDetails" = "会话详情";
+"sessionDetail.questions" = "题目";
+"sessionDetail.confidence" = "置信度";
+"sessionDetail.questionsAndAnswers" = "题目与答案";
+"sessionDetail.items" = "项";
+"sessionDetail.notes" = "备注";
+"sessionDetail.sessionInfo" = "会话信息";
+"sessionDetail.processingTime" = "处理时间";
+"sessionDetail.parsingMethod" = "解析方法";
+"sessionDetail.reviewCount" = "复习次数";
+"sessionDetail.created" = "创建时间";
+"sessionDetail.conversation" = "对话";
+"sessionDetail.conversationInfo" = "对话信息";
+"sessionDetail.topic" = "主题";

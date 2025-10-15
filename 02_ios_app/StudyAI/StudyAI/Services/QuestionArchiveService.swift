@@ -27,7 +27,7 @@ class QuestionArchiveService: ObservableObject {
     }
     
     // MARK: - Archive Individual Questions
-    
+
     func archiveQuestions(_ request: QuestionArchiveRequest) async throws -> [ArchivedQuestion] {
         guard let userId = currentUserId else {
             throw QuestionArchiveError.notAuthenticated
@@ -39,54 +39,69 @@ class QuestionArchiveService: ObservableObject {
 
         print("📝 Archiving \(request.selectedQuestionIndices.count) questions for user: \(userId)")
         print("📚 Subject: \(request.detectedSubject)")
-        
+
+        // Check for duplicates before archiving
+        let deduplicationResult = try await checkForDuplicates(request: request)
+
+        if deduplicationResult.uniqueIndices.isEmpty {
+            print("⚠️ All questions are duplicates, skipping archive")
+            throw QuestionArchiveError.allQuestionsAreDuplicates(deduplicationResult.duplicateCount)
+        }
+
+        if !deduplicationResult.duplicateIndices.isEmpty {
+            print("⚠️ Found \(deduplicationResult.duplicateCount) duplicate(s), archiving only \(deduplicationResult.uniqueIndices.count) unique question(s)")
+        }
+
         guard let url = URL(string: "\(baseURL)/api/archived-questions") else {
             throw QuestionArchiveError.invalidURL
         }
-        
-        // Prepare request data for Railway API
+
+        // Prepare request data with only unique questions
+        let uniqueQuestions = deduplicationResult.uniqueIndices.map { index -> [String: Any] in
+            let question = request.questions[index]
+            return [
+                "questionText": question.questionText,
+                "answerText": question.answerText,
+                "confidence": question.confidence,
+                "hasVisualElements": question.hasVisualElements,
+                "studentAnswer": question.studentAnswer ?? "",
+                "correctAnswer": question.correctAnswer ?? question.answerText,
+                "grade": question.grade ?? "EMPTY",
+                "pointsEarned": question.pointsEarned ?? 0.0,
+                "pointsPossible": question.pointsPossible ?? 1.0,
+                "feedback": question.feedback ?? ""
+            ]
+        }
+
         let requestData: [String: Any] = [
-            "selectedQuestionIndices": request.selectedQuestionIndices,
-            "questions": request.questions.map { question in
-                [
-                    "questionText": question.questionText,
-                    "answerText": question.answerText,
-                    "confidence": question.confidence,
-                    "hasVisualElements": question.hasVisualElements,
-                    "studentAnswer": question.studentAnswer ?? "",
-                    "correctAnswer": question.correctAnswer ?? question.answerText,
-                    "grade": question.grade ?? "EMPTY",
-                    "pointsEarned": question.pointsEarned ?? 0.0,
-                    "pointsPossible": question.pointsPossible ?? 1.0,
-                    "feedback": question.feedback ?? ""
-                ]
-            },
-            "userNotes": request.userNotes,
-            "userTags": request.userTags,
+            "selectedQuestionIndices": deduplicationResult.uniqueIndices,
+            "questions": uniqueQuestions,
+            "userNotes": deduplicationResult.uniqueNotes,
+            "userTags": deduplicationResult.uniqueTags,
             "detectedSubject": request.detectedSubject,
             "originalImageUrl": request.originalImageUrl ?? "",
             "processingTime": request.processingTime
         ]
-        
+
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestData)
-        
+
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
-        
+
         guard let httpResponse = response as? HTTPURLResponse else {
             throw QuestionArchiveError.invalidResponse
         }
-        
+
         if httpResponse.statusCode != 201 {
             let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
             print("❌ Question archive failed: \(errorMessage)")
             throw QuestionArchiveError.archiveFailed(errorMessage)
         }
-        
+
         // Parse response
         guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let success = jsonResponse["success"] as? Bool,
@@ -94,17 +109,17 @@ class QuestionArchiveService: ObservableObject {
               let _ = jsonResponse["data"] as? [[String: Any]] else {
             throw QuestionArchiveError.invalidData
         }
-        
+
         // Convert response to ArchivedQuestions
         var archivedQuestions: [ArchivedQuestion] = []
-        
-        for (index, questionIndex) in request.selectedQuestionIndices.enumerated() {
+
+        for (arrayIndex, questionIndex) in deduplicationResult.uniqueIndices.enumerated() {
             guard questionIndex < request.questions.count else { continue }
-            
+
             let question = request.questions[questionIndex]
-            let userNote = index < request.userNotes.count ? request.userNotes[index] : ""
-            let userTag = index < request.userTags.count ? request.userTags[index] : []
-            
+            let userNote = arrayIndex < deduplicationResult.uniqueNotes.count ? deduplicationResult.uniqueNotes[arrayIndex] : ""
+            let userTag = arrayIndex < deduplicationResult.uniqueTags.count ? deduplicationResult.uniqueTags[arrayIndex] : []
+
             // Create ArchivedQuestion from response and original data
             let archivedQuestion = ArchivedQuestion(
                 userId: userId,
@@ -124,12 +139,78 @@ class QuestionArchiveService: ObservableObject {
                 feedback: question.feedback,
                 isGraded: question.grade != nil
             )
-            
+
             archivedQuestions.append(archivedQuestion)
         }
-        
-        print("✅ Successfully archived \(archivedQuestions.count) questions")
+
+        print("✅ Successfully archived \(archivedQuestions.count) unique questions")
+        if deduplicationResult.duplicateCount > 0 {
+            print("ℹ️ Skipped \(deduplicationResult.duplicateCount) duplicate(s)")
+        }
         return archivedQuestions
+    }
+
+    // MARK: - Deduplication Helper
+
+    private func checkForDuplicates(request: QuestionArchiveRequest) async throws -> DeduplicationResult {
+        // Fetch existing questions for this subject to check for duplicates
+        let existingQuestions = try await fetchQuestionsBySubject(request.detectedSubject)
+
+        // Create a set of normalized question texts from existing questions
+        let existingQuestionTexts = Set(existingQuestions.map { normalizeQuestionText($0.questionText) })
+
+        var uniqueIndices: [Int] = []
+        var duplicateIndices: [Int] = []
+        var uniqueNotes: [String] = []
+        var uniqueTags: [[String]] = []
+
+        for (arrayIndex, questionIndex) in request.selectedQuestionIndices.enumerated() {
+            guard questionIndex < request.questions.count else { continue }
+
+            let question = request.questions[questionIndex]
+            let normalizedText = normalizeQuestionText(question.questionText)
+
+            if existingQuestionTexts.contains(normalizedText) {
+                // This is a duplicate
+                duplicateIndices.append(questionIndex)
+                print("🔍 Duplicate found: '\(question.questionText.prefix(50))...'")
+            } else {
+                // This is unique
+                uniqueIndices.append(questionIndex)
+                if arrayIndex < request.userNotes.count {
+                    uniqueNotes.append(request.userNotes[arrayIndex])
+                }
+                if arrayIndex < request.userTags.count {
+                    uniqueTags.append(request.userTags[arrayIndex])
+                }
+            }
+        }
+
+        return DeduplicationResult(
+            uniqueIndices: uniqueIndices,
+            duplicateIndices: duplicateIndices,
+            duplicateCount: duplicateIndices.count,
+            uniqueNotes: uniqueNotes,
+            uniqueTags: uniqueTags
+        )
+    }
+
+    private func normalizeQuestionText(_ text: String) -> String {
+        // Normalize by:
+        // 1. Converting to lowercase
+        // 2. Trimming whitespace
+        // 3. Removing extra spaces
+        // 4. Removing common punctuation that doesn't affect meaning
+        return text
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .replacingOccurrences(of: "?", with: "")
+            .replacingOccurrences(of: "!", with: "")
+            .replacingOccurrences(of: ".", with: "")
+            .replacingOccurrences(of: ",", with: "")
     }
     
     // MARK: - Enhanced Search Methods
@@ -531,6 +612,16 @@ class QuestionArchiveService: ObservableObject {
     }
 }
 
+// MARK: - Deduplication Result
+
+struct DeduplicationResult {
+    let uniqueIndices: [Int]
+    let duplicateIndices: [Int]
+    let duplicateCount: Int
+    let uniqueNotes: [String]
+    let uniqueTags: [[String]]
+}
+
 // MARK: - Question Archive Errors
 
 enum QuestionArchiveError: LocalizedError {
@@ -541,7 +632,8 @@ enum QuestionArchiveError: LocalizedError {
     case archiveFailed(String)
     case fetchFailed(String)
     case questionNotFound
-    
+    case allQuestionsAreDuplicates(Int)
+
     var errorDescription: String? {
         switch self {
         case .notAuthenticated:
@@ -558,6 +650,8 @@ enum QuestionArchiveError: LocalizedError {
             return "Failed to fetch questions: \(message)"
         case .questionNotFound:
             return "Question not found"
+        case .allQuestionsAreDuplicates(let count):
+            return "All \(count) question(s) have already been archived"
         }
     }
 }

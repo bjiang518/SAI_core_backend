@@ -296,27 +296,32 @@ struct UserProfileView: View {
     }
     
     // MARK: - Account Section
-    
+
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader("Account", icon: "person.circle.fill")
-            
+
             VStack(spacing: 1) {
                 if authService.isAuthenticated {
+                    // Face ID / Touch ID Toggle (only if biometrics available)
+                    if authService.canUseBiometrics() || authService.isFaceIDEnabled() {
+                        biometricToggleRow
+                    }
+
                     settingsRow(
                         title: "Account Details",
                         subtitle: "View and edit your account information",
                         icon: "person.fill",
                         action: { /* TODO: Implement account details */ }
                     )
-                    
+
                     settingsRow(
                         title: "Subscription",
                         subtitle: "Manage your StudyAI subscription",
                         icon: "creditcard.fill",
                         action: { /* TODO: Implement subscription management */ }
                     )
-                    
+
                     settingsRow(
                         title: "Sign Out",
                         subtitle: "Sign out of your account",
@@ -337,6 +342,38 @@ struct UserProfileView: View {
             .background(Color(.systemGray6))
             .cornerRadius(12)
         }
+    }
+
+    // MARK: - Biometric Toggle Row
+
+    private var biometricToggleRow: some View {
+        HStack(spacing: 16) {
+            Image(systemName: authService.getBiometricType() == "Face ID" ? "faceid" : "touchid")
+                .font(.title3)
+                .foregroundColor(.blue)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Sign in with \(authService.getBiometricType())")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text("Use \(authService.getBiometricType()) for quick and secure login")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { authService.isFaceIDEnabled() },
+                set: { isEnabled in
+                    toggleFaceID(isEnabled)
+                }
+            ))
+            .tint(.blue)
+        }
+        .padding()
     }
     
     // MARK: - Helper Views
@@ -392,11 +429,27 @@ struct UserProfileView: View {
     }
     
     // MARK: - Actions
-    
+
     private func saveUserName() {
         UserDefaults.standard.set(userName, forKey: "user_name")
     }
-    
+
+    private func toggleFaceID(_ isEnabled: Bool) {
+        if isEnabled {
+            // Enable Face ID - requires biometric authentication
+            Task {
+                do {
+                    try await authService.enableFaceID()
+                } catch {
+                    print("Failed to enable Face ID: \(error.localizedDescription)")
+                }
+            }
+        } else {
+            // Disable Face ID
+            authService.disableFaceID()
+        }
+    }
+
     private func signOut() {
         authService.signOut()
         // TODO: Navigate back to login or main screen

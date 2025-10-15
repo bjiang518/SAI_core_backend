@@ -523,11 +523,20 @@ class LibraryDataService: ObservableObject {
     }
     
     private func fetchConversations() async -> (data: [[String: Any]], error: String?) {
-        // Fetch all conversations from server (force refresh to bypass NetworkService cache)
+        // STEP 1: Get local conversations first (immediate access)
+        let localStorage = ConversationLocalStorage.shared
+        let localConversations = localStorage.getLocalConversations()
+
+        // STEP 2: Fetch from server (may have replication lag)
         let result = await networkService.getArchivedSessionsWithParams([:], forceRefresh: true)
 
         guard result.success, let allSessions = result.sessions else {
             let errorMsg = "Failed to load conversations: \(result.message)"
+            // Return local conversations if server fails
+            if !localConversations.isEmpty {
+                print("⚠️ Server fetch failed, returning \(localConversations.count) local conversations")
+                return (localConversations, nil)
+            }
             return ([], errorMsg)
         }
 
@@ -572,10 +581,30 @@ class LibraryDataService: ObservableObject {
                 }
             }
 
-            return (accessibleSessions, nil)
+            // STEP 3: Merge local and server data (deduplicate by ID)
+            let mergedData = localStorage.mergeWithServerData(
+                localConversations: localConversations,
+                serverConversations: accessibleSessions
+            )
+
+            // STEP 4: Sync local storage (remove conversations that now exist on server)
+            let serverIds = accessibleSessions.compactMap { $0["id"] as? String }
+            localStorage.syncWithServer(serverConversationIds: serverIds)
+
+            return (mergedData, nil)
         }
 
-        return (validatedSessions, nil)
+        // STEP 3: Merge local and server data (deduplicate by ID)
+        let mergedData = localStorage.mergeWithServerData(
+            localConversations: localConversations,
+            serverConversations: validatedSessions
+        )
+
+        // STEP 4: Sync local storage (remove conversations that now exist on server)
+        let serverIds = validatedSessions.compactMap { $0["id"] as? String }
+        localStorage.syncWithServer(serverConversationIds: serverIds)
+
+        return (mergedData, nil)
     }
     
     // MARK: - Cache Management
@@ -669,6 +698,7 @@ protocol LibraryItem {
     var id: String { get }
     var title: String { get }
     var subject: String { get }
+    var topic: String { get }
     var date: Date { get }
     var itemType: LibraryItemType { get }
     var preview: String { get }
@@ -682,6 +712,7 @@ enum LibraryItemType {
 /// Extension to make QuestionSummary conform to LibraryItem
 extension QuestionSummary: LibraryItem {
     var title: String { return "Q: \(questionText.prefix(50))..." }
+    var topic: String { return subject }  // For questions, topic is the same as subject
     var date: Date { return archivedAt }
     var itemType: LibraryItemType { return .question }
     var preview: String { return questionText }
@@ -725,6 +756,10 @@ struct ConversationLibraryItem: LibraryItem {
     
     var subject: String {
         return data["subject"] as? String ?? "General"
+    }
+
+    var topic: String {
+        return data["topic"] as? String ?? data["subject"] as? String ?? "General"
     }
     
     var date: Date {
@@ -809,6 +844,26 @@ struct ConversationLibraryItem: LibraryItem {
     }
     
     var preview: String {
+        let conversationId = data["id"] as? String ?? "unknown"
+        print("🔍 [LibraryDataService] Generating preview for conversation: \(conversationId)")
+
+        // DEBUG: Dump all available keys in the data dictionary
+        print("   📋 Available keys in conversation data:")
+        for key in data.keys.sorted() {
+            let value = data[key]
+            if let stringValue = value as? String {
+                print("      • \(key): \(stringValue.prefix(100))")
+            } else if let intValue = value as? Int {
+                print("      • \(key): \(intValue)")
+            } else if let arrayValue = value as? [Any] {
+                print("      • \(key): [Array with \(arrayValue.count) items]")
+            } else if let dictValue = value as? [String: Any] {
+                print("      • \(key): [Dictionary with \(dictValue.keys.count) keys]")
+            } else {
+                print("      • \(key): \(type(of: value))")
+            }
+        }
+
         // For homework sessions, show question details
         if let aiParsingResult = data["aiParsingResult"] as? [String: Any] {
             let questionCount = aiParsingResult["questionCount"] as? Int ?? 0
@@ -819,56 +874,246 @@ struct ConversationLibraryItem: LibraryItem {
                 let confidence = data["overallConfidence"] as? Double ?? 0.0
                 let confidencePercent = Int(confidence * 100)
 
-                return "Homework session with \(count) questions • \(confidencePercent)% confidence"
+                let result = "Homework session with \(count) questions • \(confidencePercent)% confidence"
+                print("   📊 Returning homework preview: \(result)")
+                return result
             }
         }
 
         // For conversation sessions, try to show FIRST USER MESSAGE
         if let messages = data["messages"] as? [[String: Any]], !messages.isEmpty {
+            print("   💬 Found messages array with \(messages.count) messages")
             // Look for the first user message
-            for message in messages {
+            for (index, message) in messages.enumerated() {
                 let role = message["role"] as? String ?? ""
                 let sender = message["sender"] as? String ?? ""
+                print("      Message \(index): role=\(role), sender=\(sender)")
 
                 // Check if this is a user message (role: "user" or sender: "user")
                 if role.lowercased() == "user" || sender.lowercased() == "user" {
                     if let content = message["content"] as? String ?? message["message"] as? String {
-                        // Take first 100 characters of user's first message
-                        let preview = String(content.prefix(100))
-                        return preview + (content.count > 100 ? "..." : "")
+                        print("      ✅ Found user message: \(content.prefix(50))...")
+                        // Limit to 50 words as requested
+                        let words = content.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+                        let limitedWords = words.prefix(50)
+                        let preview = limitedWords.joined(separator: " ")
+                        let result = preview + (words.count > 50 ? "..." : "")
+                        print("   📤 Returning preview from messages array: \(result.prefix(80))...")
+                        return result
                     }
                 }
             }
+            print("   ⚠️ Messages array found but no user messages extracted")
+        } else {
+            print("   ⚠️ No messages array found in data")
         }
 
         // Fallback: Check for conversationContent
         if let conversationContent = data["conversationContent"] as? String, !conversationContent.isEmpty {
+            print("   📝 Checking conversationContent (length: \(conversationContent.count))")
+            print("      First 200 chars: \(conversationContent.prefix(200))")
+
             // Try to extract user's message from conversation content
             let lines = conversationContent.components(separatedBy: .newlines)
-            for line in lines {
+            for (index, line) in lines.enumerated() {
                 let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                // Skip archive headers and metadata lines
+                if trimmedLine.hasPrefix("===") ||
+                   trimmedLine.hasPrefix("Conversation Archive") ||
+                   trimmedLine.hasPrefix("Session archived") ||
+                   trimmedLine.hasPrefix("Session:") ||
+                   trimmedLine.hasPrefix("Subject:") ||
+                   trimmedLine.hasPrefix("Topic:") ||
+                   trimmedLine.hasPrefix("Archived:") ||
+                   trimmedLine.hasPrefix("Messages:") ||
+                   trimmedLine.hasPrefix("[") && trimmedLine.hasSuffix("]") || // Skip timestamp-only lines like "[10/14/2025, 5:39:00 AM]"
+                   trimmedLine.isEmpty {
+                    print("      Line \(index): SKIPPED - \(trimmedLine.prefix(50))")
+                    continue
+                }
+
+                print("      Line \(index): \(trimmedLine.prefix(50))...")
+
                 // Look for user message (lines starting with "User:" or not prefixed with "AI:")
-                if !trimmedLine.isEmpty && !trimmedLine.hasPrefix("AI:") {
-                    let cleanedLine = trimmedLine.replacingOccurrences(of: "^User:\\s*", with: "", options: .regularExpression)
+                if !trimmedLine.hasPrefix("AI:") {
+                    // Clean up common prefixes
+                    var cleanedLine = trimmedLine
+                    cleanedLine = cleanedLine.replacingOccurrences(of: "^User:\\s*", with: "", options: .regularExpression)
+                    cleanedLine = cleanedLine.replacingOccurrences(of: "^Student:\\s*", with: "", options: .regularExpression)
+                    cleanedLine = cleanedLine.replacingOccurrences(of: "^\\[.*?\\]\\s*User:\\s*", with: "", options: .regularExpression) // Clean "[timestamp] User:" pattern
+
                     if !cleanedLine.isEmpty {
-                        let preview = String(cleanedLine.prefix(100))
-                        return preview + (cleanedLine.count > 100 ? "..." : "")
+                        print("      ✅ Found user message from content: \(cleanedLine.prefix(50))...")
+                        // Limit to 50 words as requested
+                        let words = cleanedLine.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+                        let limitedWords = words.prefix(50)
+                        let preview = limitedWords.joined(separator: " ")
+                        let result = preview + (words.count > 50 ? "..." : "")
+                        print("   📤 Returning preview from conversationContent: \(result.prefix(80))...")
+                        return result
                     }
                 }
             }
+            print("   ⚠️ conversationContent found but no user messages extracted")
+        } else {
+            print("   ⚠️ No conversationContent found in data")
         }
 
         // For conversation sessions, show message count if no content available
         let messageCount = data["message_count"] as? Int ?? data["messageCount"] as? Int ?? 0
         if messageCount > 0 {
-            return "\(messageCount) messages in conversation"
+            let result = "\(messageCount) messages in conversation"
+            print("   📤 Returning message count preview: \(result)")
+            return result
         }
 
         // Fallback for other session types
         if let notes = data["notes"] as? String, !notes.isEmpty {
-            return notes.prefix(100) + (notes.count > 100 ? "..." : "")
+            print("   📋 Using notes field")
+            // Limit to 50 words
+            let words = notes.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+            let limitedWords = words.prefix(50)
+            let preview = limitedWords.joined(separator: " ")
+            let result = preview + (words.count > 50 ? "..." : "")
+            print("   📤 Returning preview from notes: \(result.prefix(80))...")
+            return result
         }
 
-        return "Study session"
+        let fallbackResult = "Study session"
+        print("   📤 Returning fallback preview: \(fallbackResult)")
+        return fallbackResult
+    }
+}//
+//  ConversationLocalStorage.swift
+//  StudyAI
+//
+//  Created by Claude Code on 10/14/25.
+//
+
+import Foundation
+
+/// Local storage manager for archived conversations
+/// Provides immediate access to recently archived conversations while backend replication syncs
+class ConversationLocalStorage {
+    static let shared = ConversationLocalStorage()
+
+    private let userDefaults = UserDefaults.standard
+    private let conversationsKey = "localArchivedConversations"
+    private let maxLocalConversations = 50 // Keep last 50 conversations locally
+
+    private init() {}
+
+    // MARK: - Save to Local Storage
+
+    /// Save a newly archived conversation to local storage
+    func saveConversation(_ conversation: [String: Any]) {
+        print("💾 [LocalStorage] Saving conversation to local storage")
+        print("   • ID: \(conversation["id"] as? String ?? "unknown")")
+
+        var conversations = getLocalConversations()
+
+        // Add new conversation at the beginning (most recent first)
+        conversations.insert(conversation, at: 0)
+
+        // Keep only the most recent conversations
+        if conversations.count > maxLocalConversations {
+            conversations = Array(conversations.prefix(maxLocalConversations))
+            print("   • Trimmed to \(maxLocalConversations) conversations")
+        }
+
+        // Save to UserDefaults
+        if let data = try? JSONSerialization.data(withJSONObject: conversations) {
+            userDefaults.set(data, forKey: conversationsKey)
+            print("   ✅ Saved to local storage (total: \(conversations.count))")
+        } else {
+            print("   ❌ Failed to serialize conversations")
+        }
+    }
+
+    // MARK: - Fetch from Local Storage
+
+    /// Get all locally stored conversations
+    func getLocalConversations() -> [[String: Any]] {
+        guard let data = userDefaults.data(forKey: conversationsKey),
+              let conversations = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            print("💾 [LocalStorage] No local conversations found")
+            return []
+        }
+
+        print("💾 [LocalStorage] Found \(conversations.count) local conversations")
+        return conversations
+    }
+
+    /// Merge local conversations with server conversations (deduplicating by ID)
+    func mergeWithServerData(localConversations: [[String: Any]], serverConversations: [[String: Any]]) -> [[String: Any]] {
+        print("🔄 [LocalStorage] Merging local and server data")
+        print("   • Local: \(localConversations.count) conversations")
+        print("   • Server: \(serverConversations.count) conversations")
+
+        var mergedConversations: [[String: Any]] = []
+        var seenIds = Set<String>()
+
+        // Add local conversations first (most recent)
+        for conversation in localConversations {
+            if let id = conversation["id"] as? String {
+                if !seenIds.contains(id) {
+                    mergedConversations.append(conversation)
+                    seenIds.insert(id)
+                }
+            }
+        }
+
+        // Add server conversations (avoid duplicates)
+        for conversation in serverConversations {
+            if let id = conversation["id"] as? String {
+                if !seenIds.contains(id) {
+                    mergedConversations.append(conversation)
+                    seenIds.insert(id)
+                }
+            }
+        }
+
+        print("   ✅ Merged result: \(mergedConversations.count) conversations")
+        return mergedConversations
+    }
+
+    // MARK: - Cleanup
+
+    /// Remove a conversation from local storage (e.g., when confirmed synced with server)
+    func removeConversation(withId id: String) {
+        var conversations = getLocalConversations()
+        conversations.removeAll { ($0["id"] as? String) == id }
+
+        if let data = try? JSONSerialization.data(withJSONObject: conversations) {
+            userDefaults.set(data, forKey: conversationsKey)
+            print("💾 [LocalStorage] Removed conversation \(id)")
+        }
+    }
+
+    /// Clear all local conversations (e.g., on logout)
+    func clearAll() {
+        userDefaults.removeObject(forKey: conversationsKey)
+        print("💾 [LocalStorage] Cleared all local conversations")
+    }
+
+    /// Sync with server: Remove local conversations that exist on server
+    func syncWithServer(serverConversationIds: [String]) {
+        var conversations = getLocalConversations()
+        let initialCount = conversations.count
+
+        conversations.removeAll { conversation in
+            if let id = conversation["id"] as? String {
+                return serverConversationIds.contains(id)
+            }
+            return false
+        }
+
+        if conversations.count != initialCount {
+            if let data = try? JSONSerialization.data(withJSONObject: conversations) {
+                userDefaults.set(data, forKey: conversationsKey)
+                print("💾 [LocalStorage] Synced with server: removed \(initialCount - conversations.count) conversations")
+            }
+        }
     }
 }

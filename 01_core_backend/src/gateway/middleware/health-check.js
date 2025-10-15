@@ -99,16 +99,18 @@ class HealthCheckService {
     setInterval(async () => {
       try {
         const health = await this.checkAllServices();
-        console.log(`Health check completed: ${health.status}`);
-        
-        // Log any unhealthy services
-        Object.entries(health.services).forEach(([name, status]) => {
-          if (!status.healthy) {
-            console.warn(`Service ${name} is unhealthy:`, status);
-          }
-        });
+
+        // Only log if there are issues (reduce log noise)
+        if (health.status !== 'healthy') {
+          console.warn(`⚠️ Health check: ${health.status}`);
+          Object.entries(health.services).forEach(([name, status]) => {
+            if (!status.healthy) {
+              console.warn(`   ${name}: ${status.status} (${status.error || status.details?.error || 'unknown error'})`);
+            }
+          });
+        }
       } catch (error) {
-        console.error('Health check failed:', error);
+        console.error('❌ Health check failed:', error.message);
       }
     }, 60000);
   }

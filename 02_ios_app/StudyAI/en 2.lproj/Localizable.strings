@@ -483,3 +483,333 @@
 
 "library.advancedSearch.sortOrder" = "Sort Order";
 "library.advancedSearch.sortBy" = "Sort By";
+
+// Contact Support
+"contactSupport.subtitle" = "We're here to help\!";
+"contactSupport.emailTitle" = "Email Support";
+"contactSupport.emailDescription" = "Get detailed help via email";
+"contactSupport.chatTitle" = "Live Chat";
+"contactSupport.chatSubtitle" = "Available Mon-Fri 9am-5pm EST";
+"contactSupport.chatDescription" = "Chat with our support team";
+"contactSupport.forumTitle" = "Community Forum";
+"contactSupport.forumSubtitle" = "Join the conversation";
+"contactSupport.forumDescription" = "Connect with other students";
+"contactSupport.phoneTitle" = "Phone Support";
+"contactSupport.phoneDescription" = "Mon-Fri 9am-5pm EST";
+"contactSupport.averageResponseTime" = "Average Response Time";
+"contactSupport.emailResponseTime" = "Email: 24-48 hours";
+"contactSupport.chatResponseTime" = "Live Chat: < 5 minutes";
+"contactSupport.phoneResponseTime" = "Phone: Immediate";
+"contactSupport.emailNotAvailable" = "Email Not Available";
+"contactSupport.emailNotAvailableMessage" = "Please configure an email account in your device settings.";
+
+// Help Center
+"helpCenter.subtitle" = "Find answers to common questions";
+"helpCenter.faq1.question" = "How do I use the Homework Grader?";
+"helpCenter.faq1.answer" = "Take a photo of your homework or upload an image. Our AI will analyze it, detect questions, and provide detailed feedback with corrections and explanations.";
+"helpCenter.faq2.question" = "What subjects are supported?";
+"helpCenter.faq2.answer" = "StudyAI supports Mathematics, Physics, Chemistry, Biology, English, History, Geography, and Computer Science. We're constantly adding more subjects\!";
+"helpCenter.faq3.question" = "How do I change the AI voice?";
+"helpCenter.faq3.answer" = "Go to Settings > Study Mate > Select your study mate. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume.";
+"helpCenter.faq4.question" = "Can I review my past mistakes?";
+"helpCenter.faq4.answer" = "Yes\! Use the Mistake Review feature from the home screen to revisit questions you got wrong and practice similar problems.";
+"helpCenter.faq5.question" = "How does the streak system work?";
+"helpCenter.faq5.answer" = "Your streak increases each day you complete at least one study session. Maintain your streak to unlock achievements and rewards\!";
+"helpCenter.faq6.question" = "Is my data secure?";
+"helpCenter.faq6.answer" = "Yes\! We use industry-standard encryption and secure authentication. Your homework and learning data are stored securely and never shared with third parties.";
+"helpCenter.faq7.question" = "How do I track my progress?";
+"helpCenter.faq7.answer" = "Visit the Progress tab to see detailed statistics, accuracy trends, subject performance, and weekly learning patterns.";
+"helpCenter.faq8.question" = "What is the difference between Detail and Fast parsing?";
+"helpCenter.faq8.answer" = "Detail mode provides more accurate parsing with hierarchical structure and parent-child relationships. Fast mode is quicker but simpler. Use Detail for complex homework.";
+"helpCenter.quickLinks" = "Quick Links";
+"helpCenter.gettingStarted" = "Getting Started Guide";
+"helpCenter.videoTutorials" = "Video Tutorials";
+"helpCenter.studyTips" = "Study Tips & Best Practices";
+
+// Share App
+"shareApp.subtitle" = "Help your friends excel in their studies\!";
+"shareApp.messageTitle" = "Share Message";
+"shareApp.messagePreview" = "\"Check out StudyAI - the best AI-powered homework helper\!\"";
+"shareApp.feature1" = "✓ AI-powered homework grading";
+"shareApp.feature2" = "✓ Interactive AI tutor";
+"shareApp.feature3" = "✓ Mistake review & practice";
+"shareApp.feature4" = "✓ Progress tracking";
+"shareApp.downloadLink" = "Download now: https://studyai.app";
+"shareApp.shareViaTitle" = "Share via...";
+"shareApp.shareViaSubtitle" = "Messages, Email, Social Media & More";
+"shareApp.copyLinkTitle" = "Copy App Link";
+"shareApp.copyLinkSubtitle" = "Share the download link anywhere";
+"shareApp.scanToDownload" = "Scan to Download";
+"shareApp.qrCode" = "QR Code";
+"shareApp.showQRCode" = "Show this QR code to friends";
+"shareApp.comingSoonReferral" = "Coming Soon: Referral Rewards\!";
+"shareApp.earnPoints" = "Earn points for every friend who joins StudyAI";
+"shareApp.downloadNow" = "Download now:";
+
+// Chat View
+"chat.subjects.mathematics" = "Mathematics";
+"chat.subjects.physics" = "Physics";
+"chat.subjects.chemistry" = "Chemistry";
+"chat.subjects.biology" = "Biology";
+"chat.subjects.history" = "History";
+"chat.subjects.literature" = "Literature";
+"chat.subjects.geography" = "Geography";
+"chat.subjects.computerScience" = "Computer Science";
+"chat.subjects.economics" = "Economics";
+"chat.subjects.psychology" = "Psychology";
+"chat.subjects.philosophy" = "Philosophy";
+"chat.subjects.general" = "General";
+
+// Menu Items
+"chat.menu.newSession" = "New Session";
+"chat.menu.sessionInfo" = "Session Info";
+"chat.menu.voiceSettings" = "Voice Settings";
+"chat.menu.enableVoice" = "Enable Voice";
+"chat.menu.disableVoice" = "Disable Voice";
+"chat.menu.archiveSession" = "Archive Session";
+
+// Archive Dialog
+"chat.archive.title" = "Archive Session";
+"chat.archive.titleField" = "Title";
+"chat.archive.topicField" = "Topic";
+"chat.archive.notesField" = "Notes (Optional)";
+"chat.archive.titlePlaceholder" = "Enter archive title...";
+"chat.archive.topicPlaceholder" = "Enter topic (e.g., %@)...";
+"chat.archive.notesPlaceholder" = "Add any notes about this session...";
+"chat.archive.buttonTitle" = "Archive Session";
+"chat.archive.infoTitle" = "Archive Information";
+"chat.archive.infoMessage" = "Save this conversation for future reference. You can add a custom title and notes to help you remember what you learned.";
+
+// Input
+"chat.input.placeholder" = "Message";
+"chat.input.archiveTitle" = "Enter archive title...";
+"chat.input.archiveTopic" = "Enter topic (e.g., %@)...";
+"chat.input.archiveNotes" = "Add any notes about this session...";
+"chat.input.addComment" = "Add a comment...";
+
+// Alerts
+"chat.alert.cameraPermission.title" = "Camera Permission";
+"chat.alert.cameraPermission.message" = "StudyAI needs camera access to scan homework questions. Please enable camera permission in Settings.";
+"chat.alert.currentChatExists.title" = "Current Chat Exists";
+"chat.alert.currentChatExists.message" = "You have an active chat session. Would you like to archive it first, or discard it and start a new session with this homework question?";
+"chat.alert.currentChatExists.archiveCurrent" = "Archive Current Chat";
+"chat.alert.currentChatExists.discardAndStart" = "Discard & Start New";
+"chat.alert.error.title" = "Error";
+"chat.alert.archiveSuccess.title" = "Archive Successful! 🎉";
+"chat.alert.archiveSuccess.message" = "%@ has been successfully archived and saved to your Study Library.";
+"chat.alert.archiveSuccess.viewInLibrary" = "View in Library";
+
+// Empty State
+"chat.emptyState.greeting" = "Hi! I'm %@";
+"chat.emptyState.subtext" = "Ask me anything about %@ and I'll help you learn!";
+"chat.emptyState.tryAsking" = "Try asking:";
+
+// Smart Suggestions
+"chat.suggestion.showSteps" = "Show steps";
+"chat.suggestion.trySimilarProblem" = "Try similar problem";
+"chat.suggestion.explainMethod" = "Explain method";
+"chat.suggestion.realExamples" = "Real examples";
+"chat.suggestion.howItWorks" = "How it works";
+"chat.suggestion.connectToDailyLife" = "Connect to daily life";
+"chat.suggestion.giveExamples" = "Give examples";
+"chat.suggestion.compareWith" = "Compare with";
+"chat.suggestion.useInSentence" = "Use in sentence";
+"chat.suggestion.explainWhy" = "Explain why";
+"chat.suggestion.alternativeApproach" = "Alternative approach";
+"chat.suggestion.practiceProblem" = "Practice problem";
+"chat.suggestion.whenDidThisHappen" = "When did this happen";
+"chat.suggestion.whoWasInvolved" = "Who was involved";
+"chat.suggestion.whatCausedThis" = "What caused this";
+"chat.suggestion.analyzeMeaning" = "Analyze meaning";
+"chat.suggestion.findThemes" = "Find themes";
+"chat.suggestion.authorsIntent" = "Author's intent";
+"chat.suggestion.explainDifferently" = "Explain differently";
+"chat.suggestion.giveExample" = "Give example";
+"chat.suggestion.moreDetails" = "More details";
+
+// Contextual Prompts
+"chat.prompt.showSteps" = "Can you break down the solution into detailed steps?";
+"chat.prompt.trySimilarProblem" = "Can you give me a similar problem to practice?";
+"chat.prompt.explainMethod" = "Can you explain the method or formula used here?";
+"chat.prompt.moreExamples" = "Can you provide more examples of this concept?";
+"chat.prompt.relatedConcepts" = "What other concepts are related to this topic?";
+"chat.prompt.giveExamples" = "Can you give me some concrete examples?";
+"chat.prompt.compareWith" = "How does this compare to similar concepts?";
+"chat.prompt.useInSentence" = "Can you show me how to use this in a sentence?";
+"chat.prompt.explainWhy" = "Why does this method work? Can you explain the reasoning?";
+"chat.prompt.alternativeApproach" = "Is there another way to solve this problem?";
+"chat.prompt.practiceProblem" = "Can you give me a practice problem to test my understanding?";
+"chat.prompt.realExamples" = "Can you give me real-world examples of this?";
+"chat.prompt.howItWorks" = "Can you explain in detail how this process works?";
+"chat.prompt.connectToDailyLife" = "How does this concept relate to everyday life?";
+"chat.prompt.explainDifferently" = "Can you explain this concept in a different way?";
+"chat.prompt.giveExample" = "Can you provide a specific example?";
+"chat.prompt.moreDetails" = "Can you elaborate on this topic with more details?";
+
+// Example Prompts - Mathematics
+"chat.example.math.1" = "Solve: 2x + 5 = 13";
+"chat.example.math.2" = "What is the derivative of x²?";
+"chat.example.math.3" = "Explain the Pythagorean theorem";
+"chat.example.math.4" = "How do I factor x² + 5x + 6?";
+
+// Example Prompts - Physics
+"chat.example.physics.1" = "Explain Newton's laws of motion";
+"chat.example.physics.2" = "What is kinetic energy?";
+"chat.example.physics.3" = "How does gravity work?";
+"chat.example.physics.4" = "Calculate force with F = ma";
+
+// Example Prompts - Chemistry
+"chat.example.chemistry.1" = "How do I balance equations?";
+"chat.example.chemistry.2" = "Explain the periodic table";
+"chat.example.chemistry.3" = "What are covalent bonds?";
+"chat.example.chemistry.4" = "Describe the states of matter";
+
+// Example Prompts - Biology
+"chat.example.biology.1" = "Explain photosynthesis";
+"chat.example.biology.2" = "What is DNA?";
+"chat.example.biology.3" = "How does cell division work?";
+"chat.example.biology.4" = "Describe the human circulatory system";
+
+// Example Prompts - History
+"chat.example.history.1" = "What caused World War II?";
+"chat.example.history.2" = "Explain the French Revolution";
+"chat.example.history.3" = "Who was Julius Caesar?";
+"chat.example.history.4" = "Describe the Industrial Revolution";
+
+// Example Prompts - Literature
+"chat.example.literature.1" = "Analyze Shakespeare's Hamlet";
+"chat.example.literature.2" = "What are literary devices?";
+"chat.example.literature.3" = "Explain the hero's journey";
+"chat.example.literature.4" = "Compare metaphor and simile";
+
+// Example Prompts - Geography
+"chat.example.geography.1" = "Where are the major oceans?";
+"chat.example.geography.2" = "Explain plate tectonics";
+"chat.example.geography.3" = "What causes climate zones?";
+"chat.example.geography.4" = "Describe the water cycle";
+
+// Example Prompts - Computer Science
+"chat.example.computerScience.1" = "What is an algorithm?";
+"chat.example.computerScience.2" = "Explain binary numbers";
+"chat.example.computerScience.3" = "How do loops work in programming?";
+"chat.example.computerScience.4" = "What is object-oriented programming?";
+
+// Example Prompts - Economics
+"chat.example.economics.1" = "What is supply and demand?";
+"chat.example.economics.2" = "Explain inflation";
+"chat.example.economics.3" = "How does GDP work?";
+"chat.example.economics.4" = "What are market structures?";
+
+// Example Prompts - Psychology
+"chat.example.psychology.1" = "What is classical conditioning?";
+"chat.example.psychology.2" = "Explain cognitive development";
+"chat.example.psychology.3" = "How does memory work?";
+"chat.example.psychology.4" = "What are defense mechanisms?";
+
+// Example Prompts - Philosophy
+"chat.example.philosophy.1" = "What is Socratic method?";
+"chat.example.philosophy.2" = "Explain existentialism";
+"chat.example.philosophy.3" = "What is the trolley problem?";
+"chat.example.philosophy.4" = "Describe ethical theories";
+
+// Example Prompts - General
+"chat.example.general.1" = "Help me understand this concept";
+"chat.example.general.2" = "Explain this step by step";
+"chat.example.general.3" = "What does this mean?";
+"chat.example.general.4" = "Can you give me an example?";
+
+// Default Examples
+"chat.example.default.1" = "Ask me any question";
+"chat.example.default.2" = "I'm here to help you learn";
+"chat.example.default.3" = "Let's explore together";
+"chat.example.default.4" = "What would you like to know?";
+
+
+// Edit Profile View
+"editProfile.title" = "Edit Profile";
+"editProfile.cancel" = "Cancel";
+"editProfile.save" = "Save";
+"editProfile.error" = "Error";
+"editProfile.profileUpdated" = "Profile Updated";
+"editProfile.profileUpdatedMessage" = "Your profile has been updated successfully\!";
+"editProfile.savingProfile" = "Saving Profile...";
+
+// Personal Information
+"editProfile.personalInfo" = "Personal Information";
+"editProfile.firstName" = "First Name";
+"editProfile.firstNamePlaceholder" = "Enter first name";
+"editProfile.lastName" = "Last Name";
+"editProfile.lastNamePlaceholder" = "Enter last name";
+"editProfile.displayName" = "Display Name (Optional)";
+"editProfile.displayNamePlaceholder" = "Preferred name to show";
+"editProfile.addDateOfBirth" = "Add Date of Birth";
+"editProfile.dateOfBirth" = "Date of Birth";
+
+// Children Information
+"editProfile.childrenInfo" = "Children Information";
+"editProfile.childrenInfoDescription" = "Enter your child's age if you're helping them with studies";
+"editProfile.childAge" = "Child's Age";
+"editProfile.childAgePlaceholder" = "Enter child's age (1-18)";
+
+// Location
+"editProfile.location" = "Location";
+"editProfile.city" = "City";
+"editProfile.cityPlaceholder" = "Enter city";
+"editProfile.stateProvince" = "State/Province";
+"editProfile.stateProvincePlaceholder" = "Enter state or province";
+"editProfile.country" = "Country";
+"editProfile.countryPlaceholder" = "Enter country";
+
+// Academic Preferences
+"editProfile.academicPreferences" = "Academic Preferences";
+"editProfile.gradeLevel" = "Current Grade Level";
+"editProfile.gradeLevelPicker" = "Grade Level";
+"editProfile.selectGradeLevel" = "Select Grade Level";
+"editProfile.favoriteSubjects" = "Favorite Subjects";
+"editProfile.addSubjects" = "Add Subjects";
+"editProfile.learningStyle" = "Learning Style";
+"editProfile.selectLearningStyle" = "Select Learning Style";
+
+// Optional Information
+"editProfile.optionalInfo" = "Optional Information";
+"editProfile.gender" = "Gender (Optional)";
+"editProfile.genderPicker" = "Gender";
+"editProfile.genderPreferNotToSpecify" = "Prefer not to specify";
+"editProfile.genderFemale" = "Female";
+"editProfile.genderMale" = "Male";
+"editProfile.genderNonBinary" = "Non-binary";
+"editProfile.genderOther" = "Other";
+"editProfile.languagePreference" = "Language Preference";
+"editProfile.languagePicker" = "Language";
+"editProfile.languageEnglish" = "English";
+"editProfile.languageSpanish" = "Spanish";
+"editProfile.languageFrench" = "French";
+"editProfile.languageGerman" = "German";
+"editProfile.languageChinese" = "Chinese";
+"editProfile.languageJapanese" = "Japanese";
+
+// Subject Picker
+"editProfile.selectSubjects" = "Select Subjects";
+
+// Validation
+"editProfile.validationNameRequired" = "First name and last name are required";
+
+// Session Detail View
+"sessionDetail.loading" = "Loading...";
+"sessionDetail.errorLoading" = "Error loading content";
+"sessionDetail.contentNotFound" = "Content not found";
+"sessionDetail.conversationDetails" = "Conversation Details";
+"sessionDetail.sessionDetails" = "Session Details";
+"sessionDetail.questions" = "Questions";
+"sessionDetail.confidence" = "Confidence";
+"sessionDetail.questionsAndAnswers" = "Questions & Answers";
+"sessionDetail.items" = "items";
+"sessionDetail.notes" = "Notes";
+"sessionDetail.sessionInfo" = "Session Info";
+"sessionDetail.processingTime" = "Processing Time";
+"sessionDetail.parsingMethod" = "Parsing Method";
+"sessionDetail.reviewCount" = "Review Count";
+"sessionDetail.created" = "Created";
+"sessionDetail.conversation" = "Conversation";
+"sessionDetail.conversationInfo" = "Conversation Info";
+"sessionDetail.topic" = "Topic";

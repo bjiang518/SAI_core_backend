@@ -240,9 +240,61 @@ enum GradeLevel: String, CaseIterable {
     case grade12 = "12th Grade"
     case college = "College"
     case adult = "Adult Learner"
-    
+
     var displayName: String {
         return self.rawValue
+    }
+
+    var integerValue: Int {
+        switch self {
+        case .preK: return -1
+        case .kindergarten: return 0
+        case .grade1: return 1
+        case .grade2: return 2
+        case .grade3: return 3
+        case .grade4: return 4
+        case .grade5: return 5
+        case .grade6: return 6
+        case .grade7: return 7
+        case .grade8: return 8
+        case .grade9: return 9
+        case .grade10: return 10
+        case .grade11: return 11
+        case .grade12: return 12
+        case .college: return 13
+        case .adult: return 14
+        }
+    }
+
+    static func from(integerValue: Int) -> GradeLevel? {
+        switch integerValue {
+        case -1: return .preK
+        case 0: return .kindergarten
+        case 1: return .grade1
+        case 2: return .grade2
+        case 3: return .grade3
+        case 4: return .grade4
+        case 5: return .grade5
+        case 6: return .grade6
+        case 7: return .grade7
+        case 8: return .grade8
+        case 9: return .grade9
+        case 10: return .grade10
+        case 11: return .grade11
+        case 12: return .grade12
+        case 13: return .college
+        case 14: return .adult
+        default: return nil
+        }
+    }
+
+    static func from(string: String) -> GradeLevel? {
+        // Try to parse as integer first
+        if let intValue = Int(string) {
+            return from(integerValue: intValue)
+        }
+        // Fall back to raw value matching
+        return GradeLevel.allCases.first { $0.rawValue == string }
     }
 }
 
@@ -353,7 +405,16 @@ extension UserProfile {
         if let subjectsArray = dict["favoriteSubjects"] as? [String] ?? dict["favorite_subjects"] as? [String] {
             favoriteSubjects = subjectsArray
         }
-        
+
+        // Parse grade level - handle both integer and string formats
+        var gradeLevel: String?
+        if let gradeLevelInt = dict["gradeLevel"] as? Int ?? dict["grade_level"] as? Int {
+            // Backend sends integer, convert to string
+            gradeLevel = String(gradeLevelInt)
+        } else if let gradeLevelStr = dict["gradeLevel"] as? String ?? dict["grade_level"] as? String {
+            gradeLevel = gradeLevelStr
+        }
+
         return UserProfile(
             id: id,
             email: email,
@@ -363,7 +424,7 @@ extension UserProfile {
             firstName: dict["firstName"] as? String ?? dict["first_name"] as? String,
             lastName: dict["lastName"] as? String ?? dict["last_name"] as? String,
             displayName: dict["displayName"] as? String ?? dict["display_name"] as? String,
-            gradeLevel: dict["gradeLevel"] as? String ?? dict["grade_level"] as? String,
+            gradeLevel: gradeLevel,
             dateOfBirth: dateOfBirth,
             kidsAges: kidsAges,
             gender: dict["gender"] as? String,
@@ -407,7 +468,13 @@ extension UserProfile {
             dict["displayName"] = displayName
         }
         if let gradeLevel = gradeLevel {
-            dict["gradeLevel"] = gradeLevel
+            // Send gradeLevel as integer if it's a valid integer string
+            if let gradeLevelInt = Int(gradeLevel) {
+                dict["gradeLevel"] = gradeLevelInt
+            } else {
+                // Fallback to string if not an integer
+                dict["gradeLevel"] = gradeLevel
+            }
         }
         if let dateOfBirth = dateOfBirth {
             // Backend expects date format "YYYY-MM-DD", not full ISO8601 datetime

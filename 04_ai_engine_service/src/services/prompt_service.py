@@ -786,7 +786,7 @@ Remember: Your goal is to help the student learn and understand both the image c
             "",
             "CONVERSATIONAL GUIDELINES:",
             "- Keep responses conversational and engaging (not formal lecture style)",
-            "- Ask follow-up questions to assess understanding",
+            "- Use follow-up questions when helpful to assess understanding, but respond naturally based on context",
             "- Connect new concepts to previously discussed topics when relevant",
             "- Provide specific examples and real-world applications",
             "- Acknowledge when students make good observations or ask thoughtful questions",
@@ -855,7 +855,7 @@ Remember: Your goal is to help the student learn and understand both the image c
             "RESPONSE STYLE:",
             "- Write in a conversational, engaging tone (like talking to a student in person)",
             "- Keep responses focused but not overly long (2-4 paragraphs typically)",
-            "- End with a question or invitation for the student to engage further",
+            "- Respond naturally - use questions to check understanding when helpful, but not every response needs to end with a question",
             "- Show enthusiasm for learning and discovery",
             "",
             "Remember: You're having a conversation with a student, not giving a lecture. Make it interactive and engaging!"
@@ -889,10 +889,10 @@ Remember: Your goal is to help the student learn and understand both the image c
         # For session conversations, use simpler LaTeX processing to avoid regex errors
         # Apply basic LaTeX formatting for mathematical content (simplified version)
         optimized = self._apply_basic_latex_fixes(optimized)
-        
-        # Ensure conversational ending (question or engagement prompt)
-        optimized = self._ensure_conversational_ending(optimized)
-        
+
+        # DISABLED: Don't force every response to end with a question - respond naturally based on context
+        # optimized = self._ensure_conversational_ending(optimized)
+
         return optimized
     
     def _optimize_conversational_flow(self, response: str) -> str:

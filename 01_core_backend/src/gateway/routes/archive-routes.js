@@ -1122,14 +1122,19 @@ class ArchiveRoutes {
       const { userId } = request.params;
       const { subject, range } = request.query;
 
-      this.fastify.log.info(`📚 Fetching mistakes for user: ${userId}, subject: ${subject}, range: ${range}`);
+      this.fastify.log.info(`📚 Fetching mistakes/review questions for user: ${userId}, subject: ${subject}, range: ${range}`);
 
+      // Include multiple grade statuses for comprehensive review:
+      // - INCORRECT: definitely mistakes
+      // - PARTIAL_CREDIT: partially correct (worth reviewing)
+      // - EMPTY: no grade assigned (potentially mistakes)
+      // - NULL: missing grade field (legacy data or parsing issues)
       let query = `
         SELECT
           id, subject, question_text, answer_text, student_answer,
-          confidence, points, max_points, feedback, tags, notes, archived_at
+          confidence, points, max_points, feedback, tags, notes, archived_at, grade
         FROM archived_questions
-        WHERE user_id = $1 AND grade = 'INCORRECT'
+        WHERE user_id = $1 AND (grade = 'INCORRECT' OR grade = 'PARTIAL_CREDIT' OR grade = 'EMPTY' OR grade IS NULL)
       `;
 
       const values = [userId];

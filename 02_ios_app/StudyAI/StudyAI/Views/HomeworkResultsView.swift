@@ -406,12 +406,14 @@ struct HomeworkResultsView: View {
                 print("🎯 DEBUG: Mark Progress button tapped!")
                 print("🎯 DEBUG: Current todayProgress BEFORE: \(pointsManager.todayProgress?.totalQuestions ?? 0) questions, \(pointsManager.todayProgress?.correctAnswers ?? 0) correct")
 
-                trackHomeworkUsage()
+                // Only track if not already marked
+                if !hasMarkedProgress {
+                    trackHomeworkUsage()
+                    hasMarkedProgress = true
+                    saveProgressState() // Persist the state
+                }
 
                 print("🎯 DEBUG: Current todayProgress AFTER: \(pointsManager.todayProgress?.totalQuestions ?? 0) questions, \(pointsManager.todayProgress?.correctAnswers ?? 0) correct")
-
-                hasMarkedProgress = true
-                saveProgressState() // Persist the state
 
                 // Show success feedback
                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -1056,16 +1058,32 @@ extension HomeworkResultsView {
             let archivedQuestions = try await questionArchiveService.archiveQuestions(request)
 
             await MainActor.run {
-                archiveMessage = "Successfully archived \(archivedQuestions.count) question(s) to your Mistake Notebook!"
+                // Calculate how many duplicates were skipped
+                let skippedCount = request.selectedQuestionIndices.count - archivedQuestions.count
+
+                if skippedCount > 0 {
+                    archiveMessage = "Successfully archived \(archivedQuestions.count) question(s)! Skipped \(skippedCount) duplicate(s) that were already archived."
+                } else {
+                    archiveMessage = "Successfully archived \(archivedQuestions.count) question(s) to your Mistake Notebook!"
+                }
+
                 isArchiving = false
                 showingQuestionArchiveDialog = false
                 selectedQuestionIndices.removeAll()
 
-                // Automatically track progress for archived questions
-                print("🎯 DEBUG: Auto-tracking progress for archived questions")
-                trackHomeworkUsage()
-                hasMarkedProgress = true
-                saveProgressState() // Persist the state
+                // Automatically track progress for archived questions (only if not already marked)
+                if !hasMarkedProgress {
+                    print("🎯 DEBUG: Auto-tracking progress for archived questions")
+                    trackHomeworkUsage()
+                    hasMarkedProgress = true
+                    saveProgressState() // Persist the state
+                }
+            }
+        } catch QuestionArchiveError.allQuestionsAreDuplicates(let count) {
+            await MainActor.run {
+                archiveMessage = "All \(count) selected question(s) have already been archived. No new questions were added."
+                isArchiving = false
+                showingQuestionArchiveDialog = false
             }
         } catch {
             await MainActor.run {

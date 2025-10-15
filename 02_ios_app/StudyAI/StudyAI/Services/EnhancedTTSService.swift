@@ -306,9 +306,6 @@ class EnhancedTTSService: NSObject, ObservableObject {
             if httpResponse.statusCode == 200 {
                 return data
             } else {
-                let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
-                print("🎵 EnhancedTTSService: Server TTS Error (\(httpResponse.statusCode)): \(errorString)")
-
                 // Provide specific error messages for common issues
                 switch httpResponse.statusCode {
                 case 503:
@@ -318,7 +315,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
                 case 500:
                     throw TTSError.apiError(httpResponse.statusCode, "Server configuration error - using fallback voice")
                 default:
-                    throw TTSError.apiError(httpResponse.statusCode, errorString)
+                    throw TTSError.apiError(httpResponse.statusCode, "TTS request failed with status \(httpResponse.statusCode) - using fallback voice")
                 }
             }
         }

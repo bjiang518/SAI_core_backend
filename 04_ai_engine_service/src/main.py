@@ -110,37 +110,27 @@ app.add_middleware(
 app.middleware("http")(service_auth_middleware)
 
 # Initialize AI services
-print("🔄 === INITIALIZING AI SERVICES ===")
 ai_service = EducationalAIService()
-print("✅ EducationalAIService initialized")
 
 prompt_service = AdvancedPromptService()
-print("✅ AdvancedPromptService initialized")
 
 session_service = SessionService(ai_service, redis_client)
-print("✅ SessionService initialized")
 
 ai_analytics_service = AIAnalyticsService()
-print("✅ AIAnalyticsService initialized")
-print("=====================================")
 
 # Startup event to initialize keep-alive mechanism
 @app.on_event("startup")
 async def startup_event():
     """Initialize background tasks on startup"""
     if os.getenv('RAILWAY_KEEP_ALIVE') == 'true':
-        print("🚀 Starting keep-alive background task for Railway")
         asyncio.create_task(keep_alive_task())
-    print("✅ StudyAI AI Engine started successfully")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown"""
-    print("🔄 StudyAI AI Engine shutting down gracefully...")
     # Close Redis connection if exists
     if redis_client:
         await redis_client.close()
-    print("✅ Shutdown complete")
 
 # Request/Response Models
 class QuestionRequest(BaseModel):
@@ -740,24 +730,14 @@ async def process_chat_image(request: ChatImageRequest):
     
     import time
     start_time = time.time()
-    
+
     try:
-        print(f"🔄 === CHAT IMAGE ENDPOINT START ===")
-        print(f"📝 Prompt: '{request.prompt}'")
-        print(f"🆔 Session ID: {request.session_id}")
-        print(f"📚 Subject: {request.subject}")
-        print(f"👤 Student ID: {request.student_id}")
-        print(f"📄 Image size: {len(request.base64_image)} chars")
-        
         # Validate request
         if not request.base64_image:
             raise HTTPException(status_code=400, detail="No image data provided")
         if not request.prompt:
             raise HTTPException(status_code=400, detail="No prompt provided")
-        
-        print(f"✅ Request validation passed")
-        print(f"🔄 Calling AI service analyze_image_with_chat_context...")
-        
+
         # Use AI service for conversational image analysis
         result = await ai_service.analyze_image_with_chat_context(
             base64_image=request.base64_image,
@@ -766,21 +746,13 @@ async def process_chat_image(request: ChatImageRequest):
             session_id=request.session_id,
             student_context={"student_id": request.student_id}
         )
-        
-        print(f"🔍 AI service returned: {type(result)} - {result.keys() if isinstance(result, dict) else 'not a dict'}")
-        
+
         if not result.get("success", True):
             error_detail = result.get("error", "Chat image processing failed")
-            print(f"❌ AI service returned error: {error_detail}")
             raise HTTPException(status_code=500, detail=error_detail)
-        
+
         processing_time = int((time.time() - start_time) * 1000)
-        
-        print(f"✅ === CHAT IMAGE PROCESSING SUCCESS ===")
-        print(f"⏱️ Processing time: {processing_time}ms")
-        print(f"📝 Response length: {len(result.get('response', ''))} chars")
-        print(f"🎯 Tokens used: {result.get('tokens_used', 'unknown')}")
-        
+
         return ChatImageResponse(
             success=True,
             response=result.get("response", "I can see the image, but I'm having trouble processing it right now."),
@@ -789,15 +761,11 @@ async def process_chat_image(request: ChatImageRequest):
             image_analyzed=True,
             error=None
         )
-        
+
     except Exception as e:
         processing_time = int((time.time() - start_time) * 1000)
         error_msg = f"Chat image processing error: {str(e)}"
-        
-        print(f"❌ === CHAT IMAGE PROCESSING ERROR ===")
-        print(f"⏱️ Failed after: {processing_time}ms")
-        print(f"💥 Error: {error_msg}")
-        
+
         return ChatImageResponse(
             success=False,
             response="I'm having trouble analyzing this image right now. Please try again in a moment.",
@@ -827,12 +795,6 @@ async def process_chat_image_stream(request: ChatImageRequest):
     """
 
     try:
-        print(f"🔄 === STREAMING CHAT IMAGE ENDPOINT START ===")
-        print(f"📝 Prompt: '{request.prompt}'")
-        print(f"🆔 Session ID: {request.session_id}")
-        print(f"📚 Subject: {request.subject}")
-        print(f"👤 Student ID: {request.student_id}")
-
         # Validate request
         if not request.base64_image:
             raise HTTPException(status_code=400, detail="No image data provided")
@@ -900,15 +862,8 @@ async def process_homework_image(request: HomeworkParsingRequest):
     
     import time
     start_time = time.time()
-    
-    try:
-        print(f"📥 === HOMEWORK PARSING REQUEST ===")
-        print(f"📊 Student ID: {request.student_id}")
-        print(f"📏 Image length: {len(request.base64_image)} chars")
-        print(f"🔧 Parsing mode: {request.parsing_mode}")
-        print(f"📝 Prompt: {request.prompt[:200]}..." if len(request.prompt) > 200 else f"📝 Prompt: {request.prompt}")
-        print(f"=====================================")
 
+    try:
         # Use the AI service to parse homework with structured prompt
         result = await ai_service.parse_homework_image(
             base64_image=request.base64_image,
@@ -917,16 +872,8 @@ async def process_homework_image(request: HomeworkParsingRequest):
             parsing_mode=request.parsing_mode
         )
 
-        print(f"🔍 === AI SERVICE RESULT ===")
-        print(f"✅ Success: {result.get('success', False)}")
-        print(f"📊 Parsing method: {result.get('parsing_method', 'unknown')}")
-        print(f"📝 Response length: {len(result.get('structured_response', ''))} chars")
-        print(f"❌ Error: {result.get('error', 'None')}")
-        print(f"=====================================")
-
         if not result["success"]:
             error_msg = result.get("error", "Homework parsing failed")
-            print(f"❌ Parsing failed with error: {error_msg}")
             raise HTTPException(status_code=500, detail=error_msg)
 
         # Calculate processing time
@@ -939,18 +886,11 @@ async def process_homework_image(request: HomeworkParsingRequest):
             error=None
         )
 
-        print(f"📤 === SENDING RESPONSE BACK TO CLIENT ===")
-        print(f"✅ Success: True")
-        print(f"⏱️ Total processing time: {processing_time}ms")
-        print(f"📦 Response size: {len(result['structured_response'])} chars")
-        print(f"=====================================")
-
         return response_obj
 
     except HTTPException as he:
         # Re-raise HTTP exceptions
         processing_time = int((time.time() - start_time) * 1000)
-        print(f"❌ HTTP Exception: {he.detail}")
         return HomeworkParsingResponse(
             success=False,
             response="",
@@ -959,14 +899,8 @@ async def process_homework_image(request: HomeworkParsingRequest):
         )
     except Exception as e:
         processing_time = int((time.time() - start_time) * 1000)
-        print(f"❌ === UNEXPECTED ERROR ===")
-        print(f"💥 Error type: {type(e).__name__}")
-        print(f"💥 Error message: {str(e)}")
-        print(f"💥 Error details: {repr(e)}")
         import traceback
-        print(f"📚 Traceback:")
         traceback.print_exc()
-        print(f"=====================================")
         return HomeworkParsingResponse(
             success=False,
             response="",
@@ -1029,11 +963,6 @@ async def generate_random_questions(request: RandomQuestionsRequest, service_inf
     start_time = time.time()
 
     try:
-        print(f"🎯 === RANDOM QUESTIONS GENERATION START ===")
-        print(f"📚 Subject: {request.subject}")
-        print(f"⚙️  Config: {request.config}")
-        print(f"👤 User Profile: {request.user_profile}")
-
         # Use the AI service to generate random questions
         result = await ai_service.generate_random_questions(
             subject=request.subject,
@@ -1044,10 +973,6 @@ async def generate_random_questions(request: RandomQuestionsRequest, service_inf
         processing_time = int((time.time() - start_time) * 1000)
 
         if result["success"]:
-            print(f"✅ === RANDOM QUESTIONS GENERATION SUCCESS ===")
-            print(f"🎯 Generated {result.get('question_count', 0)} questions")
-            print(f"⏱️ Processing time: {processing_time}ms")
-
             return QuestionGenerationResponse(
                 success=True,
                 questions=result["questions"],
@@ -1062,7 +987,6 @@ async def generate_random_questions(request: RandomQuestionsRequest, service_inf
                 }
             )
         else:
-            print(f"❌ Random questions generation failed: {result.get('error')}")
             return QuestionGenerationResponse(
                 success=False,
                 generation_type="random",
@@ -1077,7 +1001,6 @@ async def generate_random_questions(request: RandomQuestionsRequest, service_inf
             "error_message": str(e),
             "traceback": traceback.format_exc()
         }
-        print(f"❌ Random Questions Generation Error: {error_details}")
 
         return QuestionGenerationResponse(
             success=False,
@@ -1109,12 +1032,6 @@ async def generate_mistake_based_questions(request: MistakeBasedQuestionsRequest
     start_time = time.time()
 
     try:
-        print(f"🎯 === MISTAKE-BASED QUESTIONS GENERATION START ===")
-        print(f"📚 Subject: {request.subject}")
-        print(f"❌ Mistakes Count: {len(request.mistakes_data)}")
-        print(f"⚙️  Config: {request.config}")
-        print(f"👤 User Profile: {request.user_profile}")
-
         # Use the AI service to generate mistake-based questions
         result = await ai_service.generate_mistake_based_questions(
             subject=request.subject,
@@ -1126,11 +1043,6 @@ async def generate_mistake_based_questions(request: MistakeBasedQuestionsRequest
         processing_time = int((time.time() - start_time) * 1000)
 
         if result["success"]:
-            print(f"✅ === MISTAKE-BASED QUESTIONS GENERATION SUCCESS ===")
-            print(f"🎯 Generated {result.get('question_count', 0)} remedial questions")
-            print(f"❌ Analyzed {result.get('mistakes_analyzed', 0)} mistakes")
-            print(f"⏱️ Processing time: {processing_time}ms")
-
             return QuestionGenerationResponse(
                 success=True,
                 questions=result["questions"],
@@ -1193,12 +1105,6 @@ async def generate_conversation_based_questions(request: ConversationBasedQuesti
     start_time = time.time()
 
     try:
-        print(f"🎯 === CONVERSATION-BASED QUESTIONS GENERATION START ===")
-        print(f"📚 Subject: {request.subject}")
-        print(f"💬 Conversations Count: {len(request.conversation_data)}")
-        print(f"⚙️  Config: {request.config}")
-        print(f"👤 User Profile: {request.user_profile}")
-
         # Use the AI service to generate conversation-based questions
         result = await ai_service.generate_conversation_based_questions(
             subject=request.subject,
@@ -1210,11 +1116,6 @@ async def generate_conversation_based_questions(request: ConversationBasedQuesti
         processing_time = int((time.time() - start_time) * 1000)
 
         if result["success"]:
-            print(f"✅ === CONVERSATION-BASED QUESTIONS GENERATION SUCCESS ===")
-            print(f"🎯 Generated {result.get('question_count', 0)} personalized questions")
-            print(f"💬 Analyzed {result.get('conversations_analyzed', 0)} conversations")
-            print(f"⏱️ Processing time: {processing_time}ms")
-
             return QuestionGenerationResponse(
                 success=True,
                 questions=result["questions"],
@@ -1230,7 +1131,6 @@ async def generate_conversation_based_questions(request: ConversationBasedQuesti
                 }
             )
         else:
-            print(f"❌ Conversation-based questions generation failed: {result.get('error')}")
             return QuestionGenerationResponse(
                 success=False,
                 generation_type="conversation_based",
@@ -1552,17 +1452,10 @@ async def generate_ai_insights(
     start_time = time.time()
 
     try:
-        print(f"🧠 === AI ANALYTICS INSIGHTS GENERATION START ===")
-        print(f"📊 Report data keys: {list(request.report_data.keys())}")
-
         # Generate AI insights using the analytics service
         insights = ai_analytics_service.generate_ai_insights(request.report_data)
 
         processing_time = int((time.time() - start_time) * 1000)
-
-        print(f"✅ === AI ANALYTICS INSIGHTS GENERATION SUCCESS ===")
-        print(f"🎯 Generated insights: {list(insights.keys())}")
-        print(f"⏱️ Processing time: {processing_time}ms")
 
         return AIAnalyticsResponse(
             success=True,
@@ -1577,7 +1470,6 @@ async def generate_ai_insights(
             "error_message": str(e),
             "traceback": traceback.format_exc()
         }
-        print(f"❌ AI Analytics Error: {error_details}")
 
         processing_time = int((time.time() - start_time) * 1000)
 
@@ -1658,17 +1550,12 @@ async def generate_narrative_report(request: NarrativeGenerationRequest, service
         total_conversations = activity.get('totalConversations', 0) or 0
         engagement_score = activity.get('engagementScore', 0) or 0
 
-        print(f"⏱️ Study time: {study_time_minutes} minutes")
-        print(f"📅 Active days: {active_days}")
-
         # subjects is an ARRAY of objects: [{name, accuracy, questions, studyTime}, ...]
         subject_names = []
         if isinstance(subjects, list):
             subject_names = [subj.get('name', 'Unknown') for subj in subjects if subj and isinstance(subj, dict)]
-            print(f"📖 Subjects: {subject_names}")
         else:
             subject_names = list(subjects.keys()) if isinstance(subjects, dict) else []
-            print(f"📖 Subjects: {subject_names}")
 
         # Safe confidence formatting
         confidence = academic.get('confidence', 0) or 0
@@ -1722,9 +1609,6 @@ Additionally, provide:
 - 3-5 specific recommendations for parents
 
 Format the response as JSON with fields: narrative, summary, keyInsights, recommendations"""
-
-        print(f"🤖 === CALLING OPENAI FOR NARRATIVE GENERATION ===")
-        print(f"📏 Enhanced prompt length: {len(enhanced_prompt)} characters")
 
         # Use the existing AI service to generate the narrative
         openai_start = time.time()
@@ -1795,14 +1679,6 @@ Format the response as JSON with fields: narrative, summary, keyInsights, recomm
             "openaiTimeMs": openai_time
         }
 
-        print(f"✅ === NARRATIVE GENERATION SUCCESS ===")
-        print(f"📝 Generated narrative length: {len(narrative)} characters")
-        print(f"📊 Word count: {len(narrative.split())} words")
-        print(f"🔍 Key insights count: {len(key_insights)}")
-        print(f"💡 Recommendations count: {len(recommendations)}")
-        print(f"⏱️ Total processing time: {processing_time}ms")
-        print(f"🤖 OpenAI processing time: {openai_time}ms")
-
         return NarrativeGenerationResponse(
             success=True,
             data=response_data,
@@ -1821,12 +1697,6 @@ Format the response as JSON with fields: narrative, summary, keyInsights, recomm
 
         processing_time = int((time.time() - start_time) * 1000)
 
-        print(f"❌ === NARRATIVE GENERATION ERROR ===")
-        print(f"🚨 Error type: {error_details['error_type']}")
-        print(f"💥 Error message: {error_details['error_message']}")
-        print(f"📚 Full traceback: {error_details['traceback']}")
-        print(f"⏱️ Processing time before error: {processing_time}ms")
-
         return NarrativeGenerationResponse(
             success=False,
             data=None,
@@ -1837,19 +1707,12 @@ Format the response as JSON with fields: narrative, summary, keyInsights, recomm
 if __name__ == "__main__":
     # Get port from environment variable (Railway sets this automatically)
     port_env = os.getenv("PORT", "8000")
-    print(f"🔍 DEBUG: Raw PORT environment variable: '{port_env}'")
-    print(f"🔍 DEBUG: PORT type: {type(port_env)}")
-    
+
     try:
         port = int(port_env)
-        print(f"✅ DEBUG: Successfully parsed PORT: {port}")
     except ValueError as e:
-        print(f"❌ DEBUG: Failed to parse PORT '{port_env}': {e}")
-        print("🔄 DEBUG: Using default port 8000")
         port = 8000
-    
-    print(f"🚀 DEBUG: Starting server on 0.0.0.0:{port}")
-    
+
     # Production server with increased limits for image processing
     uvicorn.run(
         "src.main:app",

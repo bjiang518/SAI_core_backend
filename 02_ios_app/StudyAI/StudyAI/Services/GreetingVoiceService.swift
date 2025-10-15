@@ -87,20 +87,14 @@ class GreetingVoiceService: ObservableObject {
 
     // Speak a random greeting
     func speakRandomGreeting() {
-        guard !isSpeaking else {
-            print("🎤 GreetingVoiceService: Already speaking, ignoring tap")
-            return
-        }
+        guard !isSpeaking else { return }
 
         // Pick a random greeting
         currentGreeting = greetings.randomElement() ?? greetings[0]
 
-        print("🎤 GreetingVoiceService: Speaking greeting: '\(currentGreeting)'")
-
         // Set speaking state IMMEDIATELY before calling TTS
         DispatchQueue.main.async {
             self.isSpeaking = true
-            print("🎤 GreetingVoiceService: isSpeaking set to TRUE")
         }
 
         // Use user's voice settings from VoiceInteractionService
@@ -117,14 +111,11 @@ class GreetingVoiceService: ObservableObject {
 
         // Start monitoring immediately to sync animation with actual playback
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            print("🎤 GreetingVoiceService: Starting to monitor TTS state")
             self.observeSpeakingState()
         }
     }
 
     private func observeSpeakingState() {
-        var checkCount = 0
-
         // Monitor the TTS service speaking state
         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
             guard let self = self else {
@@ -132,17 +123,12 @@ class GreetingVoiceService: ObservableObject {
                 return
             }
 
-            checkCount += 1
-
             // When TTS service stops speaking, update our state immediately
             if !self.ttsService.isSpeaking && self.isSpeaking {
                 DispatchQueue.main.async {
                     self.isSpeaking = false
-                    print("🎤 GreetingVoiceService: Finished speaking after \(Double(checkCount) * 0.1) seconds")
                 }
                 timer.invalidate()
-            } else {
-                print("🎤 GreetingVoiceService: Check #\(checkCount) - TTS speaking: \(self.ttsService.isSpeaking), GreetingService speaking: \(self.isSpeaking)")
             }
         }
 
@@ -150,7 +136,6 @@ class GreetingVoiceService: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
             if self?.isSpeaking == true {
                 self?.isSpeaking = false
-                print("🎤 GreetingVoiceService: Timeout - assuming finished")
             }
         }
     }

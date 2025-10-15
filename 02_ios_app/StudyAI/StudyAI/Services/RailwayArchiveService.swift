@@ -320,46 +320,35 @@ class RailwayArchiveService: ObservableObject {
         guard let token = authToken else {
             throw ArchiveError.notAuthenticated
         }
-        
-        print("🔍 Attempting to retrieve conversation details for ID: \(conversationId)")
-        
+
         // Try multiple endpoints since conversations are stored across different tables
         let endpoints = [
             "\(baseURL)/api/ai/archives/conversations/\(conversationId)",
-            "\(baseURL)/api/archive/conversations/\(conversationId)", 
+            "\(baseURL)/api/archive/conversations/\(conversationId)",
             "\(baseURL)/api/conversations/\(conversationId)",
             "\(baseURL)/api/user/conversations/\(conversationId)"
         ]
-        
+
         for endpoint in endpoints {
-            print("🔗 Trying endpoint: \(endpoint)")
-            
             guard let url = URL(string: endpoint) else {
-                print("❌ Invalid URL: \(endpoint)")
                 continue
             }
-            
+
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            
+
             do {
                 let (data, response) = try await URLSession.shared.data(for: request)
-                
+
                 if let httpResponse = response as? HTTPURLResponse {
-                    print("✅ Response status from \(endpoint): \(httpResponse.statusCode)")
-                    
                     if httpResponse.statusCode == 200 {
-                        if let rawResponse = String(data: data, encoding: .utf8) {
-                            print("📄 Raw response from \(endpoint): \(String(rawResponse.prefix(300)))")
-                        }
-                        
                         // Try to parse the response
                         if let jsonResponse = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                             // Try different response formats
                             var conversationData: [String: Any]?
-                            
+
                             if let data = jsonResponse["data"] as? [String: Any] {
                                 conversationData = data
                             } else if let conversation = jsonResponse["conversation"] as? [String: Any] {
@@ -368,29 +357,23 @@ class RailwayArchiveService: ObservableObject {
                                 // Direct format
                                 conversationData = jsonResponse
                             }
-                            
+
                             if let conversationData = conversationData {
-                                print("✅ Successfully parsed conversation data from \(endpoint)")
                                 return try convertToArchivedConversation(conversationData)
                             }
                         }
                     } else if httpResponse.statusCode == 404 {
-                        print("⚠️ Conversation not found at \(endpoint)")
                         continue
                     } else {
-                        let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-                        print("❌ HTTP \(httpResponse.statusCode) from \(endpoint): \(errorMessage)")
                         continue
                     }
                 }
             } catch {
-                print("❌ Network error for \(endpoint): \(error.localizedDescription)")
                 continue
             }
         }
-        
+
         // If no endpoint worked, throw not found error
-        print("❌ Conversation \(conversationId) not found in any endpoint")
         throw ArchiveError.sessionNotFound
     }
     

@@ -14,8 +14,9 @@ struct ModernLoginView: View {
     @State private var password = ""
     @State private var showingSignUp = false
     @State private var showingError = false
+    @State private var showingFaceIDPrompt = false
     @FocusState private var focusedField: Field?
-    
+
     var onLoginSuccess: () -> Void
     
     enum Field {
@@ -51,6 +52,27 @@ struct ModernLoginView: View {
         } message: {
             Text(authService.errorMessage ?? "An unknown error occurred")
         }
+        .alert("Enable \(authService.getBiometricType())?", isPresented: $showingFaceIDPrompt) {
+            Button("Enable") {
+                Task {
+                    do {
+                        try await authService.enableFaceID()
+                        // Navigate to main app after enabling
+                        onLoginSuccess()
+                    } catch {
+                        print("Failed to enable Face ID: \(error.localizedDescription)")
+                        // Navigate anyway even if Face ID setup failed
+                        onLoginSuccess()
+                    }
+                }
+            }
+            Button("Not Now", role: .cancel) {
+                // Navigate to main app without enabling Face ID
+                onLoginSuccess()
+            }
+        } message: {
+            Text("Sign in faster next time with \(authService.getBiometricType()). You can change this later in Settings.")
+        }
         .sheet(isPresented: $showingSignUp) {
             ModernSignUpView(onSignUpSuccess: onLoginSuccess)
         }
@@ -59,8 +81,13 @@ struct ModernLoginView: View {
                 // Clear any error messages
                 authService.errorMessage = nil
 
-                // User is authenticated, navigate to main app
-                onLoginSuccess()
+                // Check if we should prompt for Face ID setup
+                if authService.shouldPromptForFaceIDSetup() {
+                    showingFaceIDPrompt = true
+                } else {
+                    // User is authenticated, navigate to main app
+                    onLoginSuccess()
+                }
             }
         }
         .onChange(of: authService.errorMessage) { _, newValue in
@@ -79,6 +106,19 @@ struct ModernLoginView: View {
 
             // Clear any error messages when view appears
             authService.errorMessage = nil
+
+            // Auto-trigger Face ID if enabled
+            if authService.isFaceIDEnabled() {
+                Task {
+                    do {
+                        try await authService.signInWithBiometrics()
+                    } catch {
+                        // If Face ID fails, just show the login screen
+                        // Don't show error to avoid annoying the user
+                        print("Face ID auto-login failed: \(error.localizedDescription)")
+                    }
+                }
+            }
         }
     }
     
@@ -135,8 +175,8 @@ struct ModernLoginView: View {
                 }
                 .padding(.top, 32)
                 
-                // Biometric authentication (if available)
-                if authService.canUseBiometrics() {
+                // Biometric authentication (if enabled)
+                if authService.isFaceIDEnabled() && authService.canUseBiometrics() {
                     biometricSignInButton
                 }
                 

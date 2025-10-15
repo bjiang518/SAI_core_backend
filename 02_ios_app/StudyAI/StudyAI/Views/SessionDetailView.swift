@@ -28,7 +28,7 @@ struct SessionDetailView: View {
                 if isLoading {
                     VStack {
                         ProgressView()
-                        Text("Loading...")
+                        Text(NSLocalizedString("sessionDetail.loading", comment: ""))
                             .foregroundColor(.gray)
                             .padding(.top)
                     }
@@ -37,7 +37,7 @@ struct SessionDetailView: View {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.largeTitle)
                             .foregroundColor(.red)
-                        Text("Error loading content")
+                        Text(NSLocalizedString("sessionDetail.errorLoading", comment: ""))
                             .font(.headline)
                         Text(errorMessage)
                             .foregroundColor(.gray)
@@ -49,15 +49,15 @@ struct SessionDetailView: View {
                 } else if let conversation = conversation {
                     ConversationDetailContent(conversation: conversation)
                 } else {
-                    Text("Content not found")
+                    Text(NSLocalizedString("sessionDetail.contentNotFound", comment: ""))
                         .foregroundColor(.gray)
                 }
             }
-            .navigationTitle(isConversation ? "Conversation Details" : "Session Details")
+            .navigationTitle(isConversation ? NSLocalizedString("sessionDetail.conversationDetails", comment: "") : NSLocalizedString("sessionDetail.sessionDetails", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                 }
@@ -140,10 +140,10 @@ struct SessionDetailContent: View {
                         Spacer()
                         
                         VStack(alignment: .trailing, spacing: 4) {
-                            Text("\(session.aiParsingResult.questionCount) Questions")
+                            Text("\(session.aiParsingResult.questionCount) \(NSLocalizedString("sessionDetail.questions", comment: ""))")
                                 .font(.caption)
                                 .fontWeight(.medium)
-                            Text("\(Int(session.overallConfidence * 100))% Confidence")
+                            Text("\(Int(session.overallConfidence * 100))% \(NSLocalizedString("sessionDetail.confidence", comment: ""))")
                                 .font(.caption2)
                                 .foregroundColor(.gray)
                         }
@@ -162,10 +162,10 @@ struct SessionDetailContent: View {
                 // Questions Section
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
-                        Text("Questions & Answers")
+                        Text(NSLocalizedString("sessionDetail.questionsAndAnswers", comment: ""))
                             .font(.headline)
                         Spacer()
-                        Text("\(session.aiParsingResult.questions.count) items")
+                        Text("\(session.aiParsingResult.questions.count) \(NSLocalizedString("sessionDetail.items", comment: ""))")
                             .font(.caption)
                             .foregroundColor(.gray)
                     }
@@ -178,7 +178,7 @@ struct SessionDetailContent: View {
                 // Notes Section (if any)
                 if let notes = session.notes, !notes.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Notes")
+                        Text(NSLocalizedString("sessionDetail.notes", comment: ""))
                             .font(.headline)
                         Text(notes)
                             .padding()
@@ -186,17 +186,17 @@ struct SessionDetailContent: View {
                             .cornerRadius(8)
                     }
                 }
-                
+
                 // Metadata Section
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Session Info")
+                    Text(NSLocalizedString("sessionDetail.sessionInfo", comment: ""))
                         .font(.headline)
-                    
+
                     VStack(spacing: 8) {
-                        InfoRow(label: "Processing Time", value: "\(String(format: "%.1f", session.processingTime))s")
-                        InfoRow(label: "Parsing Method", value: session.aiParsingResult.parsingMethod)
-                        InfoRow(label: "Review Count", value: "\(session.reviewCount)")
-                        InfoRow(label: "Created", value: session.createdAt.formatted(date: .abbreviated, time: .shortened))
+                        InfoRow(label: NSLocalizedString("sessionDetail.processingTime", comment: ""), value: "\(String(format: "%.1f", session.processingTime))s")
+                        InfoRow(label: NSLocalizedString("sessionDetail.parsingMethod", comment: ""), value: session.aiParsingResult.parsingMethod)
+                        InfoRow(label: NSLocalizedString("sessionDetail.reviewCount", comment: ""), value: "\(session.reviewCount)")
+                        InfoRow(label: NSLocalizedString("sessionDetail.created", comment: ""), value: session.createdAt.formatted(date: .abbreviated, time: .shortened))
                     }
                     .padding()
                     .background(Color.gray.opacity(0.05))
@@ -309,9 +309,9 @@ struct ConversationDetailContent: View {
                 
                 // Conversation Content
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Conversation")
+                    Text(NSLocalizedString("sessionDetail.conversation", comment: ""))
                         .font(.headline)
-                    
+
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
                             ForEach(parseConversation(conversation.conversationContent), id: \.offset) { messageItem in
@@ -326,19 +326,17 @@ struct ConversationDetailContent: View {
                     }
                     .frame(maxHeight: 400)
                 }
-                
+
                 // Metadata Section
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Conversation Info")
+                    Text(NSLocalizedString("sessionDetail.conversationInfo", comment: ""))
                         .font(.headline)
-                    
+
                     VStack(spacing: 8) {
-                        InfoRow(label: "Subject", value: conversation.subject)
                         if let topic = conversation.topic {
-                            InfoRow(label: "Topic", value: topic)
+                            InfoRow(label: NSLocalizedString("sessionDetail.topic", comment: ""), value: topic)
                         }
-                        InfoRow(label: "Archived", value: conversation.archivedDate.formatted(date: .abbreviated, time: .omitted))
-                        InfoRow(label: "Created", value: conversation.createdAt.formatted(date: .abbreviated, time: .shortened))
+                        InfoRow(label: NSLocalizedString("sessionDetail.created", comment: ""), value: conversation.createdAt.formatted(date: .abbreviated, time: .shortened))
                     }
                     .padding()
                     .background(Color.gray.opacity(0.05))
@@ -410,7 +408,7 @@ struct ConversationMessageView: View {
     let speaker: String
     let message: String
     let isUser: Bool
-    
+
     var body: some View {
         HStack {
             if isUser {
@@ -422,32 +420,11 @@ struct ConversationMessageView: View {
             }
         }
     }
-    
+
     private var messageContent: some View {
         VStack(alignment: isUser ? .trailing : .leading, spacing: 8) {
-            HStack {
-                if !isUser {
-                    Image(systemName: "brain.head.profile")
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                }
-                
-                Text(speaker)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                if isUser {
-                    Image(systemName: "person.fill")
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                }
-            }
-            
-            Text(message)
-                .font(.body)
+            // Use MathFormattedText for proper math rendering (same as raw chat session)
+            MathFormattedText(message, fontSize: 16)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
         }

@@ -20,11 +20,11 @@ struct ShareAppView: View {
                             .font(.system(size: 60))
                             .foregroundColor(.cyan)
 
-                        Text("Share StudyAI")
+                        Text(NSLocalizedString("settings.shareApp", comment: ""))
                             .font(.title)
                             .fontWeight(.bold)
 
-                        Text("Help your friends excel in their studies!")
+                        Text(NSLocalizedString("shareApp.subtitle", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -33,34 +33,34 @@ struct ShareAppView: View {
 
                     // Share Message Preview
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Share Message")
+                        Text(NSLocalizedString("shareApp.messageTitle", comment: ""))
                             .font(.headline)
                             .padding(.horizontal)
 
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("\"Check out StudyAI - the best AI-powered homework helper!\"")
+                            Text(NSLocalizedString("shareApp.messagePreview", comment: ""))
                                 .font(.body)
                                 .foregroundColor(.primary)
                                 .italic()
 
                             Divider()
 
-                            Text("✓ AI-powered homework grading")
+                            Text(NSLocalizedString("shareApp.feature1", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            Text("✓ Interactive AI tutor")
+                            Text(NSLocalizedString("shareApp.feature2", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            Text("✓ Mistake review & practice")
+                            Text(NSLocalizedString("shareApp.feature3", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            Text("✓ Progress tracking")
+                            Text(NSLocalizedString("shareApp.feature4", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
 
                             Divider()
 
-                            Text("Download now: https://studyai.app")
+                            Text(NSLocalizedString("shareApp.downloadLink", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.blue)
                         }
@@ -78,8 +78,8 @@ struct ShareAppView: View {
                         }) {
                             ShareMethodCard(
                                 icon: "square.and.arrow.up.fill",
-                                title: "Share via...",
-                                subtitle: "Messages, Email, Social Media & More",
+                                title: NSLocalizedString("shareApp.shareViaTitle", comment: ""),
+                                subtitle: NSLocalizedString("shareApp.shareViaSubtitle", comment: ""),
                                 color: .blue
                             )
                         }
@@ -91,8 +91,8 @@ struct ShareAppView: View {
                         }) {
                             ShareMethodCard(
                                 icon: "link.circle.fill",
-                                title: "Copy App Link",
-                                subtitle: "Share the download link anywhere",
+                                title: NSLocalizedString("shareApp.copyLinkTitle", comment: ""),
+                                subtitle: NSLocalizedString("shareApp.copyLinkSubtitle", comment: ""),
                                 color: .green
                             )
                         }
@@ -100,7 +100,7 @@ struct ShareAppView: View {
 
                         // QR Code
                         VStack(spacing: 12) {
-                            Text("Scan to Download")
+                            Text(NSLocalizedString("shareApp.scanToDownload", comment: ""))
                                 .font(.headline)
 
                             // QR Code placeholder (in production, generate actual QR code)
@@ -115,13 +115,13 @@ struct ShareAppView: View {
                                         .font(.system(size: 120))
                                         .foregroundColor(.primary)
 
-                                    Text("QR Code")
+                                    Text(NSLocalizedString("shareApp.qrCode", comment: ""))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
                             }
 
-                            Text("Show this QR code to friends")
+                            Text(NSLocalizedString("shareApp.showQRCode", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -135,12 +135,12 @@ struct ShareAppView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "gift.fill")
                                 .foregroundColor(.purple)
-                            Text("Coming Soon: Referral Rewards!")
+                            Text(NSLocalizedString("shareApp.comingSoonReferral", comment: ""))
                                 .font(.headline)
                                 .foregroundColor(.purple)
                         }
 
-                        Text("Earn points for every friend who joins StudyAI")
+                        Text(NSLocalizedString("shareApp.earnPoints", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -163,7 +163,7 @@ struct ShareAppView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                 }
@@ -174,14 +174,14 @@ struct ShareAppView: View {
     private func shareApp() {
         let appURL = "https://apps.apple.com/app/id6504105201"
         let shareText = """
-        Check out StudyAI - the best AI-powered homework helper!
+        \(NSLocalizedString("shareApp.messagePreview", comment: ""))
 
-        ✓ AI-powered homework grading
-        ✓ Interactive AI tutor
-        ✓ Mistake review & practice
-        ✓ Progress tracking
+        \(NSLocalizedString("shareApp.feature1", comment: ""))
+        \(NSLocalizedString("shareApp.feature2", comment: ""))
+        \(NSLocalizedString("shareApp.feature3", comment: ""))
+        \(NSLocalizedString("shareApp.feature4", comment: ""))
 
-        Download now: \(appURL)
+        \(NSLocalizedString("shareApp.downloadNow", comment: "")) \(appURL)
         """
 
         let activityVC = UIActivityViewController(

@@ -518,7 +518,7 @@ struct InteractiveStatPill: View {
 
 struct LibraryItemRow: View {
     let item: LibraryItem
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Header with type indicator
@@ -529,7 +529,7 @@ struct LibraryItemRow: View {
                         .lineLimit(2)
 
                     HStack {
-                        Text(item.subject)
+                        Text(item.topic)
                             .font(.caption)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
