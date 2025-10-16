@@ -878,30 +878,27 @@ struct LearningProgressView: View {
     }
     
     private func loadSubjectBreakdown() async {
-        print("📡 ========================================")
-        print("📡 === LOAD SUBJECT BREAKDOWN START ===")
-        print("📡 === LearningProgressView.loadSubjectBreakdown() ===")
-        print("📡 ========================================")
-
         // Check if task was cancelled before starting
         if Task.isCancelled {
-            print("⚠️ LearningProgressView: Task cancelled before loadSubjectBreakdown")
             return
         }
 
         // Avoid duplicate requests if already loading subject breakdown specifically
         guard !isLoadingSubjectBreakdown else {
-            print("⚠️ LearningProgressView: Already loading subject breakdown, skipping duplicate request")
             return
         }
 
+        // STEP 1: Load from cache first for instant display
+        if let cachedData = SubjectBreakdownCache.shared.getCachedSubjectBreakdown(timeframe: selectedTimeframe.apiValue) {
+            await MainActor.run {
+                self.subjectBreakdownData = cachedData
+            }
+        }
+
+        // STEP 2: Fetch fresh data from server in background
         await MainActor.run {
             isLoadingSubjectBreakdown = true
         }
-
-        print("📡 Calling fetchSubjectBreakdown with:")
-        print("📡   userId: \(userId)")
-        print("📡   timeframe: \(selectedTimeframe.apiValue)")
 
         do {
             let response = try await networkService.fetchSubjectBreakdown(
@@ -909,27 +906,8 @@ struct LearningProgressView: View {
                 timeframe: selectedTimeframe.apiValue
             )
 
-            print("📥 ========================================")
-            print("📥 === RECEIVED SUBJECT BREAKDOWN RESPONSE ===")
-            print("📥 Response success: \(response.success)")
-            print("📥 Response message: \(response.message ?? "nil")")
-            print("📥 Response data exists: \(response.data != nil)")
-
-            if let data = response.data {
-                print("📊 Subject breakdown data structure:")
-                print("📊   - Subject count: \(data.subjectProgress.count)")
-                print("📊   - Total subjects studied: \(data.summary.totalSubjectsStudied)")
-                print("📊   - Total questions: \(data.summary.totalQuestionsAnswered)")
-                print("📊   - Overall accuracy: \(data.summary.overallAccuracy)")
-                print("📊   - Last updated: \(data.lastUpdated)")
-            } else {
-                print("❌ Response data is nil")
-            }
-            print("📥 ========================================")
-
             // Check if task was cancelled during network call
             if Task.isCancelled {
-                print("⚠️ LearningProgressView: Task cancelled after network call")
                 await MainActor.run {
                     isLoadingSubjectBreakdown = false
                 }
@@ -939,39 +917,26 @@ struct LearningProgressView: View {
             await MainActor.run {
                 isLoadingSubjectBreakdown = false
                 if response.success, let data = response.data {
-                    print("✅ SUCCESS: Setting subjectBreakdownData")
-                    self.subjectBreakdownData = data
-                    print("✅ subjectBreakdownData now set with \(data.subjectProgress.count) subjects")
-                } else {
-                    print("❌ FAILURE: Cannot set subjectBreakdownData")
-                    print("❌ Success: \(response.success)")
-                    print("❌ Data exists: \(response.data != nil)")
+                    // STEP 3: Update cache with fresh data
+                    SubjectBreakdownCache.shared.saveSubjectBreakdown(data, timeframe: selectedTimeframe.apiValue)
 
+                    // STEP 4: Update UI with fresh data
+                    self.subjectBreakdownData = data
+                } else {
                     if !Task.isCancelled {
                         let errorMsg = response.message ?? "Failed to load subject breakdown"
-                        print("❌ Setting errorMessage: \(errorMsg)")
                         errorMessage = errorMsg
                     }
                 }
             }
         } catch {
-            print("❌ ========================================")
-            print("❌ === EXCEPTION IN LOAD SUBJECT BREAKDOWN ===")
-            print("❌ Error: \(error)")
-            print("❌ Error description: \(error.localizedDescription)")
-            print("❌ Is cancellation error: \(error.localizedDescription.contains("cancelled"))")
-            print("❌ ========================================")
-
             await MainActor.run {
                 isLoadingSubjectBreakdown = false
 
                 // Only log as error if not cancelled (which is common during view changes)
                 if !error.localizedDescription.contains("cancelled") && !Task.isCancelled {
                     let errorMsg = "Failed to load subject breakdown: \(error.localizedDescription)"
-                    print("❌ Setting errorMessage: \(errorMsg)")
                     errorMessage = errorMsg
-                } else {
-                    print("⚠️ Cancelled error - not setting errorMessage")
                 }
             }
         }

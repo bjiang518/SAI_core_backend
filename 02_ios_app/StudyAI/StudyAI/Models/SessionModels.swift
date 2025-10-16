@@ -230,7 +230,42 @@ enum SubjectCategory: String, CaseIterable, Codable {
            content.contains("ancient") || content.contains("empire") || content.contains("civilization") {
             return .history
         }
-        
+
+        return .other
+    }
+
+    /// Convert string to SubjectCategory (case-insensitive matching)
+    static func fromString(_ string: String) -> SubjectCategory? {
+        let lowercased = string.lowercased()
+
+        // Try exact match first
+        if let category = SubjectCategory.allCases.first(where: { $0.rawValue.lowercased() == lowercased }) {
+            return category
+        }
+
+        // Try partial match for common variations
+        if lowercased.contains("math") {
+            return .mathematics
+        } else if lowercased.contains("physic") {
+            return .physics
+        } else if lowercased.contains("chem") {
+            return .chemistry
+        } else if lowercased.contains("bio") {
+            return .biology
+        } else if lowercased.contains("english") || lowercased.contains("literature") {
+            return .english
+        } else if lowercased.contains("history") {
+            return .history
+        } else if lowercased.contains("geography") || lowercased.contains("geo") {
+            return .geography
+        } else if lowercased.contains("computer") || lowercased.contains("programming") || lowercased.contains("coding") {
+            return .computerScience
+        } else if lowercased.contains("language") && !lowercased.contains("english") {
+            return .foreignLanguage
+        } else if lowercased.contains("art") || lowercased.contains("music") || lowercased.contains("drama") {
+            return .arts
+        }
+
         return .other
     }
 }

@@ -13,7 +13,7 @@ struct StudyAIApp: App {
     init() {
         setupGoogleSignIn()
     }
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -23,9 +23,9 @@ struct StudyAIApp: App {
                 }
         }
     }
-    
+
     private func setupGoogleSignIn() {
-        
+
         if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
            let plist = NSDictionary(contentsOfFile: path),
            let clientId = plist["CLIENT_ID"] as? String {

@@ -812,3 +812,35 @@
 "sessionDetail.conversation" = "对话";
 "sessionDetail.conversationInfo" = "对话信息";
 "sessionDetail.topic" = "主题";
+
+// Storage Control
+"settings.storageControl" = "存储管理";
+"storage.title" = "存储管理";
+"storage.totalUsed" = "总存储使用量";
+"storage.archivedQuestions" = "已归档问题";
+"storage.progressData" = "学习进度数据";
+"storage.archivedConversations" = "已归档对话";
+"storage.clear" = "清除";
+"storage.clearAll.button" = "清除所有数据";
+"storage.syncWithServer" = "同步到服务器";
+"storage.syncing" = "同步中...";
+"storage.sync.title" = "同步结果";
+
+// Storage Clear Alerts
+"storage.clearQuestions.title" = "清除已归档问题？";
+"storage.clearQuestions.message" = "这将删除本地存储的所有已归档问题。此操作无法撤销。";
+"storage.clearQuestions.success" = "已成功清除归档问题";
+
+"storage.clearProgress.title" = "清除学习进度数据？";
+"storage.clearProgress.message" = "这将删除所有学习进度、积分和连续学习天数。此操作无法撤销。";
+"storage.clearProgress.success" = "已成功清除进度数据";
+
+"storage.clearConversations.title" = "清除已归档对话？";
+"storage.clearConversations.message" = "这将删除本地存储的所有已归档对话。此操作无法撤销。";
+"storage.clearConversations.success" = "已成功清除归档对话";
+
+"storage.clearAll.title" = "清除所有数据？";
+"storage.clearAll.message" = "这将删除所有本地数据，包括已归档问题、对话和学习进度。此操作无法撤销。";
+"storage.clearAll.success" = "已成功清除所有本地数据";
+
+"storage.success.title" = "成功";

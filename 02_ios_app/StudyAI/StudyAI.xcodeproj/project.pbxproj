@@ -128,6 +128,8 @@
 		7BEEB62C2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEEB62A2E8EFFEB00957748 /* AI Spiral Loading.json */; };
 		7BEEB62D2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEEB62A2E8EFFEB00957748 /* AI Spiral Loading.json */; };
 		7DCD4D51FBF64F74AEA6A5C3 /* VoiceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03DB96F217C9458693CF5BDA /* VoiceSettingsView.swift */; };
+		EBF42CC5063E45B7A36A22FD /* StorageControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 298792E8091D453F913E76C5 /* StorageControlView.swift */; };
+		SYNC1234567890123456ABCD /* StorageSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SYNCFILE1234567890ABCD12 /* StorageSyncService.swift */; };
 		809124D3E9CF44C6A623DE31 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685F5AB0784E4EAEB6B58C7E /* ContentView.swift */; };
 		8659331C2BF143DBB36C245F /* EnhancedHomeworkParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C87EE23BC3FC415E8AFB5C0A /* EnhancedHomeworkParser.swift */; };
 		8F1EBFF4298743058E934595 /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3318992F2294A6DA7A14EB3 /* SessionHistoryView.swift */; };
@@ -202,6 +204,8 @@
 		0011C726DB944E1CBD5D9102 /* SimpleMathRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SimpleMathRenderer.swift; path = StudyAI/Services/SimpleMathRenderer.swift; sourceTree = SOURCE_ROOT; };
 		03DB96F217C9458693CF5BDA /* VoiceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceSettingsView.swift; path = StudyAI/Views/VoiceSettingsView.swift; sourceTree = SOURCE_ROOT; };
 		06624CDF338947F0A3F8838D /* HomeworkModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkModels.swift; path = StudyAI/Models/HomeworkModels.swift; sourceTree = SOURCE_ROOT; };
+		298792E8091D453F913E76C5 /* StorageControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StorageControlView.swift; path = StudyAI/Views/StorageControlView.swift; sourceTree = SOURCE_ROOT; };
+		SYNCFILE1234567890ABCD12 /* StorageSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StorageSyncService.swift; path = StudyAI/Services/StorageSyncService.swift; sourceTree = SOURCE_ROOT; };
 		0AB173EA95EE4D1FBEAED03D /* QuestionArchiveService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionArchiveService.swift; path = StudyAI/Services/QuestionArchiveService.swift; sourceTree = SOURCE_ROOT; };
 		0AC15A890FCE4881A878DD17 /* EnhancedTTSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EnhancedTTSService.swift; path = StudyAI/Services/EnhancedTTSService.swift; sourceTree = SOURCE_ROOT; };
 		122549B3F87E417292C7874C /* DirectAIHomeworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DirectAIHomeworkView.swift; path = StudyAI/Views/DirectAIHomeworkView.swift; sourceTree = SOURCE_ROOT; };
@@ -471,6 +475,7 @@
 				18BF91BCEE9B4980BC643CB2 /* TextToSpeechService.swift */,
 				EEAD0FA974974B559BA7B6B7 /* VoiceInteractionService.swift */,
 				ABCD123456789012EFGH3456 /* UserSessionManager.swift */,
+				SYNCFILE1234567890ABCD12 /* StorageSyncService.swift */,
 				BCDE234567890123FGHI4567 /* LibraryDataService.swift */,
 				PRFS234567890123BCDE8901 /* ProfileService.swift */,
 				1ECE095FF4DB41A3B76FBE4F /* NetworkService.swift */,
@@ -526,6 +531,7 @@
 				D724DD29C2CD4B3AAC9114B6 /* UserProfileView.swift */,
 				03DB96F217C9458693CF5BDA /* VoiceSettingsView.swift */,
 				2575218B86324529B227C931 /* ZoomedRegionView.swift */,
+				298792E8091D453F913E76C5 /* StorageControlView.swift */,
 				172B88920E5545748C6B70F2 /* WeeklyProgressGrid.swift */,
 				69D668B7833B4B1D9DF8653A /* SubjectBreakdownView.swift */,
 				9969A366189C4E3AA0A188D8 /* SubjectDetailView.swift */,
@@ -840,6 +846,8 @@
 				8F1EBFF4298743058E934595 /* SessionHistoryView.swift in Sources */,
 				C278552EF36F41E59A51F0FC /* UserProfileView.swift in Sources */,
 				7DCD4D51FBF64F74AEA6A5C3 /* VoiceSettingsView.swift in Sources */,
+				EBF42CC5063E45B7A36A22FD /* StorageControlView.swift in Sources */,
+				SYNC1234567890123456ABCD /* StorageSyncService.swift in Sources */,
 				2F704A14D92440C2A18F02EC /* ZoomedRegionView.swift in Sources */,
 				7B1ED8492E829E5B00E5E57D /* ReportExportService.swift in Sources */,
 				7B1ED8412E829B3700E5E57D /* ParentReportModels.swift in Sources */,

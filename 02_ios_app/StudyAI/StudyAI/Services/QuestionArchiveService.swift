@@ -37,19 +37,11 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.notAuthenticated
         }
 
-        print("📝 Archiving \(request.selectedQuestionIndices.count) questions for user: \(userId)")
-        print("📚 Subject: \(request.detectedSubject)")
-
         // Check for duplicates before archiving
         let deduplicationResult = try await checkForDuplicates(request: request)
 
         if deduplicationResult.uniqueIndices.isEmpty {
-            print("⚠️ All questions are duplicates, skipping archive")
             throw QuestionArchiveError.allQuestionsAreDuplicates(deduplicationResult.duplicateCount)
-        }
-
-        if !deduplicationResult.duplicateIndices.isEmpty {
-            print("⚠️ Found \(deduplicationResult.duplicateCount) duplicate(s), archiving only \(deduplicationResult.uniqueIndices.count) unique question(s)")
         }
 
         guard let url = URL(string: "\(baseURL)/api/archived-questions") else {
@@ -98,7 +90,6 @@ class QuestionArchiveService: ObservableObject {
 
         if httpResponse.statusCode != 201 {
             let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            print("❌ Question archive failed: \(errorMessage)")
             throw QuestionArchiveError.archiveFailed(errorMessage)
         }
 
@@ -112,6 +103,7 @@ class QuestionArchiveService: ObservableObject {
 
         // Convert response to ArchivedQuestions
         var archivedQuestions: [ArchivedQuestion] = []
+        var questionDataForLocalStorage: [[String: Any]] = []
 
         for (arrayIndex, questionIndex) in deduplicationResult.uniqueIndices.enumerated() {
             guard questionIndex < request.questions.count else { continue }
@@ -141,12 +133,32 @@ class QuestionArchiveService: ObservableObject {
             )
 
             archivedQuestions.append(archivedQuestion)
+
+            // Build data for local storage
+            let questionData: [String: Any] = [
+                "id": archivedQuestion.id,
+                "subject": request.detectedSubject,
+                "questionText": question.questionText,
+                "answerText": question.answerText,
+                "confidence": question.confidence,
+                "hasVisualElements": question.hasVisualElements,
+                "archivedAt": ISO8601DateFormatter().string(from: Date()),
+                "reviewCount": 0,
+                "tags": userTag,
+                "notes": userNote,
+                "studentAnswer": question.studentAnswer ?? "",
+                "grade": question.grade ?? "",
+                "points": question.pointsEarned ?? 0.0,
+                "maxPoints": question.pointsPossible ?? 1.0,
+                "feedback": question.feedback ?? "",
+                "isGraded": question.grade != nil
+            ]
+            questionDataForLocalStorage.append(questionData)
         }
 
-        print("✅ Successfully archived \(archivedQuestions.count) unique questions")
-        if deduplicationResult.duplicateCount > 0 {
-            print("ℹ️ Skipped \(deduplicationResult.duplicateCount) duplicate(s)")
-        }
+        // Save to local storage immediately for instant access
+        QuestionLocalStorage.shared.saveQuestions(questionDataForLocalStorage)
+
         return archivedQuestions
     }
 
@@ -173,7 +185,6 @@ class QuestionArchiveService: ObservableObject {
             if existingQuestionTexts.contains(normalizedText) {
                 // This is a duplicate
                 duplicateIndices.append(questionIndex)
-                print("🔍 Duplicate found: '\(question.questionText.prefix(50))...'")
             } else {
                 // This is unique
                 uniqueIndices.append(questionIndex)
@@ -228,18 +239,11 @@ class QuestionArchiveService: ObservableObject {
         guard currentUserId != nil else {
             throw QuestionArchiveError.notAuthenticated
         }
-        
+
         guard let token = authToken else {
             throw QuestionArchiveError.notAuthenticated
         }
-        
-        print("🔍 Searching archived questions with filters:")
-        if let searchText = searchText { print("  📝 Search text: \(searchText)") }
-        if let subject = subject { print("  📚 Subject: \(subject)") }
-        if let confidenceRange = confidenceRange { print("  📊 Confidence: \(confidenceRange)") }
-        if let hasVisualElements = hasVisualElements { print("  🖼️ Visual elements: \(hasVisualElements)") }
-        if let grade = grade { print("  ✅ Grade: \(grade)") }
-        
+
         var urlComponents = URLComponents(string: "\(baseURL)/api/archived-questions")!
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "limit", value: String(limit)),
@@ -293,60 +297,88 @@ class QuestionArchiveService: ObservableObject {
               let questionData = jsonResponse["data"] as? [[String: Any]] else {
             throw QuestionArchiveError.invalidData
         }
-        
+
         let questions = try questionData.map { try convertQuestionSummaryFromRailwayFormat($0) }
-        
-        print("🔍 Search completed: found \(questions.count) questions")
+
         return questions
     }
     
     // MARK: - Fetch Archived Questions
     
     func fetchArchivedQuestions(limit: Int = 50, offset: Int = 0) async throws -> [QuestionSummary] {
+        // ✅ FIX: Implement cache-first loading to show newly archived questions immediately
+        // Load from local storage first, then sync with server in background
+
+        // STEP 1: Load from local storage for instant display
+        let localStorage = QuestionLocalStorage.shared
+        let localQuestions = localStorage.getLocalQuestions()
+
+        // Convert local storage format to QuestionSummary
+        var cachedQuestions: [QuestionSummary] = []
+        for questionData in localQuestions {
+            if let question = try? localStorage.convertLocalQuestionToSummary(questionData) {
+                cachedQuestions.append(question)
+            }
+        }
+
+        // STEP 2: Fetch from server in background (don't throw errors to avoid blocking UI)
+        Task {
+            await fetchAndUpdateFromServer(limit: limit, offset: offset)
+        }
+
+        // Return cached data immediately (may be empty if nothing cached yet)
+        return cachedQuestions
+    }
+
+    /// Fetch from server and update local storage
+    private func fetchAndUpdateFromServer(limit: Int, offset: Int) async {
         guard let userId = currentUserId else {
-            throw QuestionArchiveError.notAuthenticated
+            return
         }
 
         guard let token = authToken else {
-            throw QuestionArchiveError.notAuthenticated
+            return
         }
 
-        print("📚 Fetching archived questions for user: \(userId)")
-        
         var urlComponents = URLComponents(string: "\(baseURL)/api/archived-questions")!
         urlComponents.queryItems = [
             URLQueryItem(name: "limit", value: String(limit)),
             URLQueryItem(name: "offset", value: String(offset))
         ]
-        
+
         guard let url = urlComponents.url else {
-            throw QuestionArchiveError.invalidURL
+            return
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw QuestionArchiveError.fetchFailed(errorMessage)
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                print("⚠️ [fetchAndUpdateFromServer] Server returned error status")
+                return
+            }
+
+            guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let success = jsonResponse["success"] as? Bool,
+                  success == true,
+                  let questionData = jsonResponse["data"] as? [[String: Any]] else {
+                print("⚠️ [fetchAndUpdateFromServer] Invalid server response")
+                return
+            }
+
+            // Sync server data with local storage
+            QuestionLocalStorage.shared.syncWithServer(serverQuestionIds: questionData.compactMap { $0["id"] as? String })
+
+            print("✅ [fetchAndUpdateFromServer] Synced \(questionData.count) questions from server")
+        } catch {
+            print("⚠️ [fetchAndUpdateFromServer] Failed to fetch from server: \(error.localizedDescription)")
         }
-        
-        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let success = jsonResponse["success"] as? Bool,
-              success == true,
-              let questionData = jsonResponse["data"] as? [[String: Any]] else {
-            throw QuestionArchiveError.invalidData
-        }
-        
-        let questions = try questionData.map { try convertQuestionSummaryFromRailwayFormat($0) }
-        
-        print("✅ Fetched \(questions.count) questions")
-        return questions
     }
     
     // MARK: - Fetch Questions by Subject

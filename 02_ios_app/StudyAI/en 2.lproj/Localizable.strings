@@ -813,3 +813,35 @@
 "sessionDetail.conversation" = "Conversation";
 "sessionDetail.conversationInfo" = "Conversation Info";
 "sessionDetail.topic" = "Topic";
+
+// Storage Control
+"settings.storageControl" = "Storage Control";
+"storage.title" = "Storage Control";
+"storage.totalUsed" = "Total Storage Used";
+"storage.archivedQuestions" = "Archived Questions";
+"storage.progressData" = "Progress Data";
+"storage.archivedConversations" = "Archived Conversations";
+"storage.clear" = "Clear";
+"storage.clearAll.button" = "Clear All Data";
+"storage.syncWithServer" = "Sync with Server";
+"storage.syncing" = "Syncing...";
+"storage.sync.title" = "Sync Result";
+
+// Storage Clear Alerts
+"storage.clearQuestions.title" = "Clear Archived Questions?";
+"storage.clearQuestions.message" = "This will delete all archived questions from local storage. This cannot be undone.";
+"storage.clearQuestions.success" = "Archived questions cleared successfully";
+
+"storage.clearProgress.title" = "Clear Progress Data?";
+"storage.clearProgress.message" = "This will delete all your learning progress, points, and streaks. This cannot be undone.";
+"storage.clearProgress.success" = "Progress data cleared successfully";
+
+"storage.clearConversations.title" = "Clear Archived Conversations?";
+"storage.clearConversations.message" = "This will delete all archived conversations from local storage. This cannot be undone.";
+"storage.clearConversations.success" = "Archived conversations cleared successfully";
+
+"storage.clearAll.title" = "Clear All Data?";
+"storage.clearAll.message" = "This will delete ALL local data including archived questions, conversations, and progress. This cannot be undone.";
+"storage.clearAll.success" = "All local data cleared successfully";
+
+"storage.success.title" = "Success";

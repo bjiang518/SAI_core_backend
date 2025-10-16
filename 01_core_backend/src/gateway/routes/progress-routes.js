@@ -216,6 +216,67 @@ class ProgressRoutes {
       }
     }, this.getMonthlyActivity.bind(this));
 
+    // Get user progress data (for sync fetch)
+    this.fastify.get('/api/progress/sync', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get user progress data for sync',
+        tags: ['Progress']
+      }
+    }, this.getProgressForSync.bind(this));
+
+    // Sync progress data from iOS device (Storage Sync)
+    this.fastify.post('/api/progress/sync', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Sync all progress data from iOS device to server',
+        tags: ['Progress'],
+        body: {
+          type: 'object',
+          properties: {
+            currentPoints: { type: 'integer' },
+            totalPoints: { type: 'integer' },
+            currentStreak: { type: 'integer' },
+            learningGoals: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  type: { type: 'string' },
+                  title: { type: 'string' },
+                  currentProgress: { type: 'integer' },
+                  targetValue: { type: 'integer' },
+                  isCompleted: { type: 'boolean' }
+                }
+              }
+            },
+            weeklyProgress: {
+              type: 'object',
+              properties: {
+                weekStart: { type: 'string' },
+                weekEnd: { type: 'string' },
+                dailyActivities: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      date: { type: 'string' },
+                      dayOfWeek: { type: 'string' },
+                      questionCount: { type: 'integer' },
+                      timezone: { type: 'string' }
+                    }
+                  }
+                },
+                totalQuestionsThisWeek: { type: 'integer' },
+                timezone: { type: 'string' },
+                serverTimestamp: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }, this.syncProgress.bind(this));
+
     // Health check for progress service
     this.fastify.get('/api/progress/health', {
       schema: {
@@ -1147,6 +1208,220 @@ class ProgressRoutes {
       return reply.status(500).send({
         success: false,
         error: 'Failed to fetch monthly activity',
+        message: error.message
+      });
+    }
+  }
+
+  async getProgressForSync(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+
+      this.fastify.log.info(`📥 === GET PROGRESS FOR SYNC ===`);
+      this.fastify.log.info(`📥 User ID: ${userId}`);
+
+      if (!userId || userId === 'anonymous') {
+        return reply.status(401).send({
+          success: false,
+          error: 'Authentication required'
+        });
+      }
+
+      // Ensure user_progress table exists
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS user_progress (
+            user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            current_points INTEGER DEFAULT 0,
+            total_points INTEGER DEFAULT 0,
+            current_streak INTEGER DEFAULT 0,
+            learning_goals JSONB,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          )
+        `);
+      } catch (error) {
+        this.fastify.log.warn(`⚠️ Could not create user_progress table: ${error.message}`);
+      }
+
+      // Get user progress
+      const progressQuery = `
+        SELECT * FROM user_progress WHERE user_id = $1
+      `;
+
+      const progressResult = await db.query(progressQuery, [userId]);
+
+      if (progressResult.rows.length === 0) {
+        // No progress data yet, return empty
+        this.fastify.log.info(`📥 No progress data found for user ${userId}`);
+        return reply.status(200).send({
+          success: true,
+          data: {
+            currentPoints: 0,
+            totalPoints: 0,
+            currentStreak: 0,
+            learningGoals: [],
+            weeklyProgress: null
+          }
+        });
+      }
+
+      const progress = progressResult.rows[0];
+
+      // Get weekly progress from daily activities
+      const weeklyQuery = `
+        SELECT
+          DATE(activity_date) as date,
+          TO_CHAR(activity_date, 'Day') as day_of_week,
+          SUM(questions_attempted) as question_count
+        FROM daily_subject_activities
+        WHERE user_id = $1
+          AND activity_date >= NOW() - INTERVAL '7 days'
+        GROUP BY DATE(activity_date), TO_CHAR(activity_date, 'Day')
+        ORDER BY DATE(activity_date)
+      `;
+
+      const weeklyResult = await db.query(weeklyQuery, [userId]);
+
+      const weeklyProgress = weeklyResult.rows.length > 0 ? {
+        weekStart: weeklyResult.rows[0].date,
+        weekEnd: weeklyResult.rows[weeklyResult.rows.length - 1].date,
+        dailyActivities: weeklyResult.rows.map(row => ({
+          date: row.date,
+          dayOfWeek: row.day_of_week.trim(),
+          questionCount: parseInt(row.question_count) || 0,
+          timezone: 'UTC'
+        })),
+        totalQuestionsThisWeek: weeklyResult.rows.reduce((sum, row) => sum + (parseInt(row.question_count) || 0), 0),
+        timezone: 'UTC',
+        serverTimestamp: new Date().toISOString()
+      } : null;
+
+      this.fastify.log.info(`✅ Progress data retrieved for user ${userId}`);
+
+      return reply.status(200).send({
+        success: true,
+        data: {
+          currentPoints: progress.current_points || 0,
+          totalPoints: progress.total_points || 0,
+          currentStreak: progress.current_streak || 0,
+          learningGoals: progress.learning_goals ? JSON.parse(progress.learning_goals) : [],
+          weeklyProgress: weeklyProgress
+        }
+      });
+
+    } catch (error) {
+      this.fastify.log.error('📥 Error getting progress for sync:', error);
+      this.fastify.log.error('📥 Error stack:', error.stack);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to get progress data',
+        message: error.message
+      });
+    }
+  }
+
+  async syncProgress(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+      const {
+        currentPoints = 0,
+        totalPoints = 0,
+        currentStreak = 0,
+        learningGoals = [],
+        weeklyProgress
+      } = request.body;
+
+      this.fastify.log.info(`🔄 === SYNC PROGRESS DATA ===`);
+      this.fastify.log.info(`🔄 User ID: ${userId}`);
+      this.fastify.log.info(`🔄 Current Points: ${currentPoints}`);
+      this.fastify.log.info(`🔄 Total Points: ${totalPoints}`);
+      this.fastify.log.info(`🔄 Current Streak: ${currentStreak}`);
+      this.fastify.log.info(`🔄 Learning Goals: ${learningGoals.length}`);
+      this.fastify.log.info(`🔄 Weekly Progress: ${weeklyProgress ? 'provided' : 'not provided'}`);
+
+      if (!userId || userId === 'anonymous') {
+        return reply.status(401).send({
+          success: false,
+          error: 'Authentication required'
+        });
+      }
+
+      // Ensure user_progress table exists
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS user_progress (
+            user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            current_points INTEGER DEFAULT 0,
+            total_points INTEGER DEFAULT 0,
+            current_streak INTEGER DEFAULT 0,
+            learning_goals JSONB,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          )
+        `);
+      } catch (error) {
+        this.fastify.log.warn(`⚠️ Could not create user_progress table: ${error.message}`);
+      }
+
+      // Upsert user progress data
+      const upsertQuery = `
+        INSERT INTO user_progress (
+          user_id, current_points, total_points, current_streak, learning_goals, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+          current_points = GREATEST($2, user_progress.current_points),
+          total_points = GREATEST($3, user_progress.total_points),
+          current_streak = GREATEST($4, user_progress.current_streak),
+          learning_goals = $5,
+          updated_at = NOW()
+        RETURNING *
+      `;
+
+      const learningGoalsJson = JSON.stringify(learningGoals);
+      const progressResult = await db.query(upsertQuery, [userId, currentPoints, totalPoints, currentStreak, learningGoalsJson]);
+
+      this.fastify.log.info(`✅ Progress data synced for user ${userId}`);
+
+      // Sync weekly progress data if provided
+      if (weeklyProgress && weeklyProgress.dailyActivities) {
+        this.fastify.log.info(`🔄 Syncing ${weeklyProgress.dailyActivities.length} daily activities`);
+
+        for (const activity of weeklyProgress.dailyActivities) {
+          const { date, questionCount = 0, timezone } = activity;
+
+          // Upsert daily activity (combine all subjects for the day)
+          const dailyQuery = `
+            INSERT INTO daily_subject_activities (
+              user_id, activity_date, subject, questions_attempted, questions_correct, time_spent, points_earned
+            ) VALUES ($1, $2, 'General', $3, $3, 0, $4)
+            ON CONFLICT (user_id, activity_date, subject) DO UPDATE SET
+              questions_attempted = GREATEST($3, daily_subject_activities.questions_attempted),
+              questions_correct = GREATEST($3, daily_subject_activities.questions_correct),
+              points_earned = GREATEST($4, daily_subject_activities.points_earned)
+          `;
+
+          const pointsEarned = questionCount * 10;
+          await db.query(dailyQuery, [userId, date, questionCount, pointsEarned]);
+        }
+
+        this.fastify.log.info(`✅ Synced ${weeklyProgress.dailyActivities.length} daily activities`);
+      }
+
+      return reply.status(200).send({
+        success: true,
+        message: 'Progress data synced successfully',
+        data: {
+          currentPoints: progressResult.rows[0].current_points,
+          totalPoints: progressResult.rows[0].total_points,
+          currentStreak: progressResult.rows[0].current_streak
+        }
+      });
+
+    } catch (error) {
+      this.fastify.log.error('🔄 Error syncing progress:', error);
+      this.fastify.log.error('🔄 Error stack:', error.stack);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to sync progress data',
         message: error.message
       });
     }

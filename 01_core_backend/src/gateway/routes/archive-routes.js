@@ -135,6 +135,51 @@ class ArchiveRoutes {
       }
     }, this.healthCheck.bind(this));
 
+    // =============== ARCHIVED CONVERSATIONS ROUTES ===============
+
+    // Get all archived conversations for sync
+    this.fastify.get('/api/ai/conversations', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get all archived conversations for user (for sync)',
+        tags: ['Archived Conversations']
+      }
+    }, this.getAllConversations.bind(this));
+
+    // Archive AI conversation from iOS Storage Sync
+    this.fastify.post('/api/ai/conversations', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Archive AI conversation from iOS device',
+        tags: ['Archived Conversations'],
+        body: {
+          type: 'object',
+          required: ['subject', 'topic', 'conversationContent'],
+          properties: {
+            subject: { type: 'string' },
+            topic: { type: 'string' },
+            conversationContent: { type: 'string' },
+            archivedDate: { type: 'string' }
+          }
+        }
+      }
+    }, this.archiveConversation.bind(this));
+
+    // Get archived conversation by ID
+    this.fastify.get('/api/ai/conversations/:id', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Get archived conversation by ID',
+        tags: ['Archived Conversations'],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' }
+          }
+        }
+      }
+    }, this.getConversation.bind(this));
+
     // =============== ARCHIVED QUESTIONS ROUTES ===============
     
     // Archive multiple questions from homework
@@ -588,6 +633,196 @@ class ArchiveRoutes {
         success: false,
         message: 'Database health check failed',
         error: error.message
+      });
+    }
+  }
+
+  // =============== ARCHIVED CONVERSATIONS METHOD IMPLEMENTATIONS ===============
+
+  async getAllConversations(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+
+      this.fastify.log.info(`💬 === GET ALL CONVERSATIONS FOR SYNC ===`);
+      this.fastify.log.info(`💬 User ID: ${userId}`);
+
+      if (!userId || userId === 'anonymous') {
+        return reply.status(401).send({
+          success: false,
+          error: 'Authentication required'
+        });
+      }
+
+      const query = `
+        SELECT id, user_id, subject, topic, conversation_content, archived_date, created_at
+        FROM archived_conversations_new
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+      `;
+
+      const result = await db.query(query, [userId]);
+
+      this.fastify.log.info(`💬 Found ${result.rows.length} conversations for user ${userId}`);
+
+      return reply.status(200).send({
+        success: true,
+        data: result.rows.map(row => ({
+          id: row.id,
+          userId: row.user_id,
+          subject: row.subject,
+          topic: row.topic,
+          conversationContent: row.conversation_content,
+          archivedDate: row.archived_date,
+          createdAt: row.created_at
+        }))
+      });
+
+    } catch (error) {
+      this.fastify.log.error('💬 Error getting all conversations:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to get conversations',
+        message: error.message
+      });
+    }
+  }
+
+  async archiveConversation(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+      const {
+        subject,
+        topic,
+        conversationContent,
+        archivedDate = new Date().toISOString()
+      } = request.body;
+
+      this.fastify.log.info(`💬 === ARCHIVE CONVERSATION ===`);
+      this.fastify.log.info(`💬 User ID: ${userId}`);
+      this.fastify.log.info(`💬 Subject: ${subject}`);
+      this.fastify.log.info(`💬 Topic: ${topic}`);
+      this.fastify.log.info(`💬 Content length: ${conversationContent.length} chars`);
+
+      if (!userId || userId === 'anonymous') {
+        return reply.status(401).send({
+          success: false,
+          error: 'Authentication required'
+        });
+      }
+
+      // Check for duplicates by matching content hash or exact content
+      const contentHash = Buffer.from(conversationContent).toString('base64').substring(0, 50);
+
+      const duplicateCheckQuery = `
+        SELECT id FROM archived_conversations_new
+        WHERE user_id = $1
+          AND subject = $2
+          AND topic = $3
+          AND LENGTH(conversation_content) = $4
+        LIMIT 1
+      `;
+
+      const duplicateCheck = await db.query(duplicateCheckQuery, [
+        userId,
+        subject,
+        topic,
+        conversationContent.length
+      ]);
+
+      if (duplicateCheck.rows.length > 0) {
+        this.fastify.log.info(`💬 Duplicate conversation detected, returning 409`);
+        return reply.status(409).send({
+          success: false,
+          error: 'Conversation already archived',
+          conversationId: duplicateCheck.rows[0].id
+        });
+      }
+
+      // Insert conversation into database
+      const insertQuery = `
+        INSERT INTO archived_conversations_new (
+          user_id, subject, topic, conversation_content, archived_date, created_at
+        ) VALUES ($1, $2, $3, $4, $5, NOW())
+        RETURNING id, user_id, subject, topic, archived_date, created_at
+      `;
+
+      const result = await db.query(insertQuery, [
+        userId,
+        subject,
+        topic,
+        conversationContent,
+        archivedDate
+      ]);
+
+      const conversation = result.rows[0];
+
+      this.fastify.log.info(`✅ Conversation archived successfully with ID: ${conversation.id}`);
+
+      return reply.status(201).send({
+        success: true,
+        message: 'Conversation archived successfully',
+        data: {
+          id: conversation.id,
+          userId: conversation.user_id,
+          subject: conversation.subject,
+          topic: conversation.topic,
+          archivedDate: conversation.archived_date,
+          createdAt: conversation.created_at
+        }
+      });
+
+    } catch (error) {
+      this.fastify.log.error('💬 Error archiving conversation:', error);
+      this.fastify.log.error('💬 Error stack:', error.stack);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to archive conversation',
+        message: error.message
+      });
+    }
+  }
+
+  async getConversation(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+      const { id } = request.params;
+
+      this.fastify.log.info(`💬 Getting conversation ${id} for user ${userId}`);
+
+      if (!userId || userId === 'anonymous') {
+        return reply.status(401).send({
+          success: false,
+          error: 'Authentication required'
+        });
+      }
+
+      const query = `
+        SELECT * FROM archived_conversations_new
+        WHERE id = $1 AND user_id = $2
+      `;
+
+      const result = await db.query(query, [id, userId]);
+
+      if (result.rows.length === 0) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Conversation not found'
+        });
+      }
+
+      const conversation = result.rows[0];
+
+      return reply.status(200).send({
+        success: true,
+        data: conversation
+      });
+
+    } catch (error) {
+      this.fastify.log.error('💬 Error getting conversation:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to get conversation',
+        message: error.message
       });
     }
   }

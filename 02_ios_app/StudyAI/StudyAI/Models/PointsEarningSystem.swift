@@ -279,8 +279,6 @@ class PointsEarningManager: ObservableObject {
 
     // MARK: - Concurrency Control
     private let syncQueue = DispatchQueue(label: "com.studyai.pointsmanager.sync", qos: .utility)
-    private var isServerSyncInProgress = false
-    private var pendingSyncTask: Task<Void, Never>?
 
     // MARK: - Daily Reset Timer
     private var midnightTimer: Timer?
@@ -488,9 +486,6 @@ class PointsEarningManager: ObservableObject {
         if !validateDataIntegrity() {
             // Check data integrity
         }
-
-        // Retry failed syncs if any
-        await retryFailedSyncs()
 
         // Force save to ensure data persistence
         await MainActor.run {
@@ -936,9 +931,6 @@ class PointsEarningManager: ObservableObject {
     }
     
     func trackQuestionAnswered(subject: String, isCorrect: Bool) {
-        print("📊 DEBUG [trackQuestionAnswered]: ENTRY - subject: \(subject), isCorrect: \(isCorrect)")
-        print("📊 DEBUG [trackQuestionAnswered]: Current todayProgress BEFORE update: \(todayProgress?.totalQuestions ?? 0) questions")
-
         // Log user context for multi-device debugging
         logger.info("📊 [trackQuestionAnswered] InstanceID: \(self.instanceId) - Tracking question for subject: \(subject), isCorrect: \(isCorrect)")
 
@@ -947,7 +939,6 @@ class PointsEarningManager: ObservableObject {
 
         // Validate data integrity before proceeding
         guard validateDataIntegrity() else {
-            print("⚠️ DEBUG [trackQuestionAnswered]: Data integrity check FAILED, restoring from backup")
             // Data integrity check failed, restoring from backup
             restoreFromBackup(backup)
             return
@@ -955,43 +946,28 @@ class PointsEarningManager: ObservableObject {
 
         // Ensure todayProgress exists
         if todayProgress == nil {
-            print("📊 DEBUG [trackQuestionAnswered]: todayProgress was nil, creating new DailyProgress")
             todayProgress = DailyProgress()
         }
 
         guard var currentProgress = todayProgress else {
-            print("⚠️ DEBUG [trackQuestionAnswered]: Failed to get currentProgress, EXITING")
             return
         }
-
-        print("📊 DEBUG [trackQuestionAnswered]: currentProgress initialized - totalQuestions: \(currentProgress.totalQuestions), correctAnswers: \(currentProgress.correctAnswers)")
 
         // Update daily questions goal with bounds checking
         for i in 0..<learningGoals.count {
             if learningGoals[i].type == .dailyQuestions {
-                let oldProgress = learningGoals[i].currentProgress
                 learningGoals[i].currentProgress = max(0, learningGoals[i].currentProgress + 1)
-                let newProgress = learningGoals[i].currentProgress
-                print("📊 DEBUG [trackQuestionAnswered]: Updated dailyQuestions goal from \(oldProgress) to \(newProgress)")
             }
         }
 
         // Update question counts with safe access
-        let oldTotalQuestions = currentProgress.totalQuestions
-        let oldCorrectAnswers = currentProgress.correctAnswers
-
         currentProgress.totalQuestions = max(0, currentProgress.totalQuestions + 1)
         if isCorrect {
             currentProgress.correctAnswers = max(0, currentProgress.correctAnswers + 1)
         }
 
-        print("📊 DEBUG [trackQuestionAnswered]: Updated currentProgress - totalQuestions: \(oldTotalQuestions) → \(currentProgress.totalQuestions), correctAnswers: \(oldCorrectAnswers) → \(currentProgress.correctAnswers)")
-
         // Update the published property
         todayProgress = currentProgress
-        print("📊 DEBUG [trackQuestionAnswered]: ✅ Set todayProgress = currentProgress (THIS SHOULD TRIGGER @Published)")
-        print("📊 DEBUG [trackQuestionAnswered]: todayProgress after assignment: \(todayProgress?.totalQuestions ?? 0) questions, \(todayProgress?.correctAnswers ?? 0) correct")
-
 
         // Update accuracy goal
         updateAccuracyGoal()
@@ -1008,23 +984,19 @@ class PointsEarningManager: ObservableObject {
         // Save data with logging
         saveData()
 
-        // Sync to server asynchronously to update subject breakdown accuracy
-        // This ensures backend has accurate per-subject performance data
+        // Sync to server immediately to update subject breakdown
         Task {
             await NetworkService.shared.trackQuestionAnswered(
                 subject: subject,
                 isCorrect: isCorrect,
                 studyTimeSeconds: 0
             )
-            print("📊 DEBUG [trackQuestionAnswered]: ✅ Synced to server - subject: \(subject), isCorrect: \(isCorrect)")
-        }
 
-        print("📊 DEBUG [trackQuestionAnswered]: Updated local progress and triggered server sync")
-        print("📊 DEBUG [trackQuestionAnswered]: EXIT - Final todayProgress: \(todayProgress?.totalQuestions ?? 0) questions, \(todayProgress?.correctAnswers ?? 0) correct")
-        print("📊 DEBUG [trackQuestionAnswered]: ========================================")
-
-        // Show final state
-        if let finalProgress = todayProgress {
+            // Invalidate subject breakdown cache after successful sync
+            // This ensures next progress view load fetches fresh data
+            SubjectBreakdownCache.shared.invalidateCache(timeframe: "today")
+            SubjectBreakdownCache.shared.invalidateCache(timeframe: "week")
+            SubjectBreakdownCache.shared.invalidateCache(timeframe: "month")
         }
     }
     
@@ -1310,29 +1282,40 @@ class PointsEarningManager: ObservableObject {
         currentWeeklyProgress = nil
         todayProgress = DailyProgress()
 
-        // Persist the reset state
-        saveData()
+        // ✅ FIX: Completely remove all UserDefaults keys instead of saving empty values
+        // This ensures storage is truly cleared (0 KB instead of 1 KB)
+        userDefaults.removeObject(forKey: pointsKey)
+        userDefaults.removeObject(forKey: totalPointsKey)
+        userDefaults.removeObject(forKey: streakKey)
+        userDefaults.removeObject(forKey: dailyPointsEarnedKey)
+        userDefaults.removeObject(forKey: lastStreakUpdateDateKey)
+        userDefaults.removeObject(forKey: goalsKey)
+        userDefaults.removeObject(forKey: checkoutHistoryKey)
+        userDefaults.removeObject(forKey: weeklyProgressKey)
+        userDefaults.removeObject(forKey: weeklyHistoryKey)
+        userDefaults.removeObject(forKey: lastTimezoneKey)
+        userDefaults.removeObject(forKey: todayProgressKey)
+        userDefaults.removeObject(forKey: lastResetDateKey)
+
+        print("✅ [resetProgress] Completely removed all progress data from UserDefaults")
 
     }
     
     // MARK: - Weekly Progress Methods
     
-    /// Update daily activity and sync with server if available
+    /// Update daily activity in local data structure (for UI display)
+    /// Server sync is handled separately by trackQuestionAnswered()
     func updateWeeklyProgress(questionCount: Int, subject: String) {
         guard questionCount > 0 else {
             return
         }
 
-        if subject.isEmpty {
-        }
-
-        // Update local data structure first (for immediate UI updates)
+        // Update local data structure for immediate UI updates
+        // This maintains currentWeeklyProgress which is displayed in WeeklyProgressGrid
         updateLocalWeeklyProgress(questionCount: questionCount)
 
-        // Sync with server asynchronously
-        Task {
-            await syncWithServer(questionCount: questionCount, subject: subject)
-        }
+        // Note: Server sync is now handled by trackQuestionAnswered() API call
+        // No need for duplicate syncWithServer() call here
     }
     
     /// Update local weekly progress data structure
@@ -1617,81 +1600,8 @@ class PointsEarningManager: ObservableObject {
             saveData()
         }
     }
-    
+
     // MARK: - Server Sync Methods
-
-    // MARK: - Enhanced Server Sync with Smart Debouncing
-
-    private let minSyncInterval: TimeInterval = 1.0 // Minimum time between syncs
-    private let maxSyncDelay: TimeInterval = 5.0 // Maximum delay for batching
-    private var lastSyncTime: Date = .distantPast
-    private var queuedSyncData: (totalQuestions: Int, subjects: Set<String>) = (0, [])
-
-    /// Schedule a debounced server sync with intelligent batching
-    private func scheduleServerSync(questionCount: Int, subject: String) {
-        // Cancel any pending sync task
-        pendingSyncTask?.cancel()
-
-        // Accumulate sync data for batching
-        queuedSyncData.totalQuestions += questionCount
-        queuedSyncData.subjects.insert(subject)
-
-        let timeSinceLastSync = Date().timeIntervalSince(lastSyncTime)
-        let shouldSyncImmediately = timeSinceLastSync > maxSyncDelay || queuedSyncData.totalQuestions >= 10
-
-        if shouldSyncImmediately {
-            // Sync immediately if enough time has passed or we have many questions
-            pendingSyncTask = Task {
-                await performBatchedServerSync()
-            }
-        } else {
-            // Schedule delayed sync for batching
-            let delay = max(minSyncInterval - timeSinceLastSync, 0.5)
-            pendingSyncTask = Task {
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                guard !Task.isCancelled else { return }
-                await performBatchedServerSync()
-            }
-        }
-
-        logger.info("[SYNC] Scheduled sync - queued: \(self.queuedSyncData.totalQuestions) questions, \(self.queuedSyncData.subjects.count) subjects")
-    }
-
-    /// Perform batched server sync with accumulated data
-    private func performBatchedServerSync() async {
-        // Prevent concurrent sync operations
-        guard !isServerSyncInProgress else {
-            logger.info("[SYNC] Server sync already in progress, skipping batched sync")
-            return
-        }
-
-        // Check if we have data to sync
-        guard queuedSyncData.totalQuestions > 0 else {
-            logger.info("[SYNC] No queued data to sync")
-            return
-        }
-
-        isServerSyncInProgress = true
-        defer { isServerSyncInProgress = false }
-
-        let questionsToSync = queuedSyncData.totalQuestions
-        let subjectsToSync = Array(queuedSyncData.subjects)
-        let primarySubject = subjectsToSync.most ?? "General"
-
-        // Clear queued data
-        queuedSyncData = (0, [])
-        lastSyncTime = Date()
-
-        logger.info("[SYNC] Starting batched server sync for \(questionsToSync) questions across subjects: \(subjectsToSync.joined(separator: ", "))")
-
-        // Sync with primary subject (most common one)
-        await syncWithServer(questionCount: questionsToSync, subject: primarySubject)
-
-        // Optionally refresh today's activity (less frequently)
-        if questionsToSync >= 5 {
-            await loadTodaysActivityFromServerWithConflictResolution()
-        }
-    }
 
     /// Load today's activity from server only if we haven't reset today
     func loadTodaysActivityFromServerIfNotReset() async {
@@ -1869,125 +1779,8 @@ class PointsEarningManager: ObservableObject {
             logger.info("[TODAY'S ACTIVITY] Failed to load today's activity from server: \(result.message ?? "Unknown error")")
         }
 
+
         logger.info("[TODAY'S ACTIVITY] === END LOADING TODAY'S ACTIVITY FROM SERVER (WITH CONFLICT RESOLUTION) ===")
-    }
-    
-    // MARK: - Data Loss Prevention and Retry Mechanisms
-
-    private let maxRetryAttempts = 3
-    private let retryDelays: [TimeInterval] = [1.0, 2.0, 4.0] // Exponential backoff
-    private var failedSyncQueue: [(questionCount: Int, subject: String)] = []
-
-    /// Sync weekly progress with server with retry mechanism
-    private func syncWithServer(questionCount: Int, subject: String) async {
-        await performSyncWithRetry(questionCount: questionCount, subject: subject, attempt: 1)
-    }
-
-    /// Immediate sync to server for write-through cache pattern
-    /// This ensures data persistence even if app is deleted
-    private func syncImmediatelyToServer(questionCount: Int, subject: String, isCorrect: Bool) async {
-        logger.info("[IMMEDIATE_SYNC] === STARTING IMMEDIATE SERVER SYNC ===")
-        logger.info("[IMMEDIATE_SYNC] Subject: \(subject), Questions: \(questionCount), Correct: \(isCorrect)")
-
-        do {
-            // Call the backend API to update progress
-            // This will update both subject_progress and daily_subject_activities tables
-            let result = await NetworkService.shared.updateUserProgress(
-                questionCount: questionCount,
-                subject: subject,
-                currentScore: currentPoints,
-                clientTimezone: TimeZone.current.identifier
-            )
-
-            if result.success {
-                logger.info("[IMMEDIATE_SYNC] ✅ Server sync successful")
-
-                // Optionally update local data with server response
-                if let serverProgress = result.progress {
-                    await MainActor.run {
-                        updateFromServerResponse(serverProgress)
-                    }
-                }
-            } else {
-                logger.info("[IMMEDIATE_SYNC] ⚠️ Server sync failed: \(result.message ?? "Unknown error")")
-                // Don't throw - we want to continue even if sync fails
-                // The data is already saved locally
-            }
-        } catch {
-            logger.info("[IMMEDIATE_SYNC] ❌ Server sync error: \(error.localizedDescription)")
-            // Don't throw - we want to continue even if sync fails
-        }
-
-        logger.info("[IMMEDIATE_SYNC] === END IMMEDIATE SERVER SYNC ===")
-    }
-
-    /// Perform sync with exponential backoff retry
-    private func performSyncWithRetry(questionCount: Int, subject: String, attempt: Int) async {
-        do {
-            let result = await NetworkService.shared.updateUserProgress(
-                questionCount: questionCount,
-                subject: subject,
-                currentScore: currentPoints,
-                clientTimezone: TimeZone.current.identifier
-            )
-
-            if result.success {
-                // Update local data with server response if needed
-                if let serverProgress = result.progress {
-                    await MainActor.run {
-                        updateFromServerResponse(serverProgress)
-                    }
-                }
-                logger.info("[SYNC] Sync successful on attempt \(attempt)")
-            } else {
-                throw NSError(domain: "SyncError", code: 1, userInfo: [NSLocalizedDescriptionKey: result.message ?? "Unknown sync error"])
-            }
-        } catch {
-            logger.info("[SYNC] Sync failed on attempt \(attempt): \(error.localizedDescription)")
-
-            if attempt < maxRetryAttempts {
-                let delay = retryDelays[min(attempt - 1, retryDelays.count - 1)]
-                logger.info("[SYNC] Retrying sync in \(delay) seconds (attempt \(attempt + 1)/\(self.maxRetryAttempts))")
-
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                await performSyncWithRetry(questionCount: questionCount, subject: subject, attempt: attempt + 1)
-            } else {
-                // All retries failed, queue for later
-                await MainActor.run {
-                    self.queueFailedSync(questionCount: questionCount, subject: subject)
-                }
-            }
-        }
-    }
-
-    /// Queue failed sync operations for later retry
-    private func queueFailedSync(questionCount: Int, subject: String) {
-        failedSyncQueue.append((questionCount: questionCount, subject: subject))
-        logger.info("[SYNC] Queued failed sync: \(questionCount) questions in \(subject). Queue size: \(self.failedSyncQueue.count)")
-
-        // Limit queue size to prevent memory issues
-        if failedSyncQueue.count > 50 {
-            failedSyncQueue.removeFirst(failedSyncQueue.count - 50)
-            logger.info("[SYNC] Trimmed failed sync queue to 50 items")
-        }
-    }
-
-    /// Retry failed sync operations when network becomes available
-    func retryFailedSyncs() async {
-        guard !failedSyncQueue.isEmpty else {
-            logger.info("[SYNC] No failed syncs to retry")
-            return
-        }
-
-        logger.info("[SYNC] Retrying \(self.failedSyncQueue.count) failed sync operations")
-        let syncsToRetry = failedSyncQueue
-        failedSyncQueue.removeAll()
-
-        for sync in syncsToRetry {
-            await performSyncWithRetry(questionCount: sync.questionCount, subject: sync.subject, attempt: 1)
-            // Small delay between retries to avoid overwhelming the server
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-        }
     }
 
     // Data integrity validation

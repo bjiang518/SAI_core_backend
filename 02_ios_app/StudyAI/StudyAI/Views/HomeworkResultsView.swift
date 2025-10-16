@@ -403,17 +403,12 @@ struct HomeworkResultsView: View {
     private var markProgressButton: some View {
         VStack(spacing: 16) {
             Button(action: {
-                print("🎯 DEBUG: Mark Progress button tapped!")
-                print("🎯 DEBUG: Current todayProgress BEFORE: \(pointsManager.todayProgress?.totalQuestions ?? 0) questions, \(pointsManager.todayProgress?.correctAnswers ?? 0) correct")
-
                 // Only track if not already marked
                 if !hasMarkedProgress {
                     trackHomeworkUsage()
                     hasMarkedProgress = true
                     saveProgressState() // Persist the state
                 }
-
-                print("🎯 DEBUG: Current todayProgress AFTER: \(pointsManager.todayProgress?.totalQuestions ?? 0) questions, \(pointsManager.todayProgress?.correctAnswers ?? 0) correct")
 
                 // Show success feedback
                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -476,13 +471,11 @@ struct HomeworkResultsView: View {
     /// Load the progress state from UserDefaults based on session ID
     private func loadProgressState() {
         hasMarkedProgress = UserDefaults.standard.bool(forKey: progressMarkedKey)
-        print("🎯 DEBUG: Loaded progress state for session \(sessionId): \(hasMarkedProgress)")
     }
 
     /// Save the progress state to UserDefaults
     private func saveProgressState() {
         UserDefaults.standard.set(hasMarkedProgress, forKey: progressMarkedKey)
-        print("🎯 DEBUG: Saved progress state for session \(sessionId): \(hasMarkedProgress)")
     }
     
     private func toggleQuestion(_ questionId: String) {
@@ -1070,14 +1063,6 @@ extension HomeworkResultsView {
                 isArchiving = false
                 showingQuestionArchiveDialog = false
                 selectedQuestionIndices.removeAll()
-
-                // Automatically track progress for archived questions (only if not already marked)
-                if !hasMarkedProgress {
-                    print("🎯 DEBUG: Auto-tracking progress for archived questions")
-                    trackHomeworkUsage()
-                    hasMarkedProgress = true
-                    saveProgressState() // Persist the state
-                }
             }
         } catch QuestionArchiveError.allQuestionsAreDuplicates(let count) {
             await MainActor.run {
@@ -1095,63 +1080,55 @@ extension HomeworkResultsView {
     
     /// Track homework grading usage for points earning system
     private func trackHomeworkUsage() {
-        print("🎯 DEBUG: trackHomeworkUsage() called in HomeworkResultsView")
         let questions = parsingResult.allQuestions
-        print("🎯 DEBUG: Total questions to track: \(questions.count)")
-        
+
         // Get subject from enhanced result or try to detect from question text
         let subject = enhancedResult?.detectedSubject ?? detectSubjectFromQuestion(questions.first?.questionText ?? "")
-        
-        // Use enhanced result for accurate statistics if available
-        if let enhanced = enhancedResult, let performanceSummary = enhanced.performanceSummary {
-            let totalCorrect = performanceSummary.totalCorrect
-            print("🎯 DEBUG: Using enhanced result: \(totalCorrect) correct out of \(questions.count)")
-            
-            // Track correct answers based on enhanced result
-            for i in 0..<totalCorrect {
-                print("🎯 DEBUG: Tracking correct answer \(i + 1)/\(totalCorrect)")
-                pointsManager.trackQuestionAnswered(subject: subject, isCorrect: true)
+
+        // ✅ FIX: Always use actual question grades, not AI's initial performance summary
+        // This ensures we track the user's manual grading, not the AI's initial assessment
+
+        // Count correct and incorrect based on actual grades
+        var correctCount = 0
+        var incorrectCount = 0
+
+        for question in questions {
+            // Determine if this was a correct answer based on grading result
+            let isCorrect: Bool
+            if question.isGraded {
+                // Use the actual grading result (user's manual grading)
+                isCorrect = question.grade == "CORRECT" ||
+                           question.grade?.lowercased().contains("correct") == true ||
+                           question.grade?.lowercased().contains("right") == true ||
+                           question.grade == "✓" || question.grade == "A"
+            } else {
+                // For non-graded questions, assume incorrect for conservative accuracy
+                isCorrect = false
             }
-            
-            // Track incorrect answers
-            let incorrectCount = questions.count - totalCorrect
-            for i in 0..<incorrectCount {
-                print("🎯 DEBUG: Tracking incorrect answer \(i + 1)/\(incorrectCount)")
-                pointsManager.trackQuestionAnswered(subject: subject, isCorrect: false)
-            }
-        } else {
-            // Fallback to individual question checking
-            for (index, question) in questions.enumerated() {
-                print("🎯 DEBUG: Processing question \(index + 1)/\(questions.count)")
-                // Determine if this was a correct answer based on grading result
-                let isCorrect: Bool
-                if question.isGraded {
-                    // Use the actual grading result
-                    isCorrect = question.grade?.lowercased().contains("correct") == true ||
-                               question.grade?.lowercased().contains("right") == true ||
-                               question.grade == "✓" || question.grade == "A"
-                } else {
-                    // For non-graded questions, assume they were answered (for goal tracking)
-                    // We'll consider them as "attempted" rather than correct/incorrect
-                    isCorrect = false // Conservative approach for accuracy calculation
-                }
-                
-                print("🎯 DEBUG: Detected subject: \(subject), isCorrect: \(isCorrect)")
-                
-                // Track the question for points earning  
-                print("🎯 DEBUG: About to call pointsManager.trackQuestionAnswered()")
-                pointsManager.trackQuestionAnswered(subject: subject, isCorrect: isCorrect)
-                print("🎯 DEBUG: Called pointsManager.trackQuestionAnswered() successfully")
+
+            if isCorrect {
+                correctCount += 1
+            } else {
+                incorrectCount += 1
             }
         }
-        
+
+        // Track questions in a single batch to avoid multiple server syncs
+        // Track correct answers
+        for _ in 0..<correctCount {
+            pointsManager.trackQuestionAnswered(subject: subject, isCorrect: true)
+        }
+
+        // Track incorrect answers
+        for _ in 0..<incorrectCount {
+            pointsManager.trackQuestionAnswered(subject: subject, isCorrect: false)
+        }
+
+        print("📊 [trackHomeworkUsage] Tracked \(correctCount) correct, \(incorrectCount) incorrect out of \(questions.count) total questions")
+
         // Track study time (estimate based on number of questions)
         let estimatedStudyTime = max(questions.count * 2, 5) // 2 minutes per question, minimum 5 minutes
-        print("🎯 DEBUG: About to track study time: \(estimatedStudyTime) minutes")
         pointsManager.trackStudyTime(estimatedStudyTime)
-        
-        print("📊 Tracked homework usage: \(questions.count) questions, estimated \(estimatedStudyTime) minutes study time")
-        print("🎯 DEBUG: trackHomeworkUsage() completed")
     }
     
     /// Simple subject detection from question text

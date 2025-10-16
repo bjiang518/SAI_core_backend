@@ -214,6 +214,14 @@ struct UnifiedLibraryView: View {
         .task {
             await loadContent()
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("StorageSyncCompleted"))) { _ in
+            print("📚 [Library] Received sync completion notification, reloading from local storage...")
+            Task {
+                // ✅ FIX: Don't force server refresh after sync - just reload local data
+                // StorageSyncService already synced with server, so we just need to display local data
+                await loadContent()
+            }
+        }
     }
     
     @ViewBuilder
@@ -332,27 +340,27 @@ struct UnifiedLibraryView: View {
                 }
             } else {
                 List(filteredItems, id: \.id) { item in
-                    Group {
+                    ZStack {
+                        // Invisible NavigationLink
                         if item.itemType == .question, let questionItem = item as? QuestionSummary {
                             NavigationLink(destination: QuestionDetailView(questionId: questionItem.id)) {
-                                LibraryItemRow(item: item)
+                                EmptyView()
                             }
-                            .buttonStyle(PlainButtonStyle())
+                            .opacity(0)
                         } else if item.itemType == .question, let sessionItem = item as? ConversationLibraryItem {
-                            // Handle homework sessions (treated as question type)
                             NavigationLink(destination: SessionDetailView(sessionId: sessionItem.id, isConversation: false)) {
-                                LibraryItemRow(item: item)
+                                EmptyView()
                             }
-                            .buttonStyle(PlainButtonStyle())
+                            .opacity(0)
                         } else if let conversationItem = item as? ConversationLibraryItem {
-                            // Handle actual conversation sessions
                             NavigationLink(destination: SessionDetailView(sessionId: conversationItem.id, isConversation: true)) {
-                                LibraryItemRow(item: item)
+                                EmptyView()
                             }
-                            .buttonStyle(PlainButtonStyle())
-                        } else {
-                            LibraryItemRow(item: item)
+                            .opacity(0)
                         }
+
+                        // Visible row
+                        LibraryItemRow(item: item)
                     }
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)

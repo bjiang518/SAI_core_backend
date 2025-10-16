@@ -471,14 +471,6 @@ struct UnifiedImageEditorView: View {
     // MARK: - Resize Controls
     private var resizeControls: some View {
         VStack(spacing: 16) {
-            // Status indicator
-            if isResizeApplied {
-                Text("\(appliedSizeReduction.rawValue) size applied • Final dimensions locked")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
             // Size Selection
             VStack(spacing: 8) {
                 Text("Size")

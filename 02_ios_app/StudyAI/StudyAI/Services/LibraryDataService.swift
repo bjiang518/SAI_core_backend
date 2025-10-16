@@ -504,107 +504,67 @@ class LibraryDataService: ObservableObject {
     // MARK: - Private Methods
     
     private func fetchQuestions() async -> (data: [QuestionSummary], error: String?) {
-        do {
-            let allQuestions = try await questionService.fetchArchivedQuestions(limit: 100)
+        // ✅ FIX: Library should ONLY read from local storage
+        // Sync feature handles downloading from server to local storage
+        print("📚 [Library] === FETCH QUESTIONS FROM LOCAL STORAGE ===")
 
-            // Filter out mistake questions (grade == .incorrect) from Study Library
-            // These should only appear in the Mistake Review feature
-            let nonMistakeQuestions = allQuestions.filter { question in
-                // Only exclude questions that are explicitly marked as incorrect
-                // Keep questions that are ungraded, correct, or have partial credit
-                return question.grade != .incorrect
-            }
+        let localStorage = QuestionLocalStorage.shared
+        let localQuestions = localStorage.getLocalQuestions()
 
-            return (nonMistakeQuestions, nil)
-        } catch {
-            let errorMsg = "Failed to load questions: \(error.localizedDescription)"
-            return ([], errorMsg)
+        print("📚 [Library] Step 1: Retrieved \(localQuestions.count) raw questions from local storage")
+
+        // Debug: Show first question data structure
+        if let firstQuestion = localQuestions.first {
+            print("📚 [Library] First question keys: \(firstQuestion.keys.sorted())")
+            print("📚 [Library] First question ID: \(firstQuestion["id"] ?? "NO ID")")
+            print("📚 [Library] First question subject: \(firstQuestion["subject"] ?? "NO SUBJECT")")
         }
+
+        // Convert local questions to QuestionSummary
+        print("📚 [Library] Step 2: Converting \(localQuestions.count) questions to QuestionSummary...")
+        var convertedQuestions: [QuestionSummary] = []
+        var conversionErrors: [String] = []
+
+        for (index, questionData) in localQuestions.enumerated() {
+            do {
+                let question = try localStorage.convertLocalQuestionToSummary(questionData)
+                convertedQuestions.append(question)
+                print("📚 [Library]   ✅ Question \(index + 1) converted: \(question.id)")
+            } catch {
+                let errorMsg = "Question \(index + 1) conversion failed: \(error.localizedDescription)"
+                conversionErrors.append(errorMsg)
+                print("📚 [Library]   ❌ \(errorMsg)")
+            }
+        }
+
+        print("📚 [Library] Step 2 Complete: \(convertedQuestions.count) successfully converted, \(conversionErrors.count) errors")
+
+        // Filter out mistake questions (grade == .incorrect) from Study Library
+        // These should only appear in the Mistake Review feature
+        print("📚 [Library] Step 3: Filtering out incorrect grades...")
+        let nonMistakeQuestions = convertedQuestions.filter { question in
+            let isIncorrect = question.grade == .incorrect
+            if isIncorrect {
+                print("📚 [Library]   🚫 Filtering out question \(question.id) with grade: \(question.grade)")
+            }
+            return !isIncorrect
+        }
+
+        print("📚 [Library] Step 3 Complete: \(nonMistakeQuestions.count) questions after filtering")
+        print("📚 [Library] === FINAL RESULT: \(nonMistakeQuestions.count) questions to display ===")
+
+        return (nonMistakeQuestions, nil)
     }
     
     private func fetchConversations() async -> (data: [[String: Any]], error: String?) {
-        // STEP 1: Get local conversations first (immediate access)
+        // ✅ FIX: Library should ONLY read from local storage
+        // Sync feature handles downloading from server to local storage
         let localStorage = ConversationLocalStorage.shared
         let localConversations = localStorage.getLocalConversations()
 
-        // STEP 2: Fetch from server (may have replication lag)
-        let result = await networkService.getArchivedSessionsWithParams([:], forceRefresh: true)
+        print("💬 [Library] Loading \(localConversations.count) conversations from LOCAL storage only")
 
-        guard result.success, let allSessions = result.sessions else {
-            let errorMsg = "Failed to load conversations: \(result.message)"
-            // Return local conversations if server fails
-            if !localConversations.isEmpty {
-                print("⚠️ Server fetch failed, returning \(localConversations.count) local conversations")
-                return (localConversations, nil)
-            }
-            return ([], errorMsg)
-        }
-
-        // Process sessions with optimized validation and date parsing
-        var validatedSessions: [[String: Any]] = []
-
-        // Apply validation and optimized processing to all sessions
-        for session in allSessions {
-            // Validate session data for security and basic accessibility
-            guard validateConversationData(session) else {
-                continue // Skip invalid or suspicious sessions
-            }
-
-            // Apply efficient date parsing to all sessions
-            var processedSession = session
-
-            // Batch process all date fields with simplified parsing
-            let dateFields = ["archived_date", "archived_at", "sessionDate", "created_at"]
-            for dateField in dateFields {
-                if let dateString = processedSession[dateField] as? String {
-                    let parsedDate = parseServerDateOptimized(dateString)
-                    let iso8601String = ISO8601DateFormatter().string(from: parsedDate)
-                    processedSession[dateField] = iso8601String
-                }
-            }
-
-            validatedSessions.append(processedSession)
-        }
-
-        // If we have too many sessions and they're likely from the problematic archive table,
-        // fall back to the original validation approach for a smaller subset
-        if validatedSessions.count > 20 {
-            // Take only the most recent conversations and validate their accessibility
-            let recentSessions = Array(validatedSessions.prefix(20))
-            var accessibleSessions: [[String: Any]] = []
-
-            // Quick batch check - try to identify accessible conversations by their structure
-            for session in recentSessions {
-                // Check if conversation has indicators of being accessible
-                if isLikelyAccessibleConversation(session) {
-                    accessibleSessions.append(session)
-                }
-            }
-
-            // STEP 3: Merge local and server data (deduplicate by ID)
-            let mergedData = localStorage.mergeWithServerData(
-                localConversations: localConversations,
-                serverConversations: accessibleSessions
-            )
-
-            // STEP 4: Sync local storage (remove conversations that now exist on server)
-            let serverIds = accessibleSessions.compactMap { $0["id"] as? String }
-            localStorage.syncWithServer(serverConversationIds: serverIds)
-
-            return (mergedData, nil)
-        }
-
-        // STEP 3: Merge local and server data (deduplicate by ID)
-        let mergedData = localStorage.mergeWithServerData(
-            localConversations: localConversations,
-            serverConversations: validatedSessions
-        )
-
-        // STEP 4: Sync local storage (remove conversations that now exist on server)
-        let serverIds = validatedSessions.compactMap { $0["id"] as? String }
-        localStorage.syncWithServer(serverConversationIds: serverIds)
-
-        return (mergedData, nil)
+        return (localConversations, nil)
     }
     
     // MARK: - Cache Management
@@ -711,11 +671,16 @@ enum LibraryItemType {
 
 /// Extension to make QuestionSummary conform to LibraryItem
 extension QuestionSummary: LibraryItem {
-    var title: String { return "Q: \(questionText.prefix(50))..." }
+    var title: String {
+        // Format: "{Subject} question" (e.g., "Math question")
+        return "\(subject) question"
+    }
     var topic: String { return subject }  // For questions, topic is the same as subject
     var date: Date { return archivedAt }
     var itemType: LibraryItemType { return .question }
-    var preview: String { return questionText }
+    var preview: String {
+        return questionText
+    }
 }
 
 /// Wrapper for conversation dictionary to conform to LibraryItem
@@ -731,27 +696,9 @@ struct ConversationLibraryItem: LibraryItem {
     }
     
     var title: String {
-        // Check if this is a homework session or conversation
-        if let sessionTitle = data["title"] as? String, !sessionTitle.isEmpty {
-            return sessionTitle
-        }
-        
-        // Check for topic field (from archived conversations)
-        if let topic = data["topic"] as? String, !topic.isEmpty {
-            return topic
-        }
-        
-        // Try to extract subject-based title for homework sessions
-        if let subject = data["subject"] as? String {
-            let questionCount = data["aiParsingResult"] as? [String: Any] ?? [:]
-            let count = (questionCount["questionCount"] as? Int) ?? (questionCount["questions"] as? [[String: Any]])?.count ?? 0
-            if count > 0 {
-                return "Homework Session - \(subject) (\(count) questions)"
-            }
-            return "Study Session - \(subject)"
-        }
-        
-        return "Study Session"
+        // Format: "Chat on {Subject}" (e.g., "Chat on Mathematics")
+        let subject = data["subject"] as? String ?? "General"
+        return "Chat on \(subject)"
     }
     
     var subject: String {
@@ -1102,11 +1049,12 @@ class ConversationLocalStorage {
         var conversations = getLocalConversations()
         let initialCount = conversations.count
 
+        // ✅ FIX: Remove conversations that are NOT on server (keep conversations that ARE on server)
         conversations.removeAll { conversation in
             if let id = conversation["id"] as? String {
-                return serverConversationIds.contains(id)
+                return !serverConversationIds.contains(id)  // Keep if on server, remove if not
             }
-            return false
+            return true  // Remove conversations without valid IDs
         }
 
         if conversations.count != initialCount {
@@ -1117,3 +1065,322 @@ class ConversationLocalStorage {
         }
     }
 }
+
+//
+//  QuestionLocalStorage.swift
+//  StudyAI
+//
+//  Created by Claude Code on 10/15/25.
+//
+
+import Foundation
+
+/// Local storage manager for archived questions
+/// Provides immediate access to recently archived questions while backend replication syncs
+class QuestionLocalStorage {
+    static let shared = QuestionLocalStorage()
+
+    private let userDefaults = UserDefaults.standard
+    private let questionsKey = "localArchivedQuestions"
+    private let maxLocalQuestions = 100 // Keep last 100 questions locally
+
+    private init() {}
+
+    // MARK: - Save to Local Storage
+
+    /// Save newly archived questions to local storage
+    func saveQuestions(_ questions: [[String: Any]]) {
+        print("💾 [QuestionLocalStorage] Saving \(questions.count) questions to local storage")
+
+        // DEBUG: Log what we're trying to save
+        for (index, question) in questions.enumerated() {
+            print("   📝 Question \(index): id=\(question["id"] ?? "nil")")
+            print("      questionText: '\(question["questionText"] ?? "nil")'")
+            print("      Keys: \(question.keys.sorted())")
+        }
+
+        var existingQuestions = getLocalQuestions()
+
+        // Add new questions at the beginning (most recent first)
+        for question in questions.reversed() {
+            if let id = question["id"] as? String {
+                print("   • Adding question ID: \(id)")
+                existingQuestions.insert(question, at: 0)
+            }
+        }
+
+        // Keep only the most recent questions
+        if existingQuestions.count > maxLocalQuestions {
+            existingQuestions = Array(existingQuestions.prefix(maxLocalQuestions))
+            print("   • Trimmed to \(maxLocalQuestions) questions")
+        }
+
+        // Save to UserDefaults
+        do {
+            let data = try JSONSerialization.data(withJSONObject: existingQuestions)
+            userDefaults.set(data, forKey: questionsKey)
+            print("   ✅ Saved to local storage (total: \(existingQuestions.count))")
+
+            // DEBUG: Immediately read back to verify
+            if let savedData = userDefaults.data(forKey: questionsKey),
+               let saved = try? JSONSerialization.jsonObject(with: savedData) as? [[String: Any]],
+               let first = saved.first {
+                print("   🔍 Verification - First saved question:")
+                print("      questionText: '\(first["questionText"] ?? "nil")'")
+            }
+        } catch {
+            print("   ❌ Failed to serialize questions: \(error)")
+        }
+    }
+
+    // MARK: - Fetch from Local Storage
+
+    /// Get all locally stored questions
+    func getLocalQuestions() -> [[String: Any]] {
+        guard let data = userDefaults.data(forKey: questionsKey),
+              let questions = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            print("💾 [QuestionLocalStorage] No local questions found")
+            return []
+        }
+
+        print("💾 [QuestionLocalStorage] Found \(questions.count) local questions")
+
+        // DEBUG: Check what we're reading back
+        if let first = questions.first {
+            print("   🔍 First question read from storage:")
+            print("      id: \(first["id"] ?? "nil")")
+            print("      questionText: '\(first["questionText"] ?? "nil")'")
+            print("      Keys: \(first.keys.sorted())")
+        }
+
+        return questions
+    }
+
+    /// Merge local questions with server questions (deduplicating by ID)
+    func mergeWithServerData(localQuestions: [[String: Any]], serverQuestions: [QuestionSummary]) -> [QuestionSummary] {
+        print("🔄 [QuestionLocalStorage] Merging local and server data")
+        print("   • Local: \(localQuestions.count) questions")
+        print("   • Server: \(serverQuestions.count) questions")
+
+        var mergedQuestions: [QuestionSummary] = []
+        var seenIds = Set<String>()
+
+        // Convert local questions to QuestionSummary and add them first (most recent)
+        for questionData in localQuestions {
+            if let id = questionData["id"] as? String {
+                if !seenIds.contains(id) {
+                    if let question = try? convertLocalQuestionToSummary(questionData) {
+                        mergedQuestions.append(question)
+                        seenIds.insert(id)
+                    }
+                }
+            }
+        }
+
+        // Add server questions (avoid duplicates)
+        for question in serverQuestions {
+            if !seenIds.contains(question.id) {
+                mergedQuestions.append(question)
+                seenIds.insert(question.id)
+            }
+        }
+
+        print("   ✅ Merged result: \(mergedQuestions.count) questions")
+        return mergedQuestions
+    }
+
+    // MARK: - Cleanup
+
+    /// Remove a question from local storage (e.g., when confirmed synced with server)
+    func removeQuestion(withId id: String) {
+        var questions = getLocalQuestions()
+        questions.removeAll { ($0["id"] as? String) == id }
+
+        if let data = try? JSONSerialization.data(withJSONObject: questions) {
+            userDefaults.set(data, forKey: questionsKey)
+            print("💾 [QuestionLocalStorage] Removed question \(id)")
+        }
+    }
+
+    /// Clear all local questions (e.g., on logout)
+    func clearAll() {
+        userDefaults.removeObject(forKey: questionsKey)
+        print("💾 [QuestionLocalStorage] Cleared all local questions")
+    }
+
+    /// Sync with server: Remove local questions that exist on server
+    func syncWithServer(serverQuestionIds: [String]) {
+        var questions = getLocalQuestions()
+        let initialCount = questions.count
+
+        // ✅ FIX: Remove questions that are NOT on server (keep questions that ARE on server)
+        questions.removeAll { question in
+            if let id = question["id"] as? String {
+                return !serverQuestionIds.contains(id)  // Keep if on server, remove if not
+            }
+            return true  // Remove questions without valid IDs
+        }
+
+        if questions.count != initialCount {
+            if let data = try? JSONSerialization.data(withJSONObject: questions) {
+                userDefaults.set(data, forKey: questionsKey)
+                print("💾 [QuestionLocalStorage] Synced with server: removed \(initialCount - questions.count) questions")
+            }
+        }
+    }
+
+    // MARK: - Helper
+
+    func convertLocalQuestionToSummary(_ data: [String: Any]) throws -> QuestionSummary {
+        print("🔄 [QuestionLocalStorage] === Converting question to summary ===")
+        print("🔄 [QuestionLocalStorage] Available keys: \(data.keys.sorted())")
+
+        guard let id = data["id"] as? String else {
+            print("❌ [QuestionLocalStorage] Missing 'id' field")
+            throw NSError(domain: "QuestionLocalStorage", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing 'id' field"])
+        }
+        print("✅ [QuestionLocalStorage] ID: \(id)")
+
+        guard let subject = data["subject"] as? String else {
+            print("❌ [QuestionLocalStorage] Missing 'subject' field")
+            throw NSError(domain: "QuestionLocalStorage", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing 'subject' field"])
+        }
+        print("✅ [QuestionLocalStorage] Subject: \(subject)")
+
+        guard let questionText = data["questionText"] as? String else {
+            print("❌ [QuestionLocalStorage] Missing 'questionText' field")
+            throw NSError(domain: "QuestionLocalStorage", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing 'questionText' field"])
+        }
+        print("✅ [QuestionLocalStorage] Question text: \(questionText.prefix(50))...")
+
+        guard let archivedAtString = data["archivedAt"] as? String else {
+            print("❌ [QuestionLocalStorage] Missing 'archivedAt' field")
+            print("❌ [QuestionLocalStorage] Available date fields: \(data.filter { $0.key.lowercased().contains("date") || $0.key.lowercased().contains("archive") })")
+            throw NSError(domain: "QuestionLocalStorage", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing 'archivedAt' field"])
+        }
+        print("✅ [QuestionLocalStorage] ArchivedAt: \(archivedAtString)")
+
+        // Parse date
+        let archivedAt: Date
+        if let timestamp = TimeInterval(archivedAtString) {
+            archivedAt = Date(timeIntervalSince1970: timestamp / 1000)
+            print("✅ [QuestionLocalStorage] Parsed as timestamp: \(archivedAt)")
+        } else {
+            let iso8601Formatter = ISO8601DateFormatter()
+            archivedAt = iso8601Formatter.date(from: archivedAtString) ?? Date()
+            print("✅ [QuestionLocalStorage] Parsed as ISO8601: \(archivedAt)")
+        }
+
+        let confidence = (data["confidence"] as? Float) ?? (data["confidence"] as? Double).map(Float.init) ?? 0.0
+        let hasVisualElements = (data["hasVisualElements"] as? Bool) ?? false
+        let reviewCount = (data["reviewCount"] as? Int) ?? 0
+        let tags = data["tags"] as? [String]
+
+        // Grading fields
+        let gradeString = data["grade"] as? String
+        let grade = gradeString != nil ? GradeResult(rawValue: gradeString!) : nil
+        let points = (data["points"] as? Float) ?? (data["points"] as? Double).map(Float.init)
+        let maxPoints = (data["maxPoints"] as? Float) ?? (data["maxPoints"] as? Double).map(Float.init)
+        let isGraded = (data["isGraded"] as? Bool) ?? false
+
+        print("✅ [QuestionLocalStorage] Conversion successful, grade: \(grade?.rawValue ?? "nil")")
+
+        return QuestionSummary(
+            id: id,
+            subject: subject,
+            questionText: questionText,
+            confidence: confidence,
+            hasVisualElements: hasVisualElements,
+            archivedAt: archivedAt,
+            reviewCount: reviewCount,
+            tags: tags,
+            totalQuestions: 1,
+            grade: grade,
+            points: points,
+            maxPoints: maxPoints,
+            isGraded: isGraded
+        )
+    }
+}
+
+//
+//  SubjectBreakdownCache.swift
+//  StudyAI
+//
+//  Created by Claude Code on 10/15/25.
+//
+
+import Foundation
+
+/// Local cache for subject breakdown data
+/// Provides instant display while background refresh fetches latest from server
+class SubjectBreakdownCache {
+    static let shared = SubjectBreakdownCache()
+
+    private let userDefaults = UserDefaults.standard
+    private let cacheKeyPrefix = "subjectBreakdownCache_"
+    private let cacheValidityInterval: TimeInterval = 300 // 5 minutes
+
+    private init() {}
+
+    // MARK: - Cache Management
+
+    /// Save subject breakdown to cache
+    func saveSubjectBreakdown(_ data: SubjectBreakdownData, timeframe: String) {
+        let cacheKey = cacheKeyPrefix + timeframe
+
+        if let encoded = try? JSONEncoder().encode(data) {
+            userDefaults.set(encoded, forKey: cacheKey)
+            userDefaults.set(Date(), forKey: cacheKey + "_timestamp")
+            print("💾 [SubjectBreakdownCache] Cached data for timeframe: \(timeframe)")
+        }
+    }
+
+    /// Get cached subject breakdown
+    func getCachedSubjectBreakdown(timeframe: String) -> SubjectBreakdownData? {
+        let cacheKey = cacheKeyPrefix + timeframe
+
+        guard let data = userDefaults.data(forKey: cacheKey),
+              let cached = try? JSONDecoder().decode(SubjectBreakdownData.self, from: data) else {
+            print("💾 [SubjectBreakdownCache] No cache found for timeframe: \(timeframe)")
+            return nil
+        }
+
+        // Check if cache is still valid
+        if let timestamp = userDefaults.object(forKey: cacheKey + "_timestamp") as? Date {
+            let age = Date().timeIntervalSince(timestamp)
+            if age > cacheValidityInterval {
+                print("💾 [SubjectBreakdownCache] Cache expired for timeframe: \(timeframe) (age: \(Int(age))s)")
+                return nil
+            }
+        }
+
+        print("💾 [SubjectBreakdownCache] Returning cached data for timeframe: \(timeframe)")
+        return cached
+    }
+
+    /// Clear cache for specific timeframe
+    func clearCache(timeframe: String) {
+        let cacheKey = cacheKeyPrefix + timeframe
+        userDefaults.removeObject(forKey: cacheKey)
+        userDefaults.removeObject(forKey: cacheKey + "_timestamp")
+        print("💾 [SubjectBreakdownCache] Cleared cache for timeframe: \(timeframe)")
+    }
+
+    /// Clear all cached subject breakdown data
+    func clearAllCache() {
+        let timeframes = ["today", "week", "month", "all"]
+        for timeframe in timeframes {
+            clearCache(timeframe: timeframe)
+        }
+        print("💾 [SubjectBreakdownCache] Cleared all subject breakdown cache")
+    }
+
+    /// Invalidate cache to force refresh on next load
+    func invalidateCache(timeframe: String) {
+        let cacheKey = cacheKeyPrefix + timeframe
+        userDefaults.set(Date.distantPast, forKey: cacheKey + "_timestamp")
+        print("💾 [SubjectBreakdownCache] Invalidated cache for timeframe: \(timeframe)")
+    }
+}
+

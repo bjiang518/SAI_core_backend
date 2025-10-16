@@ -174,6 +174,7 @@ struct ModernProfileView: View {
     @State private var showingHelpCenter = false
     @State private var showingContactSupport = false
     @State private var showingShareSheet = false
+    @State private var showingStorageControl = false
 
     var body: some View {
         NavigationView {
@@ -306,6 +307,13 @@ struct ModernProfileView: View {
                         SettingsRow(icon: "globe", title: NSLocalizedString("settings.language", comment: ""), color: .blue)
                     }
                     .buttonStyle(.plain)
+
+                    Button(action: {
+                        showingStorageControl = true
+                    }) {
+                        SettingsRow(icon: "externaldrive.fill", title: NSLocalizedString("settings.storageControl", comment: ""), color: .purple)
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 // Voice & Audio Section
@@ -399,6 +407,9 @@ struct ModernProfileView: View {
         }
         .sheet(isPresented: $showingLanguageSettings) {
             LanguageSettingsView()
+        }
+        .sheet(isPresented: $showingStorageControl) {
+            StorageControlView()
         }
         .sheet(isPresented: $showingPasswordManagement) {
             PasswordManagementView()
