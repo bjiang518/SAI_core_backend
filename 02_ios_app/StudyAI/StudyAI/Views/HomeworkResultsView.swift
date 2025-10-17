@@ -1391,24 +1391,12 @@ extension HomeworkResultsView {
             let archivedQuestions = try await questionArchiveService.archiveQuestions(request)
 
             await MainActor.run {
-                // Calculate how many duplicates were skipped
-                let skippedCount = request.selectedQuestionIndices.count - archivedQuestions.count
-
-                if skippedCount > 0 {
-                    archiveMessage = "Successfully archived \(archivedQuestions.count) question(s)! Skipped \(skippedCount) duplicate(s) that were already archived."
-                } else {
-                    archiveMessage = "Successfully archived \(archivedQuestions.count) question(s) to your Mistake Notebook!"
-                }
+                // ✅ LOCAL-FIRST: Questions are saved locally only
+                archiveMessage = "✅ Saved \(archivedQuestions.count) question(s) locally!\n\n💡 Tip: Use 'Sync with Server' in Settings to upload to cloud."
 
                 isArchiving = false
                 showingQuestionArchiveDialog = false
                 selectedQuestionIndices.removeAll()
-            }
-        } catch QuestionArchiveError.allQuestionsAreDuplicates(let count) {
-            await MainActor.run {
-                archiveMessage = "All \(count) selected question(s) have already been archived. No new questions were added."
-                isArchiving = false
-                showingQuestionArchiveDialog = false
             }
         } catch {
             await MainActor.run {
@@ -1453,22 +1441,16 @@ extension HomeworkResultsView {
             }
         }
 
-        // Track questions in a single batch to avoid multiple server syncs
-        // Track correct answers
-        for _ in 0..<correctCount {
-            pointsManager.trackQuestionAnswered(subject: subject, isCorrect: true)
-        }
+        // ✅ FIX: Use new counter-based markHomeworkProgress() method
+        // Call once with aggregated counts instead of looping through each question
+        let totalQuestions = correctCount + incorrectCount
+        pointsManager.markHomeworkProgress(
+            subject: subject,
+            numberOfQuestions: totalQuestions,
+            numberOfCorrectQuestions: correctCount
+        )
 
-        // Track incorrect answers
-        for _ in 0..<incorrectCount {
-            pointsManager.trackQuestionAnswered(subject: subject, isCorrect: false)
-        }
-
-        print("📊 [trackHomeworkUsage] Tracked \(correctCount) correct, \(incorrectCount) incorrect out of \(questions.count) total questions")
-
-        // Track study time (estimate based on number of questions)
-        let estimatedStudyTime = max(questions.count * 2, 5) // 2 minutes per question, minimum 5 minutes
-        pointsManager.trackStudyTime(estimatedStudyTime)
+        print("📊 [trackHomeworkUsage] ✅ Marked progress: \(totalQuestions) total questions, \(correctCount) correct, \(incorrectCount) incorrect")
     }
     
     /// Simple subject detection from question text

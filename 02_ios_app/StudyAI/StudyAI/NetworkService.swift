@@ -671,237 +671,7 @@ class NetworkService: ObservableObject {
             return (false, nil)
         }
     }
-    
-    // MARK: - Progress Tracking Integration
-    
-    /// Track question answered for progress system
-    func trackQuestionAnswered(subject: String, isCorrect: Bool, studyTimeSeconds: Int = 0) async {
-        let trackURL = "\(baseURL)/api/progress/track-question"
 
-        guard let url = URL(string: trackURL) else {
-            return
-        }
-
-        let trackData = [
-            "subject": subject,
-            "is_correct": isCorrect,
-            "study_time_seconds": studyTimeSeconds
-        ] as [String: Any]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 10.0
-
-        // Add authentication header
-        addAuthHeader(to: &request)
-
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: trackData)
-
-            let (_, _) = try await URLSession.shared.data(for: request)
-
-            // Fail silently for progress tracking
-        } catch {
-            // Fail silently for progress tracking
-        }
-    }
-    
-    // MARK: - User Progress Server Sync Methods
-    
-    /// Update user progress on server (for weekly progress sync)
-    func updateUserProgress(questionCount: Int = 1, subject: String, currentScore: Int, clientTimezone: String) async -> (success: Bool, progress: [String: Any]?, message: String?) {
-        let updateURL = "\(baseURL)/api/progress/update"
-
-        guard let url = URL(string: updateURL) else {
-            return (false, nil, "Invalid URL")
-        }
-
-        let requestData: [String: Any] = [
-            "questionCount": questionCount,
-            "subject": subject,
-            "currentScore": currentScore,
-            "clientTimezone": clientTimezone
-        ]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        addAuthHeader(to: &request)
-
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                if httpResponse.statusCode == 200 {
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        let success = json["success"] as? Bool ?? false
-                        let progressData = (json["data"] as? [String: Any])?["progress"] as? [String: Any]
-                        let message = (json["data"] as? [String: Any])?["message"] as? String
-
-                        return (success, progressData, message)
-                    }
-                } else {
-                    let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
-                    return (false, nil, errorMessage)
-                }
-            }
-
-            return (false, nil, "Invalid response")
-        } catch {
-            return (false, nil, error.localizedDescription)
-        }
-    }
-    
-    /// Get current week progress from server
-    func getCurrentWeekProgress(timezone: String) async -> (success: Bool, progress: [String: Any]?, message: String?) {
-        // Get user ID from AuthenticationService (same as other working APIs)
-        let currentUser = await MainActor.run {
-            return AuthenticationService.shared.currentUser
-        }
-
-        guard let user = currentUser else {
-            return (false, nil, "User not authenticated")
-        }
-
-        let userId = user.id
-
-        // FIXED: Use correct server endpoint from progress-routes.js
-        let currentURL = "\(baseURL)/api/progress/weekly/\(userId)"
-
-
-        guard let url = URL(string: currentURL) else {
-            return (false, nil, "Invalid URL")
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        addAuthHeader(to: &request)
-        
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                if httpResponse.statusCode == 200 {
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        let success = json["success"] as? Bool ?? false
-
-                        if success {
-                            // Server returns: { "success": true, "data": [array of daily activities] }
-                            let dailyActivities = json["data"] as? [[String: Any]]
-
-
-                            // Convert server response to expected format for PointsEarningSystem
-                            var weeklyData: [String: Any] = [:]
-
-                            if let activities = dailyActivities {
-                                // Log server response structure
-                                // Log basic server response info
-
-                                // Convert server data to PointsEarningSystem expected format
-                                let isoFormatter = ISO8601DateFormatter()
-                                isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-                                // Fallback formatter for different ISO formats
-                                let fallbackFormatter = DateFormatter()
-                                fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
-                                fallbackFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-
-                                // Another fallback for the exact format we see
-                                let specificFormatter = DateFormatter()
-                                specificFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.000'Z'"
-                                specificFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-
-                                let simpleDateFormatter = DateFormatter()
-                                simpleDateFormatter.dateFormat = "yyyy-MM-dd"
-                                simpleDateFormatter.timeZone = TimeZone.current
-
-                                let calendar = Calendar.current
-                                let today = Date()
-
-                                // Calculate week boundaries
-                                let weekStart = calendar.dateInterval(of: .weekOfYear, for: today)?.start ?? today
-                                let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? today
-
-                                // FIXED: Use simple date format that PointsEarningSystem expects
-                                let weekStartString = simpleDateFormatter.string(from: weekStart)
-                                let weekEndString = simpleDateFormatter.string(from: weekEnd)
-
-                                // Convert activities to expected format
-                                var convertedActivities: [[String: Any]] = []
-                                var totalQuestions = 0
-                                var totalCorrect = 0
-
-                                for (index, activity) in activities.enumerated() {
-                                    // Parse server date - handle both string and direct date formats
-                                    var serverDate: Date?
-
-                                    if let dateString = activity["date"] as? String {
-                                        // Try multiple date formatters in order
-                                        serverDate = isoFormatter.date(from: dateString) ??
-                                                   fallbackFormatter.date(from: dateString) ??
-                                                   specificFormatter.date(from: dateString)
-                                    } else if let dateObj = activity["date"] as? Date {
-                                        serverDate = dateObj
-                                    }
-
-                                    guard let validDate = serverDate else {
-                                        continue
-                                    }
-
-                                    // Calculate dayOfWeek properly (1=Monday, 7=Sunday)
-                                    let weekdayComponent = calendar.component(.weekday, from: validDate)
-                                    let dayOfWeek = weekdayComponent == 1 ? 7 : weekdayComponent - 1
-
-                                    let questionCount = activity["questionsAttempted"] as? Int ?? 0
-                                    totalQuestions += questionCount
-                                    totalCorrect += (activity["questionsCorrect"] as? Int ?? 0)
-
-                                    let simpleDateString = simpleDateFormatter.string(from: validDate)
-
-                                    let convertedActivity: [String: Any] = [
-                                        "date": simpleDateString,
-                                        "dayOfWeek": dayOfWeek,
-                                        "questionCount": questionCount,
-                                        "timezone": TimeZone.current.identifier
-                                    ]
-
-                                    convertedActivities.append(convertedActivity)
-                                }
-
-                                // Build PointsEarningSystem expected format
-                                weeklyData = [
-                                    "week_start": weekStartString,
-                                    "week_end": weekEndString,
-                                    "total_questions_this_week": totalQuestions,
-                                    "current_score": totalCorrect,
-                                    "daily_activities": convertedActivities,
-                                    "timezone": TimeZone.current.identifier,
-                                    "updated_at": isoFormatter.string(from: Date()) // Keep ISO format for updated_at
-                                ]
-
-                            }
-
-                            return (success, weeklyData, nil)
-                        } else {
-                            let error = json["error"] as? String ?? "Unknown error"
-                            return (false, nil, error)
-                        }
-                    }
-                } else {
-                    let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
-                    return (false, nil, errorMessage)
-                }
-            }
-            
-            return (false, nil, "Invalid response")
-        } catch {
-            return (false, nil, error.localizedDescription)
-        }
-    }
-    
     /// Get progress history from server
     func getProgressHistory(limit: Int = 12) async -> (success: Bool, history: [[String: Any]]?, message: String?) {
         // Get user ID from AuthenticationService (same as other working APIs)
@@ -2336,187 +2106,81 @@ class NetworkService: ObservableObject {
     
     // MARK: - Session Archive Management
     
-    /// Archive a session conversation to the backend database with image processing
+    /// Archive a session conversation to LOCAL storage only (with image processing)
     func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil) async -> (success: Bool, message: String, conversation: [String: Any]?) {
-        print("📦 === ARCHIVE CONVERSATION SESSION (WITH IMAGE PROCESSING) ===")
+        print("📦 === ARCHIVE CONVERSATION SESSION (LOCAL-ONLY) ===")
         print("📁 Session ID: \(sessionId)")
         print("📝 Title: \(title ?? "Auto-generated")")
         print("🏷️ Topic: \(topic ?? "Auto-generated from subject")")
         print("📚 Subject: \(subject ?? "General")")
         print("💭 Notes: \(notes ?? "None")")
-        print("🔐 Auth Token Available: \(AuthenticationService.shared.getAuthToken() != nil)")
-        
-        // Check authentication first - use unified auth system  
-        let token = AuthenticationService.shared.getAuthToken()
-        guard let token = token else {
-            print("❌ Authentication required for archiving")
-            return (false, "Authentication required. Please login first.", nil)
-        }
-        
-        // ENHANCED: Process conversation history to handle images
+
+        // ✅ LOCAL-ONLY: Process conversation to handle images
         let processedConversation = await processConversationForArchive()
         print("🔍 Processed conversation: \(processedConversation.messageCount) messages")
         print("📷 Images processed: \(processedConversation.imagesProcessed)")
         if processedConversation.imagesProcessed > 0 {
             print("📝 Image summaries created: \(processedConversation.imageSummariesCreated)")
         }
-        
-        let archiveURL = "\(baseURL)/api/ai/sessions/\(sessionId)/archive"
-        print("🔗 Archive URL: \(archiveURL)")
-        
-        guard let url = URL(string: archiveURL) else {
-            print("❌ Invalid archive URL: \(archiveURL)")
-            return (false, "Invalid URL", nil)
-        }
-        
-        // Build archive request body - ENHANCED FORMAT with processed conversation
-        var archiveData: [String: Any] = [:]
-        
+
+        // Generate local UUID for conversation
+        let conversationId = UUID().uuidString
+
+        // Build conversation data
+        var conversationData: [String: Any] = [
+            "id": conversationId,
+            "subject": subject ?? "General",
+            "topic": topic ?? (subject ?? "General Discussion"),
+            "conversationContent": processedConversation.textContent,
+            "archivedDate": ISO8601DateFormatter().string(from: Date()),
+            "createdAt": ISO8601DateFormatter().string(from: Date()),
+            "messageCount": processedConversation.messageCount,
+            "hasImageSummaries": processedConversation.imagesProcessed > 0,
+            "imageCount": processedConversation.imagesProcessed
+        ]
+
+        // Add title
         if let title = title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            archiveData["title"] = title
+            conversationData["title"] = title
         } else {
             // Generate auto title based on subject and date
             let dateFormatter = DateFormatter()
             dateFormatter.dateStyle = .medium
-            archiveData["title"] = "\(subject ?? "Study") Session - \(dateFormatter.string(from: Date()))"
+            conversationData["title"] = "\(subject ?? "Study") Session - \(dateFormatter.string(from: Date()))"
         }
-        
-        if let subject = subject, !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            archiveData["subject"] = subject
-        }
-        
-        if let topic = topic, !topic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            archiveData["topic"] = topic
-        } else {
-            // Use subject as default topic if no topic provided
-            archiveData["topic"] = subject ?? "General Discussion"
-        }
-        
+
+        // Add notes
         if let notes = notes, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            archiveData["notes"] = notes
+            conversationData["notes"] = notes
         }
-        
-        // ENHANCED: Add processed conversation content (images converted to summaries)
-        archiveData["conversationContent"] = processedConversation.textContent
-        archiveData["messageCount"] = processedConversation.messageCount
-        archiveData["hasImageSummaries"] = processedConversation.imagesProcessed > 0
-        archiveData["imageCount"] = processedConversation.imagesProcessed
-        
-        // Add detailed breakdown for debugging
+
+        // Add image summary note if applicable
         if processedConversation.imagesProcessed > 0 {
             let enhancedNotes = """
             \(notes ?? "")
-            
+
             📸 Session contained \(processedConversation.imagesProcessed) image(s) that were converted to text summaries for storage.
             """
-            archiveData["notes"] = enhancedNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+            conversationData["notes"] = enhancedNotes.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        
-        print("📤 Sending enhanced archive data: \(archiveData)")
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 90.0 // Extended timeout for AI processing
-        
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: archiveData)
-            
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Archive HTTP Status: \(httpResponse.statusCode)")
-                
-                let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                print("📄 Raw Archive Response: \(rawResponse)")
-                
-                do {
-                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                        print("✅ Archive JSON Response: \(json)")
-                        
-                        if httpResponse.statusCode == 200 {
-                            let success = json["success"] as? Bool ?? false
-                            
-                            if success {
-                                let messageCount = json["messageCount"] as? Int ?? 0
-                                let archiveId = json["archivedConversationId"] as? String ?? "unknown"
-                                let archiveType = json["type"] as? String ?? "conversation"
 
-                                print("🎉 === ARCHIVE SUCCESS ===")
-                                print("📁 Archive ID: \(archiveId)")
-                                print("💬 Messages archived: \(messageCount)")
-                                print("📦 Archive type: \(archiveType)")
-                                print("🔍 IMPORTANT: Archive endpoint used: /api/ai/sessions/\(sessionId)/archive")
-                                print("🔍 IMPORTANT: Response format: \(json)")
-                                print("🔍 IMPORTANT: To retrieve, try endpoints like:")
-                                print("   - /api/ai/sessions/archived")
-                                print("   - /api/ai/archives/conversations")
-                                print("   - /api/archive/conversations")
-                                if let currentUserId = AuthenticationService.shared.currentUser?.id {
-                                    print("   - /api/user/\(currentUserId)/conversations")
-                                }
+        print("💾 Built conversation data for local storage:")
+        print("   - ID: \(conversationId)")
+        print("   - Title: \(conversationData["title"] ?? "N/A")")
+        print("   - Subject: \(conversationData["subject"] ?? "N/A")")
+        print("   - Topic: \(conversationData["topic"] ?? "N/A")")
+        print("   - Message count: \(processedConversation.messageCount)")
 
-                                // Build conversation object for local storage
-                                var conversationData: [String: Any] = [
-                                    "id": archiveId,
-                                    "title": archiveData["title"] as? String ?? "Study Session",
-                                    "subject": archiveData["subject"] as? String ?? "General",
-                                    "topic": archiveData["topic"] as? String ?? "General",
-                                    "conversationContent": archiveData["conversationContent"] as? String ?? "",
-                                    "archivedDate": ISO8601DateFormatter().string(from: Date()),
-                                    "createdAt": ISO8601DateFormatter().string(from: Date())
-                                ]
+        // ✅ Save to local storage ONLY - no server request
+        ConversationLocalStorage.shared.saveConversation(conversationData)
 
-                                if let notes = archiveData["notes"] as? String {
-                                    conversationData["notes"] = notes
-                                }
+        print("✅ [Archive] Saved conversation to LOCAL storage only (ID: \(conversationId))")
+        print("   💡 [Archive] Use 'Sync with Server' to upload to backend")
 
-                                print("💾 Built conversation data for local storage with title: \(conversationData["title"] ?? "N/A")")
+        // Invalidate cache so fresh data is loaded
+        invalidateCache()
 
-                                // Invalidate cache so fresh data is loaded
-                                invalidateCache()
-
-                                return (true, "Session archived successfully with \(messageCount) messages", conversationData)
-                            } else {
-                                let error = json["error"] as? String ?? "Archive failed"
-                                print("❌ Archive failed: \(error)")
-                                return (false, error, nil)
-                            }
-                        } else if httpResponse.statusCode == 401 {
-                            print("❌ Authentication failed during archive")
-                            // Let AuthenticationService handle auth state
-                            return (false, "Authentication expired. Please login again.", nil)
-                        } else if httpResponse.statusCode == 404 {
-                            print("❌ Session not found for archiving")
-                            return (false, "Session not found or already archived", nil)
-                        } else if httpResponse.statusCode == 400 {
-                            let error = json["error"] as? String ?? "Invalid request"
-                            print("❌ Bad request: \(error)")
-                            return (false, error, nil)
-                        } else {
-                            let error = json["error"] as? String ?? "Archive failed"
-                            print("❌ Archive HTTP \(httpResponse.statusCode): \(error)")
-                            return (false, "Server error: \(error)", nil)
-                        }
-                    } else {
-                        print("❌ Failed to parse JSON response")
-                        return (false, "Invalid response format: \(rawResponse)", nil)
-                    }
-                } catch {
-                    print("❌ JSON parsing error: \(error)")
-                    print("📄 Raw response: \(rawResponse)")
-                    return (false, "Invalid response format", nil)
-                }
-            } else {
-                print("❌ No HTTP response received")
-                return (false, "No response from server", nil)
-            }
-
-        } catch {
-            print("❌ Archive request failed: \(error.localizedDescription)")
-            return (false, "Network error: \(error.localizedDescription)", nil)
-        }
+        return (true, "Session archived locally with \(processedConversation.messageCount) messages", conversationData)
     }
     
     // MARK: - Conversation Processing for Archive
@@ -3539,88 +3203,6 @@ class NetworkService: ObservableObject {
         }
     }
 
-    /// Get today's specific activity from server
-    func getTodaysActivity(timezone: String) async -> (success: Bool, todayProgress: DailyProgress?, message: String?) {
-        // Get user ID from AuthenticationService (same as other working APIs)
-        let currentUser = await MainActor.run {
-            return AuthenticationService.shared.currentUser
-        }
-
-        guard let user = currentUser else {
-            return (false, nil, "User not authenticated")
-        }
-
-        let userId = user.id
-        let userEmail = user.email
-
-        let todayURL = "\(baseURL)/api/progress/today/\(userId)"
-
-        guard let url = URL(string: todayURL) else {
-            return (false, nil, "Invalid URL")
-        }
-
-        let todayDateString = getCurrentDateString(timezone: timezone)
-        let requestData: [String: Any] = [
-            "timezone": timezone,
-            "date": todayDateString
-        ]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        addAuthHeader(to: &request)
-
-        // Log auth state
-        let authToken = AuthenticationService.shared.getAuthToken()
-
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                if httpResponse.statusCode == 200 {
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        let success = json["success"] as? Bool ?? false
-                        let message = json["message"] as? String
-
-                        if success, let todayData = json["todayProgress"] as? [String: Any] {
-                            // Parse today's activity data
-                            let totalQuestions = todayData["totalQuestions"] as? Int ?? 0
-                            let correctAnswers = todayData["correctAnswers"] as? Int ?? 0
-                            let studyTimeMinutes = todayData["studyTimeMinutes"] as? Int ?? 0
-                            let subjectsStudied = Set(todayData["subjectsStudied"] as? [String] ?? [])
-
-                            let todayProgress = DailyProgress(
-                                totalQuestions: totalQuestions,
-                                correctAnswers: correctAnswers,
-                                studyTimeMinutes: studyTimeMinutes,
-                                subjectsStudied: subjectsStudied
-                            )
-
-                            return (true, todayProgress, message)
-                        } else {
-                            return (success, nil, message ?? "No today's data available")
-                        }
-                    }
-                } else {
-                    let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
-
-                    // Try to get error details from response body
-                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        // Error details available in errorData if needed for debugging
-                    }
-
-                    return (false, nil, errorMessage)
-                }
-            }
-
-            return (false, nil, "Invalid response")
-        } catch {
-            return (false, nil, error.localizedDescription)
-        }
-    }
-
     /// Helper method to get current date string in specified timezone
     // MARK: - Total Points and User Level Sync
 
@@ -3725,6 +3307,86 @@ class NetworkService: ObservableObject {
         } catch {
             print("❌ Level fetch error: \(error.localizedDescription)")
             return (false, nil, error.localizedDescription)
+        }
+    }
+
+    /// Sync daily progress data with backend
+    /// Sends subject-specific counters and aggregated daily totals
+    func syncDailyProgress(userId: String, dailyProgress: DailyProgress) async -> (success: Bool, message: String?) {
+        print("🔄 [NetworkService] === SYNCING DAILY PROGRESS ===")
+        print("🔄 [NetworkService] Date: \(dailyProgress.date)")
+        print("🔄 [NetworkService] Total questions: \(dailyProgress.totalQuestions)")
+        print("🔄 [NetworkService] Correct answers: \(dailyProgress.correctAnswers)")
+        print("🔄 [NetworkService] Accuracy: \(String(format: "%.1f%%", dailyProgress.accuracy))")
+
+        let syncURL = "\(baseURL)/api/user/sync-daily-progress"
+
+        guard let url = URL(string: syncURL) else {
+            print("❌ Invalid sync URL: \(syncURL)")
+            return (false, "Invalid URL")
+        }
+
+        // Convert SubjectDailyProgress to JSON-serializable format
+        var subjectProgressArray: [[String: Any]] = []
+        for (subject, progress) in dailyProgress.subjectProgress {
+            subjectProgressArray.append([
+                "subject": subject,
+                "numberOfQuestions": progress.numberOfQuestions,
+                "numberOfCorrectQuestions": progress.numberOfCorrectQuestions,
+                "accuracy": progress.accuracy
+            ])
+        }
+
+        let requestBody: [String: Any] = [
+            "userId": userId,
+            "date": dailyProgress.date,
+            "subjectProgress": subjectProgressArray,
+            "totalQuestions": dailyProgress.totalQuestions,
+            "correctAnswers": dailyProgress.correctAnswers,
+            "accuracy": dailyProgress.accuracy,
+            "timestamp": ISO8601DateFormatter().string(from: Date())
+        ]
+
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else {
+            print("❌ Failed to serialize sync request")
+            return (false, "Failed to serialize request")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Add authentication headers
+        if let authToken = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        request.httpBody = jsonData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                if let responseDict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if httpResponse.statusCode == 200 {
+                        let success = responseDict["success"] as? Bool ?? false
+                        let message = responseDict["message"] as? String
+
+                        print("🔄 [NetworkService] ✅ Daily progress synced successfully")
+                        return (success, message)
+                    } else {
+                        let message = responseDict["message"] as? String ?? "Sync failed"
+                        print("🔄 [NetworkService] ❌ Sync failed: \(message)")
+                        return (false, message)
+                    }
+                }
+            }
+
+            print("🔄 [NetworkService] ❌ Invalid response")
+            return (false, "Invalid response")
+        } catch {
+            print("🔄 [NetworkService] ❌ Sync error: \(error.localizedDescription)")
+            return (false, error.localizedDescription)
         }
     }
 

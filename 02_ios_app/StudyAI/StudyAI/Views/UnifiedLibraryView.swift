@@ -136,8 +136,14 @@ struct UnifiedLibraryView: View {
     
     var availableSubjects: [String] {
         var subjects = Set<String>()
-        subjects.formUnion(libraryContent.questions.map { $0.subject })
-        subjects.formUnion(libraryContent.conversations.compactMap { $0["subject"] as? String })
+        // Use normalized subjects to merge "Math"/"Mathematics" variants
+        subjects.formUnion(libraryContent.questions.map { $0.normalizedSubject })
+        subjects.formUnion(libraryContent.conversations.compactMap {
+            if let subject = $0["subject"] as? String {
+                return QuestionSummary.normalizeSubject(subject)
+            }
+            return nil
+        })
         return Array(subjects).sorted()
     }
     

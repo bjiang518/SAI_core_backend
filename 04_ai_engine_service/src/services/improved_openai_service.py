@@ -956,8 +956,8 @@ GENERAL GRADING RULES:
           "subquestions": [
             {{
               "subquestion_number": "1a",
-              "raw_question_text": "Full original question text from image",
-              "question_text": "Simplified/short version (max 50 chars for preview)",
+              "raw_question_text": "COMPLETE original question verbatim from image (100-300+ chars, include ALL context)",
+              "question_text": "Short preview for UI (max 50 chars)",
               "student_answer": "student's written answer",
               "correct_answer": "expected answer",
               "grade": "CORRECT|INCORRECT|EMPTY|PARTIAL_CREDIT",
@@ -977,8 +977,8 @@ GENERAL GRADING RULES:
           "question_id": "q2",
           "question_number": "2",
           "is_parent": false,
-          "raw_question_text": "Full original question text from image",
-          "question_text": "Simplified/short version (max 50 chars for preview)",
+          "raw_question_text": "COMPLETE original question verbatim from image (100-300+ chars, may be long word problem)",
+          "question_text": "Short preview for UI (max 50 chars)",
           "student_answer": "student's written answer",
           "correct_answer": "expected answer",
           "grade": "CORRECT|INCORRECT|EMPTY|PARTIAL_CREDIT",
@@ -998,8 +998,9 @@ RULES:
 2. Parent-child: "is_parent": true, "has_subquestions": true
 3. Preserve exact question numbers. No restart across pages
 4. CORRECT=1.0, INCORRECT/EMPTY=0.0, PARTIAL=0.5. Feedback <30w
-5. "raw_question_text" = Full original (no student answer). "question_text" = Simplified <50 chars
-6. "student_answer" = What student wrote. "correct_answer" = Expected. Never mix."""
+5. "raw_question_text" = COMPLETE VERBATIM text from image (NOT shortened). May be 100-300+ characters for word problems.
+6. "question_text" = Simplified short preview <50 chars for UI display only
+7. "student_answer" = What student wrote. "correct_answer" = Expected. Never mix."""
         else:
             # FLAT STRUCTURE (FAST & STABLE): Optimized for reliability
             base_prompt = f"""Grade HW. Return JSON:
@@ -1011,8 +1012,8 @@ RULES:
   "questions": [
     {{
       "question_number": 1,
-      "raw_question_text": "Full original question text from image",
-      "question_text": "Simplified/short version (max 50 chars for preview)",
+      "raw_question_text": "COMPLETE original question verbatim from image (100-300+ chars, include ALL text even for long word problems)",
+      "question_text": "Short preview for UI (max 50 chars)",
       "student_answer": "student's written answer",
       "correct_answer": "expected answer",
       "grade": "CORRECT|INCORRECT|EMPTY|PARTIAL_CREDIT",
@@ -1029,8 +1030,9 @@ RULES:
 1. Flat structure. Parse each question separately
 2. Preserve exact question numbers
 3. CORRECT=1.0, INCORRECT/EMPTY=0.0, PARTIAL=0.5. Feedback <30w
-4. "raw_question_text" = Full original (no student answer). "question_text" = Simplified <50 chars
-5. "student_answer" = What student wrote. "correct_answer" = Expected. Never mix."""
+4. "raw_question_text" = COMPLETE VERBATIM text from image (NOT shortened). Capture the ENTIRE question exactly as written, may be 100-300+ characters.
+5. "question_text" = Simplified short preview <50 chars for UI display only
+6. "student_answer" = What student wrote. "correct_answer" = Expected. Never mix."""
 
         if student_context:
             base_prompt += f"\n\nStudent: {student_context.get('student_id', 'anonymous')}"

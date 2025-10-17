@@ -1656,6 +1656,7 @@ struct DirectAIHomeworkView: View {
         var allQuestions: [ParsedQuestion] = []
         var firstSubject = "Unknown"
         var firstConfidence: Float = 0.0
+        var firstPerformanceSummary: PerformanceSummary? = nil  // NEW: Capture performance summary
 
         for (index, responseDict) in responses.enumerated() {
             if let success = responseDict["success"] as? Bool, success,
@@ -1681,10 +1682,11 @@ struct DirectAIHomeworkView: View {
 
                 // Process parsed result
                 if let parsed = parsed {
-                    // Take subject from first image
+                    // Take subject and performance summary from first image
                     if index == 0 {
                         firstSubject = parsed.detectedSubject
                         firstConfidence = parsed.subjectConfidence
+                        firstPerformanceSummary = parsed.performanceSummary  // NEW: Capture summary
                     }
 
                     // Add all questions from this image
@@ -1706,7 +1708,7 @@ struct DirectAIHomeworkView: View {
             rawAIResponse: "Batch processing of \(responses.count) images",
             totalQuestionsFound: allQuestions.count,
             jsonParsingUsed: false,
-            performanceSummary: nil
+            performanceSummary: firstPerformanceSummary  // NEW: Pass summary from first image
         )
 
         stateManager.parsingResult = HomeworkParsingResult(
@@ -1991,13 +1993,15 @@ struct DirectAIHomeworkView: View {
         // Prevents network timeouts on slow mobile connections
         let maxSizeBytes = 500 * 1024 // 500KB limit for fast mobile uploads
 
-        // Progressive dimension reduction strategy if compression fails
-        let dimensionLevels: [CGFloat] = [2048, 1536, 1024, 768]
+        // Progressive dimension reduction strategy with more aggressive levels
+        // Added smaller dimensions (512, 384, 256) to handle very large user-edited images
+        let dimensionLevels: [CGFloat] = [2048, 1536, 1024, 768, 512, 384, 256]
 
         for maxDimension in dimensionLevels {
             let resizedImage = resizeImage(image, maxDimension: maxDimension)
 
-            let minQuality: CGFloat = 0.5   // Don't go below 50% quality for OCR accuracy
+            // For very small dimensions, allow lower quality to ensure compression succeeds
+            let minQuality: CGFloat = maxDimension <= 512 ? 0.3 : 0.5
 
             // Binary search for optimal compression (much faster than linear search)
             var low: CGFloat = minQuality
@@ -2023,20 +2027,32 @@ struct DirectAIHomeworkView: View {
             }
 
             if let finalData = bestData {
+                print("✅ [Compression] Successfully compressed to \(finalData.count / 1024)KB at \(Int(maxDimension))px")
                 return finalData
             }
 
             // Try fallback with minimum quality at this dimension
             if let fallbackData = resizedImage.jpegData(compressionQuality: minQuality) {
                 if fallbackData.count <= maxSizeBytes {
+                    print("✅ [Compression] Used minimum quality fallback: \(fallbackData.count / 1024)KB at \(Int(maxDimension))px")
                     return fallbackData
                 } else {
-                    // Continue to next smaller dimension
+                    print("⚠️ [Compression] Dimension \(Int(maxDimension))px still too large (\(fallbackData.count / 1024)KB), trying smaller...")
                 }
             }
         }
 
-        // If we've exhausted all dimension levels, return nil
+        // Last resort: Use smallest dimension with very low quality to ensure we always return something
+        // This ensures user-edited images always work, even if very large
+        print("⚠️ [Compression] All dimension levels failed, using emergency compression...")
+        let emergencyImage = resizeImage(image, maxDimension: 256)
+        if let emergencyData = emergencyImage.jpegData(compressionQuality: 0.2) {
+            print("✅ [Compression] Emergency compression: \(emergencyData.count / 1024)KB at 256px with 20% quality")
+            return emergencyData
+        }
+
+        // Only return nil if even emergency compression fails (extremely rare)
+        print("❌ [Compression] Complete failure - this should never happen")
         return nil
     }
     

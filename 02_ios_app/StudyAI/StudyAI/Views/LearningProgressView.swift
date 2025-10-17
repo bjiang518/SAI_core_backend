@@ -895,50 +895,31 @@ struct LearningProgressView: View {
             }
         }
 
-        // STEP 2: Fetch fresh data from server in background
+        // STEP 2: ✅ Calculate from LOCAL storage (no server fetch)
         await MainActor.run {
             isLoadingSubjectBreakdown = true
         }
 
-        do {
-            let response = try await networkService.fetchSubjectBreakdown(
-                userId: userId,
-                timeframe: selectedTimeframe.apiValue
-            )
+        // ✅ Use LocalProgressService instead of NetworkService
+        let localProgressService = LocalProgressService.shared
+        let data = await localProgressService.calculateSubjectBreakdown(timeframe: selectedTimeframe.apiValue)
 
-            // Check if task was cancelled during network call
-            if Task.isCancelled {
-                await MainActor.run {
-                    isLoadingSubjectBreakdown = false
-                }
-                return
-            }
-
+        // Check if task was cancelled during calculation
+        if Task.isCancelled {
             await MainActor.run {
                 isLoadingSubjectBreakdown = false
-                if response.success, let data = response.data {
-                    // STEP 3: Update cache with fresh data
-                    SubjectBreakdownCache.shared.saveSubjectBreakdown(data, timeframe: selectedTimeframe.apiValue)
-
-                    // STEP 4: Update UI with fresh data
-                    self.subjectBreakdownData = data
-                } else {
-                    if !Task.isCancelled {
-                        let errorMsg = response.message ?? "Failed to load subject breakdown"
-                        errorMessage = errorMsg
-                    }
-                }
             }
-        } catch {
-            await MainActor.run {
-                isLoadingSubjectBreakdown = false
+            return
+        }
 
-                // Only log as error if not cancelled (which is common during view changes)
-                if !error.localizedDescription.contains("cancelled") && !Task.isCancelled {
-                    let errorMsg = "Failed to load subject breakdown: \(error.localizedDescription)"
-                    errorMessage = errorMsg
-                }
-            }
+        await MainActor.run {
+            isLoadingSubjectBreakdown = false
+
+            // STEP 3: Update cache with calculated data
+            SubjectBreakdownCache.shared.saveSubjectBreakdown(data, timeframe: selectedTimeframe.apiValue)
+
+            // STEP 4: Update UI with calculated data
+            self.subjectBreakdownData = data
         }
     }
 }
@@ -1476,15 +1457,15 @@ struct MonthlyProgressGrid: View {
     // MARK: - Helper Methods
 
     private func loadMonthlyData() {
-        // ALWAYS fetch from server for consistency with Subject Breakdown
-        // This ensures the monthly calendar always shows the same data as subject breakdown
-        print("📅 Monthly: Fetching from server for consistency...")
+        // ✅ Calculate from LOCAL storage only (no server fetch)
+        // This ensures the monthly calendar shows data consistent with local question history
+        print("📅 Monthly: Calculating from local storage...")
         Task {
-            await fetchMonthlyDataFromServer()
+            await calculateMonthlyDataFromLocal()
         }
     }
 
-    private func fetchMonthlyDataFromServer() async {
+    private func calculateMonthlyDataFromLocal() async {
         let currentMonth = Date() // Fetch current month data
         let components = calendar.dateComponents([.year, .month], from: currentMonth)
 
@@ -1493,32 +1474,16 @@ struct MonthlyProgressGrid: View {
             return
         }
 
-        print("📅 Monthly: Fetching data for \(year)-\(month) for user: \(userId)")
+        print("📅 Monthly: Calculating data for \(year)-\(month) from local storage")
 
-        do {
-            let response = try await networkService.fetchMonthlyActivity(
-                userId: userId,
-                year: year,
-                month: month
-            )
+        // ✅ Use LocalProgressService instead of NetworkService
+        let localProgressService = LocalProgressService.shared
+        let activities = await localProgressService.calculateMonthlyActivity(year: year, month: month)
 
-            if response.success, let data = response.data {
-                print("📅 Monthly: Server returned \(data.activities.count) days")
+        print("📅 Monthly: Local calculation returned \(activities.count) days")
 
-                await MainActor.run {
-                    // Convert server data to DailyActivity format
-                    monthlyActivities = data.activities.map { serverActivity in
-                        DailyActivity(
-                            date: serverActivity.date,
-                            questionCount: serverActivity.questionCount
-                        )
-                    }
-                }
-            } else {
-                print("📅 Monthly: Server returned no data")
-            }
-        } catch {
-            print("📅 Monthly: Error fetching from server: \(error)")
+        await MainActor.run {
+            monthlyActivities = activities
         }
     }
 
@@ -1535,21 +1500,13 @@ struct MonthlyProgressGrid: View {
             return activities
         }
 
-        // Collect all daily activities from weekly progress history
+        // ✅ FIX: Use counter-based thisMonthProgress instead of removed weeklyProgressHistory
+        // Collect all daily activities from this month's progress
         var allDailyActivities: [String: Int] = [:] // date -> questionCount
 
-        // Add current week's data
-        if let currentWeek = pointsManager.currentWeeklyProgress {
-            for activity in currentWeek.dailyActivities {
-                allDailyActivities[activity.date] = activity.questionCount
-            }
-        }
-
-        // Add historical weeks' data
-        for weekProgress in pointsManager.weeklyProgressHistory {
-            for activity in weekProgress.dailyActivities {
-                allDailyActivities[activity.date] = activity.questionCount
-            }
+        // Add this month's counter-based progress data
+        for dailyProgress in pointsManager.thisMonthProgress {
+            allDailyActivities[dailyProgress.date] = dailyProgress.totalQuestions
         }
 
         // Filter activities that fall within the target month

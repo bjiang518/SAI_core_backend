@@ -33,89 +33,67 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.notAuthenticated
         }
 
-        guard let token = authToken else {
-            throw QuestionArchiveError.notAuthenticated
-        }
+        print("📚 [Archive] Archiving \(request.selectedQuestionIndices.count) questions to LOCAL storage only")
 
-        // Check for duplicates before archiving
-        let deduplicationResult = try await checkForDuplicates(request: request)
+        // ✅ LOCAL-ONLY: No server POST, no deduplication check against server
+        // Deduplication will be handled by StorageSyncService when syncing to server
 
-        if deduplicationResult.uniqueIndices.isEmpty {
-            throw QuestionArchiveError.allQuestionsAreDuplicates(deduplicationResult.duplicateCount)
-        }
-
-        guard let url = URL(string: "\(baseURL)/api/archived-questions") else {
-            throw QuestionArchiveError.invalidURL
-        }
-
-        // Prepare request data with only unique questions
-        let uniqueQuestions = deduplicationResult.uniqueIndices.map { index -> [String: Any] in
-            let question = request.questions[index]
-            return [
-                "questionText": question.questionText,
-                "rawQuestionText": question.rawQuestionText ?? question.questionText,  // Include raw question
-                "answerText": question.correctAnswer ?? question.answerText,  // Prioritize correct answer
-                "confidence": question.confidence,
-                "hasVisualElements": question.hasVisualElements,
-                "studentAnswer": question.studentAnswer ?? "",
-                "correctAnswer": question.correctAnswer ?? question.answerText,
-                "grade": question.grade ?? "EMPTY",
-                "pointsEarned": question.pointsEarned ?? 0.0,
-                "pointsPossible": question.pointsPossible ?? 1.0,
-                "feedback": question.feedback ?? "",
-                "isGraded": question.isGraded
-            ]
-        }
-
-        let requestData: [String: Any] = [
-            "selectedQuestionIndices": deduplicationResult.uniqueIndices,
-            "questions": uniqueQuestions,
-            "userNotes": deduplicationResult.uniqueNotes,
-            "userTags": deduplicationResult.uniqueTags,
-            "detectedSubject": request.detectedSubject,
-            "originalImageUrl": request.originalImageUrl ?? "",
-            "processingTime": request.processingTime
-        ]
-
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestData)
-
-        let (data, response) = try await URLSession.shared.data(for: urlRequest)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw QuestionArchiveError.invalidResponse
-        }
-
-        if httpResponse.statusCode != 201 {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw QuestionArchiveError.archiveFailed(errorMessage)
-        }
-
-        // Parse response
-        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let success = jsonResponse["success"] as? Bool,
-              success == true,
-              let _ = jsonResponse["data"] as? [[String: Any]] else {
-            throw QuestionArchiveError.invalidData
-        }
-
-        // Convert response to ArchivedQuestions
         var archivedQuestions: [ArchivedQuestion] = []
         var questionDataForLocalStorage: [[String: Any]] = []
 
-        for (arrayIndex, questionIndex) in deduplicationResult.uniqueIndices.enumerated() {
+        for (arrayIndex, questionIndex) in request.selectedQuestionIndices.enumerated() {
             guard questionIndex < request.questions.count else { continue }
 
             let question = request.questions[questionIndex]
-            let userNote = arrayIndex < deduplicationResult.uniqueNotes.count ? deduplicationResult.uniqueNotes[arrayIndex] : ""
-            let userTag = arrayIndex < deduplicationResult.uniqueTags.count ? deduplicationResult.uniqueTags[arrayIndex] : []
+            let userNote = arrayIndex < request.userNotes.count ? request.userNotes[arrayIndex] : ""
+            let userTag = arrayIndex < request.userTags.count ? request.userTags[arrayIndex] : []
 
-            // Create ArchivedQuestion from response and original data
+            // Generate local UUID for this question
+            let questionId = UUID().uuidString
+
+            // ✅ NORMALIZE: Ensure grade is in uppercase format for enum compatibility
+            // AI server may send "Correct"/"Incorrect" but enum expects "CORRECT"/"INCORRECT"
+            let normalizedGrade: String? = {
+                guard let grade = question.grade else { return nil }
+                let uppercased = grade.uppercased()
+                // Map common variations to enum values
+                switch uppercased {
+                case "CORRECT": return "CORRECT"
+                case "INCORRECT": return "INCORRECT"
+                case "EMPTY": return "EMPTY"
+                case "PARTIAL_CREDIT", "PARTIAL CREDIT", "PARTIALCREDIT": return "PARTIAL_CREDIT"
+                default: return uppercased  // Try to use as-is if unknown
+                }
+            }()
+
+            // ✅ CRITICAL: Calculate isCorrect for mistake tracking
+            // This field is required for the mistake notes feature to work
+            // LOGIC: Only grade == .correct results in isCorrect = true
+            //        All other grades (.incorrect, .empty, .partialCredit) result in isCorrect = false
+            //        This ensures PARTIAL_CREDIT questions appear in Mistake Notes
+            let isCorrect: Bool = {
+                // Check grade first (most reliable)
+                if let gradeString = normalizedGrade,
+                   let grade = GradeResult(rawValue: gradeString) {
+                    // Only CORRECT grade counts as correct
+                    // INCORRECT, EMPTY, and PARTIAL_CREDIT all count as mistakes for review
+                    return grade == .correct
+                }
+
+                // Fallback: If no grade but has points, check if score >= 80%
+                if let points = question.pointsEarned,
+                   let maxPoints = question.pointsPossible,
+                   maxPoints > 0 {
+                    return points >= (maxPoints * 0.8)
+                }
+
+                // Default to false (treat as mistake for review if uncertain)
+                return false
+            }()
+
+            // Create ArchivedQuestion with local ID
             let archivedQuestion = ArchivedQuestion(
+                id: questionId,
                 userId: userId,
                 subject: request.detectedSubject,
                 questionText: question.questionText,
@@ -127,20 +105,22 @@ class QuestionArchiveService: ObservableObject {
                 tags: userTag,
                 notes: userNote,
                 studentAnswer: question.studentAnswer,
-                grade: question.grade.map { GradeResult(rawValue: $0) } ?? nil,
+                grade: normalizedGrade.flatMap { GradeResult(rawValue: $0) },
                 points: question.pointsEarned,
                 maxPoints: question.pointsPossible,
                 feedback: question.feedback,
-                isGraded: question.grade != nil
+                isGraded: normalizedGrade != nil,
+                isCorrect: isCorrect
             )
 
             archivedQuestions.append(archivedQuestion)
 
             // Build data for local storage
             let questionData: [String: Any] = [
-                "id": archivedQuestion.id,
+                "id": questionId,
                 "subject": request.detectedSubject,
                 "questionText": question.questionText,
+                "rawQuestionText": question.rawQuestionText ?? question.questionText,
                 "answerText": question.answerText,
                 "confidence": question.confidence,
                 "hasVisualElements": question.hasVisualElements,
@@ -149,385 +129,172 @@ class QuestionArchiveService: ObservableObject {
                 "tags": userTag,
                 "notes": userNote,
                 "studentAnswer": question.studentAnswer ?? "",
-                "grade": question.grade ?? "",
+                "grade": normalizedGrade ?? "",  // ✅ Store normalized grade for filtering
                 "points": question.pointsEarned ?? 0.0,
                 "maxPoints": question.pointsPossible ?? 1.0,
                 "feedback": question.feedback ?? "",
-                "isGraded": question.grade != nil
+                "isGraded": normalizedGrade != nil,
+                "isCorrect": isCorrect  // ✅ CRITICAL: Store for mistake tracking
             ]
             questionDataForLocalStorage.append(questionData)
+
+            print("   📝 [Archive] Question \(arrayIndex + 1): \(question.questionText.prefix(50))... (ID: \(questionId))")
+            print("      ✓ Original grade: \(question.grade ?? "N/A") → Normalized: \(normalizedGrade ?? "N/A")")
+            print("      ✓ isCorrect: \(isCorrect) \(isCorrect ? "✅" : "❌ MISTAKE")")
         }
 
-        // Save to local storage immediately for instant access
+        // ✅ Save to local storage ONLY - no server request
         QuestionLocalStorage.shared.saveQuestions(questionDataForLocalStorage)
+
+        // ✅ DEBUG: Verify what was saved
+        print("\n🔍 [DEBUG] === VERIFYING SAVED DATA ===")
+        let savedQuestions = QuestionLocalStorage.shared.getLocalQuestions()
+        print("🔍 [DEBUG] Total questions in storage after save: \(savedQuestions.count)")
+
+        if let firstSaved = savedQuestions.first {
+            print("🔍 [DEBUG] First saved question:")
+            print("   - ID: \(firstSaved["id"] ?? "nil")")
+            print("   - Grade: \(firstSaved["grade"] ?? "nil")")
+            print("   - isCorrect: \(firstSaved["isCorrect"] ?? "nil")")
+            print("   - Subject: \(firstSaved["subject"] ?? "nil")")
+            print("   - Question: \(String(describing: firstSaved["questionText"] ?? "nil").prefix(50))...")
+        }
+
+        // Check how many mistakes are in storage
+        let mistakes = QuestionLocalStorage.shared.getMistakeQuestions()
+        print("🔍 [DEBUG] Total mistakes in storage: \(mistakes.count)")
+        print("🔍 [DEBUG] === END VERIFICATION ===\n")
+
+        print("✅ [Archive] Saved \(archivedQuestions.count) questions to LOCAL storage only")
+        print("   💡 [Archive] Use 'Sync with Server' to upload to backend")
 
         return archivedQuestions
     }
 
-    // MARK: - Deduplication Helper
+    // MARK: - Fetch Questions from Server
 
-    private func checkForDuplicates(request: QuestionArchiveRequest) async throws -> DeduplicationResult {
-        // Fetch existing questions for this subject to check for duplicates
-        let existingQuestions = try await fetchQuestionsBySubject(request.detectedSubject)
+    /// Fetch archived questions list (summaries) - LOCAL ONLY
+    func fetchArchivedQuestions(limit: Int = 50, offset: Int = 0, subject: String? = nil) async throws -> [QuestionSummary] {
+        print("🔍 [Archive] Fetching questions from LOCAL storage only")
 
-        // Create a set of normalized question texts from existing questions
-        let existingQuestionTexts = Set(existingQuestions.map { normalizeQuestionText($0.questionText) })
-
-        var uniqueIndices: [Int] = []
-        var duplicateIndices: [Int] = []
-        var uniqueNotes: [String] = []
-        var uniqueTags: [[String]] = []
-
-        for (arrayIndex, questionIndex) in request.selectedQuestionIndices.enumerated() {
-            guard questionIndex < request.questions.count else { continue }
-
-            let question = request.questions[questionIndex]
-            let normalizedText = normalizeQuestionText(question.questionText)
-
-            if existingQuestionTexts.contains(normalizedText) {
-                // This is a duplicate
-                duplicateIndices.append(questionIndex)
-            } else {
-                // This is unique
-                uniqueIndices.append(questionIndex)
-                if arrayIndex < request.userNotes.count {
-                    uniqueNotes.append(request.userNotes[arrayIndex])
-                }
-                if arrayIndex < request.userTags.count {
-                    uniqueTags.append(request.userTags[arrayIndex])
-                }
-            }
-        }
-
-        return DeduplicationResult(
-            uniqueIndices: uniqueIndices,
-            duplicateIndices: duplicateIndices,
-            duplicateCount: duplicateIndices.count,
-            uniqueNotes: uniqueNotes,
-            uniqueTags: uniqueTags
-        )
-    }
-
-    private func normalizeQuestionText(_ text: String) -> String {
-        // Normalize by:
-        // 1. Converting to lowercase
-        // 2. Trimming whitespace
-        // 3. Removing extra spaces
-        // 4. Removing common punctuation that doesn't affect meaning
-        return text
-            .lowercased()
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-            .replacingOccurrences(of: "?", with: "")
-            .replacingOccurrences(of: "!", with: "")
-            .replacingOccurrences(of: ".", with: "")
-            .replacingOccurrences(of: ",", with: "")
-    }
-    
-    // MARK: - Enhanced Search Methods
-    
-    /// Advanced search with comprehensive filtering options
-    func searchQuestions(
-        searchText: String? = nil,
-        subject: String? = nil,
-        confidenceRange: ClosedRange<Float>? = nil,
-        hasVisualElements: Bool? = nil,
-        grade: String? = nil,
-        limit: Int = 50,
-        offset: Int = 0
-    ) async throws -> [QuestionSummary] {
-        guard currentUserId != nil else {
-            throw QuestionArchiveError.notAuthenticated
-        }
-
-        guard let token = authToken else {
-            throw QuestionArchiveError.notAuthenticated
-        }
-
-        var urlComponents = URLComponents(string: "\(baseURL)/api/archived-questions")!
-        var queryItems: [URLQueryItem] = [
-            URLQueryItem(name: "limit", value: String(limit)),
-            URLQueryItem(name: "offset", value: String(offset))
-        ]
-        
-        // Add search filters
-        if let searchText = searchText, !searchText.isEmpty {
-            queryItems.append(URLQueryItem(name: "searchText", value: searchText))
-        }
-        
-        if let subject = subject, !subject.isEmpty {
-            queryItems.append(URLQueryItem(name: "subject", value: subject))
-        }
-        
-        if let confidenceRange = confidenceRange {
-            queryItems.append(URLQueryItem(name: "confidenceMin", value: String(confidenceRange.lowerBound)))
-            queryItems.append(URLQueryItem(name: "confidenceMax", value: String(confidenceRange.upperBound)))
-        }
-        
-        if let hasVisualElements = hasVisualElements {
-            queryItems.append(URLQueryItem(name: "hasVisualElements", value: String(hasVisualElements)))
-        }
-        
-        if let grade = grade, !grade.isEmpty {
-            queryItems.append(URLQueryItem(name: "grade", value: grade))
-        }
-        
-        urlComponents.queryItems = queryItems
-        
-        guard let url = urlComponents.url else {
-            throw QuestionArchiveError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw QuestionArchiveError.fetchFailed(errorMessage)
-        }
-        
-        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let success = jsonResponse["success"] as? Bool,
-              success == true,
-              let questionData = jsonResponse["data"] as? [[String: Any]] else {
-            throw QuestionArchiveError.invalidData
-        }
-
-        let questions = try questionData.map { try convertQuestionSummaryFromRailwayFormat($0) }
-
-        return questions
-    }
-    
-    // MARK: - Fetch Archived Questions
-    
-    func fetchArchivedQuestions(limit: Int = 50, offset: Int = 0) async throws -> [QuestionSummary] {
-        // ✅ FIX: Implement cache-first loading to show newly archived questions immediately
-        // Load from local storage first, then sync with server in background
-
-        // STEP 1: Load from local storage for instant display
+        // ✅ Get local questions only (no server fetch)
         let localStorage = QuestionLocalStorage.shared
         let localQuestions = localStorage.getLocalQuestions()
+        print("   💾 [Archive] Found \(localQuestions.count) questions in local storage")
 
-        // Convert local storage format to QuestionSummary
-        var cachedQuestions: [QuestionSummary] = []
+        // Convert to QuestionSummary
+        var summaries: [QuestionSummary] = []
         for questionData in localQuestions {
-            if let question = try? localStorage.convertLocalQuestionToSummary(questionData) {
-                cachedQuestions.append(question)
+            do {
+                let summary = try convertQuestionSummaryFromRailwayFormat(questionData)
+                summaries.append(summary)
+            } catch {
+                print("   ⚠️ [Archive] Failed to convert question: \(error)")
             }
         }
 
-        // STEP 2: Fetch from server in background (don't throw errors to avoid blocking UI)
-        Task {
-            await fetchAndUpdateFromServer(limit: limit, offset: offset)
-        }
-
-        // Return cached data immediately (may be empty if nothing cached yet)
-        return cachedQuestions
+        print("   ✅ [Archive] Converted \(summaries.count) questions to summaries")
+        return summaries
     }
 
-    /// Fetch from server and update local storage
-    private func fetchAndUpdateFromServer(limit: Int, offset: Int) async {
-        guard let userId = currentUserId else {
-            return
+    /// Fetch full question details by ID - LOCAL ONLY
+    func getQuestionDetails(questionId: String) async throws -> ArchivedQuestion {
+        print("🔍 [Archive] Fetching question details from LOCAL storage: \(questionId)")
+
+        // ✅ Get from local storage only (no server fetch)
+        guard let localQuestion = QuestionLocalStorage.shared.getQuestionById(questionId) else {
+            print("   ❌ [Archive] Question not found in local storage")
+            throw QuestionArchiveError.questionNotFound
         }
 
-        guard let token = authToken else {
-            return
+        print("   💾 [Archive] Found in local storage")
+        let question = try convertFullQuestionFromRailwayFormat(localQuestion)
+        print("   ✅ [Archive] Loaded from local storage: \(question.subject)")
+
+        return question
+    }
+
+    // MARK: - Upload Question to Server
+
+    /// Upload a single question directly to server (used by StorageSyncService)
+    func uploadQuestionToServer(_ questionData: [String: Any]) async throws -> String {
+        guard let authToken = authToken else {
+            throw QuestionArchiveError.notAuthenticated
         }
 
-        var urlComponents = URLComponents(string: "\(baseURL)/api/archived-questions")!
-        urlComponents.queryItems = [
-            URLQueryItem(name: "limit", value: String(limit)),
-            URLQueryItem(name: "offset", value: String(offset))
+        guard let url = URL(string: "\(baseURL)/api/archived-questions") else {
+            throw QuestionArchiveError.invalidURL
+        }
+
+        // ✅ NORMALIZE: Ensure grade is in uppercase format before sending to server
+        let rawGrade = questionData["grade"] as? String ?? ""
+        let normalizedGrade: String = {
+            guard !rawGrade.isEmpty else { return "" }
+            let uppercased = rawGrade.uppercased()
+            switch uppercased {
+            case "CORRECT": return "CORRECT"
+            case "INCORRECT": return "INCORRECT"
+            case "EMPTY": return "EMPTY"
+            case "PARTIAL_CREDIT", "PARTIAL CREDIT", "PARTIALCREDIT": return "PARTIAL_CREDIT"
+            default: return uppercased
+            }
+        }()
+
+        // Build request body - ensure isCorrect is included
+        var requestBody: [String: Any] = [
+            "subject": questionData["subject"] as? String ?? "Unknown",
+            "questionText": questionData["questionText"] as? String ?? "",
+            "rawQuestionText": questionData["rawQuestionText"] as? String ?? questionData["questionText"] as? String ?? "",
+            "answerText": questionData["answerText"] as? String ?? "",
+            "confidence": questionData["confidence"] as? Float ?? 0.0,
+            "hasVisualElements": questionData["hasVisualElements"] as? Bool ?? false,
+            "tags": questionData["tags"] as? [String] ?? [],
+            "notes": questionData["notes"] as? String ?? "",
+            "studentAnswer": questionData["studentAnswer"] as? String ?? "",
+            "grade": normalizedGrade,  // ✅ Send normalized grade
+            "points": questionData["points"] as? Float ?? 0.0,
+            "maxPoints": questionData["maxPoints"] as? Float ?? 1.0,
+            "feedback": questionData["feedback"] as? String ?? "",
+            "isCorrect": questionData["isCorrect"] as? Bool ?? false  // ✅ CRITICAL for mistake tracking
         ]
 
-        guard let url = urlComponents.url else {
-            return
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        print("   📤 [Archive] Uploading question to server: \(url)")
+        print("   📝 [Archive] Grade: \(rawGrade) → \(normalizedGrade)")
+        print("   📝 [Archive] isCorrect: \(requestBody["isCorrect"] ?? "nil")")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw QuestionArchiveError.invalidResponse
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
-                print("⚠️ [fetchAndUpdateFromServer] Server returned error status")
-                return
+        guard httpResponse.statusCode == 201 || httpResponse.statusCode == 200 else {
+            print("   ❌ [Archive] Server returned error: \(httpResponse.statusCode)")
+            if let errorText = String(data: data, encoding: .utf8) {
+                print("   ❌ [Archive] Error response: \(errorText)")
             }
+            throw QuestionArchiveError.archiveFailed("Server returned status code \(httpResponse.statusCode)")
+        }
 
-            guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let success = jsonResponse["success"] as? Bool,
-                  success == true,
-                  let questionData = jsonResponse["data"] as? [[String: Any]] else {
-                print("⚠️ [fetchAndUpdateFromServer] Invalid server response")
-                return
-            }
-
-            // Sync server data with local storage
-            QuestionLocalStorage.shared.syncWithServer(serverQuestionIds: questionData.compactMap { $0["id"] as? String })
-
-            print("✅ [fetchAndUpdateFromServer] Synced \(questionData.count) questions from server")
-        } catch {
-            print("⚠️ [fetchAndUpdateFromServer] Failed to fetch from server: \(error.localizedDescription)")
-        }
-    }
-    
-    // MARK: - Fetch Questions by Subject
-    
-    func fetchQuestionsBySubject(_ subject: String) async throws -> [QuestionSummary] {
-        guard currentUserId != nil else {
-            throw QuestionArchiveError.notAuthenticated
-        }
-        
-        guard let token = authToken else {
-            throw QuestionArchiveError.notAuthenticated
-        }
-        
-        guard let url = URL(string: "\(baseURL)/api/archived-questions/subject/\(subject)") else {
-            throw QuestionArchiveError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw QuestionArchiveError.fetchFailed(errorMessage)
-        }
-        
-        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let success = jsonResponse["success"] as? Bool,
-              success == true,
-              let questionData = jsonResponse["data"] as? [[String: Any]] else {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let questionId = json["id"] as? String ?? json["questionId"] as? String else {
             throw QuestionArchiveError.invalidData
         }
-        
-        let questions = try questionData.map { try convertQuestionSummaryFromRailwayFormat($0) }
-        
-        return questions
+
+        print("   ✅ [Archive] Successfully uploaded question (ID: \(questionId))")
+
+        return questionId
     }
-    
-    // MARK: - Get Full Question Details
-    
-    func getQuestionDetails(questionId: String) async throws -> ArchivedQuestion {
-        guard currentUserId != nil else {
-            throw QuestionArchiveError.notAuthenticated
-        }
-        
-        guard let token = authToken else {
-            throw QuestionArchiveError.notAuthenticated
-        }
-        
-        guard let url = URL(string: "\(baseURL)/api/archived-questions/\(questionId)") else {
-            throw QuestionArchiveError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw QuestionArchiveError.fetchFailed(errorMessage)
-        }
-        
-        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let success = jsonResponse["success"] as? Bool,
-              success == true,
-              let questionData = jsonResponse["data"] as? [String: Any] else {
-            throw QuestionArchiveError.invalidData
-        }
-        
-        return try convertFullQuestionFromRailwayFormat(questionData)
-    }
-    
-    // MARK: - Search Questions
-    
-    func searchQuestions(filter: QuestionSearchFilter) async throws -> [QuestionSummary] {
-        guard currentUserId != nil else {
-            throw QuestionArchiveError.notAuthenticated
-        }
-        
-        guard let token = authToken else {
-            throw QuestionArchiveError.notAuthenticated
-        }
-        
-        var urlComponents = URLComponents(string: "\(baseURL)/api/archived-questions")!
-        var queryItems: [URLQueryItem] = []
-        
-        // Add filters
-        if let subjects = filter.subjects, !subjects.isEmpty {
-            // For multiple subjects, we'll use the first one for now
-            // The API could be enhanced to support multiple subjects
-            queryItems.append(URLQueryItem(name: "subject", value: subjects.first))
-        }
-        
-        if let confidenceRange = filter.confidenceRange {
-            queryItems.append(URLQueryItem(name: "confidenceMin", value: String(confidenceRange.lowerBound)))
-            queryItems.append(URLQueryItem(name: "confidenceMax", value: String(confidenceRange.upperBound)))
-        }
-        
-        if let hasVisualElements = filter.hasVisualElements {
-            queryItems.append(URLQueryItem(name: "hasVisualElements", value: String(hasVisualElements)))
-        }
-        
-        if let searchText = filter.searchText, !searchText.isEmpty {
-            queryItems.append(URLQueryItem(name: "searchText", value: searchText))
-        }
-        
-        urlComponents.queryItems = queryItems
-        
-        guard let url = urlComponents.url else {
-            throw QuestionArchiveError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw QuestionArchiveError.fetchFailed(errorMessage)
-        }
-        
-        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let success = jsonResponse["success"] as? Bool,
-              success == true,
-              let questionData = jsonResponse["data"] as? [[String: Any]] else {
-            throw QuestionArchiveError.invalidData
-        }
-        
-        let questions = try questionData.map { try convertQuestionSummaryFromRailwayFormat($0) }
-        
-        return questions
-    }
-    
-    // MARK: - Helper Methods
-    
+
+    // MARK: - Helper Methods (kept for StorageSyncService data conversion)
+
     private func convertQuestionSummaryFromRailwayFormat(_ data: [String: Any]) throws -> QuestionSummary {
         guard let id = data["id"] as? String,
               let subject = data["subject"] as? String,
@@ -568,7 +335,6 @@ class QuestionArchiveService: ObservableObject {
     
     private func convertFullQuestionFromRailwayFormat(_ data: [String: Any]) throws -> ArchivedQuestion {
         guard let id = data["id"] as? String,
-              let userId = data["userId"] as? String,
               let subject = data["subject"] as? String,
               let questionText = data["questionText"] as? String,
               let answerText = data["answerText"] as? String,
@@ -576,7 +342,10 @@ class QuestionArchiveService: ObservableObject {
               let archivedAt = parseDate(archivedAtString) else {
             throw QuestionArchiveError.invalidData
         }
-        
+
+        // ✅ userId is optional (local storage doesn't have it, server does)
+        let userId = data["userId"] as? String ?? currentUserId ?? "unknown"
+
         let confidence = (data["confidence"] as? Float) ?? (data["confidence"] as? Double).map(Float.init) ?? 0.0
         let hasVisualElements = (data["hasVisualElements"] as? Bool) ?? false
         let processingTime = (data["processingTime"] as? Double) ?? 0.0
@@ -585,21 +354,53 @@ class QuestionArchiveService: ObservableObject {
         let questionImageUrl = data["questionImageUrl"] as? String
         let tags = data["tags"] as? [String]
         let notes = data["notes"] as? String
-        
-        // Grading fields
+
+        // Grading fields - support both local and server formats
         let studentAnswer = data["studentAnswer"] as? String
         let gradeString = data["grade"] as? String
-        let grade = gradeString != nil ? GradeResult(rawValue: gradeString!) : nil
-        let points = (data["pointsEarned"] as? Float) ?? (data["pointsEarned"] as? Double).map(Float.init)
-        let maxPoints = (data["pointsPossible"] as? Float) ?? (data["pointsPossible"] as? Double).map(Float.init)
+        let grade = gradeString != nil && !gradeString!.isEmpty ? GradeResult(rawValue: gradeString!) : nil
+        let points = (data["points"] as? Float) ?? (data["points"] as? Double).map(Float.init) ??
+                     (data["pointsEarned"] as? Float) ?? (data["pointsEarned"] as? Double).map(Float.init)
+        let maxPoints = (data["maxPoints"] as? Float) ?? (data["maxPoints"] as? Double).map(Float.init) ??
+                        (data["pointsPossible"] as? Float) ?? (data["pointsPossible"] as? Double).map(Float.init)
         let feedback = data["feedback"] as? String
-        let isGraded = (data["isGraded"] as? Bool) ?? false
-        
+        let isGraded = (data["isGraded"] as? Bool) ?? (gradeString != nil && !gradeString!.isEmpty)
+
+        // ✅ CRITICAL: Extract isCorrect for mistake tracking
+        // Support both camelCase (local) and snake_case (server) formats
+        // LOGIC: Only grade == .correct results in isCorrect = true
+        //        All other grades (.incorrect, .empty, .partialCredit) result in isCorrect = false
+        //        This ensures PARTIAL_CREDIT questions appear in Mistake Notes
+        let isCorrect: Bool? = {
+            // First try to get stored value
+            if let storedValue = data["isCorrect"] as? Bool ?? data["is_correct"] as? Bool {
+                return storedValue
+            }
+
+            // Calculate from grade if not stored (backward compatibility)
+            if let grade = grade {
+                // Only CORRECT grade counts as correct
+                // INCORRECT, EMPTY, and PARTIAL_CREDIT all count as mistakes for review
+                return grade == .correct
+            }
+
+            // Fallback: If no grade but has points, check if score >= 80%
+            if let points = points, let maxPoints = maxPoints, maxPoints > 0 {
+                return points >= (maxPoints * 0.8)
+            }
+
+            // Default to false (treat as mistake for review if uncertain)
+            return false
+        }()
+
         var lastReviewedAt: Date?
         if let lastReviewedAtString = data["lastReviewedAt"] as? String {
             lastReviewedAt = parseDate(lastReviewedAtString)
         }
-        
+
+        // Log the isCorrect value for debugging
+        print("   📊 [Convert] Question \(id): grade=\(gradeString ?? "nil"), isCorrect=\(isCorrect?.description ?? "nil")")
+
         return ArchivedQuestion(
             id: id,
             userId: userId,
@@ -621,7 +422,8 @@ class QuestionArchiveService: ObservableObject {
             points: points,
             maxPoints: maxPoints,
             feedback: feedback,
-            isGraded: isGraded
+            isGraded: isGraded,
+            isCorrect: isCorrect  // ✅ CRITICAL: Include for mistake tracking
         )
     }
     
@@ -646,16 +448,6 @@ class QuestionArchiveService: ObservableObject {
     }
 }
 
-// MARK: - Deduplication Result
-
-struct DeduplicationResult {
-    let uniqueIndices: [Int]
-    let duplicateIndices: [Int]
-    let duplicateCount: Int
-    let uniqueNotes: [String]
-    let uniqueTags: [[String]]
-}
-
 // MARK: - Question Archive Errors
 
 enum QuestionArchiveError: LocalizedError {
@@ -666,7 +458,6 @@ enum QuestionArchiveError: LocalizedError {
     case archiveFailed(String)
     case fetchFailed(String)
     case questionNotFound
-    case allQuestionsAreDuplicates(Int)
 
     var errorDescription: String? {
         switch self {
@@ -684,8 +475,6 @@ enum QuestionArchiveError: LocalizedError {
             return "Failed to fetch questions: \(message)"
         case .questionNotFound:
             return "Question not found"
-        case .allQuestionsAreDuplicates(let count):
-            return "All \(count) question(s) have already been archived"
         }
     }
 }

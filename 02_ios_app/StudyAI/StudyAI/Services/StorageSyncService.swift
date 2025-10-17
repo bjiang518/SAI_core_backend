@@ -146,6 +146,19 @@ class StorageSyncService {
                 print("   ⚠️ [Sync] WARNING: Question text is EMPTY!")
             }
 
+            // ✅ NORMALIZE: Ensure grade is in uppercase format for enum compatibility
+            let rawGrade = serverQuestion["grade"] as? String ?? "EMPTY"
+            let normalizedGrade: String = {
+                let uppercased = rawGrade.uppercased()
+                switch uppercased {
+                case "CORRECT": return "CORRECT"
+                case "INCORRECT": return "INCORRECT"
+                case "EMPTY": return "EMPTY"
+                case "PARTIAL_CREDIT", "PARTIAL CREDIT", "PARTIALCREDIT": return "PARTIAL_CREDIT"
+                default: return uppercased
+                }
+            }()
+
             var localQuestion: [String: Any] = [
                 "id": id,
                 "subject": serverQuestion["subject"] as? String ?? "Unknown",
@@ -157,12 +170,15 @@ class StorageSyncService {
                 "tags": serverQuestion["tags"] as? [String] ?? [],
                 "notes": serverQuestion["notes"] as? String ?? "",
                 "studentAnswer": serverQuestion["studentAnswer"] as? String ?? "",
-                "grade": serverQuestion["grade"] as? String ?? "EMPTY",
+                "grade": normalizedGrade,  // ✅ Store normalized grade
                 "points": serverQuestion["points"] as? Float ?? 0.0,
                 "maxPoints": serverQuestion["maxPoints"] as? Float ?? 1.0,
                 "feedback": serverQuestion["feedback"] as? String ?? "",
+                "isCorrect": serverQuestion["isCorrect"] as? Bool ?? serverQuestion["is_correct"] as? Bool,  // ✅ Include for mistake tracking
                 "archivedAt": serverQuestion["archivedAt"] as? String ?? ISO8601DateFormatter().string(from: Date())
             ]
+
+            print("   📊 [Sync] Grade: \(rawGrade) → \(normalizedGrade), isCorrect: \(localQuestion["isCorrect"] ?? "nil")")
 
             // Save to local storage
             localStorage.saveQuestions([localQuestion])
@@ -218,46 +234,25 @@ class StorageSyncService {
                 let points = questionData["points"] as? Float
                 let maxPoints = questionData["maxPoints"] as? Float
                 let feedback = questionData["feedback"] as? String
+                let isCorrect = questionData["isCorrect"] as? Bool  // ✅ Extract for upload
                 let tags = questionData["tags"] as? [String] ?? []
                 let notes = questionData["notes"] as? String ?? ""
 
                 print("   📋 [Sync] Subject: \(subject), Question: \(questionText.prefix(50))...")
+                print("   📊 [Sync] Grade: \(grade ?? "N/A"), isCorrect: \(isCorrect?.description ?? "nil")")
 
-                let question = ParsedQuestion(
-                    questionNumber: nil,
-                    rawQuestionText: rawQuestionText,  // Use actual rawQuestionText
-                    questionText: questionText,
-                    answerText: answerText,
-                    confidence: confidence,
-                    hasVisualElements: hasVisualElements,
-                    studentAnswer: studentAnswer,
-                    correctAnswer: answerText,
-                    grade: grade,
-                    pointsEarned: points,
-                    pointsPossible: maxPoints,
-                    feedback: feedback
-                )
+                // Upload directly to server using new method
+                print("   📤 [Sync] Uploading to server API...")
+                let serverId = try await QuestionArchiveService.shared.uploadQuestionToServer(questionData)
 
-                let request = QuestionArchiveRequest(
-                    questions: [question],
-                    selectedQuestionIndices: [0],
-                    detectedSubject: subject,
-                    subjectConfidence: 0.0,
-                    originalImageUrl: nil,
-                    processingTime: 0.0,
-                    userNotes: [notes],
-                    userTags: [tags]
-                )
+                // Update local storage with server ID
+                var updatedQuestion = questionData
+                updatedQuestion["id"] = serverId
+                QuestionLocalStorage.shared.saveQuestions([updatedQuestion])
 
-                // Archive using existing service (handles deduplication)
-                print("   📤 [Sync] Sending to QuestionArchiveService...")
-                let archived = try await QuestionArchiveService.shared.archiveQuestions(request)
-                syncedToServerCount += archived.count
-                print("   ✅ [Sync] Successfully uploaded \(archived.count) question(s)")
+                syncedToServerCount += 1
+                print("   ✅ [Sync] Successfully uploaded question (Server ID: \(serverId))")
 
-            } catch QuestionArchiveError.allQuestionsAreDuplicates(let count) {
-                print("   🔄 [Sync] Server detected \(count) duplicate(s) - skipping")
-                duplicateCount += count
             } catch {
                 print("   ❌ [Sync] Failed to upload question: \(error)")
             }

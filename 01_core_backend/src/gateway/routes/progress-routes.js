@@ -277,6 +277,41 @@ class ProgressRoutes {
       }
     }, this.syncProgress.bind(this));
 
+    // Sync daily progress counters from iOS device
+    this.fastify.post('/api/user/sync-daily-progress', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Sync daily progress counters from iOS app (counter-based approach)',
+        tags: ['Progress'],
+        body: {
+          type: 'object',
+          required: ['userId', 'date', 'subjectProgress', 'totalQuestions', 'correctAnswers', 'accuracy'],
+          properties: {
+            userId: { type: 'string', description: 'User ID (UUID)' },
+            date: { type: 'string', description: 'Date in yyyy-MM-dd format' },
+            subjectProgress: {
+              type: 'array',
+              description: 'Array of subject-specific counters',
+              items: {
+                type: 'object',
+                required: ['subject', 'numberOfQuestions', 'numberOfCorrectQuestions', 'accuracy'],
+                properties: {
+                  subject: { type: 'string' },
+                  numberOfQuestions: { type: 'integer' },
+                  numberOfCorrectQuestions: { type: 'integer' },
+                  accuracy: { type: 'number' }
+                }
+              }
+            },
+            totalQuestions: { type: 'integer', description: 'Total questions across all subjects' },
+            correctAnswers: { type: 'integer', description: 'Total correct answers across all subjects' },
+            accuracy: { type: 'number', description: 'Overall accuracy percentage (0-100)' },
+            timestamp: { type: 'string', description: 'ISO 8601 timestamp from client' }
+          }
+        }
+      }
+    }, this.syncDailyProgress.bind(this));
+
     // Health check for progress service
     this.fastify.get('/api/progress/health', {
       schema: {
@@ -1427,10 +1462,127 @@ class ProgressRoutes {
     }
   }
 
+  async syncDailyProgress(request, reply) {
+    try {
+      const {
+        userId,
+        date,
+        subjectProgress,
+        totalQuestions,
+        correctAnswers,
+        accuracy,
+        timestamp
+      } = request.body;
+
+      this.fastify.log.info(`📊 === SYNC DAILY PROGRESS ===`);
+      this.fastify.log.info(`📊 User ID: ${userId}`);
+      this.fastify.log.info(`📊 Date: ${date}`);
+      this.fastify.log.info(`📊 Total Questions: ${totalQuestions}`);
+      this.fastify.log.info(`📊 Correct Answers: ${correctAnswers}`);
+      this.fastify.log.info(`📊 Accuracy: ${accuracy}%`);
+      this.fastify.log.info(`📊 Subject Progress: ${subjectProgress.length} subjects`);
+
+      // Validate date format
+      if (!date || !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        this.fastify.log.error(`❌ Invalid date format: ${date}`);
+        return reply.status(400).send({
+          success: false,
+          error: 'Invalid date format',
+          message: 'Date must be in yyyy-MM-dd format'
+        });
+      }
+
+      // Validate data integrity
+      if (totalQuestions < 0 || correctAnswers < 0 || correctAnswers > totalQuestions) {
+        this.fastify.log.error(`❌ Invalid progress data: totalQuestions=${totalQuestions}, correctAnswers=${correctAnswers}`);
+        return reply.status(400).send({
+          success: false,
+          error: 'Invalid progress data',
+          message: 'totalQuestions and correctAnswers must be non-negative, and correctAnswers <= totalQuestions'
+        });
+      }
+
+      if (accuracy < 0 || accuracy > 100) {
+        this.fastify.log.error(`❌ Invalid accuracy: ${accuracy}`);
+        return reply.status(400).send({
+          success: false,
+          error: 'Invalid accuracy',
+          message: 'Accuracy must be between 0 and 100'
+        });
+      }
+
+      // UPSERT daily progress data
+      // Uses ON CONFLICT to handle multiple syncs per day (updates existing row)
+      const upsertQuery = `
+        INSERT INTO user_daily_progress (
+          user_id, date, subject_progress, total_questions, correct_answers, accuracy, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        ON CONFLICT (user_id, date) DO UPDATE SET
+          subject_progress = $3,
+          total_questions = $4,
+          correct_answers = $5,
+          accuracy = $6,
+          updated_at = NOW()
+        RETURNING id, created_at, updated_at
+      `;
+
+      // Convert subject progress array to JSONB
+      const subjectProgressJson = JSON.stringify(subjectProgress);
+
+      const result = await db.query(upsertQuery, [
+        userId,
+        date,
+        subjectProgressJson,
+        totalQuestions,
+        correctAnswers,
+        accuracy
+      ]);
+
+      const progressRecord = result.rows[0];
+      const wasCreated = progressRecord.created_at.getTime() === progressRecord.updated_at.getTime();
+
+      this.fastify.log.info(`✅ Daily progress ${wasCreated ? 'created' : 'updated'} for user ${userId} on ${date}`);
+      this.fastify.log.info(`📊 Record ID: ${progressRecord.id}`);
+
+      return reply.send({
+        success: true,
+        message: `Daily progress ${wasCreated ? 'created' : 'updated'} successfully`,
+        data: {
+          id: progressRecord.id,
+          date: date,
+          totalQuestions: totalQuestions,
+          correctAnswers: correctAnswers,
+          accuracy: accuracy,
+          wasCreated: wasCreated
+        }
+      });
+
+    } catch (error) {
+      this.fastify.log.error('📊 Error syncing daily progress:', error);
+      this.fastify.log.error('📊 Error stack:', error.stack);
+
+      // Check for specific PostgreSQL errors
+      if (error.code === '23503') {
+        // Foreign key violation - user doesn't exist
+        return reply.status(404).send({
+          success: false,
+          error: 'User not found',
+          message: 'The specified user does not exist'
+        });
+      }
+
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to sync daily progress',
+        message: error.message
+      });
+    }
+  }
+
   async healthCheck(request, reply) {
     try {
       const health = await db.query('SELECT NOW() as current_time');
-      
+
       return reply.send({
         success: true,
         message: 'Progress service is healthy',

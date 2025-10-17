@@ -269,12 +269,15 @@ class PointsEarningManager: ObservableObject {
     @Published var dailyCheckoutHistory: [DailyCheckout] = []
     @Published var currentStreak: Int = 0
     private var lastStreakUpdateDate: String? // Track last date streak was updated (yyyy-MM-dd format)
-    @Published var todayProgress: DailyProgress?
+    @Published var todayProgress: DailyProgress? // TODAY's counters (reset at midnight)
+    @Published var thisWeekProgress: [DailyProgress] = [] // This week's daily progress (7 days max)
+    @Published var thisMonthProgress: [DailyProgress] = [] // This month's daily progress (31 days max)
     @Published var dailyPointsEarned: Int = 0 // Track daily points to enforce 100 point maximum
+    private var updatedToday: Bool = false // Track if today's progress has been calculated from local storage
+    private var lastLoginDate: String? // Track last login date to reset updatedToday flag
 
-    // MARK: - Weekly Progress Properties
+    // MARK: - Weekly Progress Properties (Legacy - for grid display)
     @Published var currentWeeklyProgress: WeeklyProgress?
-    @Published var weeklyProgressHistory: [WeeklyProgress] = []
     @Published var lastTimezoneUpdate: Date?
 
     // MARK: - Concurrency Control
@@ -291,12 +294,15 @@ class PointsEarningManager: ObservableObject {
     private let checkoutHistoryKey = "studyai_checkout_history"
     private let streakKey = "studyai_current_streak"
     private let weeklyProgressKey = "studyai_current_weekly_progress"
-    private let weeklyHistoryKey = "studyai_weekly_progress_history"
     private let lastTimezoneKey = "studyai_last_timezone"
     private let todayProgressKey = "studyai_today_progress"
+    private let thisWeekProgressKey = "studyai_this_week_progress"
+    private let thisMonthProgressKey = "studyai_this_month_progress"
     private let lastResetDateKey = "studyai_last_reset_date"
     private let dailyPointsEarnedKey = "studyai_daily_points_earned"
     private let lastStreakUpdateDateKey = "studyai_last_streak_update_date"
+    private let updatedTodayKey = "studyai_updated_today"
+    private let lastLoginDateKey = "studyai_last_login_date"
 
     deinit {
         // Clean up timer and observers
@@ -326,17 +332,9 @@ class PointsEarningManager: ObservableObject {
         // Setup day change notifications
         setupDayChangeNotifications()
 
-
-        // Load current week from server asynchronously (AFTER daily reset check)
-        Task {
-            await loadCurrentWeekFromServer()
-        }
-
-        // CRITICAL: Load today's activity from server to sync with backend
-        // This implements cache-first with server fallback strategy
-        Task {
-            await loadTodaysActivityWithCacheStrategy()
-        }
+        // ✅ LOCAL-ONLY: Removed server loads from init
+        // All progress data is now loaded from local storage only
+        // Use StorageSyncService to sync progress with server
     }
 
     /// Setup app termination handling to ensure data is saved
@@ -494,13 +492,13 @@ class PointsEarningManager: ObservableObject {
     }
     
     private func loadStoredData() {
-
         currentPoints = max(0, userDefaults.integer(forKey: pointsKey))
         totalPointsEarned = max(0, userDefaults.integer(forKey: totalPointsKey))
         currentStreak = max(0, userDefaults.integer(forKey: streakKey))
         dailyPointsEarned = max(0, userDefaults.integer(forKey: dailyPointsEarnedKey))
         lastStreakUpdateDate = userDefaults.string(forKey: lastStreakUpdateDateKey)
-
+        updatedToday = userDefaults.bool(forKey: updatedTodayKey)
+        lastLoginDate = userDefaults.string(forKey: lastLoginDateKey)
 
         // Load goals with validation
         if let goalsData = userDefaults.data(forKey: goalsKey),
@@ -509,9 +507,6 @@ class PointsEarningManager: ObservableObject {
             learningGoals = decodedGoals.filter { goal in
                 goal.targetValue > 0 && goal.basePoints >= 0 && goal.currentProgress >= 0
             }
-            if learningGoals.count != decodedGoals.count {
-            }
-        } else {
         }
 
         // Load checkout history with size limits
@@ -519,38 +514,56 @@ class PointsEarningManager: ObservableObject {
            let decodedCheckouts = try? JSONDecoder().decode([DailyCheckout].self, from: checkoutData) {
             // Keep only last 30 days to prevent unbounded growth
             dailyCheckoutHistory = Array(decodedCheckouts.suffix(30))
-            if dailyCheckoutHistory.count != decodedCheckouts.count {
-            }
         }
 
-        // Load weekly progress data with validation
+        // Load legacy weekly progress data (for grid display)
         if let weeklyData = userDefaults.data(forKey: weeklyProgressKey),
            let decodedWeekly = try? JSONDecoder().decode(WeeklyProgress.self, from: weeklyData) {
-
-            // Validate that the decoded weekly progress has proper date format
             if validateWeeklyProgressData(decodedWeekly) {
                 currentWeeklyProgress = decodedWeekly
-            } else {
-                userDefaults.removeObject(forKey: weeklyProgressKey)
-                currentWeeklyProgress = nil
             }
         }
-        
-        if let weeklyHistoryData = userDefaults.data(forKey: weeklyHistoryKey),
-           let decodedHistory = try? JSONDecoder().decode([WeeklyProgress].self, from: weeklyHistoryData) {
-            weeklyProgressHistory = decodedHistory
+
+        // Load today's progress (counter-based)
+        if let todayData = userDefaults.data(forKey: todayProgressKey),
+           let decodedToday = try? JSONDecoder().decode(DailyProgress.self, from: todayData) {
+            // Validate date - only load if it's for today
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let todayString = dateFormatter.string(from: Date())
+
+            if decodedToday.date == todayString {
+                todayProgress = decodedToday
+                print("📊 [loadStoredData] Loaded today's progress: \(decodedToday.totalQuestions) questions, \(decodedToday.correctAnswers) correct")
+            } else {
+                // Stale data from previous day, initialize empty
+                todayProgress = DailyProgress(date: todayString)
+                print("📊 [loadStoredData] Stale progress data detected, initialized empty for \(todayString)")
+            }
+        } else {
+            // No saved data, initialize empty
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let todayString = dateFormatter.string(from: Date())
+            todayProgress = DailyProgress(date: todayString)
+            print("📊 [loadStoredData] No saved progress, initialized empty for \(todayString)")
+        }
+
+        // Load this week's progress history (counter-based)
+        if let weekData = userDefaults.data(forKey: thisWeekProgressKey),
+           let decodedWeek = try? JSONDecoder().decode([DailyProgress].self, from: weekData) {
+            thisWeekProgress = decodedWeek
+            print("📊 [loadStoredData] Loaded \(decodedWeek.count) days of weekly progress")
+        }
+
+        // Load this month's progress history (counter-based)
+        if let monthData = userDefaults.data(forKey: thisMonthProgressKey),
+           let decodedMonth = try? JSONDecoder().decode([DailyProgress].self, from: monthData) {
+            thisMonthProgress = decodedMonth
+            print("📊 [loadStoredData] Loaded \(decodedMonth.count) days of monthly progress")
         }
 
         lastTimezoneUpdate = userDefaults.object(forKey: lastTimezoneKey) as? Date
-
-        // ✅ CRITICAL FIX: Never load todayProgress from disk in loadStoredData()
-        // This prevents loading stale data from previous days or earlier launches today.
-        // The proper data will be loaded by either:
-        // 1. checkDailyReset() if we haven't reset yet today
-        // 2. loadTodaysActivityWithCacheStrategy() from server
-        // 3. trackQuestionAnswered() when user answers questions
-        todayProgress = DailyProgress()
-        logger.info("📊 [loadStoredData] Initialized todayProgress as empty (will be populated by cache strategy or question tracking)")
     }
     
     // MARK: - Batched UserDefaults Operations
@@ -587,12 +600,15 @@ class PointsEarningManager: ObservableObject {
             streakKey: currentStreak,
             dailyPointsEarnedKey: dailyPointsEarned,
             lastStreakUpdateDateKey: lastStreakUpdateDate,
+            updatedTodayKey: updatedToday,
+            lastLoginDateKey: lastLoginDate,
             goalsKey: try? JSONEncoder().encode(learningGoals),
             checkoutHistoryKey: try? JSONEncoder().encode(dailyCheckoutHistory),
             weeklyProgressKey: currentWeeklyProgress.flatMap { try? JSONEncoder().encode($0) },
-            weeklyHistoryKey: try? JSONEncoder().encode(weeklyProgressHistory),
-            lastTimezoneKey: lastTimezoneUpdate,
-            todayProgressKey: todayProgress.flatMap { try? JSONEncoder().encode($0) }
+            todayProgressKey: todayProgress.flatMap { try? JSONEncoder().encode($0) },
+            thisWeekProgressKey: try? JSONEncoder().encode(thisWeekProgress),
+            thisMonthProgressKey: try? JSONEncoder().encode(thisMonthProgress),
+            lastTimezoneKey: lastTimezoneUpdate
         ]
 
         // Apply all updates in batch
@@ -603,7 +619,6 @@ class PointsEarningManager: ObservableObject {
                 userDefaults.removeObject(forKey: key)
             }
         }
-
     }
 
     /// Legacy saveData method - now uses batched saving
@@ -729,43 +744,51 @@ class PointsEarningManager: ObservableObject {
         } else {
             logger.info("🔄 [checkDailyReset] ✅ No reset needed - Already reset today")
         }
-
     }
     
     private func resetDailyGoals() {
+        print("\n📊 ========================================")
+        print("📊 [RESET] Resetting daily progress and goals")
+        print("📊 ========================================")
 
-        // Show current state before reset
-        if let currentProgress = todayProgress {
-        } else {
-        }
-
+        // Get today's date string
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let todayString = dateFormatter.string(from: Date())
 
         // Reset all daily goal progress and checkout states
         for i in 0..<learningGoals.count {
             if learningGoals[i].isDaily {
                 let oldProgress = learningGoals[i].currentProgress
-                let wasCheckedOut = learningGoals[i].isCheckedOut
-
                 learningGoals[i].currentProgress = 0
                 learningGoals[i].isCheckedOut = false
-
+                print("📊 [RESET] Goal '\(learningGoals[i].title)': \(oldProgress) → 0")
             }
         }
 
-        // Reset today's progress to zero
-        todayProgress = DailyProgress()
+            // Reset today's progress counters (create new empty progress for today)
+        todayProgress = DailyProgress(date: todayString)
+        print("📊 [RESET] Created new daily progress for \(todayString)")
+
+        // CRITICAL: Reset daily-reset points to 0 for new day
+        currentPoints = 0
+        print("📊 [RESET] Reset currentPoints (daily-reset points) to 0")
 
         // CRITICAL: Reset daily points earned to 0 for new day
         dailyPointsEarned = 0
+        print("📊 [RESET] Reset dailyPointsEarned to 0")
 
-        // ✅ FIX: Do NOT reset lastStreakUpdateDate here!
-        // It's managed by updateStreakForNewDay() and updateActivityBasedStreak()
-        // to prevent multiple streak updates on the same day
+        // NOTE: totalPointsEarned is NEVER reset - it's the lifetime total
+        print("📊 [RESET] totalPointsEarned unchanged: \(totalPointsEarned) (lifetime total)")
 
+        // Reset updatedToday flag so streak can be updated when user marks progress
+        updatedToday = false
+        userDefaults.set(false, forKey: updatedTodayKey)
+        print("📊 [RESET] Reset updatedToday flag")
 
-        // Final state verification
-        if let finalProgress = todayProgress {
-        }
+        print("📊 ========================================")
+        print("📊 [RESET] Daily reset complete")
+        print("📊 ========================================\n")
 
         saveData()
     }
@@ -906,12 +929,17 @@ class PointsEarningManager: ObservableObject {
             }
         }
 
-        // Also check historical weekly progress
-        for weekProgress in weeklyProgressHistory {
-            for activity in weekProgress.dailyActivities {
-                if activity.date == dateString && activity.questionCount > 0 {
-                    return true
-                }
+        // Check in this week's counter-based progress
+        for dayProgress in thisWeekProgress {
+            if dayProgress.date == dateString && dayProgress.totalQuestions > 0 {
+                return true
+            }
+        }
+
+        // Check in this month's counter-based progress
+        for dayProgress in thisMonthProgress {
+            if dayProgress.date == dateString && dayProgress.totalQuestions > 0 {
+                return true
             }
         }
 
@@ -929,100 +957,186 @@ class PointsEarningManager: ObservableObject {
     func clearLastResetDate() {
         userDefaults.removeObject(forKey: lastResetDateKey)
     }
-    
-    func trackQuestionAnswered(subject: String, isCorrect: Bool) {
-        // Log user context for multi-device debugging
-        logger.info("📊 [trackQuestionAnswered] InstanceID: \(self.instanceId) - Tracking question for subject: \(subject), isCorrect: \(isCorrect)")
 
-        // Create data backup before critical operation
-        let backup = createDataBackup()
+    // MARK: - Mark Progress (Called when user grades homework and clicks "Mark Progress")
 
-        // Validate data integrity before proceeding
-        guard validateDataIntegrity() else {
-            // Data integrity check failed, restoring from backup
-            restoreFromBackup(backup)
+    /// Update progress counters when user marks homework progress
+    /// This is the ONLY way to update daily counters (not automatic on archive)
+    func markHomeworkProgress(subject: String, numberOfQuestions: Int, numberOfCorrectQuestions: Int) {
+        print("\n📊 ========================================")
+        print("📊 [MARK PROGRESS] User marking progress for homework")
+        print("📊 ========================================")
+        print("📊 Subject: \(subject)")
+        print("📊 Questions: \(numberOfQuestions)")
+        print("📊 Correct: \(numberOfCorrectQuestions)")
+
+        let calendar = Calendar.current
+        let now = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let todayString = dateFormatter.string(from: now)
+
+        // Initialize today's progress if needed
+        if todayProgress == nil || todayProgress?.date != todayString {
+            print("📊 [MARK PROGRESS] Initializing new daily progress for \(todayString)")
+            todayProgress = DailyProgress(date: todayString)
+        }
+
+        // Update subject counters for today
+        var currentSubjectProgress = todayProgress?.subjectProgress[subject] ?? SubjectDailyProgress(subject: subject)
+        currentSubjectProgress.numberOfQuestions += numberOfQuestions
+        currentSubjectProgress.numberOfCorrectQuestions += numberOfCorrectQuestions
+        todayProgress?.subjectProgress[subject] = currentSubjectProgress
+
+        print("📊 [MARK PROGRESS] Updated \(subject): \(currentSubjectProgress.numberOfQuestions) questions, \(currentSubjectProgress.numberOfCorrectQuestions) correct")
+        print("📊 [MARK PROGRESS] Today's total: \(todayProgress?.totalQuestions ?? 0) questions, \(todayProgress?.correctAnswers ?? 0) correct")
+        print("📊 [MARK PROGRESS] Today's accuracy: \(String(format: "%.1f%%", todayProgress?.accuracy ?? 0.0))")
+
+        // Update weekly progress
+        updateWeeklyProgressCounters(todayProgress: todayProgress!)
+
+        // Update monthly progress
+        updateMonthlyProgressCounters(todayProgress: todayProgress!)
+
+        // Update streak if this is first progress today
+        if !updatedToday && todayProgress!.totalQuestions > 0 {
+            print("📊 [MARK PROGRESS] First progress today - updating streak")
+            updateStreakForToday(todayString: todayString)
+            updatedToday = true
+            userDefaults.set(true, forKey: updatedTodayKey)
+        }
+
+        // Update learning goals
+        updateLearningGoalsFromProgress()
+
+        // Save data locally
+        saveData()
+
+        // Sync daily progress with backend asynchronously
+        Task {
+            await syncDailyProgressWithBackend()
+        }
+
+        print("📊 ========================================")
+        print("📊 [MARK PROGRESS] COMPLETE")
+        print("📊 ========================================\n")
+    }
+
+    /// Update weekly progress history with today's progress
+    private func updateWeeklyProgressCounters(todayProgress: DailyProgress) {
+        let calendar = Calendar.current
+        let now = Date()
+        guard let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start else { return }
+
+        // Remove any progress from previous weeks
+        thisWeekProgress.removeAll { progress in
+            guard let progressDate = dateFromString(progress.date) else { return true }
+            return progressDate < weekStart
+        }
+
+        // Update or add today's progress
+        if let index = thisWeekProgress.firstIndex(where: { $0.date == todayProgress.date }) {
+            thisWeekProgress[index] = todayProgress
+            print("📊 [WEEKLY] Updated progress for \(todayProgress.date)")
+        } else {
+            thisWeekProgress.append(todayProgress)
+            print("📊 [WEEKLY] Added progress for \(todayProgress.date)")
+        }
+
+        print("📊 [WEEKLY] Total days this week: \(thisWeekProgress.count)")
+        let weekTotal = thisWeekProgress.reduce(0) { $0 + $1.totalQuestions }
+        let weekCorrect = thisWeekProgress.reduce(0) { $0 + $1.correctAnswers }
+        print("📊 [WEEKLY] Week total: \(weekTotal) questions, \(weekCorrect) correct")
+    }
+
+    /// Update monthly progress history with today's progress
+    private func updateMonthlyProgressCounters(todayProgress: DailyProgress) {
+        let calendar = Calendar.current
+        let now = Date()
+        guard let monthStart = calendar.dateInterval(of: .month, for: now)?.start else { return }
+
+        // Remove any progress from previous months
+        thisMonthProgress.removeAll { progress in
+            guard let progressDate = dateFromString(progress.date) else { return true }
+            return progressDate < monthStart
+        }
+
+        // Update or add today's progress
+        if let index = thisMonthProgress.firstIndex(where: { $0.date == todayProgress.date }) {
+            thisMonthProgress[index] = todayProgress
+            print("📊 [MONTHLY] Updated progress for \(todayProgress.date)")
+        } else {
+            thisMonthProgress.append(todayProgress)
+            print("📊 [MONTHLY] Added progress for \(todayProgress.date)")
+        }
+
+        print("📊 [MONTHLY] Total days this month: \(thisMonthProgress.count)")
+        let monthTotal = thisMonthProgress.reduce(0) { $0 + $1.totalQuestions }
+        let monthCorrect = thisMonthProgress.reduce(0) { $0 + $1.correctAnswers }
+        print("📊 [MONTHLY] Month total: \(monthTotal) questions, \(monthCorrect) correct")
+    }
+
+    /// Update streak for today
+    private func updateStreakForToday(todayString: String) {
+        // Check if we've already updated streak for today
+        if lastStreakUpdateDate == todayString {
+            print("🔥 [STREAK] Already updated for today")
             return
         }
 
-        // Ensure todayProgress exists
-        if todayProgress == nil {
-            todayProgress = DailyProgress()
+        // If we had activity, increment streak
+        if todayProgress?.totalQuestions ?? 0 > 0 {
+            currentStreak += 1
+            print("🔥 [STREAK] Incremented to \(currentStreak)")
         }
 
-        guard var currentProgress = todayProgress else {
-            return
-        }
+        lastStreakUpdateDate = todayString
+        userDefaults.set(todayString, forKey: lastStreakUpdateDateKey)
+    }
 
-        // Update daily questions goal with bounds checking
+    /// Update learning goals based on progress
+    private func updateLearningGoalsFromProgress() {
+        guard let progress = todayProgress else { return }
+
+        // Update daily questions goal
         for i in 0..<learningGoals.count {
             if learningGoals[i].type == .dailyQuestions {
-                learningGoals[i].currentProgress = max(0, learningGoals[i].currentProgress + 1)
+                learningGoals[i].currentProgress = progress.totalQuestions
             }
         }
-
-        // Update question counts with safe access
-        currentProgress.totalQuestions = max(0, currentProgress.totalQuestions + 1)
-        if isCorrect {
-            currentProgress.correctAnswers = max(0, currentProgress.correctAnswers + 1)
-        }
-
-        // Update the published property
-        todayProgress = currentProgress
 
         // Update accuracy goal
-        updateAccuracyGoal()
-
-        // Update streak based on daily activity (not manual checkouts)
-        updateActivityBasedStreak()
-
-        // Update weekly progress tracking
-        updateWeeklyProgress(questionCount: 1, subject: subject)
-
-        // Validate consistency between today's progress and weekly grid
-        validateTodayConsistency()
-
-        // Save data with logging
-        saveData()
-
-        // Sync to server immediately to update subject breakdown
-        Task {
-            await NetworkService.shared.trackQuestionAnswered(
-                subject: subject,
-                isCorrect: isCorrect,
-                studyTimeSeconds: 0
-            )
-
-            // Invalidate subject breakdown cache after successful sync
-            // This ensures next progress view load fetches fresh data
-            SubjectBreakdownCache.shared.invalidateCache(timeframe: "today")
-            SubjectBreakdownCache.shared.invalidateCache(timeframe: "week")
-            SubjectBreakdownCache.shared.invalidateCache(timeframe: "month")
-        }
-    }
-    
-    func trackStudyTime(_ minutes: Int) {
-        guard minutes > 0 else {
-            return
-        }
-
-        for i in 0..<learningGoals.count {
-            if learningGoals[i].type == .studyTime {
-                let oldProgress = learningGoals[i].currentProgress
-                learningGoals[i].currentProgress = max(0, learningGoals[i].currentProgress + minutes)
+        if progress.totalQuestions > 0 {
+            let accuracy = Int(progress.accuracy)
+            for i in 0..<learningGoals.count {
+                if learningGoals[i].type == .accuracyGoal {
+                    learningGoals[i].currentProgress = accuracy
+                }
             }
         }
 
-        // Update today's progress with study time
-        if var currentProgress = todayProgress {
-            currentProgress.studyTimeMinutes = max(0, currentProgress.studyTimeMinutes + minutes)
-            todayProgress = currentProgress
-        } else {
-            var newProgress = DailyProgress()
-            newProgress.studyTimeMinutes = minutes
-            todayProgress = newProgress
-        }
+        // Update streak goals
+        updateWeeklyStreakGoal()
+        updateDailyStreakGoal()
+    }
 
-        saveData()
+    private func dateFromString(_ dateString: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: dateString)
+    }
+
+    func trackQuestionAnswered(subject: String, isCorrect: Bool) {
+        // ⚠️ DEPRECATED: Progress is now counter-based via markHomeworkProgress()
+        // This method is kept for compatibility but does nothing
+        // When user clicks "Mark Progress" after grading, use markHomeworkProgress() instead
+        logger.info("⚠️ [trackQuestionAnswered] DEPRECATED - Use markHomeworkProgress() instead")
+    }
+
+    func trackStudyTime(_ minutes: Int) {
+        // ⚠️ DEPRECATED: Study time tracking removed from counter-based approach
+        // This method is kept for compatibility but does nothing
+        logger.info("⚠️ [trackStudyTime] DEPRECATED - Study time tracking removed")
     }
     
     private func updateAccuracyGoal() {
@@ -1276,7 +1390,6 @@ class PointsEarningManager: ObservableObject {
 
         // Clear history arrays
         dailyCheckoutHistory.removeAll()
-        weeklyProgressHistory.removeAll()
 
         // Reset progress data
         currentWeeklyProgress = nil
@@ -1292,9 +1405,10 @@ class PointsEarningManager: ObservableObject {
         userDefaults.removeObject(forKey: goalsKey)
         userDefaults.removeObject(forKey: checkoutHistoryKey)
         userDefaults.removeObject(forKey: weeklyProgressKey)
-        userDefaults.removeObject(forKey: weeklyHistoryKey)
         userDefaults.removeObject(forKey: lastTimezoneKey)
         userDefaults.removeObject(forKey: todayProgressKey)
+        userDefaults.removeObject(forKey: thisWeekProgressKey)
+        userDefaults.removeObject(forKey: thisMonthProgressKey)
         userDefaults.removeObject(forKey: lastResetDateKey)
 
         print("✅ [resetProgress] Completely removed all progress data from UserDefaults")
@@ -1304,7 +1418,7 @@ class PointsEarningManager: ObservableObject {
     // MARK: - Weekly Progress Methods
     
     /// Update daily activity in local data structure (for UI display)
-    /// Server sync is handled separately by trackQuestionAnswered()
+    /// Server sync is handled separately by markHomeworkProgress()
     func updateWeeklyProgress(questionCount: Int, subject: String) {
         guard questionCount > 0 else {
             return
@@ -1314,7 +1428,8 @@ class PointsEarningManager: ObservableObject {
         // This maintains currentWeeklyProgress which is displayed in WeeklyProgressGrid
         updateLocalWeeklyProgress(questionCount: questionCount)
 
-        // Note: Server sync is now handled by trackQuestionAnswered() API call
+        // Note: Server sync is now handled by markHomeworkProgress() method
+        // which syncs daily progress counters with backend
         // No need for duplicate syncWithServer() call here
     }
     
@@ -1473,52 +1588,17 @@ class PointsEarningManager: ObservableObject {
     /// Clear cached weekly progress data and force fresh creation
     func clearWeeklyProgressCache() {
         userDefaults.removeObject(forKey: weeklyProgressKey)
-        userDefaults.removeObject(forKey: weeklyHistoryKey)
         currentWeeklyProgress = nil
-        weeklyProgressHistory = []
 
         // Force create fresh weekly progress
         checkWeeklyReset()
     }
 
     /// Validate consistency between todayProgress and weekly grid today
+    /// (Disabled for counter-based approach - no longer needed)
     private func validateTodayConsistency() {
-        guard let todayProgress = todayProgress,
-              let weeklyProgress = currentWeeklyProgress else {
-            return
-        }
-
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        dateFormatter.timeZone = TimeZone.current
-        let today = dateFormatter.string(from: Date())
-
-        // Find today's activity in weekly progress
-        guard let weeklyToday = weeklyProgress.dailyActivities.first(where: { $0.date == today }) else {
-            logger.warning("[CONSISTENCY] Today (\(today)) not found in weekly progress")
-            return
-        }
-
-        // Check if counts match
-        if todayProgress.totalQuestions != weeklyToday.questionCount {
-            logger.warning("[CONSISTENCY] ⚠️ MISMATCH DETECTED:")
-            logger.warning("[CONSISTENCY]   todayProgress.totalQuestions = \(todayProgress.totalQuestions)")
-            logger.warning("[CONSISTENCY]   weeklyProgress today = \(weeklyToday.questionCount)")
-            logger.warning("[CONSISTENCY] ✅ Auto-fixing: Using weekly progress as source of truth")
-
-            // Auto-fix: Use weekly progress as source of truth
-            self.todayProgress = DailyProgress(
-                totalQuestions: weeklyToday.questionCount,
-                correctAnswers: todayProgress.correctAnswers, // Keep original correct count
-                studyTimeMinutes: todayProgress.studyTimeMinutes,
-                subjectsStudied: todayProgress.subjectsStudied
-            )
-
-            saveData()
-            logger.info("[CONSISTENCY] ✅ Fixed todayProgress to match weekly grid")
-        } else {
-            logger.debug("[CONSISTENCY] ✅ todayProgress and weekly grid are consistent: \(todayProgress.totalQuestions) questions")
-        }
+        // Counter-based approach ensures consistency by design
+        // No validation needed
     }
 
     /// Check if we need to start a new week (called on app launch)
@@ -1542,14 +1622,7 @@ class PointsEarningManager: ObservableObject {
         if today < currentWeekly.weekStart || today > currentWeekly.weekEnd {
 
             // Archive current week if it has data
-            if currentWeekly.totalQuestionsThisWeek > 0 {
-                weeklyProgressHistory.append(currentWeekly)
-
-                // Keep only last 12 weeks of history
-                if weeklyProgressHistory.count > 12 {
-                    weeklyProgressHistory.removeFirst(weeklyProgressHistory.count - 12)
-                }
-            }
+            // (No history storage needed for counter-based approach)
 
             // Start new week
             currentWeeklyProgress = createCurrentWeekProgress(timezone: TimeZone.current.identifier)
@@ -1602,186 +1675,6 @@ class PointsEarningManager: ObservableObject {
     }
 
     // MARK: - Server Sync Methods
-
-    /// Load today's activity from server only if we haven't reset today
-    func loadTodaysActivityFromServerIfNotReset() async {
-        logger.info("[SERVER_LOAD] === CHECKING IF SHOULD LOAD TODAY'S ACTIVITY FROM SERVER ===")
-
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        let todayString = dateFormatter.string(from: today)
-        let lastResetDateString = userDefaults.string(forKey: lastResetDateKey)
-
-        logger.info("[SERVER_LOAD] Today: \(todayString), Last reset: \(lastResetDateString ?? "none")")
-
-        // Check if we have any local activity today (indicating we shouldn't load from server)
-        let hasLocalActivityToday = todayProgress?.totalQuestions ?? 0 > 0
-
-        logger.info("[SERVER_LOAD] Has local activity today: \(hasLocalActivityToday) (\(self.todayProgress?.totalQuestions ?? 0) questions)")
-
-        // Only load from server if:
-        // 1. We have reset today (lastResetDateString == todayString) AND
-        // 2. We don't have any local activity yet (fresh reset state)
-        if lastResetDateString == todayString && !hasLocalActivityToday {
-            logger.info("[SERVER_LOAD] Loading from server is safe - we've reset today and have no local activity")
-            await loadTodaysActivityFromServerWithConflictResolution()
-        } else {
-            logger.info("[SERVER_LOAD] NOT loading from server - either haven't reset today OR have local activity to preserve")
-        }
-
-        logger.info("[SERVER_LOAD] === END CHECKING IF SHOULD LOAD TODAY'S ACTIVITY FROM SERVER ===")
-    }
-
-    /// NEW: Load today's activity with cache-first strategy
-    /// This implements: 1) Use local if available, 2) Otherwise load from server
-    private func loadTodaysActivityWithCacheStrategy() async {
-        // Get user ID for diagnostic logging
-        let authService = await MainActor.run { AuthenticationService.shared }
-        let currentUserId = await MainActor.run { authService.currentUser?.id }
-        let currentUserEmail = await MainActor.run { authService.currentUser?.email }
-
-        // Check if we have valid local data
-        let hasValidLocalData = todayProgress?.totalQuestions ?? 0 > 0
-
-        // Get last reset date for context
-        let lastResetDateString = userDefaults.string(forKey: lastResetDateKey)
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        let todayString = dateFormatter.string(from: today)
-
-        if hasValidLocalData {
-            // Local cache is available and valid, use it
-            return
-        }
-
-        // No local data or local data is empty - load from server
-        guard let networkService = await getNetworkService() else {
-            return
-        }
-
-        let result = await networkService.getTodaysActivity(
-            timezone: TimeZone.current.identifier
-        )
-
-        if result.success, let serverTodayProgress = result.todayProgress {
-            await MainActor.run {
-                // ✅ SAFETY: Validate server data before using it
-                guard serverTodayProgress.totalQuestions >= 0,
-                      serverTodayProgress.correctAnswers >= 0,
-                      serverTodayProgress.correctAnswers <= serverTodayProgress.totalQuestions else {
-                    return
-                }
-
-                // ✅ CRITICAL: Cross-reference with weekly progress to detect stale data
-                // The "today" endpoint sometimes returns stale data from previous days
-                // If today's date doesn't appear in weekly progress, use 0 instead
-                let calendar = Calendar.current
-                let today = calendar.startOfDay(for: Date())
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "yyyy-MM-dd"
-                dateFormatter.timeZone = TimeZone.current
-                let todayString = dateFormatter.string(from: today)
-
-                // Check if today exists in weekly progress data
-                var todayActivityFromWeekly: DailyQuestionActivity? = nil
-                if let weeklyProgress = self.currentWeeklyProgress {
-                    todayActivityFromWeekly = weeklyProgress.dailyActivities.first { $0.date == todayString }
-                }
-
-                if let weeklyActivity = todayActivityFromWeekly {
-                    // Today's date exists in weekly progress - use that as the source of truth
-                    let weeklyQuestions = weeklyActivity.questionCount
-
-                    if weeklyQuestions != serverTodayProgress.totalQuestions {
-                        // Use weekly progress data (more reliable)
-                        self.todayProgress = DailyProgress(
-                            totalQuestions: weeklyQuestions,
-                            correctAnswers: weeklyQuestions, // Assume all correct if we don't have breakdown
-                            studyTimeMinutes: serverTodayProgress.studyTimeMinutes,
-                            subjectsStudied: serverTodayProgress.subjectsStudied
-                        )
-                    } else {
-                        // Data matches, use server data
-                        self.todayProgress = serverTodayProgress
-                    }
-                } else {
-                    // Today doesn't exist in weekly progress - this means NO activity today
-                    // Override with empty progress (no activity today)
-                    self.todayProgress = DailyProgress()
-                }
-
-                saveData()
-            }
-        } else {
-            // Server has no data - keep empty local state
-        }
-    }
-
-    /// Load today's activity with proper conflict resolution
-    private func loadTodaysActivityFromServerWithConflictResolution() async {
-        logger.info("[TODAY'S ACTIVITY] === LOADING TODAY'S ACTIVITY FROM SERVER (WITH CONFLICT RESOLUTION) ===")
-
-        guard let networkService = await getNetworkService() else {
-            logger.info("[TODAY'S ACTIVITY] NetworkService unavailable")
-            return
-        }
-
-        let result = await networkService.getTodaysActivity(
-            timezone: TimeZone.current.identifier
-        )
-
-        logger.info("[TODAY'S ACTIVITY] Server response - success: \(result.success)")
-
-        if result.success, let serverTodayProgress = result.todayProgress {
-            await MainActor.run {
-                // ✅ SAFETY: Validate server data before using it
-                guard serverTodayProgress.totalQuestions >= 0,
-                      serverTodayProgress.correctAnswers >= 0,
-                      serverTodayProgress.correctAnswers <= serverTodayProgress.totalQuestions else {
-                    logger.info("[TODAY'S ACTIVITY] ⚠️ Server data is invalid, rejecting")
-                    return
-                }
-
-                // Smart merge with timestamp consideration
-                if let localProgress = self.todayProgress {
-                    // Only update if server data is significantly more complete
-                    // (more than 1 question difference to account for sync delays)
-                    if localProgress.totalQuestions > serverTodayProgress.totalQuestions + 1 {
-                        logger.info("[TODAY'S ACTIVITY] Keeping local data (local: \(localProgress.totalQuestions) >> server: \(serverTodayProgress.totalQuestions))")
-                        return
-                    }
-
-                    // If counts are similar, merge the data
-                    if abs(localProgress.totalQuestions - serverTodayProgress.totalQuestions) <= 1 {
-                        let mergedProgress = DailyProgress(
-                            totalQuestions: max(localProgress.totalQuestions, serverTodayProgress.totalQuestions),
-                            correctAnswers: max(localProgress.correctAnswers, serverTodayProgress.correctAnswers),
-                            studyTimeMinutes: max(localProgress.studyTimeMinutes, serverTodayProgress.studyTimeMinutes),
-                            subjectsStudied: localProgress.subjectsStudied.union(serverTodayProgress.subjectsStudied)
-                        )
-                        self.todayProgress = mergedProgress
-                        logger.info("[TODAY'S ACTIVITY] Merged local and server data - Total: \(mergedProgress.totalQuestions), Correct: \(mergedProgress.correctAnswers)")
-                        saveData()
-                        return
-                    }
-                }
-
-                // Use server data if local doesn't exist or server is significantly more complete
-                self.todayProgress = serverTodayProgress
-                logger.info("[TODAY'S ACTIVITY] Updated from server - Total: \(serverTodayProgress.totalQuestions), Correct: \(serverTodayProgress.correctAnswers)")
-                saveData()
-            }
-        } else {
-            logger.info("[TODAY'S ACTIVITY] Failed to load today's activity from server: \(result.message ?? "Unknown error")")
-        }
-
-
-        logger.info("[TODAY'S ACTIVITY] === END LOADING TODAY'S ACTIVITY FROM SERVER (WITH CONFLICT RESOLUTION) ===")
-    }
 
     // Data integrity validation
     private func validateDataIntegrity() -> Bool {
@@ -1860,46 +1753,7 @@ class PointsEarningManager: ObservableObject {
         forceSave()
         logger.info("[DATA_RECOVERY] Data restoration completed")
     }
-    
-    /// Load current week progress from server on app start
-    func loadCurrentWeekFromServer() async {
 
-        guard let networkService = await getNetworkService() else {
-            return
-        }
-
-        // Get current user info for debugging
-        let authService = await MainActor.run { AuthenticationService.shared }
-        let isAuthenticated = await MainActor.run { authService.isAuthenticated }
-        let currentUserId = await MainActor.run { authService.currentUser?.id }
-        let authToken = authService.getAuthToken()
-
-        if let token = authToken {
-        }
-
-        do {
-            let result = await networkService.getCurrentWeekProgress(
-                timezone: TimeZone.current.identifier
-            )
-
-
-            if result.success, let serverProgress = result.progress {
-                await MainActor.run {
-                    updateFromServerResponse(serverProgress)
-                    saveData()
-                }
-            } else {
-            }
-        } catch {
-        }
-
-    }
-
-    /// Load today's specific activity from server (legacy method - redirects to conflict resolution version)
-    func loadTodaysActivityFromServer() async {
-        await loadTodaysActivityFromServerWithConflictResolution()
-    }
-    
     /// Update local data structure with server response
     private func updateFromServerResponse(_ serverProgress: [String: Any]) {
         guard let weekStart = serverProgress["week_start"] as? String,
@@ -2015,6 +1869,58 @@ class PointsEarningManager: ObservableObject {
 
     }
 
+    /// Sync daily progress data with backend
+    /// Called after marking homework progress to sync today's counters with server
+    private func syncDailyProgressWithBackend() async {
+        logger.info("[DAILY_PROGRESS_SYNC] === SYNCING DAILY PROGRESS WITH BACKEND ===")
+
+        guard let networkService = await getNetworkService() else {
+            logger.info("[DAILY_PROGRESS_SYNC] ❌ NetworkService not available")
+            return
+        }
+
+        // Get current user info
+        let authService = await MainActor.run { AuthenticationService.shared }
+        let isAuthenticated = await MainActor.run { authService.isAuthenticated }
+        let currentUserId = await MainActor.run { authService.currentUser?.id }
+
+        guard isAuthenticated, let userId = currentUserId else {
+            logger.info("[DAILY_PROGRESS_SYNC] ❌ User not authenticated")
+            return
+        }
+
+        // Get today's progress
+        let progress = await MainActor.run { self.todayProgress }
+
+        guard let progress = progress else {
+            logger.info("[DAILY_PROGRESS_SYNC] ❌ No progress data to sync")
+            return
+        }
+
+        logger.info("[DAILY_PROGRESS_SYNC] Syncing progress for date: \(progress.date)")
+        logger.info("[DAILY_PROGRESS_SYNC] Total questions: \(progress.totalQuestions), Correct: \(progress.correctAnswers)")
+
+        do {
+            let result = await networkService.syncDailyProgress(
+                userId: userId,
+                dailyProgress: progress
+            )
+
+            if result.success {
+                logger.info("[DAILY_PROGRESS_SYNC] ✅ Daily progress synced successfully")
+                if let message = result.message {
+                    logger.info("[DAILY_PROGRESS_SYNC] Server message: \(message)")
+                }
+            } else {
+                logger.info("[DAILY_PROGRESS_SYNC] ❌ Sync failed: \(result.message ?? "Unknown error")")
+            }
+        } catch {
+            logger.info("[DAILY_PROGRESS_SYNC] ❌ Sync error: \(error.localizedDescription)")
+        }
+
+        logger.info("[DAILY_PROGRESS_SYNC] === SYNC COMPLETE ===")
+    }
+
     /// Get NetworkService reference safely
     private func getNetworkService() async -> NetworkService? {
         return await MainActor.run {
@@ -2077,23 +1983,47 @@ struct DailyCheckout: Codable, Identifiable {
     }
 }
 
-struct DailyProgress: Codable {
-    var totalQuestions: Int = 0
-    var correctAnswers: Int = 0
-    var studyTimeMinutes: Int = 0
-    var subjectsStudied: Set<String> = []
+// MARK: - Subject Daily Progress (Counter-Based)
 
-    // Custom initializer for server data
-    init(totalQuestions: Int = 0, correctAnswers: Int = 0, studyTimeMinutes: Int = 0, subjectsStudied: Set<String> = []) {
-        self.totalQuestions = totalQuestions
-        self.correctAnswers = correctAnswers
-        self.studyTimeMinutes = studyTimeMinutes
-        self.subjectsStudied = subjectsStudied
+/// Daily progress counter for a single subject
+/// Resets at midnight, updated when user marks progress
+struct SubjectDailyProgress: Codable {
+    let subject: String
+    var numberOfQuestions: Int = 0
+    var numberOfCorrectQuestions: Int = 0
+
+    var accuracy: Double {
+        guard numberOfQuestions > 0 else { return 0.0 }
+        return Double(numberOfCorrectQuestions) / Double(numberOfQuestions) * 100
+    }
+}
+
+/// Daily progress aggregated across all subjects
+struct DailyProgress: Codable {
+    var subjectProgress: [String: SubjectDailyProgress] = [:] // key: subject name
+    var date: String // yyyy-MM-dd format
+
+    init(date: String = "") {
+        self.subjectProgress = [:]
+        self.date = date
+    }
+
+    // Computed properties for aggregated values
+    var totalQuestions: Int {
+        return subjectProgress.values.reduce(0) { $0 + $1.numberOfQuestions }
+    }
+
+    var correctAnswers: Int {
+        return subjectProgress.values.reduce(0) { $0 + $1.numberOfCorrectQuestions }
     }
 
     var accuracy: Double {
         guard totalQuestions > 0 else { return 0.0 }
         return Double(correctAnswers) / Double(totalQuestions) * 100
+    }
+
+    var subjectsStudied: Set<String> {
+        return Set(subjectProgress.keys)
     }
 }
 

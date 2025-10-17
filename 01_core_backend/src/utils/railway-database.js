@@ -3145,6 +3145,80 @@ async function runDatabaseMigrations() {
       console.log('✅ Database cleanup migration already applied');
     }
 
+    // ============================================
+    // MIGRATION: Add raw_question_text column (2025-10-16)
+    // ============================================
+    const rawQuestionTextCheck = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '006_add_raw_question_text'
+    `);
+
+    if (rawQuestionTextCheck.rows.length === 0) {
+      console.log('📋 Applying raw_question_text migration...');
+      console.log('📊 Adding raw_question_text column for full original question storage');
+
+      try {
+        // Add raw_question_text column (allows NULL for backward compatibility)
+        await db.query(`
+          ALTER TABLE archived_questions
+          ADD COLUMN IF NOT EXISTS raw_question_text TEXT;
+        `);
+
+        // Backfill existing records: copy question_text to raw_question_text
+        await db.query(`
+          UPDATE archived_questions
+          SET raw_question_text = question_text
+          WHERE raw_question_text IS NULL;
+        `);
+
+        // Check if index already exists before creating
+        const indexCheck = await db.query(`
+          SELECT indexname FROM pg_indexes
+          WHERE indexname = 'idx_archived_questions_raw_text'
+          AND tablename = 'archived_questions'
+        `);
+
+        if (indexCheck.rows.length === 0) {
+          // Add index for searching raw question text
+          await db.query(`
+            CREATE INDEX idx_archived_questions_raw_text
+            ON archived_questions USING gin(to_tsvector('english', raw_question_text));
+          `);
+          console.log('✅ Created full-text search index on raw_question_text');
+        } else {
+          console.log('✅ Index idx_archived_questions_raw_text already exists');
+        }
+
+        // Add comment to document the column
+        await db.query(`
+          COMMENT ON COLUMN archived_questions.raw_question_text IS 'Full original question text from image (before AI cleaning/simplification)';
+        `);
+
+        // Record the migration as completed
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('006_add_raw_question_text')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+
+        console.log('✅ raw_question_text migration completed successfully!');
+        console.log('📊 archived_questions table now supports:');
+        console.log('   - Full original question text from homework images');
+        console.log('   - Preserves complete context and wording');
+        console.log('   - Full-text search on raw question content');
+      } catch (rawQuestionError) {
+        console.warn('⚠️ raw_question_text migration warning (migration will continue):', rawQuestionError.message);
+        // Record migration as complete to prevent retry loops
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('006_add_raw_question_text')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+        console.log('✅ raw_question_text migration marked as complete');
+      }
+    } else {
+      console.log('✅ raw_question_text migration already applied');
+    }
+
   } catch (error) {
     console.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has

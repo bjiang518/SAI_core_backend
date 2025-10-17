@@ -1188,10 +1188,10 @@ struct ArchiveSelectionView: View {
                                 ForEach(conversations.indices, id: \.self) { index in
                                     let conversation = conversations[index]
                                     let conversationId = conversation["id"] as? String ?? ""
-                                    let conversationTitle = conversation["title"] as? String ?? "Untitled Conversation"
+                                    let conversationPreview = extractConversationPreview(from: conversation)
 
                                     ArchiveConversationSelectionCard(
-                                        conversationTitle: conversationTitle,
+                                        conversationTitle: conversationPreview,
                                         isSelected: selectedConversations.contains(conversationId),
                                         onToggle: {
                                             if selectedConversations.contains(conversationId) {
@@ -1244,6 +1244,74 @@ struct ArchiveSelectionView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Helper Functions
+
+    /// Extract conversation preview (first user message) similar to library view
+    private func extractConversationPreview(from conversation: [String: Any]) -> String {
+        // Try to extract from messages array first
+        if let messages = conversation["messages"] as? [[String: Any]], !messages.isEmpty {
+            for message in messages {
+                let role = message["role"] as? String ?? ""
+                let sender = message["sender"] as? String ?? ""
+
+                if role.lowercased() == "user" || sender.lowercased() == "user" {
+                    if let content = message["content"] as? String ?? message["message"] as? String {
+                        let words = content.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+                        let limitedWords = words.prefix(50)
+                        let preview = limitedWords.joined(separator: " ")
+                        return preview + (words.count > 50 ? "..." : "")
+                    }
+                }
+            }
+        }
+
+        // Fallback: Check conversationContent
+        if let conversationContent = conversation["conversationContent"] as? String, !conversationContent.isEmpty {
+            let lines = conversationContent.components(separatedBy: .newlines)
+            for line in lines {
+                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                // Skip headers and metadata
+                if trimmedLine.hasPrefix("===") ||
+                   trimmedLine.hasPrefix("Conversation Archive") ||
+                   trimmedLine.hasPrefix("Session archived") ||
+                   trimmedLine.hasPrefix("Session:") ||
+                   trimmedLine.hasPrefix("Subject:") ||
+                   trimmedLine.hasPrefix("Topic:") ||
+                   trimmedLine.hasPrefix("Archived:") ||
+                   trimmedLine.hasPrefix("Messages:") ||
+                   (trimmedLine.hasPrefix("[") && trimmedLine.hasSuffix("]")) ||
+                   trimmedLine.isEmpty {
+                    continue
+                }
+
+                // Look for user message (not prefixed with "AI:")
+                if !trimmedLine.hasPrefix("AI:") {
+                    var cleanedLine = trimmedLine
+                    cleanedLine = cleanedLine.replacingOccurrences(of: "^User:\\s*", with: "", options: .regularExpression)
+                    cleanedLine = cleanedLine.replacingOccurrences(of: "^Student:\\s*", with: "", options: .regularExpression)
+                    cleanedLine = cleanedLine.replacingOccurrences(of: "^\\[.*?\\]\\s*User:\\s*", with: "", options: .regularExpression)
+
+                    if !cleanedLine.isEmpty {
+                        let words = cleanedLine.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+                        let limitedWords = words.prefix(50)
+                        let preview = limitedWords.joined(separator: " ")
+                        return preview + (words.count > 50 ? "..." : "")
+                    }
+                }
+            }
+        }
+
+        // Try message count
+        let messageCount = conversation["message_count"] as? Int ?? conversation["messageCount"] as? Int ?? 0
+        if messageCount > 0 {
+            return "\(messageCount) messages in conversation"
+        }
+
+        // Ultimate fallback
+        return "Study session"
     }
 }
 

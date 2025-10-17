@@ -610,7 +610,8 @@ struct SessionChatView: View {
                 showingArchiveSuccess = false
             }
         } message: {
-            Text(String(format: NSLocalizedString("chat.alert.archiveSuccess.message", comment: ""), archivedSessionTitle.capitalized))
+            // ✅ LOCAL-FIRST: Conversation saved locally only
+            Text("✅ Conversation '\(archivedSessionTitle.capitalized)' saved locally!\n\n💡 Tip: Use 'Sync with Server' in Settings to upload to cloud.")
         }
         .onDisappear {
 
@@ -2170,13 +2171,13 @@ struct SessionChatView: View {
     
     /// Track chat interaction for points earning system
     private func trackChatInteraction(subject: String, userMessage: String, aiResponse: String?) {
-        // Chat interactions should NOT count as questions answered
-        // Only track study time, not question count
+        // ✅ NOTE: Chat interactions do NOT update daily progress counters
+        // Chat sessions are not homework - they have no questions to count
+        // Study time tracking has been removed from counter-based progress system
+        // Progress is only tracked when user grades homework and clicks "Mark Progress"
 
-        // Estimate study time based on message complexity
-        let wordCount = userMessage.components(separatedBy: .whitespacesAndNewlines).count
-        let estimatedStudyTime = max(wordCount / 10, 1) // 1 minute per 10 words, minimum 1 minute
-        pointsManager.trackStudyTime(estimatedStudyTime)
+        // No-op: Chat interactions don't affect daily counters
+        print("💬 [Chat] Interaction logged (chat sessions don't update progress counters)")
     }
 }
 

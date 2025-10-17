@@ -440,7 +440,7 @@ struct MistakeQuestionCard: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
 
-                Text(question.question)
+                Text(question.rawQuestionText)  // ✅ Display full original question from image
                     .font(.body)
                     .fontWeight(.medium)
             }

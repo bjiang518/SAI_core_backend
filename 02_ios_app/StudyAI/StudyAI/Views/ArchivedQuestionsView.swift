@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct ArchivedQuestionsView: View {
-    @StateObject private var questionArchiveService = QuestionArchiveService.shared
     @State private var questions: [QuestionSummary] = []
     @State private var isLoading = false
     @State private var errorMessage = ""
@@ -130,7 +129,7 @@ struct ArchivedQuestionsView: View {
         isLoading = true
         Task {
             do {
-                let fetchedQuestions = try await questionArchiveService.fetchArchivedQuestions(limit: 100)
+                let fetchedQuestions = try await QuestionArchiveService.shared.fetchArchivedQuestions(limit: 100)
                 await MainActor.run {
                     self.questions = fetchedQuestions
                     self.isLoading = false
@@ -253,15 +252,35 @@ struct CompactQuestionCard: View {
 
 struct QuestionDetailView: View {
     let questionId: String
-    @StateObject private var questionArchiveService = QuestionArchiveService.shared
     @State private var question: ArchivedQuestion?
     @State private var isLoading = true
-    
+    @State private var errorMessage: String?
+
     var body: some View {
         ScrollView {
             if isLoading {
                 ProgressView()
                     .padding(.top, 100)
+            } else if let errorMessage = errorMessage {
+                // Error state
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.largeTitle)
+                        .foregroundColor(.red)
+                    Text("Failed to Load Question")
+                        .font(.headline)
+                    Text(errorMessage)
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+
+                    Button("Retry") {
+                        loadQuestion()
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(.top, 100)
             } else if let question = question {
                 VStack(alignment: .leading, spacing: 16) {
                     // Grading Badge (if graded)
@@ -450,15 +469,26 @@ struct QuestionDetailView: View {
     }
     
     private func loadQuestion() {
+        print("🔍 [QuestionDetail] Loading question: \(questionId)")
+
         Task {
             do {
-                let fetchedQuestion = try await questionArchiveService.getQuestionDetails(questionId: questionId)
+                let fetchedQuestion = try await QuestionArchiveService.shared.getQuestionDetails(questionId: questionId)
                 await MainActor.run {
+                    print("✅ [QuestionDetail] Loaded question successfully")
+                    print("📋 [QuestionDetail] Question subject: \(fetchedQuestion.subject)")
+                    print("📋 [QuestionDetail] Question text length: \(fetchedQuestion.questionText.count) chars")
                     self.question = fetchedQuestion
                     self.isLoading = false
+                    self.errorMessage = nil
                 }
             } catch {
                 await MainActor.run {
+                    print("❌ [QuestionDetail] Failed to load question")
+                    print("❌ [QuestionDetail] Question ID: \(questionId)")
+                    print("❌ [QuestionDetail] Error: \(error)")
+                    print("❌ [QuestionDetail] Error description: \(error.localizedDescription)")
+                    self.errorMessage = error.localizedDescription
                     self.isLoading = false
                 }
             }

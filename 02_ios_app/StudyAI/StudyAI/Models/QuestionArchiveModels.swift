@@ -61,6 +61,7 @@ struct ArchivedQuestion: Codable, Identifiable {
     let maxPoints: Float? // Maximum points possible
     let feedback: String? // AI-generated feedback for the student
     let isGraded: Bool // Whether this question was graded vs just answered
+    let isCorrect: Bool? // Whether the answer was correct (for mistake tracking)
 
     init(
         id: String = UUID().uuidString,
@@ -84,7 +85,8 @@ struct ArchivedQuestion: Codable, Identifiable {
         points: Float? = nil,
         maxPoints: Float? = nil,
         feedback: String? = nil,
-        isGraded: Bool = false
+        isGraded: Bool = false,
+        isCorrect: Bool? = nil
     ) {
         self.id = id
         self.userId = userId
@@ -108,6 +110,7 @@ struct ArchivedQuestion: Codable, Identifiable {
         self.maxPoints = maxPoints
         self.feedback = feedback
         self.isGraded = isGraded
+        self.isCorrect = isCorrect
     }
 }
 
@@ -277,5 +280,40 @@ struct QuestionSummary: Codable, Identifiable {
     var scorePercentage: Float? {
         guard let points = points, let maxPoints = maxPoints, maxPoints > 0 else { return nil }
         return (points / maxPoints) * 100
+    }
+
+    /// Normalized subject for consistent display and filtering
+    /// Merges common variants like "Mathematics" → "Math"
+    var normalizedSubject: String {
+        return QuestionSummary.normalizeSubject(subject)
+    }
+
+    /// Normalize subject names to merge common variants
+    static func normalizeSubject(_ subject: String) -> String {
+        let lowercased = subject.lowercased().trimmingCharacters(in: .whitespaces)
+
+        switch lowercased {
+        case "mathematics", "maths":
+            return "Math"
+        case "english", "english language", "english literature":
+            return "English"
+        case "science", "general science":
+            return "Science"
+        case "physics":
+            return "Physics"
+        case "chemistry":
+            return "Chemistry"
+        case "biology":
+            return "Biology"
+        case "history":
+            return "History"
+        case "geography":
+            return "Geography"
+        case "computer science", "cs", "computing":
+            return "Computer Science"
+        default:
+            // Capitalize first letter for any other subject
+            return subject.prefix(1).uppercased() + subject.dropFirst()
+        }
     }
 }

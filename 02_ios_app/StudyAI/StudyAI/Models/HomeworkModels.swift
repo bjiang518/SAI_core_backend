@@ -481,7 +481,8 @@ struct SubjectMistakeCount: Codable, Identifiable {
 struct MistakeQuestion: Codable, Identifiable {
     let id: String
     let subject: String
-    let question: String
+    let question: String  // Short preview for lists
+    let rawQuestionText: String  // Full original question from image
     let correctAnswer: String
     let studentAnswer: String
     let explanation: String
@@ -493,13 +494,14 @@ struct MistakeQuestion: Codable, Identifiable {
     let notes: String
 
     // Custom initializer for manual construction
-    init(id: String, subject: String, question: String, correctAnswer: String,
+    init(id: String, subject: String, question: String, rawQuestionText: String? = nil, correctAnswer: String,
          studentAnswer: String, explanation: String, createdAt: Date,
          confidence: Double, pointsEarned: Double, pointsPossible: Double,
          tags: [String], notes: String) {
         self.id = id
         self.subject = subject
         self.question = question
+        self.rawQuestionText = rawQuestionText ?? question  // Fallback to question if not provided
         self.correctAnswer = correctAnswer
         self.studentAnswer = studentAnswer
         self.explanation = explanation
@@ -512,7 +514,7 @@ struct MistakeQuestion: Codable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, subject, question, correctAnswer, studentAnswer, explanation
+        case id, subject, question, rawQuestionText, correctAnswer, studentAnswer, explanation
         case createdAt, confidence, pointsEarned, pointsPossible, tags, notes
     }
 
@@ -522,6 +524,7 @@ struct MistakeQuestion: Codable, Identifiable {
         id = try container.decode(String.self, forKey: .id)
         subject = try container.decode(String.self, forKey: .subject)
         question = try container.decode(String.self, forKey: .question)
+        rawQuestionText = try container.decodeIfPresent(String.self, forKey: .rawQuestionText) ?? question  // Fallback to question if not available
         correctAnswer = try container.decode(String.self, forKey: .correctAnswer)
         studentAnswer = try container.decode(String.self, forKey: .studentAnswer)
         explanation = try container.decode(String.self, forKey: .explanation)
@@ -534,7 +537,7 @@ struct MistakeQuestion: Codable, Identifiable {
         // Handle date parsing
         let dateString = try container.decode(String.self, forKey: .createdAt)
         let formatter = ISO8601DateFormatter()
-        createdAt = formatter.date(from: dateString) ?? Date()
+        self.createdAt = formatter.date(from: dateString) ?? Date()
     }
 }
 
