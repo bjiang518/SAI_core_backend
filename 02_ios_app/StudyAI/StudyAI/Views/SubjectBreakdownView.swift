@@ -9,24 +9,13 @@ import SwiftUI
 import Charts
 
 struct SubjectBreakdownView: View {
-    @StateObject private var networkService = NetworkService.shared
+    @StateObject private var localProgressService = LocalProgressService.shared
     @State private var subjectBreakdownData: SubjectBreakdownData?
     @State private var isLoading = true
     @State private var errorMessage = ""
     @State private var selectedTimeframe: TimeframeOption = .currentWeek
     @State private var selectedSubject: SubjectCategory?
     @State private var showingSubjectDetail = false
-    
-    // Get actual user ID from authentication service
-    private var userId: String {
-        if let userDataString = UserDefaults.standard.string(forKey: "user_data"),
-           let userData = userDataString.data(using: .utf8),
-           let userDict = try? JSONSerialization.jsonObject(with: userData) as? [String: Any],
-           let id = userDict["id"] as? String {
-            return id
-        }
-        return "guest_user" // Fallback for non-authenticated users
-    }
     
     var body: some View {
         NavigationView {
@@ -139,27 +128,16 @@ struct SubjectBreakdownView: View {
     private func loadSubjectBreakdown() {
         isLoading = true
         errorMessage = ""
-        
+
         Task {
-            do {
-                let response = try await networkService.fetchSubjectBreakdown(
-                    userId: userId,
-                    timeframe: selectedTimeframe.apiValue
-                )
-                
-                await MainActor.run {
-                    if response.success, let data = response.data {
-                        self.subjectBreakdownData = data
-                    } else {
-                        self.errorMessage = response.message ?? "Failed to load subject breakdown"
-                    }
-                    self.isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.errorMessage = "Network error: \(error.localizedDescription)"
-                    self.isLoading = false
-                }
+            // ✅ Use LocalProgressService to calculate from local storage
+            let data = await localProgressService.calculateSubjectBreakdown(
+                timeframe: selectedTimeframe.apiValue
+            )
+
+            await MainActor.run {
+                self.subjectBreakdownData = data
+                self.isLoading = false
             }
         }
     }
