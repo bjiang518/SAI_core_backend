@@ -11,24 +11,13 @@ import Charts
 struct SubjectDetailView: View {
     let subject: SubjectCategory
     let timeframe: TimeframeOption
-    
-    @StateObject private var networkService = NetworkService.shared
+
+    private let localProgressService = LocalProgressService.shared
     @State private var subjectData: SubjectProgressData?
     @State private var subjectTrends: [SubjectTrendData] = []
     @State private var isLoading = true
     @State private var errorMessage = ""
     @Environment(\.dismiss) private var dismiss
-    
-    // Get actual user ID from authentication service
-    private var userId: String {
-        if let userDataString = UserDefaults.standard.string(forKey: "user_data"),
-           let userData = userDataString.data(using: .utf8),
-           let userDict = try? JSONSerialization.jsonObject(with: userData) as? [String: Any],
-           let id = userDict["id"] as? String {
-            return id
-        }
-        return "guest_user" // Fallback for non-authenticated users
-    }
     
     var body: some View {
         NavigationView {
@@ -99,30 +88,18 @@ struct SubjectDetailView: View {
     private func loadSubjectDetails() {
         isLoading = true
         errorMessage = ""
-        
+
         Task {
-            do {
-                // In a real implementation, this would be a specific API call for subject details
-                let response = try await networkService.fetchSubjectBreakdown(
-                    userId: userId,
-                    timeframe: timeframe.apiValue
-                )
-                
-                await MainActor.run {
-                    if response.success, let data = response.data {
-                        // Find the specific subject data
-                        self.subjectData = data.subjectProgress.first { $0.subject == subject }
-                        self.subjectTrends = data.trends.filter { $0.subject == subject }
-                    } else {
-                        self.errorMessage = response.message ?? "Failed to load subject details"
-                    }
-                    self.isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.errorMessage = "Network error: \(error.localizedDescription)"
-                    self.isLoading = false
-                }
+            // ✅ Use LocalProgressService to calculate from local storage
+            let data = await localProgressService.calculateSubjectBreakdown(
+                timeframe: timeframe.apiValue
+            )
+
+            await MainActor.run {
+                // Find the specific subject data
+                self.subjectData = data.subjectProgress.first { $0.subject == subject }
+                self.subjectTrends = data.trends.filter { $0.subject == subject }
+                self.isLoading = false
             }
         }
     }

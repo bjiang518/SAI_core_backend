@@ -113,19 +113,10 @@ class ArchiveRoutes {
       }
     }, this.getStatistics.bind(this));
 
-    // Get recommendations
-    this.fastify.get('/api/archive/recommendations', {
-      schema: {
-        description: 'Get study recommendations',
-        tags: ['Archive'],
-        querystring: {
-          type: 'object',
-          properties: {
-            limit: { type: 'integer', default: 3 }
-          }
-        }
-      }
-    }, this.getRecommendations.bind(this));
+    // ❌ REMOVED: GET /api/archive/recommendations
+    // Date Removed: 2025-10-17
+    // Reason: No iOS usage found (Phase 1 Cleanup)
+    // See: DEPRECATED_BACKEND_CODE.md and API_ENDPOINT_AUDIT.md
 
     // Database health check
     this.fastify.get('/api/archive/health', {
@@ -226,81 +217,14 @@ class ArchiveRoutes {
       }
     }, this.getArchivedQuestions.bind(this));
 
-    // Get questions by subject
-    this.fastify.get('/api/archived-questions/subject/:subject', {
-      preHandler: authPreHandler,
-      schema: {
-        description: 'Get questions by subject',
-        tags: ['Archived Questions'],
-        params: {
-          type: 'object',
-          properties: {
-            subject: { type: 'string' }
-          }
-        }
-      }
-    }, this.getQuestionsBySubject.bind(this));
-
-    // Get full question details by ID
-    this.fastify.get('/api/archived-questions/:id', {
-      preHandler: authPreHandler,
-      schema: {
-        description: 'Get full question details by ID',
-        tags: ['Archived Questions'],
-        params: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' }
-          }
-        }
-      }
-    }, this.getQuestionDetails.bind(this));
-
-    // Update question tags and notes
-    this.fastify.patch('/api/archived-questions/:id', {
-      preHandler: authPreHandler,
-      schema: {
-        description: 'Update question tags and notes',
-        tags: ['Archived Questions'],
-        params: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' }
-          }
-        },
-        body: {
-          type: 'object',
-          properties: {
-            tags: { type: 'array', items: { type: 'string' } },
-            notes: { type: 'string' }
-          }
-        }
-      }
-    }, this.updateQuestion.bind(this));
-
-    // Delete archived question
-    this.fastify.delete('/api/archived-questions/:id', {
-      preHandler: authPreHandler,
-      schema: {
-        description: 'Delete archived question',
-        tags: ['Archived Questions'],
-        params: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' }
-          }
-        }
-      }
-    }, this.deleteQuestion.bind(this));
-
-    // Get user's archived questions statistics
-    this.fastify.get('/api/archived-questions/stats/summary', {
-      preHandler: authPreHandler,
-      schema: {
-        description: 'Get user archived questions statistics',
-        tags: ['Archived Questions']
-      }
-    }, this.getQuestionStats.bind(this));
+    // ❌ REMOVED: GET /api/archived-questions/subject/:subject
+    // ❌ REMOVED: GET /api/archived-questions/:id
+    // ❌ REMOVED: PATCH /api/archived-questions/:id
+    // ❌ REMOVED: DELETE /api/archived-questions/:id
+    // ❌ REMOVED: GET /api/archived-questions/stats/summary
+    // Date Removed: 2025-10-17
+    // Reason: No iOS usage found (Phase 1 Cleanup)
+    // See: DEPRECATED_BACKEND_CODE.md and API_ENDPOINT_AUDIT.md
 
     // =============== MISTAKE REVIEW ROUTES ===============
 
@@ -591,33 +515,12 @@ class ArchiveRoutes {
     }
   }
 
-  async getRecommendations(request, reply) {
-    try {
-      const userId = this.getUserId(request);
-      const { limit = 3 } = request.query;
-
-      const recommendations = await db.query(
-        'SELECT * FROM get_subject_recommendations($1, $2)',
-        [userId, limit]
-      );
-
-      return reply.send({
-        success: true,
-        data: recommendations.rows.map(rec => ({
-          subject: rec.subject,
-          reason: rec.reason,
-          priority: rec.priority,
-          averageConfidence: parseFloat(rec.avg_confidence)
-        }))
-      });
-    } catch (error) {
-      this.fastify.log.error('Error fetching recommendations:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Failed to fetch recommendations'
-      });
-    }
-  }
+  /**
+   * ❌ REMOVED: getRecommendations() method
+   * Date Removed: 2025-10-17
+   * Reason: Endpoint GET /api/archive/recommendations had no iOS usage
+   * See: DEPRECATED_BACKEND_CODE.md and API_ENDPOINT_AUDIT.md
+   */
 
   async healthCheck(request, reply) {
     try {
@@ -1022,268 +925,20 @@ class ArchiveRoutes {
     }
   }
 
-  async getQuestionsBySubject(request, reply) {
-    try {
-      const userId = this.getUserId(request);
-      const { subject } = request.params;
-
-      this.fastify.log.info(`📚 Fetching questions for subject: ${subject}, user: ${userId}`);
-
-      const query = `
-        SELECT 
-          id, subject, question_text, confidence, has_visual_elements,
-          archived_at, review_count, tags, grade, points,
-          max_points, is_graded
-        FROM archived_questions
-        WHERE user_id = $1 AND subject = $2
-        ORDER BY archived_at DESC
-      `;
-
-      const result = await db.query(query, [userId, subject]);
-
-      const questions = result.rows.map(q => ({
-        id: q.id,
-        subject: q.subject,
-        questionText: q.question_text,
-        confidence: q.confidence,
-        hasVisualElements: q.has_visual_elements,
-        archivedAt: q.archived_at,
-        reviewCount: q.review_count,
-        tags: q.tags,
-        grade: q.grade,
-        points: q.points,
-        maxPoints: q.max_points,
-        isGraded: q.is_graded
-      }));
-
-      return reply.send({
-        success: true,
-        data: questions
-      });
-    } catch (error) {
-      this.fastify.log.error('Error fetching questions by subject:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Failed to fetch questions by subject',
-        message: error.message
-      });
-    }
-  }
-
-  async getQuestionDetails(request, reply) {
-    try {
-      const userId = this.getUserId(request);
-      const { id } = request.params;
-
-      this.fastify.log.info(`📄 Fetching question details: ${id} for user: ${userId}`);
-
-      const query = `
-        SELECT * FROM archived_questions
-        WHERE id = $1 AND user_id = $2
-      `;
-
-      const result = await db.query(query, [id, userId]);
-
-      if (result.rows.length === 0) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Question not found'
-        });
-      }
-
-      const question = result.rows[0];
-
-      return reply.send({
-        success: true,
-        data: {
-          id: question.id,
-          userId: question.user_id,
-          subject: question.subject,
-          questionText: question.question_text,
-          rawQuestionText: question.raw_question_text,
-          answerText: question.answer_text,
-          confidence: question.confidence,
-          hasVisualElements: question.has_visual_elements,
-          originalImageUrl: question.original_image_url,
-          questionImageUrl: question.question_image_url,
-          processingTime: question.processing_time,
-          archivedAt: question.archived_at,
-          reviewCount: question.review_count,
-          lastReviewedAt: question.last_reviewed_at,
-          tags: question.tags,
-          notes: question.notes,
-          studentAnswer: question.student_answer,
-          grade: question.grade,
-          pointsEarned: question.points,
-          pointsPossible: question.max_points,
-          feedback: question.feedback,
-          isGraded: question.is_graded,
-          createdAt: question.created_at,
-          updatedAt: question.updated_at
-        }
-      });
-    } catch (error) {
-      this.fastify.log.error('Error fetching question details:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Failed to fetch question details',
-        message: error.message
-      });
-    }
-  }
-
-  async updateQuestion(request, reply) {
-    try {
-      const userId = this.getUserId(request);
-      const { id } = request.params;
-      const { tags, notes } = request.body;
-
-      this.fastify.log.info(`📝 Updating question: ${id} for user: ${userId}`);
-
-      const query = `
-        UPDATE archived_questions
-        SET tags = $1, notes = $2, updated_at = NOW()
-        WHERE id = $3 AND user_id = $4
-        RETURNING *
-      `;
-
-      const result = await db.query(query, [tags, notes, id, userId]);
-
-      if (result.rows.length === 0) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Question not found'
-        });
-      }
-
-      return reply.send({
-        success: true,
-        message: 'Question updated successfully',
-        data: {
-          id: result.rows[0].id,
-          tags: result.rows[0].tags,
-          notes: result.rows[0].notes,
-          updatedAt: result.rows[0].updated_at
-        }
-      });
-    } catch (error) {
-      this.fastify.log.error('Error updating question:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Failed to update question',
-        message: error.message
-      });
-    }
-  }
-
-  async deleteQuestion(request, reply) {
-    try {
-      const userId = this.getUserId(request);
-      const { id } = request.params;
-
-      this.fastify.log.info(`🗑️ Deleting question: ${id} for user: ${userId}`);
-
-      const query = `
-        DELETE FROM archived_questions
-        WHERE id = $1 AND user_id = $2
-        RETURNING id
-      `;
-
-      const result = await db.query(query, [id, userId]);
-
-      if (result.rows.length === 0) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Question not found'
-        });
-      }
-
-      return reply.send({
-        success: true,
-        message: 'Question deleted successfully'
-      });
-    } catch (error) {
-      this.fastify.log.error('Error deleting question:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Failed to delete question',
-        message: error.message
-      });
-    }
-  }
-
-  async getQuestionStats(request, reply) {
-    try {
-      const userId = this.getUserId(request);
-
-      this.fastify.log.info(`📊 Fetching question statistics for user: ${userId}`);
-
-      const query = `
-        SELECT 
-          COUNT(*) as total_questions,
-          COUNT(DISTINCT subject) as subjects_studied,
-          AVG(confidence) as avg_confidence,
-          COUNT(CASE WHEN grade = 'CORRECT' THEN 1 END) as correct_answers,
-          COUNT(CASE WHEN grade = 'INCORRECT' THEN 1 END) as incorrect_answers,
-          COUNT(CASE WHEN grade = 'EMPTY' THEN 1 END) as empty_answers,
-          COUNT(CASE WHEN is_graded = true THEN 1 END) as graded_questions
-        FROM archived_questions
-        WHERE user_id = $1
-      `;
-
-      const result = await db.query(query, [userId]);
-      const stats = result.rows[0];
-
-      // Get subject breakdown
-      const subjectQuery = `
-        SELECT 
-          subject,
-          COUNT(*) as question_count,
-          AVG(confidence) as avg_confidence,
-          COUNT(CASE WHEN grade = 'CORRECT' THEN 1 END) as correct_count,
-          COUNT(CASE WHEN is_graded = true THEN 1 END) as graded_count
-        FROM archived_questions
-        WHERE user_id = $1
-        GROUP BY subject
-        ORDER BY question_count DESC
-      `;
-
-      const subjectResult = await db.query(subjectQuery, [userId]);
-
-      return reply.send({
-        success: true,
-        data: {
-          totalQuestions: parseInt(stats.total_questions),
-          subjectsStudied: parseInt(stats.subjects_studied),
-          averageConfidence: parseFloat(stats.avg_confidence) || 0,
-          correctAnswers: parseInt(stats.correct_answers),
-          incorrectAnswers: parseInt(stats.incorrect_answers),
-          emptyAnswers: parseInt(stats.empty_answers),
-          gradedQuestions: parseInt(stats.graded_questions),
-          accuracyRate: stats.graded_questions > 0 
-            ? parseFloat(stats.correct_answers) / parseFloat(stats.graded_questions)
-            : 0,
-          subjectBreakdown: subjectResult.rows.map(subject => ({
-            subject: subject.subject,
-            questionCount: parseInt(subject.question_count),
-            averageConfidence: parseFloat(subject.avg_confidence),
-            correctCount: parseInt(subject.correct_count),
-            gradedCount: parseInt(subject.graded_count),
-            accuracyRate: subject.graded_count > 0 
-              ? parseFloat(subject.correct_count) / parseFloat(subject.graded_count)
-              : 0
-          }))
-        }
-      });
-    } catch (error) {
-      this.fastify.log.error('Error fetching question statistics:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Failed to fetch statistics',
-        message: error.message
-      });
-    }
-  }
+  /**
+   * ❌ REMOVED: The following 5 methods were removed (262 lines total)
+   * Date Removed: 2025-10-17
+   * Reason: Corresponding endpoints had no iOS usage (Phase 1 Cleanup)
+   *
+   * Removed methods:
+   * - getQuestionsBySubject() - for GET /api/archived-questions/subject/:subject
+   * - getQuestionDetails() - for GET /api/archived-questions/:id
+   * - updateQuestion() - for PATCH /api/archived-questions/:id
+   * - deleteQuestion() - for DELETE /api/archived-questions/:id
+   * - getQuestionStats() - for GET /api/archived-questions/stats/summary
+   *
+   * See: DEPRECATED_BACKEND_CODE.md and API_ENDPOINT_AUDIT.md
+   */
 
   generateTitle(aiParsingResult, subject) {
     const questionCount = aiParsingResult?.questionCount || 0;

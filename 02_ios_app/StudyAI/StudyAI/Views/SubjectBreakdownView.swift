@@ -9,7 +9,7 @@ import SwiftUI
 import Charts
 
 struct SubjectBreakdownView: View {
-    @StateObject private var localProgressService = LocalProgressService.shared
+    private let localProgressService = LocalProgressService.shared
     @State private var subjectBreakdownData: SubjectBreakdownData?
     @State private var isLoading = true
     @State private var errorMessage = ""

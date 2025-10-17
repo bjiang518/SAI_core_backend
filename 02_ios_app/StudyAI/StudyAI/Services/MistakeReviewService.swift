@@ -152,17 +152,22 @@ class MistakeReviewService: ObservableObject {
         return stats
     }
 
-    /// Get icon for subject
+    /// Get icon for subject (matches SessionChatView icons)
     private func getSubjectIcon(_ subject: String) -> String {
-        switch subject.lowercased() {
-        case "math", "mathematics": return "📐"
-        case "physics": return "⚛️"
-        case "chemistry": return "🧪"
-        case "biology": return "🧬"
-        case "english": return "📚"
-        case "history": return "📜"
-        case "science": return "🔬"
-        default: return "📖"
+        // Normalize subject first to handle "Math"/"Mathematics" variants
+        let normalized = QuestionSummary.normalizeSubject(subject)
+
+        switch normalized {
+        case "Math": return "f(x)"
+        case "Physics": return "⚛️"
+        case "Chemistry": return "🧪"
+        case "Biology": return "🧬"
+        case "English": return "📚"
+        case "History": return "📜"
+        case "Geography": return "🌍"
+        case "Computer Science": return "💻"
+        case "Science": return "🔬"
+        default: return "💡"
         }
     }
 }

@@ -635,90 +635,15 @@ class NetworkService: ObservableObject {
         
         return (false, nil, "Unknown error")
     }
-    
-    // MARK: - Enhanced Progress Tracking
 
-    func getEnhancedProgress() async -> (success: Bool, progress: [String: Any]?) {
-        let progressURL = "\(baseURL)/api/progress/enhanced"
+    /// ❌ DEPRECATED: getEnhancedProgress() - Removed 2025-10-17
+    /// REASON: Only used in archived view (_Archived_Views/EngagingProgressView.swift)
+    /// REPLACEMENT: Use PointsEarningSystem.shared directly for local progress data
 
-        guard let url = URL(string: progressURL) else {
-            return (false, nil)
-        }
+    /// ❌ DEPRECATED: getProgressHistory() - Removed 2025-10-17
+    /// REASON: Not used by any active iOS views
+    /// REPLACEMENT: Calculate historical data from local storage
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-
-        // Add authentication header
-        addAuthHeader(to: &request)
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                if httpResponse.statusCode == 200 {
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        return (true, json)
-                    }
-                } else if httpResponse.statusCode == 401 {
-                    return (false, nil)
-                }
-
-                return (false, nil)
-            }
-
-            return (false, nil)
-        } catch {
-            return (false, nil)
-        }
-    }
-
-    /// Get progress history from server
-    func getProgressHistory(limit: Int = 12) async -> (success: Bool, history: [[String: Any]]?, message: String?) {
-        // Get user ID from AuthenticationService (same as other working APIs)
-        let currentUser = await MainActor.run {
-            return AuthenticationService.shared.currentUser
-        }
-
-        guard let user = currentUser else {
-            print("🚨 DEBUG: getProgressHistory - No authenticated user found")
-            return (false, nil, "User not authenticated")
-        }
-
-        let userId = user.id
-        
-        let historyURL = "\(baseURL)/api/progress/history/\(userId)?limit=\(limit)"
-        
-        guard let url = URL(string: historyURL) else {
-            return (false, nil, "Invalid URL")
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        addAuthHeader(to: &request)
-        
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                if httpResponse.statusCode == 200 {
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        let success = json["success"] as? Bool ?? false
-                        let historyData = (json["data"] as? [String: Any])?["history"] as? [[String: Any]]
-                        
-                        return (success, historyData, nil)
-                    }
-                } else {
-                    let errorMessage = "Server returned status code: \(httpResponse.statusCode)"
-                    return (false, nil, errorMessage)
-                }
-            }
-            
-            return (false, nil, "Invalid response")
-        } catch {
-            return (false, nil, error.localizedDescription)
-        }
-    }
-    
     /// Helper method to get current user data for API calls
     private func getCurrentUserData() -> [String: Any]? {
         if let userDataString = UserDefaults.standard.string(forKey: "user_data"),
@@ -2759,114 +2684,19 @@ class NetworkService: ObservableObject {
             return (false, nil, errorMsg)
         }
     }
-    
-    // MARK: - Subject Breakdown API Methods
-    
-    func fetchSubjectBreakdown(userId: String, timeframe: String = "current_week") async throws -> SubjectBreakdownResponse {
-        let endpoint = "/api/progress/subject/breakdown/\(userId)"
-        let fullURL = "\(baseURL)\(endpoint)?timeframe=\(timeframe)"
 
-        guard let url = URL(string: fullURL) else {
-            throw NetworkError.invalidURL
-        }
+    /// ❌ DEPRECATED: fetchSubjectBreakdown() - Removed 2025-10-17
+    /// REASON: Replaced by local-first approach
+    /// REPLACEMENT: Use LocalProgressService.calculateSubjectBreakdown()
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        addAuthHeader(to: &request)
+    /// ❌ DEPRECATED: fetchMonthlyActivity() - Removed 2025-10-17
+    /// REASON: Not used by any active iOS views
+    /// REPLACEMENT: Use LocalProgressService.calculateMonthlyActivity()
 
-        let (data, response) = try await performRequest(request)
-
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-            throw NetworkError.serverError(statusCode)
-        }
-
-        return try JSONDecoder().decode(SubjectBreakdownResponse.self, from: data)
-    }
-
-    // MARK: - Monthly Activity
-
-    func fetchMonthlyActivity(userId: String, year: Int, month: Int) async throws -> MonthlyActivityResponse {
-        let endpoint = "/api/progress/monthly/\(userId)"
-        let fullURL = "\(baseURL)\(endpoint)"
-
-        guard let url = URL(string: fullURL) else {
-            throw NetworkError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        addAuthHeader(to: &request)
-
-        // Request body with year, month, and timezone
-        let requestBody: [String: Any] = [
-            "year": year,
-            "month": month,
-            "timezone": TimeZone.current.identifier
-        ]
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let (data, response) = try await performRequest(request)
-
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-            throw NetworkError.serverError(statusCode)
-        }
-
-        return try JSONDecoder().decode(MonthlyActivityResponse.self, from: data)
-    }
-
-    func updateSubjectProgress(
-        subject: String,
-        questionCount: Int = 1,
-        correctAnswers: Int = 0,
-        studyTimeMinutes: Int = 0,
-        topicBreakdown: [String: Int] = [:],
-        difficultyLevel: String = "intermediate"
-    ) async throws -> (success: Bool, message: String) {
-        let endpoint = "/api/progress/subject/update"
-        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
-            throw NetworkError.invalidURL
-        }
-        
-        let requestBody: [String: Any] = [
-            "subject": subject,
-            "questionCount": questionCount,
-            "correctAnswers": correctAnswers,
-            "studyTimeMinutes": studyTimeMinutes,
-            "topicBreakdown": topicBreakdown,
-            "difficultyLevel": difficultyLevel,
-            "clientTimezone": TimeZone.current.identifier
-        ]
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        addAuthHeader(to: &request)
-        
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        } catch {
-            throw NetworkError.invalidData
-        }
-        
-        do {
-            let (data, _) = try await performRequest(request)
-            
-            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                let success = json["success"] as? Bool ?? false
-                let message = json["message"] as? String ?? ""
-                return (success, message)
-            }
-            
-            return (false, "Invalid response format")
-        } catch {
-            throw error
-        }
-    }
+    /// ❌ DEPRECATED: updateSubjectProgress() - Removed 2025-10-17
+    /// REASON: Not used by any active iOS views
+    /// REPLACEMENT: Use PointsEarningSystem.markHomeworkProgress() for local tracking
+    ///               and syncDailyProgress() for backend sync
     
     func fetchSubjectInsights(userId: String) async throws -> SubjectInsights? {
         let endpoint = "/api/progress/subject/insights/\(userId)"

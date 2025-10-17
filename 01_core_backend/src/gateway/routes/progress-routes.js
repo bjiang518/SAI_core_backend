@@ -118,27 +118,9 @@ class ProgressRoutes {
       }
     }, this.getSubjectBreakdown.bind(this));
 
-    // Update user progress
-    this.fastify.post('/api/progress/update', {
-      preHandler: authPreHandler,
-      schema: {
-        description: 'Update user learning progress',
-        tags: ['Progress'],
-        body: {
-          type: 'object',
-          required: ['subject', 'questionCount'], // Match iOS field names
-          properties: {
-            subject: { type: 'string' },
-            questionCount: { type: 'integer' }, // iOS sends "questionCount"
-            currentScore: { type: 'integer' }, // iOS sends "currentScore" (accuracy percentage)
-            clientTimezone: { type: 'string' }, // iOS sends timezone
-            timeSpent: { type: 'integer' }, // Optional
-            confidence: { type: 'number' }, // Optional
-            sessionType: { type: 'string' } // Optional
-          }
-        }
-      }
-    }, this.updateProgress.bind(this));
+    // DEPRECATED: /api/progress/update endpoint removed due to critical bug (hardcoded questionsCorrect = 1)
+    // Replaced by: POST /api/user/sync-daily-progress (line 281)
+    // See: DEPRECATED_BACKEND_CODE.md for details
 
     // Get weekly progress summary
     this.fastify.get('/api/progress/weekly/:userId', {
@@ -752,242 +734,23 @@ class ProgressRoutes {
     }
   }
 
-  async updateProgress(request, reply) {
-    try {
-      // Get userId from authenticated user (from auth middleware)
-      const userId = this.getUserId(request);
-      
-      const {
-        subject,
-        questionCount, // iOS sends questionCount
-        currentScore, // iOS sends currentScore (accuracy percentage)
-        clientTimezone,
-        timeSpent = 0,
-        confidence = 0.8,
-        sessionType = 'homework'
-      } = request.body;
-
-      this.fastify.log.info(`📈 Updating progress for user: ${userId}, subject: ${subject}`);
-
-      // Data validation and type checking
-      if (!userId) {
-        this.fastify.log.error(`🚨 ERROR: Missing userId`);
-        return reply.status(400).send({
-          success: false,
-          error: 'Missing user ID'
-        });
-      }
-
-      if (!subject) {
-        this.fastify.log.error(`🚨 ERROR: Missing subject`);
-        return reply.status(400).send({
-          success: false,
-          error: 'Missing subject'
-        });
-      }
-
-      // Convert iOS data to our internal format
-      const questionsAttempted = questionCount || 1; // Always 1 per call
-      
-      // TEMPORARY FIX: iOS doesn't send per-question correctness
-      // The iOS logs show they're tracking 4 correct + 2 incorrect = 67% accuracy
-      // For now, let's assume most questions are correct until we fix the iOS integration
-      // This is a temporary workaround to get data flowing
-      const questionsCorrect = 1; // Assume correct for now - needs proper iOS integration
-
-      this.fastify.log.info(`📊 Progress data: ${questionsAttempted} attempted, ${questionsCorrect} correct, currentScore: ${currentScore}`);
-
-      this.fastify.log.info(`🔍 DEBUG: About to insert/update database with:`);
-      this.fastify.log.info(`🔍 DEBUG:   userId: ${userId} (type: ${typeof userId})`);
-      this.fastify.log.info(`🔍 DEBUG:   subject: ${subject} (type: ${typeof subject})`);
-      this.fastify.log.info(`🔍 DEBUG:   questionsAttempted: ${questionsAttempted} (type: ${typeof questionsAttempted})`);
-      this.fastify.log.info(`🔍 DEBUG:   questionsCorrect: ${questionsCorrect} (type: ${typeof questionsCorrect})`);
-      this.fastify.log.info(`🔍 DEBUG:   timeSpent: ${timeSpent} (type: ${typeof timeSpent})`);
-      this.fastify.log.info(`🔍 DEBUG:   confidence: ${confidence} (type: ${typeof confidence})`);
-
-      // Ensure numeric types are properly converted
-      const safeQuestionsAttempted = parseInt(questionsAttempted) || 1;
-      const safeQuestionsCorrect = parseInt(questionsCorrect) || 1;
-      const safeTimeSpent = parseInt(timeSpent) || 0;
-      const safeConfidence = parseFloat(confidence) || 0.8;
-
-      this.fastify.log.info(`🔍 DEBUG: Converted to safe types:`);
-      this.fastify.log.info(`🔍 DEBUG:   safeQuestionsAttempted: ${safeQuestionsAttempted} (type: ${typeof safeQuestionsAttempted})`);
-      this.fastify.log.info(`🔍 DEBUG:   safeQuestionsCorrect: ${safeQuestionsCorrect} (type: ${typeof safeQuestionsCorrect})`);
-      this.fastify.log.info(`🔍 DEBUG:   safeTimeSpent: ${safeTimeSpent} (type: ${typeof safeTimeSpent})`);
-      this.fastify.log.info(`🔍 DEBUG:   safeConfidence: ${safeConfidence} (type: ${typeof safeConfidence})`);
-
-      // Update or create subject progress
-      const upsertProgressQuery = `
-        INSERT INTO subject_progress (
-          user_id, subject, total_questions_attempted, total_questions_correct,
-          accuracy_rate, total_time_spent, average_confidence, streak_count,
-          last_activity_date, performance_trend, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, NOW())
-        ON CONFLICT (user_id, subject) DO UPDATE SET
-          total_questions_attempted = subject_progress.total_questions_attempted + $3,
-          total_questions_correct = subject_progress.total_questions_correct + $4,
-          accuracy_rate = (subject_progress.total_questions_correct + $4)::float / 
-                         (subject_progress.total_questions_attempted + $3)::float * 100,
-          total_time_spent = subject_progress.total_time_spent + $6,
-          average_confidence = (subject_progress.average_confidence + $7) / 2,
-          streak_count = CASE 
-            WHEN $4 = $3 THEN subject_progress.streak_count + 1 
-            ELSE 0 
-          END,
-          last_activity_date = NOW(),
-          performance_trend = $9,
-          updated_at = NOW()
-        RETURNING *
-      `;
-
-      const performanceTrend = 'stable'; // Will be calculated properly by database query
-      const queryParams = [
-        userId, subject, safeQuestionsAttempted, safeQuestionsCorrect, 
-        0, safeTimeSpent, safeConfidence, 0, performanceTrend // Let database calculate accuracy_rate
-      ];
-
-      this.fastify.log.info(`🔍 DEBUG: Executing query with params: ${JSON.stringify(queryParams)}`);
-
-      let progressResult;
-      try {
-        progressResult = await db.query(upsertProgressQuery, queryParams);
-        this.fastify.log.info(`🔍 DEBUG: Subject progress query succeeded, rows returned: ${progressResult.rows.length}`);
-      } catch (dbError) {
-        this.fastify.log.error(`🚨 DEBUG: Subject progress query failed:`, dbError);
-        this.fastify.log.error(`🚨 DEBUG: Query was: ${upsertProgressQuery}`);
-        this.fastify.log.error(`🚨 DEBUG: Parameters were: ${JSON.stringify(queryParams)}`);
-        throw dbError;
-      }
-
-      this.fastify.log.info(`🔍 DEBUG: Database update result:`);
-      if (progressResult.rows && progressResult.rows.length > 0) {
-        const result = progressResult.rows[0];
-        this.fastify.log.info(`🔍 DEBUG:   total_questions_attempted: ${result.total_questions_attempted}`);
-        this.fastify.log.info(`🔍 DEBUG:   total_questions_correct: ${result.total_questions_correct}`);
-        this.fastify.log.info(`🔍 DEBUG:   accuracy_rate: ${result.accuracy_rate}`);
-        this.fastify.log.info(`🔍 DEBUG:   total_time_spent: ${result.total_time_spent}`);
-      }
-
-      // ✅ CRITICAL FIX: Use client's timezone to determine today's date
-      // This prevents timezone-related date mismatches where server UTC midnight
-      // doesn't match client's local date
-      let today;
-      if (clientTimezone) {
-        try {
-          // Calculate today's date in client's timezone
-          const now = new Date();
-          const clientDate = new Date(now.toLocaleString('en-US', { timeZone: clientTimezone }));
-          today = clientDate.toISOString().split('T')[0];
-          this.fastify.log.info(`📅 Using client timezone (${clientTimezone}) for date: ${today}`);
-        } catch (error) {
-          // Fallback to server date if timezone parsing fails
-          this.fastify.log.warn(`⚠️ Failed to parse client timezone ${clientTimezone}, using server date`);
-          today = new Date().toISOString().split('T')[0];
-        }
-      } else {
-        // No client timezone provided, use server date
-        today = new Date().toISOString().split('T')[0];
-        this.fastify.log.info(`📅 No client timezone provided, using server date: ${today}`);
-      }
-
-      const upsertDailyQuery = `
-        INSERT INTO daily_subject_activities (
-          user_id, activity_date, subject, questions_attempted,
-          questions_correct, time_spent, points_earned
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (user_id, activity_date, subject) DO UPDATE SET
-          questions_attempted = daily_subject_activities.questions_attempted + $4,
-          questions_correct = daily_subject_activities.questions_correct + $5,
-          time_spent = daily_subject_activities.time_spent + $6,
-          points_earned = daily_subject_activities.points_earned + $7
-      `;
-
-      const pointsEarned = safeQuestionsCorrect * 10; // 10 points per correct answer
-      const dailyParams = [
-        userId, today, subject, safeQuestionsAttempted, 
-        safeQuestionsCorrect, safeTimeSpent, pointsEarned
-      ];
-
-      this.fastify.log.info(`🔍 DEBUG: Executing daily activities query with params: ${JSON.stringify(dailyParams)}`);
-
-      try {
-        await db.query(upsertDailyQuery, dailyParams);
-        this.fastify.log.info(`🔍 DEBUG: Daily activities query succeeded`);
-      } catch (dbError) {
-        this.fastify.log.error(`🚨 DEBUG: Daily activities query failed:`, dbError);
-        this.fastify.log.error(`🚨 DEBUG: Query was: ${upsertDailyQuery}`);
-        this.fastify.log.error(`🚨 DEBUG: Parameters were: ${JSON.stringify(dailyParams)}`);
-        throw dbError;
-      }
-
-      // Create question session record
-      const sessionQuery = `
-        INSERT INTO question_sessions (
-          user_id, subject, session_date, questions_attempted, 
-          questions_correct, time_spent, confidence_level, session_type
-        ) VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7)
-        RETURNING id
-      `;
-
-      const sessionParams = [
-        userId, subject, safeQuestionsAttempted, safeQuestionsCorrect, 
-        safeTimeSpent, safeConfidence, sessionType
-      ];
-
-      this.fastify.log.info(`🔍 DEBUG: Executing session query with params: ${JSON.stringify(sessionParams)}`);
-
-      let sessionResult;
-      try {
-        sessionResult = await db.query(sessionQuery, sessionParams);
-        this.fastify.log.info(`🔍 DEBUG: Session query succeeded, session ID: ${sessionResult.rows[0]?.id}`);
-      } catch (dbError) {
-        this.fastify.log.error(`🚨 DEBUG: Session query failed:`, dbError);
-        this.fastify.log.error(`🚨 DEBUG: Query was: ${sessionQuery}`);
-        this.fastify.log.error(`🚨 DEBUG: Parameters were: ${JSON.stringify(sessionParams)}`);
-        throw dbError;
-      }
-
-      this.fastify.log.info(`✅ Progress updated successfully for ${subject}`);
-
-      // Calculate accuracy rate from the database result
-      const accuracyRate = progressResult.rows.length > 0 ? 
-        (progressResult.rows[0].accuracy_rate || 0) : 0;
-
-      return reply.send({
-        success: true,
-        message: 'Progress updated successfully',
-        data: {
-          sessionId: sessionResult.rows[0].id,
-          subject: subject,
-          accuracyRate: accuracyRate,
-          pointsEarned: pointsEarned
-        }
-      });
-
-    } catch (error) {
-      this.fastify.log.error('🚨 Error updating progress:', error);
-      this.fastify.log.error('🚨 Error stack:', error.stack);
-      this.fastify.log.error('🚨 Error name:', error.name);
-      this.fastify.log.error('🚨 Error message:', error.message);
-      if (error.code) {
-        this.fastify.log.error('🚨 PostgreSQL error code:', error.code);
-      }
-      if (error.detail) {
-        this.fastify.log.error('🚨 PostgreSQL error detail:', error.detail);
-      }
-      if (error.constraint) {
-        this.fastify.log.error('🚨 PostgreSQL constraint:', error.constraint);
-      }
-      return reply.status(500).send({
-        success: false,
-        error: 'Failed to update progress',
-        message: error.message,
-        errorCode: error.code || 'UNKNOWN_ERROR',
-        errorDetail: error.detail || 'No additional details available'
-      });
-    }
-  }
+  /**
+   * ❌ REMOVED: updateProgress() function
+   *
+   * REASON: Critical bug at line 778 caused 100% accuracy to be reported:
+   *   const questionsCorrect = 1; // Hardcoded value
+   *
+   * This endpoint always wrote incorrect data to daily_subject_activities table,
+   * causing all progress to show 100% accuracy regardless of actual performance.
+   *
+   * REPLACEMENT: Use POST /api/user/sync-daily-progress instead
+   * See: DEPRECATED_BACKEND_CODE.md for full details
+   *
+   * Date Removed: 2025-10-17
+   * Related Files:
+   *   - DEPRECATED_BACKEND_CODE.md (documentation)
+   *   - 02_ios_app/StudyAI/DEPRECATED_PROGRESS_CODE_ANALYSIS.md (iOS migration guide)
+   */
 
   async getWeeklyProgress(request, reply) {
     try {
