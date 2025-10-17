@@ -40,9 +40,10 @@ struct ArchivedQuestion: Codable, Identifiable {
     let id: String
     let userId: String
     let subject: String
-    let questionText: String
+    let questionText: String          // Clean question text (for preview)
+    let rawQuestionText: String?      // Full original question from image
     let answerText: String
-    let confidence: Float
+    let confidence: Float?            // Made optional - field removed from backend
     let hasVisualElements: Bool
     let originalImageUrl: String?
     let questionImageUrl: String? // Cropped image of just this question
@@ -52,7 +53,7 @@ struct ArchivedQuestion: Codable, Identifiable {
     let lastReviewedAt: Date?
     let tags: [String]? // User-added tags
     let notes: String? // User notes for this specific question
-    
+
     // Grading-specific fields (optional for backward compatibility)
     let studentAnswer: String? // Student's provided answer
     let grade: GradeResult? // CORRECT/INCORRECT/EMPTY
@@ -60,14 +61,15 @@ struct ArchivedQuestion: Codable, Identifiable {
     let maxPoints: Float? // Maximum points possible
     let feedback: String? // AI-generated feedback for the student
     let isGraded: Bool // Whether this question was graded vs just answered
-    
+
     init(
         id: String = UUID().uuidString,
         userId: String,
         subject: String,
         questionText: String,
+        rawQuestionText: String? = nil,
         answerText: String,
-        confidence: Float,
+        confidence: Float? = nil,  // Made optional with nil default
         hasVisualElements: Bool,
         originalImageUrl: String? = nil,
         questionImageUrl: String? = nil,
@@ -88,6 +90,7 @@ struct ArchivedQuestion: Codable, Identifiable {
         self.userId = userId
         self.subject = subject
         self.questionText = questionText
+        self.rawQuestionText = rawQuestionText
         self.answerText = answerText
         self.confidence = confidence
         self.hasVisualElements = hasVisualElements
@@ -233,7 +236,7 @@ struct QuestionSummary: Codable, Identifiable {
     let id: String
     let subject: String
     let questionText: String
-    let confidence: Float
+    let confidence: Float?  // Made optional - field removed from backend
     let hasVisualElements: Bool
     let archivedAt: Date
     let reviewCount: Int
@@ -255,6 +258,7 @@ struct QuestionSummary: Codable, Identifiable {
     }
     
     var confidenceLevel: String {
+        guard let confidence = confidence else { return "Unknown" }
         switch confidence {
         case 0.8...1.0: return "High"
         case 0.6..<0.8: return "Medium"

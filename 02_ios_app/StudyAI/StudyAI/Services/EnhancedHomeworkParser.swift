@@ -9,9 +9,56 @@ import Foundation
 
 class EnhancedHomeworkParser {
     static let shared = EnhancedHomeworkParser()
-    
+
     private init() {}
-    
+
+    /// Parse backend JSON response directly (NEW - High Performance)
+    func parseBackendJSON(_ jsonData: [String: Any]) -> EnhancedHomeworkParsingResult? {
+        print("🚀 === PARSING BACKEND JSON DIRECTLY ===")
+        print("📊 JSON keys: \(jsonData.keys.joined(separator: ", "))")
+
+        do {
+            // Convert dictionary to Data
+            let data = try JSONSerialization.data(withJSONObject: jsonData)
+
+            // Decode using Codable
+            let decoder = JSONDecoder()
+            let backendResponse = try decoder.decode(BackendHomeworkResponse.self, from: data)
+
+            // Convert to iOS models
+            let questions = backendResponse.toParsedQuestions()
+            let performanceSummary = backendResponse.toPerformanceSummary()
+
+            let overallConfidence = questions.isEmpty ? 0.0 : questions.map { $0.confidence ?? 0.0 }.reduce(0.0, +) / Float(questions.count)
+
+            let result = EnhancedHomeworkParsingResult(
+                questions: questions,
+                detectedSubject: backendResponse.subject,
+                subjectConfidence: backendResponse.subjectConfidence,
+                processingTime: 0.0, // Will be set by caller
+                overallConfidence: overallConfidence,
+                parsingMethod: "Direct JSON Parsing (Fast)",
+                rawAIResponse: backendResponse.processingNotes ?? "Parsed from JSON",
+                totalQuestionsFound: backendResponse.totalQuestionsFound,
+                jsonParsingUsed: true,
+                performanceSummary: performanceSummary
+            )
+
+            print("✅ === JSON PARSING SUCCESS ===")
+            print("📚 Subject: \(backendResponse.subject) (confidence: \(backendResponse.subjectConfidence))")
+            print("📊 Questions: \(questions.count)")
+            print("📈 Accuracy: \(performanceSummary.accuracyPercentage)")
+            print("⚡ Method: Direct JSON (no conversion overhead)")
+
+            return result
+
+        } catch {
+            print("❌ JSON parsing error: \(error)")
+            print("📋 Error details: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
     /// Parse AI response that includes subject detection and questions
     func parseEnhancedHomeworkResponse(_ response: String) -> EnhancedHomeworkParsingResult? {
         print("🔍 Parsing enhanced AI response...")
@@ -57,7 +104,7 @@ class EnhancedHomeworkParser {
         let parsingMethod = extractParsingMethod(from: response) ?? "Enhanced AI Backend Parsing with Subject Detection"
         let performanceSummary = extractPerformanceSummary(from: response, questions: questions)
         
-        let overallConfidence = questions.isEmpty ? 0.0 : questions.map { $0.confidence }.reduce(0.0, +) / Float(questions.count)
+        let overallConfidence = questions.isEmpty ? 0.0 : questions.map { $0.confidence ?? 0.0 }.reduce(0.0, +) / Float(questions.count)
         
         let result = EnhancedHomeworkParsingResult(
             questions: questions,
@@ -98,7 +145,7 @@ class EnhancedHomeworkParser {
         }
         
         // Calculate overall confidence
-        let overallConfidence = questions.isEmpty ? 0.0 : questions.map { $0.confidence }.reduce(0.0, +) / Float(questions.count)
+        let overallConfidence = questions.isEmpty ? 0.0 : questions.map { $0.confidence ?? 0.0 }.reduce(0.0, +) / Float(questions.count)
         
         let result = EnhancedHomeworkParsingResult(
             questions: questions,
@@ -184,19 +231,196 @@ class EnhancedHomeworkParser {
                 continue
             }
 
-            let question = parseQuestionBlock(trimmedBlock, defaultNumber: index + 1)
-
-            // Filter out invalid questions (empty text or confidence 0)
-            if !question.questionText.isEmpty && question.confidence > 0 {
-                questions.append(question)
+            // Check if this is a parent question with subquestions
+            if trimmedBlock.contains("═══PARENT_QUESTION_START═══") {
+                if let parentQuestion = parseParentQuestionBlock(trimmedBlock, defaultNumber: index + 1) {
+                    questions.append(parentQuestion)
+                }
             } else {
-                print("📊 Filtered out invalid question block")
+                let question = parseQuestionBlock(trimmedBlock, defaultNumber: index + 1)
+
+                // Filter out invalid questions (empty text or confidence 0)
+                if !question.questionText.isEmpty && (question.confidence ?? 0.0) > 0 {
+                    questions.append(question)
+                } else {
+                    print("📊 Filtered out invalid question block")
+                }
             }
         }
 
         print("📊 Parsed \(questions.count) valid questions from enhanced response")
         return questions
     }
+
+    /// Parse parent question block with subquestions
+    private func parseParentQuestionBlock(_ block: String, defaultNumber: Int) -> ParsedQuestion? {
+        print("🔍 Parsing parent question block...")
+
+        // Extract content between PARENT_QUESTION_START and PARENT_QUESTION_END
+        guard let startRange = block.range(of: "═══PARENT_QUESTION_START═══"),
+              let endRange = block.range(of: "═══PARENT_QUESTION_END═══") else {
+            print("❌ Missing parent question delimiters")
+            return nil
+        }
+
+        let parentContent = String(block[startRange.upperBound..<endRange.lowerBound])
+        let lines = parentContent.components(separatedBy: .newlines)
+
+        var questionNumber: Int? = nil
+        var parentContentText = ""
+        var subquestions: [ParsedQuestion] = []
+        var totalEarned: Float = 0.0
+        var totalPossible: Float = 0.0
+        var overallFeedback: String? = nil
+
+        // Parse parent question header
+        var headerLines: [String] = []
+        var isInSubquestion = false
+
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if trimmedLine.hasPrefix("QUESTION_NUMBER:") {
+                let numberString = trimmedLine.replacingOccurrences(of: "QUESTION_NUMBER:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                questionNumber = parseQuestionNumber(numberString)
+            } else if trimmedLine.hasPrefix("PARENT_CONTENT:") {
+                parentContentText = trimmedLine.replacingOccurrences(of: "PARENT_CONTENT:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("SUBQUESTION_NUMBER:") {
+                isInSubquestion = true
+                headerLines.append(line)
+            } else if trimmedLine.hasPrefix("TOTAL_POINTS:") {
+                let pointsString = trimmedLine.replacingOccurrences(of: "TOTAL_POINTS:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let components = pointsString.components(separatedBy: "/")
+                if components.count == 2 {
+                    totalEarned = Float(components[0].trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0.0
+                    totalPossible = Float(components[1].trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0.0
+                }
+            } else if trimmedLine.hasPrefix("OVERALL_FEEDBACK:") {
+                overallFeedback = trimmedLine.replacingOccurrences(of: "OVERALL_FEEDBACK:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if isInSubquestion {
+                headerLines.append(line)
+            }
+        }
+
+        // Parse subquestions
+        let subquestionBlocks = headerLines.joined(separator: "\n").components(separatedBy: "───SUBQUESTION_SEPARATOR───")
+        for subBlock in subquestionBlocks {
+            if let subquestion = parseSubquestionBlock(subBlock.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                subquestions.append(subquestion)
+            }
+        }
+
+        // Create parent summary if available
+        var parentSummary: ParentSummary? = nil
+        if totalPossible > 0 {
+            parentSummary = ParentSummary(
+                totalEarned: totalEarned,
+                totalPossible: totalPossible,
+                overallFeedback: overallFeedback
+            )
+        }
+
+        print("✅ Parsed parent question with \(subquestions.count) subquestions")
+
+        return ParsedQuestion(
+            questionNumber: questionNumber ?? defaultNumber,
+            rawQuestionText: nil,
+            questionText: parentContentText.isEmpty ? "Parent Question \(questionNumber ?? defaultNumber)" : parentContentText,
+            answerText: "",
+            confidence: 0.9,
+            hasVisualElements: false,
+            isParent: true,
+            hasSubquestions: true,
+            parentContent: parentContentText,
+            subquestions: subquestions,
+            parentSummary: parentSummary
+        )
+    }
+
+    /// Parse individual subquestion
+    private func parseSubquestionBlock(_ block: String) -> ParsedQuestion? {
+        let lines = block.components(separatedBy: .newlines)
+        var subquestionNumber = ""
+        var rawQuestionText = ""
+        var questionText = ""
+        var studentAnswer = ""
+        var correctAnswer = ""
+        var grade = ""
+        var pointsEarned: Float = 0.0
+        var pointsPossible: Float = 1.0
+        var feedback = ""
+        var confidence: Float = 0.8
+        var hasVisualElements = false
+
+        var currentSection = ""
+
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if trimmedLine.hasPrefix("SUBQUESTION_NUMBER:") {
+                subquestionNumber = trimmedLine.replacingOccurrences(of: "SUBQUESTION_NUMBER:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("RAW_QUESTION:") {
+                currentSection = "raw_question"
+                rawQuestionText = trimmedLine.replacingOccurrences(of: "RAW_QUESTION:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("QUESTION:") {
+                currentSection = "question"
+                questionText = trimmedLine.replacingOccurrences(of: "QUESTION:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("STUDENT_ANSWER:") {
+                currentSection = "student_answer"
+                studentAnswer = trimmedLine.replacingOccurrences(of: "STUDENT_ANSWER:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("CORRECT_ANSWER:") {
+                currentSection = "correct_answer"
+                correctAnswer = trimmedLine.replacingOccurrences(of: "CORRECT_ANSWER:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("GRADE:") {
+                grade = trimmedLine.replacingOccurrences(of: "GRADE:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("POINTS:") {
+                let pointsString = trimmedLine.replacingOccurrences(of: "POINTS:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let components = pointsString.components(separatedBy: "/")
+                if components.count == 2 {
+                    pointsEarned = Float(components[0].trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0.0
+                    pointsPossible = Float(components[1].trimmingCharacters(in: .whitespacesAndNewlines)) ?? 1.0
+                }
+            } else if trimmedLine.hasPrefix("FEEDBACK:") {
+                currentSection = "feedback"
+                feedback = trimmedLine.replacingOccurrences(of: "FEEDBACK:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if trimmedLine.hasPrefix("CONFIDENCE:") {
+                let confidenceString = trimmedLine.replacingOccurrences(of: "CONFIDENCE:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                confidence = Float(confidenceString) ?? 0.8
+            } else if trimmedLine.hasPrefix("HAS_VISUALS:") {
+                let visualString = trimmedLine.replacingOccurrences(of: "HAS_VISUALS:", with: "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                hasVisualElements = visualString == "true" || visualString == "yes"
+            } else if !trimmedLine.isEmpty && currentSection == "raw_question" {
+                rawQuestionText += " " + trimmedLine
+            } else if !trimmedLine.isEmpty && currentSection == "question" {
+                questionText += " " + trimmedLine
+            } else if !trimmedLine.isEmpty && currentSection == "student_answer" {
+                studentAnswer += " " + trimmedLine
+            } else if !trimmedLine.isEmpty && currentSection == "correct_answer" {
+                correctAnswer += " " + trimmedLine
+            } else if !trimmedLine.isEmpty && currentSection == "feedback" {
+                feedback += " " + trimmedLine
+            }
+        }
+
+        guard !questionText.isEmpty else { return nil }
+
+        return ParsedQuestion(
+            questionNumber: nil,  // Subquestions don't have numeric question numbers
+            rawQuestionText: rawQuestionText.isEmpty ? nil : rawQuestionText,
+            questionText: questionText,
+            answerText: correctAnswer.isEmpty ? studentAnswer : correctAnswer,
+            confidence: confidence,
+            hasVisualElements: hasVisualElements,
+            studentAnswer: studentAnswer,
+            correctAnswer: correctAnswer,
+            grade: grade,
+            pointsEarned: pointsEarned,
+            pointsPossible: pointsPossible,
+            feedback: feedback,
+            subquestionNumber: subquestionNumber
+        )
+    }
+
     
     /// Parse individual question block
     private func parseQuestionBlock(_ block: String, defaultNumber: Int) -> ParsedQuestion {
@@ -402,7 +626,7 @@ class EnhancedHomeworkParser {
             return nil
         }
         
-        let overallConfidence = questions.map { $0.confidence }.reduce(0.0, +) / Float(questions.count)
+        let overallConfidence = questions.map { $0.confidence ?? 0.0 }.reduce(0.0, +) / Float(questions.count)
         
         return HomeworkParsingResult(
             questions: questions,

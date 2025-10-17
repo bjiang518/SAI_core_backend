@@ -233,7 +233,7 @@ struct DetailQuestionCard: View {
                 
                 Spacer()
                 
-                Text("\(Int(question.confidence * 100))%")
+                Text("\(Int((question.confidence ?? 0.0) * 100))%")
                     .font(.caption2)
                     .foregroundColor(.gray)
             }

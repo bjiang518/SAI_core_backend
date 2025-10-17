@@ -147,7 +147,7 @@ class RailwayArchiveService: ObservableObject {
                 sessionDate: question.archivedAt,
                 title: question.questionText.count > 50 ? String(question.questionText.prefix(50)) + "..." : question.questionText,
                 questionCount: 1,
-                overallConfidence: question.confidence,
+                overallConfidence: question.confidence ?? 0.0,  // Default to 0 if nil
                 thumbnailUrl: nil,
                 reviewCount: question.reviewCount
             )

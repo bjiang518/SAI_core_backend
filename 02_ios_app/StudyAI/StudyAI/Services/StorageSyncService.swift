@@ -150,6 +150,7 @@ class StorageSyncService {
                 "id": id,
                 "subject": serverQuestion["subject"] as? String ?? "Unknown",
                 "questionText": questionText,
+                "rawQuestionText": serverQuestion["rawQuestionText"] as? String ?? questionText,  // Include raw question
                 "answerText": answerText,
                 "confidence": serverQuestion["confidence"] as? Float ?? 0.0,
                 "hasVisualElements": serverQuestion["hasVisualElements"] as? Bool ?? false,
@@ -209,6 +210,7 @@ class StorageSyncService {
                     continue
                 }
 
+                let rawQuestionText = questionData["rawQuestionText"] as? String ?? questionText
                 let confidence = questionData["confidence"] as? Float ?? 0.0
                 let hasVisualElements = questionData["hasVisualElements"] as? Bool ?? false
                 let studentAnswer = questionData["studentAnswer"] as? String
@@ -223,7 +225,7 @@ class StorageSyncService {
 
                 let question = ParsedQuestion(
                     questionNumber: nil,
-                    rawQuestionText: questionText,
+                    rawQuestionText: rawQuestionText,  // Use actual rawQuestionText
                     questionText: questionText,
                     answerText: answerText,
                     confidence: confidence,

@@ -53,7 +53,8 @@ class QuestionArchiveService: ObservableObject {
             let question = request.questions[index]
             return [
                 "questionText": question.questionText,
-                "answerText": question.answerText,
+                "rawQuestionText": question.rawQuestionText ?? question.questionText,  // Include raw question
+                "answerText": question.correctAnswer ?? question.answerText,  // Prioritize correct answer
                 "confidence": question.confidence,
                 "hasVisualElements": question.hasVisualElements,
                 "studentAnswer": question.studentAnswer ?? "",
@@ -61,7 +62,8 @@ class QuestionArchiveService: ObservableObject {
                 "grade": question.grade ?? "EMPTY",
                 "pointsEarned": question.pointsEarned ?? 0.0,
                 "pointsPossible": question.pointsPossible ?? 1.0,
-                "feedback": question.feedback ?? ""
+                "feedback": question.feedback ?? "",
+                "isGraded": question.isGraded
             ]
         }
 

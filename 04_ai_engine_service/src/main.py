@@ -712,6 +712,7 @@ class HomeworkParsingResponse(BaseModel):
     response: str
     processing_time_ms: int
     error: Optional[str] = None
+    raw_json: Optional[Dict[str, Any]] = None  # JSON structure for fast iOS parsing
 
 # Chat Image Endpoint - Fast Processing for Chat Interactions
 @app.post("/api/v1/chat-image", response_model=ChatImageResponse)
@@ -883,7 +884,8 @@ async def process_homework_image(request: HomeworkParsingRequest):
             success=True,
             response=result["structured_response"],
             processing_time_ms=processing_time,
-            error=None
+            error=None,
+            raw_json=result.get("raw_json")  # Include JSON for fast iOS parsing
         )
 
         return response_obj

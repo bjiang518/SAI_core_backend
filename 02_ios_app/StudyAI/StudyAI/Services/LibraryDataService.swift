@@ -600,9 +600,9 @@ class LibraryDataService: ObservableObject {
         case .dateOldest:
             return questions.sorted { $0.archivedAt < $1.archivedAt }
         case .confidenceHigh:
-            return questions.sorted { $0.confidence > $1.confidence }
+            return questions.sorted { ($0.confidence ?? 0.0) > ($1.confidence ?? 0.0) }
         case .confidenceLow:
-            return questions.sorted { $0.confidence < $1.confidence }
+            return questions.sorted { ($0.confidence ?? 0.0) < ($1.confidence ?? 0.0) }
         case .subjectAZ:
             return questions.sorted { $0.subject < $1.subject }
         }

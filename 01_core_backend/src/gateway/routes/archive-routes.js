@@ -858,10 +858,10 @@ class ArchiveRoutes {
         // Insert into database
         const query = `
           INSERT INTO archived_questions (
-            user_id, subject, question_text, answer_text, confidence, has_visual_elements,
+            user_id, subject, question_text, raw_question_text, answer_text, confidence, has_visual_elements,
             original_image_url, processing_time, tags, notes,
             student_answer, grade, points, max_points, feedback, is_graded
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
           RETURNING *
         `;
 
@@ -869,6 +869,7 @@ class ArchiveRoutes {
           userId,
           detectedSubject,
           question.questionText,
+          question.rawQuestionText || question.questionText, // Include raw question text
           question.answerText || question.correctAnswer, // Legacy compatibility
           question.confidence || 0.8,
           question.hasVisualElements || false,
@@ -927,9 +928,9 @@ class ArchiveRoutes {
       this.fastify.log.info(`📚 Fetching archived questions for user: ${userId}`);
 
       let query = `
-        SELECT 
-          id, subject, question_text, confidence, has_visual_elements, 
-          archived_at, review_count, tags, grade, points, 
+        SELECT
+          id, subject, question_text, raw_question_text, answer_text, confidence, has_visual_elements,
+          archived_at, review_count, tags, grade, points,
           max_points, is_graded, student_answer, feedback
         FROM archived_questions
         WHERE user_id = $1
@@ -985,6 +986,8 @@ class ArchiveRoutes {
         id: q.id,
         subject: q.subject,
         questionText: q.question_text,
+        rawQuestionText: q.raw_question_text,
+        answerText: q.answer_text,
         confidence: q.confidence,
         hasVisualElements: q.has_visual_elements,
         archivedAt: q.archived_at,
@@ -1097,6 +1100,7 @@ class ArchiveRoutes {
           userId: question.user_id,
           subject: question.subject,
           questionText: question.question_text,
+          rawQuestionText: question.raw_question_text,
           answerText: question.answer_text,
           confidence: question.confidence,
           hasVisualElements: question.has_visual_elements,

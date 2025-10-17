@@ -545,7 +545,15 @@ class OptimizedEducationalAIService:
                             "content": [
                                 {
                                     "type": "text",
-                                    "text": f"Grade ALL questions in this homework. {custom_prompt or ''}"
+                                    "text": f"""Grade this homework image.
+
+CRITICAL INSTRUCTIONS:
+1. "student_answer" = What the student ACTUALLY WROTE on the paper (their handwriting/answer)
+2. "correct_answer" = What the CORRECT/EXPECTED answer should be
+3. Compare student_answer vs correct_answer to determine grade (CORRECT/INCORRECT/EMPTY/PARTIAL_CREDIT)
+4. Extract EXACTLY what the student wrote, even if it's wrong - do NOT put the correct answer in student_answer field
+
+{custom_prompt or ''}"""
                                 },
                                 {
                                     "type": "image_url",
@@ -612,20 +620,13 @@ class OptimizedEducationalAIService:
                 print(json.dumps(result_dict, indent=2))
                 print(f"=====================================")
 
-                # Convert to legacy format for iOS compatibility
-                legacy_response = self._convert_json_to_legacy_format(result_dict)
+                print(f"✅ JSON parsing complete - skipping legacy conversion (iOS uses direct JSON)")
 
-                print(f"✅ === LEGACY FORMAT CONVERSION ===")
-                print(f"📏 Legacy response length: {len(legacy_response)} chars")
-                print(f"📄 === FULL LEGACY RESPONSE ===")
-                print(legacy_response)
-                print(f"=====================================")
-
-                print(f"✅ Structured parsing complete")
-
+                # OPTIMIZATION: Skip legacy format conversion since iOS parses JSON directly
+                # Legacy format only generated as fallback when JSON parsing fails
                 result = {
                     "success": True,
-                    "structured_response": legacy_response,
+                    "structured_response": "",  # Empty - iOS uses raw_json instead
                     "parsing_method": "json_mode_optimized",  # Updated method indicator
                     "total_questions": len(result_dict.get("questions", [])),
                     "subject_detected": result_dict.get("subject", "Other"),
@@ -933,7 +934,7 @@ GENERAL GRADING RULES:
         print(f"🔧 Parsing mode: {'hierarchical' if use_hierarchical else 'baseline (fast)'}")
 
         if use_hierarchical:
-            # OPTIMIZED HIERARCHICAL PROMPT: Compact version for faster processing
+            # OPTIMIZED HIERARCHICAL PROMPT: Compact version with proper parent-child format
             base_prompt = f"""Grade HW hierarchically. Return JSON:
 
 {{
@@ -949,16 +950,40 @@ GENERAL GRADING RULES:
         {{
           "question_id": "q1",
           "question_number": "1",
+          "is_parent": true,
+          "has_subquestions": true,
+          "parent_content": "Main question text or instructions",
+          "subquestions": [
+            {{
+              "subquestion_number": "1a",
+              "raw_question_text": "Full original question text from image",
+              "question_text": "Simplified/short version (max 50 chars for preview)",
+              "student_answer": "student's written answer",
+              "correct_answer": "expected answer",
+              "grade": "CORRECT|INCORRECT|EMPTY|PARTIAL_CREDIT",
+              "points_earned": 1.0,
+              "points_possible": 1.0,
+              "has_visuals": false,
+              "feedback": "<30w"
+            }}
+          ],
+          "parent_summary": {{
+            "total_earned": 3.0,
+            "total_possible": 3.0,
+            "overall_feedback": "Brief summary"
+          }}
+        }},
+        {{
+          "question_id": "q2",
+          "question_number": "2",
           "is_parent": false,
-          "raw_question_text": "exact",
-          "question_text": "clean",
-          "student_answer": "student wrote",
-          "correct_answer": "expected",
+          "raw_question_text": "Full original question text from image",
+          "question_text": "Simplified/short version (max 50 chars for preview)",
+          "student_answer": "student's written answer",
+          "correct_answer": "expected answer",
           "grade": "CORRECT|INCORRECT|EMPTY|PARTIAL_CREDIT",
           "points_earned": 1.0,
-          "confidence": 0.9,
-          "feedback": "<30w",
-          "recognition_confidence": {{"student_answer": 0.9, "legibility": "clear|readable|unclear"}}
+          "feedback": "<30w"
         }}
       ]
     }}
@@ -969,12 +994,12 @@ GENERAL GRADING RULES:
 {subject_rules}
 
 RULES:
-1. Sections: Group by type (headers/patterns). Types: multiple_choice, fill_blank, calculation, short_answer, long_answer
-2. Parent-child: 1a,1b,1c = subquestions under parent Q1. Store in "subquestions":[...] with parent_id
-3. Numbering: Preserve exact numbers. Multi-page: Q1-5 p1, Q6-10 p2 (no restart)
-4. OCR: Track legibility (clear/readable/unclear), confidence 0-1. Flag <0.7 for review
-5. Grading: CORRECT=1.0, INCORRECT/EMPTY=0.0, PARTIAL_CREDIT=0.5. Feedback <30w
-6. Extract ALL Qs, sections, subquestions. No skip/merge"""
+1. Group by type. Types: multiple_choice, fill_blank, calculation, short_answer, long_answer
+2. Parent-child: "is_parent": true, "has_subquestions": true
+3. Preserve exact question numbers. No restart across pages
+4. CORRECT=1.0, INCORRECT/EMPTY=0.0, PARTIAL=0.5. Feedback <30w
+5. "raw_question_text" = Full original (no student answer). "question_text" = Simplified <50 chars
+6. "student_answer" = What student wrote. "correct_answer" = Expected. Never mix."""
         else:
             # FLAT STRUCTURE (FAST & STABLE): Optimized for reliability
             base_prompt = f"""Grade HW. Return JSON:
@@ -986,15 +1011,13 @@ RULES:
   "questions": [
     {{
       "question_number": 1,
-      "raw_question_text": "exact",
-      "question_text": "clean",
-      "student_answer": "student wrote",
-      "correct_answer": "expected",
+      "raw_question_text": "Full original question text from image",
+      "question_text": "Simplified/short version (max 50 chars for preview)",
+      "student_answer": "student's written answer",
+      "correct_answer": "expected answer",
       "grade": "CORRECT|INCORRECT|EMPTY|PARTIAL_CREDIT",
       "points_earned": 1.0,
-      "confidence": 0.9,
-      "feedback": "<30w",
-      "recognition_confidence": {{"student_answer": 0.9, "legibility": "clear|readable|unclear"}}
+      "feedback": "<30w"
     }}
   ],
   "performance_summary": {{"total_correct": <N>, "total_incorrect": <N>, "total_empty": <N>, "accuracy_rate": 0.0-1.0, "summary_text": "brief"}}
@@ -1003,11 +1026,11 @@ RULES:
 {subject_rules}
 
 RULES:
-1. Questions: 1a,1b = subquestions under parent Q1 (store in "subquestions":[...])
-2. Numbering: Preserve exact. Multi-page: Q1-5 p1, Q6-10 p2 (no restart)
-3. OCR: Track legibility, confidence. Flag <0.7
-4. Grading: CORRECT=1.0, INCORRECT/EMPTY=0.0, PARTIAL=0.5. Feedback <30w
-5. Extract ALL questions"""
+1. Flat structure. Parse each question separately
+2. Preserve exact question numbers
+3. CORRECT=1.0, INCORRECT/EMPTY=0.0, PARTIAL=0.5. Feedback <30w
+4. "raw_question_text" = Full original (no student answer). "question_text" = Simplified <50 chars
+5. "student_answer" = What student wrote. "correct_answer" = Expected. Never mix."""
 
         if student_context:
             base_prompt += f"\n\nStudent: {student_context.get('student_id', 'anonymous')}"

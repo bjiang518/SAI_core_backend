@@ -77,7 +77,8 @@ class AIProxyRoutes {
             },
             prompt: { type: 'string' },
             student_id: { type: 'string' },
-            include_subject_detection: { type: 'boolean', default: true }
+            include_subject_detection: { type: 'boolean', default: true },
+            parsing_mode: { type: 'string', enum: ['hierarchical', 'baseline'], default: 'hierarchical' }
           }
         }
       },
@@ -691,7 +692,7 @@ class AIProxyRoutes {
     const startTime = Date.now();
 
     try {
-      const { base64_images, prompt = '', student_id, include_subject_detection = true } = request.body;
+      const { base64_images, prompt = '', student_id, include_subject_detection = true, parsing_mode = 'hierarchical' } = request.body;
 
       // Validate image count
       if (!base64_images || !Array.isArray(base64_images) || base64_images.length === 0) {
@@ -742,7 +743,8 @@ class AIProxyRoutes {
             base64_image: base64_images[i],
             prompt: prompt,
             student_id: student_id,
-            include_subject_detection: include_subject_detection
+            include_subject_detection: include_subject_detection,
+            parsing_mode: parsing_mode
           };
 
           const result = await this.aiClient.proxyRequest(

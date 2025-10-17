@@ -337,12 +337,12 @@ struct QuestionPreviewCard: View {
                     .background(Color.blue)
                     .cornerRadius(8)
                 
-                if question.confidence < 1.0 {
+                if let confidence = question.confidence, confidence < 1.0 {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.caption2)
-                            .foregroundColor(question.confidence > 0.8 ? .green : question.confidence > 0.6 ? .orange : .red)
-                        Text("\(Int(question.confidence * 100))%")
+                            .foregroundColor(confidence > 0.8 ? .green : confidence > 0.6 ? .orange : .red)
+                        Text("\(Int(confidence * 100))%")
                             .font(.caption2)
                             .foregroundColor(.gray)
                     }

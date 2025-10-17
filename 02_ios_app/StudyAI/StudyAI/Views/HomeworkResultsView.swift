@@ -527,6 +527,7 @@ struct QuestionAnswerCard: View {
     let showSelection: Bool
     let onDismissParent: (() -> Void)?
     @StateObject private var appState = AppState.shared
+    @State private var expandedSubquestions: Set<String> = []
 
     init(question: ParsedQuestion, isExpanded: Bool, isSelected: Bool = false, onToggle: @escaping () -> Void, onSelectionToggle: (() -> Void)? = nil, showAsBullet: Bool = false, showSelection: Bool = false, onDismissParent: (() -> Void)? = nil) {
         self.question = question
@@ -538,8 +539,153 @@ struct QuestionAnswerCard: View {
         self.showSelection = showSelection
         self.onDismissParent = onDismissParent
     }
-    
+
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Check if this is a parent question with subquestions
+            if question.isParent == true && question.hasSubquestions == true {
+                parentQuestionView
+            } else {
+                regularQuestionView
+            }
+        }
+        .background(isSelected ? Color.blue.opacity(0.05) : Color.white)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isSelected ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: isSelected ? 2 : 1)
+        )
+    }
+
+    // MARK: - Parent Question View
+    private var parentQuestionView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Parent Question Header
+            Button(action: onToggle) {
+                HStack(alignment: .top, spacing: 12) {
+                    // Selection checkbox (if enabled)
+                    if showSelection {
+                        VStack {
+                            Button(action: {
+                                onSelectionToggle?()
+                            }) {
+                                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                                    .font(.title3)
+                                    .foregroundColor(isSelected ? .blue : .gray)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .padding(.top, 2)
+                            Spacer()
+                        }
+                    }
+
+                    // Parent Question Number
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.purple.opacity(0.2))
+                            .frame(width: 36, height: 28)
+
+                        Text(question.questionNumber?.description ?? "?")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.purple)
+                    }
+
+                    // Parent Content
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(question.parentContent ?? "Parent Question")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                                .multilineTextAlignment(.leading)
+                                .foregroundColor(.black)
+
+                            Image(systemName: "arrow.down.right.and.arrow.up.left")
+                                .font(.caption2)
+                                .foregroundColor(.purple)
+                        }
+
+                        // Subquestion count
+                        Text("\(question.subquestions?.count ?? 0) subquestions")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+
+                        // Parent summary score if available
+                        if let summary = question.parentSummary {
+                            Text(summary.scoreText)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.blue)
+                        }
+                    }
+
+                    Spacer()
+
+                    // Expand/Collapse Icon
+                    Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle")
+                        .font(.title3)
+                        .foregroundColor(.purple)
+                }
+                .padding()
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            // Expanded Subquestions
+            if isExpanded, let subquestions = question.subquestions {
+                VStack(alignment: .leading, spacing: 0) {
+                    Divider()
+                        .padding(.horizontal)
+
+                    // Parent summary feedback
+                    if let summary = question.parentSummary, let feedback = summary.overallFeedback, !feedback.isEmpty {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "lightbulb.fill")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Overall Feedback")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.gray)
+
+                                Text(feedback)
+                                    .font(.body)
+                                    .foregroundColor(.black)
+                                    .multilineTextAlignment(.leading)
+                            }
+
+                            Spacer()
+                        }
+                        .padding()
+                        .background(Color.orange.opacity(0.05))
+                    }
+
+                    // Subquestions List
+                    ForEach(Array(subquestions.enumerated()), id: \.element.id) { index, subquestion in
+                        VStack(alignment: .leading, spacing: 0) {
+                            if index > 0 {
+                                Divider()
+                                    .padding(.leading, 48)
+                            }
+
+                            SubquestionCard(
+                                subquestion: subquestion,
+                                isExpanded: expandedSubquestions.contains(subquestion.id),
+                                onToggle: {
+                                    toggleSubquestion(subquestion.id)
+                                }
+                            )
+                        }
+                    }
+                }
+                .background(Color.purple.opacity(0.02))
+            }
+        }
+    }
+
+    // MARK: - Regular Question View
+    private var regularQuestionView: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Question Header
             Button(action: onToggle) {
@@ -589,13 +735,13 @@ struct QuestionAnswerCard: View {
                                             .foregroundColor(.gray)
                                     }
                                 }
-                            } else if question.confidence < 1.0 {
+                            } else if let confidence = question.confidence, confidence < 1.0 {
                                 // Legacy confidence display
                                 HStack(spacing: 4) {
                                     Image(systemName: "checkmark.seal.fill")
                                         .font(.caption2)
-                                        .foregroundColor(confidenceColor(question.confidence))
-                                    Text(String(format: "%.0f%%", question.confidence * 100))
+                                        .foregroundColor(confidenceColor(confidence))
+                                    Text(String(format: "%.0f%%", confidence * 100))
                                         .font(.caption2)
                                         .foregroundColor(.gray)
                                 }
@@ -859,7 +1005,16 @@ Question: \(question.questionText)
                 .stroke(isSelected ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: isSelected ? 2 : 1)
         )
     }
-    
+
+    // MARK: - Helper Methods
+    private func toggleSubquestion(_ subquestionId: String) {
+        if expandedSubquestions.contains(subquestionId) {
+            expandedSubquestions.remove(subquestionId)
+        } else {
+            expandedSubquestions.insert(subquestionId)
+        }
+    }
+
     private var questionIndicator: some View {
         Group {
             if showAsBullet {
@@ -943,6 +1098,191 @@ Question: \(question.questionText)
 
         // Default to General if no specific subject detected
         return "General"
+    }
+}
+
+// MARK: - Subquestion Card
+struct SubquestionCard: View {
+    let subquestion: ParsedQuestion
+    let isExpanded: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Subquestion Header
+            Button(action: onToggle) {
+                HStack(alignment: .top, spacing: 12) {
+                    // Subquestion Number Badge
+                    ZStack {
+                        Circle()
+                            .fill(subquestion.gradeColor.opacity(0.2))
+                            .frame(width: 28, height: 28)
+
+                        if let subNum = subquestion.subquestionNumber {
+                            Text(subNum)
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundColor(subquestion.gradeColor)
+                        } else {
+                            Image(systemName: subquestion.gradeIcon)
+                                .font(.caption)
+                                .foregroundColor(subquestion.gradeColor)
+                        }
+                    }
+
+                    // Subquestion Text
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(subquestion.questionText)
+                            .font(.subheadline)
+                            .multilineTextAlignment(.leading)
+                            .foregroundColor(.black)
+
+                        // Grade and Score
+                        HStack(spacing: 12) {
+                            if subquestion.isGraded {
+                                HStack(spacing: 4) {
+                                    Image(systemName: subquestion.gradeIcon)
+                                        .font(.caption2)
+                                        .foregroundColor(subquestion.gradeColor)
+                                    Text(subquestion.grade ?? "")
+                                        .font(.caption2)
+                                        .foregroundColor(subquestion.gradeColor)
+
+                                    if !subquestion.scoreText.isEmpty {
+                                        Text("(\(subquestion.scoreText))")
+                                            .font(.caption2)
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer()
+
+                    // Expand/Collapse Icon
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                .padding()
+                .padding(.leading, 24)  // Extra indent for subquestions
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            // Expanded Answer Content
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 12) {
+                    Divider()
+                        .padding(.leading, 48)
+
+                    // Student Answer
+                    if let studentAnswer = subquestion.studentAnswer, !studentAnswer.isEmpty {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "person.fill")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Student Answer")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.gray)
+
+                                Text(studentAnswer)
+                                    .font(.subheadline)
+                                    .foregroundColor(.black)
+                                    .multilineTextAlignment(.leading)
+                                    .textSelection(.enabled)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        .padding(.leading, 48)
+                    } else {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "person.fill")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Student Answer")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.gray)
+
+                                Text("No answer provided")
+                                    .font(.subheadline)
+                                    .italic()
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.leading)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        .padding(.leading, 48)
+                    }
+
+                    // Correct Answer
+                    if let correctAnswer = subquestion.correctAnswer, !correctAnswer.isEmpty {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "lightbulb.fill")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Correct Answer")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.gray)
+
+                                Text(correctAnswer)
+                                    .font(.subheadline)
+                                    .foregroundColor(.black)
+                                    .multilineTextAlignment(.leading)
+                                    .textSelection(.enabled)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        .padding(.leading, 48)
+                    }
+
+                    // Feedback
+                    if let feedback = subquestion.feedback, !feedback.isEmpty && feedback != "No feedback provided" {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "bubble.left.fill")
+                                .font(.caption)
+                                .foregroundColor(.purple)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Feedback")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.gray)
+
+                                Text(feedback)
+                                    .font(.subheadline)
+                                    .foregroundColor(.black)
+                                    .multilineTextAlignment(.leading)
+                                    .textSelection(.enabled)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        .padding(.leading, 48)
+                    }
+
+                    // Bottom padding
+                    Color.clear.frame(height: 4)
+                }
+                .background(subquestion.gradeColor.opacity(0.03))
+            }
+        }
     }
 }
 

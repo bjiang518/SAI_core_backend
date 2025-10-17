@@ -231,7 +231,8 @@ struct CompactQuestionCard: View {
     }
     
     private var confidenceColor: Color {
-        question.confidence > 0.8 ? .green : question.confidence > 0.6 ? .orange : .red
+        guard let confidence = question.confidence else { return .gray }
+        return confidence > 0.8 ? .green : confidence > 0.6 ? .orange : .red
     }
     
     private var timeAgo: String {
@@ -263,7 +264,27 @@ struct QuestionDetailView: View {
                     .padding(.top, 100)
             } else if let question = question {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Question
+                    // Grading Badge (if graded)
+                    if question.isGraded, let grade = question.grade {
+                        HStack(spacing: 8) {
+                            Image(systemName: gradeIcon(grade))
+                                .foregroundColor(gradeColor(grade))
+                            Text(grade.displayName)
+                                .font(.headline)
+                                .foregroundColor(gradeColor(grade))
+                            if let points = question.points, let maxPoints = question.maxPoints {
+                                Text("(\(String(format: "%.1f", points))/\(String(format: "%.1f", maxPoints)))")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            }
+                            Spacer()
+                        }
+                        .padding()
+                        .background(gradeColor(grade).opacity(0.1))
+                        .cornerRadius(12)
+                    }
+
+                    // Question (Clean version for preview)
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Q")
@@ -273,27 +294,72 @@ struct QuestionDetailView: View {
                                 .frame(width: 20, height: 20)
                                 .background(Color.blue)
                                 .cornerRadius(4)
-                            
+
                             Text(question.subject)
                                 .font(.caption)
                                 .foregroundColor(.gray)
-                            
+
                             Spacer()
-                            
+
                             Circle()
                                 .fill(confidenceColor(question.confidence))
                                 .frame(width: 8, height: 8)
                         }
-                        
+
                         Text(question.questionText)
                             .font(.body)
+                            .fontWeight(.medium)
                             .textSelection(.enabled)
                     }
                     .padding()
                     .background(Color.gray.opacity(0.05))
                     .cornerRadius(12)
-                    
-                    // Answer
+
+                    // Raw Question (Full original text from image)
+                    if let rawText = question.rawQuestionText, rawText != question.questionText {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "doc.text.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                Text("Original Question")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+
+                            Text(rawText)
+                                .font(.callout)
+                                .foregroundColor(.black)
+                                .textSelection(.enabled)
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.03))
+                        .cornerRadius(12)
+                    }
+
+                    // Student Answer
+                    if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "person.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                Text("Student Answer")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+
+                            Text(studentAnswer)
+                                .font(.body)
+                                .foregroundColor(.black)
+                                .textSelection(.enabled)
+                        }
+                        .padding()
+                        .background(Color.blue.opacity(0.05))
+                        .cornerRadius(12)
+                    }
+
+                    // Correct Answer
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("A")
@@ -303,20 +369,43 @@ struct QuestionDetailView: View {
                                 .frame(width: 20, height: 20)
                                 .background(Color.green)
                                 .cornerRadius(4)
-                            
-                            Text("Solution")
+
+                            Text("Correct Answer")
                                 .font(.caption)
                                 .foregroundColor(.gray)
                         }
-                        
+
                         Text(question.answerText)
                             .font(.body)
+                            .foregroundColor(.black)
                             .textSelection(.enabled)
                     }
                     .padding()
                     .background(Color.green.opacity(0.05))
                     .cornerRadius(12)
-                    
+
+                    // AI Feedback
+                    if let feedback = question.feedback, !feedback.isEmpty, feedback != "No feedback provided" {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "bubble.left.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.purple)
+                                Text("AI Feedback")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+
+                            Text(feedback)
+                                .font(.body)
+                                .foregroundColor(.black)
+                                .textSelection(.enabled)
+                        }
+                        .padding()
+                        .background(Color.purple.opacity(0.05))
+                        .cornerRadius(12)
+                    }
+
                     // Tags & Notes (if any)
                     if let tags = question.tags, !tags.isEmpty {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 6) {
@@ -331,14 +420,26 @@ struct QuestionDetailView: View {
                             }
                         }
                     }
-                    
+
                     if let notes = question.notes, !notes.isEmpty {
-                        Text(notes)
-                            .font(.callout)
-                            .italic()
-                            .padding()
-                            .background(Color.yellow.opacity(0.1))
-                            .cornerRadius(8)
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "note.text")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                                Text("Your Notes")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+
+                            Text(notes)
+                                .font(.callout)
+                                .foregroundColor(.black)
+                                .textSelection(.enabled)
+                        }
+                        .padding()
+                        .background(Color.yellow.opacity(0.1))
+                        .cornerRadius(12)
                     }
                 }
                 .padding()
@@ -364,8 +465,27 @@ struct QuestionDetailView: View {
         }
     }
     
-    private func confidenceColor(_ confidence: Float) -> Color {
-        confidence > 0.8 ? .green : confidence > 0.6 ? .orange : .red
+    private func confidenceColor(_ confidence: Float?) -> Color {
+        guard let confidence = confidence else { return .gray }
+        return confidence > 0.8 ? .green : confidence > 0.6 ? .orange : .red
+    }
+
+    private func gradeIcon(_ grade: GradeResult) -> String {
+        switch grade {
+        case .correct: return "checkmark.circle.fill"
+        case .incorrect: return "xmark.circle.fill"
+        case .empty: return "minus.circle.fill"
+        case .partialCredit: return "checkmark.circle"
+        }
+    }
+
+    private func gradeColor(_ grade: GradeResult) -> Color {
+        switch grade {
+        case .correct: return .green
+        case .incorrect: return .red
+        case .empty: return .gray
+        case .partialCredit: return .orange
+        }
     }
 }
 

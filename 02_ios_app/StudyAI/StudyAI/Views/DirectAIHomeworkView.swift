@@ -1072,27 +1072,104 @@ struct DirectAIHomeworkView: View {
                 Circle()
                     .fill(isProcessing ? Color.orange : Color.green)
                     .frame(width: 12, height: 12)
-                
+
                 Text(stateManager.processingStatus)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                
+
                 Spacer()
-                
+
                 if isProcessing {
                     ProgressView()
                         .scaleEffect(0.8)
                 }
             }
-            
+
             if isProcessing {
                 ProgressView(value: 0.6)
                     .progressViewStyle(LinearProgressViewStyle())
+            }
+
+            // Performance Summary Display (when analysis is complete)
+            if !isProcessing, let performanceSummary = stateManager.enhancedResult?.performanceSummary {
+                performanceSummaryCard(performanceSummary)
             }
         }
         .padding()
         .background(Color.gray.opacity(0.1))
         .cornerRadius(12)
+    }
+
+    // MARK: - Performance Summary Card
+    private func performanceSummaryCard(_ summary: PerformanceSummary) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header with accuracy badge
+            HStack {
+                Text("Performance Summary")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                // Accuracy badge with color coding
+                HStack(spacing: 4) {
+                    Image(systemName: accuracyIcon(summary.accuracyRate))
+                        .font(.caption)
+                    Text(summary.accuracyPercentage)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(accuracyColor(summary.accuracyRate))
+                .cornerRadius(12)
+            }
+
+            // Summary text (AI feedback)
+            Text(summary.summaryText)
+                .font(.body)
+                .foregroundColor(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Stats breakdown
+            HStack(spacing: 16) {
+                statBadge(icon: "checkmark.circle.fill", text: "\(summary.totalCorrect) Correct", color: .green)
+                statBadge(icon: "xmark.circle.fill", text: "\(summary.totalIncorrect) Wrong", color: .red)
+                if summary.totalEmpty > 0 {
+                    statBadge(icon: "circle.dotted", text: "\(summary.totalEmpty) Empty", color: .orange)
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(accuracyColor(summary.accuracyRate).opacity(0.1))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(accuracyColor(summary.accuracyRate).opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    // Helper: Stat badge for question counts
+    private func statBadge(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption2)
+            Text(text)
+                .font(.caption)
+        }
+        .foregroundColor(color)
+    }
+
+    // Helper: Accuracy icon based on rate
+    private func accuracyIcon(_ rate: Float) -> String {
+        if rate >= 0.9 { return "star.fill" }
+        else if rate >= 0.7 { return "checkmark.circle.fill" }
+        else if rate >= 0.5 { return "exclamationmark.triangle.fill" }
+        else { return "xmark.circle.fill" }
     }
     
     // MARK: - Image Section
@@ -1582,11 +1659,28 @@ struct DirectAIHomeworkView: View {
 
         for (index, responseDict) in responses.enumerated() {
             if let success = responseDict["success"] as? Bool, success,
-               let data = responseDict["data"] as? [String: Any],
-               let response = data["response"] as? String {
+               let data = responseDict["data"] as? [String: Any] {
 
-                // Parse this image's response
-                if let parsed = EnhancedHomeworkParser.shared.parseEnhancedHomeworkResponse(response) {
+                var parsed: EnhancedHomeworkParsingResult? = nil
+
+                // Try JSON parsing first (fast path - 30-50% faster)
+                if let rawJson = data["raw_json"] as? [String: Any] {
+                    parsed = EnhancedHomeworkParser.shared.parseBackendJSON(rawJson)
+                    if parsed != nil {
+                        print("✅ Using fast JSON parsing for batch image \(index + 1)")
+                    }
+                }
+
+                // Fallback to legacy text parsing if JSON not available
+                if parsed == nil, let response = data["response"] as? String {
+                    parsed = EnhancedHomeworkParser.shared.parseEnhancedHomeworkResponse(response)
+                    if parsed != nil {
+                        print("⚠️ Using legacy text parsing for batch image \(index + 1)")
+                    }
+                }
+
+                // Process parsed result
+                if let parsed = parsed {
                     // Take subject from first image
                     if index == 0 {
                         firstSubject = parsed.detectedSubject
@@ -1600,7 +1694,7 @@ struct DirectAIHomeworkView: View {
         }
 
         // Create combined result
-        let overallConfidence = allQuestions.isEmpty ? 0.0 : allQuestions.map { $0.confidence }.reduce(0.0, +) / Float(allQuestions.count)
+        let overallConfidence = allQuestions.isEmpty ? 0.0 : allQuestions.map { $0.confidence ?? 0.0 }.reduce(0.0, +) / Float(allQuestions.count)
 
         stateManager.enhancedResult = EnhancedHomeworkParsingResult(
             questions: allQuestions,
@@ -1797,19 +1891,40 @@ struct DirectAIHomeworkView: View {
     private func processSuccessfulResponse(_ response: String, processingTime: TimeInterval) {
         stateManager.currentStage = .parsing
         stateManager.processingStatus = stateManager.currentStage.message
-        
-        // Extract response from JSON if needed
-        let actualResponse: String
+
+        var enhanced: EnhancedHomeworkParsingResult? = nil
+        var actualResponse = response  // Store for error handling
+
+        // Check if response is JSON and extract raw_json for fast parsing
         if let jsonData = response.data(using: .utf8),
-           let jsonObject = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-           let extractedResponse = jsonObject["response"] as? String {
-            actualResponse = extractedResponse
+           let jsonObject = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+
+            // Try JSON parsing first (fast path - 30-50% faster)
+            if let rawJson = jsonObject["raw_json"] as? [String: Any] {
+                enhanced = EnhancedHomeworkParser.shared.parseBackendJSON(rawJson)
+                if enhanced != nil {
+                    print("✅ Using fast JSON parsing for single image")
+                }
+            }
+
+            // Fallback to text parsing if JSON parsing failed
+            if enhanced == nil, let textResponse = jsonObject["response"] as? String {
+                actualResponse = textResponse  // Update for error handling
+                enhanced = EnhancedHomeworkParser.shared.parseEnhancedHomeworkResponse(textResponse)
+                if enhanced != nil {
+                    print("⚠️ Using legacy text parsing for single image")
+                }
+            }
         } else {
-            actualResponse = response
+            // Response is plain text, use text parsing
+            enhanced = EnhancedHomeworkParser.shared.parseEnhancedHomeworkResponse(response)
+            if enhanced != nil {
+                print("⚠️ Using legacy text parsing for plain text response")
+            }
         }
-        
-        // Try enhanced parsing first
-        if let enhanced = EnhancedHomeworkParser.shared.parseEnhancedHomeworkResponse(actualResponse) {
+
+        // Process parsed result
+        if let enhanced = enhanced {
             stateManager.enhancedResult = EnhancedHomeworkParsingResult(
                 questions: enhanced.questions,
                 detectedSubject: enhanced.detectedSubject,
