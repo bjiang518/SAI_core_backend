@@ -526,6 +526,9 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
+                // Track rate limits for question processing
+                RateLimitManager.shared.updateFromHeaders(httpResponse, endpoint: .question)
+
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                        let responseData = json["response"] as? [String: Any],
@@ -1656,6 +1659,9 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
+                // Track rate limits for batch processing
+                RateLimitManager.shared.updateFromHeaders(httpResponse, endpoint: .batchImage)
+
                 if httpResponse.statusCode == 200 {
                     if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                         print("✅ Raw AI Response: \(json)")
@@ -1711,7 +1717,10 @@ class NetworkService: ObservableObject {
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("✅ Homework Parsing Response Status: \(httpResponse.statusCode)")
-                
+
+                // Track rate limits
+                RateLimitManager.shared.updateFromHeaders(httpResponse, endpoint: .homeworkImage)
+
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                         print("🎉 === HOMEWORK PARSING SUCCESS ===")

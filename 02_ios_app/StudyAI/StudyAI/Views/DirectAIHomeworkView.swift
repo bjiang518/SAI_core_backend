@@ -143,9 +143,11 @@ class AIHomeworkStateManager: ObservableObject {
 // MARK: - Direct AI Homework View
 struct DirectAIHomeworkView: View {
     @StateObject private var stateManager = AIHomeworkStateManager.shared
+    @StateObject private var rateLimitManager = RateLimitManager.shared
     @State private var showingResults = false
     @State private var isProcessing = false
     @State private var showingErrorAlert = false
+    @State private var currentError: UserFacingError?
 
     // Image source selection states
     @State private var showingCameraPicker = false
@@ -235,6 +237,24 @@ struct DirectAIHomeworkView: View {
                 .fontWeight(.bold)
                 .frame(maxWidth: .infinity)
                 .padding()
+
+            // Rate limit badge - show when approaching or at limit
+            if let info = rateLimitManager.getLimit(for: .homeworkImage), info.isApproachingLimit {
+                RateLimitBadge(info: info)
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+            }
+
+            // Error banner - more user-friendly than alerts
+            if let error = currentError {
+                ErrorBanner(error: error, onDismiss: {
+                    currentError = nil
+                }, onRetry: {
+                    // Retry logic could be added here
+                    currentError = nil
+                })
+                .padding()
+            }
 
             // Main content area
             if stateManager.parsingResult != nil {
@@ -1589,6 +1609,7 @@ struct DirectAIHomeworkView: View {
                     stateManager.processingStatus = "❌ Image compression failed"
                     stateManager.currentStage = .idle
                     showingErrorAlert = true
+                    currentError = .invalidImage
                     isProcessing = false
                 }
                 return
@@ -1642,6 +1663,7 @@ struct DirectAIHomeworkView: View {
                 stateManager.parsingError = "Batch processing failed: Only \(result.successCount)/\(result.totalImages) images processed"
                 stateManager.processingStatus = "❌ Batch AI processing failed"
                 showingErrorAlert = true
+                currentError = .aiProcessingFailed
             }
             isProcessing = false
         }
@@ -1827,6 +1849,7 @@ struct DirectAIHomeworkView: View {
                 stateManager.processingStatus = "❌ Image compression failed"
                 stateManager.currentStage = .idle
                 showingErrorAlert = true
+                currentError = .invalidImage
                 isProcessing = false
             }
             return
@@ -1986,6 +2009,7 @@ struct DirectAIHomeworkView: View {
         stateManager.parsingError = "AI processing failed: \(errorMessage)"
         stateManager.processingStatus = "❌ AI processing failed"
         showingErrorAlert = true
+        currentError = .aiProcessingFailed
     }
     
     private func compressPreprocessedImage(_ image: UIImage) -> Data? {
