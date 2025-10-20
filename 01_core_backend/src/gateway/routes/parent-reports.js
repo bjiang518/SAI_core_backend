@@ -36,7 +36,12 @@ class ParentReportsRoutes {
                             default: 'custom'
                         },
                         include_ai_analysis: { type: 'boolean', default: true },
-                        compare_with_previous: { type: 'boolean', default: true }
+                        compare_with_previous: { type: 'boolean', default: true },
+                        aggregated_data: {
+                            type: 'object',
+                            description: 'Pre-aggregated data from iOS client (local-first approach)',
+                            additionalProperties: true
+                        }
                     }
                 },
                 response: {
@@ -270,7 +275,7 @@ class ParentReportsRoutes {
                 });
             }
 
-            const { student_id, start_date, end_date, report_type, include_ai_analysis, compare_with_previous } = request.body;
+            const { student_id, start_date, end_date, report_type, include_ai_analysis, compare_with_previous, aggregated_data } = request.body;
 
             this.fastify.log.info(`📊 Report parameters:`);
             this.fastify.log.info(`   - Student ID: ${student_id}`);
@@ -278,6 +283,7 @@ class ParentReportsRoutes {
             this.fastify.log.info(`   - Report type: ${report_type}`);
             this.fastify.log.info(`   - Include AI analysis: ${include_ai_analysis}`);
             this.fastify.log.info(`   - Compare with previous: ${compare_with_previous}`);
+            this.fastify.log.info(`   - Pre-aggregated data provided: ${!!aggregated_data}`);
 
             // Verify user has access to this student's data
             const hasAccess = await this.verifyStudentAccess(authenticatedUserId, student_id);
@@ -343,14 +349,25 @@ class ParentReportsRoutes {
 
             this.fastify.log.info('🚀 No cached report found, generating new report...');
 
-            // Generate new report data
-            this.fastify.log.info('📊 Starting report data aggregation...');
-            const reportData = await this.reportService.aggregateReportData(student_id, startDate, endDate, {
-                includeAIInsights: include_ai_analysis, // Enable AI insights if AI analysis is requested
-                comparePrevious: compare_with_previous
-            });
+            // ✅ NEW: Check if iOS provided pre-aggregated data (local-first approach)
+            let reportData;
 
-            this.fastify.log.info('✅ Report data aggregation completed');
+            if (aggregated_data) {
+                // Use pre-aggregated data from iOS (skip database queries)
+                this.fastify.log.info('📱 Using pre-aggregated data from iOS client (LOCAL-FIRST)');
+                this.fastify.log.info(`📊 Data summary: ${aggregated_data.academic?.totalQuestions || 0} questions, ${aggregated_data.activity?.studyTime?.activeDays || 0} active days`);
+                reportData = aggregated_data;
+
+            } else {
+                // Fallback: Generate report data from server database (legacy approach)
+                this.fastify.log.info('📊 Starting server-side report data aggregation (database queries)...');
+                reportData = await this.reportService.aggregateReportData(student_id, startDate, endDate, {
+                    includeAIInsights: include_ai_analysis,
+                    comparePrevious: compare_with_previous
+                });
+            }
+
+            this.fastify.log.info('✅ Report data ready for narrative generation');
             this.fastify.log.info(`📈 Report summary: ${JSON.stringify({
                 totalQuestions: reportData.metadata?.dataPoints?.questions || 0,
                 totalSessions: reportData.metadata?.dataPoints?.sessions || 0,
