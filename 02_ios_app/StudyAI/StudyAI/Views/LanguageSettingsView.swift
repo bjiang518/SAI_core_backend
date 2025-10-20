@@ -10,6 +10,7 @@ import SwiftUI
 struct LanguageSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("appLanguage") private var selectedLanguage: String = "en"
+    @State private var showRestartAlert = false
 
     var body: some View {
         NavigationView {
@@ -17,7 +18,10 @@ struct LanguageSettingsView: View {
                 Section {
                     ForEach(Language.allLanguages) { language in
                         Button(action: {
-                            selectedLanguage = language.code
+                            if selectedLanguage != language.code {
+                                selectedLanguage = language.code
+                                showRestartAlert = true
+                            }
                         }) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
@@ -56,6 +60,13 @@ struct LanguageSettingsView: View {
                     }
                     .fontWeight(.semibold)
                 }
+            }
+            .alert("Restart Required", isPresented: $showRestartAlert) {
+                Button("OK") {
+                    // User acknowledged the restart requirement
+                }
+            } message: {
+                Text("Please close and reopen the app for the language change to take full effect.")
             }
         }
     }

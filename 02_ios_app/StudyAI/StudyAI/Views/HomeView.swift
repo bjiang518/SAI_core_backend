@@ -144,8 +144,8 @@ struct HomeView: View {
                     )
 
                 // Content inside the greeting card - three-column layout
-                HStack(alignment: .center, spacing: 0) {
-                    // Left: AI Avatar Animation
+                HStack(alignment: .center, spacing: 8) {
+                    // Left: AI Avatar Animation - moved further to the left
                     Button(action: {
                         // Don't allow tap if preloading
                         guard !greetingVoice.isPreloading else {
@@ -164,19 +164,20 @@ struct HomeView: View {
                             state: greetingVoice.isSpeaking ? .speaking : (greetingVoice.isPreloading ? .waiting : .idle),
                             voiceType: greetingVoice.currentVoiceType
                         )
-                        .frame(width: 100, height: 100)  // Enlarged from 80x80 (1.25x factor)
+                        .frame(width: 90, height: 90)
                     }
                     .buttonStyle(PlainButtonStyle())
                     .disabled(greetingVoice.isPreloading)
-                    .frame(width: 116)  // Fixed width for left column (100 + 16 padding)
+                    .frame(width: 90, alignment: .leading)  // Align to leading edge
+                    .offset(x: -8)  // Move further left
 
-                    // Center: Greeting text - perfectly centered with flex space
-                    Spacer()
-
+                    // Center: Greeting text - wider central area
                     VStack(spacing: 2) {
                         Text(greetingText)
-                            .font(.body)
+                            .font(.callout)
                             .foregroundColor(.white.opacity(0.9))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
 
                         Text(userName)
                             .font(.title2)
@@ -185,20 +186,18 @@ struct HomeView: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.5)
                     }
-                    .frame(minWidth: 0, maxWidth: .infinity)
+                    .frame(maxWidth: .infinity)
 
-                    Spacer()
-
-                    // Right: Settings button - matching left width
+                    // Right: Settings button - moved back to the left a bit
                     Button(action: { showingProfile = true }) {
                         Image(systemName: "gearshape.fill")
-                            .font(.system(size: 24))
+                            .font(.system(size: 22))
                             .foregroundColor(.white.opacity(0.9))
-                            .frame(width: 48, height: 48)
+                            .frame(width: 44, height: 44)
                             .background(Color.white.opacity(0.2))
                             .clipShape(Circle())
                     }
-                    .frame(width: 116)  // Fixed width for right column to mirror left
+                    .frame(width: 70, alignment: .trailing)  // Wider frame, aligned right
                 }
                 .padding(.horizontal, DesignTokens.Spacing.md)
                 .padding(.vertical, DesignTokens.Spacing.sm)

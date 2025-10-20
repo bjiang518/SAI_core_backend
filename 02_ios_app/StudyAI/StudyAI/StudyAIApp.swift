@@ -10,18 +10,28 @@ import GoogleSignIn
 
 @main
 struct StudyAIApp: App {
+    @AppStorage("appLanguage") private var appLanguage: String = "en"
+
     init() {
         setupGoogleSignIn()
+        setupLanguage()
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .preferredColorScheme(.light) // Force light mode globally
+                .environment(\.locale, Locale(identifier: appLanguage))
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
                 }
         }
+    }
+
+    private func setupLanguage() {
+        // Apply the selected language preference
+        UserDefaults.standard.set([appLanguage], forKey: "AppleLanguages")
+        UserDefaults.standard.synchronize()
     }
 
     private func setupGoogleSignIn() {

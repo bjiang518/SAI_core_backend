@@ -366,20 +366,20 @@
 			name = "Recovered References";
 			sourceTree = "<group>";
 		};
-		7B1961D72E94D96A0024317A /* en 2.lproj */ = {
+		7B1961D72E94D96A0024317A /* en.lproj */ = {
 			isa = PBXGroup;
 			children = (
 				7B1961D62E94D96A0024317A /* Localizable.strings */,
 			);
-			path = "en 2.lproj";
+			path = "en.lproj";
 			sourceTree = "<group>";
 		};
-		7B1961DA2E94D96A0024317A /* zh-Hans 2.lproj */ = {
+		7B1961DA2E94D96A0024317A /* zh-Hans.lproj */ = {
 			isa = PBXGroup;
 			children = (
 				7B1961D92E94D96A0024317A /* Localizable.strings */,
 			);
-			path = "zh-Hans 2.lproj";
+			path = "zh-Hans.lproj";
 			sourceTree = "<group>";
 		};
 		7B1961DD2E94D96A0024317A /* zh-Hant.lproj */ = {
@@ -393,8 +393,8 @@
 		7B9EC4642E61663B005E4BFB = {
 			isa = PBXGroup;
 			children = (
-				7B1961D72E94D96A0024317A /* en 2.lproj */,
-				7B1961DA2E94D96A0024317A /* zh-Hans 2.lproj */,
+				7B1961D72E94D96A0024317A /* en.lproj */,
+				7B1961DA2E94D96A0024317A /* zh-Hans.lproj */,
 				7B1961DD2E94D96A0024317A /* zh-Hant.lproj */,
 				7BEEB6292E8EFFCA00957748 /* Lottie */,
 				7BEEB6152E8E3A3E00957748 /* design */,
