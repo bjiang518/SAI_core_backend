@@ -243,9 +243,8 @@ struct UnifiedLibraryView: View {
     
     private var libraryList: some View {
         VStack(spacing: 0) {
-            // Compact Search Section
+            // Fixed Filter Section - stays at top
             VStack(spacing: 12) {
-                
                 // Quick Filter Buttons
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
@@ -320,10 +319,10 @@ struct UnifiedLibraryView: View {
                     .padding(.horizontal)
                 }
             }
-            .padding(.vertical)
+            .padding(.vertical, 12)
             .background(Color(.systemGroupedBackground))
-            
-            // Quick Stats Header
+
+            // Fixed Stats Header
             if !libraryContent.isEmpty {
                 QuickStatsHeader(
                     content: libraryContent,
@@ -337,9 +336,10 @@ struct UnifiedLibraryView: View {
                     questionCount: filteredQuestionCount,
                     conversationCount: filteredConversationCount
                 )
+                .background(Color(.systemBackground))
             }
-            
-            // Content List
+
+            // Scrollable Content List - only this part scrolls
             if filteredItems.isEmpty {
                 NoResultsView(hasFilters: !searchText.isEmpty || selectedSubject != nil || selectedContentType != .all) {
                     clearFilters()

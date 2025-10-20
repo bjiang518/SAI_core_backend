@@ -25,38 +25,52 @@ class LocalProgressService {
 
     /// Calculate subject breakdown from local questions (replaces NetworkService.fetchSubjectBreakdown)
     func calculateSubjectBreakdown(timeframe: String = "current_week") async -> SubjectBreakdownData {
-        // Get all local questions
-        let localQuestions = questionLocalStorage.getLocalQuestions()
+        print("📊 [LocalProgress] Timeframe: \(timeframe)")
 
-        // Convert to QuestionSummary objects
+        // Step 1: Get all local questions
+        let localQuestions = questionLocalStorage.getLocalQuestions()
+        print("📊 [LocalProgress] Step 1: Retrieved \(localQuestions.count) questions from local storage")
+
+        // Step 2: Convert to QuestionSummary objects
         var questions: [QuestionSummary] = []
         for questionData in localQuestions {
             if let question = try? questionLocalStorage.convertLocalQuestionToSummary(questionData) {
                 questions.append(question)
             }
         }
+        print("📊 [LocalProgress] Step 2: Converted to \(questions.count) QuestionSummary objects")
 
-        // Filter by timeframe
+        // Step 3: Filter by timeframe
         let filteredQuestions = filterQuestionsByTimeframe(questions, timeframe: timeframe)
+        print("📊 [LocalProgress] Step 3: Filtered to \(filteredQuestions.count) questions for timeframe '\(timeframe)'")
 
-        // Group by normalized subject
+        // Step 4: Group by normalized subject
         let questionsBySubject = Dictionary(grouping: filteredQuestions) { $0.normalizedSubject }
+        print("📊 [LocalProgress] Step 4: Grouped into \(questionsBySubject.count) subjects")
+        for (subject, subjectQuestions) in questionsBySubject {
+            print("   - \(subject): \(subjectQuestions.count) questions")
+        }
 
-        // Calculate subject progress data
+        // Step 5: Calculate subject progress data
         let subjectProgress = calculateSubjectProgress(questionsBySubject: questionsBySubject, allQuestions: filteredQuestions)
+        print("📊 [LocalProgress] Step 5: Calculated progress for \(subjectProgress.count) subjects")
 
-        // Calculate summary
+        // Step 6: Calculate summary
         let summary = calculateSummary(subjectProgress: subjectProgress, allQuestions: filteredQuestions)
+        print("📊 [LocalProgress] Step 6: Calculated summary (overall accuracy: \(String(format: "%.1f%%", summary.overallAccuracy)))")
 
-        // Calculate insights
+        // Step 7: Calculate insights
         let insights = calculateInsights(subjectProgress: subjectProgress)
+        print("📊 [LocalProgress] Step 7: Generated insights")
 
-        // Calculate trends
+        // Step 8: Calculate trends
         let trends = calculateTrends(questionsBySubject: questionsBySubject)
+        print("📊 [LocalProgress] Step 8: Calculated trends for \(trends.count) subjects")
 
-        // Calculate comparisons and recommendations
+        // Step 9: Calculate comparisons and recommendations
         let comparisons = calculateComparisons(subjectProgress: subjectProgress)
         let recommendations = generateRecommendations(subjectProgress: subjectProgress, insights: insights)
+        print("📊 [LocalProgress] Step 9: Generated \(comparisons.count) comparisons and \(recommendations.count) recommendations")
 
         let result = SubjectBreakdownData(
             summary: summary,
@@ -68,35 +82,41 @@ class LocalProgressService {
             recommendations: recommendations
         )
 
+        print("📊 [LocalProgress] === CALCULATION COMPLETE ===\n")
         return result
     }
 
     /// Calculate monthly activity from local questions (replaces NetworkService.fetchMonthlyActivity)
     func calculateMonthlyActivity(year: Int, month: Int) async -> [DailyActivity] {
-        // Get all local questions
-        let localQuestions = questionLocalStorage.getLocalQuestions()
+        print("📅 [LocalProgress] Month: \(year)-\(month)")
 
-        // Convert to QuestionSummary objects
+        // Step 1: Get all local questions
+        let localQuestions = questionLocalStorage.getLocalQuestions()
+        print("📅 [LocalProgress] Step 1: Retrieved \(localQuestions.count) questions from local storage")
+
+        // Step 2: Convert to QuestionSummary objects
         var questions: [QuestionSummary] = []
         for questionData in localQuestions {
             if let question = try? questionLocalStorage.convertLocalQuestionToSummary(questionData) {
                 questions.append(question)
             }
         }
+        print("📅 [LocalProgress] Step 2: Converted to \(questions.count) QuestionSummary objects")
 
-        // Filter questions for the specified month
+        // Step 3: Filter questions for the specified month
         let calendar = Calendar.current
         let filteredQuestions = questions.filter { question in
             let components = calendar.dateComponents([.year, .month], from: question.archivedAt)
             return components.year == year && components.month == month
         }
+        print("📅 [LocalProgress] Step 3: Filtered to \(filteredQuestions.count) questions for \(year)-\(month)")
 
-        // Group by date and count questions per day
+        // Step 4: Group by date and count questions per day
         let questionsByDate = Dictionary(grouping: filteredQuestions) { question in
             calendar.startOfDay(for: question.archivedAt)
         }
 
-        // Create DailyActivity objects
+        // Step 5: Create DailyActivity objects
         let activities = questionsByDate.map { date, dayQuestions in
             DailyActivity(
                 date: dateFormatter.string(from: date),
@@ -104,6 +124,12 @@ class LocalProgressService {
             )
         }.sorted { $0.date < $1.date }
 
+        print("📅 [LocalProgress] Step 4: Generated \(activities.count) daily activities")
+        for activity in activities {
+            print("   - \(activity.date): \(activity.questionCount) questions")
+        }
+
+        print("📅 [LocalProgress] === CALCULATION COMPLETE ===\n")
         return activities
     }
 

@@ -226,7 +226,7 @@ struct QuestionGenerationView: View {
                         }
 
                         // Custom difficulty picker using segmented control style
-                        Picker("Difficulty", selection: $selectedDifficulty) {
+                        Picker(NSLocalizedString("questionGeneration.difficultyLevel", comment: ""), selection: $selectedDifficulty) {
                             ForEach(QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty.allCases, id: \.self) { difficulty in
                                 Text(difficulty.rawValue.capitalized).tag(difficulty)
                             }
@@ -378,7 +378,7 @@ struct QuestionGenerationView: View {
             } catch {
                 await MainActor.run {
                     self.isLoadingData = false
-                    self.errorMessage = "Failed to load data: \(error.localizedDescription)"
+                    self.errorMessage = String.localizedStringWithFormat(NSLocalizedString("questionGeneration.failedToLoadData", comment: ""), error.localizedDescription)
                     self.showingErrorAlert = true
                 }
             }
@@ -436,7 +436,7 @@ struct QuestionGenerationView: View {
         case .randomPractice:
             let mostCommonSubjects = dataAdapter.getMostCommonSubjects()
 
-            let primarySubject = !selectedSubject.isEmpty ? selectedSubject : (mostCommonSubjects.first ?? "Mathematics")
+            let primarySubject = !selectedSubject.isEmpty ? selectedSubject : (mostCommonSubjects.first ?? NSLocalizedString("questionGeneration.defaultSubject.mathematics", comment: ""))
 
             let recommendedCount = dataAdapter.getRecommendedQuestionCount()
 
@@ -445,8 +445,8 @@ struct QuestionGenerationView: View {
             let focusAreas = dataAdapter.getFocusAreas()
 
             let focusNotes = focusAreas.isEmpty ?
-                "Generate diverse practice questions to build foundational knowledge" :
-                "Focus on these areas where the student needs improvement: \(focusAreas.joined(separator: ", "))"
+                NSLocalizedString("questionGeneration.focusNotes.diversePractice", comment: "") :
+                String.localizedStringWithFormat(NSLocalizedString("questionGeneration.focusNotes.improvementAreas", comment: ""), focusAreas.joined(separator: ", "))
 
             let config = QuestionGenerationService.RandomQuestionsConfig(
                 topics: mostCommonSubjects.isEmpty ? [primarySubject] : mostCommonSubjects,
@@ -483,19 +483,20 @@ struct QuestionGenerationView: View {
                     originalQuestion: mistake.question,
                     userAnswer: mistake.studentAnswer,
                     correctAnswer: mistake.correctAnswer,
-                    mistakeType: "incorrect_answer",
+                    mistakeType: NSLocalizedString("questionGeneration.mistakeType.incorrectAnswer", comment: ""),
                     topic: mistake.subject,
-                    date: ISO8601DateFormatter().string(from: mistake.createdAt)
+                    date: ISO8601DateFormatter().string(from: mistake.createdAt),
+                    tags: mistake.tags  // Pass tags from source question
                 )
             }
 
             // Get the most common subject from selected mistakes
             let mistakeSubjects = Array(Set(selectedMistakeObjects.map { $0.subject }))
-            let primarySubject = mistakeSubjects.first ?? "Mathematics"
+            let primarySubject = mistakeSubjects.first ?? NSLocalizedString("questionGeneration.defaultSubject.mathematics", comment: "")
 
             let config = QuestionGenerationService.RandomQuestionsConfig(
                 topics: mistakeSubjects,
-                focusNotes: "Focus on addressing common mistakes and strengthening weak areas",
+                focusNotes: NSLocalizedString("questionGeneration.focusNotes.addressMistakes", comment: ""),
                 difficulty: selectedDifficulty,
                 questionCount: questionCount
             )
@@ -529,31 +530,34 @@ struct QuestionGenerationView: View {
 
             // Convert real conversation data using the adapter
             let conversationData = selectedConversationObjects.map { conversation in
-                let title = conversation["title"] as? String ?? "Untitled"
-                let subject = conversation["subject"] as? String ?? "General"
+                let title = conversation["title"] as? String ?? NSLocalizedString("questionGeneration.untitled", comment: "")
+                let subject = conversation["subject"] as? String ?? NSLocalizedString("questionGeneration.generalSubject", comment: "")
                 let content = conversation["conversationContent"] as? String ?? ""
+
+                // ✅ Extract only student questions (remove archive headers, metadata, and AI responses)
+                let studentQuestions = extractStudentQuestions(from: content, title: title)
 
                 return QuestionGenerationService.ConversationData(
                     date: ISO8601DateFormatter().string(from: Date()),
                     topics: [subject],
-                    studentQuestions: content.isEmpty ? "Discussion about \(title)" : content,
-                    difficultyLevel: "intermediate",
-                    strengths: ["Active participation"],
-                    weaknesses: ["More practice needed"],
+                    studentQuestions: studentQuestions,
+                    difficultyLevel: NSLocalizedString("questionGeneration.difficulty.intermediate", comment: ""),
+                    strengths: [NSLocalizedString("questionGeneration.strengths.activeParticipation", comment: "")],
+                    weaknesses: [NSLocalizedString("questionGeneration.weaknesses.morePractice", comment: "")],
                     keyConcepts: title,
-                    engagement: "high"
+                    engagement: NSLocalizedString("questionGeneration.engagement.high", comment: "")
                 )
             }
 
             // Get the most common subject from conversations
             let conversationSubjects = Array(Set(selectedConversationObjects.compactMap { conversation in
                 conversation["subject"] as? String
-            })).filter { !$0.isEmpty && $0 != "General Discussion" }
-            let primarySubject = conversationSubjects.first ?? "Mathematics"
+            })).filter { !$0.isEmpty && $0 != NSLocalizedString("questionGeneration.generalDiscussion", comment: "") }
+            let primarySubject = conversationSubjects.first ?? NSLocalizedString("questionGeneration.defaultSubject.mathematics", comment: "")
 
             let config = QuestionGenerationService.RandomQuestionsConfig(
                 topics: conversationSubjects.isEmpty ? [primarySubject] : conversationSubjects,
-                focusNotes: "Based on conversation topics and user engagement patterns",
+                focusNotes: NSLocalizedString("questionGeneration.focusNotes.conversationPatterns", comment: ""),
                 difficulty: selectedDifficulty,
                 questionCount: questionCount
             )
@@ -995,7 +999,7 @@ struct ConversationBasedConfig: View {
                 Image(systemName: "archivebox.fill")
                     .font(.subheadline)
                     .foregroundColor(.green)
-                Text("Archive-Based Settings")
+                Text(NSLocalizedString("questionGeneration.archiveBasedSettings", comment: ""))
                     .font(.body)
                     .fontWeight(.medium)
             }
@@ -1004,16 +1008,16 @@ struct ConversationBasedConfig: View {
                 HStack {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("Loading conversations...")
+                    Text(NSLocalizedString("questionGeneration.loadingConversations", comment: ""))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             } else if !conversations.isEmpty {
-                Text("\(conversations.count) conversations available for question generation")
+                Text(String.localizedStringWithFormat(NSLocalizedString("questionGeneration.conversationsAvailable", comment: ""), conversations.count))
                     .font(.caption)
                     .foregroundColor(.secondary)
             } else {
-                Text("No archived conversations found. Have some conversations first.")
+                Text(NSLocalizedString("questionGeneration.noConversationsFound", comment: ""))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .italic()
@@ -1307,11 +1311,11 @@ struct ArchiveSelectionView: View {
         // Try message count
         let messageCount = conversation["message_count"] as? Int ?? conversation["messageCount"] as? Int ?? 0
         if messageCount > 0 {
-            return "\(messageCount) messages in conversation"
+            return String.localizedStringWithFormat(NSLocalizedString("questionGeneration.messagesInConversation", comment: ""), messageCount)
         }
 
         // Ultimate fallback
-        return "Study session"
+        return NSLocalizedString("questionGeneration.studySession", comment: "")
     }
 }
 
@@ -1439,4 +1443,98 @@ struct ArchiveQuestionSelectionCard: View {
         }
         .buttonStyle(PlainButtonStyle())
     }
+}
+
+// MARK: - Helper Functions
+
+/// Extract student questions from conversation content, removing archive headers, metadata, and AI responses
+private func extractStudentQuestions(from conversationContent: String, title: String) -> String {
+    guard !conversationContent.isEmpty else {
+        return String.localizedStringWithFormat(NSLocalizedString("questionGeneration.discussionAbout", comment: ""), title)
+    }
+
+    var studentQuestions: [String] = []
+    let lines = conversationContent.components(separatedBy: .newlines)
+    var currentUserMessage = ""
+    var isUserMessage = false
+
+    for line in lines {
+        let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Skip archive headers and metadata
+        if trimmedLine.hasPrefix("===") ||
+           trimmedLine.hasPrefix("Session:") ||
+           trimmedLine.hasPrefix("Subject:") ||
+           trimmedLine.hasPrefix("Topic:") ||
+           trimmedLine.hasPrefix("Archived:") ||
+           trimmedLine.hasPrefix("Messages:") ||
+           trimmedLine.hasPrefix("Conversation Archive") ||
+           trimmedLine.hasPrefix("Session archived") ||
+           trimmedLine.hasPrefix("Difficulty Level:") ||
+           trimmedLine.hasPrefix("Student Strengths") ||
+           trimmedLine.hasPrefix("Areas for Improvement") ||
+           trimmedLine.hasPrefix("Key Concepts") ||
+           trimmedLine.hasPrefix("Student Engagement") ||
+           trimmedLine.hasPrefix("=== Notes ===") ||
+           trimmedLine.hasPrefix("Archive notes") ||
+           trimmedLine.isEmpty {
+            continue
+        }
+
+        // Detect user messages (format: "[timestamp] User:" or just "User:")
+        if trimmedLine.contains("User:") {
+            // Save previous user message if any
+            if !currentUserMessage.isEmpty {
+                studentQuestions.append(currentUserMessage.trimmingCharacters(in: .whitespacesAndNewlines))
+            }
+
+            // Extract the message after "User:"
+            if let userIndex = trimmedLine.range(of: "User:")?.upperBound {
+                currentUserMessage = String(trimmedLine[userIndex...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                currentUserMessage = ""
+            }
+            isUserMessage = true
+            continue
+        }
+
+        // Detect AI messages (stop collecting user message)
+        if trimmedLine.contains("AI Assistant:") || trimmedLine.contains("AI:") {
+            // Save current user message before switching to AI
+            if !currentUserMessage.isEmpty {
+                studentQuestions.append(currentUserMessage.trimmingCharacters(in: .whitespacesAndNewlines))
+                currentUserMessage = ""
+            }
+            isUserMessage = false
+            continue
+        }
+
+        // If we're in a user message and this is a continuation line, append it
+        if isUserMessage && !trimmedLine.isEmpty {
+            if !currentUserMessage.isEmpty {
+                currentUserMessage += " "
+            }
+            currentUserMessage += trimmedLine
+        }
+    }
+
+    // Add the last user message if any
+    if !currentUserMessage.isEmpty {
+        studentQuestions.append(currentUserMessage.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    // If no questions found, return a fallback
+    if studentQuestions.isEmpty {
+        return String.localizedStringWithFormat(NSLocalizedString("questionGeneration.discussionAbout", comment: ""), title)
+    }
+
+    // Combine all student questions, limiting to reasonable length
+    let combined = studentQuestions.joined(separator: "; ")
+    let maxLength = 500 // Limit to 500 characters instead of 9882
+
+    if combined.count > maxLength {
+        return String(combined.prefix(maxLength)) + "..."
+    }
+
+    return combined
 }

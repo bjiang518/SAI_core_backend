@@ -152,22 +152,22 @@ class MistakeReviewService: ObservableObject {
         return stats
     }
 
-    /// Get icon for subject (matches SessionChatView icons)
+    /// Get icon for subject (uses SF Symbols compatible with Image(systemName:))
     private func getSubjectIcon(_ subject: String) -> String {
         // Normalize subject first to handle "Math"/"Mathematics" variants
         let normalized = QuestionSummary.normalizeSubject(subject)
 
         switch normalized {
-        case "Math": return "f(x)"
-        case "Physics": return "⚛️"
-        case "Chemistry": return "🧪"
-        case "Biology": return "🧬"
-        case "English": return "📚"
-        case "History": return "📜"
-        case "Geography": return "🌍"
-        case "Computer Science": return "💻"
-        case "Science": return "🔬"
-        default: return "💡"
+        case "Math": return "function"  // SF Symbol for mathematical function
+        case "Physics": return "atom"  // SF Symbol for atom
+        case "Chemistry": return "flask.fill"  // SF Symbol for flask
+        case "Biology": return "leaf.fill"  // SF Symbol for biology/nature
+        case "English": return "book.fill"  // SF Symbol for books
+        case "History": return "clock.fill"  // SF Symbol for history/time
+        case "Geography": return "globe"  // SF Symbol for globe
+        case "Computer Science": return "desktopcomputer"  // SF Symbol for computer
+        case "Science": return "lightbulb.fill"  // SF Symbol for science/ideas
+        default: return "book.closed.fill"  // SF Symbol for general subject
         }
     }
 }

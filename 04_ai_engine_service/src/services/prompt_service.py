@@ -1122,9 +1122,14 @@ Generate the questions now:"""
         # Extract user profile
         grade_level = user_profile.get('grade', 'High School')
 
-        # Format mistakes data
+        # Format mistakes data and extract tags
         mistakes_analysis = []
+        all_source_tags = []  # Collect all unique tags from source mistakes
         for i, mistake in enumerate(mistakes_data, 1):
+            mistake_tags = mistake.get('tags', [])
+            if mistake_tags:
+                all_source_tags.extend(mistake_tags)
+
             analysis = f"""
 MISTAKE #{i}:
 Original Question: {mistake.get('original_question', 'N/A')}
@@ -1132,9 +1137,14 @@ Student's Answer: {mistake.get('user_answer', 'N/A')}
 Correct Answer: {mistake.get('correct_answer', 'N/A')}
 Mistake Type: {mistake.get('mistake_type', 'N/A')}
 Topic: {mistake.get('topic', 'N/A')}
+Tags: {', '.join(mistake_tags) if mistake_tags else 'N/A'}
 Date: {mistake.get('date', 'N/A')}
 """
             mistakes_analysis.append(analysis)
+
+        # Get unique tags from all mistakes
+        unique_source_tags = list(set(all_source_tags))
+        tags_instruction = f"\n⚠️ REQUIRED TAGS: {unique_source_tags}\nYou MUST use EXACTLY these tags for ALL generated questions. Do NOT create new tags." if unique_source_tags else ""
 
         # Get subject-specific formatting
         detected_subject = self.detect_subject(subject)
@@ -1149,6 +1159,7 @@ USER PROFILE:
 MISTAKE ANALYSIS:
 The student has made the following mistakes in {subject}:
 {chr(10).join(mistakes_analysis)}
+{tags_instruction}
 
 TASK:
 Based on these mistakes, generate {question_count} new practice questions that:
@@ -1199,6 +1210,7 @@ Return your response as a JSON object with a "questions" array. Each question mu
             "explanation": "Detailed explanation that addresses the common mistake and shows correct reasoning",
             "difficulty": "beginner|intermediate|advanced",
             "topic": "specific topic from the mistake analysis",
+            "tags": {unique_source_tags if unique_source_tags else "[]"},
             "addresses_mistake": "Brief description of which mistake pattern this question helps with (optional)",
             "estimated_time": "time in minutes"
         }}
@@ -1206,6 +1218,7 @@ Return your response as a JSON object with a "questions" array. Each question mu
 }}
 
 CRITICAL NOTES:
+- ⚠️ CRITICAL - TAGS FIELD: You MUST use EXACTLY these tags {unique_source_tags if unique_source_tags else "[]"} for ALL questions. Do NOT create new tags. Copy the tags array exactly as shown above.
 - Focus on helping the student overcome their specific error patterns
 - Make sure explanations explicitly address why the student's previous approach was incorrect
 - For multiple choice, include distractors that represent common mistakes

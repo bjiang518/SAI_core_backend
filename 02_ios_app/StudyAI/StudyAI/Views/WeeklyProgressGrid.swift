@@ -8,56 +8,79 @@
 import SwiftUI
 
 struct WeeklyProgressGrid: View {
-    @ObservedObject private var pointsManager = PointsEarningManager.shared
+    @State private var weeklyActivities: [DailyQuestionActivity] = []
     @State private var isLoading = false
     @State private var showingDebugInfo = false
-    
+
     private let viewId = UUID().uuidString.prefix(8)
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if let weeklyProgress = pointsManager.currentWeeklyProgress {
+            if !weeklyActivities.isEmpty {
                 // Week header with total
-                weekHeader(weeklyProgress)
-                
+                weekHeader(weeklyActivities)
+
                 // 7-day grid (Mon-Sun)
-                weeklyGrid(weeklyProgress.dailyActivities)
-                
+                weeklyGrid(weeklyActivities)
+
                 // Legend
                 intensityLegend
-                
+
                 // Debug info (only in debug builds)
                 if ProcessInfo.processInfo.environment["DEBUG"] == "1" || showingDebugInfo {
-                    debugSection(weeklyProgress)
+                    debugSection(weeklyActivities)
                 }
+            } else if isLoading {
+                // Loading state
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding()
             } else {
-                // Loading or empty state
+                // Empty state
                 emptyState
             }
         }
         .onAppear {
-            // Don't call checkWeeklyReset here - it can overwrite today's data!
-            // Weekly reset should only happen on app launch, not when view appears
-            // Weekly progress will be created automatically when questions are answered
+            // Load weekly activity from local storage
+            Task {
+                await loadWeeklyActivity()
+            }
         }
         .onTapGesture(count: 3) {
             // Triple tap to show debug info
             showingDebugInfo.toggle()
         }
     }
-    
+
+    // MARK: - Data Loading
+
+    private func loadWeeklyActivity() async {
+        await MainActor.run {
+            isLoading = true
+        }
+
+        // ✅ Use LocalProgressService to calculate weekly activity from local storage
+        let localProgressService = LocalProgressService.shared
+        let activities = await localProgressService.calculateWeeklyActivity()
+
+        await MainActor.run {
+            weeklyActivities = activities
+            isLoading = false
+        }
+    }
+
     // MARK: - Week Header
-    
-    private func weekHeader(_ weeklyProgress: WeeklyProgress) -> some View {
+
+    private func weekHeader(_ activities: [DailyQuestionActivity]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(weeklyProgress.weekDisplayString)
+                Text(weekDisplayString(activities))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
-                Text("\(weeklyProgress.totalQuestionsThisWeek)")
+                Text("\(totalQuestionsThisWeek(activities))")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(.blue)
@@ -72,12 +95,33 @@ struct WeeklyProgressGrid: View {
             }
         }
     }
+
+    // MARK: - Helper Methods
+
+    private func weekDisplayString(_ activities: [DailyQuestionActivity]) -> String {
+        guard let firstActivity = activities.first,
+              let lastActivity = activities.last,
+              let startDate = dateFromString(firstActivity.date),
+              let endDate = dateFromString(lastActivity.date) else {
+            return "Current Week"
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+
+        return "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
+    }
+
+    private func totalQuestionsThisWeek(_ activities: [DailyQuestionActivity]) -> Int {
+        return activities.reduce(0) { $0 + $1.questionCount }
+    }
     
     // MARK: - Weekly Grid
 
     private func weeklyGrid(_ dailyActivities: [DailyQuestionActivity]) -> some View {
         HStack(spacing: 8) {
-            ForEach(completeWeekActivities(dailyActivities), id: \.id) { activity in
+            // Activities are already complete (7 days) from LocalProgressService
+            ForEach(dailyActivities, id: \.id) { activity in
                 DayActivitySquare(
                     activity: activity,
                     isToday: isToday(activity.date)
@@ -142,23 +186,25 @@ struct WeeklyProgressGrid: View {
     }
     
     // MARK: - Debug Section
-    
-    private func debugSection(_ weeklyProgress: WeeklyProgress) -> some View {
+
+    private func debugSection(_ activities: [DailyQuestionActivity]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Debug Info")
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundColor(.orange)
-            
-            Text("Timezone: \(weeklyProgress.timezone)")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-            
-            Text("Week: \(weeklyProgress.weekStart) to \(weeklyProgress.weekEnd)")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-            
-            Text("Activities: \(weeklyProgress.dailyActivities.count)")
+
+            if let firstActivity = activities.first, let lastActivity = activities.last {
+                Text("Timezone: \(firstActivity.timezone)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                Text("Week: \(firstActivity.date) to \(lastActivity.date)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            Text("Activities: \(activities.count)")
                 .font(.caption2)
                 .foregroundColor(.secondary)
         }
@@ -166,72 +212,8 @@ struct WeeklyProgressGrid: View {
         .background(Color.orange.opacity(0.1))
         .cornerRadius(6)
     }
-    
+
     // MARK: - Helper Methods
-
-    /// Ensure we always show a complete 7-day week (Mon-Sun) even if some days have no data
-    private func completeWeekActivities(_ activities: [DailyQuestionActivity]) -> [DailyQuestionActivity] {
-        // Get the current week range from existing activities or create it from current date
-        let weekRange = getWeekRange(from: activities)
-        var completeWeek: [DailyQuestionActivity] = []
-
-        // Create all 7 days of the week
-        let calendar = Calendar.current
-        var currentDate = weekRange.start
-
-        for dayIndex in 0..<7 {
-            let dayOfWeek = dayIndex + 1 // Monday = 1, Sunday = 7
-            let dateString = formatDate(currentDate)
-
-            // Find existing activity for this day or create empty one
-            if let existingActivity = activities.first(where: { $0.date == dateString }) {
-                completeWeek.append(existingActivity)
-            } else {
-                // Create empty activity for missing day
-                let emptyActivity = DailyQuestionActivity(
-                    date: dateString,
-                    dayOfWeek: dayOfWeek,
-                    questionCount: 0,
-                    timezone: TimeZone.current.identifier
-                )
-                completeWeek.append(emptyActivity)
-            }
-
-            // Move to next day
-            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
-        }
-
-        return completeWeek
-    }
-
-    /// Get the Monday-Sunday week range for the current week
-    private func getWeekRange(from activities: [DailyQuestionActivity]) -> (start: Date, end: Date) {
-        let calendar = Calendar.current
-        let now = Date()
-
-        // If we have activities, try to determine week from the first activity
-        if let firstActivity = activities.first,
-           let activityDate = dateFromString(firstActivity.date) {
-            return getWeekRange(for: activityDate)
-        }
-
-        // Fallback to current date
-        return getWeekRange(for: now)
-    }
-
-    /// Get Monday-Sunday week range for any given date
-    private func getWeekRange(for date: Date) -> (start: Date, end: Date) {
-        let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: date)
-
-        // Calculate days from Monday (weekday 2 = Monday, weekday 1 = Sunday)
-        let daysFromMonday = (weekday == 1) ? 6 : weekday - 2
-
-        let weekStart = calendar.date(byAdding: .day, value: -daysFromMonday, to: date) ?? date
-        let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
-
-        return (weekStart, weekEnd)
-    }
 
     /// Format date to yyyy-MM-dd string
     private func formatDate(_ date: Date) -> String {
@@ -247,10 +229,6 @@ struct WeeklyProgressGrid: View {
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone.current
         return formatter.date(from: dateString)
-    }
-
-    private func sortedDailyActivities(_ activities: [DailyQuestionActivity]) -> [DailyQuestionActivity] {
-        return activities.sorted { $0.dayOfWeek < $1.dayOfWeek }
     }
 
     private func isToday(_ dateString: String) -> Bool {

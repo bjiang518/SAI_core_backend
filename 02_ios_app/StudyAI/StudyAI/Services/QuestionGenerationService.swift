@@ -89,6 +89,7 @@ class QuestionGenerationService: ObservableObject {
         let mistakeType: String
         let topic: String
         let date: String
+        let tags: [String]  // Tags from source question
 
         var dictionary: [String: Any] {
             return [
@@ -97,7 +98,8 @@ class QuestionGenerationService: ObservableObject {
                 "correct_answer": correctAnswer,
                 "mistake_type": mistakeType,
                 "topic": topic,
-                "date": date
+                "date": date,
+                "tags": tags
             ]
         }
     }
@@ -138,6 +140,7 @@ class QuestionGenerationService: ObservableObject {
         let points: Int?
         let timeEstimate: String?
         let options: [String]? // For multiple choice
+        let tags: [String]? // Tags inherited from source questions
 
         // Custom initializer for JSON decoding - generates UUID if not provided
         init(from decoder: Decoder) throws {
@@ -154,10 +157,11 @@ class QuestionGenerationService: ObservableObject {
             self.points = try container.decodeIfPresent(Int.self, forKey: .points)
             self.timeEstimate = try container.decodeIfPresent(String.self, forKey: .timeEstimate)
             self.options = try container.decodeIfPresent([String].self, forKey: .options)
+            self.tags = try container.decodeIfPresent([String].self, forKey: .tags)
         }
 
         // Regular initializer for programmatic creation
-        init(id: UUID = UUID(), question: String, type: QuestionType, correctAnswer: String, explanation: String, topic: String, difficulty: String, points: Int? = nil, timeEstimate: String? = nil, options: [String]? = nil) {
+        init(id: UUID = UUID(), question: String, type: QuestionType, correctAnswer: String, explanation: String, topic: String, difficulty: String, points: Int? = nil, timeEstimate: String? = nil, options: [String]? = nil, tags: [String]? = nil) {
             self.id = id
             self.question = question
             self.type = type
@@ -168,11 +172,12 @@ class QuestionGenerationService: ObservableObject {
             self.points = points
             self.timeEstimate = timeEstimate
             self.options = options
+            self.tags = tags
         }
 
         // Coding keys for JSON encoding/decoding (excludes id since it's generated)
         enum CodingKeys: String, CodingKey {
-            case question, type, correctAnswer, explanation, topic, difficulty, points, timeEstimate, options
+            case question, type, correctAnswer, explanation, topic, difficulty, points, timeEstimate, options, tags
         }
 
         enum QuestionType: String, Codable, CaseIterable {
@@ -802,6 +807,7 @@ class QuestionGenerationService: ObservableObject {
         let points = dict["points"] as? Int
         let timeEstimate = dict["time_estimate"] as? String ?? dict["estimated_time"] as? String
         let options = dict["options"] as? [String]
+        let tags = dict["tags"] as? [String]  // Parse tags from backend response
 
         // These fields are optional and not required for question generation
         // Removed addresses_mistake and builds_on - they're not necessary for the iOS app
@@ -823,7 +829,8 @@ class QuestionGenerationService: ObservableObject {
             difficulty: difficulty,
             points: points,
             timeEstimate: timeEstimate,
-            options: options
+            options: options,
+            tags: tags
         )
     }
 }

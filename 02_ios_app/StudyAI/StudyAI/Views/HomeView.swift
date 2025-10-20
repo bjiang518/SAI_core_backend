@@ -23,7 +23,13 @@ struct HomeView: View {
     @State private var showingQuestionGeneration = false
     @State private var showingParentReports = false
 
+    // Today's activity from local storage (matching Progress tab)
+    @State private var todayTotalQuestions: Int = 0
+    @State private var todayCorrectAnswers: Int = 0
+    @State private var todayAccuracy: Double = 0.0
+
     private let logger = Logger(subsystem: "com.studyai", category: "HomeView")
+    private let localProgressService = LocalProgressService.shared
 
     var body: some View {
         NavigationView {
@@ -79,6 +85,11 @@ struct HomeView: View {
                     }
                 } else {
                     userName = NSLocalizedString("home.defaultStudentName", comment: "")
+                }
+
+                // Load today's activity from local storage (matching Progress tab)
+                Task {
+                    await loadTodayActivity()
                 }
             }
             .sheet(isPresented: $showingProfile) {
@@ -203,17 +214,17 @@ struct HomeView: View {
                     .foregroundColor(.primary)
 
                 HStack(spacing: DesignTokens.Spacing.md) {
-                    if let todayProgress = pointsManager.todayProgress {
+                    if todayTotalQuestions > 0 {
                         StatBadge(
                             icon: "questionmark.circle.fill",
-                            value: "\(todayProgress.totalQuestions)",
+                            value: "\(todayTotalQuestions)",
                             label: NSLocalizedString("home.questions", comment: ""),
                             color: DesignTokens.Colors.aiBlue
                         )
 
                         StatBadge(
                             icon: "target",
-                            value: "\(Int(todayProgress.accuracy))%",
+                            value: "\(Int(todayAccuracy))%",
                             label: NSLocalizedString("home.accuracy", comment: ""),
                             color: DesignTokens.Colors.learningGreen
                         )
@@ -261,6 +272,18 @@ struct HomeView: View {
         case 0..<12: return NSLocalizedString("home.goodMorning", comment: "")
         case 12..<17: return NSLocalizedString("home.goodAfternoon", comment: "")
         default: return NSLocalizedString("home.goodEvening", comment: "")
+        }
+    }
+
+    // MARK: - Load Today's Activity
+    private func loadTodayActivity() async {
+        // Calculate today's activity from local storage (same as Progress tab)
+        let (totalQuestions, correctAnswers, accuracy) = await localProgressService.calculateTodayActivity()
+
+        await MainActor.run {
+            self.todayTotalQuestions = totalQuestions
+            self.todayCorrectAnswers = correctAnswers
+            self.todayAccuracy = accuracy
         }
     }
 }

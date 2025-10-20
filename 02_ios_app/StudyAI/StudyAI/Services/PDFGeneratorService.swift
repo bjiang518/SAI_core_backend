@@ -650,6 +650,9 @@ class PDFGeneratorService: ObservableObject {
         width: CGFloat,
         font: UIFont
     ) -> CGFloat {
+        // ✅ Convert LaTeX math to Unicode symbols before rendering
+        let renderedText = SimpleMathRenderer.renderMathText(text)
+
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .left
         paragraphStyle.lineBreakMode = .byWordWrapping
@@ -660,7 +663,7 @@ class PDFGeneratorService: ObservableObject {
             .paragraphStyle: paragraphStyle
         ]
 
-        let attributedString = NSAttributedString(string: text, attributes: attributes)
+        let attributedString = NSAttributedString(string: renderedText, attributes: attributes)
         _ = CGRect(x: point.x, y: point.y, width: width, height: 1000) // Large height for calculation
 
         let boundingRect = attributedString.boundingRect(

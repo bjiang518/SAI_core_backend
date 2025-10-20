@@ -555,6 +555,14 @@ enum MistakeTimeRange: String, CaseIterable, Identifiable {
 
     var id: String { self.rawValue }
 
+    var displayName: String {
+        switch self {
+        case .thisWeek: return NSLocalizedString("mistakeReview.timeRange.thisWeek", comment: "")
+        case .thisMonth: return NSLocalizedString("mistakeReview.timeRange.thisMonth", comment: "")
+        case .allTime: return NSLocalizedString("mistakeReview.timeRange.allTime", comment: "")
+        }
+    }
+
     var apiValue: String {
         switch self {
         case .thisWeek: return "last_week"

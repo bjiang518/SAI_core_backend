@@ -21,7 +21,12 @@ struct LearningProgressView: View {
     @State private var selectedTimeframe: TimeframeOption = .currentWeek
     @State private var selectedSubjectFilter: SubjectCategory? = nil
     @State private var loadingTask: Task<Void, Never>? = nil
-    
+
+    // ✅ Today's activity from local storage
+    @State private var todayTotalQuestions: Int = 0
+    @State private var todayCorrectAnswers: Int = 0
+    @State private var todayAccuracy: Double = 0.0
+
     private let viewId = UUID().uuidString.prefix(8)
     
     // Get actual user ID from authentication service
@@ -196,13 +201,13 @@ struct LearningProgressView: View {
         // Points and Streak Overview
         OverviewMetricsCard()
 
-        // Today's Activity Section (moved to top)
-        if let todayProgress = pointsManager.todayProgress {
-
-
-            TodayActivitySection(todayProgress: todayProgress)
-        } else {
-
+        // Today's Activity Section (moved to top) - ✅ Now from local storage
+        if todayTotalQuestions > 0 {
+            TodayActivitySection(
+                totalQuestions: todayTotalQuestions,
+                correctAnswers: todayCorrectAnswers,
+                accuracy: todayAccuracy
+            )
         }
 
         // Weekly Progress Section
@@ -268,13 +273,8 @@ struct LearningProgressView: View {
 
             if selectedTimeframe == .currentWeek {
                 // Show weekly grid for current week
+                // WeeklyProgressGrid now loads its own data from LocalProgressService
                 WeeklyProgressGrid()
-                    .onAppear {
-                        // Force weekly progress initialization if needed
-                        if pointsManager.currentWeeklyProgress == nil {
-                            pointsManager.checkWeeklyReset()
-                        }
-                    }
             } else if selectedTimeframe == .currentMonth {
                 // Show monthly calendar for current month
                 MonthlyProgressGrid()
@@ -380,7 +380,7 @@ struct LearningProgressView: View {
     
     // MARK: - Today Activity Section
     
-    private func TodayActivitySection(todayProgress: DailyProgress) -> some View {
+    private func TodayActivitySection(totalQuestions: Int, correctAnswers: Int, accuracy: Double) -> some View {
 
 
 
@@ -396,21 +396,21 @@ struct LearningProgressView: View {
             HStack(spacing: 20) {
                 ProgressMetric(
                     title: NSLocalizedString("progress.questions", comment: "Questions count"),
-                    value: "\(todayProgress.totalQuestions)",
+                    value: "\(totalQuestions)",
                     icon: "questionmark.circle.fill",
                     color: .blue
                 )
 
                 ProgressMetric(
                     title: NSLocalizedString("progress.correct", comment: "Correct answers count"),
-                    value: "\(todayProgress.correctAnswers)",
+                    value: "\(correctAnswers)",
                     icon: "checkmark.circle.fill",
                     color: .green
                 )
 
                 ProgressMetric(
                     title: NSLocalizedString("progress.accuracy", comment: "Accuracy percentage"),
-                    value: "\(Int(todayProgress.accuracy))%",
+                    value: "\(Int(accuracy))%",
                     icon: "target",
                     color: .orange
                 )
@@ -850,13 +850,14 @@ struct LearningProgressView: View {
         await MainActor.run {
             isLoading = true
         }
-        
+
         async let basicProgress = loadBasicProgress()
         async let subjectData = loadSubjectBreakdown()
-        
-        // Wait for both to complete (or be cancelled)
-        let _ = await (basicProgress, subjectData)
-        
+        async let todayData = loadTodayActivity()
+
+        // Wait for all to complete (or be cancelled)
+        let _ = await (basicProgress, subjectData, todayData)
+
         if !Task.isCancelled {
             await MainActor.run {
                 isLoading = false
@@ -866,14 +867,26 @@ struct LearningProgressView: View {
 
         }
     }
-    
+
     private func loadBasicProgress() async {
         // Simulate basic progress loading
         try? await Task.sleep(nanoseconds: 500_000_000)
-        
+
         await MainActor.run {
             // Basic progress is handled by PointsEarningManager
 
+        }
+    }
+
+    private func loadTodayActivity() async {
+        // ✅ Calculate today's activity from local storage
+        let localProgressService = LocalProgressService.shared
+        let (totalQuestions, correctAnswers, accuracy) = await localProgressService.calculateTodayActivity()
+
+        await MainActor.run {
+            self.todayTotalQuestions = totalQuestions
+            self.todayCorrectAnswers = correctAnswers
+            self.todayAccuracy = accuracy
         }
     }
     

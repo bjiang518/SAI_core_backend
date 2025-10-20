@@ -21,7 +21,16 @@ struct GeneratedQuestionsListView: View {
     @State private var isSelectionMode = false
     @State private var showingPDFGenerator = false
 
+    // Progress tracking state
+    @State private var answeredQuestions: [UUID: QuestionResult] = [:] // Track answered questions with results
+
     private let logger = Logger(subsystem: "com.studyai", category: "GeneratedQuestionsList")
+
+    // Track question answer results
+    struct QuestionResult {
+        let isCorrect: Bool
+        let points: Int
+    }
 
     var filteredQuestions: [QuestionGenerationService.GeneratedQuestion] {
         if searchText.isEmpty {
@@ -68,12 +77,19 @@ struct GeneratedQuestionsListView: View {
                     questionsListSection
                 }
             }
-            .navigationTitle("Generated Questions")
+            .navigationTitle(NSLocalizedString("generatedQuestions.title", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .navigationBarItems(trailing: closeButton)
             .sheet(isPresented: $showingQuestionDetail) {
                 if let selectedQuestion = selectedQuestion {
-                    GeneratedQuestionDetailView(question: selectedQuestion)
+                    GeneratedQuestionDetailView(
+                        question: selectedQuestion,
+                        onAnswerSubmitted: { isCorrect, points in
+                            // Track the answer result
+                            answeredQuestions[selectedQuestion.id] = QuestionResult(isCorrect: isCorrect, points: points)
+                            logger.info("📝 Question answered: \(selectedQuestion.id), correct: \(isCorrect)")
+                        }
+                    )
                 }
             }
             .sheet(isPresented: $showingPDFGenerator) {
@@ -98,7 +114,9 @@ struct GeneratedQuestionsListView: View {
         }) {
             HStack {
                 Image(systemName: "doc.text.fill")
-                Text("Generate PDF")
+                Text(NSLocalizedString("generatedQuestions.generatePDF", comment: ""))
+                    .font(.body)
+                    .fontWeight(.semibold)
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
@@ -117,19 +135,19 @@ struct GeneratedQuestionsListView: View {
                     selectedQuestions = Set(questions.map { $0.id })
                 }
             }) {
-                Text(selectedQuestions.count == questions.count ? "Deselect All" : "Select All")
+                Text(selectedQuestions.count == questions.count ? NSLocalizedString("common.deselectAll", comment: "") : NSLocalizedString("common.selectAll", comment: ""))
                     .font(.subheadline)
             }
 
             Spacer()
 
-            Text("\(selectedQuestions.count) selected")
+            Text(String.localizedStringWithFormat(NSLocalizedString("generatedQuestions.questionsSelected", comment: ""), selectedQuestions.count))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
             Spacer()
 
-            Button("Cancel") {
+            Button(NSLocalizedString("common.cancel", comment: "")) {
                 isSelectionMode = false
                 selectedQuestions.removeAll()
             }
@@ -143,7 +161,9 @@ struct GeneratedQuestionsListView: View {
         }) {
             HStack {
                 Image(systemName: "doc.badge.plus")
-                Text("Generate PDF (\(selectedQuestions.count) questions)")
+                Text(String.localizedStringWithFormat(NSLocalizedString("generatedQuestions.generatePDFCount", comment: ""), selectedQuestions.count))
+                    .font(.body)
+                    .fontWeight(.semibold)
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
@@ -160,7 +180,7 @@ struct GeneratedQuestionsListView: View {
                     .font(.body)
                     .foregroundColor(.secondary)
 
-                TextField("Search questions or topics...", text: $searchText)
+                TextField(NSLocalizedString("generatedQuestions.searchPlaceholder", comment: ""), text: $searchText)
                     .textFieldStyle(PlainTextFieldStyle())
 
                 if !searchText.isEmpty {
@@ -177,15 +197,15 @@ struct GeneratedQuestionsListView: View {
 
             // Filter summary
             HStack {
-                Text("\(filteredQuestions.count) of \(questions.count) questions")
-                    .font(.footnote)
+                Text(String.localizedStringWithFormat(NSLocalizedString("generatedQuestions.questionsCount", comment: ""), filteredQuestions.count, questions.count))
+                    .font(.caption)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
                 if !searchText.isEmpty {
-                    Text("Filtered by: \"\(searchText)\"")
-                        .font(.footnote)
+                    Text(String.localizedStringWithFormat(NSLocalizedString("generatedQuestions.filteredBy", comment: ""), searchText))
+                        .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
@@ -237,20 +257,20 @@ struct GeneratedQuestionsListView: View {
                 .foregroundColor(.secondary)
 
             VStack(spacing: 8) {
-                Text(searchText.isEmpty ? "No Questions Generated" : "No Matching Questions")
-                    .font(.title3)
-                    .fontWeight(.medium)
+                Text(searchText.isEmpty ? NSLocalizedString("generatedQuestions.noQuestions", comment: "") : NSLocalizedString("generatedQuestions.noMatchingQuestions", comment: ""))
+                    .font(.headline)
+                    .fontWeight(.semibold)
 
                 Text(searchText.isEmpty ?
-                     "Questions will appear here after generation" :
-                     "Try adjusting your search terms")
+                     NSLocalizedString("generatedQuestions.noQuestionsMessage", comment: "") :
+                     NSLocalizedString("generatedQuestions.noMatchingMessage", comment: ""))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
 
             if !searchText.isEmpty {
-                Button("Clear Search") {
+                Button(NSLocalizedString("generatedQuestions.clearSearch", comment: "")) {
                     searchText = ""
                 }
                 .font(.subheadline)
@@ -267,8 +287,8 @@ struct GeneratedQuestionsListView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 16) {
-                Text("Question Summary")
-                    .font(.title3)
+                Text(NSLocalizedString("generatedQuestions.summary", comment: ""))
+                    .font(.headline)
                     .fontWeight(.semibold)
 
                 // Type breakdown
@@ -312,10 +332,11 @@ struct GeneratedQuestionsListView: View {
     }
 
     private var closeButton: some View {
-        Button("Done") {
+        Button(NSLocalizedString("common.done", comment: "")) {
             dismiss()
         }
-        .font(.body.bold())
+        .font(.body)
+        .fontWeight(.semibold)
     }
 
     private func difficultyColor(_ difficulty: String) -> Color {
@@ -333,6 +354,7 @@ struct GeneratedQuestionsListView: View {
         let mostCommonTopic = topicCounts.max(by: { $0.value.count < $1.value.count })?.key ?? "Practice"
         return mostCommonTopic
     }
+
 }
 
 struct QuestionListCard: View {
@@ -360,7 +382,7 @@ struct QuestionListCard: View {
                                     .font(.title3)
                                     .foregroundColor(isSelected ? .blue : .gray)
 
-                                Text(isSelected ? "Selected" : "Select")
+                                Text(isSelected ? NSLocalizedString("generatedQuestions.selected", comment: "") : NSLocalizedString("generatedQuestions.select", comment: ""))
                                     .font(.subheadline)
                                     .foregroundColor(isSelected ? .blue : .gray)
                             }
@@ -420,7 +442,7 @@ struct QuestionListCard: View {
                     }
 
                     if let points = question.points {
-                        Label("\(points) pts", systemImage: "star.fill")
+                        Label(String(format: NSLocalizedString("generatedQuestions.points", comment: ""), points), systemImage: "star.fill")
                             .font(.caption)
                             .foregroundColor(.orange)
                     }
@@ -446,7 +468,7 @@ struct QuestionListCard: View {
                     Spacer()
 
                     HStack(spacing: 4) {
-                        Text("View Details")
+                        Text(NSLocalizedString("generatedQuestions.viewDetails", comment: ""))
                             .font(.caption)
                             .foregroundColor(.blue)
 
@@ -526,7 +548,7 @@ struct PracticePDFPreviewView: View {
                             .progressViewStyle(LinearProgressViewStyle())
                             .padding(.horizontal, 40)
 
-                        Text(pdfGenerator.isGenerating ? "Generating PDF..." : "Loading...")
+                        Text(pdfGenerator.isGenerating ? NSLocalizedString("generatedQuestions.generatingPDF", comment: "") : NSLocalizedString("generatedQuestions.loading", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
@@ -549,7 +571,7 @@ struct PracticePDFPreviewView: View {
                                         .font(.title2)
                                         .foregroundColor(.blue)
 
-                                    Text("Print")
+                                    Text(NSLocalizedString("generatedQuestions.print", comment: ""))
                                         .font(.caption)
                                         .foregroundColor(.primary)
                                 }
@@ -567,7 +589,7 @@ struct PracticePDFPreviewView: View {
                                         .font(.title2)
                                         .foregroundColor(.green)
 
-                                    Text("Email")
+                                    Text(NSLocalizedString("generatedQuestions.email", comment: ""))
                                         .font(.caption)
                                         .foregroundColor(.primary)
                                 }
@@ -585,7 +607,7 @@ struct PracticePDFPreviewView: View {
                                         .font(.title2)
                                         .foregroundColor(.orange)
 
-                                    Text("Share")
+                                    Text(NSLocalizedString("generatedQuestions.share", comment: ""))
                                         .font(.caption)
                                         .foregroundColor(.primary)
                                 }
@@ -606,15 +628,15 @@ struct PracticePDFPreviewView: View {
                             .font(.system(size: 60))
                             .foregroundColor(.orange)
 
-                        Text("Failed to Generate PDF")
-                            .font(.title3)
-                            .fontWeight(.medium)
+                        Text(NSLocalizedString("generatedQuestions.pdfError", comment: ""))
+                            .font(.headline)
+                            .fontWeight(.semibold)
 
-                        Text("Please try again")
+                        Text(NSLocalizedString("generatedQuestions.tryAgain", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
-                        Button("Retry") {
+                        Button(NSLocalizedString("generatedQuestions.retry", comment: "")) {
                             Task {
                                 await generatePDF()
                             }
@@ -623,11 +645,11 @@ struct PracticePDFPreviewView: View {
                     }
                 }
             }
-            .navigationTitle("PDF Preview")
+            .navigationTitle(NSLocalizedString("generatedQuestions.pdfPreview", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
+                    Button(NSLocalizedString("common.close", comment: "")) {
                         dismiss()
                     }
                 }
@@ -703,14 +725,19 @@ struct PracticePDFPreviewView: View {
     }
 
     private func createEmailBody() -> String {
-        """
-        Hi!
+        let greeting = NSLocalizedString("generatedQuestions.emailGreeting", comment: "")
+        let body = String(format: NSLocalizedString("generatedQuestions.emailBody", comment: ""), questions.count, subject)
+        let generatedBy = NSLocalizedString("generatedQuestions.emailGeneratedBy", comment: "")
+        let closing = NSLocalizedString("generatedQuestions.emailClosing", comment: "")
 
-        I'm sharing \(questions.count) practice questions for \(subject).
+        return """
+        \(greeting)
 
-        This PDF was generated using Study Mate, an AI-powered learning companion.
+        \(body)
 
-        Happy studying!
+        \(generatedBy)
+
+        \(closing)
         """
     }
 }

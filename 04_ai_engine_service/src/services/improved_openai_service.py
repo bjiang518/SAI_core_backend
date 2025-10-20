@@ -2471,6 +2471,24 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 if not questions_json or len(questions_json) == 0:
                     raise ValueError("No valid questions could be extracted from response")
 
+                # Extract unique tags from source mistakes for enforcement
+                all_source_tags = []
+                for mistake in mistakes_data:
+                    mistake_tags = mistake.get('tags', [])
+                    if mistake_tags:
+                        all_source_tags.extend(mistake_tags)
+                unique_source_tags = list(set(all_source_tags))
+
+                # ENFORCEMENT: Override all question tags with source tags
+                # This ensures tag inheritance even if AI doesn't follow instructions
+                if unique_source_tags:
+                    print(f"🏷️ Enforcing tag inheritance: {unique_source_tags}")
+                    for question in questions_json:
+                        question['tags'] = unique_source_tags
+                        print(f"  ✓ Set tags for question: '{question.get('question', '')[:50]}...'")
+                else:
+                    print(f"⚠️ No source tags found in mistakes_data, generated questions will have no tags")
+
                 # Validate each question has required fields
                 required_fields = ["question", "type", "correct_answer", "explanation", "topic"]
                 for i, question in enumerate(questions_json):

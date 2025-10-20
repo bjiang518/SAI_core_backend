@@ -26,12 +26,12 @@ struct MistakeReviewView: View {
                                 .font(.title2)
                                 .foregroundColor(.orange)
 
-                            Text("Learn from your mistakes")
+                            Text(NSLocalizedString("mistakeReview.header.title", comment: ""))
                                 .font(.headline)
                                 .foregroundColor(.secondary)
                         }
 
-                        Text("Select a subject and time range to review questions you got wrong")
+                        Text(NSLocalizedString("mistakeReview.header.subtitle", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -42,7 +42,7 @@ struct MistakeReviewView: View {
 
                     // Time Range Selection
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Time Range")
+                        Text(NSLocalizedString("mistakeReview.timeRangeTitle", comment: ""))
                             .font(.headline)
 
                         HStack(spacing: 12) {
@@ -65,11 +65,11 @@ struct MistakeReviewView: View {
                     // Subject Selection
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
-                            Text("Subjects with Mistakes")
+                            Text(NSLocalizedString("mistakeReview.subjectsTitle", comment: ""))
                                 .font(.headline)
 
                             if let timeRange = selectedTimeRange {
-                                Text("(\(timeRange.rawValue))")
+                                Text("(\(timeRange.displayName))")
                                     .font(.caption)
                                     .foregroundColor(.blue)
                                     .padding(.horizontal, 8)
@@ -80,7 +80,7 @@ struct MistakeReviewView: View {
                         }
 
                         if mistakeService.isLoading {
-                            ProgressView("Loading subjects...")
+                            ProgressView(NSLocalizedString("mistakeReview.loadingSubjects", comment: ""))
                                 .frame(height: 100)
                         } else if mistakeService.subjectsWithMistakes.isEmpty {
                             VStack(spacing: 12) {
@@ -88,11 +88,11 @@ struct MistakeReviewView: View {
                                     .font(.system(size: 48))
                                     .foregroundColor(.green)
 
-                                Text("No mistakes found!")
+                                Text(NSLocalizedString("mistakeReview.noMistakesFound", comment: ""))
                                     .font(.headline)
                                     .foregroundColor(.green)
 
-                                Text("Great job! You haven't made any mistakes in the selected time range.")
+                                Text(NSLocalizedString("mistakeReview.noMistakesMessage", comment: ""))
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                     .multilineTextAlignment(.center)
@@ -123,7 +123,7 @@ struct MistakeReviewView: View {
                                 Image(systemName: "play.circle.fill")
                                     .font(.title2)
 
-                                Text("Start Review")
+                                Text(NSLocalizedString("mistakeReview.startReview", comment: ""))
                                     .font(.headline)
                                     .fontWeight(.semibold)
                             }
@@ -140,11 +140,11 @@ struct MistakeReviewView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Mistake Review")
+            .navigationTitle(NSLocalizedString("mistakeReview.title", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                 }
@@ -182,7 +182,7 @@ struct TimeRangeButton: View {
                     .font(.title2)
                     .foregroundColor(isSelected ? .white : .blue)
 
-                Text(range.rawValue)
+                Text(range.displayName)
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundColor(isSelected ? .white : .blue)
@@ -214,7 +214,9 @@ struct SubjectCard: View {
                     .foregroundColor(isSelected ? .white : .primary)
                     .multilineTextAlignment(.center)
 
-                Text("\(subject.mistakeCount) mistake\(subject.mistakeCount == 1 ? "" : "s")")
+                Text(subject.mistakeCount == 1 ?
+                     NSLocalizedString("mistakeReview.mistakeSingular", comment: "") :
+                     String.localizedStringWithFormat(NSLocalizedString("mistakeReview.mistakePlural", comment: ""), subject.mistakeCount))
                     .font(.caption)
                     .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
             }
@@ -255,7 +257,7 @@ struct MistakeQuestionListView: View {
                                 Image(systemName: "doc.text.fill")
                                     .font(.title2)
 
-                                Text("Let's do them again")
+                                Text(NSLocalizedString("mistakeReview.letsDoAgain", comment: ""))
                                     .font(.headline)
                                     .fontWeight(.semibold)
                             }
@@ -281,14 +283,16 @@ struct MistakeQuestionListView: View {
                                 selectedQuestions = Set(mistakeService.mistakes.map { $0.id })
                             }
                         }) {
-                            Text(selectedQuestions.count == mistakeService.mistakes.count ? "Deselect All" : "Select All")
+                            Text(selectedQuestions.count == mistakeService.mistakes.count ?
+                                 NSLocalizedString("common.deselectAll", comment: "") :
+                                 NSLocalizedString("common.selectAll", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.blue)
                         }
 
                         Spacer()
 
-                        Text("\(selectedQuestions.count) selected")
+                        Text(String.localizedStringWithFormat(NSLocalizedString("mistakeReview.selectedCount", comment: ""), selectedQuestions.count))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
@@ -298,7 +302,7 @@ struct MistakeQuestionListView: View {
                             isSelectionMode = false
                             selectedQuestions.removeAll()
                         }) {
-                            Text("Cancel")
+                            Text(NSLocalizedString("common.cancel", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.red)
                         }
@@ -309,7 +313,7 @@ struct MistakeQuestionListView: View {
 
                 Group {
                     if mistakeService.isLoading {
-                        ProgressView("Loading mistakes...")
+                        ProgressView(NSLocalizedString("mistakeReview.loadingMistakes", comment: ""))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if mistakeService.mistakes.isEmpty {
                         VStack(spacing: 16) {
@@ -317,11 +321,11 @@ struct MistakeQuestionListView: View {
                                 .font(.system(size: 64))
                                 .foregroundColor(.green)
 
-                            Text("No mistakes found!")
+                            Text(NSLocalizedString("mistakeReview.noMistakesFound", comment: ""))
                                 .font(.title2)
                                 .fontWeight(.bold)
 
-                            Text("You haven't made any mistakes in \(subject.lowercased()) during this time period.")
+                            Text(String.localizedStringWithFormat(NSLocalizedString("mistakeReview.noMistakesInSubject", comment: ""), subject))
                                 .font(.body)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
@@ -353,7 +357,7 @@ struct MistakeQuestionListView: View {
                             Image(systemName: "doc.badge.plus")
                                 .font(.title2)
 
-                            Text("Generate PDF (\(selectedQuestions.count) questions)")
+                            Text(String.localizedStringWithFormat(NSLocalizedString("mistakeReview.generatePDF", comment: ""), selectedQuestions.count))
                                 .font(.headline)
                                 .fontWeight(.semibold)
                         }
@@ -368,11 +372,11 @@ struct MistakeQuestionListView: View {
                     .padding(.bottom)
                 }
             }
-            .navigationTitle("\(subject) Mistakes")
+            .navigationTitle(String.localizedStringWithFormat(NSLocalizedString("mistakeReview.subjectMistakes", comment: ""), subject))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                 }
@@ -422,7 +426,9 @@ struct MistakeQuestionCard: View {
                                 .foregroundColor(isSelected ? .blue : .gray)
                                 .font(.title2)
 
-                            Text(isSelected ? "Selected" : "Select")
+                            Text(isSelected ?
+                                 NSLocalizedString("mistakeReview.selected", comment: "") :
+                                 NSLocalizedString("mistakeReview.select", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(isSelected ? .blue : .gray)
                         }
@@ -435,7 +441,7 @@ struct MistakeQuestionCard: View {
             }
             // Question
             VStack(alignment: .leading, spacing: 8) {
-                Text("Question:")
+                Text(NSLocalizedString("mistakeReview.questionLabel", comment: ""))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
@@ -447,12 +453,14 @@ struct MistakeQuestionCard: View {
 
             // Your incorrect answer
             VStack(alignment: .leading, spacing: 8) {
-                Text("Your Answer:")
+                Text(NSLocalizedString("mistakeReview.yourAnswerLabel", comment: ""))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
 
-                Text(question.studentAnswer.isEmpty ? "No answer provided" : question.studentAnswer)
+                Text(question.studentAnswer.isEmpty ?
+                     NSLocalizedString("mistakeReview.noAnswer", comment: "") :
+                     question.studentAnswer)
                     .font(.body)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
@@ -467,7 +475,7 @@ struct MistakeQuestionCard: View {
 
             // Correct answer
             VStack(alignment: .leading, spacing: 8) {
-                Text("Correct Answer:")
+                Text(NSLocalizedString("mistakeReview.correctAnswerLabel", comment: ""))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
@@ -490,7 +498,7 @@ struct MistakeQuestionCard: View {
                 Button(action: { showingExplanation.toggle() }) {
                     HStack {
                         Image(systemName: showingExplanation ? "chevron.down" : "chevron.right")
-                        Text("Show Explanation")
+                        Text(NSLocalizedString("mistakeReview.showExplanation", comment: ""))
                     }
                     .font(.caption)
                     .foregroundColor(.blue)

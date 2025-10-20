@@ -10,14 +10,43 @@ import os.log
 
 struct GeneratedQuestionDetailView: View {
     let question: QuestionGenerationService.GeneratedQuestion
+    let onAnswerSubmitted: ((Bool, Int) -> Void)? // Callback with isCorrect and points
+
     @Environment(\.dismiss) private var dismiss
     @State private var userAnswer = ""
     @State private var selectedOption: String?
     @State private var hasSubmitted = false
     @State private var showingExplanation = false
     @State private var isCorrect = false
+    @State private var isArchived = false
+    @State private var showingArchiveSuccess = false
+    @State private var isArchiving = false
+
+    // Mark progress state
+    @State private var hasMarkedProgress = false
+    @ObservedObject private var pointsManager = PointsEarningManager.shared
 
     private let logger = Logger(subsystem: "com.studyai", category: "QuestionDetail")
+    private let archiveService = QuestionArchiveService.shared
+
+    // UserDefaults keys
+    private var progressMarkedKey: String {
+        return "question_progress_marked_\(question.id)"
+    }
+
+    private var archivedStateKey: String {
+        return "question_archived_\(question.id)"
+    }
+
+    private var answerPersistenceKey: String {
+        return "question_answer_\(question.id.uuidString)"
+    }
+
+    // Default initializer without callback (for backwards compatibility)
+    init(question: QuestionGenerationService.GeneratedQuestion, onAnswerSubmitted: ((Bool, Int) -> Void)? = nil) {
+        self.question = question
+        self.onAnswerSubmitted = onAnswerSubmitted
+    }
 
     var body: some View {
         NavigationView {
@@ -54,11 +83,14 @@ struct GeneratedQuestionDetailView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Question Details")
+            .navigationTitle(NSLocalizedString("questionDetail.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(trailing: closeButton)
             .onAppear {
                 logger.info("📝 Question detail view appeared for: \(question.type.displayName)")
+                loadProgressState()
+                loadArchivedState()
+                loadSavedAnswer()
             }
         }
     }
@@ -92,7 +124,7 @@ struct GeneratedQuestionDetailView: View {
                         Image(systemName: "star.fill")
                             .font(.caption)
                             .foregroundColor(.orange)
-                        Text("\(points) pts")
+                        Text(String(format: NSLocalizedString("questionDetail.pointsValue", comment: ""), points))
                             .font(.caption)
                             .fontWeight(.medium)
                             .foregroundColor(.orange)
@@ -122,7 +154,7 @@ struct GeneratedQuestionDetailView: View {
 
     private var questionContent: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Text("Question")
+            Text(NSLocalizedString("questionDetail.question", comment: ""))
                 .font(.title3)
                 .fontWeight(.semibold)
 
@@ -142,7 +174,7 @@ struct GeneratedQuestionDetailView: View {
 
     private var answerInputSection: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Text("Your Answer")
+            Text(NSLocalizedString("questionDetail.yourAnswerPrompt", comment: ""))
                 .font(.title3)
                 .fontWeight(.semibold)
 
@@ -193,44 +225,44 @@ struct GeneratedQuestionDetailView: View {
 
     private var trueFalseInput: some View {
         HStack(spacing: 24) {
-            Button(action: { selectedOption = "True" }) {
+            Button(action: { selectedOption = NSLocalizedString("questionDetail.true", comment: "") }) {
                 HStack {
-                    Image(systemName: selectedOption == "True" ? "checkmark.circle.fill" : "circle")
+                    Image(systemName: selectedOption == NSLocalizedString("questionDetail.true", comment: "") ? "checkmark.circle.fill" : "circle")
                         .font(.title2)
-                        .foregroundColor(selectedOption == "True" ? .green : .secondary)
+                        .foregroundColor(selectedOption == NSLocalizedString("questionDetail.true", comment: "") ? .green : .secondary)
 
-                    Text("True")
+                    Text(NSLocalizedString("questionDetail.true", comment: ""))
                         .font(.body.bold())
                         .foregroundColor(.primary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(selectedOption == "True" ? Color.green.opacity(0.05) : Color.gray.opacity(0.1))
+                .background(selectedOption == NSLocalizedString("questionDetail.true", comment: "") ? Color.green.opacity(0.05) : Color.gray.opacity(0.1))
                 .cornerRadius(12)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(selectedOption == "True" ? Color.green : Color.clear, lineWidth: 2)
+                        .stroke(selectedOption == NSLocalizedString("questionDetail.true", comment: "") ? Color.green : Color.clear, lineWidth: 2)
                 )
             }
             .buttonStyle(PlainButtonStyle())
 
-            Button(action: { selectedOption = "False" }) {
+            Button(action: { selectedOption = NSLocalizedString("questionDetail.false", comment: "") }) {
                 HStack {
-                    Image(systemName: selectedOption == "False" ? "xmark.circle.fill" : "circle")
+                    Image(systemName: selectedOption == NSLocalizedString("questionDetail.false", comment: "") ? "xmark.circle.fill" : "circle")
                         .font(.title2)
-                        .foregroundColor(selectedOption == "False" ? .red : .secondary)
+                        .foregroundColor(selectedOption == NSLocalizedString("questionDetail.false", comment: "") ? .red : .secondary)
 
-                    Text("False")
+                    Text(NSLocalizedString("questionDetail.false", comment: ""))
                         .font(.body.bold())
                         .foregroundColor(.primary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(selectedOption == "False" ? Color.red.opacity(0.05) : Color.gray.opacity(0.1))
+                .background(selectedOption == NSLocalizedString("questionDetail.false", comment: "") ? Color.red.opacity(0.05) : Color.gray.opacity(0.1))
                 .cornerRadius(12)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(selectedOption == "False" ? Color.red : Color.clear, lineWidth: 2)
+                        .stroke(selectedOption == NSLocalizedString("questionDetail.false", comment: "") ? Color.red : Color.clear, lineWidth: 2)
                 )
             }
             .buttonStyle(PlainButtonStyle())
@@ -250,7 +282,7 @@ struct GeneratedQuestionDetailView: View {
                             .stroke(Color.blue.opacity(0.2), lineWidth: 1)
                     )
             } else {
-                TextField("Enter your answer...", text: $userAnswer)
+                TextField(NSLocalizedString("questionDetail.enterAnswer", comment: ""), text: $userAnswer)
                     .textFieldStyle(PlainTextFieldStyle())
                     .padding()
                     .background(Color.gray.opacity(0.1))
@@ -261,7 +293,7 @@ struct GeneratedQuestionDetailView: View {
                     )
             }
 
-            Text(question.type == .essay ? "Provide a detailed explanation" : "Type your answer above")
+            Text(question.type == .essay ? NSLocalizedString("questionDetail.provideDetailedExplanation", comment: "") : NSLocalizedString("questionDetail.typeAnswerAbove", comment: ""))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -273,7 +305,7 @@ struct GeneratedQuestionDetailView: View {
                 Image(systemName: "paperplane.fill")
                     .font(.headline)
 
-                Text("Submit Answer")
+                Text(NSLocalizedString("questionDetail.submitAnswer", comment: ""))
                     .font(.body.bold())
             }
             .foregroundColor(.white)
@@ -294,7 +326,7 @@ struct GeneratedQuestionDetailView: View {
 
     private var resultsSection: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Text("Results")
+            Text(NSLocalizedString("questionDetail.results", comment: ""))
                 .font(.title3)
                 .fontWeight(.semibold)
 
@@ -305,7 +337,7 @@ struct GeneratedQuestionDetailView: View {
                         .font(.title2)
                         .foregroundColor(isCorrect ? .green : .red)
 
-                    Text(isCorrect ? "Correct!" : "Incorrect")
+                    Text(isCorrect ? NSLocalizedString("questionDetail.correct", comment: "") : NSLocalizedString("questionDetail.incorrect", comment: ""))
                         .font(.body.bold())
                         .foregroundColor(isCorrect ? .green : .red)
                 }
@@ -317,7 +349,7 @@ struct GeneratedQuestionDetailView: View {
                         Image(systemName: "lightbulb.fill")
                             .font(.body)
 
-                        Text(showingExplanation ? "Hide Explanation" : "Show Explanation")
+                        Text(showingExplanation ? NSLocalizedString("questionDetail.hideExplanation", comment: "") : NSLocalizedString("questionDetail.showExplanation", comment: ""))
                             .font(.subheadline)
                     }
                     .foregroundColor(.blue)
@@ -328,7 +360,7 @@ struct GeneratedQuestionDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 // User's answer
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Your Answer:")
+                    Text(NSLocalizedString("questionDetail.yourAnswer", comment: ""))
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
@@ -347,7 +379,7 @@ struct GeneratedQuestionDetailView: View {
 
                 // Correct answer
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Correct Answer:")
+                    Text(NSLocalizedString("questionDetail.correctAnswer", comment: ""))
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
@@ -364,10 +396,69 @@ struct GeneratedQuestionDetailView: View {
                         )
                 }
             }
+
+            // Archive Button
+            if !isArchived {
+                Button(action: archiveQuestion) {
+                    HStack(spacing: 12) {
+                        if isArchiving {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "archivebox.fill")
+                                .font(.headline)
+                        }
+
+                        Text(isArchiving ? NSLocalizedString("questionDetail.archiving", comment: "") : NSLocalizedString("questionDetail.archiveQuestion", comment: ""))
+                            .font(.body.bold())
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        LinearGradient(
+                            colors: [.purple, .purple.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(12)
+                    .disabled(isArchiving)
+                }
+                .opacity(isArchiving ? 0.6 : 1.0)
+            } else {
+                // Archived indicator
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.headline)
+                        .foregroundColor(.green)
+
+                    Text(NSLocalizedString("questionDetail.archived", comment: ""))
+                        .font(.body.bold())
+                        .foregroundColor(.green)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(Color.green.opacity(0.1))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                )
+            }
+
+            // Mark Progress Button (show after answer submission)
+            markProgressButton
         }
         .padding()
         .background(Color.gray.opacity(0.1))
         .cornerRadius(16)
+        .alert(NSLocalizedString("questionDetail.archiveSuccess", comment: ""), isPresented: $showingArchiveSuccess) {
+            Button(NSLocalizedString("common.ok", comment: "")) { }
+        } message: {
+            Text(NSLocalizedString("questionDetail.archiveSuccessMessage", comment: ""))
+        }
     }
 
     private var explanationSection: some View {
@@ -377,7 +468,7 @@ struct GeneratedQuestionDetailView: View {
                     .font(.title3)
                     .foregroundColor(.yellow)
 
-                Text("Explanation")
+                Text(NSLocalizedString("questionDetail.explanation", comment: ""))
                     .font(.title3)
                     .fontWeight(.semibold)
             }
@@ -399,21 +490,21 @@ struct GeneratedQuestionDetailView: View {
 
     private var questionMetadata: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Question Info")
+            Text(NSLocalizedString("questionDetail.questionInfo", comment: ""))
                 .font(.title3)
                 .fontWeight(.semibold)
 
             VStack(spacing: 12) {
-                MetadataRow(label: "Type", value: question.type.displayName, icon: question.typeIcon)
-                MetadataRow(label: "Topic", value: question.topic, icon: "tag")
-                MetadataRow(label: "Difficulty", value: question.difficulty.capitalized, icon: "chart.bar")
+                MetadataRow(label: NSLocalizedString("questionDetail.type", comment: ""), value: question.type.displayName, icon: question.typeIcon)
+                MetadataRow(label: NSLocalizedString("questionDetail.topic", comment: ""), value: question.topic, icon: "tag")
+                MetadataRow(label: NSLocalizedString("questionDetail.difficulty", comment: ""), value: question.difficulty.capitalized, icon: "chart.bar")
 
                 if let timeEstimate = question.timeEstimate {
-                    MetadataRow(label: "Time Estimate", value: timeEstimate, icon: "clock")
+                    MetadataRow(label: NSLocalizedString("questionDetail.timeEstimate", comment: ""), value: timeEstimate, icon: "clock")
                 }
 
                 if let points = question.points {
-                    MetadataRow(label: "Points", value: "\(points)", icon: "star")
+                    MetadataRow(label: NSLocalizedString("questionDetail.points", comment: ""), value: "\(points)", icon: "star")
                 }
             }
         }
@@ -423,7 +514,7 @@ struct GeneratedQuestionDetailView: View {
     }
 
     private var closeButton: some View {
-        Button("Done") {
+        Button(NSLocalizedString("common.done", comment: "")) {
             dismiss()
         }
         .font(.body.bold())
@@ -451,12 +542,215 @@ struct GeneratedQuestionDetailView: View {
         hasSubmitted = true
         let currentAnswer = getCurrentAnswer()
 
-        // Simple correctness check (in a real app, this would be more sophisticated)
-        isCorrect = currentAnswer.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) ==
-                   question.correctAnswer.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        // Normalize answers by removing "A)" prefix if present
+        let normalizedUserAnswer = normalizeAnswer(currentAnswer)
+        let normalizedCorrectAnswer = normalizeAnswer(question.correctAnswer)
+
+        // Compare normalized answers
+        isCorrect = normalizedUserAnswer == normalizedCorrectAnswer
 
         showingExplanation = true
         logger.info("📝 Answer submitted: \(isCorrect ? "Correct" : "Incorrect")")
+
+        // Save answer for persistence
+        saveAnswer()
+
+        // Notify parent view about the answer result
+        let earnedPoints = isCorrect ? (question.points ?? 1) : 0
+        onAnswerSubmitted?(isCorrect, earnedPoints)
+    }
+
+    /// Normalize an answer by removing "A)" prefix and trimming whitespace
+    private func normalizeAnswer(_ answer: String) -> String {
+        var normalized = answer.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Remove "A)" or similar prefixes (A), B), C), etc.)
+        let prefixPattern = "^[a-z]\\)\\s*"
+        if let regex = try? NSRegularExpression(pattern: prefixPattern, options: []) {
+            let range = NSRange(normalized.startIndex..., in: normalized)
+            normalized = regex.stringByReplacingMatches(in: normalized, options: [], range: range, withTemplate: "")
+        }
+
+        return normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    // MARK: - Mark Progress
+
+    private var markProgressButton: some View {
+        VStack(spacing: 16) {
+            Button(action: {
+                // Only track if not already marked
+                if !hasMarkedProgress {
+                    trackPracticeProgress()
+                    hasMarkedProgress = true
+                    saveProgressState()
+                }
+
+                // Show success feedback
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
+            }) {
+                HStack {
+                    Image(systemName: hasMarkedProgress ? "checkmark.circle.fill" : "chart.line.uptrend.xyaxis")
+                        .font(.title3)
+                    Text(hasMarkedProgress ? NSLocalizedString("questionDetail.progressMarked", comment: "") : NSLocalizedString("questionDetail.markProgress", comment: ""))
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    LinearGradient(
+                        colors: hasMarkedProgress ? [Color.green, Color.green.opacity(0.8)] : [Color.blue, Color.blue.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(16)
+                .shadow(color: (hasMarkedProgress ? Color.green : Color.blue).opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+            .disabled(hasMarkedProgress)
+
+            if hasMarkedProgress {
+                Text(NSLocalizedString("questionDetail.progressUpdated", comment: ""))
+                    .font(.subheadline)
+                    .foregroundColor(.green)
+                    .multilineTextAlignment(.center)
+            } else {
+                Text(NSLocalizedString("questionDetail.progressTip", comment: ""))
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(.top, 16)
+    }
+
+    private func trackPracticeProgress() {
+        let subject = question.topic
+        let totalAnswered = 1 // One question
+        let correctCount = isCorrect ? 1 : 0
+
+        logger.info("📊 [trackPracticeProgress] Marking progress: \(totalAnswered) question, \(correctCount) correct in \(subject)")
+
+        // Use the same progress marking system as homework
+        pointsManager.markHomeworkProgress(
+            subject: subject,
+            numberOfQuestions: totalAnswered,
+            numberOfCorrectQuestions: correctCount
+        )
+
+        logger.info("📊 [trackPracticeProgress] ✅ Progress marked successfully")
+    }
+
+    // MARK: - Persistence
+
+    private func loadProgressState() {
+        hasMarkedProgress = UserDefaults.standard.bool(forKey: progressMarkedKey)
+    }
+
+    private func saveProgressState() {
+        UserDefaults.standard.set(hasMarkedProgress, forKey: progressMarkedKey)
+    }
+
+    private func loadArchivedState() {
+        isArchived = UserDefaults.standard.bool(forKey: archivedStateKey)
+    }
+
+    private func saveArchivedState() {
+        UserDefaults.standard.set(isArchived, forKey: archivedStateKey)
+    }
+
+    private func saveAnswer() {
+        let answerData: [String: Any] = [
+            "userAnswer": userAnswer,
+            "selectedOption": selectedOption as Any,
+            "hasSubmitted": hasSubmitted,
+            "isCorrect": isCorrect,
+            "timestamp": Date().timeIntervalSince1970
+        ]
+
+        if let data = try? JSONSerialization.data(withJSONObject: answerData) {
+            UserDefaults.standard.set(data, forKey: answerPersistenceKey)
+            logger.info("💾 Saved answer for question: \(question.id)")
+        }
+    }
+
+    private func loadSavedAnswer() {
+        guard let data = UserDefaults.standard.data(forKey: answerPersistenceKey),
+              let answerData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return
+        }
+
+        // Restore saved answer
+        if let savedUserAnswer = answerData["userAnswer"] as? String {
+            userAnswer = savedUserAnswer
+        }
+
+        if let savedSelectedOption = answerData["selectedOption"] as? String {
+            selectedOption = savedSelectedOption
+        }
+
+        if let savedHasSubmitted = answerData["hasSubmitted"] as? Bool {
+            hasSubmitted = savedHasSubmitted
+        }
+
+        if let savedIsCorrect = answerData["isCorrect"] as? Bool {
+            isCorrect = savedIsCorrect
+            showingExplanation = hasSubmitted // Show explanation if already submitted
+        }
+
+        logger.info("💾 Loaded saved answer for question: \(question.id)")
+    }
+
+    /// Archive the answered question to local storage
+    private func archiveQuestion() {
+        guard hasSubmitted else { return }
+
+        isArchiving = true
+
+        Task {
+            do {
+                // Build question data for archiving
+                let questionData: [String: Any] = [
+                    "id": UUID().uuidString,
+                    "subject": question.topic,
+                    "questionText": question.question,
+                    "rawQuestionText": question.question,
+                    "answerText": question.correctAnswer,
+                    "confidence": 1.0,  // Generated questions have high confidence
+                    "hasVisualElements": false,
+                    "archivedAt": ISO8601DateFormatter().string(from: Date()),
+                    "reviewCount": 0,
+                    "tags": question.tags ?? [],  // Inherit tags from generated question
+                    "notes": "",
+                    "studentAnswer": getCurrentAnswer(),
+                    "grade": isCorrect ? "CORRECT" : "INCORRECT",
+                    "points": isCorrect ? (question.points ?? 1) : 0,
+                    "maxPoints": question.points ?? 1,
+                    "feedback": question.explanation,
+                    "isGraded": true,
+                    "isCorrect": isCorrect
+                ]
+
+                // Save to local storage
+                QuestionLocalStorage.shared.saveQuestions([questionData])
+
+                await MainActor.run {
+                    isArchiving = false
+                    isArchived = true
+                    saveArchivedState()  // Persist archived state
+                    showingArchiveSuccess = true
+                    logger.info("📚 [Archive] Practice question archived successfully")
+                }
+            } catch {
+                await MainActor.run {
+                    isArchiving = false
+                    logger.error("❌ [Archive] Failed to archive question: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 }
 

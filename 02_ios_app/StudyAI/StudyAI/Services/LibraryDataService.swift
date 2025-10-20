@@ -550,44 +550,26 @@ class LibraryDataService: ObservableObject {
     private func fetchQuestions() async -> (data: [QuestionSummary], error: String?) {
         // ✅ FIX: Library should ONLY read from local storage
         // Sync feature handles downloading from server to local storage
-        print("📚 [Library] === FETCH QUESTIONS FROM LOCAL STORAGE ===")
-
         let localStorage = QuestionLocalStorage.shared
         let localQuestions = localStorage.getLocalQuestions()
 
-        print("📚 [Library] Step 1: Retrieved \(localQuestions.count) raw questions from local storage")
-
-        // Debug: Show first question data structure
-        if let firstQuestion = localQuestions.first {
-            print("📚 [Library] First question keys: \(firstQuestion.keys.sorted())")
-            print("📚 [Library] First question ID: \(firstQuestion["id"] ?? "NO ID")")
-            print("📚 [Library] First question subject: \(firstQuestion["subject"] ?? "NO SUBJECT")")
-        }
-
         // Convert local questions to QuestionSummary
-        print("📚 [Library] Step 2: Converting \(localQuestions.count) questions to QuestionSummary...")
         var convertedQuestions: [QuestionSummary] = []
         var conversionErrors: [String] = []
 
-        for (index, questionData) in localQuestions.enumerated() {
+        for (_, questionData) in localQuestions.enumerated() {
             do {
                 let question = try localStorage.convertLocalQuestionToSummary(questionData)
                 convertedQuestions.append(question)
-                print("📚 [Library]   ✅ Question \(index + 1) converted: \(question.id)")
             } catch {
-                let errorMsg = "Question \(index + 1) conversion failed: \(error.localizedDescription)"
+                let errorMsg = "Question conversion failed: \(error.localizedDescription)"
                 conversionErrors.append(errorMsg)
-                print("📚 [Library]   ❌ \(errorMsg)")
             }
         }
-
-        print("📚 [Library] Step 2 Complete: \(convertedQuestions.count) successfully converted, \(conversionErrors.count) errors")
 
         // ✅ KEEP ALL QUESTIONS in Study Library (including mistakes)
         // Mistake questions should appear in BOTH Mistake Notes AND Study Library
         // Mistake Notes filters questions separately using QuestionLocalStorage.getMistakeQuestions()
-        print("📚 [Library] Step 3: Keeping all questions in library (including mistakes)")
-        print("📚 [Library] === FINAL RESULT: \(convertedQuestions.count) questions to display ===")
 
         return (convertedQuestions, nil)
     }
@@ -597,8 +579,6 @@ class LibraryDataService: ObservableObject {
         // Sync feature handles downloading from server to local storage
         let localStorage = ConversationLocalStorage.shared
         let localConversations = localStorage.getLocalConversations()
-
-        print("💬 [Library] Loading \(localConversations.count) conversations from LOCAL storage only")
 
         return (localConversations, nil)
     }
@@ -1134,21 +1114,11 @@ class QuestionLocalStorage {
 
     /// Save newly archived questions to local storage
     func saveQuestions(_ questions: [[String: Any]]) {
-        print("💾 [QuestionLocalStorage] Saving \(questions.count) questions to local storage")
-
-        // DEBUG: Log what we're trying to save
-        for (index, question) in questions.enumerated() {
-            print("   📝 Question \(index): id=\(question["id"] ?? "nil")")
-            print("      questionText: '\(question["questionText"] ?? "nil")'")
-            print("      Keys: \(question.keys.sorted())")
-        }
-
         var existingQuestions = getLocalQuestions()
 
         // Add new questions at the beginning (most recent first)
         for question in questions.reversed() {
             if let id = question["id"] as? String {
-                print("   • Adding question ID: \(id)")
                 existingQuestions.insert(question, at: 0)
             }
         }
@@ -1156,22 +1126,12 @@ class QuestionLocalStorage {
         // Keep only the most recent questions
         if existingQuestions.count > maxLocalQuestions {
             existingQuestions = Array(existingQuestions.prefix(maxLocalQuestions))
-            print("   • Trimmed to \(maxLocalQuestions) questions")
         }
 
         // Save to UserDefaults
         do {
             let data = try JSONSerialization.data(withJSONObject: existingQuestions)
             userDefaults.set(data, forKey: questionsKey)
-            print("   ✅ Saved to local storage (total: \(existingQuestions.count))")
-
-            // DEBUG: Immediately read back to verify
-            if let savedData = userDefaults.data(forKey: questionsKey),
-               let saved = try? JSONSerialization.jsonObject(with: savedData) as? [[String: Any]],
-               let first = saved.first {
-                print("   🔍 Verification - First saved question:")
-                print("      questionText: '\(first["questionText"] ?? "nil")'")
-            }
         } catch {
             print("   ❌ Failed to serialize questions: \(error)")
         }
@@ -1183,18 +1143,7 @@ class QuestionLocalStorage {
     func getLocalQuestions() -> [[String: Any]] {
         guard let data = userDefaults.data(forKey: questionsKey),
               let questions = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            print("💾 [QuestionLocalStorage] No local questions found")
             return []
-        }
-
-        print("💾 [QuestionLocalStorage] Found \(questions.count) local questions")
-
-        // DEBUG: Check what we're reading back
-        if let first = questions.first {
-            print("   🔍 First question read from storage:")
-            print("      id: \(first["id"] ?? "nil")")
-            print("      questionText: '\(first["questionText"] ?? "nil")'")
-            print("      Keys: \(first.keys.sorted())")
         }
 
         return questions
@@ -1244,64 +1193,20 @@ class QuestionLocalStorage {
     /// Get all mistake questions from local storage (isCorrect == false)
     /// Includes INCORRECT, EMPTY, and PARTIAL_CREDIT grades
     func getMistakeQuestions(subject: String? = nil) -> [[String: Any]] {
-        print("🔍 [QuestionLocalStorage] === FETCHING MISTAKES FROM LOCAL STORAGE ===")
         let allQuestions = getLocalQuestions()
-        print("   💾 Total questions in storage: \(allQuestions.count)")
-
-        // DEBUG: Show all questions with their isCorrect values
-        print("\n   🔍 [DEBUG] Inspecting all questions:")
-        for (index, question) in allQuestions.prefix(10).enumerated() {
-            let grade = question["grade"] as? String ?? "nil"
-            let isCorrect = question["isCorrect"] as? Bool
-            let subject = question["subject"] as? String ?? "nil"
-            let questionText = question["questionText"] as? String ?? "nil"
-            print("   \(index + 1). Grade: \(grade), isCorrect: \(isCorrect?.description ?? "nil"), Subject: \(subject)")
-            print("      Question: \(questionText.prefix(40))...")
-        }
-        if allQuestions.count > 10 {
-            print("   ... and \(allQuestions.count - 10) more")
-        }
-        print("")
 
         // Filter for mistakes (isCorrect == false)
         let mistakes = allQuestions.filter { question in
             let isCorrect = question["isCorrect"] as? Bool ?? true
             let matchesSubject = subject == nil || (question["subject"] as? String) == subject
-            let isMistake = !isCorrect && matchesSubject
-
-            if isMistake {
-                let grade = question["grade"] as? String ?? "N/A"
-                let questionText = question["questionText"] as? String ?? "N/A"
-                print("   ❌ Mistake found: grade=\(grade), subject=\(question["subject"] ?? "nil"), question=\(questionText.prefix(50))...")
-            }
-
-            return isMistake
+            return !isCorrect && matchesSubject
         }
-
-        print("   ✅ Found \(mistakes.count) mistake(s)" + (subject != nil ? " for subject '\(subject!)'" : ""))
-
-        // DEBUG: If no mistakes found but questions exist, investigate
-        if mistakes.isEmpty && !allQuestions.isEmpty {
-            print("\n   ⚠️ [DEBUG] NO MISTAKES FOUND - Investigating:")
-            print("   - Total questions: \(allQuestions.count)")
-            let questionsWithIsCorrect = allQuestions.filter { $0["isCorrect"] != nil }
-            print("   - Questions with isCorrect field: \(questionsWithIsCorrect.count)")
-            let trueCount = allQuestions.filter { ($0["isCorrect"] as? Bool) == true }.count
-            let falseCount = allQuestions.filter { ($0["isCorrect"] as? Bool) == false }.count
-            let nilCount = allQuestions.filter { $0["isCorrect"] == nil }.count
-            print("   - isCorrect = true: \(trueCount)")
-            print("   - isCorrect = false: \(falseCount)")
-            print("   - isCorrect = nil: \(nilCount)")
-        }
-
-        print("🔍 [QuestionLocalStorage] === FETCH MISTAKES COMPLETE ===\n")
 
         return mistakes
     }
 
     /// Get subjects with mistake counts from local storage
     func getSubjectsWithMistakes() -> [(subject: String, count: Int)] {
-        print("🔍 [QuestionLocalStorage] === FETCHING SUBJECTS WITH MISTAKES ===")
         let allQuestions = getLocalQuestions()
 
         // Filter for mistakes only
@@ -1309,8 +1214,6 @@ class QuestionLocalStorage {
             let isCorrect = question["isCorrect"] as? Bool ?? true
             return !isCorrect
         }
-
-        print("   💾 Total mistakes in storage: \(mistakes.count)")
 
         // Group by subject and count
         var subjectCounts: [String: Int] = [:]
@@ -1322,12 +1225,6 @@ class QuestionLocalStorage {
 
         let result = subjectCounts.map { (subject: $0.key, count: $0.value) }
             .sorted { $0.subject < $1.subject }
-
-        print("   ✅ Found \(result.count) subjects with mistakes:")
-        for item in result {
-            print("      - \(item.subject): \(item.count) mistakes")
-        }
-        print("🔍 [QuestionLocalStorage] === FETCH SUBJECTS COMPLETE ===\n")
 
         return result
     }
@@ -1375,43 +1272,29 @@ class QuestionLocalStorage {
     // MARK: - Helper
 
     func convertLocalQuestionToSummary(_ data: [String: Any]) throws -> QuestionSummary {
-        print("🔄 [QuestionLocalStorage] === Converting question to summary ===")
-        print("🔄 [QuestionLocalStorage] Available keys: \(data.keys.sorted())")
-
         guard let id = data["id"] as? String else {
-            print("❌ [QuestionLocalStorage] Missing 'id' field")
             throw NSError(domain: "QuestionLocalStorage", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing 'id' field"])
         }
-        print("✅ [QuestionLocalStorage] ID: \(id)")
 
         guard let subject = data["subject"] as? String else {
-            print("❌ [QuestionLocalStorage] Missing 'subject' field")
             throw NSError(domain: "QuestionLocalStorage", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing 'subject' field"])
         }
-        print("✅ [QuestionLocalStorage] Subject: \(subject)")
 
         guard let questionText = data["questionText"] as? String else {
-            print("❌ [QuestionLocalStorage] Missing 'questionText' field")
             throw NSError(domain: "QuestionLocalStorage", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing 'questionText' field"])
         }
-        print("✅ [QuestionLocalStorage] Question text: \(questionText.prefix(50))...")
 
         guard let archivedAtString = data["archivedAt"] as? String else {
-            print("❌ [QuestionLocalStorage] Missing 'archivedAt' field")
-            print("❌ [QuestionLocalStorage] Available date fields: \(data.filter { $0.key.lowercased().contains("date") || $0.key.lowercased().contains("archive") })")
             throw NSError(domain: "QuestionLocalStorage", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing 'archivedAt' field"])
         }
-        print("✅ [QuestionLocalStorage] ArchivedAt: \(archivedAtString)")
 
         // Parse date
         let archivedAt: Date
         if let timestamp = TimeInterval(archivedAtString) {
             archivedAt = Date(timeIntervalSince1970: timestamp / 1000)
-            print("✅ [QuestionLocalStorage] Parsed as timestamp: \(archivedAt)")
         } else {
             let iso8601Formatter = ISO8601DateFormatter()
             archivedAt = iso8601Formatter.date(from: archivedAtString) ?? Date()
-            print("✅ [QuestionLocalStorage] Parsed as ISO8601: \(archivedAt)")
         }
 
         let confidence = (data["confidence"] as? Float) ?? (data["confidence"] as? Double).map(Float.init) ?? 0.0
@@ -1425,8 +1308,6 @@ class QuestionLocalStorage {
         let points = (data["points"] as? Float) ?? (data["points"] as? Double).map(Float.init)
         let maxPoints = (data["maxPoints"] as? Float) ?? (data["maxPoints"] as? Double).map(Float.init)
         let isGraded = (data["isGraded"] as? Bool) ?? false
-
-        print("✅ [QuestionLocalStorage] Conversion successful, grade: \(grade?.rawValue ?? "nil")")
 
         return QuestionSummary(
             id: id,
@@ -1554,53 +1435,38 @@ class LocalProgressService {
 
     /// Calculate subject breakdown from local questions (replaces NetworkService.fetchSubjectBreakdown)
     func calculateSubjectBreakdown(timeframe: String = "current_week") async -> SubjectBreakdownData {
-        print("📊 [LocalProgress] === CALCULATING SUBJECT BREAKDOWN FROM LOCAL STORAGE ===")
-        print("📊 [LocalProgress] Timeframe: \(timeframe)")
-
-        // Step 1: Get all local questions
+        // Get all local questions
         let localQuestions = questionLocalStorage.getLocalQuestions()
-        print("📊 [LocalProgress] Step 1: Retrieved \(localQuestions.count) questions from local storage")
 
-        // Step 2: Convert to QuestionSummary objects
+        // Convert to QuestionSummary objects
         var questions: [QuestionSummary] = []
         for questionData in localQuestions {
             if let question = try? questionLocalStorage.convertLocalQuestionToSummary(questionData) {
                 questions.append(question)
             }
         }
-        print("📊 [LocalProgress] Step 2: Converted to \(questions.count) QuestionSummary objects")
 
-        // Step 3: Filter by timeframe
+        // Filter by timeframe
         let filteredQuestions = filterQuestionsByTimeframe(questions, timeframe: timeframe)
-        print("📊 [LocalProgress] Step 3: Filtered to \(filteredQuestions.count) questions for timeframe '\(timeframe)'")
 
-        // Step 4: Group by normalized subject
+        // Group by normalized subject
         let questionsBySubject = Dictionary(grouping: filteredQuestions) { $0.normalizedSubject }
-        print("📊 [LocalProgress] Step 4: Grouped into \(questionsBySubject.count) subjects")
-        for (subject, subjectQuestions) in questionsBySubject {
-            print("   - \(subject): \(subjectQuestions.count) questions")
-        }
 
-        // Step 5: Calculate subject progress data
+        // Calculate subject progress data
         let subjectProgress = calculateSubjectProgress(questionsBySubject: questionsBySubject, allQuestions: filteredQuestions)
-        print("📊 [LocalProgress] Step 5: Calculated progress for \(subjectProgress.count) subjects")
 
-        // Step 6: Calculate summary
+        // Calculate summary
         let summary = calculateSummary(subjectProgress: subjectProgress, allQuestions: filteredQuestions)
-        print("📊 [LocalProgress] Step 6: Calculated summary (overall accuracy: \(String(format: "%.1f%%", summary.overallAccuracy)))")
 
-        // Step 7: Calculate insights
+        // Calculate insights
         let insights = calculateInsights(subjectProgress: subjectProgress)
-        print("📊 [LocalProgress] Step 7: Generated insights")
 
-        // Step 8: Calculate trends
+        // Calculate trends
         let trends = calculateTrends(questionsBySubject: questionsBySubject)
-        print("📊 [LocalProgress] Step 8: Calculated trends for \(trends.count) subjects")
 
-        // Step 9: Calculate comparisons and recommendations
+        // Calculate comparisons and recommendations
         let comparisons = calculateComparisons(subjectProgress: subjectProgress)
         let recommendations = generateRecommendations(subjectProgress: subjectProgress, insights: insights)
-        print("📊 [LocalProgress] Step 9: Generated \(comparisons.count) comparisons and \(recommendations.count) recommendations")
 
         let result = SubjectBreakdownData(
             summary: summary,
@@ -1612,42 +1478,125 @@ class LocalProgressService {
             recommendations: recommendations
         )
 
-        print("📊 [LocalProgress] === CALCULATION COMPLETE ===\n")
         return result
     }
 
-    /// Calculate monthly activity from local questions (replaces NetworkService.fetchMonthlyActivity)
-    func calculateMonthlyActivity(year: Int, month: Int) async -> [DailyActivity] {
-        print("📅 [LocalProgress] === CALCULATING MONTHLY ACTIVITY FROM LOCAL STORAGE ===")
-        print("📅 [LocalProgress] Month: \(year)-\(month)")
-
-        // Step 1: Get all local questions
+    /// Calculate weekly activity from local questions (for WeeklyProgressGrid)
+    func calculateWeeklyActivity() async -> [DailyQuestionActivity] {
+        // Get all local questions
         let localQuestions = questionLocalStorage.getLocalQuestions()
-        print("📅 [LocalProgress] Step 1: Retrieved \(localQuestions.count) questions from local storage")
 
-        // Step 2: Convert to QuestionSummary objects
+        // Convert to QuestionSummary objects
         var questions: [QuestionSummary] = []
         for questionData in localQuestions {
             if let question = try? questionLocalStorage.convertLocalQuestionToSummary(questionData) {
                 questions.append(question)
             }
         }
-        print("📅 [LocalProgress] Step 2: Converted to \(questions.count) QuestionSummary objects")
 
-        // Step 3: Filter questions for the specified month
+        // Calculate current week range (Monday to Sunday)
+        let calendar = Calendar.current
+        let now = Date()
+        let weekday = calendar.component(.weekday, from: now)
+
+        // Calculate days from Monday (weekday 2 = Monday, weekday 1 = Sunday)
+        let daysFromMonday = (weekday == 1) ? 6 : weekday - 2
+        let weekStart = calendar.date(byAdding: .day, value: -daysFromMonday, to: now) ?? now
+        let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+
+        let weekStartDay = calendar.startOfDay(for: weekStart)
+        let weekEndDay = calendar.startOfDay(for: weekEnd)
+
+        // Filter questions for current week
+        let filteredQuestions = questions.filter { question in
+            let questionDay = calendar.startOfDay(for: question.archivedAt)
+            return questionDay >= weekStartDay && questionDay <= weekEndDay
+        }
+
+        // Group by date and count questions per day
+        let questionsByDate = Dictionary(grouping: filteredQuestions) { question in
+            calendar.startOfDay(for: question.archivedAt)
+        }
+
+        // Create DailyQuestionActivity objects for all 7 days
+        var activities: [DailyQuestionActivity] = []
+        var currentDate = weekStartDay
+
+        for dayIndex in 0..<7 {
+            let dayOfWeek = dayIndex + 1 // Monday = 1, Sunday = 7
+            let dateString = dateFormatter.string(from: currentDate)
+            let questionCount = questionsByDate[currentDate]?.count ?? 0
+
+            let activity = DailyQuestionActivity(
+                date: dateString,
+                dayOfWeek: dayOfWeek,
+                questionCount: questionCount,
+                timezone: TimeZone.current.identifier
+            )
+            activities.append(activity)
+
+            // Move to next day
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+        }
+
+        return activities
+    }
+
+    /// Calculate today's activity from local questions
+    func calculateTodayActivity() async -> (totalQuestions: Int, correctAnswers: Int, accuracy: Double) {
+        // Get all local questions
+        let localQuestions = questionLocalStorage.getLocalQuestions()
+
+        // Convert to QuestionSummary objects
+        var questions: [QuestionSummary] = []
+        for questionData in localQuestions {
+            if let question = try? questionLocalStorage.convertLocalQuestionToSummary(questionData) {
+                questions.append(question)
+            }
+        }
+
+        // Filter for today's questions
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let todayQuestions = questions.filter { question in
+            let questionDay = calendar.startOfDay(for: question.archivedAt)
+            return questionDay == today
+        }
+
+        // Calculate stats
+        let totalQuestions = todayQuestions.count
+        let correctAnswers = todayQuestions.filter { $0.grade == .correct }.count
+        let accuracy = totalQuestions > 0 ? Double(correctAnswers) / Double(totalQuestions) * 100.0 : 0.0
+
+        return (totalQuestions, correctAnswers, accuracy)
+    }
+
+    /// Calculate monthly activity from local questions (replaces NetworkService.fetchMonthlyActivity)
+    func calculateMonthlyActivity(year: Int, month: Int) async -> [DailyActivity] {
+        // Get all local questions
+        let localQuestions = questionLocalStorage.getLocalQuestions()
+
+        // Convert to QuestionSummary objects
+        var questions: [QuestionSummary] = []
+        for questionData in localQuestions {
+            if let question = try? questionLocalStorage.convertLocalQuestionToSummary(questionData) {
+                questions.append(question)
+            }
+        }
+
+        // Filter questions for the specified month
         let calendar = Calendar.current
         let filteredQuestions = questions.filter { question in
             let components = calendar.dateComponents([.year, .month], from: question.archivedAt)
             return components.year == year && components.month == month
         }
-        print("📅 [LocalProgress] Step 3: Filtered to \(filteredQuestions.count) questions for \(year)-\(month)")
 
-        // Step 4: Group by date and count questions per day
+        // Group by date and count questions per day
         let questionsByDate = Dictionary(grouping: filteredQuestions) { question in
             calendar.startOfDay(for: question.archivedAt)
         }
 
-        // Step 5: Create DailyActivity objects
+        // Create DailyActivity objects
         let activities = questionsByDate.map { date, dayQuestions in
             DailyActivity(
                 date: dateFormatter.string(from: date),
@@ -1655,12 +1604,6 @@ class LocalProgressService {
             )
         }.sorted { $0.date < $1.date }
 
-        print("📅 [LocalProgress] Step 4: Generated \(activities.count) daily activities")
-        for activity in activities {
-            print("   - \(activity.date): \(activity.questionCount) questions")
-        }
-
-        print("📅 [LocalProgress] === CALCULATION COMPLETE ===\n")
         return activities
     }
 
@@ -1671,17 +1614,35 @@ class LocalProgressService {
         let now = Date()
 
         let startDate: Date
+        let endDate: Date = now
+
         switch timeframe {
         case "today":
             startDate = calendar.startOfDay(for: now)
         case "current_week":
-            startDate = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+            // ✅ Use SAME Monday-Sunday logic as calculateWeeklyActivity()
+            let weekday = calendar.component(.weekday, from: now)
+            let daysFromMonday = (weekday == 1) ? 6 : weekday - 2
+            startDate = calendar.date(byAdding: .day, value: -daysFromMonday, to: now) ?? now
+            let weekStart = calendar.startOfDay(for: startDate)
+            return questions.filter {
+                let questionDay = calendar.startOfDay(for: $0.archivedAt)
+                return questionDay >= weekStart && questionDay <= calendar.startOfDay(for: now)
+            }
         case "current_month":
             startDate = calendar.dateInterval(of: .month, for: now)?.start ?? now
         case "all_time":
             return questions // No filtering
         default:
-            startDate = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+            // Default to current week with Monday-Sunday logic
+            let weekday = calendar.component(.weekday, from: now)
+            let daysFromMonday = (weekday == 1) ? 6 : weekday - 2
+            startDate = calendar.date(byAdding: .day, value: -daysFromMonday, to: now) ?? now
+            let weekStart = calendar.startOfDay(for: startDate)
+            return questions.filter {
+                let questionDay = calendar.startOfDay(for: $0.archivedAt)
+                return questionDay >= weekStart && questionDay <= calendar.startOfDay(for: now)
+            }
         }
 
         return questions.filter { $0.archivedAt >= startDate }
