@@ -57,6 +57,7 @@ struct UnifiedLibraryView: View {
     // Quick filter states
     @State private var activeQuickDateFilter: DateRange?
     @State private var hasActiveImageFilter = false
+    @State private var selectedQuestionType: QuestionType?
 
     // Computed properties for filtered counts
     private var filteredQuestionCount: Int {
@@ -121,6 +122,19 @@ struct UnifiedLibraryView: View {
             filtered = filtered.filter { $0.subject.lowercased() == selectedSubject.lowercased() }
         }
 
+        // Question type filter
+        if let selectedQuestionType = selectedQuestionType {
+            filtered = filtered.filter { item in
+                // Only filter questions, not conversations
+                if let questionItem = item as? QuestionSummary,
+                   let questionType = questionItem.questionType,
+                   let type = QuestionType(rawValue: questionType) {
+                    return type == selectedQuestionType
+                }
+                return false // Exclude if not a question or doesn't match
+            }
+        }
+
         // Search filter
         if !searchText.isEmpty {
             filtered = filtered.filter { item in
@@ -145,6 +159,22 @@ struct UnifiedLibraryView: View {
             return nil
         })
         return Array(subjects).sorted()
+    }
+
+    var availableQuestionTypes: [QuestionType] {
+        var types = Set<QuestionType>()
+
+        // Get question types from questions in library
+        for question in libraryContent.questions {
+            // Access questionType property directly
+            if let questionType = question.questionType,
+               let type = QuestionType(rawValue: questionType) {
+                types.insert(type)
+            }
+        }
+
+        // Return sorted by display name
+        return Array(types).sorted { $0.displayName < $1.displayName }
     }
     
     var body: some View {
@@ -216,7 +246,6 @@ struct UnifiedLibraryView: View {
                 )
             }
         }
-        .searchable(text: $searchText, prompt: NSLocalizedString("library.searchPlaceholder", comment: ""))
         .task {
             await loadContent()
         }
@@ -243,24 +272,31 @@ struct UnifiedLibraryView: View {
     
     private var libraryList: some View {
         VStack(spacing: 0) {
-            // Fixed Filter Section - stays at top
+            // Fixed Filter Section - Three rows of filters
             VStack(spacing: 12) {
-                // Quick Filter Buttons
+                // Row 1: Time Filters (reordered: All Time, This Week, This Month)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        // Date Range Quick Filters
+                        QuickFilterButton(
+                            title: "All Time",
+                            icon: "clock",
+                            isSelected: activeQuickDateFilter == nil && !isUsingAdvancedSearch
+                        ) {
+                            activeQuickDateFilter = nil
+                            isUsingAdvancedSearch = false
+                            advancedFilteredQuestions = []
+                        }
+
                         QuickFilterButton(
                             title: NSLocalizedString("library.filter.thisWeek", comment: ""),
                             icon: "calendar.badge.clock",
                             isSelected: activeQuickDateFilter == .thisWeek
                         ) {
                             if activeQuickDateFilter == .thisWeek {
-                                // Toggle off if already selected
                                 activeQuickDateFilter = nil
                                 isUsingAdvancedSearch = false
                                 advancedFilteredQuestions = []
                             } else {
-                                // Toggle on
                                 activeQuickDateFilter = .thisWeek
                                 searchFilters.dateRange = .thisWeek
                                 Task { await performAdvancedSearch(searchFilters) }
@@ -273,20 +309,32 @@ struct UnifiedLibraryView: View {
                             isSelected: activeQuickDateFilter == .thisMonth
                         ) {
                             if activeQuickDateFilter == .thisMonth {
-                                // Toggle off if already selected
                                 activeQuickDateFilter = nil
                                 isUsingAdvancedSearch = false
                                 advancedFilteredQuestions = []
                             } else {
-                                // Toggle on
                                 activeQuickDateFilter = .thisMonth
                                 searchFilters.dateRange = .thisMonth
                                 Task { await performAdvancedSearch(searchFilters) }
                             }
                         }
+                    }
+                    .padding(.horizontal)
+                }
+                .scrollDisabled(false)
 
-                        // Subject Quick Filters
-                        ForEach(availableSubjects.prefix(3), id: \.self) { subject in
+                // Row 2: Subject Filters
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        QuickFilterButton(
+                            title: "All Subjects",
+                            icon: "books.vertical",
+                            isSelected: selectedSubject == nil
+                        ) {
+                            selectedSubject = nil
+                        }
+
+                        ForEach(availableSubjects, id: \.self) { subject in
                             QuickFilterButton(
                                 title: subject,
                                 icon: "book.fill",
@@ -295,29 +343,35 @@ struct UnifiedLibraryView: View {
                                 selectedSubject = selectedSubject == subject ? nil : subject
                             }
                         }
+                    }
+                    .padding(.horizontal)
+                }
+                .scrollDisabled(false)
 
-                        // Visual Elements Filter
+                // Row 3: Question Type Filters
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
                         QuickFilterButton(
-                            title: NSLocalizedString("library.filter.withImages", comment: ""),
-                            icon: "photo",
-                            isSelected: hasActiveImageFilter
+                            title: "All Types",
+                            icon: "square.grid.2x2",
+                            isSelected: selectedQuestionType == nil
                         ) {
-                            if hasActiveImageFilter {
-                                // Toggle off if already selected
-                                hasActiveImageFilter = false
-                                searchFilters.hasVisualElements = nil
-                                isUsingAdvancedSearch = false
-                                advancedFilteredQuestions = []
-                            } else {
-                                // Toggle on
-                                hasActiveImageFilter = true
-                                searchFilters.hasVisualElements = true
-                                Task { await performAdvancedSearch(searchFilters) }
+                            selectedQuestionType = nil
+                        }
+
+                        ForEach(availableQuestionTypes, id: \.self) { questionType in
+                            QuickFilterButton(
+                                title: questionType.displayName,
+                                icon: questionType.icon,
+                                isSelected: selectedQuestionType == questionType
+                            ) {
+                                selectedQuestionType = selectedQuestionType == questionType ? nil : questionType
                             }
                         }
                     }
                     .padding(.horizontal)
                 }
+                .scrollDisabled(false)
             }
             .padding(.vertical, 12)
             .background(Color(.systemGroupedBackground))
@@ -341,7 +395,7 @@ struct UnifiedLibraryView: View {
 
             // Scrollable Content List - only this part scrolls
             if filteredItems.isEmpty {
-                NoResultsView(hasFilters: !searchText.isEmpty || selectedSubject != nil || selectedContentType != .all) {
+                NoResultsView(hasFilters: !searchText.isEmpty || selectedSubject != nil || selectedContentType != .all || selectedQuestionType != nil) {
                     clearFilters()
                 }
             } else {
@@ -397,6 +451,7 @@ struct UnifiedLibraryView: View {
         selectedContentType = .all
         activeQuickDateFilter = nil
         hasActiveImageFilter = false
+        selectedQuestionType = nil
         clearAdvancedSearch()
     }
     

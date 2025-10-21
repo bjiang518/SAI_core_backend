@@ -23,16 +23,17 @@ struct MistakeReviewView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "arrow.uturn.backward.circle.fill")
-                                .font(.title2)
+                                .font(.title)
                                 .foregroundColor(.orange)
 
                             Text(NSLocalizedString("mistakeReview.header.title", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(.secondary)
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
                         }
 
                         Text(NSLocalizedString("mistakeReview.header.subtitle", comment: ""))
-                            .font(.subheadline)
+                            .font(.body)
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -43,7 +44,8 @@ struct MistakeReviewView: View {
                     // Time Range Selection
                     VStack(alignment: .leading, spacing: 16) {
                         Text(NSLocalizedString("mistakeReview.timeRangeTitle", comment: ""))
-                            .font(.headline)
+                            .font(.title3)
+                            .fontWeight(.semibold)
 
                         HStack(spacing: 12) {
                             ForEach(MistakeTimeRange.allCases) { range in
@@ -66,7 +68,8 @@ struct MistakeReviewView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             Text(NSLocalizedString("mistakeReview.subjectsTitle", comment: ""))
-                                .font(.headline)
+                                .font(.title3)
+                                .fontWeight(.semibold)
 
                             if let timeRange = selectedTimeRange {
                                 Text("(\(timeRange.displayName))")
@@ -121,15 +124,15 @@ struct MistakeReviewView: View {
                         }) {
                             HStack {
                                 Image(systemName: "play.circle.fill")
-                                    .font(.title2)
+                                    .font(.title3)
 
                                 Text(NSLocalizedString("mistakeReview.startReview", comment: ""))
-                                    .font(.headline)
+                                    .font(.body)
                                     .fontWeight(.semibold)
                             }
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 50)
+                            .frame(height: 56)
                             .background(Color.blue)
                             .cornerRadius(12)
                         }
@@ -255,15 +258,15 @@ struct MistakeQuestionListView: View {
                         }) {
                             HStack {
                                 Image(systemName: "doc.text.fill")
-                                    .font(.title2)
+                                    .font(.title3)
 
                                 Text(NSLocalizedString("mistakeReview.letsDoAgain", comment: ""))
-                                    .font(.headline)
+                                    .font(.body)
                                     .fontWeight(.semibold)
                             }
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 50)
+                            .frame(height: 56)
                             .background(Color.green)
                             .cornerRadius(12)
                         }
@@ -355,15 +358,15 @@ struct MistakeQuestionListView: View {
                     }) {
                         HStack {
                             Image(systemName: "doc.badge.plus")
-                                .font(.title2)
+                                .font(.title3)
 
                             Text(String.localizedStringWithFormat(NSLocalizedString("mistakeReview.generatePDF", comment: ""), selectedQuestions.count))
-                                .font(.headline)
+                                .font(.body)
                                 .fontWeight(.semibold)
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 50)
+                        .frame(height: 56)
                         .background(Color.blue)
                         .cornerRadius(12)
                     }

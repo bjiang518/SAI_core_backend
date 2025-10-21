@@ -141,10 +141,6 @@ struct QuestionGenerationView: View {
 
     private var generationTypeSelection: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text(NSLocalizedString("questionGeneration.chooseTemplate", comment: ""))
-                .font(.title3)
-                .fontWeight(.semibold)
-
             VStack(spacing: 16) {
                 ForEach(TemplateType.allCases, id: \.self) { type in
                     GenerationTypeCard(
@@ -159,10 +155,6 @@ struct QuestionGenerationView: View {
 
     private var configurationSection: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text(NSLocalizedString("questionGeneration.configuration", comment: ""))
-                .font(.title3)
-                .fontWeight(.semibold)
-
             switch selectedTemplate {
             case .randomPractice:
                 RandomQuestionConfig(
@@ -191,10 +183,6 @@ struct QuestionGenerationView: View {
 
     private var generalConfigurationSection: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text(NSLocalizedString("questionGeneration.generalSettings", comment: ""))
-                .font(.title3)
-                .fontWeight(.semibold)
-
             VStack(spacing: 16) {
                 // Difficulty Slider
                 VStack(alignment: .leading, spacing: 8) {
