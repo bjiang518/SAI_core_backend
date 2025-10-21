@@ -336,6 +336,11 @@ struct AcademicMetrics: Codable {
     let timeSpentMinutes: Int
     let questionsPerDay: Int
 
+    // NEW: Performance breakdown (optional for backward compatibility)
+    let totalIncorrect: Int?
+    let totalEmpty: Int?
+    let totalPartialCredit: Int?
+
     var accuracyPercentage: String {
         return String(format: "%.1f%%", overallAccuracy * 100)
     }
@@ -355,6 +360,11 @@ struct AcademicMetrics: Codable {
         case "stable": return .stable
         default: return .stable
         }
+    }
+
+    // NEW: Helper to check if breakdown data is available
+    var hasBreakdownData: Bool {
+        return totalIncorrect != nil || totalEmpty != nil || totalPartialCredit != nil
     }
 }
 
@@ -1115,7 +1125,10 @@ extension ReportData {
             improvementTrend: "improving",
             consistencyScore: 0.82,
             timeSpentMinutes: 240,
-            questionsPerDay: 6
+            questionsPerDay: 6,
+            totalIncorrect: 4,
+            totalEmpty: 1,
+            totalPartialCredit: 1
         ),
         activity: ActivityMetrics(
             studyTime: StudyTimeMetrics(

@@ -63,6 +63,10 @@ struct ArchivedQuestion: Codable, Identifiable {
     let isGraded: Bool // Whether this question was graded vs just answered
     let isCorrect: Bool? // Whether the answer was correct (for mistake tracking)
 
+    // Question type fields (for type-specific rendering)
+    let questionType: String?      // "multiple_choice", "true_false", etc.
+    let options: [String]?         // Multiple choice options
+
     init(
         id: String = UUID().uuidString,
         userId: String,
@@ -86,7 +90,9 @@ struct ArchivedQuestion: Codable, Identifiable {
         maxPoints: Float? = nil,
         feedback: String? = nil,
         isGraded: Bool = false,
-        isCorrect: Bool? = nil
+        isCorrect: Bool? = nil,
+        questionType: String? = nil,
+        options: [String]? = nil
     ) {
         self.id = id
         self.userId = userId
@@ -111,6 +117,8 @@ struct ArchivedQuestion: Codable, Identifiable {
         self.feedback = feedback
         self.isGraded = isGraded
         self.isCorrect = isCorrect
+        self.questionType = questionType
+        self.options = options
     }
 }
 
@@ -251,6 +259,10 @@ struct QuestionSummary: Codable, Identifiable {
     let points: Float?
     let maxPoints: Float?
     let isGraded: Bool
+
+    // Question type fields (for type-specific rendering)
+    let questionType: String?
+    let options: [String]?
     
     // Computed property for display
     var shortQuestionText: String {

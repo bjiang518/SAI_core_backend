@@ -492,7 +492,7 @@ struct QuickActionCard_New: View {
                         LottieView(
                             animationName: animationName,
                             loopMode: .loop,
-                            animationSpeed: 1.0
+                            animationSpeed: 0.5
                         )
                         .frame(width: 50, height: 50)
                         .scaleEffect(isPressed ? lottieScale * 0.95 : lottieScale)

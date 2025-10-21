@@ -108,9 +108,7 @@ struct AnswerComparisonView: View {
                         Text("Student Answer")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
-                        Text(student)
-                            .font(.system(size: 14))
-                            .foregroundColor(.primary)
+                        MathFormattedText(student, fontSize: 14)
                     }
                     Spacer()
                 }
@@ -129,9 +127,7 @@ struct AnswerComparisonView: View {
                         Text("Correct Answer")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
-                        Text(correct)
-                            .font(.system(size: 14))
-                            .foregroundColor(.primary)
+                        MathFormattedText(correct, fontSize: 14)
                     }
                     Spacer()
                 }
@@ -157,9 +153,7 @@ struct MultipleChoiceRenderer: View {
                 Image(systemName: "list.bullet.circle.fill")
                     .foregroundColor(.purple)
                     .font(.system(size: 18))
-                Text(question.questionText)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
+                MathFormattedText(question.questionText, fontSize: 16)
                 Spacer()
             }
 
@@ -196,9 +190,7 @@ struct MultipleChoiceRenderer: View {
                         Image(systemName: "bubble.left.fill")
                             .foregroundColor(.purple)
                             .font(.system(size: 14))
-                        Text(feedback)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                        MathFormattedText(feedback, fontSize: 14)
                     }
                     .padding(12)
                     .background(Color.purple.opacity(0.05))
@@ -231,9 +223,7 @@ struct MultipleChoiceRenderer: View {
                 .font(.system(size: 16))
 
             // Option text
-            Text(option)
-                .font(.system(size: 14))
-                .foregroundColor(.primary)
+            MathFormattedText(option, fontSize: 14)
 
             Spacer()
 
@@ -290,9 +280,7 @@ struct TrueFalseRenderer: View {
                 Image(systemName: "checkmark.circle.badge.xmark.fill")
                     .foregroundColor(.indigo)
                     .font(.system(size: 18))
-                Text(question.questionText)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
+                MathFormattedText(question.questionText, fontSize: 16)
                 Spacer()
             }
 
@@ -327,9 +315,7 @@ struct TrueFalseRenderer: View {
                         Image(systemName: "bubble.left.fill")
                             .foregroundColor(.purple)
                             .font(.system(size: 14))
-                        Text(feedback)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                        MathFormattedText(feedback, fontSize: 14)
                     }
                     .padding(12)
                     .background(Color.purple.opacity(0.05))
@@ -417,9 +403,7 @@ struct FillInBlankRenderer: View {
                     .foregroundColor(.teal)
                     .font(.system(size: 18))
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(questionTextWithBlanks)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.primary)
+                    MathFormattedText(questionTextWithBlanks, fontSize: 16)
 
                     // Show filled blank if available
                     if isExpanded, let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
@@ -454,9 +438,7 @@ struct FillInBlankRenderer: View {
                         Image(systemName: "bubble.left.fill")
                             .foregroundColor(.purple)
                             .font(.system(size: 14))
-                        Text(feedback)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                        MathFormattedText(feedback, fontSize: 14)
                     }
                     .padding(12)
                     .background(Color.purple.opacity(0.05))
@@ -522,9 +504,7 @@ struct CalculationRenderer: View {
                 Image(systemName: "number.circle.fill")
                     .foregroundColor(.cyan)
                     .font(.system(size: 18))
-                Text(question.questionText)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
+                MathFormattedText(question.questionText, fontSize: 16)
                 Spacer()
             }
 
@@ -551,9 +531,7 @@ struct CalculationRenderer: View {
                                     Circle()
                                         .fill(Color.cyan.opacity(0.3))
                                         .frame(width: 6, height: 6)
-                                    Text(step)
-                                        .font(.system(size: 14, design: .monospaced))
-                                        .foregroundColor(.primary)
+                                    MathFormattedText(step, fontSize: 14)
                                 }
                             }
                         }
@@ -586,9 +564,7 @@ struct CalculationRenderer: View {
                             Text("Correct Answer")
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(.secondary)
-                            Text(correctAnswer)
-                                .font(.system(size: 14, design: .monospaced))
-                                .foregroundColor(.primary)
+                            MathFormattedText(correctAnswer, fontSize: 14)
                         }
                         Spacer()
                     }
@@ -603,9 +579,7 @@ struct CalculationRenderer: View {
                         Image(systemName: "bubble.left.fill")
                             .foregroundColor(.purple)
                             .font(.system(size: 14))
-                        Text(feedback)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                        MathFormattedText(feedback, fontSize: 14)
                     }
                     .padding(12)
                     .background(Color.purple.opacity(0.05))
@@ -641,9 +615,7 @@ struct ShortAnswerRenderer: View {
                 Image(systemName: "text.cursor")
                     .foregroundColor(.mint)
                     .font(.system(size: 18))
-                Text(question.questionText)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
+                MathFormattedText(question.questionText, fontSize: 16)
                 Spacer()
             }
 
@@ -672,9 +644,7 @@ struct ShortAnswerRenderer: View {
                         Image(systemName: "bubble.left.fill")
                             .foregroundColor(.purple)
                             .font(.system(size: 14))
-                        Text(feedback)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                        MathFormattedText(feedback, fontSize: 14)
                     }
                     .padding(12)
                     .background(Color.purple.opacity(0.05))
@@ -712,9 +682,7 @@ struct LongAnswerRenderer: View {
                 Image(systemName: "doc.text.fill")
                     .foregroundColor(.brown)
                     .font(.system(size: 18))
-                Text(question.questionText)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
+                MathFormattedText(question.questionText, fontSize: 16)
                 Spacer()
             }
 
@@ -797,9 +765,7 @@ struct LongAnswerRenderer: View {
                         Image(systemName: "bubble.left.fill")
                             .foregroundColor(.purple)
                             .font(.system(size: 14))
-                        Text(feedback)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                        MathFormattedText(feedback, fontSize: 14)
                     }
                     .padding(12)
                     .background(Color.purple.opacity(0.05))
@@ -839,9 +805,7 @@ struct MatchingRenderer: View {
                 Image(systemName: "arrow.left.arrow.right.circle.fill")
                     .foregroundColor(.pink)
                     .font(.system(size: 18))
-                Text(question.questionText)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
+                MathFormattedText(question.questionText, fontSize: 16)
                 Spacer()
             }
 
@@ -877,9 +841,7 @@ struct MatchingRenderer: View {
                         Image(systemName: "bubble.left.fill")
                             .foregroundColor(.purple)
                             .font(.system(size: 14))
-                        Text(feedback)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                        MathFormattedText(feedback, fontSize: 14)
                     }
                     .padding(12)
                     .background(Color.purple.opacity(0.05))

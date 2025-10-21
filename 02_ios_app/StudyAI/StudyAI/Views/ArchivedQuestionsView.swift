@@ -283,182 +283,13 @@ struct QuestionDetailView: View {
                 .padding(.top, 100)
             } else if let question = question {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Grading Badge (if graded)
-                    if question.isGraded, let grade = question.grade {
-                        HStack(spacing: 8) {
-                            Image(systemName: gradeIcon(grade))
-                                .foregroundColor(gradeColor(grade))
-                            Text(grade.displayName)
-                                .font(.headline)
-                                .foregroundColor(gradeColor(grade))
-                            if let points = question.points, let maxPoints = question.maxPoints {
-                                Text("(\(String(format: "%.1f", points))/\(String(format: "%.1f", maxPoints)))")
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                            }
-                            Spacer()
-                        }
-                        .padding()
-                        .background(gradeColor(grade).opacity(0.1))
-                        .cornerRadius(12)
-                    }
-
-                    // Question (Clean version for preview)
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Q")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .frame(width: 20, height: 20)
-                                .background(Color.blue)
-                                .cornerRadius(4)
-
-                            Text(question.subject)
-                                .font(.caption)
-                                .foregroundColor(.gray)
-
-                            Spacer()
-
-                            Circle()
-                                .fill(confidenceColor(question.confidence))
-                                .frame(width: 8, height: 8)
-                        }
-
-                        Text(question.questionText)
-                            .font(.body)
-                            .fontWeight(.medium)
-                            .textSelection(.enabled)
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.05))
-                    .cornerRadius(12)
-
-                    // Raw Question (Full original text from image)
-                    if let rawText = question.rawQuestionText, rawText != question.questionText {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Image(systemName: "doc.text.fill")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Text("Original Question")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-
-                            Text(rawText)
-                                .font(.callout)
-                                .foregroundColor(.black)
-                                .textSelection(.enabled)
-                        }
-                        .padding()
-                        .background(Color.gray.opacity(0.03))
-                        .cornerRadius(12)
-                    }
-
-                    // Student Answer
-                    if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Image(systemName: "person.fill")
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                                Text("Student Answer")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-
-                            Text(studentAnswer)
-                                .font(.body)
-                                .foregroundColor(.black)
-                                .textSelection(.enabled)
-                        }
-                        .padding()
-                        .background(Color.blue.opacity(0.05))
-                        .cornerRadius(12)
-                    }
-
-                    // Correct Answer
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("A")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .frame(width: 20, height: 20)
-                                .background(Color.green)
-                                .cornerRadius(4)
-
-                            Text("Correct Answer")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
-
-                        Text(question.answerText)
-                            .font(.body)
-                            .foregroundColor(.black)
-                            .textSelection(.enabled)
-                    }
-                    .padding()
-                    .background(Color.green.opacity(0.05))
-                    .cornerRadius(12)
-
-                    // AI Feedback
-                    if let feedback = question.feedback, !feedback.isEmpty, feedback != "No feedback provided" {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Image(systemName: "bubble.left.fill")
-                                    .font(.caption)
-                                    .foregroundColor(.purple)
-                                Text("AI Feedback")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-
-                            Text(feedback)
-                                .font(.body)
-                                .foregroundColor(.black)
-                                .textSelection(.enabled)
-                        }
-                        .padding()
-                        .background(Color.purple.opacity(0.05))
-                        .cornerRadius(12)
-                    }
-
-                    // Tags & Notes (if any)
-                    if let tags = question.tags, !tags.isEmpty {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 6) {
-                            ForEach(tags, id: \.self) { tag in
-                                Text(tag)
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.blue.opacity(0.1))
-                                    .foregroundColor(.blue)
-                                    .cornerRadius(8)
-                            }
-                        }
-                    }
-
-                    if let notes = question.notes, !notes.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Image(systemName: "note.text")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                                Text("Your Notes")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-
-                            Text(notes)
-                                .font(.callout)
-                                .foregroundColor(.black)
-                                .textSelection(.enabled)
-                        }
-                        .padding()
-                        .background(Color.yellow.opacity(0.1))
-                        .cornerRadius(12)
+                    // Check if we should use type-specific renderer
+                    if let questionType = question.questionType, !questionType.isEmpty {
+                        // Use type-specific renderer
+                        typeSpecificQuestionRenderer(for: question)
+                    } else {
+                        // Use default generic renderer
+                        defaultQuestionRenderer(for: question)
                     }
                 }
                 .padding()
@@ -467,7 +298,283 @@ struct QuestionDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { loadQuestion() }
     }
-    
+
+    // MARK: - Type-Specific Renderer
+
+    @ViewBuilder
+    private func typeSpecificQuestionRenderer(for question: ArchivedQuestion) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header with subject and grade
+            questionHeader(for: question)
+
+            // Convert ArchivedQuestion to ParsedQuestion for renderer
+            let parsedQuestion = ParsedQuestion(
+                questionNumber: nil,
+                rawQuestionText: question.rawQuestionText,
+                questionText: question.questionText,
+                answerText: question.answerText,
+                confidence: question.confidence,
+                hasVisualElements: question.hasVisualElements,
+                studentAnswer: question.studentAnswer,
+                correctAnswer: question.answerText,
+                grade: question.grade?.rawValue,
+                pointsEarned: question.points,
+                pointsPossible: question.maxPoints,
+                feedback: question.feedback,
+                questionType: question.questionType,
+                options: question.options
+            )
+
+            // Use QuestionTypeRendererSelector to render based on type
+            QuestionTypeRendererSelector(
+                question: parsedQuestion,
+                isExpanded: true,
+                onTapAskAI: {} // No Ask AI action in archive view
+            )
+
+            // User notes and tags
+            userNotesAndTags(for: question)
+        }
+    }
+
+    // MARK: - Default Generic Renderer
+
+    @ViewBuilder
+    private func defaultQuestionRenderer(for question: ArchivedQuestion) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Grading Badge (if graded)
+            if question.isGraded, let grade = question.grade {
+                HStack(spacing: 8) {
+                    Image(systemName: gradeIcon(grade))
+                        .foregroundColor(gradeColor(grade))
+                    Text(grade.displayName)
+                        .font(.headline)
+                        .foregroundColor(gradeColor(grade))
+                    if let points = question.points, let maxPoints = question.maxPoints {
+                        Text("(\(String(format: "%.1f", points))/\(String(format: "%.1f", maxPoints)))")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    Spacer()
+                }
+                .padding()
+                .background(gradeColor(grade).opacity(0.1))
+                .cornerRadius(12)
+            }
+
+            // Question (Clean version for preview)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Q")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .frame(width: 20, height: 20)
+                        .background(Color.blue)
+                        .cornerRadius(4)
+
+                    Text(question.subject)
+                        .font(.caption)
+                        .foregroundColor(.gray)
+
+                    Spacer()
+
+                    Circle()
+                        .fill(confidenceColor(question.confidence))
+                        .frame(width: 8, height: 8)
+                }
+
+                Text(question.questionText)
+                    .font(.body)
+                    .fontWeight(.medium)
+                    .textSelection(.enabled)
+            }
+            .padding()
+            .background(Color.gray.opacity(0.05))
+            .cornerRadius(12)
+
+            // Raw Question (Full original text from image)
+            if let rawText = question.rawQuestionText, rawText != question.questionText {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "doc.text.fill")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        Text("Original Question")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+
+                    Text(rawText)
+                        .font(.callout)
+                        .foregroundColor(.black)
+                        .textSelection(.enabled)
+                }
+                .padding()
+                .background(Color.gray.opacity(0.03))
+                .cornerRadius(12)
+            }
+
+            // Student Answer
+            if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "person.fill")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        Text("Student Answer")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+
+                    Text(studentAnswer)
+                        .font(.body)
+                        .foregroundColor(.black)
+                        .textSelection(.enabled)
+                }
+                .padding()
+                .background(Color.blue.opacity(0.05))
+                .cornerRadius(12)
+            }
+
+            // Correct Answer
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("A")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .frame(width: 20, height: 20)
+                        .background(Color.green)
+                        .cornerRadius(4)
+
+                    Text("Correct Answer")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+
+                Text(question.answerText)
+                    .font(.body)
+                    .foregroundColor(.black)
+                    .textSelection(.enabled)
+            }
+            .padding()
+            .background(Color.green.opacity(0.05))
+            .cornerRadius(12)
+
+            // AI Feedback
+            if let feedback = question.feedback, !feedback.isEmpty, feedback != "No feedback provided" {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "bubble.left.fill")
+                            .font(.caption)
+                            .foregroundColor(.purple)
+                        Text("AI Feedback")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+
+                    Text(feedback)
+                        .font(.body)
+                        .foregroundColor(.black)
+                        .textSelection(.enabled)
+                }
+                .padding()
+                .background(Color.purple.opacity(0.05))
+                .cornerRadius(12)
+            }
+
+            // User notes and tags
+            userNotesAndTags(for: question)
+        }
+    }
+
+    // MARK: - Shared Components
+
+    @ViewBuilder
+    private func questionHeader(for question: ArchivedQuestion) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Grading Badge (if graded)
+            if question.isGraded, let grade = question.grade {
+                HStack(spacing: 8) {
+                    Image(systemName: gradeIcon(grade))
+                        .foregroundColor(gradeColor(grade))
+                    Text(grade.displayName)
+                        .font(.headline)
+                        .foregroundColor(gradeColor(grade))
+                    if let points = question.points, let maxPoints = question.maxPoints {
+                        Text("(\(String(format: "%.1f", points))/\(String(format: "%.1f", maxPoints)))")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    Spacer()
+                }
+                .padding()
+                .background(gradeColor(grade).opacity(0.1))
+                .cornerRadius(12)
+            }
+
+            // Subject and confidence indicator
+            HStack {
+                Text(question.subject)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.1))
+                    .foregroundColor(.blue)
+                    .cornerRadius(6)
+
+                Spacer()
+
+                Circle()
+                    .fill(confidenceColor(question.confidence))
+                    .frame(width: 8, height: 8)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func userNotesAndTags(for question: ArchivedQuestion) -> some View {
+        // Tags (if any)
+        if let tags = question.tags, !tags.isEmpty {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 6) {
+                ForEach(tags, id: \.self) { tag in
+                    Text(tag)
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundColor(.blue)
+                        .cornerRadius(8)
+                }
+            }
+        }
+
+        // Notes (if any)
+        if let notes = question.notes, !notes.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "note.text")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                    Text("Your Notes")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+
+                Text(notes)
+                    .font(.callout)
+                    .foregroundColor(.black)
+                    .textSelection(.enabled)
+            }
+            .padding()
+            .background(Color.yellow.opacity(0.1))
+            .cornerRadius(12)
+        }
+    }
+
+    // MARK: - Data Loading
+
     private func loadQuestion() {
         print("🔍 [QuestionDetail] Loading question: \(questionId)")
 

@@ -23,15 +23,21 @@ class QuestionGenerationService: ObservableObject {
 
     // MARK: - Cache Management
     private var questionCache: [String: CachedQuestionSet] = [:]
-    private let cacheValidityInterval: TimeInterval = 300 // 5 minutes
+    private let cacheValidityInterval: TimeInterval = 86400 // 24 hours
+
+    // Last generated questions - persists until replaced by new generation
+    @Published var lastGeneratedQuestions: [GeneratedQuestion] = []
+    @Published var lastGenerationDate: Date?
+    @Published var lastGenerationType: String?
 
     private struct CachedQuestionSet {
         let questions: [GeneratedQuestion]
         let timestamp: Date
         let cacheKey: String
+        let generationType: String
 
         var isExpired: Bool {
-            Date().timeIntervalSince(timestamp) > 300 // 5 minutes
+            Date().timeIntervalSince(timestamp) > 86400 // 24 hours
         }
     }
 
@@ -41,6 +47,7 @@ class QuestionGenerationService: ObservableObject {
         let focusNotes: String?
         let difficulty: QuestionDifficulty
         let questionCount: Int
+        let questionType: GeneratedQuestion.QuestionType  // NEW: Question type filter
 
         enum QuestionDifficulty: String, CaseIterable {
             case beginner = "beginner"
@@ -182,28 +189,37 @@ class QuestionGenerationService: ObservableObject {
 
         enum QuestionType: String, Codable, CaseIterable {
             case multipleChoice = "multiple_choice"
-            case shortAnswer = "short_answer"
-            case calculation = "calculation"
-            case essay = "essay"
             case trueFalse = "true_false"
+            case fillBlank = "fill_blank"
+            case shortAnswer = "short_answer"
+            case longAnswer = "long_answer"
+            case calculation = "calculation"
+            case matching = "matching"
+            case any = "any"  // Allow AI to choose type dynamically
 
             var displayName: String {
                 switch self {
                 case .multipleChoice: return "Multiple Choice"
-                case .shortAnswer: return "Short Answer"
-                case .calculation: return "Calculation"
-                case .essay: return "Essay"
                 case .trueFalse: return "True/False"
+                case .fillBlank: return "Fill in the Blank"
+                case .shortAnswer: return "Short Answer"
+                case .longAnswer: return "Long Answer"
+                case .calculation: return "Calculation"
+                case .matching: return "Matching"
+                case .any: return "Mixed Types"
                 }
             }
 
             var icon: String {
                 switch self {
                 case .multipleChoice: return "checklist"
-                case .shortAnswer: return "text.cursor"
-                case .calculation: return "function"
-                case .essay: return "doc.text"
                 case .trueFalse: return "checkmark.circle"
+                case .fillBlank: return "text.cursor"
+                case .shortAnswer: return "text.alignleft"
+                case .longAnswer: return "doc.text"
+                case .calculation: return "function"
+                case .matching: return "arrow.left.arrow.right"
+                case .any: return "sparkles"
                 }
             }
         }
@@ -274,7 +290,8 @@ class QuestionGenerationService: ObservableObject {
                 "topics": config.topics,
                 "focus_notes": config.focusNotes ?? "",
                 "difficulty": config.difficulty.rawValue,
-                "question_count": config.questionCount
+                "question_count": config.questionCount,
+                "question_type": config.questionType.rawValue
             ],
             "user_profile": userProfile.dictionary
         ]
@@ -309,9 +326,17 @@ class QuestionGenerationService: ObservableObject {
                         let cachedSet = CachedQuestionSet(
                             questions: responseResult.questions,
                             timestamp: Date(),
-                            cacheKey: cacheKey
+                            cacheKey: cacheKey,
+                            generationType: "random"
                         )
                         questionCache[cacheKey] = cachedSet
+
+                        // Update last generated questions (replaces previous)
+                        await MainActor.run {
+                            self.lastGeneratedQuestions = responseResult.questions
+                            self.lastGenerationDate = Date()
+                            self.lastGenerationType = "Random Practice"
+                        }
 
                         print("🎉 Generated \(responseResult.questions.count) random questions successfully")
                         return .success(responseResult.questions)
@@ -375,7 +400,8 @@ class QuestionGenerationService: ObservableObject {
             "subject": subject,
             "mistakes_data": mistakes.map { $0.dictionary },
             "config": [
-                "question_count": config.questionCount
+                "question_count": config.questionCount,
+                "question_type": config.questionType.rawValue
             ],
             "user_profile": userProfile.dictionary
         ]
@@ -406,6 +432,13 @@ class QuestionGenerationService: ObservableObject {
                     let responseResult = try parseQuestionResponse(data: data, generationType: "mistake_based")
 
                     if responseResult.success {
+                        // Update last generated questions (replaces previous)
+                        await MainActor.run {
+                            self.lastGeneratedQuestions = responseResult.questions
+                            self.lastGenerationDate = Date()
+                            self.lastGenerationType = "Mistake-Based Practice"
+                        }
+
                         print("🎉 Generated \(responseResult.questions.count) mistake-based questions successfully")
                         return .success(responseResult.questions)
                     } else {
@@ -510,7 +543,8 @@ class QuestionGenerationService: ObservableObject {
             "subject": subject,
             "conversation_data": conversations.map { $0.dictionary },
             "config": [
-                "question_count": config.questionCount
+                "question_count": config.questionCount,
+                "question_type": config.questionType.rawValue
             ],
             "user_profile": userProfile.dictionary
         ]
@@ -544,6 +578,13 @@ class QuestionGenerationService: ObservableObject {
 
                     // If we successfully parsed questions, return them regardless of status code or success flag
                     if !responseResult.questions.isEmpty {
+                        // Update last generated questions (replaces previous)
+                        await MainActor.run {
+                            self.lastGeneratedQuestions = responseResult.questions
+                            self.lastGenerationDate = Date()
+                            self.lastGenerationType = "Conversation-Based Practice"
+                        }
+
                         print("🎉 Generated \(responseResult.questions.count) conversation-based questions successfully (Status: \(httpResponse.statusCode))")
                         return .success(responseResult.questions)
                     }
@@ -570,6 +611,12 @@ class QuestionGenerationService: ObservableObject {
 
                     // Try to extract questions using the intelligent recovery system
                     if let extractedQuestions = tryExtractQuestionsFromErrorResponse(data: data) {
+                        // Update last generated questions (replaces previous)
+                        await MainActor.run {
+                            self.lastGeneratedQuestions = extractedQuestions
+                            self.lastGenerationDate = Date()
+                            self.lastGenerationType = "Conversation-Based Practice"
+                        }
 
                         return .success(extractedQuestions)
                     }

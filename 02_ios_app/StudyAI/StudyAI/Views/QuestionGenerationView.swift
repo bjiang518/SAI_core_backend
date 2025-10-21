@@ -30,6 +30,7 @@ struct QuestionGenerationView: View {
     @State private var selectedMistakes: Set<String> = [] // Add selected mistakes tracking
     @State private var selectedDifficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty = .intermediate
     @State private var questionCount = 5
+    @State private var selectedQuestionType: QuestionGenerationService.GeneratedQuestion.QuestionType = .any
     @State private var selectedMistakeNotebook = ""
     @State private var selectedArchiveSession = ""
     @State private var isLoadingData = false
@@ -272,6 +273,60 @@ struct QuestionGenerationView: View {
                         .accentColor(selectedTemplate.color)
                     }
                 }
+
+                // Question Type Selection
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "doc.text.magnifyingglass")
+                            .font(.subheadline)
+                            .foregroundColor(.purple)
+                        Text(NSLocalizedString("questionGeneration.questionType", comment: ""))
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Text(selectedQuestionType.displayName)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(selectedTemplate.color.opacity(0.1))
+                            .cornerRadius(6)
+                    }
+
+                    // Visual type grid
+                    LazyVGrid(columns: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ], spacing: 12) {
+                        ForEach(QuestionGenerationService.GeneratedQuestion.QuestionType.allCases, id: \.self) { type in
+                            Button(action: {
+                                selectedQuestionType = type
+                            }) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: type.icon)
+                                        .font(.title3)
+                                        .foregroundColor(selectedQuestionType == type ? selectedTemplate.color : .secondary)
+
+                                    Text(type.displayName)
+                                        .font(.caption2)
+                                        .foregroundColor(selectedQuestionType == type ? selectedTemplate.color : .secondary)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(selectedQuestionType == type ? selectedTemplate.color.opacity(0.1) : Color.gray.opacity(0.05))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(selectedQuestionType == type ? selectedTemplate.color : Color.clear, lineWidth: 2)
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                }
             }
         }
         .padding()
@@ -452,7 +507,8 @@ struct QuestionGenerationView: View {
                 topics: mostCommonSubjects.isEmpty ? [primarySubject] : mostCommonSubjects,
                 focusNotes: focusNotes,
                 difficulty: selectedDifficulty,
-                questionCount: questionCount
+                questionCount: questionCount,
+                questionType: selectedQuestionType
             )
 
 
@@ -498,7 +554,8 @@ struct QuestionGenerationView: View {
                 topics: mistakeSubjects,
                 focusNotes: NSLocalizedString("questionGeneration.focusNotes.addressMistakes", comment: ""),
                 difficulty: selectedDifficulty,
-                questionCount: questionCount
+                questionCount: questionCount,
+                questionType: selectedQuestionType
             )
 
             let result = await questionService.generateMistakeBasedQuestions(
@@ -559,7 +616,8 @@ struct QuestionGenerationView: View {
                 topics: conversationSubjects.isEmpty ? [primarySubject] : conversationSubjects,
                 focusNotes: NSLocalizedString("questionGeneration.focusNotes.conversationPatterns", comment: ""),
                 difficulty: selectedDifficulty,
-                questionCount: questionCount
+                questionCount: questionCount,
+                questionType: selectedQuestionType
             )
 
             let result = await questionService.generateConversationBasedQuestions(

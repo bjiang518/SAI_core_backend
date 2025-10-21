@@ -110,7 +110,9 @@ class QuestionArchiveService: ObservableObject {
                 maxPoints: question.pointsPossible,
                 feedback: question.feedback,
                 isGraded: normalizedGrade != nil,
-                isCorrect: isCorrect
+                isCorrect: isCorrect,
+                questionType: question.questionType,
+                options: question.options
             )
 
             archivedQuestions.append(archivedQuestion)
@@ -122,7 +124,7 @@ class QuestionArchiveService: ObservableObject {
                 "questionText": question.questionText,
                 "rawQuestionText": question.rawQuestionText ?? question.questionText,
                 "answerText": question.answerText,
-                "confidence": question.confidence,
+                "confidence": question.confidence ?? 0.0,
                 "hasVisualElements": question.hasVisualElements,
                 "archivedAt": ISO8601DateFormatter().string(from: Date()),
                 "reviewCount": 0,
@@ -134,7 +136,9 @@ class QuestionArchiveService: ObservableObject {
                 "maxPoints": question.pointsPossible ?? 1.0,
                 "feedback": question.feedback ?? "",
                 "isGraded": normalizedGrade != nil,
-                "isCorrect": isCorrect  // ✅ CRITICAL: Store for mistake tracking
+                "isCorrect": isCorrect,  // ✅ CRITICAL: Store for mistake tracking
+                "questionType": question.questionType ?? "",
+                "options": question.options ?? []
             ]
             questionDataForLocalStorage.append(questionData)
 
@@ -315,7 +319,11 @@ class QuestionArchiveService: ObservableObject {
         let points = (data["points"] as? Float) ?? (data["points"] as? Double).map(Float.init)
         let maxPoints = (data["maxPoints"] as? Float) ?? (data["maxPoints"] as? Double).map(Float.init)
         let isGraded = (data["isGraded"] as? Bool) ?? false
-        
+
+        // Question type fields
+        let questionType = data["questionType"] as? String
+        let options = data["options"] as? [String]
+
         return QuestionSummary(
             id: id,
             subject: subject,
@@ -329,7 +337,9 @@ class QuestionArchiveService: ObservableObject {
             grade: grade,
             points: points,
             maxPoints: maxPoints,
-            isGraded: isGraded
+            isGraded: isGraded,
+            questionType: questionType,
+            options: options
         )
     }
     
@@ -398,6 +408,10 @@ class QuestionArchiveService: ObservableObject {
             lastReviewedAt = parseDate(lastReviewedAtString)
         }
 
+        // Question type fields
+        let questionType = data["questionType"] as? String
+        let options = data["options"] as? [String]
+
         // Log the isCorrect value for debugging
         print("   📊 [Convert] Question \(id): grade=\(gradeString ?? "nil"), isCorrect=\(isCorrect?.description ?? "nil")")
 
@@ -423,7 +437,9 @@ class QuestionArchiveService: ObservableObject {
             maxPoints: maxPoints,
             feedback: feedback,
             isGraded: isGraded,
-            isCorrect: isCorrect  // ✅ CRITICAL: Include for mistake tracking
+            isCorrect: isCorrect,  // ✅ CRITICAL: Include for mistake tracking
+            questionType: questionType,
+            options: options
         )
     }
     

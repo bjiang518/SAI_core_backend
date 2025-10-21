@@ -279,6 +279,7 @@
 "questionGeneration.difficulty.beginner" = "Beginner";
 "questionGeneration.difficulty.advanced" = "Advanced";
 "questionGeneration.numberOfQuestions" = "Number of Questions";
+"questionGeneration.questionType" = "Question Type";
 "questionGeneration.generating" = "Generating...";
 "questionGeneration.generateQuestions" = "Generate Questions";
 "questionGeneration.generatedQuestions" = "Generated Questions";

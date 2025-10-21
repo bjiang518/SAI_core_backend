@@ -81,14 +81,17 @@ struct GeneratedQuestionsListView: View {
             .navigationBarTitleDisplayMode(.large)
             .navigationBarItems(trailing: closeButton)
             .sheet(isPresented: $showingQuestionDetail) {
-                if let selectedQuestion = selectedQuestion {
+                if let selectedQuestion = selectedQuestion,
+                   let questionIndex = questions.firstIndex(where: { $0.id == selectedQuestion.id }) {
                     GeneratedQuestionDetailView(
                         question: selectedQuestion,
                         onAnswerSubmitted: { isCorrect, points in
                             // Track the answer result
                             answeredQuestions[selectedQuestion.id] = QuestionResult(isCorrect: isCorrect, points: points)
                             logger.info("📝 Question answered: \(selectedQuestion.id), correct: \(isCorrect)")
-                        }
+                        },
+                        allQuestions: questions,
+                        currentIndex: questionIndex
                     )
                 }
             }
@@ -217,25 +220,61 @@ struct GeneratedQuestionsListView: View {
     private var questionsListSection: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
-                ForEach(filteredQuestions) { question in
-                    QuestionListCard(
-                        question: question,
-                        isSelectionMode: isSelectionMode,
-                        isSelected: selectedQuestions.contains(question.id),
-                        onToggleSelection: {
-                            if selectedQuestions.contains(question.id) {
-                                selectedQuestions.remove(question.id)
-                            } else {
-                                selectedQuestions.insert(question.id)
+                ForEach(filteredQuestions.indices, id: \.self) { index in
+                    let question = filteredQuestions[index]
+                    let questionIndex = index + 1
+
+                    // Wrap renderer in selection container
+                    VStack(spacing: 0) {
+                        // Selection header (when in selection mode)
+                        if isSelectionMode {
+                            HStack {
+                                Button(action: {
+                                    if selectedQuestions.contains(question.id) {
+                                        selectedQuestions.remove(question.id)
+                                    } else {
+                                        selectedQuestions.insert(question.id)
+                                    }
+                                }) {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: selectedQuestions.contains(question.id) ? "checkmark.circle.fill" : "circle")
+                                            .font(.title3)
+                                            .foregroundColor(selectedQuestions.contains(question.id) ? .blue : .gray)
+
+                                        Text(selectedQuestions.contains(question.id) ? NSLocalizedString("generatedQuestions.selected", comment: "") : NSLocalizedString("generatedQuestions.select", comment: ""))
+                                            .font(.subheadline)
+                                            .foregroundColor(selectedQuestions.contains(question.id) ? .blue : .gray)
+                                    }
+                                }
+                                .buttonStyle(PlainButtonStyle())
+
+                                Spacer()
                             }
-                        },
-                        onTap: {
+                            .padding(.horizontal)
+                            .padding(.top, 12)
+                        }
+
+                        // Use QuestionTypeRenderer based on question type
+                        Button(action: {
                             if !isSelectionMode {
                                 selectedQuestion = question
                                 showingQuestionDetail = true
+                            } else {
+                                if selectedQuestions.contains(question.id) {
+                                    selectedQuestions.remove(question.id)
+                                } else {
+                                    selectedQuestions.insert(question.id)
+                                }
                             }
+                        }) {
+                            renderQuestion(question, at: questionIndex)
+                                .padding()
                         }
-                    )
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
                 }
 
                 // Stats Summary at bottom
@@ -353,6 +392,54 @@ struct GeneratedQuestionsListView: View {
         let topicCounts = Dictionary(grouping: questions) { $0.topic }
         let mostCommonTopic = topicCounts.max(by: { $0.value.count < $1.value.count })?.key ?? "Practice"
         return mostCommonTopic
+    }
+
+    @ViewBuilder
+    private func renderQuestion(_ question: QuestionGenerationService.GeneratedQuestion, at index: Int) -> some View {
+        // Convert GeneratedQuestion to ParsedQuestion format for renderers
+        let parsedQuestion = ParsedQuestion(
+            questionNumber: index,
+            rawQuestionText: nil,
+            questionText: question.question,
+            answerText: question.correctAnswer,
+            confidence: nil,
+            hasVisualElements: false,
+            studentAnswer: "",  // No student answer yet (practice mode)
+            correctAnswer: question.correctAnswer,
+            grade: nil,  // No grading yet
+            pointsEarned: nil,
+            pointsPossible: Float(question.points ?? 10),
+            feedback: question.explanation,
+            questionType: question.type.rawValue,
+            options: question.options,
+            isParent: nil,
+            hasSubquestions: nil,
+            parentContent: nil,
+            subquestions: nil,
+            subquestionNumber: nil,
+            parentSummary: nil
+        )
+
+        // Render based on question type
+        switch question.type {
+        case .multipleChoice:
+            MultipleChoiceRenderer(question: parsedQuestion, isExpanded: false, onTapAskAI: {})
+        case .trueFalse:
+            TrueFalseRenderer(question: parsedQuestion, isExpanded: false, onTapAskAI: {})
+        case .fillBlank:
+            FillInBlankRenderer(question: parsedQuestion, isExpanded: false, onTapAskAI: {})
+        case .shortAnswer:
+            ShortAnswerRenderer(question: parsedQuestion, isExpanded: false, onTapAskAI: {})
+        case .longAnswer:
+            LongAnswerRenderer(question: parsedQuestion, isExpanded: false, onTapAskAI: {})
+        case .calculation:
+            CalculationRenderer(question: parsedQuestion, isExpanded: false, onTapAskAI: {})
+        case .matching:
+            MatchingRenderer(question: parsedQuestion, isExpanded: false, onTapAskAI: {})
+        case .any:
+            // Fallback to generic renderer for "any" type
+            ShortAnswerRenderer(question: parsedQuestion, isExpanded: false, onTapAskAI: {})
+        }
     }
 
 }

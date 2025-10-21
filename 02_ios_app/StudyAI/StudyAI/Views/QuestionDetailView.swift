@@ -12,6 +12,12 @@ struct GeneratedQuestionDetailView: View {
     let question: QuestionGenerationService.GeneratedQuestion
     let onAnswerSubmitted: ((Bool, Int) -> Void)? // Callback with isCorrect and points
 
+    // Navigation support
+    let allQuestions: [QuestionGenerationService.GeneratedQuestion]?
+    let currentIndex: Int?
+    @State private var showingNextQuestion = false
+    @State private var nextQuestion: QuestionGenerationService.GeneratedQuestion?
+
     @Environment(\.dismiss) private var dismiss
     @State private var userAnswer = ""
     @State private var selectedOption: String?
@@ -29,6 +35,15 @@ struct GeneratedQuestionDetailView: View {
     private let logger = Logger(subsystem: "com.studyai", category: "QuestionDetail")
     private let archiveService = QuestionArchiveService.shared
 
+    // Check if there's a next question available
+    private var hasNextQuestion: Bool {
+        guard let allQuestions = allQuestions,
+              let currentIndex = currentIndex else {
+            return false
+        }
+        return currentIndex < allQuestions.count - 1
+    }
+
     // UserDefaults keys
     private var progressMarkedKey: String {
         return "question_progress_marked_\(question.id)"
@@ -43,9 +58,14 @@ struct GeneratedQuestionDetailView: View {
     }
 
     // Default initializer without callback (for backwards compatibility)
-    init(question: QuestionGenerationService.GeneratedQuestion, onAnswerSubmitted: ((Bool, Int) -> Void)? = nil) {
+    init(question: QuestionGenerationService.GeneratedQuestion,
+         onAnswerSubmitted: ((Bool, Int) -> Void)? = nil,
+         allQuestions: [QuestionGenerationService.GeneratedQuestion]? = nil,
+         currentIndex: Int? = nil) {
         self.question = question
         self.onAnswerSubmitted = onAnswerSubmitted
+        self.allQuestions = allQuestions
+        self.currentIndex = currentIndex
     }
 
     var body: some View {
@@ -158,10 +178,7 @@ struct GeneratedQuestionDetailView: View {
                 .font(.title3)
                 .fontWeight(.semibold)
 
-            Text(question.question)
-                .font(.body)
-                .foregroundColor(.primary)
-                .multilineTextAlignment(.leading)
+            MathFormattedText(question.question, fontSize: 16)
                 .padding()
                 .background(Color(.systemBackground))
                 .cornerRadius(16)
@@ -184,7 +201,7 @@ struct GeneratedQuestionDetailView: View {
                     multipleChoiceInput
                 case .trueFalse:
                     trueFalseInput
-                case .shortAnswer, .calculation, .essay:
+                case .shortAnswer, .calculation, .longAnswer, .fillBlank, .matching, .any:
                     textAnswerInput
                 }
             }
@@ -271,7 +288,7 @@ struct GeneratedQuestionDetailView: View {
 
     private var textAnswerInput: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if question.type == .essay {
+            if question.type == .longAnswer {
                 TextEditor(text: $userAnswer)
                     .frame(minHeight: 120)
                     .padding()
@@ -293,7 +310,7 @@ struct GeneratedQuestionDetailView: View {
                     )
             }
 
-            Text(question.type == .essay ? NSLocalizedString("questionDetail.provideDetailedExplanation", comment: "") : NSLocalizedString("questionDetail.typeAnswerAbove", comment: ""))
+            Text(question.type == .longAnswer ? NSLocalizedString("questionDetail.provideDetailedExplanation", comment: "") : NSLocalizedString("questionDetail.typeAnswerAbove", comment: ""))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -365,9 +382,7 @@ struct GeneratedQuestionDetailView: View {
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
 
-                    Text(getCurrentAnswer())
-                        .font(.body)
-                        .foregroundColor(.primary)
+                    MathFormattedText(getCurrentAnswer(), fontSize: 14)
                         .padding()
                         .background(isCorrect ? Color.green.opacity(0.05) : Color.red.opacity(0.05))
                         .cornerRadius(12)
@@ -384,9 +399,7 @@ struct GeneratedQuestionDetailView: View {
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
 
-                    Text(question.correctAnswer)
-                        .font(.body)
-                        .foregroundColor(.primary)
+                    MathFormattedText(question.correctAnswer, fontSize: 14)
                         .padding()
                         .background(Color.green.opacity(0.05))
                         .cornerRadius(12)
@@ -450,6 +463,11 @@ struct GeneratedQuestionDetailView: View {
 
             // Mark Progress Button (show after answer submission)
             markProgressButton
+
+            // Next Question Button (show after answer submission if there's a next question)
+            if hasNextQuestion {
+                nextQuestionButton
+            }
         }
         .padding()
         .background(Color.gray.opacity(0.1))
@@ -458,6 +476,18 @@ struct GeneratedQuestionDetailView: View {
             Button(NSLocalizedString("common.ok", comment: "")) { }
         } message: {
             Text(NSLocalizedString("questionDetail.archiveSuccessMessage", comment: ""))
+        }
+        .sheet(isPresented: $showingNextQuestion) {
+            if let nextQuestion = nextQuestion,
+               let allQuestions = allQuestions,
+               let currentIndex = currentIndex {
+                GeneratedQuestionDetailView(
+                    question: nextQuestion,
+                    onAnswerSubmitted: onAnswerSubmitted,
+                    allQuestions: allQuestions,
+                    currentIndex: currentIndex + 1
+                )
+            }
         }
     }
 
@@ -473,10 +503,7 @@ struct GeneratedQuestionDetailView: View {
                     .fontWeight(.semibold)
             }
 
-            Text(question.explanation)
-                .font(.body)
-                .foregroundColor(.primary)
-                .multilineTextAlignment(.leading)
+            MathFormattedText(question.explanation, fontSize: 14)
 
         }
         .padding()
@@ -524,7 +551,7 @@ struct GeneratedQuestionDetailView: View {
         switch question.type {
         case .multipleChoice, .trueFalse:
             return selectedOption != nil
-        case .shortAnswer, .calculation, .essay:
+        case .shortAnswer, .calculation, .longAnswer, .fillBlank, .matching, .any:
             return !userAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
@@ -533,7 +560,7 @@ struct GeneratedQuestionDetailView: View {
         switch question.type {
         case .multipleChoice, .trueFalse:
             return selectedOption ?? ""
-        case .shortAnswer, .calculation, .essay:
+        case .shortAnswer, .calculation, .longAnswer, .fillBlank, .matching, .any:
             return userAnswer
         }
     }
@@ -622,6 +649,49 @@ struct GeneratedQuestionDetailView: View {
                     .font(.caption)
                     .foregroundColor(.blue)
                     .multilineTextAlignment(.center)
+            }
+        }
+        .padding(.top, 16)
+    }
+
+    private var nextQuestionButton: some View {
+        VStack(spacing: 12) {
+            Button(action: {
+                // Load the next question
+                if let allQuestions = allQuestions,
+                   let currentIndex = currentIndex,
+                   currentIndex < allQuestions.count - 1 {
+                    nextQuestion = allQuestions[currentIndex + 1]
+                    showingNextQuestion = true
+                }
+            }) {
+                HStack(spacing: 12) {
+                    Text("Next Question")
+                        .font(.body)
+                        .fontWeight(.semibold)
+
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.title3)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(
+                    LinearGradient(
+                        colors: [.blue, .blue.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(12)
+                .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+
+            if let currentIndex = currentIndex,
+               let allQuestions = allQuestions {
+                Text("Question \(currentIndex + 1) of \(allQuestions.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
         .padding(.top, 16)

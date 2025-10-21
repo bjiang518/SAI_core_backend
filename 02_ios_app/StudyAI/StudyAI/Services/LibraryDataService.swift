@@ -1309,6 +1309,10 @@ class QuestionLocalStorage {
         let maxPoints = (data["maxPoints"] as? Float) ?? (data["maxPoints"] as? Double).map(Float.init)
         let isGraded = (data["isGraded"] as? Bool) ?? false
 
+        // Question type fields (for type-specific rendering)
+        let questionType = data["questionType"] as? String
+        let options = data["options"] as? [String]
+
         return QuestionSummary(
             id: id,
             subject: subject,
@@ -1322,7 +1326,9 @@ class QuestionLocalStorage {
             grade: grade,
             points: points,
             maxPoints: maxPoints,
-            isGraded: isGraded
+            isGraded: isGraded,
+            questionType: questionType,
+            options: options
         )
     }
 }

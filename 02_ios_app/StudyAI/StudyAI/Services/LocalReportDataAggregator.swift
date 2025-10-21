@@ -115,6 +115,11 @@ class LocalReportDataAggregator {
         let gradedQuestions = questions.filter { $0.isGraded }
         let correctAnswers = gradedQuestions.filter { $0.grade == .correct }.count
 
+        // NEW: Calculate performance breakdown
+        let incorrectAnswers = gradedQuestions.filter { $0.grade == .incorrect }.count
+        let emptyAnswers = gradedQuestions.filter { $0.grade == .empty }.count
+        let partialCreditAnswers = gradedQuestions.filter { $0.grade == .partialCredit }.count
+
         let accuracy = totalQuestions > 0 ? Double(correctAnswers) / Double(totalQuestions) : 0.0
         let averageConfidence = questions.compactMap { $0.confidence }.reduce(0, +) / Float(max(questions.count, 1))
 
@@ -143,7 +148,10 @@ class LocalReportDataAggregator {
             improvementTrend: improvementTrend,
             consistencyScore: Double(calculateConsistencyScore(questions: questions)),
             timeSpentMinutes: timeSpentMinutes,
-            questionsPerDay: questionsPerDay
+            questionsPerDay: questionsPerDay,
+            totalIncorrect: incorrectAnswers,
+            totalEmpty: emptyAnswers,
+            totalPartialCredit: partialCreditAnswers
         )
     }
 
