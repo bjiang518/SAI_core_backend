@@ -730,6 +730,10 @@ struct UnifiedImageEditorView: View {
             previewResizedImage = nil
         }
 
+        // Clear any resize preview (even if not applied) to prevent override
+        previewResizedImage = nil
+        selectedSizeReduction = .raw
+
         croppedAdjustedImage = croppedUIImage
 
         // Don't reset brightness - keep the existing brightness settings

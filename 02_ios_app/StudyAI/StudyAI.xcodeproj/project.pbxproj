@@ -104,6 +104,9 @@
 		7B8353442EA6F4F400199AC3 /* LocalReportDataAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8353432EA6F4F400199AC3 /* LocalReportDataAggregator.swift */; };
 		7B8353452EA6F4F400199AC3 /* LocalReportDataAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8353432EA6F4F400199AC3 /* LocalReportDataAggregator.swift */; };
 		7B8353462EA6F4F400199AC3 /* LocalReportDataAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8353432EA6F4F400199AC3 /* LocalReportDataAggregator.swift */; };
+		7B8353482EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8353472EA7509000199AC3 /* QuestionTypeRenderers.swift */; };
+		7B8353492EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8353472EA7509000199AC3 /* QuestionTypeRenderers.swift */; };
+		7B83534A2EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8353472EA7509000199AC3 /* QuestionTypeRenderers.swift */; };
 		7B90451A2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
 		7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
 		7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
@@ -276,6 +279,7 @@
 		7B8353352EA6F11400199AC3 /* RateLimitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RateLimitManager.swift; sourceTree = "<group>"; };
 		7B8353362EA6F11400199AC3 /* SecureLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureLogger.swift; sourceTree = "<group>"; };
 		7B8353432EA6F4F400199AC3 /* LocalReportDataAggregator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LocalReportDataAggregator.swift; path = StudyAI/Services/LocalReportDataAggregator.swift; sourceTree = SOURCE_ROOT; };
+		7B8353472EA7509000199AC3 /* QuestionTypeRenderers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionTypeRenderers.swift; path = StudyAI/Views/QuestionTypeRenderers.swift; sourceTree = SOURCE_ROOT; };
 		7B9045192E8FB1FE00E5DDFA /* Books.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Books.json; sourceTree = "<group>"; };
 		7B90451D2E8FB42E00E5DDFA /* Checklist.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Checklist.json; sourceTree = "<group>"; };
 		7B9045212E8FB5DD00E5DDFA /* Chart Graph.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Chart Graph.json"; sourceTree = "<group>"; };
@@ -482,6 +486,7 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7B8353472EA7509000199AC3 /* QuestionTypeRenderers.swift */,
 				7B8353432EA6F4F400199AC3 /* LocalReportDataAggregator.swift */,
 				7B1961EF2E94E31A0024317A /* ParentModeManager.swift */,
 				7B1961AF2E949DD10024317A /* NotificationService.swift */,
@@ -865,6 +870,7 @@
 				EDIT789012345678DEFF0123 /* EditProfileView.swift in Sources */,
 				7B8352412E9636A200199AC3 /* AIAvatarAnimation.swift in Sources */,
 				DCHK890123456789FGHI1234 /* DailyCheckoutView.swift in Sources */,
+				7B8353482EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */,
 				LGLS901234567890GHIJ2345 /* LearningGoalsSettingsView.swift in Sources */,
 				51E8895014244637989DCA32 /* HomeView.swift in Sources */,
 				44D8DB9D1B4C4CFA8A59EB3D /* HomeworkResultsView.swift in Sources */,
@@ -919,6 +925,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7B1961AC2E949DAD0024317A /* NotificationSettingsView.swift in Sources */,
+				7B83534A2EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */,
 				7B1961EB2E94E2740024317A /* PasswordManagementView.swift in Sources */,
 				7B1961EC2E94E2740024317A /* ParentAuthenticationView.swift in Sources */,
 				7B8353452EA6F4F400199AC3 /* LocalReportDataAggregator.swift in Sources */,
@@ -947,6 +954,7 @@
 				7B1961B22E949DD10024317A /* NotificationService.swift in Sources */,
 				7B1961AE2E949DAD0024317A /* NotificationSettingsView.swift in Sources */,
 				7B1961CD2E94B32C0024317A /* LanguageSettingsView.swift in Sources */,
+				7B8353492EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */,
 				7B83533B2EA6F11400199AC3 /* AppLogger.swift in Sources */,
 				7B83533C2EA6F11400199AC3 /* SecureLogger.swift in Sources */,
 				7B83533D2EA6F11400199AC3 /* ErrorBoundary.swift in Sources */,

@@ -208,10 +208,6 @@ struct HomeworkResultsView: View {
     private func performanceSummarySection(_ summary: PerformanceSummary) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "chart.line.uptrend.xyaxis")
-                    .font(.title3)
-                    .foregroundColor(.blue)
-
                 Text(NSLocalizedString("homeworkResults.performanceSummary", comment: ""))
                     .font(.headline)
                     .foregroundColor(.black)
@@ -227,7 +223,7 @@ struct HomeworkResultsView: View {
                 .lineLimit(nil)
 
             // Score breakdown (if there are incorrect answers)
-            if summary.totalIncorrect > 0 || summary.totalEmpty > 0 {
+            if summary.totalIncorrect > 0 || summary.totalEmpty > 0 || summary.totalPartialCredit > 0 {
                 HStack(spacing: 16) {
                     if summary.totalCorrect > 0 {
                         ScoreBreakdownItem(
@@ -244,6 +240,15 @@ struct HomeworkResultsView: View {
                             label: NSLocalizedString("homeworkResults.incorrect", comment: ""),
                             color: .red,
                             icon: "xmark.circle.fill"
+                        )
+                    }
+
+                    if summary.totalPartialCredit > 0 {
+                        ScoreBreakdownItem(
+                            count: summary.totalPartialCredit,
+                            label: NSLocalizedString("homeworkResults.partialCredit", comment: ""),
+                            color: .orange,
+                            icon: "checkmark.circle"
                         )
                     }
 
@@ -775,222 +780,38 @@ struct QuestionAnswerCard: View {
             if isExpanded {
                 VStack(alignment: .leading, spacing: 12) {
                     Divider()
-                    
-                    // Raw Question Section (if available)
-                    if let rawQuestion = question.rawQuestionText, !rawQuestion.isEmpty && rawQuestion != question.questionText {
-                        HStack(alignment: .top, spacing: 12) {
-                            VStack {
-                                Image(systemName: "doc.text.fill")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .padding(.top, 2)
-                                Spacer()
-                            }
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(NSLocalizedString("homeworkResults.rawQuestion", comment: ""))
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.gray)
+                    // Use type-specific renderer
+                    QuestionTypeRendererSelector(
+                        question: question,
+                        isExpanded: true,
+                        onTapAskAI: {
+                            // Dismiss the parent report view first
+                            onDismissParent?()
 
-                                Text(rawQuestion)
-                                    .font(.body)
-                                    .foregroundColor(.black)
-                                    .multilineTextAlignment(.leading)
-                                    .textSelection(.enabled)
-                            }
-
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                    }
-                    
-                    if question.isGraded {
-                        // Grading Mode: Show student answer, correct answer, and feedback
-                        
-                        // Student Answer Section
-                        if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
-                            HStack(alignment: .top, spacing: 12) {
-                                VStack {
-                                    Image(systemName: "person.fill")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                        .padding(.top, 2)
-                                    Spacer()
-                                }
-
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(NSLocalizedString("homeworkResults.studentAnswer", comment: ""))
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.gray)
-                                    
-                                    Text(studentAnswer)
-                                        .font(.body)
-                                        .foregroundColor(.black)
-                                        .multilineTextAlignment(.leading)
-                                        .textSelection(.enabled)
-                                }
-                                
-                                Spacer()
-                            }
-                            .padding(.horizontal)
-                        } else {
-                            // Empty answer
-                            HStack(alignment: .top, spacing: 12) {
-                                VStack {
-                                    Image(systemName: "person.fill")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                        .padding(.top, 2)
-                                    Spacer()
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(NSLocalizedString("homeworkResults.studentAnswer", comment: ""))
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.gray)
-
-                                    Text(NSLocalizedString("homeworkResults.noAnswerProvided", comment: ""))
-                                        .font(.body)
-                                        .italic()
-                                        .foregroundColor(.gray)
-                                        .multilineTextAlignment(.leading)
-                                }
-                                
-                                Spacer()
-                            }
-                            .padding(.horizontal)
-                        }
-                        
-                        // Correct Answer Section
-                        if let correctAnswer = question.correctAnswer, !correctAnswer.isEmpty {
-                            HStack(alignment: .top, spacing: 12) {
-                                VStack {
-                                    Image(systemName: "lightbulb.fill")
-                                        .font(.caption)
-                                        .foregroundColor(.orange)
-                                        .padding(.top, 2)
-                                    Spacer()
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(NSLocalizedString("homeworkResults.correctAnswer", comment: ""))
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.gray)
-                                    
-                                    Text(correctAnswer)
-                                        .font(.body)
-                                        .foregroundColor(.black)
-                                        .multilineTextAlignment(.leading)
-                                        .textSelection(.enabled)
-                                }
-                                
-                                Spacer()
-                            }
-                            .padding(.horizontal)
-                        }
-                        
-                        // Feedback Section
-                        if let feedback = question.feedback, !feedback.isEmpty && feedback != "No feedback provided" {
-                            HStack(alignment: .top, spacing: 12) {
-                                VStack {
-                                    Image(systemName: "bubble.left.fill")
-                                        .font(.caption)
-                                        .foregroundColor(.purple)
-                                        .padding(.top, 2)
-                                    Spacer()
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(NSLocalizedString("homeworkResults.feedback", comment: ""))
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.gray)
-                                    
-                                    Text(feedback)
-                                        .font(.body)
-                                        .foregroundColor(.black)
-                                        .multilineTextAlignment(.leading)
-                                        .textSelection(.enabled)
-                                }
-                                
-                                Spacer()
-                            }
-                            .padding(.horizontal)
-                        }
-                        
-                    } else {
-                        // Legacy Mode: Show AI answer only
-                        HStack(alignment: .top, spacing: 12) {
-                            VStack {
-                                Image(systemName: "lightbulb.fill")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                                    .padding(.top, 2)
-                                Spacer()
-                            }
-                            
-                            Text(question.answerText)
-                                .font(.body)
-                                .foregroundColor(.black)
-                                .multilineTextAlignment(.leading)
-                                .textSelection(.enabled)
-                            
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                    }
-
-                    // Follow Up Button - Navigate to chat with this question
-                    Button(action: {
-                        // Dismiss the parent report view first
-                        onDismissParent?()
-
-                        // Small delay to ensure view is dismissed before navigation
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            // Construct prompt for chat
-                            let chatPrompt = """
+                            // Small delay to ensure view is dismissed before navigation
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                // Construct prompt for chat
+                                let chatPrompt = """
 I need help understanding this question from my homework:
 
 Question: \(question.questionText)
 
 \(question.isGraded && question.studentAnswer != nil && !question.studentAnswer!.isEmpty ? "My answer was: \(question.studentAnswer!)\n\n" : "")I'm unclear about how to approach this problem. Can you help me understand it better?
 """
-                            // Detect subject from question or use default
-                            let detectedSubject = detectSubjectFromQuestion(question.questionText)
+                                // Detect subject from question or use default
+                                let detectedSubject = self.detectSubjectFromQuestion(question.questionText)
 
-                            // Navigate to chat with the question
-                            appState.navigateToChatWithMessage(chatPrompt, subject: detectedSubject)
+                                // Navigate to chat with the question
+                                appState.navigateToChatWithMessage(chatPrompt, subject: detectedSubject)
 
-                            // Haptic feedback
-                            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                            impactFeedback.impactOccurred()
+                                // Haptic feedback
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                impactFeedback.impactOccurred()
+                            }
                         }
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "message.fill")
-                                .font(.system(size: 14, weight: .medium))
-
-                            Text(NSLocalizedString("homeworkResults.askAiForHelp", comment: ""))
-                                .font(.system(size: 15, weight: .semibold))
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.blue, Color.blue.opacity(0.8)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .cornerRadius(12)
-                    }
+                    )
                     .padding(.horizontal)
-                    .padding(.top, 8)
 
                     // Bottom padding
                     Color.clear.frame(height: 4)

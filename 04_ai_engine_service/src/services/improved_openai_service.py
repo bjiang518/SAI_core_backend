@@ -52,6 +52,7 @@ class PerformanceSummary(BaseModel):
     total_correct: int
     total_incorrect: int
     total_empty: int
+    total_partial_credit: int
     accuracy_rate: float = Field(ge=0, le=1)
     summary_text: str
 
@@ -952,7 +953,8 @@ GENERAL GRADING RULES:
           "question_number": "1",
           "is_parent": true,
           "has_subquestions": true,
-          "parent_content": "Main question text or instructions",
+          "raw_parent_content": "COMPLETE original parent question verbatim from image (100-300+ chars, include ALL context and instructions)",
+          "parent_content": "Short preview of parent question for UI (max 50 chars)",
           "subquestions": [
             {{
               "subquestion_number": "1a",
@@ -964,7 +966,9 @@ GENERAL GRADING RULES:
               "points_earned": 1.0,
               "points_possible": 1.0,
               "has_visuals": false,
-              "feedback": "<30w"
+              "feedback": "<30w",
+              "question_type": "multiple_choice|true_false|fill_blank|short_answer|long_answer|calculation|matching",
+              "options": ["A) Text", "B) Text", ...]
             }}
           ],
           "parent_summary": {{
@@ -983,12 +987,14 @@ GENERAL GRADING RULES:
           "correct_answer": "expected answer",
           "grade": "CORRECT|INCORRECT|EMPTY|PARTIAL_CREDIT",
           "points_earned": 1.0,
-          "feedback": "<30w"
+          "feedback": "<30w",
+          "question_type": "multiple_choice|true_false|fill_blank|short_answer|long_answer|calculation|matching",
+          "options": ["A) Text", "B) Text", ...]
         }}
       ]
     }}
   ],
-  "performance_summary": {{"total_correct": <N>, "total_incorrect": <N>, "total_empty": <N>, "accuracy_rate": 0.0-1.0, "summary_text": "brief"}}
+  "performance_summary": {{"total_correct": <N>, "total_incorrect": <N>, "total_empty": <N>, "total_partial_credit": <N>, "accuracy_rate": 0.0-1.0, "summary_text": "brief"}}
 }}
 
 {subject_rules}
@@ -1000,7 +1006,10 @@ RULES:
 4. CORRECT=1.0, INCORRECT/EMPTY=0.0, PARTIAL=0.5. Feedback <30w
 5. "raw_question_text" = COMPLETE VERBATIM text from image (NOT shortened). May be 100-300+ characters for word problems.
 6. "question_text" = Simplified short preview <50 chars for UI display only
-7. "student_answer" = What student wrote. "correct_answer" = Expected. Never mix."""
+7. "student_answer" = What student wrote. "correct_answer" = Expected. Never mix.
+8. "question_type" = Detect type: multiple_choice (has A/B/C/D), true_false (T/F), fill_blank (has ___), calculation (math), short_answer, long_answer, matching
+9. "options" = For multiple_choice: ["A) Text", "B) Text", ...]. For true_false: ["True", "False"]. For others: null or []
+10. PARENT QUESTIONS: "raw_parent_content" = COMPLETE VERBATIM parent question text from image (NOT shortened). Include ALL context and instructions. "parent_content" = Simplified short preview <50 chars for UI display only"""
         else:
             # FLAT STRUCTURE (FAST & STABLE): Optimized for reliability
             base_prompt = f"""Grade HW. Return JSON:
@@ -1021,7 +1030,7 @@ RULES:
       "feedback": "<30w"
     }}
   ],
-  "performance_summary": {{"total_correct": <N>, "total_incorrect": <N>, "total_empty": <N>, "accuracy_rate": 0.0-1.0, "summary_text": "brief"}}
+  "performance_summary": {{"total_correct": <N>, "total_incorrect": <N>, "total_empty": <N>, "total_partial_credit": <N>, "accuracy_rate": 0.0-1.0, "summary_text": "brief"}}
 }}
 
 {subject_rules}
@@ -1105,7 +1114,7 @@ RULES:
 
         # Validate performance_summary structure
         performance_summary = json_data.get("performance_summary", {})
-        summary_fields = ["total_correct", "total_incorrect", "accuracy_rate", "summary_text"]
+        summary_fields = ["total_correct", "total_incorrect", "total_partial_credit", "accuracy_rate", "summary_text"]
         for field in summary_fields:
             if field not in performance_summary:
                 return False
@@ -1275,13 +1284,15 @@ RULES:
         correct_count = sum(1 for q in repaired["questions"] if q.get("grade") == "CORRECT")
         incorrect_count = sum(1 for q in repaired["questions"] if q.get("grade") == "INCORRECT")
         empty_count = sum(1 for q in repaired["questions"] if q.get("grade") == "EMPTY")
+        partial_credit_count = sum(1 for q in repaired["questions"] if q.get("grade") == "PARTIAL_CREDIT")
 
         # Direct assignment to always use recalculated values
         perf["total_correct"] = correct_count
         perf["total_incorrect"] = incorrect_count
         perf["total_empty"] = empty_count
+        perf["total_partial_credit"] = partial_credit_count
         perf["accuracy_rate"] = correct_count / total_questions if total_questions > 0 else 0.0
-        perf["summary_text"] = f"Graded {total_questions} questions: {correct_count} correct, {incorrect_count} incorrect"
+        perf["summary_text"] = f"Graded {total_questions} questions: {correct_count} correct, {incorrect_count} incorrect, {partial_credit_count} partial credit"
 
         # Ensure processing_notes exists
         repaired.setdefault("processing_notes", "JSON structure repaired for consistency")
@@ -1306,6 +1317,7 @@ RULES:
                 "total_correct": performance_summary.get("total_correct", 0),
                 "total_incorrect": performance_summary.get("total_incorrect", 0),
                 "total_empty": performance_summary.get("total_empty", 0),
+                "total_partial_credit": performance_summary.get("total_partial_credit", 0),
                 "accuracy_rate": float(performance_summary.get("accuracy_rate", 0.0)),
                 "summary_text": performance_summary.get("summary_text", "No summary available")
             }

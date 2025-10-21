@@ -8,6 +8,50 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Question Type Enum
+
+/// Question type classification for different rendering styles
+enum QuestionType: String, Codable {
+    case multipleChoice = "multiple_choice"
+    case trueFalse = "true_false"
+    case fillInBlank = "fill_blank"
+    case shortAnswer = "short_answer"
+    case longAnswer = "long_answer"
+    case calculation = "calculation"
+    case matching = "matching"
+    case unknown = "unknown"
+
+    var displayName: String {
+        switch self {
+        case .multipleChoice: return "Multiple Choice"
+        case .trueFalse: return "True/False"
+        case .fillInBlank: return "Fill in the Blank"
+        case .shortAnswer: return "Short Answer"
+        case .longAnswer: return "Long Answer"
+        case .calculation: return "Calculation"
+        case .matching: return "Matching"
+        case .unknown: return "Unknown"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .multipleChoice: return "list.bullet.circle"
+        case .trueFalse: return "checkmark.circle.badge.xmark"
+        case .fillInBlank: return "line.horizontal.3.decrease"
+        case .shortAnswer: return "text.cursor"
+        case .longAnswer: return "doc.text"
+        case .calculation: return "number.circle"
+        case .matching: return "arrow.left.arrow.right"
+        case .unknown: return "questionmark.circle"
+        }
+    }
+
+    var needsOptions: Bool {
+        return self == .multipleChoice || self == .trueFalse
+    }
+}
+
 // MARK: - Backend JSON Models (Direct Parsing)
 
 /// Backend JSON response structure (matches improved_openai_service.py output)
@@ -92,6 +136,10 @@ struct BackendQuestion: Decodable {  // Changed from Codable to Decodable
     let hasVisuals: Bool?
     let feedback: String?
 
+    // Question type fields (for type-specific rendering)
+    let questionType: String?  // "multiple_choice", "true_false", "fill_blank", etc.
+    let options: [String]?     // For multiple choice: ["A) Option 1", "B) Option 2", ...]
+
     // Hierarchical fields
     let isParent: Bool?
     let hasSubquestions: Bool?
@@ -112,6 +160,8 @@ struct BackendQuestion: Decodable {  // Changed from Codable to Decodable
         case confidence
         case hasVisuals = "has_visuals"
         case feedback
+        case questionType = "question_type"
+        case options
         case isParent = "is_parent"
         case hasSubquestions = "has_subquestions"
         case parentContent = "parent_content"
@@ -168,6 +218,8 @@ struct BackendQuestion: Decodable {  // Changed from Codable to Decodable
 
         hasVisuals = try? container.decode(Bool.self, forKey: .hasVisuals)
         feedback = try? container.decode(String.self, forKey: .feedback)
+        questionType = try? container.decode(String.self, forKey: .questionType)
+        options = try? container.decode([String].self, forKey: .options)
         isParent = try? container.decode(Bool.self, forKey: .isParent)
         hasSubquestions = try? container.decode(Bool.self, forKey: .hasSubquestions)
         parentContent = try? container.decode(String.self, forKey: .parentContent)
@@ -193,6 +245,7 @@ struct BackendPerformanceSummary: Decodable {  // Changed from Codable to Decoda
     let totalCorrect: Int
     let totalIncorrect: Int
     let totalEmpty: Int
+    let totalPartialCredit: Int
     let accuracyRate: Float
     let summaryText: String
 
@@ -200,6 +253,7 @@ struct BackendPerformanceSummary: Decodable {  // Changed from Codable to Decoda
         case totalCorrect = "total_correct"
         case totalIncorrect = "total_incorrect"
         case totalEmpty = "total_empty"
+        case totalPartialCredit = "total_partial_credit"
         case accuracyRate = "accuracy_rate"
         case summaryText = "summary_text"
     }
@@ -211,6 +265,7 @@ struct BackendPerformanceSummary: Decodable {  // Changed from Codable to Decoda
         totalCorrect = try container.decode(Int.self, forKey: .totalCorrect)
         totalIncorrect = try container.decode(Int.self, forKey: .totalIncorrect)
         totalEmpty = try container.decode(Int.self, forKey: .totalEmpty)
+        totalPartialCredit = (try? container.decode(Int.self, forKey: .totalPartialCredit)) ?? 0
         summaryText = try container.decode(String.self, forKey: .summaryText)
 
         // Handle accuracyRate as Float or String
@@ -242,6 +297,10 @@ struct ParsedQuestion: Codable {
     let pointsPossible: Float?
     let feedback: String?
 
+    // Question type fields (for type-specific rendering)
+    let questionType: String?      // "multiple_choice", "true_false", etc.
+    let options: [String]?         // Multiple choice options
+
     // Parent/child structure (for hierarchical parsing)
     let isParent: Bool?
     let hasSubquestions: Bool?
@@ -262,6 +321,8 @@ struct ParsedQuestion: Codable {
          pointsEarned: Float? = nil,
          pointsPossible: Float? = nil,
          feedback: String? = nil,
+         questionType: String? = nil,
+         options: [String]? = nil,
          isParent: Bool? = nil,
          hasSubquestions: Bool? = nil,
          parentContent: String? = nil,
@@ -280,6 +341,8 @@ struct ParsedQuestion: Codable {
         self.pointsEarned = pointsEarned
         self.pointsPossible = pointsPossible
         self.feedback = feedback
+        self.questionType = questionType
+        self.options = options
         self.isParent = isParent
         self.hasSubquestions = hasSubquestions
         self.parentContent = parentContent
@@ -324,6 +387,20 @@ struct ParsedQuestion: Codable {
         guard let earned = pointsEarned, let possible = pointsPossible else { return "" }
         return "\(String(format: "%.1f", earned))/\(String(format: "%.1f", possible))"
     }
+
+    // Computed property for typed question type
+    var detectedQuestionType: QuestionType {
+        guard let typeString = questionType else {
+            return .unknown
+        }
+        return QuestionType(rawValue: typeString) ?? .unknown
+    }
+
+    // Computed property to check if question has valid options
+    var hasOptions: Bool {
+        guard let opts = options else { return false }
+        return !opts.isEmpty
+    }
 }
 
 struct ParentSummary: Codable {
@@ -340,9 +417,10 @@ struct PerformanceSummary: Codable {
     let totalCorrect: Int
     let totalIncorrect: Int
     let totalEmpty: Int
+    let totalPartialCredit: Int
     let accuracyRate: Float
     let summaryText: String
-    
+
     var accuracyPercentage: String {
         return String(format: "%.0f%%", accuracyRate * 100)
     }
@@ -401,6 +479,7 @@ extension BackendHomeworkResponse {
             totalCorrect: performanceSummary.totalCorrect,
             totalIncorrect: performanceSummary.totalIncorrect,
             totalEmpty: performanceSummary.totalEmpty,
+            totalPartialCredit: performanceSummary.totalPartialCredit,
             accuracyRate: performanceSummary.accuracyRate,
             summaryText: performanceSummary.summaryText
         )
@@ -435,6 +514,8 @@ extension BackendQuestion {
             pointsEarned: pointsEarned,
             pointsPossible: pointsPossible,
             feedback: feedback,
+            questionType: questionType,
+            options: options,
             isParent: isParent,
             hasSubquestions: hasSubquestions,
             parentContent: parentContent,

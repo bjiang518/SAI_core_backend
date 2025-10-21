@@ -644,9 +644,10 @@ class EnhancedHomeworkParser {
         var totalCorrect = 0
         var totalIncorrect = 0
         var totalEmpty = 0
+        var totalPartialCredit = 0  // Declare at method level
         var accuracyRate: Float = 0.0
         var summaryText = ""
-        
+
         // Try to extract from response first
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -666,7 +667,7 @@ class EnhancedHomeworkParser {
                 summaryText = trimmedLine.replacingOccurrences(of: "SUMMARY_TEXT:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
             }
         }
-        
+
         // If no performance summary found in response, calculate from questions
         if totalCorrect == 0 && totalIncorrect == 0 && totalEmpty == 0 {
             for question in questions {
@@ -678,35 +679,35 @@ class EnhancedHomeworkParser {
                 case "EMPTY":
                     totalEmpty += 1
                 case "PARTIAL_CREDIT":
-                    // Count partial credit as half correct for accuracy calculation
-                    totalIncorrect += 1
+                    totalPartialCredit += 1
                 default:
                     break
                 }
             }
-            
-            let totalQuestions = totalCorrect + totalIncorrect + totalEmpty
+
+            let totalQuestions = totalCorrect + totalIncorrect + totalEmpty + totalPartialCredit
             if totalQuestions > 0 {
                 accuracyRate = Float(totalCorrect) / Float(totalQuestions)
             }
-            
+
             // Generate basic summary if not provided
             if summaryText.isEmpty {
                 summaryText = "Graded \(totalQuestions) questions with \(totalCorrect) correct answers."
             }
         }
-        
+
         // Only return summary if we have meaningful data
         if totalCorrect > 0 || totalIncorrect > 0 || totalEmpty > 0 {
             return PerformanceSummary(
                 totalCorrect: totalCorrect,
                 totalIncorrect: totalIncorrect,
                 totalEmpty: totalEmpty,
+                totalPartialCredit: totalPartialCredit,
                 accuracyRate: accuracyRate,
                 summaryText: summaryText
             )
         }
-        
+
         return nil
     }
 }
