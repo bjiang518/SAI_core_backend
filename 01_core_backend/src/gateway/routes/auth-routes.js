@@ -110,6 +110,26 @@ class AuthRoutes {
         }
       }
     }, this.googleLogin.bind(this));
+
+    // Apple Sign In login endpoint
+    this.fastify.post('/api/auth/apple', {
+      schema: {
+        description: 'Apple Sign In login',
+        tags: ['Authentication'],
+        body: {
+          type: 'object',
+          required: ['identityToken', 'userIdentifier', 'email', 'name'],
+          properties: {
+            identityToken: { type: 'string', minLength: 1 },
+            authorizationCode: { type: 'string' },
+            userIdentifier: { type: 'string', minLength: 1 },
+            name: { type: 'string', minLength: 1 },
+            email: { type: 'string', format: 'email' }
+          }
+        }
+      }
+    }, this.appleLogin.bind(this));
+
     this.fastify.get('/api/auth/verify', {
       schema: {
         description: 'Verify authentication token',
@@ -301,18 +321,18 @@ class AuthRoutes {
       };
 
       const user = await db.createOrUpdateUser(userData);
-      
+
       // Create secure session token
       const clientIP = request.ip;
       const deviceInfo = {
         userAgent: request.headers['user-agent'],
         platform: 'ios'
       };
-      
+
       const session = await db.createUserSession(user.id, deviceInfo, clientIP);
 
       this.fastify.log.info(`✅ Google login successful for: ${email} (User ID: ${user.id})`);
-      
+
       return reply.send({
         success: true,
         message: 'Google login successful',
@@ -331,6 +351,74 @@ class AuthRoutes {
       return reply.status(500).send({
         success: false,
         message: 'Google login failed',
+        error: error.message
+      });
+    }
+  }
+
+  async appleLogin(request, reply) {
+    try {
+      const { identityToken, authorizationCode, userIdentifier, name, email } = request.body;
+
+      this.fastify.log.info(`🍏 === Apple Sign In Backend Request ===`);
+      this.fastify.log.info(`🍏 User: ${email}`);
+      this.fastify.log.info(`🍏 User ID: ${userIdentifier}`);
+      this.fastify.log.info(`🍏 Identity Token: ${identityToken ? `✅ Present (${identityToken.substring(0, 20)}...)` : '❌ Missing'}`);
+      this.fastify.log.info(`🍏 Auth Code: ${authorizationCode ? `✅ Present (${authorizationCode.substring(0, 20)}...)` : '❌ Missing'}`);
+
+      // Validate required data
+      if (!identityToken || !userIdentifier || !email) {
+        this.fastify.log.warn(`🍏 ❌ Invalid Apple authentication data`);
+        return reply.status(400).send({
+          success: false,
+          message: 'Invalid Apple authentication data'
+        });
+      }
+
+      // Create or update user in database
+      const userData = {
+        email: email,
+        name: name || this.extractNameFromEmail(email),
+        authProvider: 'apple',
+        appleId: userIdentifier  // Store Apple's unique user identifier
+      };
+
+      this.fastify.log.info(`🍏 Creating/updating user with data:`, userData);
+
+      const user = await db.createOrUpdateUser(userData);
+
+      this.fastify.log.info(`🍏 User created/updated: ${user.id}`);
+
+      // Create secure session token
+      const clientIP = request.ip;
+      const deviceInfo = {
+        userAgent: request.headers['user-agent'],
+        platform: 'ios'
+      };
+
+      const session = await db.createUserSession(user.id, deviceInfo, clientIP);
+
+      this.fastify.log.info(`🍏 ✅ Apple login successful for: ${email} (User ID: ${user.id})`);
+      this.fastify.log.info(`🍏 Token generated: ${session.token.substring(0, 30)}...`);
+
+      return reply.send({
+        success: true,
+        message: 'Apple login successful',
+        token: session.token,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          profileImageUrl: user.profile_image_url,
+          provider: user.auth_provider,
+          lastLogin: user.last_login_at
+        }
+      });
+    } catch (error) {
+      this.fastify.log.error('🍏 ❌ Apple login error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Apple login failed',
         error: error.message
       });
     }
