@@ -1,4 +1,45 @@
-.env
-*.env
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Test files (if you want to keep them out of production)
+test_*.py
+debug_*.py
+manual_*.py
+simple_*.py

@@ -1,9 +1,9 @@
 /**
  * StudyAI Parent Reports API Routes
  * Handles parent report generation, retrieval, and management
+ * LOCAL-FIRST: All data aggregation happens on iOS client
  */
 
-const ReportDataAggregationService = require('../../services/report-data-aggregation');
 const ReportExportService = require('../../services/report-export-service');
 const ReportNarrativeService = require('../../services/report-narrative-service');
 const { db } = require('../../utils/railway-database');
@@ -11,7 +11,6 @@ const { db } = require('../../utils/railway-database');
 class ParentReportsRoutes {
     constructor(fastify) {
         this.fastify = fastify;
-        this.reportService = new ReportDataAggregationService();
         this.exportService = new ReportExportService();
         this.narrativeService = new ReportNarrativeService();
         this.setupRoutes();
@@ -25,7 +24,7 @@ class ParentReportsRoutes {
                 tags: ['Reports'],
                 body: {
                     type: 'object',
-                    required: ['student_id', 'start_date', 'end_date'],
+                    required: ['student_id', 'start_date', 'end_date', 'aggregated_data'],
                     properties: {
                         student_id: { type: 'string', format: 'uuid' },
                         start_date: { type: 'string', format: 'date' },
@@ -39,7 +38,7 @@ class ParentReportsRoutes {
                         compare_with_previous: { type: 'boolean', default: true },
                         aggregated_data: {
                             type: 'object',
-                            description: 'Pre-aggregated data from iOS client (local-first approach)',
+                            description: 'Pre-aggregated data from iOS client (LOCAL-FIRST REQUIRED)',
                             additionalProperties: true
                         }
                     }
@@ -283,7 +282,6 @@ class ParentReportsRoutes {
             this.fastify.log.info(`   - Report type: ${report_type}`);
             this.fastify.log.info(`   - Include AI analysis: ${include_ai_analysis}`);
             this.fastify.log.info(`   - Compare with previous: ${compare_with_previous}`);
-            this.fastify.log.info(`   - Pre-aggregated data provided: ${!!aggregated_data}`);
 
             // Verify user has access to this student's data
             const hasAccess = await this.verifyStudentAccess(authenticatedUserId, student_id);
@@ -349,23 +347,10 @@ class ParentReportsRoutes {
 
             this.fastify.log.info('🚀 No cached report found, generating new report...');
 
-            // ✅ NEW: Check if iOS provided pre-aggregated data (local-first approach)
-            let reportData;
-
-            if (aggregated_data) {
-                // Use pre-aggregated data from iOS (skip database queries)
-                this.fastify.log.info('📱 Using pre-aggregated data from iOS client (LOCAL-FIRST)');
-                this.fastify.log.info(`📊 Data summary: ${aggregated_data.academic?.totalQuestions || 0} questions, ${aggregated_data.activity?.studyTime?.activeDays || 0} active days`);
-                reportData = aggregated_data;
-
-            } else {
-                // Fallback: Generate report data from server database (legacy approach)
-                this.fastify.log.info('📊 Starting server-side report data aggregation (database queries)...');
-                reportData = await this.reportService.aggregateReportData(student_id, startDate, endDate, {
-                    includeAIInsights: include_ai_analysis,
-                    comparePrevious: compare_with_previous
-                });
-            }
+            // ✅ LOCAL-FIRST: Use pre-aggregated data from iOS client (always required)
+            this.fastify.log.info('📱 Using pre-aggregated data from iOS client (LOCAL-FIRST)');
+            this.fastify.log.info(`📊 Data summary: ${aggregated_data.academic?.totalQuestions || 0} questions, ${aggregated_data.activity?.studyTime?.activeDays || 0} active days`);
+            const reportData = aggregated_data;
 
             this.fastify.log.info('✅ Report data ready for narrative generation');
             this.fastify.log.info(`📈 Report summary: ${JSON.stringify({

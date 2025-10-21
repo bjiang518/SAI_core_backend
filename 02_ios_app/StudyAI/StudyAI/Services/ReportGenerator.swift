@@ -17,8 +17,9 @@ class ReportGenerator: ObservableObject {
 
     private let baseURL = "https://sai-backend-production.up.railway.app"
     private let localStorage = LocalReportStorage.shared
+    private let localAggregator = LocalReportDataAggregator.shared
 
-    /// Generate a new parent report
+    /// Generate a new parent report using LOCAL data aggregation
     func generateReport(
         studentId: String,
         startDate: Date,
@@ -28,7 +29,7 @@ class ReportGenerator: ObservableObject {
         compareWithPrevious: Bool = true
     ) async -> Result<ParentReport, ParentReportError> {
 
-        print("📊 Starting report generation")
+        print("📊 Starting LOCAL-FIRST report generation")
 
         await MainActor.run {
             isGeneratingReport = true
@@ -52,7 +53,23 @@ class ReportGenerator: ObservableObject {
 
         await MainActor.run { reportGenerationProgress = 0.1 }
 
-        // Prepare request
+        // ✅ NEW: Aggregate data from LOCAL storage (replaces backend database queries)
+        print("📱 Aggregating data from local storage...")
+        let aggregatedData = await localAggregator.aggregateReportData(
+            userId: studentId,
+            startDate: startDate,
+            endDate: endDate,
+            options: ReportAggregationOptions(includeAIInsights: includeAIAnalysis)
+        )
+
+        await MainActor.run { reportGenerationProgress = 0.4 }
+
+        print("✅ Local aggregation complete:")
+        print("   • Questions: \(aggregatedData.academic?.totalQuestions ?? 0)")
+        print("   • Accuracy: \(String(format: "%.1f%%", (aggregatedData.academic?.overallAccuracy ?? 0) * 100))")
+        print("   • Subjects: \(aggregatedData.subjects?.keys.joined(separator: ", ") ?? "none")")
+
+        // Prepare request with LOCAL aggregated data
         let generateURL = "\(baseURL)/api/reports/generate"
         guard let url = URL(string: generateURL) else {
             let error = ParentReportError.invalidURL
@@ -64,16 +81,18 @@ class ReportGenerator: ObservableObject {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
 
-        let requestBody = GenerateReportRequest(
+        // ✅ NEW: Send pre-aggregated local data to backend
+        let requestBody = GenerateReportRequestWithData(
             studentId: studentId,
             startDate: dateFormatter.string(from: startDate),
             endDate: dateFormatter.string(from: endDate),
             reportType: reportType,
             includeAiAnalysis: includeAIAnalysis,
-            compareWithPrevious: compareWithPrevious
+            compareWithPrevious: compareWithPrevious,
+            aggregatedData: aggregatedData  // ✅ Include local data
         )
 
-        await MainActor.run { reportGenerationProgress = 0.2 }
+        await MainActor.run { reportGenerationProgress = 0.5 }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -285,3 +304,27 @@ class ReportGenerator: ObservableObject {
         return try decoder.decode(ParentReport.self, from: reportJsonData)
     }
 }
+
+// MARK: - Request Models for Local-First Report Generation
+
+/// Request body for generating report with pre-aggregated local data
+struct GenerateReportRequestWithData: Codable {
+    let studentId: String
+    let startDate: String
+    let endDate: String
+    let reportType: ReportType
+    let includeAiAnalysis: Bool
+    let compareWithPrevious: Bool
+    let aggregatedData: ReportData  // ✅ LOCAL aggregated data
+
+    enum CodingKeys: String, CodingKey {
+        case studentId = "student_id"
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case reportType = "report_type"
+        case includeAiAnalysis = "include_ai_analysis"
+        case compareWithPrevious = "compare_with_previous"
+        case aggregatedData = "aggregated_data"
+    }
+}
+
