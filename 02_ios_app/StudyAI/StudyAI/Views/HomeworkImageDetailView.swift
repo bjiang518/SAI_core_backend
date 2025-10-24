@@ -17,6 +17,7 @@ struct HomeworkImageDetailView: View {
     @State private var lastOffset: CGSize = .zero
     @State private var showingDeleteConfirmation = false
     @State private var showingShareSheet = false
+    @State private var showingQuestionsPDF = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -110,6 +111,16 @@ struct HomeworkImageDetailView: View {
                                 .foregroundColor(.white)
                         }
 
+                        // PDF Questions Button (only show if rawQuestions exist)
+                        if let rawQuestions = record.rawQuestions, !rawQuestions.isEmpty {
+                            Button(action: {
+                                showingQuestionsPDF = true
+                            }) {
+                                Image(systemName: "doc.text.fill")
+                                    .foregroundColor(.white)
+                            }
+                        }
+
                         // Delete Button
                         Button(action: {
                             showingDeleteConfirmation = true
@@ -139,6 +150,9 @@ struct HomeworkImageDetailView: View {
                     HomeworkShareSheet(items: [image])
                 }
             }
+            .sheet(isPresented: $showingQuestionsPDF) {
+                HomeworkQuestionsPDFPreviewView(homeworkRecord: record)
+            }
         }
     }
 
@@ -148,14 +162,10 @@ struct HomeworkImageDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Subject and Accuracy
             HStack {
-                HStack(spacing: 8) {
-                    Image(systemName: record.subjectIcon)
-                        .font(.title2)
-                    Text(record.subject)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                }
-                .foregroundColor(.white)
+                Text(record.subject)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
 
                 Spacer()
 
@@ -214,13 +224,6 @@ struct HomeworkImageDetailView: View {
                     .foregroundColor(.white.opacity(0.9))
             }
             .font(.subheadline)
-
-            // Instructions
-            Text("Pinch to zoom • Double tap to reset")
-                .font(.caption)
-                .foregroundColor(.white.opacity(0.6))
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 8)
         }
     }
 
@@ -294,7 +297,8 @@ struct HomeworkShareSheet: UIViewControllerRepresentable {
             correctCount: 8,
             incorrectCount: 2,
             totalPoints: 85,
-            maxPoints: 100
+            maxPoints: 100,
+            rawQuestions: nil
         )
     )
 }

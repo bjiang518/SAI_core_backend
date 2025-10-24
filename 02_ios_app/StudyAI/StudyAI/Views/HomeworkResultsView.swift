@@ -19,6 +19,7 @@ struct HomeworkResultsView: View {
     @State private var questionNotes: [String] = []
     @State private var questionTags: [[String]] = []
     @State private var hasMarkedProgress = false
+    @State private var hasAlreadySavedImage = false  // Track if image was already saved
     @StateObject private var questionArchiveService = QuestionArchiveService.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @StateObject private var homeworkImageStorage = HomeworkImageStorageService.shared  // NEW: Storage service
@@ -1352,11 +1353,20 @@ extension HomeworkResultsView {
 
     /// Automatically save homework image to local storage
     private func saveHomeworkImageToStorage() {
+        // Guard: Only save once per session
+        guard !hasAlreadySavedImage else {
+            print("📸 Image already saved for this session, skipping")
+            return
+        }
+
         // Only save if we have an image
         guard let image = submittedImage else {
             print("📸 No submitted image to save")
             return
         }
+
+        // Mark as saved to prevent duplicate saves
+        hasAlreadySavedImage = true
 
         // Extract metadata from results
         let subject = enhancedResult?.detectedSubject ?? detectSubjectFromQuestion(parsingResult.allQuestions.first?.questionText ?? "")
@@ -1381,6 +1391,9 @@ extension HomeworkResultsView {
         let totalPoints = parsingResult.allQuestions.compactMap { $0.pointsEarned }.reduce(0, +)
         let maxPoints = parsingResult.allQuestions.compactMap { $0.pointsPossible }.reduce(0, +)
 
+        // Extract raw question texts for PDF generation
+        let rawQuestions = parsingResult.allQuestions.compactMap { $0.rawQuestionText }
+
         // Save to storage
         let record = homeworkImageStorage.saveHomeworkImage(
             image,
@@ -1390,7 +1403,8 @@ extension HomeworkResultsView {
             correctCount: correctCount,
             incorrectCount: incorrectCount,
             totalPoints: totalPoints > 0 ? totalPoints : nil,
-            maxPoints: maxPoints > 0 ? maxPoints : nil
+            maxPoints: maxPoints > 0 ? maxPoints : nil,
+            rawQuestions: rawQuestions.isEmpty ? nil : rawQuestions
         )
 
         if record != nil {

@@ -122,6 +122,9 @@
 		7B8E9E9D2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9E9C2EAB518100E83DA8 /* HomeworkImageStorageService.swift */; };
 		7B8E9E9E2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9E9C2EAB518100E83DA8 /* HomeworkImageStorageService.swift */; };
 		7B8E9E9F2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9E9C2EAB518100E83DA8 /* HomeworkImageStorageService.swift */; };
+		7B8E9EA12EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */; };
+		7B8E9EA22EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */; };
+		7B8E9EA32EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */; };
 		7B90451A2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
 		7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
 		7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
@@ -298,6 +301,7 @@
 		7B8E9E912EAB50F400E83DA8 /* HomeworkImageDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkImageDetailView.swift; path = StudyAI/Views/HomeworkImageDetailView.swift; sourceTree = SOURCE_ROOT; };
 		7B8E9E982EAB516C00E83DA8 /* HomeworkImageModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeworkImageModels.swift; sourceTree = "<group>"; };
 		7B8E9E9C2EAB518100E83DA8 /* HomeworkImageStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkImageStorageService.swift; path = StudyAI/Services/HomeworkImageStorageService.swift; sourceTree = SOURCE_ROOT; };
+		7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkQuestionsPDFPreviewView.swift; path = StudyAI/Views/HomeworkQuestionsPDFPreviewView.swift; sourceTree = SOURCE_ROOT; };
 		7B9045192E8FB1FE00E5DDFA /* Books.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Books.json; sourceTree = "<group>"; };
 		7B90451D2E8FB42E00E5DDFA /* Checklist.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Checklist.json; sourceTree = "<group>"; };
 		7B9045212E8FB5DD00E5DDFA /* Chart Graph.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Chart Graph.json"; sourceTree = "<group>"; };
@@ -549,6 +553,7 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */,
 				7B8E9E902EAB50F400E83DA8 /* HomeworkAlbumView.swift */,
 				7B8E9E912EAB50F400E83DA8 /* HomeworkImageDetailView.swift */,
 				7B8352362E9625C900199AC3 /* ContactSupportView.swift */,
@@ -896,6 +901,7 @@
 				7B8352412E9636A200199AC3 /* AIAvatarAnimation.swift in Sources */,
 				DCHK890123456789FGHI1234 /* DailyCheckoutView.swift in Sources */,
 				7B8353482EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */,
+				7B8E9EA32EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */,
 				7B8E9E9F2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				LGLS901234567890GHIJ2345 /* LearningGoalsSettingsView.swift in Sources */,
 				51E8895014244637989DCA32 /* HomeView.swift in Sources */,
@@ -961,6 +967,7 @@
 				7B1961F02E94E31A0024317A /* ParentModeManager.swift in Sources */,
 				7B8E9E9A2EAB516C00E83DA8 /* HomeworkImageModels.swift in Sources */,
 				7BEEB6142E8E3A3200957748 /* DesignTokens.swift in Sources */,
+				7B8E9EA12EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */,
 				7B83533F2EA6F11400199AC3 /* AppLogger.swift in Sources */,
 				7B8353402EA6F11400199AC3 /* SecureLogger.swift in Sources */,
 				7B8353412EA6F11400199AC3 /* ErrorBoundary.swift in Sources */,
@@ -995,6 +1002,7 @@
 				7B8E9E9E2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				7B83533E2EA6F11400199AC3 /* RateLimitManager.swift in Sources */,
 				7B8E9E992EAB516C00E83DA8 /* HomeworkImageModels.swift in Sources */,
+				7B8E9EA22EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

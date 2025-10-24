@@ -97,6 +97,51 @@ class PDFGeneratorService: ObservableObject {
         return pdfDocument.pageCount > 0 ? pdfDocument : nil
     }
 
+    /// Generate PDF for raw homework questions (from homework album)
+    func generateRawQuestionsPDF(
+        rawQuestions: [String],
+        subject: String,
+        date: Date,
+        accuracy: Float,
+        questionCount: Int
+    ) async -> PDFDocument? {
+        isGenerating = true
+        generationProgress = 0.0
+
+        defer {
+            isGenerating = false
+            generationProgress = 0.0
+        }
+
+        let pdfDocument = PDFDocument()
+        let questionsPerPage = 3 // 3 questions per page for readability
+        let totalPages = Int(ceil(Double(rawQuestions.count) / Double(questionsPerPage)))
+
+        for pageIndex in 0..<totalPages {
+            let startIndex = pageIndex * questionsPerPage
+            let endIndex = min(startIndex + questionsPerPage, rawQuestions.count)
+            let pageQuestions = Array(rawQuestions[startIndex..<endIndex])
+
+            if let pdfPage = await createRawQuestionsPDFPage(
+                questions: pageQuestions,
+                pageNumber: pageIndex + 1,
+                totalPages: totalPages,
+                subject: subject,
+                date: date,
+                accuracy: accuracy,
+                questionCount: questionCount,
+                startQuestionNumber: startIndex + 1
+            ) {
+                pdfDocument.insert(pdfPage, at: pdfDocument.pageCount)
+            }
+
+            // Update progress
+            generationProgress = Double(pageIndex + 1) / Double(totalPages)
+        }
+
+        return pdfDocument.pageCount > 0 ? pdfDocument : nil
+    }
+
     // MARK: - Private Methods
 
     private func createPracticePDFPage(
@@ -578,6 +623,223 @@ class PDFGeneratorService: ObservableObject {
             alignment: .left
         )
         currentY += 15
+
+        return currentY - y
+    }
+
+    // MARK: - Raw Questions PDF Methods
+
+    private func createRawQuestionsPDFPage(
+        questions: [String],
+        pageNumber: Int,
+        totalPages: Int,
+        subject: String,
+        date: Date,
+        accuracy: Float,
+        questionCount: Int,
+        startQuestionNumber: Int
+    ) async -> PDFPage? {
+        let pageSize = CGSize(width: 612, height: 792) // US Letter: 8.5" x 11" at 72 DPI
+        let renderer = UIGraphicsImageRenderer(size: pageSize)
+
+        let image = renderer.image { context in
+            let cgContext = context.cgContext
+
+            // Set up drawing context
+            cgContext.setFillColor(UIColor.white.cgColor)
+            cgContext.fill(CGRect(origin: .zero, size: pageSize))
+
+            // Draw the page content
+            drawRawQuestionsPageContent(
+                in: cgContext,
+                pageSize: pageSize,
+                questions: questions,
+                pageNumber: pageNumber,
+                totalPages: totalPages,
+                subject: subject,
+                date: date,
+                accuracy: accuracy,
+                questionCount: questionCount,
+                startQuestionNumber: startQuestionNumber
+            )
+        }
+
+        // Convert UIImage to PDFPage
+        let pdfPage = PDFPage(image: image)
+        return pdfPage
+    }
+
+    private func drawRawQuestionsPageContent(
+        in context: CGContext,
+        pageSize: CGSize,
+        questions: [String],
+        pageNumber: Int,
+        totalPages: Int,
+        subject: String,
+        date: Date,
+        accuracy: Float,
+        questionCount: Int,
+        startQuestionNumber: Int
+    ) {
+        let margin: CGFloat = 54 // 0.75 inch margins at 72 DPI
+        let contentWidth = pageSize.width - (2 * margin)
+        var currentY: CGFloat = margin
+
+        // Header (only on first page)
+        if pageNumber == 1 {
+            currentY = drawRawQuestionsHeader(
+                in: context,
+                x: margin,
+                y: currentY,
+                width: contentWidth,
+                subject: subject,
+                date: date,
+                accuracy: accuracy,
+                questionCount: questionCount
+            )
+            currentY += 30 // Space after header
+        }
+
+        // Questions
+        for (index, question) in questions.enumerated() {
+            let questionNumber = startQuestionNumber + index
+            let questionHeight = drawRawQuestion(
+                in: context,
+                x: margin,
+                y: currentY,
+                width: contentWidth,
+                question: question,
+                questionNumber: questionNumber
+            )
+            currentY += questionHeight + 35 // Space between questions
+        }
+
+        // Footer
+        drawFooter(
+            in: context,
+            pageSize: pageSize,
+            pageNumber: pageNumber,
+            totalPages: totalPages
+        )
+    }
+
+    private func drawRawQuestionsHeader(
+        in context: CGContext,
+        x: CGFloat,
+        y: CGFloat,
+        width: CGFloat,
+        subject: String,
+        date: Date,
+        accuracy: Float,
+        questionCount: Int
+    ) -> CGFloat {
+        let titleFont = UIFont.systemFont(ofSize: 18, weight: .bold)
+        let subtitleFont = UIFont.systemFont(ofSize: 12, weight: .medium)
+        let metadataFont = UIFont.systemFont(ofSize: 10, weight: .regular)
+
+        var currentY = y
+
+        // Title
+        let title = "Homework Questions"
+        drawText(
+            title,
+            in: context,
+            at: CGPoint(x: x, y: currentY),
+            width: width,
+            font: titleFont,
+            color: UIColor.black,
+            alignment: .center
+        )
+        currentY += 25
+
+        // Subject
+        let subjectText = "Subject: \(subject)"
+        drawText(
+            subjectText,
+            in: context,
+            at: CGPoint(x: x, y: currentY),
+            width: width,
+            font: subtitleFont,
+            color: UIColor.darkGray,
+            alignment: .left
+        )
+        currentY += 18
+
+        // Date and metadata
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MMMM d, yyyy"
+        let accuracyPercentage = Int(accuracy * 100)
+        let metadataText = "Submitted on \(dateFormatter.string(from: date)) • \(questionCount) Questions • \(accuracyPercentage)% Accuracy"
+
+        drawText(
+            metadataText,
+            in: context,
+            at: CGPoint(x: x, y: currentY),
+            width: width,
+            font: metadataFont,
+            color: UIColor.gray,
+            alignment: .left
+        )
+        currentY += 18
+
+        // Instruction line
+        let instruction = "These are the questions from your homework assignment."
+        drawText(
+            instruction,
+            in: context,
+            at: CGPoint(x: x, y: currentY),
+            width: width,
+            font: metadataFont,
+            color: UIColor.gray,
+            alignment: .left
+        )
+        currentY += 20
+
+        // Divider line
+        context.setStrokeColor(UIColor.lightGray.cgColor)
+        context.setLineWidth(1)
+        context.move(to: CGPoint(x: x, y: currentY))
+        context.addLine(to: CGPoint(x: x + width, y: currentY))
+        context.strokePath()
+
+        return currentY
+    }
+
+    private func drawRawQuestion(
+        in context: CGContext,
+        x: CGFloat,
+        y: CGFloat,
+        width: CGFloat,
+        question: String,
+        questionNumber: Int
+    ) -> CGFloat {
+        let questionHeaderFont = UIFont.systemFont(ofSize: 12, weight: .semibold)
+        let bodyFont = UIFont.systemFont(ofSize: 10, weight: .regular)
+
+        var currentY = y
+
+        // Question number
+        let questionHeader = "Question \(questionNumber):"
+        drawText(
+            questionHeader,
+            in: context,
+            at: CGPoint(x: x, y: currentY),
+            width: width,
+            font: questionHeaderFont,
+            color: UIColor.black,
+            alignment: .left
+        )
+        currentY += 25
+
+        // Question content
+        let questionHeight = drawMultilineText(
+            question,
+            in: context,
+            at: CGPoint(x: x + 20, y: currentY),
+            width: width - 20,
+            font: bodyFont
+        )
+        currentY += questionHeight + 10
 
         return currentY - y
     }

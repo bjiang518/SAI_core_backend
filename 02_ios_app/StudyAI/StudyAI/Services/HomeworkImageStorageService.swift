@@ -67,7 +67,8 @@ final class HomeworkImageStorageService: ObservableObject {
         correctCount: Int? = nil,
         incorrectCount: Int? = nil,
         totalPoints: Float? = nil,
-        maxPoints: Float? = nil
+        maxPoints: Float? = nil,
+        rawQuestions: [String]? = nil
     ) -> HomeworkImageRecord? {
         // Check if we've reached the storage limit
         if homeworkImages.count >= maxStoredImages {
@@ -119,7 +120,8 @@ final class HomeworkImageStorageService: ObservableObject {
             correctCount: correctCount,
             incorrectCount: incorrectCount,
             totalPoints: totalPoints,
-            maxPoints: maxPoints
+            maxPoints: maxPoints,
+            rawQuestions: rawQuestions
         )
 
         // Add to array and save metadata

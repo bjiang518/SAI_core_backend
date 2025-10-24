@@ -25,6 +25,7 @@ struct HomeworkImageRecord: Codable, Identifiable {
     let incorrectCount: Int?            // Number of incorrect answers
     let totalPoints: Float?             // Total points earned
     let maxPoints: Float?               // Maximum possible points
+    let rawQuestions: [String]?         // Raw question texts for PDF generation
 
     var accuracyPercentage: String {
         return String(format: "%.0f%%", accuracy * 100)
