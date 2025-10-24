@@ -11,6 +11,7 @@ struct HomeworkResultsView: View {
     let parsingResult: HomeworkParsingResult
     let enhancedResult: EnhancedHomeworkParsingResult?
     let originalImageUrl: String?
+    let submittedImage: UIImage?  // NEW: Actual image for local storage
     @State private var expandedQuestions: Set<String> = []
     @State private var showingQuestionArchiveDialog = false
     @State private var isArchiving = false
@@ -20,6 +21,7 @@ struct HomeworkResultsView: View {
     @State private var hasMarkedProgress = false
     @StateObject private var questionArchiveService = QuestionArchiveService.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
+    @StateObject private var homeworkImageStorage = HomeworkImageStorageService.shared  // NEW: Storage service
     @Environment(\.dismiss) private var dismiss
 
     // Generate unique session ID for this homework session
@@ -44,13 +46,14 @@ struct HomeworkResultsView: View {
     }
 
     // Enhanced initializer that can accept either type
-    init(parsingResult: HomeworkParsingResult, originalImageUrl: String?) {
+    init(parsingResult: HomeworkParsingResult, originalImageUrl: String?, submittedImage: UIImage? = nil) {
         self.parsingResult = parsingResult
         self.enhancedResult = nil
         self.originalImageUrl = originalImageUrl
+        self.submittedImage = submittedImage
     }
-    
-    init(enhancedResult: EnhancedHomeworkParsingResult, originalImageUrl: String?) {
+
+    init(enhancedResult: EnhancedHomeworkParsingResult, originalImageUrl: String?, submittedImage: UIImage? = nil) {
         // Convert enhanced result to basic result for compatibility
         self.parsingResult = HomeworkParsingResult(
             questions: enhancedResult.questions,
@@ -62,6 +65,7 @@ struct HomeworkResultsView: View {
         )
         self.enhancedResult = enhancedResult
         self.originalImageUrl = originalImageUrl
+        self.submittedImage = submittedImage
     }
     
     var body: some View {
@@ -137,6 +141,9 @@ struct HomeworkResultsView: View {
             .onAppear {
                 initializeQuestionData()
                 loadProgressState()
+
+                // NEW: Auto-save homework image to local storage
+                saveHomeworkImageToStorage()
             }
         }
     }
@@ -1304,15 +1311,15 @@ extension HomeworkResultsView {
     /// Simple subject detection from question text
     private func detectSubjectFromQuestion(_ questionText: String) -> String {
         let lowercaseText = questionText.lowercased()
-        
+
         // Math keywords
-        if lowercaseText.contains("equation") || lowercaseText.contains("solve") || 
+        if lowercaseText.contains("equation") || lowercaseText.contains("solve") ||
            lowercaseText.contains("calculate") || lowercaseText.contains("algebra") ||
            lowercaseText.contains("geometry") || lowercaseText.contains("integral") ||
            lowercaseText.contains("derivative") || lowercaseText.contains("function") {
             return "Mathematics"
         }
-        
+
         // Physics keywords
         if lowercaseText.contains("force") || lowercaseText.contains("velocity") ||
            lowercaseText.contains("acceleration") || lowercaseText.contains("energy") ||
@@ -1320,7 +1327,7 @@ extension HomeworkResultsView {
            lowercaseText.contains("electric") || lowercaseText.contains("magnetic") {
             return "Physics"
         }
-        
+
         // Chemistry keywords
         if lowercaseText.contains("element") || lowercaseText.contains("compound") ||
            lowercaseText.contains("reaction") || lowercaseText.contains("molecule") ||
@@ -1328,7 +1335,7 @@ extension HomeworkResultsView {
            lowercaseText.contains("periodic") || lowercaseText.contains("bond") {
             return "Chemistry"
         }
-        
+
         // Biology keywords
         if lowercaseText.contains("cell") || lowercaseText.contains("organism") ||
            lowercaseText.contains("dna") || lowercaseText.contains("gene") ||
@@ -1336,8 +1343,60 @@ extension HomeworkResultsView {
            lowercaseText.contains("species") || lowercaseText.contains("protein") {
             return "Biology"
         }
-        
+
         // Default to General if no specific subject detected
         return "General"
+    }
+
+    // MARK: - Homework Image Storage
+
+    /// Automatically save homework image to local storage
+    private func saveHomeworkImageToStorage() {
+        // Only save if we have an image
+        guard let image = submittedImage else {
+            print("📸 No submitted image to save")
+            return
+        }
+
+        // Extract metadata from results
+        let subject = enhancedResult?.detectedSubject ?? detectSubjectFromQuestion(parsingResult.allQuestions.first?.questionText ?? "")
+        let accuracy = enhancedResult?.calculatedAccuracy ?? parsingResult.calculatedAccuracy
+        let questionCount = parsingResult.allQuestions.count
+
+        // Calculate correct/incorrect counts
+        var correctCount = 0
+        var incorrectCount = 0
+        for question in parsingResult.allQuestions {
+            if question.isGraded {
+                if question.grade == "CORRECT" ||
+                   question.grade?.lowercased().contains("correct") == true {
+                    correctCount += 1
+                } else {
+                    incorrectCount += 1
+                }
+            }
+        }
+
+        // Get total points if available
+        let totalPoints = parsingResult.allQuestions.compactMap { $0.pointsEarned }.reduce(0, +)
+        let maxPoints = parsingResult.allQuestions.compactMap { $0.pointsPossible }.reduce(0, +)
+
+        // Save to storage
+        let record = homeworkImageStorage.saveHomeworkImage(
+            image,
+            subject: subject,
+            accuracy: accuracy,
+            questionCount: questionCount,
+            correctCount: correctCount,
+            incorrectCount: incorrectCount,
+            totalPoints: totalPoints > 0 ? totalPoints : nil,
+            maxPoints: maxPoints > 0 ? maxPoints : nil
+        )
+
+        if record != nil {
+            print("✅ Homework image auto-saved to album: \(subject), \(questionCount) questions")
+        } else {
+            print("⚠️ Failed to auto-save homework image")
+        }
     }
 }

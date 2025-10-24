@@ -154,6 +154,7 @@ struct DirectAIHomeworkView: View {
     @State private var showingDocumentScanner = false
     @State private var showingPhotoPicker = false
     @State private var showingFilePicker = false
+    @State private var showingHomeworkAlbumPicker = false  // NEW: Homework Album picker
 
     // Permission states
     @State private var photoPermissionDenied = false
@@ -273,12 +274,14 @@ struct DirectAIHomeworkView: View {
             if let enhanced = stateManager.enhancedResult {
                 HomeworkResultsView(
                     enhancedResult: enhanced,
-                    originalImageUrl: stateManager.originalImageUrl
+                    originalImageUrl: stateManager.originalImageUrl,
+                    submittedImage: stateManager.capturedImages.first  // Pass the first captured image
                 )
             } else if let result = stateManager.parsingResult {
                 HomeworkResultsView(
                     parsingResult: result,
-                    originalImageUrl: stateManager.originalImageUrl
+                    originalImageUrl: stateManager.originalImageUrl,
+                    submittedImage: stateManager.capturedImages.first  // Pass the first captured image
                 )
             }
         }
@@ -351,6 +354,18 @@ struct DirectAIHomeworkView: View {
                 ),
                 isPresented: $showingPhotoPicker
             )
+        }
+        .sheet(isPresented: $showingHomeworkAlbumPicker) {
+            HomeworkAlbumSelectionView { selectedRecord in
+                // Load the selected homework image
+                if let image = HomeworkImageStorageService.shared.loadHomeworkImage(record: selectedRecord) {
+                    let added = stateManager.addImage(image)
+                    if !added {
+                        showingImageLimitAlert = true
+                    }
+                }
+                showingHomeworkAlbumPicker = false
+            }
         }
         .sheet(isPresented: $showingImageEditor) {
             UnifiedImageEditorView(
@@ -516,7 +531,7 @@ struct DirectAIHomeworkView: View {
             Spacer()
 
             // Image Source Options
-            VStack(spacing: 16) {
+            VStack(spacing: 10) {
                 // Camera Option - Prominent with blue highlight
                 ImageSourceOption(
                     icon: "camera.fill",
@@ -552,6 +567,17 @@ struct DirectAIHomeworkView: View {
                     isProminent: false
                 ) {
                     showingFilePicker = true
+                }
+
+                // Homework Album Option
+                ImageSourceOption(
+                    icon: "photo.on.rectangle.angled",
+                    title: NSLocalizedString("aiHomework.imageSource.chooseHomework", comment: ""),
+                    subtitle: NSLocalizedString("aiHomework.imageSource.chooseHomeworkSubtitle", comment: ""),
+                    color: .purple,
+                    isProminent: false
+                ) {
+                    showingHomeworkAlbumPicker = true
                 }
             }
             .padding(.horizontal)
@@ -2119,42 +2145,44 @@ struct ImageSourceOption: View {
 
     var body: some View {
         Button(action: action) {
-            HStack {
+            HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.title2)
+                    .font(.title3)
                     .foregroundColor(isProminent ? .white : color)
-                    .frame(width: 40)
+                    .frame(width: 32)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
                         .foregroundColor(isProminent ? .white : .primary)
                     Text(subtitle)
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundColor(isProminent ? .white.opacity(0.9) : .secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundColor(isProminent ? .white.opacity(0.7) : .gray)
             }
-            .padding()
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
             .background(
                 Group {
                     if isProminent {
                         // Blue prominent style with shadow
-                        RoundedRectangle(cornerRadius: 14)
+                        RoundedRectangle(cornerRadius: 12)
                             .fill(Color(red: 0, green: 0.478, blue: 1.0)) // #007AFF
-                            .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                            .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 14)
+                                RoundedRectangle(cornerRadius: 12)
                                     .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
                             )
                     } else {
                         // Standard style
-                        RoundedRectangle(cornerRadius: 14)
+                        RoundedRectangle(cornerRadius: 12)
                             .fill(color.opacity(0.1))
                     }
                 }

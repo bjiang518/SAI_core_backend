@@ -168,6 +168,8 @@
 "aiHomework.imageSource.choosePhotosSubtitle" = "从照片库中选择";
 "aiHomework.imageSource.chooseFiles" = "从文件选择";
 "aiHomework.imageSource.chooseFilesSubtitle" = "从文件应用导入";
+"aiHomework.imageSource.chooseHomework" = "选择最近作业";
+"aiHomework.imageSource.chooseHomeworkSubtitle" = "从之前评分的作业中选择";
 "aiHomework.preview.singleImage" = "预览图片";
 "aiHomework.preview.multipleImages" = "预览多张图片";
 "aiHomework.preview.selectedCount" = "已选";

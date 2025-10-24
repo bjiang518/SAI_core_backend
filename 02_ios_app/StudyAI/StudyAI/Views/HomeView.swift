@@ -22,6 +22,7 @@ struct HomeView: View {
     @State private var showingMistakeReview = false
     @State private var showingQuestionGeneration = false
     @State private var showingParentReports = false
+    @State private var showingHomeworkAlbum = false  // NEW: Homework Album
 
     // Today's activity from local storage (matching Progress tab)
     @State private var todayTotalQuestions: Int = 0
@@ -106,6 +107,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingParentReports) {
                 ParentReportsView()
+            }
+            .sheet(isPresented: $showingHomeworkAlbum) {
+                HomeworkAlbumView()
             }
         }
     }
@@ -416,6 +420,16 @@ extension HomeView {
                 subtitle: NSLocalizedString("home.parentReportsDescription", comment: ""),
                 color: Color(red: 0.58, green: 0.0, blue: 0.83),  // Violet
                 action: { showingParentReports = true }
+            )
+            .padding(.horizontal, DesignTokens.Spacing.xl)
+
+            // Rainbow Card 8: Pink/Magenta - Homework Album
+            HorizontalActionButton(
+                icon: "photo.on.rectangle.angled",
+                title: "Homework Album",
+                subtitle: "View all submitted homework",
+                color: Color(red: 1.0, green: 0.4, blue: 0.7),  // Pink/Magenta
+                action: { showingHomeworkAlbum = true }
             )
             .padding(.horizontal, DesignTokens.Spacing.xl)
         }

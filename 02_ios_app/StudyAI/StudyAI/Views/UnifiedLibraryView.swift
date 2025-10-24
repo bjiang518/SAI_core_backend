@@ -60,22 +60,66 @@ struct UnifiedLibraryView: View {
     @State private var selectedQuestionType: QuestionType?
 
     // Computed properties for filtered counts
+    // These counts MUST reflect all active filters (time, subject, question type)
     private var filteredQuestionCount: Int {
-        let questionsToUse = isUsingAdvancedSearch ? advancedFilteredQuestions : libraryContent.questions
-        return questionsToUse.count
+        var questions: [QuestionSummary] = isUsingAdvancedSearch ? advancedFilteredQuestions : libraryContent.questions
+
+        // Apply time/date filter
+        if let dateFilter = activeQuickDateFilter {
+            let dateComponents = dateFilter.dateComponents
+            questions = questions.filter { question in
+                return question.date >= dateComponents.startDate && question.date <= dateComponents.endDate
+            }
+        }
+
+        // Apply subject filter
+        if let selectedSubject = selectedSubject {
+            questions = questions.filter { $0.normalizedSubject.lowercased() == selectedSubject.lowercased() }
+        }
+
+        // Apply question type filter
+        if let selectedQuestionType = selectedQuestionType {
+            questions = questions.filter { question in
+                if let questionType = question.questionType,
+                   let type = QuestionType(rawValue: questionType) {
+                    return type == selectedQuestionType
+                }
+                return false
+            }
+        }
+
+        return questions.count
     }
 
     private var filteredConversationCount: Int {
+        var conversations = libraryContent.conversations
+
+        // Apply time/date filter
         if let dateFilter = activeQuickDateFilter {
             let dateComponents = dateFilter.dateComponents
-            return libraryContent.conversations.filter { conversation in
+            conversations = conversations.filter { conversation in
                 let conversationItem = ConversationLibraryItem(data: conversation)
                 let conversationDate = conversationItem.date
                 return conversationDate >= dateComponents.startDate && conversationDate <= dateComponents.endDate
-            }.count
-        } else {
-            return libraryContent.conversations.count
+            }
         }
+
+        // Apply subject filter
+        if let selectedSubject = selectedSubject {
+            conversations = conversations.filter { conversation in
+                if let subject = conversation["subject"] as? String {
+                    return QuestionSummary.normalizeSubject(subject).lowercased() == selectedSubject.lowercased()
+                }
+                return false
+            }
+        }
+
+        return conversations.count
+    }
+
+    // Total count reflecting all filters
+    private var filteredTotalCount: Int {
+        return filteredQuestionCount + filteredConversationCount
     }
     
     var filteredItems: [LibraryItem] {
@@ -408,7 +452,8 @@ struct UnifiedLibraryView: View {
                         }
                     },
                     questionCount: filteredQuestionCount,
-                    conversationCount: filteredConversationCount
+                    conversationCount: filteredConversationCount,
+                    totalCount: filteredTotalCount
                 )
                 .background(Color(.systemBackground))
             }
@@ -496,6 +541,7 @@ struct QuickStatsHeader: View {
     let onContentTypeSelected: (ContentTypeFilter) -> Void
     let questionCount: Int
     let conversationCount: Int
+    let totalCount: Int
 
     var body: some View {
         VStack(spacing: 12) {
@@ -521,7 +567,7 @@ struct QuickStatsHeader: View {
                 InteractiveStatPill(
                     icon: "books.vertical.fill",
                     title: NSLocalizedString("library.stats.totalSessions", comment: ""),
-                    count: content.totalItems,
+                    count: totalCount,
                     color: .purple,
                     isSelected: selectedContentType == .all,
                     action: { onContentTypeSelected(.all) }

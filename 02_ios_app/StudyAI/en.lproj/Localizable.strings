@@ -168,6 +168,8 @@
 "aiHomework.imageSource.choosePhotosSubtitle" = "Select from photo library";
 "aiHomework.imageSource.chooseFiles" = "Choose from Files";
 "aiHomework.imageSource.chooseFilesSubtitle" = "Import from Files app";
+"aiHomework.imageSource.chooseHomework" = "Choose Recent Homework";
+"aiHomework.imageSource.chooseHomeworkSubtitle" = "Select from previously graded homework";
 "aiHomework.preview.singleImage" = "Preview Image";
 "aiHomework.preview.multipleImages" = "Preview Images";
 "aiHomework.preview.selectedCount" = "selected";

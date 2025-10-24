@@ -211,7 +211,7 @@ struct BackendSection: Decodable {
 struct BackendQuestion: Decodable {  // Changed from Codable to Decodable
     let questionNumber: Int?
     let rawQuestionText: String?
-    let questionText: String
+    let questionText: String?  // Made optional - parent questions only have parent_content
     let studentAnswer: String?
     let correctAnswer: String?
     let grade: String?
@@ -277,8 +277,20 @@ struct BackendQuestion: Decodable {  // Changed from Codable to Decodable
             rawQuestionText = nil
         }
 
-        let qText = try container.decode(String.self, forKey: .questionText)
-        questionText = qText.decodingUnicodeEscapes()
+        // Decode parentContent first (for parent questions)
+        if let parentContentRaw = try? container.decode(String.self, forKey: .parentContent) {
+            parentContent = parentContentRaw.decodingUnicodeEscapes()
+        } else {
+            parentContent = nil
+        }
+
+        // Decode questionText (may be nil for parent questions that only have parent_content)
+        if let qText = try? container.decode(String.self, forKey: .questionText) {
+            questionText = qText.decodingUnicodeEscapes()
+        } else {
+            // Fallback: use parentContent if available, otherwise nil
+            questionText = parentContent
+        }
 
         if let studentAnswerRaw = try? container.decode(String.self, forKey: .studentAnswer) {
             studentAnswer = studentAnswerRaw.decodingUnicodeEscapes()
@@ -360,13 +372,6 @@ struct BackendQuestion: Decodable {  // Changed from Codable to Decodable
             hasSubquestions = intValue != 0
         } else {
             hasSubquestions = nil
-        }
-
-        // Decode parentContent with Unicode support
-        if let parentContentRaw = try? container.decode(String.self, forKey: .parentContent) {
-            parentContent = parentContentRaw.decodingUnicodeEscapes()
-        } else {
-            parentContent = nil
         }
 
         subquestions = try? container.decode([BackendQuestion].self, forKey: .subquestions)
@@ -670,10 +675,13 @@ extension BackendQuestion {
             )
         }
 
+        // Handle questionText: use parentContent as fallback for parent questions
+        let displayQuestionText = questionText ?? parentContent ?? "Parent Question"
+
         return ParsedQuestion(
             questionNumber: questionNumber,
             rawQuestionText: rawQuestionText,
-            questionText: questionText,
+            questionText: displayQuestionText,
             answerText: correctAnswer ?? studentAnswer ?? "",
             confidence: confidence,
             hasVisualElements: hasVisuals ?? false,
