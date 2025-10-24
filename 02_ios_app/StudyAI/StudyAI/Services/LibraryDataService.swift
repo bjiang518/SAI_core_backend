@@ -955,7 +955,9 @@ struct ConversationLibraryItem: LibraryItem {
         print("   📤 Returning fallback preview: \(fallbackResult)")
         return fallbackResult
     }
-}//
+}
+
+//
 //  ConversationLocalStorage.swift
 //  StudyAI
 //
@@ -1313,10 +1315,14 @@ class QuestionLocalStorage {
         let questionType = data["questionType"] as? String
         let options = data["options"] as? [String]
 
+        // Extract rawQuestionText from storage
+        let rawQuestionText = data["rawQuestionText"] as? String
+
         return QuestionSummary(
             id: id,
             subject: subject,
             questionText: questionText,
+            rawQuestionText: rawQuestionText,
             confidence: confidence,
             hasVisualElements: hasVisualElements,
             archivedAt: archivedAt,

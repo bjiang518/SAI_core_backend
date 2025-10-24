@@ -31,6 +31,7 @@ enum AuthProvider: String, Codable {
     case email = "email"
     case google = "google"
     case apple = "apple"
+    case phone = "phone"
 }
 
 enum AuthError: LocalizedError {
@@ -408,41 +409,116 @@ final class AuthenticationService: ObservableObject {
     }
 
     // MARK: - Apple Sign In
-    
+
     func signInWithApple() async throws {
+        print("🍎 === AuthenticationService.signInWithApple() STARTED ===")
         let appleSignIn = AppleSignInService()
         do {
+            print("🍎 Step 1: Calling AppleSignInService.signIn()...")
             let appleUser = try await appleSignIn.signIn()
-            
-            let user = User(
-                id: appleUser.userIdentifier,
-                email: appleUser.email ?? "apple_user@icloud.com",
+
+            print("🍎 Step 2: Received Apple user data:")
+            print("   - User ID: \(appleUser.userIdentifier)")
+            print("   - Email: \(appleUser.email ?? "nil")")
+            print("   - Full Name: \(appleUser.fullName ?? "nil")")
+            print("   - Identity Token: \(appleUser.identityToken != nil ? "✅ Present (\(appleUser.identityToken!.prefix(20))...)" : "❌ Missing")")
+            print("   - Auth Code: \(appleUser.authorizationCode != nil ? "✅ Present (\(appleUser.authorizationCode!.prefix(20))...)" : "❌ Missing")")
+
+            // Send Apple authentication data to our Railway backend
+            print("🍎 Step 3: Calling backend at /api/auth/apple...")
+            let networkService = NetworkService.shared
+            let result = await networkService.appleLogin(
+                identityToken: appleUser.identityToken ?? "",
+                authorizationCode: appleUser.authorizationCode,
+                userIdentifier: appleUser.userIdentifier,
                 name: appleUser.fullName ?? "Apple User",
-                profileImageURL: nil,
-                authProvider: .apple,
-                createdAt: Date(),
-                lastLoginAt: Date()
+                email: appleUser.email ?? "apple_user@icloud.com"
             )
-            
-            // Generate a token for Apple Sign In users
-            let token = "apple_token_\(UUID().uuidString)"
-            try keychainService.saveAuthToken(token)
-            try keychainService.saveUser(user)
-            
-            await MainActor.run {
-                currentUser = user
-                isAuthenticated = true
+
+            print("🍎 Step 4: Backend response:")
+            print("   - Success: \(result.success)")
+            print("   - Message: \(result.message)")
+            print("   - Status Code: \(result.statusCode ?? 0)")
+            print("   - Token: \(result.token != nil ? "✅ Present (\(result.token!.prefix(20))...)" : "❌ Missing")")
+
+            if result.success {
+                // Extract server user ID from backend response
+                guard let userData = result.userData,
+                      let serverUserId = userData["id"] as? String ?? userData["userId"] as? String ?? userData["user_id"] as? String else {
+                    print("🍎 ❌ ERROR: Backend response missing user ID")
+                    print("🍎    Available keys: \(result.userData?.keys.sorted() ?? [])")
+                    throw AuthError.serverError("Backend response missing user ID")
+                }
+
+                print("🍎 Step 5: Creating user object:")
+                print("   - Server User ID: \(serverUserId)")
+                print("   - Email: \(userData["email"] as? String ?? appleUser.email ?? "N/A")")
+                print("   - Name: \(userData["name"] as? String ?? "N/A")")
+
+                let user = User(
+                    id: serverUserId,  // Use server UID instead of Apple UID
+                    email: userData["email"] as? String ?? appleUser.email ?? "apple_user@icloud.com",
+                    name: userData["name"] as? String ?? appleUser.fullName ?? "Apple User",
+                    profileImageURL: userData["profileImageURL"] as? String ?? userData["profileImageUrl"] as? String ?? userData["profile_image_url"] as? String,
+                    authProvider: .apple,
+                    createdAt: Date(),
+                    lastLoginAt: Date()
+                )
+
+                // Use the token from our backend instead of generating one locally
+                if let token = result.token {
+                    print("🍎 Step 6: Saving to keychain:")
+                    print("   - Token (first 30 chars): \(token.prefix(30))...")
+                    print("   - User ID: \(user.id)")
+                    print("   - Email: \(user.email)")
+
+                    try keychainService.saveAuthToken(token)
+                    print("   ✅ Token saved to keychain")
+
+                    try keychainService.saveUser(user)
+                    print("   ✅ User saved to keychain")
+
+                    // Verify keychain storage
+                    if let savedToken = keychainService.getAuthToken() {
+                        print("🍎 Step 7: Keychain verification:")
+                        print("   ✅ Token retrieved: \(savedToken.prefix(30))...")
+                        print("   ✅ Tokens match: \(savedToken == token)")
+                    } else {
+                        print("🍎 ❌ WARNING: Token not found in keychain after save!")
+                    }
+
+                    await MainActor.run {
+                        currentUser = user
+                        isAuthenticated = true
+                        print("🍎 Step 8: Auth state updated on main thread")
+                        print("   - isAuthenticated: \(isAuthenticated)")
+                        print("   - currentUser.id: \(currentUser?.id ?? "nil")")
+                    }
+
+                    // Auto-load user profile after successful login
+                    print("🍎 Step 9: Loading user profile...")
+                    await loadUserProfileAfterLogin()
+
+                    print("🍎 === AuthenticationService.signInWithApple() COMPLETED SUCCESSFULLY ===")
+                } else {
+                    print("🍎 ❌ ERROR: No token in backend response")
+                    throw AuthError.serverError("No authentication token received from backend")
+                }
+            } else {
+                print("🍎 ❌ Backend authentication failed")
+                let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
+                throw specificError
             }
-            
-            // Auto-load user profile after successful login
-            await loadUserProfileAfterLogin()
         } catch {
+            print("🍎 ❌ === AuthenticationService.signInWithApple() FAILED ===")
+            print("🍎 Error: \(error)")
+
             // Handle specific Apple Sign-In errors with helpful messages
             if let authError = error as? AuthError {
                 throw authError
             } else {
                 let nsError = error as NSError
-                
+
                 // Handle specific Apple Sign-In errors
                 if nsError.domain == "com.apple.AuthenticationServices.AuthorizationError" {
                     switch nsError.code {
@@ -535,7 +611,7 @@ final class AuthenticationService: ObservableObject {
             throw AuthError.providerError("No stored credentials found. Please sign in with email first.")
         }
 
-        let success = try await biometricAuth.authenticateWithBiometrics(reason: "Authenticate to access StudyAI")
+        let success = try await biometricAuth.authenticateWithBiometrics(reason: "Authenticate to access StudyMates")
 
         if success {
             // Load stored user data
@@ -915,6 +991,8 @@ class AppleSignInService: NSObject, ASAuthorizationControllerDelegate, ASAuthori
         let userIdentifier: String
         let email: String?
         let fullName: String?
+        let identityToken: String?
+        let authorizationCode: String?
     }
     
     private var continuation: CheckedContinuation<AppleUser, Error>?
@@ -937,10 +1015,26 @@ class AppleSignInService: NSObject, ASAuthorizationControllerDelegate, ASAuthori
     
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
         if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
+            // Extract identity token and authorization code from credential
+            var identityTokenString: String?
+            var authorizationCodeString: String?
+
+            if let identityToken = appleIDCredential.identityToken,
+               let tokenString = String(data: identityToken, encoding: .utf8) {
+                identityTokenString = tokenString
+            }
+
+            if let authorizationCode = appleIDCredential.authorizationCode,
+               let codeString = String(data: authorizationCode, encoding: .utf8) {
+                authorizationCodeString = codeString
+            }
+
             let user = AppleUser(
                 userIdentifier: appleIDCredential.user,
                 email: appleIDCredential.email,
-                fullName: appleIDCredential.fullName?.givenName
+                fullName: appleIDCredential.fullName?.givenName,
+                identityToken: identityTokenString,
+                authorizationCode: authorizationCodeString
             )
             continuation?.resume(returning: user)
         } else {
@@ -1084,7 +1178,7 @@ class GoogleSignInService: NSObject {
             2. Create OAuth client:
                • Visit Google Cloud Console
                • Create iOS OAuth 2.0 client ID
-               • Add bundle ID: com.bo-jiang-StudyAI
+               • Add bundle ID: com.OliOli.StudyMatesAI
             
             3. Add GoogleService-Info.plist:
                • Download from Google Cloud Console

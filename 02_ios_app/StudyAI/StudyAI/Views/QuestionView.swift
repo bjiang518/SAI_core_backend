@@ -127,7 +127,7 @@ struct QuestionView: View {
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("StudyAI needs camera access to scan homework questions. Please enable camera permission in Settings.")
+                Text("StudyMates needs camera access to scan homework questions. Please enable camera permission in Settings.")
             }
             .sheet(isPresented: $showingSessionOptions) {
                 sessionOptionsView

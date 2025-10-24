@@ -42,10 +42,6 @@ struct ModernLoginView: View {
                 // Modern iOS 26+ safe area handling
                 Color.clear.frame(height: 0)
             }
-            .onTapGesture {
-                // Dismiss keyboard when tapping anywhere
-                hideKeyboard()
-            }
         }
         .alert("Authentication Error", isPresented: $showingError) {
             Button("OK") { }
@@ -142,10 +138,10 @@ struct ModernLoginView: View {
                         .font(.system(size: 60))
                         .foregroundColor(.white)
                     
-                    Text("Study Mate")
+                    Text("Study Mates")
                         .font(.largeTitle)
                         .foregroundColor(.white)
-                    
+
                     Text("Your AI-Powered Learning Companion")
                         .font(.title2)
                         .foregroundColor(.white.opacity(0.9))
@@ -233,27 +229,31 @@ struct ModernLoginView: View {
     
     private var socialAuthButtons: some View {
         VStack(spacing: 12) {
-            // Apple Sign In - Only show if capability is available
-            if isAppleSignInAvailable {
-                SignInWithAppleButton(
-                    onRequest: { request in
-                        request.requestedScopes = [.fullName, .email]
-                    },
-                    onCompletion: { result in
-                        Task {
-                            do {
-                                try await authService.signInWithApple()
-                            } catch {
-                                authService.errorMessage = error.localizedDescription
-                            }
-                        }
-                    }
-                )
-                .signInWithAppleButtonStyle(.black)
-                .frame(height: 50)
+            // Apple Sign In - Custom styled button
+            Button {
+                print("🍎🍎🍎 === CUSTOM APPLE BUTTON TAPPED ===")
+                // Trigger Apple Sign-In
+                Task {
+                    await performAppleSignIn()
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "applelogo")
+                        .font(.system(size: 20))
+                        .foregroundColor(.white)
+                        .frame(width: 20, height: 20)
+
+                    Text("Continue with Apple")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.black)
                 .clipShape(Capsule())
             }
-            
+            .disabled(authService.isLoading)
+
             // Google Sign In
             Button {
                 Task {
@@ -265,10 +265,10 @@ struct ModernLoginView: View {
                 }
             } label: {
                 HStack(spacing: 12) {
-                    // Using a custom image for Google logo would be better
-                    Image(systemName: "g.circle.fill")
-                        .font(.title2)
-                    
+                    // Google logo
+                    GoogleLogoView()
+                        .frame(width: 20, height: 20)
+
                     Text("Continue with Google")
                         .font(.headline)
                 }
@@ -372,12 +372,13 @@ struct ModernLoginView: View {
             Rectangle()
                 .frame(height: 1)
                 .foregroundColor(Color.gray.opacity(0.3))
-            
+
             Text(text)
                 .font(.caption)
                 .foregroundColor(.gray)
-                .padding(.horizontal, 16)
-            
+                .padding(.horizontal, 8)
+                .fixedSize()
+
             Rectangle()
                 .frame(height: 1)
                 .foregroundColor(Color.gray.opacity(0.3))
@@ -385,16 +386,11 @@ struct ModernLoginView: View {
     }
     
     // MARK: - Helper Properties
-    
+
     private var isFormValid: Bool {
         !email.isEmpty && !password.isEmpty && email.contains("@")
     }
-    
-    private var isAppleSignInAvailable: Bool {
-        // A simple check is sufficient. The button won't render if the capability is truly missing.
-        return true
-    }
-    
+
     // MARK: - Actions
 
     private func signInWithEmail() {
@@ -409,6 +405,88 @@ struct ModernLoginView: View {
             do {
                 try await authService.signInWithEmail(email, password: password)
             } catch {
+                authService.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func performAppleSignIn() async {
+        print("🍎🍎🍎 === ModernLoginView: Performing Apple Sign-In ===")
+        print("🍎🍎🍎 === Using AuthenticationService.signInWithApple() ===")
+
+        do {
+            // Use the proper authentication service method that calls the backend
+            try await authService.signInWithApple()
+            print("🍎🍎🍎 ✅ Apple Sign-In completed successfully via AuthenticationService")
+        } catch {
+            print("🍎🍎🍎 ❌ Apple Sign-In failed: \(error)")
+            let nsError = error as NSError
+            if nsError.code == ASAuthorizationError.canceled.rawValue {
+                print("🍎🍎🍎 User cancelled")
+                return
+            }
+            await MainActor.run {
+                authService.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func handleMinimalAppleSignIn(_ result: Result<ASAuthorization, Error>) async {
+        do {
+            switch result {
+            case .success(let authorization):
+                print("🍎🍎🍎 ✅ Success! Got authorization")
+
+                guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                    print("🍎🍎🍎 ❌ Invalid credential type")
+                    await MainActor.run {
+                        authService.errorMessage = "Invalid Apple ID credential"
+                    }
+                    return
+                }
+
+                print("🍎🍎🍎 User ID: \(appleIDCredential.user)")
+                print("🍎🍎🍎 Email: \(appleIDCredential.email ?? "nil")")
+
+                // Create user
+                let user = User(
+                    id: appleIDCredential.user,
+                    email: appleIDCredential.email ?? "apple_user@icloud.com",
+                    name: appleIDCredential.fullName?.givenName ?? "Apple User",
+                    profileImageURL: nil,
+                    authProvider: .apple,
+                    createdAt: Date(),
+                    lastLoginAt: Date()
+                )
+
+                // Save credentials
+                let token = "apple_token_\(UUID().uuidString)"
+                try KeychainService.shared.saveAuthToken(token)
+                try KeychainService.shared.saveUser(user)
+
+                print("🍎🍎🍎 ✅ Saved to keychain")
+
+                // Update auth state
+                await MainActor.run {
+                    authService.currentUser = user
+                    authService.isAuthenticated = true
+                    print("🍎🍎🍎 ✅ Auth state updated")
+                }
+
+            case .failure(let error):
+                print("🍎🍎🍎 ❌ Sign-in failed: \(error)")
+                let nsError = error as NSError
+                if nsError.code == ASAuthorizationError.canceled.rawValue {
+                    print("🍎🍎🍎 User cancelled")
+                    return
+                }
+                await MainActor.run {
+                    authService.errorMessage = error.localizedDescription
+                }
+            }
+        } catch {
+            print("🍎🍎🍎 ❌ Exception: \(error)")
+            await MainActor.run {
                 authService.errorMessage = error.localizedDescription
             }
         }
@@ -465,7 +543,7 @@ struct ModernSignUpView: View {
                             .font(.title)
                             .foregroundColor(.black)
 
-                        Text("Join Study Mate to start your learning adventure!")
+                        Text("Join Study Mates to start your learning adventure!")
                             .font(.body)
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
@@ -685,17 +763,27 @@ struct ModernSignUpView: View {
 struct PasswordRequirement: View {
     let text: String
     let isMet: Bool
-    
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: isMet ? "checkmark.circle.fill" : "circle")
                 .font(.caption)
                 .foregroundColor(isMet ? .green : .gray)
-            
+
             Text(text)
                 .font(.caption)
                 .foregroundColor(isMet ? .green : .gray)
         }
+    }
+}
+
+// MARK: - Google Logo View
+
+struct GoogleLogoView: View {
+    var body: some View {
+        Image("google-logo")
+            .resizable()
+            .scaledToFit()
     }
 }
 

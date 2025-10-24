@@ -247,6 +247,7 @@ struct QuestionSummary: Codable, Identifiable {
     let id: String
     let subject: String
     let questionText: String
+    let rawQuestionText: String?  // Full original question from image
     let confidence: Float?  // Made optional - field removed from backend
     let hasVisualElements: Bool
     let archivedAt: Date
@@ -263,7 +264,7 @@ struct QuestionSummary: Codable, Identifiable {
     // Question type fields (for type-specific rendering)
     let questionType: String?
     let options: [String]?
-    
+
     // Computed property for display
     var shortQuestionText: String {
         if questionText.count > 100 {

@@ -307,12 +307,15 @@ class QuestionArchiveService: ObservableObject {
               let archivedAt = parseDate(archivedAtString) else {
             throw QuestionArchiveError.invalidData
         }
-        
+
+        // Extract rawQuestionText from storage
+        let rawQuestionText = data["rawQuestionText"] as? String
+
         let confidence = (data["confidence"] as? Float) ?? (data["confidence"] as? Double).map(Float.init) ?? 0.0
         let hasVisualElements = (data["hasVisualElements"] as? Bool) ?? false
         let reviewCount = (data["reviewCount"] as? Int) ?? 0
         let tags = data["tags"] as? [String]
-        
+
         // Grading fields
         let gradeString = data["grade"] as? String
         let grade = gradeString != nil ? GradeResult(rawValue: gradeString!) : nil
@@ -328,6 +331,7 @@ class QuestionArchiveService: ObservableObject {
             id: id,
             subject: subject,
             questionText: questionText,
+            rawQuestionText: rawQuestionText,  // Include the full question text
             confidence: confidence,
             hasVisualElements: hasVisualElements,
             archivedAt: archivedAt,
@@ -355,6 +359,19 @@ class QuestionArchiveService: ObservableObject {
 
         // ✅ userId is optional (local storage doesn't have it, server does)
         let userId = data["userId"] as? String ?? currentUserId ?? "unknown"
+
+        // ✅ Extract rawQuestionText from storage (full original question text)
+        let rawQuestionText = data["rawQuestionText"] as? String
+
+        // Debug logging for rawQuestionText extraction
+        print("   📊 [Convert] Extracting rawQuestionText from storage:")
+        print("      - Has rawQuestionText in data: \(data["rawQuestionText"] != nil)")
+        if let rawText = rawQuestionText {
+            print("      - rawQuestionText length: \(rawText.count) chars")
+            print("      - rawQuestionText preview: \(rawText.prefix(100))...")
+        } else {
+            print("      - ❌ rawQuestionText is NIL in stored data")
+        }
 
         let confidence = (data["confidence"] as? Float) ?? (data["confidence"] as? Double).map(Float.init) ?? 0.0
         let hasVisualElements = (data["hasVisualElements"] as? Bool) ?? false
@@ -420,6 +437,7 @@ class QuestionArchiveService: ObservableObject {
             userId: userId,
             subject: subject,
             questionText: questionText,
+            rawQuestionText: rawQuestionText,  // ✅ CRITICAL: Include full original question text
             answerText: answerText,
             confidence: confidence,
             hasVisualElements: hasVisualElements,

@@ -131,12 +131,7 @@ extension UserSessionManager {
     var questionArchiveUserId: String? {
         return currentUserId
     }
-    
-    /// Get user ID for SupabaseService 
-    var supabaseUserId: String? {
-        return currentUserId
-    }
-    
+
     /// Get user ID for NetworkService queries
     var networkServiceUserId: String? {
         return currentUserId

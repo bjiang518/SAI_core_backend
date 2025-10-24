@@ -481,10 +481,6 @@ struct QuestionGenerationView: View {
 
             let primarySubject = !selectedSubject.isEmpty ? selectedSubject : (mostCommonSubjects.first ?? NSLocalizedString("questionGeneration.defaultSubject.mathematics", comment: ""))
 
-            let recommendedCount = dataAdapter.getRecommendedQuestionCount()
-
-            let recommendedDifficulty = dataAdapter.getRecommendedDifficulty()
-
             let focusAreas = dataAdapter.getFocusAreas()
 
             let focusNotes = focusAreas.isEmpty ?

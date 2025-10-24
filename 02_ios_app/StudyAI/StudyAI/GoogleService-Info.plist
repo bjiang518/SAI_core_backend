@@ -3,12 +3,12 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>658321574450-g6035vekkosef0i47rf295aj3mfttkdm.apps.googleusercontent.com</string>
+	<string>646716095953-pibr6eo6dqk1hk3he4h1gb61dako7q6v.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.658321574450-g6035vekkosef0i47rf295aj3mfttkdm</string>
+	<string>com.googleusercontent.apps.646716095953-pibr6eo6dqk1hk3he4h1gb61dako7q6v</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.bo-jiang-StudyAI</string>
+	<string>com.OliOli.StudyMatesAI</string>
 </dict>
 </plist>

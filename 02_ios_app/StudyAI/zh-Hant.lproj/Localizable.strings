@@ -211,6 +211,7 @@
 "homeworkResults.correct" = "正確";
 "homeworkResults.incorrect" = "錯誤";
 "homeworkResults.empty" = "空白";
+"homeworkResults.partialCredit" = "部分得分";
 "homeworkResults.questionsAndAnswers" = "題目與答案";
 "homeworkResults.additionalItems" = "其他項目";
 "homeworkResults.debugInfo" = "除錯資訊";
@@ -865,7 +866,7 @@
 "generatedQuestions.points" = "%d 分";
 "generatedQuestions.emailGreeting" = "您好！";
 "generatedQuestions.emailBody" = "我正在分享 %d 道 %@ 練習題。";
-"generatedQuestions.emailGeneratedBy" = "此 PDF 由 Study Mate（AI 學習助手）產生。";
+"generatedQuestions.emailGeneratedBy" = "此 PDF 由 Study Mates（AI 學習助手）產生。";
 "generatedQuestions.emailClosing" = "祝學習愉快！";
 
 // Mistake Review

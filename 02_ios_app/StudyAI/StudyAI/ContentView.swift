@@ -370,14 +370,14 @@ struct ModernProfileView: View {
                 // App Info Section
                 Section {
                     VStack(spacing: 8) {
-                        Text("StudyAI v1.0")
+                        Text("StudyMates v1.0")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        
+
                         Text("Enhanced with Modern Authentication")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        
+
                         Text("Powered by OpenAI GPT-4")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -439,6 +439,8 @@ struct ModernProfileView: View {
             return "globe"
         case .apple:
             return "applelogo"
+        case .phone:
+            return "phone.fill"
         }
     }
 }

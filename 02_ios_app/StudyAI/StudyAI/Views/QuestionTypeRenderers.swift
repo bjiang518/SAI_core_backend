@@ -70,10 +70,10 @@ struct GradeBadge: View {
     var gradeText: String {
         guard let grade = grade else { return "Ungraded" }
         switch grade {
-        case "CORRECT": return "Correct"
-        case "INCORRECT": return "Incorrect"
-        case "EMPTY": return "Empty"
-        case "PARTIAL_CREDIT", "PARTIAL": return "Partial"
+        case "CORRECT": return NSLocalizedString("homeworkResults.correct", comment: "")
+        case "INCORRECT": return NSLocalizedString("homeworkResults.incorrect", comment: "")
+        case "EMPTY": return NSLocalizedString("homeworkResults.empty", comment: "")
+        case "PARTIAL_CREDIT", "PARTIAL": return NSLocalizedString("homeworkResults.partialCredit", comment: "")
         default: return "Unknown"
         }
     }
@@ -148,19 +148,16 @@ struct MultipleChoiceRenderer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Question Text
+            // Question Text - Use full raw text if available
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "list.bullet.circle.fill")
                     .foregroundColor(.purple)
                     .font(.system(size: 18))
-                MathFormattedText(question.questionText, fontSize: 16)
+                MathFormattedText(question.rawQuestionText ?? question.questionText, fontSize: 16)
                 Spacer()
             }
 
             if isExpanded {
-                // Raw Question Text (if available and different from preview)
-                RawQuestionText(rawText: question.rawQuestionText)
-
                 // Options Display
                 if let options = question.options, !options.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -169,19 +166,6 @@ struct MultipleChoiceRenderer: View {
                         }
                     }
                     .padding(.leading, 8)
-                }
-
-                // Grade Badge
-                if question.isGraded {
-                    HStack {
-                        GradeBadge(grade: question.grade)
-                        Spacer()
-                        if question.pointsEarned != nil {
-                            Text(question.scoreText)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.secondary)
-                        }
-                    }
                 }
 
                 // Feedback
@@ -275,31 +259,20 @@ struct TrueFalseRenderer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Question Text
+            // Question Text - Use full raw text if available
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "checkmark.circle.badge.xmark.fill")
                     .foregroundColor(.indigo)
                     .font(.system(size: 18))
-                MathFormattedText(question.questionText, fontSize: 16)
+                MathFormattedText(question.rawQuestionText ?? question.questionText, fontSize: 16)
                 Spacer()
             }
 
             if isExpanded {
-                // Raw Question Text (if available and different from preview)
-                RawQuestionText(rawText: question.rawQuestionText)
-
                 // True/False Buttons
                 HStack(spacing: 12) {
                     trueFalseButton(value: "True")
                     trueFalseButton(value: "False")
-                }
-
-                // Grade Badge
-                if question.isGraded {
-                    HStack {
-                        GradeBadge(grade: question.grade)
-                        Spacer()
-                    }
                 }
 
                 // Answer Comparison
@@ -397,13 +370,13 @@ struct FillInBlankRenderer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Question Text with Blanks
+            // Question Text with Blanks - Use full raw text if available
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "line.horizontal.3.decrease")
                     .foregroundColor(.teal)
                     .font(.system(size: 18))
                 VStack(alignment: .leading, spacing: 8) {
-                    MathFormattedText(questionTextWithBlanks, fontSize: 16)
+                    MathFormattedText(question.rawQuestionText ?? questionTextWithBlanks, fontSize: 16)
 
                     // Show filled blank if available
                     if isExpanded, let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
@@ -414,17 +387,6 @@ struct FillInBlankRenderer: View {
             }
 
             if isExpanded {
-                // Raw Question Text (if available and different from preview)
-                RawQuestionText(rawText: question.rawQuestionText)
-
-                // Grade Badge
-                if question.isGraded {
-                    HStack {
-                        GradeBadge(grade: question.grade)
-                        Spacer()
-                    }
-                }
-
                 // Answer Comparison
                 AnswerComparisonView(
                     studentAnswer: question.studentAnswer,
@@ -499,19 +461,16 @@ struct CalculationRenderer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Question Text
+            // Question Text - Use full raw text if available
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "number.circle.fill")
                     .foregroundColor(.cyan)
                     .font(.system(size: 18))
-                MathFormattedText(question.questionText, fontSize: 16)
+                MathFormattedText(question.rawQuestionText ?? question.questionText, fontSize: 16)
                 Spacer()
             }
 
             if isExpanded {
-                // Raw Question Text (if available and different from preview)
-                RawQuestionText(rawText: question.rawQuestionText)
-
                 // Student's Work/Answer
                 if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -539,19 +498,6 @@ struct CalculationRenderer: View {
                     .padding(12)
                     .background(Color.cyan.opacity(0.05))
                     .cornerRadius(8)
-                }
-
-                // Grade Badge
-                if question.isGraded {
-                    HStack {
-                        GradeBadge(grade: question.grade)
-                        Spacer()
-                        if question.pointsEarned != nil {
-                            Text(question.scoreText)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.secondary)
-                        }
-                    }
                 }
 
                 // Correct Answer
@@ -609,28 +555,24 @@ struct ShortAnswerRenderer: View {
     let onTapAskAI: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Question Text
+        // Debug logging for ShortAnswerRenderer
+        let displayText = question.rawQuestionText ?? question.questionText
+        print("📝 [ShortAnswer] === RENDERING ===")
+        print("📝 [ShortAnswer] Using text: \(question.rawQuestionText != nil ? "rawQuestionText" : "questionText")")
+        print("📝 [ShortAnswer] Display text length: \(displayText.count) chars")
+        print("📝 [ShortAnswer] Display text: \(displayText)")
+
+        return VStack(alignment: .leading, spacing: 12) {
+            // Question Text - Use full raw text if available
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "text.cursor")
                     .foregroundColor(.mint)
                     .font(.system(size: 18))
-                MathFormattedText(question.questionText, fontSize: 16)
+                MathFormattedText(displayText, fontSize: 16)
                 Spacer()
             }
 
             if isExpanded {
-                // Raw Question Text (if available and different from preview)
-                RawQuestionText(rawText: question.rawQuestionText)
-
-                // Grade Badge
-                if question.isGraded {
-                    HStack {
-                        GradeBadge(grade: question.grade)
-                        Spacer()
-                    }
-                }
-
                 // Answer Comparison
                 AnswerComparisonView(
                     studentAnswer: question.studentAnswer,
@@ -677,19 +619,16 @@ struct LongAnswerRenderer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Question Text
+            // Question Text - Use full raw text if available
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "doc.text.fill")
                     .foregroundColor(.brown)
                     .font(.system(size: 18))
-                MathFormattedText(question.questionText, fontSize: 16)
+                MathFormattedText(question.rawQuestionText ?? question.questionText, fontSize: 16)
                 Spacer()
             }
 
             if isExpanded {
-                // Raw Question Text (if available and different from preview)
-                RawQuestionText(rawText: question.rawQuestionText)
-
                 // Student Answer (with expand/collapse)
                 if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -716,19 +655,6 @@ struct LongAnswerRenderer: View {
                     .padding(12)
                     .background(Color.blue.opacity(0.05))
                     .cornerRadius(8)
-                }
-
-                // Grade Badge
-                if question.isGraded {
-                    HStack {
-                        GradeBadge(grade: question.grade)
-                        Spacer()
-                        if question.pointsEarned != nil {
-                            Text(question.scoreText)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.secondary)
-                        }
-                    }
                 }
 
                 // Expected Answer/Key Points
@@ -800,37 +726,21 @@ struct MatchingRenderer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Question Text
+            // Question Text - Use full raw text if available
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "arrow.left.arrow.right.circle.fill")
                     .foregroundColor(.pink)
                     .font(.system(size: 18))
-                MathFormattedText(question.questionText, fontSize: 16)
+                MathFormattedText(question.rawQuestionText ?? question.questionText, fontSize: 16)
                 Spacer()
             }
 
             if isExpanded {
-                // Raw Question Text (if available and different from preview)
-                RawQuestionText(rawText: question.rawQuestionText)
-
                 // Matching pairs display
                 if let options = question.options, !options.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(options, id: \.self) { pair in
                             matchingPairRow(pair: pair)
-                        }
-                    }
-                }
-
-                // Grade Badge
-                if question.isGraded {
-                    HStack {
-                        GradeBadge(grade: question.grade)
-                        Spacer()
-                        if question.pointsEarned != nil {
-                            Text(question.scoreText)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.secondary)
                         }
                     }
                 }
@@ -905,21 +815,37 @@ struct QuestionTypeRendererSelector: View {
     let onTapAskAI: () -> Void
 
     var body: some View {
-        switch question.detectedQuestionType {
-        case .multipleChoice:
-            MultipleChoiceRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
-        case .trueFalse:
-            TrueFalseRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
-        case .fillInBlank:
-            FillInBlankRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
-        case .calculation:
-            CalculationRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
-        case .longAnswer:
-            LongAnswerRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
-        case .matching:
-            MatchingRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
-        case .shortAnswer, .unknown:
-            ShortAnswerRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+        // Debug logging
+        print("🎨 [QuestionRenderer] === RENDERING QUESTION ===")
+        print("🎨 [QuestionRenderer] Question Type: \(question.detectedQuestionType)")
+        print("🎨 [QuestionRenderer] Has rawQuestionText: \(question.rawQuestionText != nil)")
+        if let rawText = question.rawQuestionText {
+            print("🎨 [QuestionRenderer] rawQuestionText length: \(rawText.count) chars")
+            print("🎨 [QuestionRenderer] rawQuestionText preview: \(rawText.prefix(100))...")
+        } else {
+            print("🎨 [QuestionRenderer] ❌ rawQuestionText is NIL")
+        }
+        print("🎨 [QuestionRenderer] questionText length: \(question.questionText.count) chars")
+        print("🎨 [QuestionRenderer] questionText preview: \(question.questionText.prefix(100))...")
+        print("🎨 [QuestionRenderer] isExpanded: \(isExpanded)")
+
+        return Group {
+            switch question.detectedQuestionType {
+            case .multipleChoice:
+                MultipleChoiceRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+            case .trueFalse:
+                TrueFalseRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+            case .fillInBlank:
+                FillInBlankRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+            case .calculation:
+                CalculationRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+            case .longAnswer:
+                LongAnswerRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+            case .matching:
+                MatchingRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+            case .shortAnswer, .unknown:
+                ShortAnswerRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+            }
         }
     }
 }

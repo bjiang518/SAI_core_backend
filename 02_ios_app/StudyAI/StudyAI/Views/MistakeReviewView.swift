@@ -144,7 +144,7 @@ struct MistakeReviewView: View {
                 .padding()
             }
             .navigationTitle(NSLocalizedString("mistakeReview.title", comment: ""))
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(NSLocalizedString("common.done", comment: "")) {
@@ -182,11 +182,11 @@ struct TimeRangeButton: View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: range.icon)
-                    .font(.title2)
+                    .font(.title3)
                     .foregroundColor(isSelected ? .white : .blue)
 
                 Text(range.displayName)
-                    .font(.caption)
+                    .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(isSelected ? .white : .blue)
             }
@@ -208,11 +208,11 @@ struct SubjectCard: View {
         Button(action: action) {
             VStack(spacing: 12) {
                 Image(systemName: subject.icon)
-                    .font(.title2)
+                    .font(.title3)
                     .foregroundColor(isSelected ? .white : .red)
 
                 Text(subject.subject)
-                    .font(.headline)
+                    .font(.body)
                     .fontWeight(.semibold)
                     .foregroundColor(isSelected ? .white : .primary)
                     .multilineTextAlignment(.center)
@@ -376,7 +376,7 @@ struct MistakeQuestionListView: View {
                 }
             }
             .navigationTitle(String.localizedStringWithFormat(NSLocalizedString("mistakeReview.subjectMistakes", comment: ""), subject))
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(NSLocalizedString("common.done", comment: "")) {
@@ -427,7 +427,7 @@ struct MistakeQuestionCard: View {
                         HStack(spacing: 8) {
                             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                 .foregroundColor(isSelected ? .blue : .gray)
-                                .font(.title2)
+                                .font(.title3)
 
                             Text(isSelected ?
                                  NSLocalizedString("mistakeReview.selected", comment: "") :

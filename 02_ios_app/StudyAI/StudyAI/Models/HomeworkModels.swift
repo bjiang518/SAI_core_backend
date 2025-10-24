@@ -8,6 +8,91 @@
 import Foundation
 import SwiftUI
 
+// MARK: - String Extension for Unicode Decoding
+
+extension String {
+    /// Decode Unicode escape sequences from backend JSON
+    ///
+    /// Supports common symbols in homework:
+    /// - Math: ° (degree), ± (plus-minus), × (multiply), ÷ (divide), √ (square root), π, ∞
+    /// - Comparison: ≤ ≥ ≠ ≈
+    /// - Greek letters: α β γ δ ε θ λ μ σ φ ω
+    /// - Superscripts: ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ⁰
+    /// - Subscripts: ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉ ₀
+    /// - Fractions: ½ ¼ ¾ ⅓ ⅔
+    /// - Arrows: → ← ↑ ↓
+    /// - Other: • (bullet), ✓ (checkmark)
+    ///
+    /// Handles formats:
+    /// - \uXXXX (4 hex digits, standard Unicode)
+    /// - \U00XXXXXX (8 hex digits with leading zeros, Python format)
+    func decodingUnicodeEscapes() -> String {
+        var result = self
+
+        // Handle \UXXXXXXXX format (8 hex digits, Python format)
+        // Example: "40\U000000b0F" -> "40°F"
+        let pattern8 = "\\\\U([0-9A-Fa-f]{8})"
+        if let regex8 = try? NSRegularExpression(pattern: pattern8, options: []) {
+            let nsRange = NSRange(result.startIndex..<result.endIndex, in: result)
+            let matches = regex8.matches(in: result, options: [], range: nsRange)
+
+            for match in matches.reversed() {
+                if match.numberOfRanges > 1,
+                   let hexRange = Range(match.range(at: 1), in: result),
+                   let fullRange = Range(match.range(at: 0), in: result) {
+                    let hexString = String(result[hexRange])
+                    if let codePoint = UInt32(hexString, radix: 16),
+                       let scalar = Unicode.Scalar(codePoint) {
+                        result.replaceSubrange(fullRange, with: String(scalar))
+                    }
+                }
+            }
+        }
+
+        // Handle \U00XX format (uppercase U with 4 hex digits)
+        // Example: "40\U00b0F" -> "40°F"
+        let pattern4U = "\\\\U([0-9A-Fa-f]{4})"
+        if let regex4U = try? NSRegularExpression(pattern: pattern4U, options: []) {
+            let nsRange = NSRange(result.startIndex..<result.endIndex, in: result)
+            let matches = regex4U.matches(in: result, options: [], range: nsRange)
+
+            for match in matches.reversed() {
+                if match.numberOfRanges > 1,
+                   let hexRange = Range(match.range(at: 1), in: result),
+                   let fullRange = Range(match.range(at: 0), in: result) {
+                    let hexString = String(result[hexRange])
+                    if let codePoint = UInt32(hexString, radix: 16),
+                       let scalar = Unicode.Scalar(codePoint) {
+                        result.replaceSubrange(fullRange, with: String(scalar))
+                    }
+                }
+            }
+        }
+
+        // Handle standard \uXXXX format (4 hex digits)
+        // Example: "π\u03c0" -> "ππ"
+        let pattern4u = "\\\\u([0-9A-Fa-f]{4})"
+        if let regex4u = try? NSRegularExpression(pattern: pattern4u, options: []) {
+            let nsRange = NSRange(result.startIndex..<result.endIndex, in: result)
+            let matches = regex4u.matches(in: result, options: [], range: nsRange)
+
+            for match in matches.reversed() {
+                if match.numberOfRanges > 1,
+                   let hexRange = Range(match.range(at: 1), in: result),
+                   let fullRange = Range(match.range(at: 0), in: result) {
+                    let hexString = String(result[hexRange])
+                    if let codePoint = UInt32(hexString, radix: 16),
+                       let scalar = Unicode.Scalar(codePoint) {
+                        result.replaceSubrange(fullRange, with: String(scalar))
+                    }
+                }
+            }
+        }
+
+        return result
+    }
+}
+
 // MARK: - Question Type Enum
 
 /// Question type classification for different rendering styles
@@ -185,10 +270,28 @@ struct BackendQuestion: Decodable {  // Changed from Codable to Decodable
             questionNumber = nil
         }
 
-        rawQuestionText = try? container.decode(String.self, forKey: .rawQuestionText)
-        questionText = try container.decode(String.self, forKey: .questionText)
-        studentAnswer = try? container.decode(String.self, forKey: .studentAnswer)
-        correctAnswer = try? container.decode(String.self, forKey: .correctAnswer)
+        // Decode and process Unicode escape sequences in all text fields
+        if let rawText = try? container.decode(String.self, forKey: .rawQuestionText) {
+            rawQuestionText = rawText.decodingUnicodeEscapes()
+        } else {
+            rawQuestionText = nil
+        }
+
+        let qText = try container.decode(String.self, forKey: .questionText)
+        questionText = qText.decodingUnicodeEscapes()
+
+        if let studentAnswerRaw = try? container.decode(String.self, forKey: .studentAnswer) {
+            studentAnswer = studentAnswerRaw.decodingUnicodeEscapes()
+        } else {
+            studentAnswer = nil
+        }
+
+        if let correctAnswerRaw = try? container.decode(String.self, forKey: .correctAnswer) {
+            correctAnswer = correctAnswerRaw.decodingUnicodeEscapes()
+        } else {
+            correctAnswer = nil
+        }
+
         grade = try? container.decode(String.self, forKey: .grade)
 
         // Handle Float fields as Float or String
@@ -216,13 +319,56 @@ struct BackendQuestion: Decodable {  // Changed from Codable to Decodable
             confidence = nil  // Field removed from backend
         }
 
-        hasVisuals = try? container.decode(Bool.self, forKey: .hasVisuals)
-        feedback = try? container.decode(String.self, forKey: .feedback)
+        // Handle hasVisuals as Bool or Int
+        if let boolValue = try? container.decode(Bool.self, forKey: .hasVisuals) {
+            hasVisuals = boolValue
+        } else if let intValue = try? container.decode(Int.self, forKey: .hasVisuals) {
+            hasVisuals = intValue != 0
+        } else {
+            hasVisuals = nil
+        }
+
+        // Decode feedback with Unicode support
+        if let feedbackRaw = try? container.decode(String.self, forKey: .feedback) {
+            feedback = feedbackRaw.decodingUnicodeEscapes()
+        } else {
+            feedback = nil
+        }
+
         questionType = try? container.decode(String.self, forKey: .questionType)
-        options = try? container.decode([String].self, forKey: .options)
-        isParent = try? container.decode(Bool.self, forKey: .isParent)
-        hasSubquestions = try? container.decode(Bool.self, forKey: .hasSubquestions)
-        parentContent = try? container.decode(String.self, forKey: .parentContent)
+
+        // Decode options array with Unicode support
+        if let optionsRaw = try? container.decode([String].self, forKey: .options) {
+            options = optionsRaw.map { $0.decodingUnicodeEscapes() }
+        } else {
+            options = nil
+        }
+
+        // Handle isParent as Bool or Int
+        if let boolValue = try? container.decode(Bool.self, forKey: .isParent) {
+            isParent = boolValue
+        } else if let intValue = try? container.decode(Int.self, forKey: .isParent) {
+            isParent = intValue != 0
+        } else {
+            isParent = nil
+        }
+
+        // Handle hasSubquestions as Bool or Int
+        if let boolValue = try? container.decode(Bool.self, forKey: .hasSubquestions) {
+            hasSubquestions = boolValue
+        } else if let intValue = try? container.decode(Int.self, forKey: .hasSubquestions) {
+            hasSubquestions = intValue != 0
+        } else {
+            hasSubquestions = nil
+        }
+
+        // Decode parentContent with Unicode support
+        if let parentContentRaw = try? container.decode(String.self, forKey: .parentContent) {
+            parentContent = parentContentRaw.decodingUnicodeEscapes()
+        } else {
+            parentContent = nil
+        }
+
         subquestions = try? container.decode([BackendQuestion].self, forKey: .subquestions)
         subquestionNumber = try? container.decode(String.self, forKey: .subquestionNumber)
         parentSummary = try? container.decode(BackendParentSummary.self, forKey: .parentSummary)
@@ -238,6 +384,26 @@ struct BackendParentSummary: Codable {
         case totalEarned = "total_earned"
         case totalPossible = "total_possible"
         case overallFeedback = "overall_feedback"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        totalEarned = try container.decode(Float.self, forKey: .totalEarned)
+        totalPossible = try container.decode(Float.self, forKey: .totalPossible)
+
+        // Decode overallFeedback with Unicode support
+        if let feedbackRaw = try? container.decode(String.self, forKey: .overallFeedback) {
+            overallFeedback = feedbackRaw.decodingUnicodeEscapes()
+        } else {
+            overallFeedback = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(totalEarned, forKey: .totalEarned)
+        try container.encode(totalPossible, forKey: .totalPossible)
+        try container.encodeIfPresent(overallFeedback, forKey: .overallFeedback)
     }
 }
 
@@ -266,7 +432,10 @@ struct BackendPerformanceSummary: Decodable {  // Changed from Codable to Decoda
         totalIncorrect = try container.decode(Int.self, forKey: .totalIncorrect)
         totalEmpty = try container.decode(Int.self, forKey: .totalEmpty)
         totalPartialCredit = (try? container.decode(Int.self, forKey: .totalPartialCredit)) ?? 0
-        summaryText = try container.decode(String.self, forKey: .summaryText)
+
+        // Decode summaryText with Unicode support
+        let summaryRaw = try container.decode(String.self, forKey: .summaryText)
+        summaryText = summaryRaw.decodingUnicodeEscapes()
 
         // Handle accuracyRate as Float or String
         if let floatValue = try? container.decode(Float.self, forKey: .accuracyRate) {
@@ -604,16 +773,30 @@ struct MistakeQuestion: Codable, Identifiable {
 
         id = try container.decode(String.self, forKey: .id)
         subject = try container.decode(String.self, forKey: .subject)
-        question = try container.decode(String.self, forKey: .question)
-        rawQuestionText = try container.decodeIfPresent(String.self, forKey: .rawQuestionText) ?? question  // Fallback to question if not available
-        correctAnswer = try container.decode(String.self, forKey: .correctAnswer)
-        studentAnswer = try container.decode(String.self, forKey: .studentAnswer)
-        explanation = try container.decode(String.self, forKey: .explanation)
+
+        // Decode text fields with Unicode support
+        let questionRaw = try container.decode(String.self, forKey: .question)
+        question = questionRaw.decodingUnicodeEscapes()
+
+        let rawQuestionRaw = try container.decodeIfPresent(String.self, forKey: .rawQuestionText) ?? questionRaw
+        rawQuestionText = rawQuestionRaw.decodingUnicodeEscapes()
+
+        let correctAnswerRaw = try container.decode(String.self, forKey: .correctAnswer)
+        correctAnswer = correctAnswerRaw.decodingUnicodeEscapes()
+
+        let studentAnswerRaw = try container.decode(String.self, forKey: .studentAnswer)
+        studentAnswer = studentAnswerRaw.decodingUnicodeEscapes()
+
+        let explanationRaw = try container.decode(String.self, forKey: .explanation)
+        explanation = explanationRaw.decodingUnicodeEscapes()
+
+        let notesRaw = try container.decode(String.self, forKey: .notes)
+        notes = notesRaw.decodingUnicodeEscapes()
+
         confidence = try container.decode(Double.self, forKey: .confidence)
         pointsEarned = try container.decode(Double.self, forKey: .pointsEarned)
         pointsPossible = try container.decode(Double.self, forKey: .pointsPossible)
         tags = try container.decode([String].self, forKey: .tags)
-        notes = try container.decode(String.self, forKey: .notes)
 
         // Handle date parsing
         let dateString = try container.decode(String.self, forKey: .createdAt)

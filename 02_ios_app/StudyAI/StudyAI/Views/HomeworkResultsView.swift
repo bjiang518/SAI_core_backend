@@ -12,10 +12,8 @@ struct HomeworkResultsView: View {
     let enhancedResult: EnhancedHomeworkParsingResult?
     let originalImageUrl: String?
     @State private var expandedQuestions: Set<String> = []
-    @State private var showingRawResponse = false
     @State private var showingQuestionArchiveDialog = false
     @State private var isArchiving = false
-    @State private var archiveMessage = ""
     @State private var selectedQuestionIndices: Set<Int> = []
     @State private var questionNotes: [String] = []
     @State private var questionTags: [[String]] = []
@@ -85,12 +83,7 @@ struct HomeworkResultsView: View {
                     
                     // Questions List
                     questionsListSection
-                    
-                    // Debug Section (if needed)
-                    if !parsingResult.rawAIResponse.isEmpty {
-                        debugSection
-                    }
-                    
+
                     // Mark Progress Button
                     markProgressButton
                     
@@ -140,13 +133,6 @@ struct HomeworkResultsView: View {
                         }
                     }
                 )
-            }
-            .alert("Archive Status", isPresented: .constant(!archiveMessage.isEmpty)) {
-                Button("OK") {
-                    archiveMessage = ""
-                }
-            } message: {
-                Text(archiveMessage)
             }
             .onAppear {
                 initializeQuestionData()
@@ -204,68 +190,116 @@ struct HomeworkResultsView: View {
     }
     
     // MARK: - Performance Summary
-    
+
     private func performanceSummarySection(_ summary: PerformanceSummary) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header with icon
+            HStack(spacing: 8) {
+                Image(systemName: "chart.bar.doc.horizontal.fill")
+                    .font(.title3)
+                    .foregroundColor(.white)
+
                 Text(NSLocalizedString("homeworkResults.performanceSummary", comment: ""))
                     .font(.headline)
-                    .foregroundColor(.black)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
 
                 Spacer()
             }
 
-            // AI Summary Text
+            // AI Summary Text with enhanced styling
             Text(summary.summaryText)
                 .font(.body)
-                .foregroundColor(.black)
+                .foregroundColor(.white.opacity(0.95))
                 .multilineTextAlignment(.leading)
                 .lineLimit(nil)
+                .padding(.vertical, 4)
 
             // Score breakdown (if there are incorrect answers)
             if summary.totalIncorrect > 0 || summary.totalEmpty > 0 || summary.totalPartialCredit > 0 {
-                HStack(spacing: 16) {
-                    if summary.totalCorrect > 0 {
-                        ScoreBreakdownItem(
-                            count: summary.totalCorrect,
-                            label: NSLocalizedString("homeworkResults.correct", comment: ""),
-                            color: .green,
-                            icon: "checkmark.circle.fill"
-                        )
-                    }
+                VStack(spacing: 12) {
+                    Divider()
+                        .background(Color.white.opacity(0.3))
 
-                    if summary.totalIncorrect > 0 {
-                        ScoreBreakdownItem(
-                            count: summary.totalIncorrect,
-                            label: NSLocalizedString("homeworkResults.incorrect", comment: ""),
-                            color: .red,
-                            icon: "xmark.circle.fill"
-                        )
-                    }
+                    HStack(spacing: 12) {
+                        if summary.totalCorrect > 0 {
+                            EnhancedScoreBreakdownItem(
+                                count: summary.totalCorrect,
+                                label: NSLocalizedString("homeworkResults.correct", comment: ""),
+                                color: .green,
+                                icon: "checkmark.circle.fill"
+                            )
+                        }
 
-                    if summary.totalPartialCredit > 0 {
-                        ScoreBreakdownItem(
-                            count: summary.totalPartialCredit,
-                            label: NSLocalizedString("homeworkResults.partialCredit", comment: ""),
-                            color: .orange,
-                            icon: "checkmark.circle"
-                        )
-                    }
+                        if summary.totalIncorrect > 0 {
+                            EnhancedScoreBreakdownItem(
+                                count: summary.totalIncorrect,
+                                label: NSLocalizedString("homeworkResults.incorrect", comment: ""),
+                                color: .red,
+                                icon: "xmark.circle.fill"
+                            )
+                        }
 
-                    if summary.totalEmpty > 0 {
-                        ScoreBreakdownItem(
-                            count: summary.totalEmpty,
-                            label: NSLocalizedString("homeworkResults.empty", comment: ""),
-                            color: .gray,
-                            icon: "minus.circle.fill"
-                        )
+                        if summary.totalPartialCredit > 0 {
+                            EnhancedScoreBreakdownItem(
+                                count: summary.totalPartialCredit,
+                                label: NSLocalizedString("homeworkResults.partialCredit", comment: ""),
+                                color: .orange,
+                                icon: "checkmark.circle"
+                            )
+                        }
+
+                        if summary.totalEmpty > 0 {
+                            EnhancedScoreBreakdownItem(
+                                count: summary.totalEmpty,
+                                label: NSLocalizedString("homeworkResults.empty", comment: ""),
+                                color: .gray,
+                                icon: "minus.circle.fill"
+                            )
+                        }
                     }
                 }
             }
         }
-        .padding()
-        .background(Color.blue.opacity(0.05))
-        .cornerRadius(16)
+        .padding(20)
+        .background(
+            ZStack {
+                // Gradient background
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.2, green: 0.4, blue: 0.9),
+                        Color(red: 0.3, green: 0.5, blue: 1.0)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                // Shimmer overlay
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.0),
+                        Color.white.opacity(0.1),
+                        Color.white.opacity(0.0)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        )
+        .cornerRadius(20)
+        .shadow(color: Color.blue.opacity(0.4), radius: 20, x: 0, y: 10)
+        .shadow(color: Color.blue.opacity(0.3), radius: 10, x: 0, y: 5)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+        )
     }
     
     // MARK: - Questions List
@@ -335,42 +369,7 @@ struct HomeworkResultsView: View {
             }
         }
     }
-    
-    // MARK: - Debug Section
-    
-    private var debugSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Button(action: {
-                showingRawResponse.toggle()
-            }) {
-                HStack {
-                    Text(NSLocalizedString("homeworkResults.debugInfo", comment: ""))
-                        .font(.caption)
-                        .foregroundColor(.gray) // Fixed: explicit gray text
-                    Spacer()
-                    Image(systemName: showingRawResponse ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundColor(.gray) // Fixed: explicit gray text
-                }
-            }
 
-            if showingRawResponse {
-                ScrollView {
-                    Text(parsingResult.rawAIResponse)
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.black) // Fixed: explicit black text
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
-                }
-                .frame(maxHeight: 200)
-            }
-        }
-        .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(12)
-    }
-    
     // MARK: - Question Selection Section
     
     private var questionSelectionSection: some View {
@@ -447,17 +446,10 @@ struct HomeworkResultsView: View {
                     .foregroundColor(.green)
                     .multilineTextAlignment(.center)
             } else {
-                VStack(spacing: 4) {
-                    Text(NSLocalizedString("homeworkResults.progressTip", comment: ""))
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        .multilineTextAlignment(.center)
-
-                    Text(NSLocalizedString("homeworkResults.manuallyAddPrefix", comment: "") + "\(parsingResult.allQuestions.count)" + NSLocalizedString("homeworkResults.manuallyAddSuffix", comment: ""))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
+                Text("Tap here to manually add \(parsingResult.allQuestions.count) questions to your progress")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
             }
         }
         .padding()
@@ -1144,18 +1136,18 @@ struct ScoreBreakdownItem: View {
     let label: String
     let color: Color
     let icon: String
-    
+
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.caption)
                 .foregroundColor(color)
-            
+
             Text("\(count)")
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundColor(.black)
-            
+
             Text(label)
                 .font(.caption)
                 .foregroundColor(.gray)
@@ -1164,6 +1156,44 @@ struct ScoreBreakdownItem: View {
         .padding(.vertical, 4)
         .background(color.opacity(0.1))
         .cornerRadius(8)
+    }
+}
+
+// MARK: - Enhanced Score Breakdown Item (for glowing card)
+
+struct EnhancedScoreBreakdownItem: View {
+    let count: Int
+    let label: String
+    let color: Color
+    let icon: String
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+
+            Text("\(count)")
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+
+            Text(label)
+                .font(.caption2)
+                .fontWeight(.medium)
+                .foregroundColor(.white.opacity(0.9))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.15))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
+        )
     }
 }
 
@@ -1213,15 +1243,12 @@ extension HomeworkResultsView {
 
             await MainActor.run {
                 // ✅ LOCAL-FIRST: Questions are saved locally only
-                archiveMessage = "✅ Saved \(archivedQuestions.count) question(s) locally!\n\n💡 Tip: Use 'Sync with Server' in Settings to upload to cloud."
-
                 isArchiving = false
                 showingQuestionArchiveDialog = false
                 selectedQuestionIndices.removeAll()
             }
         } catch {
             await MainActor.run {
-                archiveMessage = "Failed to archive questions: \(error.localizedDescription)"
                 isArchiving = false
             }
         }

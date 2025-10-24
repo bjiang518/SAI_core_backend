@@ -83,7 +83,7 @@ struct PasswordManagementView: View {
                 } header: {
                     Text("Account Security")
                 } footer: {
-                    Text("Manage your StudyAI account password for login")
+                    Text("Manage your StudyMates account password for login")
                 }
 
                 // Parent Mode Section

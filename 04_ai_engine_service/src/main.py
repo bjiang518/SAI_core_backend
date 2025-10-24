@@ -52,13 +52,24 @@ from datetime import datetime
 
 async def keep_alive_task():
     """Periodic task to prevent Railway from sleeping the service"""
+    import aiohttp
+
     while True:
         try:
             await asyncio.sleep(int(os.getenv('HEALTH_CHECK_INTERVAL', '300')))  # 5 minutes
+
             if os.getenv('RAILWAY_KEEP_ALIVE') == 'true':
-                print(f"🔄 Keep-alive ping: {datetime.now().isoformat()}")
-                # Internal health check to keep the service active
-                # This creates minimal activity to prevent Railway sleep
+                # Make actual HTTP request to prevent Railway timeout
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get('http://localhost:8000/health', timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                            if resp.status == 200:
+                                print(f"🔄 Keep-alive ping successful: {datetime.now().isoformat()}")
+                            else:
+                                print(f"⚠️ Keep-alive ping failed with status {resp.status}")
+                except Exception as req_error:
+                    print(f"⚠️ Keep-alive request error: {req_error}")
+
         except Exception as e:
             print(f"⚠️ Keep-alive task error: {e}")
             await asyncio.sleep(60)  # Wait 1 minute before retrying

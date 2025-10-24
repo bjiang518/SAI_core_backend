@@ -73,9 +73,30 @@ struct SessionDetailView: View {
     private func loadDetails() async {
         isLoading = true
         errorMessage = ""
-        
+
         do {
             if isConversation {
+                // ✅ Try loading from LOCAL storage first (for archived conversations)
+                let localConversations = ConversationLocalStorage.shared.getLocalConversations()
+                if let localConversation = localConversations.first(where: { ($0["id"] as? String) == sessionId }) {
+                    let archivedConversation = ArchivedConversation(
+                        id: localConversation["id"] as? String ?? sessionId,
+                        userId: "", // Local conversations don't have userId
+                        subject: localConversation["subject"] as? String ?? "General",
+                        topic: localConversation["topic"] as? String,
+                        conversationContent: localConversation["conversationContent"] as? String ?? "",
+                        archivedDate: ISO8601DateFormatter().date(from: localConversation["archivedDate"] as? String ?? "") ?? Date(),
+                        createdAt: ISO8601DateFormatter().date(from: localConversation["createdAt"] as? String ?? "") ?? Date()
+                    )
+
+                    await MainActor.run {
+                        conversation = archivedConversation
+                        isLoading = false
+                    }
+                    return
+                }
+
+                // If not found locally, try loading from server
                 let loadedConversation = try await railwayService.getConversationDetails(conversationId: sessionId)
                 await MainActor.run {
                     conversation = loadedConversation
@@ -373,8 +394,9 @@ struct ConversationDetailContent: View {
                     }
                 }
             }
-            // Check for simple format like "User:" or "AI:" or "Assistant:"
-            else if trimmedLine.contains(":") && (trimmedLine.hasPrefix("User:") || trimmedLine.hasPrefix("AI:") || trimmedLine.hasPrefix("Assistant:")) {
+            // Check for speaker prefix (case-insensitive, supports various formats)
+            // Formats: "User:", "USER:", "AI:", "A:", "Assistant:", "ASSISTANT:"
+            else if trimmedLine.contains(":") && isSpeakerLine(trimmedLine) {
                 // Save previous message if exists
                 if !currentSpeaker.isEmpty && !currentMessage.isEmpty {
                     messages.append((speaker: currentSpeaker, message: currentMessage.trimmingCharacters(in: .whitespacesAndNewlines)))
@@ -383,7 +405,9 @@ struct ConversationDetailContent: View {
                 // Start new message
                 let components = trimmedLine.components(separatedBy: ":")
                 if components.count >= 2 {
-                    currentSpeaker = components[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                    let rawSpeaker = components[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                    // Normalize speaker name for display
+                    currentSpeaker = normalizeSpeakerName(rawSpeaker)
                     currentMessage = components.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespacesAndNewlines)
                 }
             } else if !trimmedLine.isEmpty && !currentSpeaker.isEmpty {
@@ -401,6 +425,35 @@ struct ConversationDetailContent: View {
         }
 
         return Array(messages.enumerated())
+    }
+
+    // Helper: Check if line starts with a speaker prefix (case-insensitive)
+    private func isSpeakerLine(_ line: String) -> Bool {
+        let uppercasedLine = line.uppercased()
+        let speakerPrefixes = ["USER:", "AI:", "A:", "ASSISTANT:"]
+
+        for prefix in speakerPrefixes {
+            if uppercasedLine.hasPrefix(prefix) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    // Helper: Normalize speaker name for consistent display
+    private func normalizeSpeakerName(_ rawSpeaker: String) -> String {
+        let uppercased = rawSpeaker.uppercased()
+
+        switch uppercased {
+        case "USER":
+            return "User"
+        case "AI", "A", "ASSISTANT":
+            return "AI Assistant"
+        default:
+            // Return original with proper capitalization
+            return rawSpeaker.capitalized
+        }
     }
 }
 

@@ -107,6 +107,9 @@
 		7B8353482EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8353472EA7509000199AC3 /* QuestionTypeRenderers.swift */; };
 		7B8353492EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8353472EA7509000199AC3 /* QuestionTypeRenderers.swift */; };
 		7B83534A2EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8353472EA7509000199AC3 /* QuestionTypeRenderers.swift */; };
+		7B8353682EA80C7000199AC3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7B8353672EA80C7000199AC3 /* Assets.xcassets */; };
+		7B8353692EA80C7000199AC3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7B8353672EA80C7000199AC3 /* Assets.xcassets */; };
+		7B83536A2EA80C7000199AC3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7B8353672EA80C7000199AC3 /* Assets.xcassets */; };
 		7B90451A2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
 		7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
 		7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
@@ -174,7 +177,6 @@
 		EF7FC57F2FF9428F9F262123 /* SessionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B496CCDDC9B5477581971035 /* SessionModels.swift */; };
 		EIB7AB25DA9B4CE3E97F6F9 /* EnhancedImageProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EIR3E31E87F78722E1F7AE5 /* EnhancedImageProcessor.swift */; };
 		EMAILVER901234567890ABCD /* EmailVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EMAILVERF1234567890ABCD /* EmailVerificationView.swift */; };
-		F650D062B9BD47CF8FB56CA7 /* SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D90BE85B6E443D192306734 /* SupabaseService.swift */; };
 		IMGPREPBUILD123456789ABCD /* ImagePreprocessingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = IMGPREP123456789012ABCD34 /* ImagePreprocessingView.swift */; };
 		LGLS901234567890GHIJ2345 /* LearningGoalsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = LGLS678901234567GHIJ2345 /* LearningGoalsSettingsView.swift */; };
 		LRNP36652115E4F419FE4EEEA /* LearningProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = LRNP1132738F4C03AC421E7D /* LearningProgressView.swift */; };
@@ -240,7 +242,6 @@
 		47128702183F4DCBB17F067E /* QuestionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionView.swift; path = StudyAI/Views/QuestionView.swift; sourceTree = SOURCE_ROOT; };
 		4C75C2233B72490A8E27CDEB /* HomeworkResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkResultsView.swift; path = StudyAI/Views/HomeworkResultsView.swift; sourceTree = SOURCE_ROOT; };
 		5CEA0FCA /* GreetingVoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GreetingVoiceService.swift; path = StudyAI/Services/GreetingVoiceService.swift; sourceTree = SOURCE_ROOT; };
-		5D90BE85B6E443D192306734 /* SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SupabaseService.swift; path = StudyAI/Services/SupabaseService.swift; sourceTree = SOURCE_ROOT; };
 		685F5AB0784E4EAEB6B58C7E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContentView.swift; path = StudyAI/ContentView.swift; sourceTree = SOURCE_ROOT; };
 		69D668B7833B4B1D9DF8653A /* SubjectBreakdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SubjectBreakdownView.swift; path = StudyAI/Views/SubjectBreakdownView.swift; sourceTree = SOURCE_ROOT; };
 		6C137BECD88E403C95DB4167 /* ReportGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportGenerator.swift; path = StudyAI/Services/ReportGenerator.swift; sourceTree = SOURCE_ROOT; };
@@ -280,6 +281,7 @@
 		7B8353362EA6F11400199AC3 /* SecureLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureLogger.swift; sourceTree = "<group>"; };
 		7B8353432EA6F4F400199AC3 /* LocalReportDataAggregator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LocalReportDataAggregator.swift; path = StudyAI/Services/LocalReportDataAggregator.swift; sourceTree = SOURCE_ROOT; };
 		7B8353472EA7509000199AC3 /* QuestionTypeRenderers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionTypeRenderers.swift; path = StudyAI/Views/QuestionTypeRenderers.swift; sourceTree = SOURCE_ROOT; };
+		7B8353672EA80C7000199AC3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = StudyAI/Assets.xcassets; sourceTree = "<group>"; };
 		7B9045192E8FB1FE00E5DDFA /* Books.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Books.json; sourceTree = "<group>"; };
 		7B90451D2E8FB42E00E5DDFA /* Checklist.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Checklist.json; sourceTree = "<group>"; };
 		7B9045212E8FB5DD00E5DDFA /* Chart Graph.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Chart Graph.json"; sourceTree = "<group>"; };
@@ -428,6 +430,7 @@
 		7B9EC4642E61663B005E4BFB = {
 			isa = PBXGroup;
 			children = (
+				7B8353672EA80C7000199AC3 /* Assets.xcassets */,
 				7B8353322EA6F0DA00199AC3 /* utils */,
 				7B1961D72E94D96A0024317A /* en.lproj */,
 				7B1961DA2E94D96A0024317A /* zh-Hans.lproj */,
@@ -509,7 +512,6 @@
 				E2A9A6742CCE4F3DB87AA7FD /* RailwayArchiveService.swift */,
 				0011C726DB944E1CBD5D9102 /* SimpleMathRenderer.swift */,
 				8405427D871C4C278BB1D075 /* SpeechRecognitionService.swift */,
-				5D90BE85B6E443D192306734 /* SupabaseService.swift */,
 				18BF91BCEE9B4980BC643CB2 /* TextToSpeechService.swift */,
 				EEAD0FA974974B559BA7B6B7 /* VoiceInteractionService.swift */,
 				ABCD123456789012EFGH3456 /* UserSessionManager.swift */,
@@ -751,6 +753,7 @@
 				7B9045262E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7B1961E42E94D96A0024317A /* Localizable.strings in Resources */,
 				7B1961E52E94D96A0024317A /* Localizable.strings in Resources */,
+				7B8353682EA80C7000199AC3 /* Assets.xcassets in Resources */,
 				7B1961E62E94D96A0024317A /* Localizable.strings in Resources */,
 				7BEEB62B2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
 				7BEEB61C2E8E411900957748 /* Education edit.json in Resources */,
@@ -773,6 +776,7 @@
 				7B9045282E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7B1961DE2E94D96A0024317A /* Localizable.strings in Resources */,
 				7B1961DF2E94D96A0024317A /* Localizable.strings in Resources */,
+				7B83536A2EA80C7000199AC3 /* Assets.xcassets in Resources */,
 				7B1961E02E94D96A0024317A /* Localizable.strings in Resources */,
 				7BEEB62C2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
 				7BEEB61E2E8E411900957748 /* Education edit.json in Resources */,
@@ -795,6 +799,7 @@
 				7B9045242E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7B1961E12E94D96A0024317A /* Localizable.strings in Resources */,
 				7B1961E22E94D96A0024317A /* Localizable.strings in Resources */,
+				7B8353692EA80C7000199AC3 /* Assets.xcassets in Resources */,
 				7B1961E32E94D96A0024317A /* Localizable.strings in Resources */,
 				7BEEB62D2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
 				7BEEB61D2E8E411900957748 /* Education edit.json in Resources */,
@@ -857,7 +862,6 @@
 				7B1ED83F2E829B1700E5E57D /* ReportDetailComponents.swift in Sources */,
 				7B1961AD2E949DAD0024317A /* NotificationSettingsView.swift in Sources */,
 				7B1ED83B2E829AA600E5E57D /* ParentReportsView.swift in Sources */,
-				F650D062B9BD47CF8FB56CA7 /* SupabaseService.swift in Sources */,
 				B67097AEC09C4CA4B5C82F10 /* TextToSpeechService.swift in Sources */,
 				9FF8A1F6F34E4BF786B5EAC3 /* VoiceInteractionService.swift in Sources */,
 				12345678901234567890ABCD /* UserSessionManager.swift in Sources */,
@@ -1134,26 +1138,30 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 67ZCWLHZMX;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 2ZZ99T96B8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = StudyAI/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSCameraUsageDescription = "StudyAI needs camera access to scan homework questions and documents";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.bo-jiang-StudyAI";
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.OliOli.StudyMatesAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -1169,26 +1177,30 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 67ZCWLHZMX;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 2ZZ99T96B8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = StudyAI/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSCameraUsageDescription = "StudyAI needs camera access to scan homework questions and documents";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.bo-jiang-StudyAI";
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.OliOli.StudyMatesAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;

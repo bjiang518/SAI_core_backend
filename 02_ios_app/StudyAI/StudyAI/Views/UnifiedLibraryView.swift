@@ -272,107 +272,127 @@ struct UnifiedLibraryView: View {
     
     private var libraryList: some View {
         VStack(spacing: 0) {
-            // Fixed Filter Section - Three rows of filters
-            VStack(spacing: 12) {
-                // Row 1: Time Filters (reordered: All Time, This Week, This Month)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        QuickFilterButton(
-                            title: "All Time",
-                            icon: "clock",
-                            isSelected: activeQuickDateFilter == nil && !isUsingAdvancedSearch
-                        ) {
-                            activeQuickDateFilter = nil
-                            isUsingAdvancedSearch = false
-                            advancedFilteredQuestions = []
-                        }
+            // Compact Filter Section - One row with three dropdowns
+            HStack(spacing: 12) {
+                // Time Range Dropdown
+                Menu {
+                    Button {
+                        activeQuickDateFilter = nil
+                        isUsingAdvancedSearch = false
+                        advancedFilteredQuestions = []
+                    } label: {
+                        Label("All Time", systemImage: "clock")
+                    }
 
-                        QuickFilterButton(
-                            title: NSLocalizedString("library.filter.thisWeek", comment: ""),
-                            icon: "calendar.badge.clock",
-                            isSelected: activeQuickDateFilter == .thisWeek
-                        ) {
-                            if activeQuickDateFilter == .thisWeek {
-                                activeQuickDateFilter = nil
-                                isUsingAdvancedSearch = false
-                                advancedFilteredQuestions = []
-                            } else {
-                                activeQuickDateFilter = .thisWeek
-                                searchFilters.dateRange = .thisWeek
-                                Task { await performAdvancedSearch(searchFilters) }
-                            }
-                        }
+                    Button {
+                        activeQuickDateFilter = .thisWeek
+                        searchFilters.dateRange = .thisWeek
+                        Task { await performAdvancedSearch(searchFilters) }
+                    } label: {
+                        Label(NSLocalizedString("library.filter.thisWeek", comment: ""), systemImage: "calendar.badge.clock")
+                    }
 
-                        QuickFilterButton(
-                            title: NSLocalizedString("library.filter.thisMonth", comment: ""),
-                            icon: "calendar",
-                            isSelected: activeQuickDateFilter == .thisMonth
-                        ) {
-                            if activeQuickDateFilter == .thisMonth {
-                                activeQuickDateFilter = nil
-                                isUsingAdvancedSearch = false
-                                advancedFilteredQuestions = []
-                            } else {
-                                activeQuickDateFilter = .thisMonth
-                                searchFilters.dateRange = .thisMonth
-                                Task { await performAdvancedSearch(searchFilters) }
-                            }
+                    Button {
+                        activeQuickDateFilter = .thisMonth
+                        searchFilters.dateRange = .thisMonth
+                        Task { await performAdvancedSearch(searchFilters) }
+                    } label: {
+                        Label(NSLocalizedString("library.filter.thisMonth", comment: ""), systemImage: "calendar")
+                    }
+                } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: "clock")
+                            .font(.caption)
+                        Text(activeQuickDateFilter?.displayName ?? "All Time")
+                            .font(.caption2)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
+                }
+
+                // Subject Dropdown
+                Menu {
+                    Button {
+                        selectedSubject = nil
+                    } label: {
+                        Label("All Subjects", systemImage: "books.vertical")
+                    }
+
+                    ForEach(availableSubjects, id: \.self) { subject in
+                        Button {
+                            selectedSubject = subject
+                        } label: {
+                            Label(subject, systemImage: "book.fill")
                         }
                     }
-                    .padding(.horizontal)
+                } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: "book.fill")
+                            .font(.caption)
+                        Text(selectedSubject ?? "All Subjects")
+                            .font(.caption2)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
                 }
-                .scrollDisabled(false)
 
-                // Row 2: Subject Filters
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        QuickFilterButton(
-                            title: "All Subjects",
-                            icon: "books.vertical",
-                            isSelected: selectedSubject == nil
-                        ) {
-                            selectedSubject = nil
-                        }
+                // Question Type Dropdown
+                Menu {
+                    Button {
+                        selectedQuestionType = nil
+                    } label: {
+                        Label("All Types", systemImage: "square.grid.2x2")
+                    }
 
-                        ForEach(availableSubjects, id: \.self) { subject in
-                            QuickFilterButton(
-                                title: subject,
-                                icon: "book.fill",
-                                isSelected: selectedSubject == subject
-                            ) {
-                                selectedSubject = selectedSubject == subject ? nil : subject
-                            }
+                    ForEach(availableQuestionTypes, id: \.self) { questionType in
+                        Button {
+                            selectedQuestionType = questionType
+                        } label: {
+                            Label(questionType.displayName, systemImage: questionType.icon)
                         }
                     }
-                    .padding(.horizontal)
-                }
-                .scrollDisabled(false)
-
-                // Row 3: Question Type Filters
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        QuickFilterButton(
-                            title: "All Types",
-                            icon: "square.grid.2x2",
-                            isSelected: selectedQuestionType == nil
-                        ) {
-                            selectedQuestionType = nil
-                        }
-
-                        ForEach(availableQuestionTypes, id: \.self) { questionType in
-                            QuickFilterButton(
-                                title: questionType.displayName,
-                                icon: questionType.icon,
-                                isSelected: selectedQuestionType == questionType
-                            ) {
-                                selectedQuestionType = selectedQuestionType == questionType ? nil : questionType
-                            }
-                        }
+                } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: "square.grid.2x2")
+                            .font(.caption)
+                        Text(selectedQuestionType?.displayName ?? "All Types")
+                            .font(.caption2)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
                 }
-                .scrollDisabled(false)
             }
+            .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(Color(.systemGroupedBackground))
 

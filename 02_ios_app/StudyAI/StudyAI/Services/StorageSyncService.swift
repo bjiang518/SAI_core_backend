@@ -17,7 +17,7 @@ class StorageSyncService {
     // MARK: - Main Sync Method
 
     func syncAllToServer() async throws -> SyncResult {
-        guard let token = AuthenticationService.shared.getAuthToken() else {
+        guard AuthenticationService.shared.getAuthToken() != nil else {
             print("❌ [Sync] Authentication failed - no token")
             throw SyncError.notAuthenticated
         }
@@ -159,7 +159,7 @@ class StorageSyncService {
                 }
             }()
 
-            var localQuestion: [String: Any] = [
+            let localQuestion: [String: Any] = [
                 "id": id,
                 "subject": serverQuestion["subject"] as? String ?? "Unknown",
                 "questionText": questionText,
@@ -174,7 +174,7 @@ class StorageSyncService {
                 "points": serverQuestion["points"] as? Float ?? 0.0,
                 "maxPoints": serverQuestion["maxPoints"] as? Float ?? 1.0,
                 "feedback": serverQuestion["feedback"] as? String ?? "",
-                "isCorrect": serverQuestion["isCorrect"] as? Bool ?? serverQuestion["is_correct"] as? Bool,  // ✅ Include for mistake tracking
+                "isCorrect": ((serverQuestion["isCorrect"] as? Bool) ?? (serverQuestion["is_correct"] as? Bool)) as Any,  // ✅ Include for mistake tracking
                 "archivedAt": serverQuestion["archivedAt"] as? String ?? ISO8601DateFormatter().string(from: Date())
             ]
 
@@ -221,22 +221,14 @@ class StorageSyncService {
                 // Prepare question for archiving
                 guard let subject = questionData["subject"] as? String,
                       let questionText = questionData["questionText"] as? String,
-                      let answerText = questionData["answerText"] as? String else {
+                      let _ = questionData["answerText"] as? String else {
                     print("   ⚠️  [Sync] Missing required fields - skipping")
                     continue
                 }
 
-                let rawQuestionText = questionData["rawQuestionText"] as? String ?? questionText
-                let confidence = questionData["confidence"] as? Float ?? 0.0
-                let hasVisualElements = questionData["hasVisualElements"] as? Bool ?? false
-                let studentAnswer = questionData["studentAnswer"] as? String
+                // Extract only the fields we need for logging
                 let grade = questionData["grade"] as? String
-                let points = questionData["points"] as? Float
-                let maxPoints = questionData["maxPoints"] as? Float
-                let feedback = questionData["feedback"] as? String
-                let isCorrect = questionData["isCorrect"] as? Bool  // ✅ Extract for upload
-                let tags = questionData["tags"] as? [String] ?? []
-                let notes = questionData["notes"] as? String ?? ""
+                let isCorrect = questionData["isCorrect"] as? Bool  // ✅ Extract for logging
 
                 print("   📋 [Sync] Subject: \(subject), Question: \(questionText.prefix(50))...")
                 print("   📊 [Sync] Grade: \(grade ?? "N/A"), isCorrect: \(isCorrect?.description ?? "nil")")

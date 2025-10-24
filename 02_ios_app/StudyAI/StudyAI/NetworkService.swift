@@ -2037,7 +2037,95 @@ class NetworkService: ObservableObject {
         
         return (false, "Unknown error", nil, nil, nil)
     }
-    
+
+    // MARK: - Apple Authentication
+    func appleLogin(identityToken: String, authorizationCode: String?, userIdentifier: String, name: String, email: String) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
+        print("🍏 === NetworkService.appleLogin() STARTED ===")
+        print("🍏 Request details:")
+        print("   - Identity Token: \(identityToken.isEmpty ? "❌ EMPTY" : "✅ \(identityToken.prefix(20))...")")
+        print("   - Auth Code: \(authorizationCode?.isEmpty ?? true ? "❌ EMPTY/NIL" : "✅ \(authorizationCode!.prefix(20))...")")
+        print("   - User Identifier: \(userIdentifier)")
+        print("   - Name: \(name)")
+        print("   - Email: \(email)")
+
+        let appleURL = "\(baseURL)/api/auth/apple"
+        print("🍏 Backend URL: \(appleURL)")
+
+        guard let url = URL(string: appleURL) else {
+            print("🍏 ❌ Invalid URL")
+            return (false, "Invalid URL", nil, nil, nil)
+        }
+
+        let appleData: [String: Any] = [
+            "identityToken": identityToken,
+            "authorizationCode": authorizationCode ?? "",
+            "userIdentifier": userIdentifier,
+            "name": name,
+            "email": email
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: appleData)
+            print("🍏 Sending request to backend...")
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                print("🍏 Backend Response Status: \(httpResponse.statusCode)")
+
+                // Log raw response for debugging
+                if let rawResponse = String(data: data, encoding: .utf8) {
+                    print("🍏 Raw Response (first 500 chars): \(rawResponse.prefix(500))")
+                }
+
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                        print("🍏 Parsed JSON Response:")
+                        print("   - Success: \(json["success"] as? Bool ?? false)")
+                        print("   - Message: \(json["message"] as? String ?? "No message")")
+                        print("   - Token present: \(json["token"] != nil)")
+                        print("   - User data present: \(json["user"] != nil)")
+
+                        let success = json["success"] as? Bool ?? false
+                        let message = json["message"] as? String ?? "Unknown error"
+                        let token = json["token"] as? String
+                        let userData = json["user"] as? [String: Any] ?? json
+
+                        if let token = token {
+                            print("🍏 ✅ Token received (first 30 chars): \(token.prefix(30))...")
+                        } else {
+                            print("🍏 ❌ No token in response")
+                        }
+
+                        if let userData = json["user"] as? [String: Any] {
+                            print("🍏 User data keys: \(userData.keys.sorted())")
+                        }
+
+                        print("🍏 === NetworkService.appleLogin() COMPLETED ===")
+                        return (success, message, token, userData, httpResponse.statusCode)
+                    } else {
+                        print("🍏 ❌ Failed to parse JSON")
+                    }
+                } catch {
+                    print("🍏 ❌ JSON parsing error: \(error)")
+                }
+            } else {
+                print("🍏 ❌ Invalid HTTP response")
+            }
+
+        } catch {
+            print("🍏 ❌ Network error: \(error)")
+            return (false, "Network error: \(error.localizedDescription)", nil, nil, nil)
+        }
+
+        print("🍏 ❌ === NetworkService.appleLogin() FAILED - Unknown error ===")
+        return (false, "Unknown error", nil, nil, nil)
+    }
+
     // MARK: - Session Archive Management
     
     /// Archive a session conversation to LOCAL storage only (with image processing)

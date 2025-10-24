@@ -329,7 +329,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
         case .adam:
             return "alloy" // More neutral, younger-sounding voice for Adam (boy)
         case .eva:
-            return "coral" // Warm, upbeat female voice for Eva (girl)
+            return "nova" // Warm, upbeat female voice for Eva (girl)
         }
     }
     

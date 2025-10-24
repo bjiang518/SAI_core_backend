@@ -230,7 +230,7 @@ struct LearningProgressView: View {
     @ViewBuilder
     private func OverviewMetricsCard() -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("progress.yourLearningJourney")
+            Text(NSLocalizedString("progress.yourLearningJourney", comment: "Your learning journey section title"))
                 .font(.headline)
                 .fontWeight(.bold)
 
@@ -291,7 +291,7 @@ struct LearningProgressView: View {
     private func SubjectBreakdownSection() -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center) {
-                Text("progress.subjectBreakdown")
+                Text(NSLocalizedString("progress.subjectBreakdown", comment: "Subject breakdown section title"))
                     .font(.headline)
                     .fontWeight(.bold)
                     .lineLimit(1)
@@ -354,7 +354,7 @@ struct LearningProgressView: View {
     @ViewBuilder
     private func LearningGoalsSection() -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("progress.learningGoals")
+            Text(NSLocalizedString("progress.learningGoals", comment: "Learning goals section title"))
                 .font(.headline)
                 .fontWeight(.bold)
 
@@ -362,7 +362,7 @@ struct LearningProgressView: View {
             let filteredGoals = pointsManager.learningGoals.filter { $0.type != .weeklyStreak }
 
             if filteredGoals.isEmpty {
-                Text("progress.noActiveGoals")
+                Text(NSLocalizedString("progress.noActiveGoals", comment: "No active goals message"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -389,7 +389,7 @@ struct LearningProgressView: View {
 
 
         return VStack(alignment: .leading, spacing: 16) {
-            Text("progress.todaysActivity")
+            Text(NSLocalizedString("progress.todaysActivity", comment: "Today's activity section title"))
                 .font(.headline)
                 .fontWeight(.bold)
 
@@ -426,7 +426,7 @@ struct LearningProgressView: View {
     @ViewBuilder
     private func RecentCheckoutsSection() -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("progress.recentCheckouts")
+            Text(NSLocalizedString("progress.recentCheckouts", comment: "Recent checkouts section title"))
                 .font(.headline)
                 .fontWeight(.bold)
             
@@ -503,19 +503,19 @@ struct LearningProgressView: View {
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.blue)
-                    Text("progress.subjects")
+                    Text(NSLocalizedString("progress.subjects", comment: "Subjects label"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
-                
+
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("\(Int(summary.overallAccuracy))%")
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.green)
-                    Text("progress.accuracy")
+                    Text(NSLocalizedString("progress.accuracy", comment: "Accuracy label"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -719,7 +719,7 @@ struct LearningProgressView: View {
                 Image(systemName: "chart.bar.xaxis")
                     .foregroundColor(.blue)
                     .font(.caption)
-                Text("progress.subjectComparison")
+                Text(NSLocalizedString("progress.subjectComparison", comment: "Subject comparison section title"))
                     .font(.subheadline)
                     .fontWeight(.semibold)
             }
@@ -734,11 +734,11 @@ struct LearningProgressView: View {
                             Image(systemName: "trophy.fill")
                                 .foregroundColor(.gold)
                                 .font(.caption2)
-                            Text("progress.topPerformingCategory")
+                            Text(NSLocalizedString("progress.topPerformingCategory", comment: "Top performing category label"))
                                 .font(.caption)
                                 .fontWeight(.medium)
                         }
-                        
+
                         HStack(spacing: 8) {
                             ForEach(Array(topSubjects), id: \.id) { subject in
                                 SubjectPerformanceChip(
@@ -749,14 +749,14 @@ struct LearningProgressView: View {
                         }
                     }
                 }
-                
+
                 if !strugglingSubjects.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
                                 .font(.caption2)
-                            Text("progress.needsAttention")
+                            Text(NSLocalizedString("progress.needsAttention", comment: "Needs attention label"))
                                 .font(.caption)
                                 .fontWeight(.medium)
                         }
@@ -808,11 +808,11 @@ struct LearningProgressView: View {
                 .font(.title2)
                 .foregroundColor(.secondary)
 
-            Text("progress.noSubjectData")
+            Text(NSLocalizedString("progress.noSubjectData", comment: "No subject data title"))
                 .font(.subheadline)
                 .fontWeight(.medium)
 
-            Text("progress.noSubjectDataMessage")
+            Text(NSLocalizedString("progress.noSubjectDataMessage", comment: "No subject data message"))
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -973,7 +973,7 @@ struct SubjectAccuracyBarChart: View {
                     }
                 }
             } else {
-                Text("progress.noSubjectDataAvailable")
+                Text(NSLocalizedString("progress.noSubjectDataAvailable", comment: "No subject data available message"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -1130,7 +1130,7 @@ struct LearningGoalProgressRow: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
                                 .font(.caption)
-                            Text("progress.checkedOut")
+                            Text(NSLocalizedString("progress.checkedOut", comment: "Checked out status label"))
                                 .font(.caption)
                                 .foregroundColor(.green)
                         }
@@ -1246,7 +1246,7 @@ struct CheckoutHistoryRow: View {
                     .foregroundColor(.green)
 
                 if checkout.isWeekend {
-                    Text("progress.weekendBonus")
+                    Text(NSLocalizedString("progress.weekendBonus", comment: "Weekend bonus label"))
                         .font(.caption)
                         .foregroundColor(.orange)
                 }
@@ -1259,14 +1259,14 @@ struct CheckoutHistoryRow: View {
 struct ErrorStateView: View {
     let message: String
     let onRetry: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 50))
                 .foregroundColor(.orange)
 
-            Text("progress.unableToLoadData")
+            Text(NSLocalizedString("progress.unableToLoadData", comment: "Unable to load data error title"))
                 .font(.title2)
                 .fontWeight(.bold)
 
@@ -1384,13 +1384,13 @@ struct MonthlyProgressGrid: View {
 
     private var activityLegend: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("progress.activityLevel")
+            Text(NSLocalizedString("progress.activityLevel", comment: "Activity level label"))
                 .font(.caption)
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
 
             HStack(spacing: 12) {
-                Text("progress.less")
+                Text(NSLocalizedString("progress.less", comment: "Less activity label"))
                     .font(.caption2)
                     .foregroundColor(.secondary)
 
@@ -1402,13 +1402,13 @@ struct MonthlyProgressGrid: View {
                     }
                 }
 
-                Text("progress.more")
+                Text(NSLocalizedString("progress.more", comment: "More activity label"))
                     .font(.caption2)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
-                Text("progress.questionsThisMonth")
+                Text(NSLocalizedString("progress.questionsThisMonth", comment: "Questions this month label"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }

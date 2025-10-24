@@ -116,8 +116,9 @@ struct ArchivedQuestionsView: View {
     private var filteredQuestions: [QuestionSummary] {
         questions.filter { question in
             let matchesSubject = selectedSubject == nil || question.subject.contains(selectedSubject!)
-            let matchesSearch = searchText.isEmpty || 
+            let matchesSearch = searchText.isEmpty ||
                 question.questionText.localizedCaseInsensitiveContains(searchText) ||
+                question.rawQuestionText?.localizedCaseInsensitiveContains(searchText) == true ||
                 question.subject.localizedCaseInsensitiveContains(searchText)
             return matchesSubject && matchesSearch
         }
@@ -179,7 +180,7 @@ struct CompactQuestionCard: View {
             }
             
             // Question Text
-            Text(question.questionText)
+            Text(question.rawQuestionText ?? question.questionText)
                 .font(.subheadline)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
@@ -303,6 +304,21 @@ struct QuestionDetailView: View {
 
     @ViewBuilder
     private func typeSpecificQuestionRenderer(for question: ArchivedQuestion) -> some View {
+        // Debug logging for data conversion (execute before View body)
+        let _ = {
+            print("🔄 [QuestionDetail] === CONVERTING TO PARSED QUESTION ===")
+            print("🔄 [QuestionDetail] Question ID: \(question.id)")
+            print("🔄 [QuestionDetail] Has rawQuestionText in ArchivedQuestion: \(question.rawQuestionText != nil)")
+            if let rawText = question.rawQuestionText {
+                print("🔄 [QuestionDetail] ArchivedQuestion rawQuestionText length: \(rawText.count) chars")
+                print("🔄 [QuestionDetail] ArchivedQuestion rawQuestionText: \(rawText)")
+            } else {
+                print("🔄 [QuestionDetail] ❌ ArchivedQuestion rawQuestionText is NIL")
+            }
+            print("🔄 [QuestionDetail] ArchivedQuestion questionText length: \(question.questionText.count) chars")
+            print("🔄 [QuestionDetail] ArchivedQuestion questionText: \(question.questionText)")
+        }()
+
         VStack(alignment: .leading, spacing: 16) {
             // Header with subject and grade
             questionHeader(for: question)
@@ -325,6 +341,14 @@ struct QuestionDetailView: View {
                 options: question.options
             )
 
+            // Debug logging for ParsedQuestion (execute before View body)
+            let _ = {
+                print("🔄 [QuestionDetail] ParsedQuestion has rawQuestionText: \(parsedQuestion.rawQuestionText != nil)")
+                if let rawText = parsedQuestion.rawQuestionText {
+                    print("🔄 [QuestionDetail] ParsedQuestion rawQuestionText length: \(rawText.count) chars")
+                }
+            }()
+
             // Use QuestionTypeRendererSelector to render based on type
             QuestionTypeRendererSelector(
                 question: parsedQuestion,
@@ -342,27 +366,10 @@ struct QuestionDetailView: View {
     @ViewBuilder
     private func defaultQuestionRenderer(for question: ArchivedQuestion) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Grading Badge (if graded)
-            if question.isGraded, let grade = question.grade {
-                HStack(spacing: 8) {
-                    Image(systemName: gradeIcon(grade))
-                        .foregroundColor(gradeColor(grade))
-                    Text(grade.displayName)
-                        .font(.headline)
-                        .foregroundColor(gradeColor(grade))
-                    if let points = question.points, let maxPoints = question.maxPoints {
-                        Text("(\(String(format: "%.1f", points))/\(String(format: "%.1f", maxPoints)))")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                    }
-                    Spacer()
-                }
-                .padding()
-                .background(gradeColor(grade).opacity(0.1))
-                .cornerRadius(12)
-            }
+            // Header with subject and grade (shared component)
+            questionHeader(for: question)
 
-            // Question (Clean version for preview)
+            // Question (Full original text from image)
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Q")
@@ -373,18 +380,14 @@ struct QuestionDetailView: View {
                         .background(Color.blue)
                         .cornerRadius(4)
 
-                    Text(question.subject)
+                    Text("Question")
                         .font(.caption)
                         .foregroundColor(.gray)
 
                     Spacer()
-
-                    Circle()
-                        .fill(confidenceColor(question.confidence))
-                        .frame(width: 8, height: 8)
                 }
 
-                Text(question.questionText)
+                Text(question.rawQuestionText ?? question.questionText)
                     .font(.body)
                     .fontWeight(.medium)
                     .textSelection(.enabled)
@@ -437,8 +440,8 @@ struct QuestionDetailView: View {
                 .cornerRadius(12)
             }
 
-            // Correct Answer
-            VStack(alignment: .leading, spacing: 8) {
+            // Correct Answer with Feedback
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("A")
                         .font(.caption)
@@ -457,14 +460,12 @@ struct QuestionDetailView: View {
                     .font(.body)
                     .foregroundColor(.black)
                     .textSelection(.enabled)
-            }
-            .padding()
-            .background(Color.green.opacity(0.05))
-            .cornerRadius(12)
 
-            // AI Feedback
-            if let feedback = question.feedback, !feedback.isEmpty, feedback != "No feedback provided" {
-                VStack(alignment: .leading, spacing: 8) {
+                // AI Feedback (if available and not empty)
+                if let feedback = question.feedback, !feedback.isEmpty, feedback != "No feedback provided" {
+                    Divider()
+                        .padding(.vertical, 4)
+
                     HStack {
                         Image(systemName: "bubble.left.fill")
                             .font(.caption)
@@ -479,10 +480,10 @@ struct QuestionDetailView: View {
                         .foregroundColor(.black)
                         .textSelection(.enabled)
                 }
-                .padding()
-                .background(Color.purple.opacity(0.05))
-                .cornerRadius(12)
             }
+            .padding()
+            .background(Color.green.opacity(0.05))
+            .cornerRadius(12)
 
             // User notes and tags
             userNotesAndTags(for: question)
@@ -585,6 +586,14 @@ struct QuestionDetailView: View {
                     print("✅ [QuestionDetail] Loaded question successfully")
                     print("📋 [QuestionDetail] Question subject: \(fetchedQuestion.subject)")
                     print("📋 [QuestionDetail] Question text length: \(fetchedQuestion.questionText.count) chars")
+                    print("📋 [QuestionDetail] Has rawQuestionText: \(fetchedQuestion.rawQuestionText != nil)")
+                    if let rawText = fetchedQuestion.rawQuestionText {
+                        print("📋 [QuestionDetail] rawQuestionText length: \(rawText.count) chars")
+                        print("📋 [QuestionDetail] rawQuestionText value: \(rawText)")
+                    } else {
+                        print("📋 [QuestionDetail] ❌ rawQuestionText is NIL in loaded question")
+                    }
+                    print("📋 [QuestionDetail] questionText value: \(fetchedQuestion.questionText)")
                     self.question = fetchedQuestion
                     self.isLoading = false
                     self.errorMessage = nil

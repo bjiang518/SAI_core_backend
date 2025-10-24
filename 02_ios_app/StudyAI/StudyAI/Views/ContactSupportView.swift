@@ -41,7 +41,7 @@ struct ContactSupportView: View {
                                 showingMailComposer = true
                             } else {
                                 // Fallback to mailto URL
-                                if let url = URL(string: "mailto:support@studyai.com?subject=StudyAI Support Request") {
+                                if let url = URL(string: "mailto:support@studyai.com?subject=StudyMates Support Request") {
                                     UIApplication.shared.open(url)
                                 }
                             }
@@ -142,7 +142,7 @@ struct ContactSupportView: View {
         .sheet(isPresented: $showingMailComposer) {
             MailComposeView(
                 recipient: "support@studyai.com",
-                subject: "StudyAI Support Request"
+                subject: "StudyMates Support Request"
             )
         }
         .alert(NSLocalizedString("contactSupport.emailNotAvailable", comment: ""), isPresented: $showingMailError) {

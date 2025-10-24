@@ -22,7 +22,7 @@
 "settings.studyReminders" = "Study Reminders";
 "settings.textSize" = "Text Size";
 "settings.language" = "Language";
-"settings.voiceAudio" = "Study Mate";
+"settings.voiceAudio" = "Study Mates";
 "settings.voiceSettings" = "Select your study mate";
 "settings.learning" = "Learning";
 "settings.learningGoals" = "Learning Goals & Progress";
@@ -211,6 +211,7 @@
 "homeworkResults.correct" = "Correct";
 "homeworkResults.incorrect" = "Incorrect";
 "homeworkResults.empty" = "Empty";
+"homeworkResults.partialCredit" = "Partial Credit";
 "homeworkResults.questionsAndAnswers" = "Questions & Answers";
 "homeworkResults.additionalItems" = "Additional Items";
 "homeworkResults.debugInfo" = "Debug Info";
@@ -400,12 +401,12 @@
 "generatedQuestions.points" = "%d pts";
 "generatedQuestions.emailGreeting" = "Hi!";
 "generatedQuestions.emailBody" = "I'm sharing %d practice questions for %@.";
-"generatedQuestions.emailGeneratedBy" = "This PDF was generated using Study Mate, an AI-powered learning companion.";
+"generatedQuestions.emailGeneratedBy" = "This PDF was generated using Study Mates, an AI-powered learning companion.";
 "generatedQuestions.emailClosing" = "Happy studying!";
 
 "settings.textSize" = "Text Size";
 "settings.language" = "Language";
-"settings.voiceAudio" = "Study Mate";
+"settings.voiceAudio" = "Study Mates";
 "settings.voiceSettings" = "Select your study mate";
 "settings.learning" = "Learning";
 "settings.learningGoals" = "Learning Goals & Progress";
@@ -604,7 +605,7 @@
 "helpCenter.faq2.question" = "What subjects are supported?";
 "helpCenter.faq2.answer" = "StudyAI supports Mathematics, Physics, Chemistry, Biology, English, History, Geography, and Computer Science. We're constantly adding more subjects\!";
 "helpCenter.faq3.question" = "How do I change the AI voice?";
-"helpCenter.faq3.answer" = "Go to Settings > Study Mate > Select your study mate. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume.";
+"helpCenter.faq3.answer" = "Go to Settings > Study Mates > Select your study mate. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume.";
 "helpCenter.faq4.question" = "Can I review my past mistakes?";
 "helpCenter.faq4.answer" = "Yes\! Use the Mistake Review feature from the home screen to revisit questions you got wrong and practice similar problems.";
 "helpCenter.faq5.question" = "How does the streak system work?";

@@ -3,11 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>SAI</string>
+	<string>StudyMates</string>
 	<key>CFBundleExecutable</key>
 	<string>StudyAI</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.bo-jiang-StudyAI</string>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -17,20 +23,18 @@
 			<string>GoogleSignIn</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.658321574450-g6035vekkosef0i47rf295aj3mfttkdm</string>
+				<string>com.googleusercontent.apps.646716095953-pibr6eo6dqk1hk3he4h1gb61dako7q6v</string>
 			</array>
 		</dict>
 	</array>
-	<key>LSMinimumSystemVersion</key>
-	<string>26.0</string>
 	<key>NSCameraUsageDescription</key>
-	<string>StudyAI needs camera access to capture homework photos for AI-powered question analysis and solving.</string>
+	<string>StudyMates needs camera access to capture homework photos for AI-powered question analysis and solving.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>StudyAI needs microphone access to listen to your voice questions and help you learn through voice interaction.</string>
+	<string>StudyMates needs microphone access to listen to your voice questions and help you learn through voice interaction.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>StudyAI needs photo library access to select homework images for analysis and to save processed results.</string>
+	<string>StudyMates needs photo library access to select homework images for analysis and to save processed results.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>StudyAI uses speech recognition to convert your voice questions into text so our AI can provide better learning assistance.</string>
+	<string>StudyMates uses speech recognition to convert your voice questions into text so our AI can provide better learning assistance.</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UILaunchScreen</key>

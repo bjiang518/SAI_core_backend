@@ -317,7 +317,7 @@ struct UserProfileView: View {
 
                     settingsRow(
                         title: "Subscription",
-                        subtitle: "Manage your StudyAI subscription",
+                        subtitle: "Manage your StudyMates subscription",
                         icon: "creditcard.fill",
                         action: { /* TODO: Implement subscription management */ }
                     )

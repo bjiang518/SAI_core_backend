@@ -1593,7 +1593,7 @@ struct SessionChatView: View {
                 // 🟢 Use STREAMING endpoint
                 print("🚀 Using STREAMING mode")
 
-                await networkService.sendSessionMessageStreaming(
+                _ = await networkService.sendSessionMessageStreaming(
                     sessionId: sessionId,
                     message: message,
                     onChunk: { accumulatedText in
@@ -1685,7 +1685,7 @@ struct SessionChatView: View {
                     // 🟢 Use STREAMING endpoint
                     print("🚀 Using STREAMING mode for first message")
 
-                    await networkService.sendSessionMessageStreaming(
+                    _ = await networkService.sendSessionMessageStreaming(
                         sessionId: sessionId,
                         message: message,
                         onChunk: { accumulatedText in
@@ -2143,11 +2143,8 @@ struct SessionChatView: View {
                 isArchiving = false
 
                 if result.success {
-                    // ✅ Save to local storage immediately for instant display
-                    if let conversationData = result.conversation {
-                        print("💾 Saving archived conversation to local storage")
-                        ConversationLocalStorage.shared.saveConversation(conversationData)
-                    }
+                    // ✅ Conversation already saved to local storage in NetworkService
+                    // No need to save again here - prevents duplication
 
                     // Archive successful - close dialog and show success
                     showingArchiveDialog = false
