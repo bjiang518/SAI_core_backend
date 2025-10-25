@@ -22,10 +22,19 @@ struct LearningProgressView: View {
     @State private var selectedSubjectFilter: SubjectCategory? = nil
     @State private var loadingTask: Task<Void, Never>? = nil
 
-    // ✅ Today's activity from local storage
-    @State private var todayTotalQuestions: Int = 0
-    @State private var todayCorrectAnswers: Int = 0
-    @State private var todayAccuracy: Double = 0.0
+    // ✅ Computed properties for today's activity - read directly from PointsEarningManager
+    private var todayTotalQuestions: Int {
+        pointsManager.todayProgress?.totalQuestions ?? 0
+    }
+
+    private var todayCorrectAnswers: Int {
+        pointsManager.todayProgress?.correctAnswers ?? 0
+    }
+
+    private var todayAccuracy: Double {
+        guard let todayProgress = pointsManager.todayProgress else { return 0.0 }
+        return todayProgress.accuracy
+    }
 
     private let viewId = UUID().uuidString.prefix(8)
     
@@ -879,14 +888,14 @@ struct LearningProgressView: View {
     }
 
     private func loadTodayActivity() async {
-        // ✅ Calculate today's activity from local storage
-        let localProgressService = LocalProgressService.shared
-        let (totalQuestions, correctAnswers, accuracy) = await localProgressService.calculateTodayActivity()
-
+        // ✅ No need to load anything - values are computed from pointsManager.todayProgress
+        // Just log current state for debugging
         await MainActor.run {
-            self.todayTotalQuestions = totalQuestions
-            self.todayCorrectAnswers = correctAnswers
-            self.todayAccuracy = accuracy
+            if let todayProgress = pointsManager.todayProgress {
+                print("📊 [LearningProgressView] Today's progress: \(todayProgress.totalQuestions) questions, \(todayProgress.correctAnswers) correct, \(String(format: "%.1f%%", todayProgress.accuracy)) accuracy")
+            } else {
+                print("📊 [LearningProgressView] No progress data for today")
+            }
         }
     }
     

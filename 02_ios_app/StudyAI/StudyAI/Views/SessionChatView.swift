@@ -346,7 +346,7 @@ struct SessionChatView: View {
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @StateObject private var messageManager = ChatMessageManager.shared
     @StateObject private var actionsHandler = MessageActionsHandler()
-    @StateObject private var appState = AppState.shared
+    @ObservedObject private var appState = AppState.shared
     @State private var messageText = ""
     @State private var selectedSubject = "Mathematics"
     @State private var isSubmitting = false
@@ -394,6 +394,11 @@ struct SessionChatView: View {
     @State private var showingExistingSessionAlert = false
     @State private var pendingHomeworkQuestion = ""
     @State private var pendingHomeworkSubject = ""
+
+    // Grade correction detection and confirmation
+    @State private var showingGradeCorrectionAlert = false
+    @State private var detectedGradeCorrection: NetworkService.GradeCorrectionData?
+    @State private var pendingGradeCorrectionResponse: String?
 
     private var subjects: [String] {
         [
@@ -612,6 +617,37 @@ struct SessionChatView: View {
         } message: {
             // ✅ LOCAL-FIRST: Conversation saved locally only
             Text("✅ Conversation '\(archivedSessionTitle.capitalized)' saved locally!\n\n💡 Tip: Use 'Sync with Server' in Settings to upload to cloud.")
+        }
+        .alert("Grade Update Detected", isPresented: $showingGradeCorrectionAlert) {
+            Button("Accept Grade Change", role: .destructive) {
+                // Accept the grade correction
+                if let gradeCorrection = detectedGradeCorrection {
+                    applyGradeCorrection(gradeCorrection)
+                }
+                showingGradeCorrectionAlert = false
+            }
+            Button("Keep Original Grade") {
+                // Reject the grade correction - just dismiss
+                print("ℹ️ User rejected grade correction")
+                showingGradeCorrectionAlert = false
+            }
+        } message: {
+            if let gradeCorrection = detectedGradeCorrection {
+                Text("""
+                The AI has re-examined this question and determined the grade should be updated:
+
+                Original Grade: \(gradeCorrection.originalGrade)
+                New Grade: \(gradeCorrection.correctedGrade)
+
+                Points: \(String(format: "%.1f", gradeCorrection.newPointsEarned)) / \(String(format: "%.1f", gradeCorrection.pointsPossible))
+
+                Reason: \(gradeCorrection.reason)
+
+                Would you like to apply this grade correction to your homework?
+                """)
+            } else {
+                Text("Grade correction information unavailable")
+            }
         }
         .onDisappear {
 
@@ -1589,6 +1625,69 @@ struct SessionChatView: View {
 
     private func sendMessageToExistingSession(sessionId: String, message: String) {
         Task {
+            // 🔍 CHECK FOR HOMEWORK CONTEXT (for grade correction support)
+            if let homeworkContext = appState.pendingHomeworkContext {
+                print("📚 === HOMEWORK FOLLOW-UP DETECTED ===" )
+                print("📋 Question Context: Q#\(homeworkContext.questionNumber ?? 0)")
+                print("📊 Current Grade: \(homeworkContext.currentGrade ?? "N/A")")
+
+                // Use HOMEWORK FOLLOW-UP endpoint (non-streaming, includes grade validation)
+                let result = await networkService.sendHomeworkFollowupMessage(
+                    sessionId: sessionId,
+                    message: message,
+                    questionContext: homeworkContext.toDictionary()
+                )
+
+                await MainActor.run {
+                    isSubmitting = false
+                    showTypingIndicator = false
+
+                    if result.success, let aiResponse = result.aiResponse {
+                        print("✅ Homework follow-up successful")
+
+                        // ✅ PERSIST: Save AI response to SwiftData
+                        persistMessage(role: "assistant", content: aiResponse, addToHistory: false)
+
+                        // Check for grade correction
+                        if let gradeCorrection = result.gradeCorrection {
+                            print("🔄 === GRADE CORRECTION DETECTED ===")
+                            print("📊 \(gradeCorrection.originalGrade) → \(gradeCorrection.correctedGrade)")
+                            print("💡 Reason: \(gradeCorrection.reason)")
+
+                            // Store correction data and show confirmation dialog
+                            detectedGradeCorrection = gradeCorrection
+                            pendingGradeCorrectionResponse = aiResponse
+                            showingGradeCorrectionAlert = true
+                        }
+
+                        // Clear homework context after processing
+                        appState.clearPendingChatMessage()
+
+                        // Force UI refresh
+                        refreshTrigger = UUID()
+
+                        // Track progress
+                        trackChatInteraction(subject: selectedSubject, userMessage: message, aiResponse: aiResponse)
+                    } else {
+                        // Handle failure
+                        errorMessage = result.aiResponse ?? "Failed to process homework follow-up"
+
+                        // Remove optimistic user message on failure
+                        if let lastMessage = networkService.conversationHistory.last,
+                           lastMessage["role"] == "user",
+                           lastMessage["content"] == message {
+                            networkService.removeLastMessageFromHistory()
+                        }
+
+                        // Restore message text for retry
+                        messageText = message
+                    }
+                }
+
+                return // Exit early - homework follow-up path complete
+            }
+
+            // 🔵 REGULAR SESSION MESSAGE PATH (no homework context)
             if useStreaming {
                 // 🟢 Use STREAMING endpoint
                 print("🚀 Using STREAMING mode")
@@ -2175,6 +2274,48 @@ struct SessionChatView: View {
 
         // No-op: Chat interactions don't affect daily counters
         print("💬 [Chat] Interaction logged (chat sessions don't update progress counters)")
+    }
+
+    // MARK: - Grade Correction System
+
+    /// Apply grade correction by posting notification to HomeworkResultsView
+    private func applyGradeCorrection(_ gradeCorrection: NetworkService.GradeCorrectionData) {
+        print("🔄 === APPLYING GRADE CORRECTION ===")
+        print("📊 Grade: \(gradeCorrection.originalGrade) → \(gradeCorrection.correctedGrade)")
+        print("🎯 Points: \(gradeCorrection.newPointsEarned) / \(gradeCorrection.pointsPossible)")
+
+        // Get homework context for identifying which question to update
+        guard let homeworkContext = appState.pendingHomeworkContext else {
+            print("❌ No homework context available for grade correction")
+            return
+        }
+
+        // Prepare notification payload
+        let userInfo: [String: Any] = [
+            "questionNumber": homeworkContext.questionNumber ?? 0,
+            "newGrade": gradeCorrection.correctedGrade,
+            "newPointsEarned": gradeCorrection.newPointsEarned,
+            "pointsPossible": gradeCorrection.pointsPossible,
+            "correctionReason": gradeCorrection.reason,
+            "originalGrade": gradeCorrection.originalGrade
+        ]
+
+        // Post notification for HomeworkResultsView to receive
+        NotificationCenter.default.post(
+            name: NSNotification.Name("GradeCorrectionApplied"),
+            object: nil,
+            userInfo: userInfo
+        )
+
+        print("✅ Grade correction notification posted successfully")
+
+        // Show success message to user
+        errorMessage = "✅ Grade updated to \(gradeCorrection.correctedGrade) with \(String(format: "%.1f", gradeCorrection.newPointsEarned)) points"
+        _ = true  // This was probably meant to set a state variable, but keeping compatibility
+
+        // Haptic feedback
+        let notificationFeedback = UINotificationFeedbackGenerator()
+        notificationFeedback.notificationOccurred(.success)
     }
 }
 

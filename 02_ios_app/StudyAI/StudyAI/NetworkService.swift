@@ -1134,7 +1134,133 @@ class NetworkService: ObservableObject {
         let finish_reason: String?
         let timestamp: String?
     }
-    
+
+    // MARK: - Homework Follow-up with Grade Correction
+
+    /// Grade correction data returned from homework follow-up endpoint
+    struct GradeCorrectionData: Codable {
+        let originalGrade: String
+        let correctedGrade: String
+        let reason: String
+        let newPointsEarned: Float
+        let pointsPossible: Float
+
+        enum CodingKeys: String, CodingKey {
+            case originalGrade = "original_grade"
+            case correctedGrade = "corrected_grade"
+            case reason
+            case newPointsEarned = "new_points_earned"
+            case pointsPossible = "points_possible"
+        }
+    }
+
+    /// Send homework follow-up message with full question context and grade validation
+    func sendHomeworkFollowupMessage(
+        sessionId: String,
+        message: String,
+        questionContext: [String: Any]
+    ) async -> (success: Bool, aiResponse: String?, gradeCorrection: GradeCorrectionData?, tokensUsed: Int?, compressed: Bool?) {
+
+        // Check authentication
+        guard AuthenticationService.shared.getAuthToken() != nil else {
+            print("❌ Authentication required to send homework follow-up")
+            return (false, nil, nil, nil, nil)
+        }
+
+        print("📚 === HOMEWORK FOLLOW-UP MESSAGE ===")
+        print("🆔 Session ID: \(sessionId)")
+        print("💬 Message: \(message.prefix(100))...")
+        print("📋 Question Context: \(questionContext)")
+
+        let followupURL = "\(baseURL)/api/ai/homework-followup/\(sessionId)/message"
+        print("🔗 Follow-up URL: \(followupURL)")
+
+        guard let url = URL(string: followupURL) else {
+            print("❌ Invalid homework follow-up URL")
+            return (false, nil, nil, nil, nil)
+        }
+
+        let requestData: [String: Any] = [
+            "message": message,
+            "question_context": questionContext
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 90.0
+
+        // Add authentication header
+        addAuthHeader(to: &request)
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+
+            print("📡 Sending homework follow-up message...")
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                print("✅ Homework Follow-up Response Status: \(httpResponse.statusCode)")
+
+                if httpResponse.statusCode == 200 {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let aiResponse = json["ai_response"] as? String {
+
+                        print("🎉 === HOMEWORK FOLLOW-UP SUCCESS ===")
+                        print("🤖 AI Response: \(String(aiResponse.prefix(200)))...")
+
+                        let tokensUsed = json["tokens_used"] as? Int
+                        let compressed = json["compressed"] as? Bool
+
+                        // Check for grade correction
+                        var gradeCorrection: GradeCorrectionData? = nil
+                        if let gradeCorrectionDict = json["grade_correction"] as? [String: Any] {
+                            print("🔄 Grade correction detected!")
+
+                            // Manually parse grade correction
+                            if let originalGrade = gradeCorrectionDict["original_grade"] as? String,
+                               let correctedGrade = gradeCorrectionDict["corrected_grade"] as? String,
+                               let reason = gradeCorrectionDict["reason"] as? String,
+                               let newPointsEarned = gradeCorrectionDict["new_points_earned"] as? Float,
+                               let pointsPossible = gradeCorrectionDict["points_possible"] as? Float {
+
+                                gradeCorrection = GradeCorrectionData(
+                                    originalGrade: originalGrade,
+                                    correctedGrade: correctedGrade,
+                                    reason: reason,
+                                    newPointsEarned: newPointsEarned,
+                                    pointsPossible: pointsPossible
+                                )
+
+                                print("📊 Grade: \(originalGrade) → \(correctedGrade)")
+                                print("💡 Reason: \(String(reason.prefix(100)))...")
+                            }
+                        }
+
+                        // Update conversation history
+                        await MainActor.run {
+                            self.addToConversationHistory(role: "assistant", content: aiResponse)
+                        }
+
+                        return (true, aiResponse, gradeCorrection, tokensUsed, compressed)
+                    }
+                } else if httpResponse.statusCode == 401 {
+                    print("❌ Authentication expired in sendHomeworkFollowupMessage")
+                    return (false, "Authentication expired", nil, nil, nil)
+                }
+
+                let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                print("❌ Homework Follow-up HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
+                return (false, nil, nil, nil, nil)
+            }
+
+            return (false, nil, nil, nil, nil)
+        } catch {
+            print("❌ Homework follow-up failed: \(error.localizedDescription)")
+            return (false, nil, nil, nil, nil)
+        }
+    }
+
     func getSessionInfo(sessionId: String) async -> (success: Bool, sessionInfo: [String: Any]?) {
         // Check authentication first - use unified auth system
         guard AuthenticationService.shared.getAuthToken() != nil else {

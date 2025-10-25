@@ -1403,7 +1403,7 @@ async def get_session(session_id: str):
         session = await session_service.get_session(session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
-        
+
         return SessionResponse(
             session_id=session.session_id,
             student_id=session.student_id,
@@ -1412,11 +1412,202 @@ async def get_session(session_id: str):
             last_activity=session.last_activity.isoformat(),
             message_count=len(session.messages)
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Session retrieval error: {str(e)}")
+
+# MARK: - Homework Follow-up with Grade Correction
+
+class GradeCorrectionData(BaseModel):
+    """Structured grade correction information detected by AI."""
+    original_grade: str
+    corrected_grade: str
+    reason: str
+    new_points_earned: float
+    points_possible: float
+
+class HomeworkFollowupRequest(BaseModel):
+    """Request model for homework follow-up questions."""
+    message: str
+    question_context: Dict[str, Any]  # Full question context including grading info
+
+class HomeworkFollowupResponse(BaseModel):
+    """Response model for homework follow-up with optional grade correction."""
+    session_id: str
+    ai_response: str
+    tokens_used: int
+    compressed: bool
+    grade_correction: Optional[GradeCorrectionData] = None  # Present if AI detected grading error
+
+def _detect_grade_correction(ai_response: str) -> Optional[Dict[str, Any]]:
+    """
+    Detect grade correction signals in AI response using structured format.
+
+    Looks for:
+    ```
+    GRADE_CORRECTION_NEEDED
+    Original Grade: INCORRECT
+    Corrected Grade: CORRECT
+    Reason: [explanation]
+    New Points Earned: 10
+    Points Possible: 10
+    ```
+
+    Returns:
+        Dict with correction data if detected, None otherwise
+    """
+    import re
+
+    # Pattern to match the structured correction block
+    pattern = r"""
+        GRADE_CORRECTION_NEEDED\s*\n
+        Original\s+Grade:\s*(.+?)\s*\n
+        Corrected\s+Grade:\s*(.+?)\s*\n
+        Reason:\s*(.+?)\s*\n
+        New\s+Points\s+Earned:\s*([\d.]+)\s*\n
+        Points\s+Possible:\s*([\d.]+)
+    """
+
+    match = re.search(pattern, ai_response, re.VERBOSE | re.IGNORECASE | re.DOTALL)
+
+    if match:
+        return {
+            "original_grade": match.group(1).strip(),
+            "corrected_grade": match.group(2).strip(),
+            "reason": match.group(3).strip(),
+            "new_points_earned": float(match.group(4)),
+            "points_possible": float(match.group(5))
+        }
+
+    return None
+
+@app.post("/api/v1/homework-followup/{session_id}/message", response_model=HomeworkFollowupResponse)
+async def process_homework_followup(
+    session_id: str,
+    request: HomeworkFollowupRequest,
+    service_info = optional_service_auth()
+):
+    """
+    Process homework follow-up questions with AI grade self-validation.
+
+    This endpoint is DIFFERENT from regular session chat because it:
+    - Includes full homework question context (question, student answer, correct answer, grade, feedback)
+    - Uses specialized prompting for homework tutoring
+    - Enables AI to self-validate previous grading decisions
+    - Detects and returns structured grade corrections
+
+    Use cases:
+    - Student taps "Ask AI for Help" on a homework question
+    - AI re-examines the original grading and can detect errors
+    - If grading was wrong, AI provides structured correction for iOS to parse
+    - iOS shows confirmation dialog before applying grade update
+
+    Returns:
+        - AI response with educational explanation
+        - Optional grade_correction object if AI detected grading error
+    """
+
+    import time
+    start_time = time.time()
+
+    try:
+        print(f"📚 === HOMEWORK FOLLOW-UP REQUEST ===")
+        print(f"📨 Session ID: {session_id}")
+        print(f"💬 Student Message: {request.message[:100]}...")
+        print(f"📋 Question Context: Q#{request.question_context.get('question_number', 'N/A')}")
+        print(f"📊 Current Grade: {request.question_context.get('current_grade', 'N/A')}")
+
+        # Get or create session
+        session = await session_service.get_session(session_id)
+        if not session:
+            # Create new session for homework follow-up
+            subject = request.question_context.get('subject', 'general')
+            session = await session_service.create_session(
+                student_id=request.question_context.get('student_id', 'anonymous'),
+                subject=subject
+            )
+            print(f"✅ Created new session for homework follow-up: {session.session_id}")
+
+        # Add user message to session
+        await session_service.add_message_to_session(
+            session_id=session.session_id,
+            role="user",
+            content=request.message
+        )
+
+        # Create specialized homework follow-up prompt using prompt service
+        system_prompt = prompt_service.create_homework_followup_prompt(
+            question_context=request.question_context,
+            student_message=request.message,
+            session_id=session.session_id
+        )
+
+        print(f"📝 Generated homework follow-up system prompt ({len(system_prompt)} chars)")
+
+        # Get conversation context (includes system prompt + conversation history)
+        context_messages = session.get_context_for_api(system_prompt)
+
+        print(f"🤖 Calling OpenAI for homework follow-up...")
+
+        # Call OpenAI with homework-specific context
+        response = await ai_service.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=context_messages,
+            temperature=0.3,  # Lower temperature for more consistent grading validation
+            max_tokens=2000,  # Slightly more tokens for detailed explanations
+            stream=False
+        )
+
+        ai_response = response.choices[0].message.content
+        tokens_used = response.usage.total_tokens
+
+        print(f"✅ OpenAI response received ({tokens_used} tokens)")
+        print(f"📝 Response length: {len(ai_response)} chars")
+
+        # Detect grade correction in response
+        grade_correction_data = _detect_grade_correction(ai_response)
+
+        if grade_correction_data:
+            print(f"🔄 === GRADE CORRECTION DETECTED ===")
+            print(f"📊 Original Grade: {grade_correction_data['original_grade']}")
+            print(f"✅ Corrected Grade: {grade_correction_data['corrected_grade']}")
+            print(f"💡 Reason: {grade_correction_data['reason'][:100]}...")
+            print(f"🎯 New Points: {grade_correction_data['new_points_earned']}/{grade_correction_data['points_possible']}")
+
+        # Add AI response to session
+        updated_session = await session_service.add_message_to_session(
+            session_id=session.session_id,
+            role="assistant",
+            content=ai_response
+        )
+
+        processing_time = int((time.time() - start_time) * 1000)
+        print(f"⏱️ Total processing time: {processing_time}ms")
+
+        # Build response
+        response_data = HomeworkFollowupResponse(
+            session_id=session.session_id,
+            ai_response=ai_response,
+            tokens_used=tokens_used,
+            compressed=updated_session.compressed_context is not None,
+            grade_correction=GradeCorrectionData(**grade_correction_data) if grade_correction_data else None
+        )
+
+        return response_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
+        print(f"❌ Homework Follow-up Error: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Homework follow-up processing error: {str(e)}")
 
 @app.delete("/api/v1/sessions/{session_id}")
 async def delete_session(session_id: str):

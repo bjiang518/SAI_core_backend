@@ -1005,6 +1005,171 @@ Remember: Your goal is to help the student learn and understand both the image c
         
         return response.strip()
 
+    # MARK: - Homework Follow-up Prompts (with Grade Self-Validation)
+
+    def create_homework_followup_prompt(
+        self,
+        question_context: Dict[str, Any],
+        student_message: str,
+        session_id: str
+    ) -> str:
+        """
+        Create specialized prompts for homework follow-up questions with grade self-validation.
+
+        This is DIFFERENT from:
+        - create_session_conversation_prompt(): Generic tutoring (no grading context)
+        - Original homework grading: Batch grading from images (no follow-up conversation)
+
+        This method enables AI to:
+        1. Help student understand a previously-graded homework question
+        2. Self-validate the previous grading (detect if original grade was wrong)
+        3. Provide structured grade correction signals for iOS to detect
+
+        Args:
+            question_context: {
+                "question_text": str - The question text
+                "raw_question_text": str (optional) - Original OCR text
+                "student_answer": str - What student wrote
+                "correct_answer": str - Expected answer
+                "current_grade": str - CORRECT/INCORRECT/EMPTY/PARTIAL_CREDIT
+                "original_feedback": str - Feedback from original grading
+                "points_earned": float - Points received
+                "points_possible": float - Max points
+                "question_number": int - Question number
+            }
+            student_message: User's follow-up question/request
+            session_id: Chat session identifier
+
+        Returns:
+            System prompt with AI self-validation instructions and structured correction format
+        """
+
+        # Extract context with safe defaults
+        question_text = question_context.get('question_text', 'N/A')
+        student_answer = question_context.get('student_answer', 'No answer provided')
+        correct_answer = question_context.get('correct_answer', 'Not specified')
+        current_grade = question_context.get('current_grade', 'UNKNOWN')
+        original_feedback = question_context.get('original_feedback', 'No feedback provided')
+        points_earned = question_context.get('points_earned', 0)
+        points_possible = question_context.get('points_possible', 10)
+        question_number = question_context.get('question_number', 0)
+
+        system_prompt = f"""You are an educational AI tutor helping a student understand a homework question they got marked on.
+
+## CONTEXT: Previous Grading
+Question #{question_number}: {question_text}
+Student's Answer: {student_answer}
+Correct Answer: {correct_answer}
+Current Grade: {current_grade}
+Original Feedback: {original_feedback}
+Points: {points_earned}/{points_possible}
+
+## YOUR DUAL ROLE
+
+### ROLE 1: Educational Tutor
+- Help the student understand this question
+- Explain concepts clearly with step-by-step examples
+- Use encouraging, supportive language
+- Focus on learning, not just getting the right answer
+
+### ROLE 2: Grade Self-Validator (CRITICAL)
+**IMPORTANT**: Re-examine the original grading decision before responding.
+
+Compare the student's answer vs. the correct answer:
+- Was the original grade accurate?
+- Did the AI grader make an error?
+- Is the student's answer actually correct (or partially correct)?
+- Are there edge cases or alternative interpretations?
+
+## GRADE CORRECTION PROTOCOL
+
+If you determine the original grade was WRONG, you MUST include this EXACT structured block:
+
+```
+GRADE_CORRECTION_NEEDED
+Original Grade: {current_grade}
+Corrected Grade: [CORRECT|INCORRECT|PARTIAL_CREDIT|EMPTY]
+Reason: [Detailed explanation of why the original grading was incorrect. Be specific about what the AI grader missed or misinterpreted.]
+New Points Earned: [number between 0 and {points_possible}]
+Points Possible: {points_possible}
+```
+
+After the correction block, continue with your educational explanation.
+
+## WHEN TO ISSUE GRADE CORRECTIONS
+
+Issue corrections when:
+- ✅ Student's answer is mathematically/scientifically correct but was marked incorrect
+- ✅ Answer uses alternative method that is valid but wasn't recognized
+- ✅ Grading was too harsh for a minor notation error
+- ✅ Partial credit should have been awarded but wasn't
+- ✅ Question was ambiguous and student's interpretation was reasonable
+
+DO NOT issue corrections for:
+- ❌ Student clearly got the wrong answer (arithmetic errors, wrong method)
+- ❌ Grading was appropriate given the rubric
+- ❌ Student is asking "why" but the grade was correct
+
+## MATHEMATICAL FORMATTING (iOS Rendering)
+
+Use consistent LaTeX formatting for iOS MathJax rendering:
+- Inline math: \\(expression\\) - e.g., \\(x^2 + 3x - 4 = 0\\)
+- Display math: \\[expression\\] - e.g., \\[x = \\frac{{-b \\pm \\sqrt{{b^2-4ac}}}}{{2a}}\\]
+- Never use $ or $$ delimiters
+- Keep expressions together (don't split across delimiters)
+
+Examples:
+✅ "The equation \\(2x + 5 = 13\\) can be solved by subtracting \\(5\\) from both sides."
+✅ "The quadratic formula is: \\[x = \\frac{{-b \\pm \\sqrt{{b^2-4ac}}}}{{2a}}\\]"
+❌ "The equation $2x + 5 = 13$ can be solved..." (dollar signs)
+❌ "We have \\(x\\)=\\(5\\)" (split expression)
+
+## RESPONSE STRUCTURE
+
+1. **Grade Validation** (silent unless correction needed):
+   - Re-examine student answer vs. correct answer
+   - If grade was wrong, include GRADE_CORRECTION_NEEDED block
+
+2. **Educational Explanation**:
+   - Address the student's specific question/confusion
+   - Explain the concept step-by-step
+   - Use examples and analogies
+   - Connect to broader understanding
+
+3. **Encouragement** (if applicable):
+   - Acknowledge good attempts or partial understanding
+   - Encourage continued learning
+   - Suggest related practice
+
+## EXAMPLE CORRECTION SCENARIO
+
+Student Question: "I don't understand why I got this wrong. Isn't 4 the right answer?"
+Student Answer: "4"
+Correct Answer: "4"
+Current Grade: INCORRECT
+
+Your Response:
+```
+GRADE_CORRECTION_NEEDED
+Original Grade: INCORRECT
+Corrected Grade: CORRECT
+Reason: The student's answer of 4 is actually correct. The AI grader appears to have made an error in comparing the student's handwritten "4" with the expected answer. This was a grading mistake, not a student error.
+New Points Earned: {points_possible}
+Points Possible: {points_possible}
+```
+
+You're absolutely right! Your answer of 4 is correct. Let me explain why...
+
+[Continue with educational explanation]
+
+## STUDENT'S QUESTION
+{student_message}
+
+Remember: Be honest about grading errors. If the student was right and the AI was wrong, clearly state the correction. If the student was wrong, explain why compassionately and educationally.
+"""
+
+        return system_prompt
+
     # MARK: - Question Generation Prompts
 
     def get_random_questions_prompt(self, subject: str, config: Dict[str, Any], user_profile: Dict[str, Any]) -> str:

@@ -71,6 +71,35 @@ class LocalProgressService {
         return result
     }
 
+    /// Calculate today's activity from local questions
+    func calculateTodayActivity() async -> (totalQuestions: Int, correctAnswers: Int, accuracy: Double) {
+        // Get all local questions
+        let localQuestions = questionLocalStorage.getLocalQuestions()
+
+        // Convert to QuestionSummary objects
+        var questions: [QuestionSummary] = []
+        for questionData in localQuestions {
+            if let question = try? questionLocalStorage.convertLocalQuestionToSummary(questionData) {
+                questions.append(question)
+            }
+        }
+
+        // Filter for today's questions
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let todayQuestions = questions.filter { question in
+            let questionDay = calendar.startOfDay(for: question.archivedAt)
+            return questionDay == today
+        }
+
+        // Calculate stats
+        let totalQuestions = todayQuestions.count
+        let correctAnswers = todayQuestions.filter { $0.grade == .correct }.count
+        let accuracy = totalQuestions > 0 ? Double(correctAnswers) / Double(totalQuestions) * 100.0 : 0.0
+
+        return (totalQuestions, correctAnswers, accuracy)
+    }
+
     /// Calculate monthly activity from local questions (replaces NetworkService.fetchMonthlyActivity)
     func calculateMonthlyActivity(year: Int, month: Int) async -> [DailyActivity] {
         // Get all local questions

@@ -1114,29 +1114,90 @@ class QuestionLocalStorage {
 
     // MARK: - Save to Local Storage
 
-    /// Save newly archived questions to local storage
+    /// Save newly archived questions to local storage with content-based duplicate detection
     func saveQuestions(_ questions: [[String: Any]]) {
         var existingQuestions = getLocalQuestions()
 
+        print("💾 [QuestionLocalStorage] Saving \(questions.count) questions with duplicate detection")
+        print("   📊 Existing questions in storage: \(existingQuestions.count)")
+
+        var addedCount = 0
+        var skippedCount = 0
+
         // Add new questions at the beginning (most recent first)
         for question in questions.reversed() {
-            if let id = question["id"] as? String {
-                existingQuestions.insert(question, at: 0)
+            guard let id = question["id"] as? String else {
+                print("   ⚠️ Skipping question without ID")
+                continue
             }
+
+            // Check if this question content already exists
+            if isDuplicateQuestion(question, in: existingQuestions) {
+                print("   🔄 Skipping duplicate question: \(String(describing: question["questionText"] as? String ?? "").prefix(50))...")
+                skippedCount += 1
+                continue
+            }
+
+            // Not a duplicate, add it
+            existingQuestions.insert(question, at: 0)
+            addedCount += 1
+            print("   ✅ Added new question: \(String(describing: question["questionText"] as? String ?? "").prefix(50))...")
         }
 
         // Keep only the most recent questions
         if existingQuestions.count > maxLocalQuestions {
             existingQuestions = Array(existingQuestions.prefix(maxLocalQuestions))
+            print("   ✂️ Trimmed to \(maxLocalQuestions) questions")
         }
 
         // Save to UserDefaults
         do {
             let data = try JSONSerialization.data(withJSONObject: existingQuestions)
             userDefaults.set(data, forKey: questionsKey)
+            print("   💾 Successfully saved \(existingQuestions.count) questions (added: \(addedCount), skipped duplicates: \(skippedCount))")
         } catch {
             print("   ❌ Failed to serialize questions: \(error)")
         }
+    }
+
+    /// Check if a question with the same content already exists in storage
+    /// Compares based on: questionText, subject, and studentAnswer
+    private func isDuplicateQuestion(_ newQuestion: [String: Any], in existingQuestions: [[String: Any]]) -> Bool {
+        guard let newQuestionText = newQuestion["questionText"] as? String else {
+            return false // Can't compare without question text
+        }
+
+        let newSubject = newQuestion["subject"] as? String ?? ""
+        let newStudentAnswer = newQuestion["studentAnswer"] as? String ?? ""
+
+        // Normalize for comparison (trim whitespace, lowercase)
+        let normalizedNewQuestionText = newQuestionText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedNewSubject = newSubject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedNewStudentAnswer = newStudentAnswer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        // Check if any existing question has the same content
+        for existingQuestion in existingQuestions {
+            guard let existingQuestionText = existingQuestion["questionText"] as? String else {
+                continue
+            }
+
+            let existingSubject = existingQuestion["subject"] as? String ?? ""
+            let existingStudentAnswer = existingQuestion["studentAnswer"] as? String ?? ""
+
+            // Normalize existing question for comparison
+            let normalizedExistingQuestionText = existingQuestionText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let normalizedExistingSubject = existingSubject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let normalizedExistingStudentAnswer = existingStudentAnswer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+            // Check if all key fields match
+            if normalizedNewQuestionText == normalizedExistingQuestionText &&
+               normalizedNewSubject == normalizedExistingSubject &&
+               normalizedNewStudentAnswer == normalizedExistingStudentAnswer {
+                return true // Duplicate found
+            }
+        }
+
+        return false // No duplicate found
     }
 
     // MARK: - Fetch from Local Storage

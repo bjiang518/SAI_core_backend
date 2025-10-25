@@ -20,7 +20,17 @@ struct HomeworkResultsView: View {
     @State private var questionTags: [[String]] = []
     @State private var hasMarkedProgress = false
     @State private var hasAlreadySavedImage = false  // Track if image was already saved
+    @State private var gradeCorrectionObserver: NSObjectProtocol?  // Track notification observer
+    @State private var gradeOverrides: [Int: GradeOverride] = [:]  // Track grade corrections by question number
     @StateObject private var questionArchiveService = QuestionArchiveService.shared
+
+    // Structure to hold grade override data
+    struct GradeOverride {
+        let newGrade: String
+        let newPointsEarned: Float
+        let pointsPossible: Float
+        let correctionReason: String
+    }
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @StateObject private var homeworkImageStorage = HomeworkImageStorageService.shared  // NEW: Storage service
     @Environment(\.dismiss) private var dismiss
@@ -145,6 +155,22 @@ struct HomeworkResultsView: View {
 
                 // NEW: Auto-save homework image to local storage
                 saveHomeworkImageToStorage()
+
+                // Register grade correction observer
+                gradeCorrectionObserver = NotificationCenter.default.addObserver(
+                    forName: NSNotification.Name("GradeCorrectionApplied"),
+                    object: nil,
+                    queue: .main
+                ) { notification in
+                    handleGradeCorrection(notification)
+                }
+            }
+            .onDisappear {
+                // Cleanup observer to prevent memory leaks
+                if let observer = gradeCorrectionObserver {
+                    NotificationCenter.default.removeObserver(observer)
+                    gradeCorrectionObserver = nil
+                }
             }
         }
     }
@@ -335,7 +361,8 @@ struct HomeworkResultsView: View {
                         showSelection: true,
                         onDismissParent: {
                             dismiss()
-                        }
+                        },
+                        enhancedResult: enhancedResult
                     )
                 }
             }
@@ -370,7 +397,8 @@ struct HomeworkResultsView: View {
                             showSelection: true,
                             onDismissParent: {
                                 dismiss()
-                            }
+                            },
+                            enhancedResult: enhancedResult
                         )
                     }
                 }
@@ -531,10 +559,11 @@ struct QuestionAnswerCard: View {
     let showAsBullet: Bool
     let showSelection: Bool
     let onDismissParent: (() -> Void)?
-    @StateObject private var appState = AppState.shared
+    let enhancedResult: EnhancedHomeworkParsingResult?
+    @ObservedObject private var appState = AppState.shared
     @State private var expandedSubquestions: Set<String> = []
 
-    init(question: ParsedQuestion, isExpanded: Bool, isSelected: Bool = false, onToggle: @escaping () -> Void, onSelectionToggle: (() -> Void)? = nil, showAsBullet: Bool = false, showSelection: Bool = false, onDismissParent: (() -> Void)? = nil) {
+    init(question: ParsedQuestion, isExpanded: Bool, isSelected: Bool = false, onToggle: @escaping () -> Void, onSelectionToggle: (() -> Void)? = nil, showAsBullet: Bool = false, showSelection: Bool = false, onDismissParent: (() -> Void)? = nil, enhancedResult: EnhancedHomeworkParsingResult? = nil) {
         self.question = question
         self.isExpanded = isExpanded
         self.isSelected = isSelected
@@ -543,6 +572,7 @@ struct QuestionAnswerCard: View {
         self.showAsBullet = showAsBullet
         self.showSelection = showSelection
         self.onDismissParent = onDismissParent
+        self.enhancedResult = enhancedResult
     }
 
     var body: some View {
@@ -791,19 +821,37 @@ struct QuestionAnswerCard: View {
 
                             // Small delay to ensure view is dismissed before navigation
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                // Construct prompt for chat
-                                let chatPrompt = """
+                                // Detect subject from question or use enhanced result
+                                let detectedSubject = enhancedResult?.detectedSubject ?? detectSubjectFromQuestion(question.questionText)
+
+                                // Build comprehensive homework context
+                                let homeworkContext = HomeworkQuestionContext(
+                                    questionText: question.questionText,
+                                    rawQuestionText: question.rawQuestionText,
+                                    studentAnswer: question.studentAnswer,
+                                    correctAnswer: question.correctAnswer,
+                                    currentGrade: question.grade,  // CORRECT, INCORRECT, EMPTY, PARTIAL_CREDIT
+                                    originalFeedback: question.feedback,
+                                    pointsEarned: question.pointsEarned,
+                                    pointsPossible: question.pointsPossible,
+                                    questionNumber: question.questionNumber,
+                                    subject: detectedSubject
+                                )
+
+                                // Construct user message for AI
+                                let userMessage = """
 I need help understanding this question from my homework:
 
 Question: \(question.questionText)
 
 \(question.isGraded && question.studentAnswer != nil && !question.studentAnswer!.isEmpty ? "My answer was: \(question.studentAnswer!)\n\n" : "")I'm unclear about how to approach this problem. Can you help me understand it better?
 """
-                                // Detect subject from question or use default
-                                let detectedSubject = self.detectSubjectFromQuestion(question.questionText)
 
-                                // Navigate to chat with the question
-                                appState.navigateToChatWithMessage(chatPrompt, subject: detectedSubject)
+                                // Navigate to chat with full homework context
+                                appState.navigateToChatWithHomeworkQuestion(
+                                    message: userMessage,
+                                    context: homeworkContext
+                                )
 
                                 // Haptic feedback
                                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -1263,7 +1311,10 @@ extension HomeworkResultsView {
     }
     
     /// Track homework grading usage for points earning system
+    /// ⚠️ IMPORTANT: This function ALWAYS tracks ALL questions from the homework report,
+    /// regardless of which questions are selected. Selection only affects archiving, not progress tracking.
     private func trackHomeworkUsage() {
+        // ✅ ALWAYS use ALL questions from the report, not just selected ones
         let questions = parsingResult.allQuestions
 
         // Get subject from enhanced result or try to detect from question text
@@ -1412,5 +1463,54 @@ extension HomeworkResultsView {
         } else {
             print("⚠️ Failed to auto-save homework image")
         }
+    }
+
+    // MARK: - Grade Correction System
+
+    /// Handle grade correction notifications from SessionChatView
+    private func handleGradeCorrection(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let questionNumber = userInfo["questionNumber"] as? Int,
+              let newGrade = userInfo["newGrade"] as? String,
+              let newPointsEarned = userInfo["newPointsEarned"] as? Float,
+              let pointsPossible = userInfo["pointsPossible"] as? Float,
+              let correctionReason = userInfo["correctionReason"] as? String else {
+            print("❌ Invalid grade correction notification data")
+            return
+        }
+
+        print("🔄 === GRADE CORRECTION RECEIVED ===")
+        print("📋 Question Number: \(questionNumber)")
+        print("✅ New Grade: \(newGrade)")
+        print("🎯 New Points: \(newPointsEarned)/\(pointsPossible)")
+        print("💡 Reason: \(String(correctionReason.prefix(100)))...")
+
+        // Store the grade override
+        gradeOverrides[questionNumber] = GradeOverride(
+            newGrade: newGrade,
+            newPointsEarned: newPointsEarned,
+            pointsPossible: pointsPossible,
+            correctionReason: correctionReason
+        )
+
+        print("✅ Grade override stored for Q#\(questionNumber)")
+        print("📊 Total overrides: \(gradeOverrides.count)")
+
+        // Haptic feedback for grade update
+        let notificationFeedback = UINotificationFeedbackGenerator()
+        notificationFeedback.notificationOccurred(.success)
+    }
+
+    /// Get the effective grade for a question (checking overrides first)
+    func getEffectiveGrade(for question: ParsedQuestion) -> (grade: String?, pointsEarned: Float?, pointsPossible: Float?) {
+        // Check if there's a grade override for this question number
+        if let questionNumber = question.questionNumber,
+           let override = gradeOverrides[questionNumber] {
+            print("🔄 Using grade override for Q#\(questionNumber): \(override.newGrade)")
+            return (override.newGrade, override.newPointsEarned, override.pointsPossible)
+        }
+
+        // Return original grade if no override
+        return (question.grade, question.pointsEarned, question.pointsPossible)
     }
 }
