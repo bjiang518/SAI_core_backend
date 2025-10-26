@@ -24,6 +24,7 @@ struct GeneratedQuestionDetailView: View {
     @State private var hasSubmitted = false
     @State private var showingExplanation = false
     @State private var isCorrect = false
+    @State private var partialCredit: Double = 0.0  // 0.0 to 1.0 for partial credit
     @State private var isArchived = false
     @State private var showingArchiveSuccess = false
     @State private var isArchiving = false
@@ -31,6 +32,7 @@ struct GeneratedQuestionDetailView: View {
     // Mark progress state
     @State private var hasMarkedProgress = false
     @ObservedObject private var pointsManager = PointsEarningManager.shared
+    @ObservedObject private var appState = AppState.shared
 
     private let logger = Logger(subsystem: "com.studyai", category: "QuestionDetail")
     private let archiveService = QuestionArchiveService.shared
@@ -72,9 +74,6 @@ struct GeneratedQuestionDetailView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 32) {
-                    // Question Header
-                    questionHeader
-
                     // Question Content
                     questionContent
 
@@ -86,14 +85,14 @@ struct GeneratedQuestionDetailView: View {
                         submitButton
                     }
 
-                    // Results Section
+                    // Results Section with Explanation inside
                     if hasSubmitted {
                         resultsSection
                     }
 
-                    // Explanation Section
-                    if showingExplanation {
-                        explanationSection
+                    // Action Buttons (outside results card)
+                    if hasSubmitted {
+                        actionButtonsSection
                     }
 
                     // Question Metadata
@@ -113,63 +112,6 @@ struct GeneratedQuestionDetailView: View {
                 loadSavedAnswer()
             }
         }
-    }
-
-    private var questionHeader: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Type and Difficulty Tags
-            HStack {
-                Label(question.type.displayName, systemImage: question.typeIcon)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(question.difficultyColor)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(question.difficultyColor.opacity(0.1))
-                    .cornerRadius(20)
-
-                Text(question.difficulty.capitalized)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(question.difficultyColor)
-                    .cornerRadius(20)
-
-                Spacer()
-
-                if let points = question.points {
-                    HStack(spacing: 8) {
-                        Image(systemName: "star.fill")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                        Text(String(format: NSLocalizedString("questionDetail.pointsValue", comment: ""), points))
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.orange)
-                    }
-                }
-            }
-
-            // Topic and Time Estimate
-            HStack {
-                Label(question.topic, systemImage: "tag.fill")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Spacer()
-
-                if let timeEstimate = question.timeEstimate {
-                    Label(timeEstimate, systemImage: "clock.fill")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(16)
     }
 
     private var questionContent: some View {
@@ -347,131 +289,286 @@ struct GeneratedQuestionDetailView: View {
                 .font(.title3)
                 .fontWeight(.semibold)
 
-            HStack(spacing: 24) {
-                // Correctness indicator
-                HStack(spacing: 12) {
-                    Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(isCorrect ? .green : .red)
+            resultsHeader
 
-                    Text(isCorrect ? NSLocalizedString("questionDetail.correct", comment: "") : NSLocalizedString("questionDetail.incorrect", comment: ""))
-                        .font(.body.bold())
-                        .foregroundColor(isCorrect ? .green : .red)
+            answerComparison
+
+            if showingExplanation {
+                explanationView
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(16)
+    }
+
+    private var resultsHeader: some View {
+        HStack(spacing: 24) {
+            correctnessIndicator
+
+            Spacer()
+
+            Button(action: { showingExplanation.toggle() }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "lightbulb.fill")
+                        .font(.body)
+
+                    Text(showingExplanation ? NSLocalizedString("questionDetail.hideExplanation", comment: "") : NSLocalizedString("questionDetail.showExplanation", comment: ""))
+                        .font(.subheadline)
                 }
+                .foregroundColor(.blue)
+            }
+        }
+    }
 
-                Spacer()
+    private var correctnessIndicator: some View {
+        HStack(spacing: 12) {
+            let iconName = isCorrect ? "checkmark.circle.fill" : (partialCredit > 0 ? "circle.lefthalf.filled" : "xmark.circle.fill")
+            let color = isCorrect ? Color.green : (partialCredit > 0 ? Color.orange : Color.red)
 
-                Button(action: { showingExplanation.toggle() }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "lightbulb.fill")
-                            .font(.body)
+            Image(systemName: iconName)
+                .font(.title2)
+                .foregroundColor(color)
 
-                        Text(showingExplanation ? NSLocalizedString("questionDetail.hideExplanation", comment: "") : NSLocalizedString("questionDetail.showExplanation", comment: ""))
-                            .font(.subheadline)
-                    }
-                    .foregroundColor(.blue)
+            VStack(alignment: .leading, spacing: 4) {
+                let statusText = isCorrect ? NSLocalizedString("questionDetail.correct", comment: "") : (partialCredit > 0 ? "Partial Credit" : NSLocalizedString("questionDetail.incorrect", comment: ""))
+
+                Text(statusText)
+                    .font(.body.bold())
+                    .foregroundColor(color)
+
+                if partialCredit > 0 && partialCredit < 1.0 {
+                    Text("\(Int(partialCredit * 100))% Credit")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
+        }
+    }
 
-            // Answer comparison
-            VStack(alignment: .leading, spacing: 16) {
-                // User's answer
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(NSLocalizedString("questionDetail.yourAnswer", comment: ""))
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
+    private var answerComparison: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            userAnswerView
+            correctAnswerView
+        }
+    }
 
-                    MathFormattedText(getCurrentAnswer(), fontSize: 14)
-                        .padding()
-                        .background(isCorrect ? Color.green.opacity(0.05) : Color.red.opacity(0.05))
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(isCorrect ? Color.green.opacity(0.3) : Color.red.opacity(0.3), lineWidth: 1)
-                        )
-                }
+    private var userAnswerView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(NSLocalizedString("questionDetail.yourAnswer", comment: ""))
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
 
-                // Correct answer
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(NSLocalizedString("questionDetail.correctAnswer", comment: ""))
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
+            let bgColor = isCorrect ? Color.green.opacity(0.05) : (partialCredit > 0 ? Color.orange.opacity(0.05) : Color.red.opacity(0.05))
+            let strokeColor = isCorrect ? Color.green.opacity(0.3) : (partialCredit > 0 ? Color.orange.opacity(0.3) : Color.red.opacity(0.3))
 
-                    MathFormattedText(question.correctAnswer, fontSize: 14)
-                        .padding()
-                        .background(Color.green.opacity(0.05))
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.green.opacity(0.3), lineWidth: 1)
-                        )
-                }
+            MathFormattedText(getCurrentAnswer(), fontSize: 14)
+                .padding()
+                .background(bgColor)
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(strokeColor, lineWidth: 1)
+                )
+        }
+    }
+
+    private var correctAnswerView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(NSLocalizedString("questionDetail.correctAnswer", comment: ""))
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+
+            MathFormattedText(question.correctAnswer, fontSize: 14)
+                .padding()
+                .background(Color.green.opacity(0.05))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                )
+        }
+    }
+
+    private var explanationView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Divider()
+
+            HStack {
+                Image(systemName: "lightbulb.fill")
+                    .font(.title3)
+                    .foregroundColor(.yellow)
+
+                Text(NSLocalizedString("questionDetail.explanation", comment: ""))
+                    .font(.title3)
+                    .fontWeight(.semibold)
             }
 
-            // Archive Button
-            if !isArchived {
-                Button(action: archiveQuestion) {
-                    HStack(spacing: 12) {
-                        if isArchiving {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "archivebox.fill")
-                                .font(.headline)
+            MathFormattedText(question.explanation, fontSize: 14)
+        }
+        .padding()
+        .background(Color.yellow.opacity(0.05))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private var actionButtonsSection: some View {
+        VStack(spacing: 16) {
+            // Row 1: Archive and Mark Progress side by side
+            HStack(spacing: 12) {
+                // Archive Button
+                if !isArchived {
+                    Button(action: archiveQuestion) {
+                        HStack(spacing: 8) {
+                            if isArchiving {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "archivebox.fill")
+                                    .font(.body)
+                            }
+
+                            Text(isArchiving ? "Archiving..." : "Archive")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
                         }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(
+                            LinearGradient(
+                                colors: [.purple, .purple.opacity(0.8)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(12)
+                        .disabled(isArchiving)
+                    }
+                    .opacity(isArchiving ? 0.6 : 1.0)
+                } else {
+                    // Archived indicator
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.body)
+                            .foregroundColor(.green)
 
-                        Text(isArchiving ? NSLocalizedString("questionDetail.archiving", comment: "") : NSLocalizedString("questionDetail.archiveQuestion", comment: ""))
-                            .font(.body.bold())
+                        Text("Archived")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.green)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                    )
+                }
+
+                // Mark Progress Button
+                Button(action: {
+                    if !hasMarkedProgress {
+                        trackPracticeProgress()
+                        hasMarkedProgress = true
+                        saveProgressState()
+                    }
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                    impactFeedback.impactOccurred()
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: hasMarkedProgress ? "checkmark.circle.fill" : "chart.line.uptrend.xyaxis")
+                            .font(.body)
+                        Text(hasMarkedProgress ? "Marked" : "Mark Progress")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
                     }
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
                     .background(
                         LinearGradient(
-                            colors: [.purple, .purple.opacity(0.8)],
+                            colors: hasMarkedProgress ? [Color.green, Color.green.opacity(0.8)] : [Color.blue, Color.blue.opacity(0.8)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     .cornerRadius(12)
-                    .disabled(isArchiving)
                 }
-                .opacity(isArchiving ? 0.6 : 1.0)
-            } else {
-                // Archived indicator
-                HStack(spacing: 12) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.headline)
-                        .foregroundColor(.green)
+                .disabled(hasMarkedProgress)
+            }
 
-                    Text(NSLocalizedString("questionDetail.archived", comment: ""))
-                        .font(.body.bold())
-                        .foregroundColor(.green)
+            // Ask AI Button
+            Button(action: askAIForHelp) {
+                HStack(spacing: 12) {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                        .font(.body)
+                    Text("Ask AI for Follow Up")
+                        .font(.body)
+                        .fontWeight(.semibold)
                 }
+                .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
-                .background(Color.green.opacity(0.1))
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                .background(
+                    LinearGradient(
+                        colors: [Color.orange, Color.orange.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
                 )
+                .cornerRadius(12)
+                .shadow(color: Color.orange.opacity(0.3), radius: 8, x: 0, y: 4)
             }
 
-            // Mark Progress Button (show after answer submission)
-            markProgressButton
-
-            // Next Question Button (show after answer submission if there's a next question)
+            // Next Question Button (if available)
             if hasNextQuestion {
-                nextQuestionButton
+                Button(action: {
+                    if let allQuestions = allQuestions,
+                       let currentIndex = currentIndex,
+                       currentIndex < allQuestions.count - 1 {
+                        nextQuestion = allQuestions[currentIndex + 1]
+                        showingNextQuestion = true
+                    }
+                }) {
+                    HStack(spacing: 12) {
+                        Text("Next Question")
+                            .font(.body)
+                            .fontWeight(.semibold)
+
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.title3)
+
+                        if let currentIndex = currentIndex,
+                           let allQuestions = allQuestions {
+                            Text("(\(currentIndex + 2)/\(allQuestions.count))")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        LinearGradient(
+                            colors: [.blue, .blue.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(12)
+                    .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
             }
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(16)
         .alert(NSLocalizedString("questionDetail.archiveSuccess", comment: ""), isPresented: $showingArchiveSuccess) {
             Button(NSLocalizedString("common.ok", comment: "")) { }
         } message: {
@@ -489,30 +586,6 @@ struct GeneratedQuestionDetailView: View {
                 )
             }
         }
-    }
-
-    private var explanationSection: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            HStack {
-                Image(systemName: "lightbulb.fill")
-                    .font(.title3)
-                    .foregroundColor(.yellow)
-
-                Text(NSLocalizedString("questionDetail.explanation", comment: ""))
-                    .font(.title3)
-                    .fontWeight(.semibold)
-            }
-
-            MathFormattedText(question.explanation, fontSize: 14)
-
-        }
-        .padding()
-        .background(Color.yellow.opacity(0.05))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
-        )
     }
 
     private var questionMetadata: some View {
@@ -569,21 +642,28 @@ struct GeneratedQuestionDetailView: View {
         hasSubmitted = true
         let currentAnswer = getCurrentAnswer()
 
-        // Normalize answers by removing "A)" prefix if present
-        let normalizedUserAnswer = normalizeAnswer(currentAnswer)
-        let normalizedCorrectAnswer = normalizeAnswer(question.correctAnswer)
+        // Use flexible grading system
+        let gradingResult = gradeAnswerFlexibly(userAnswer: currentAnswer, correctAnswer: question.correctAnswer, questionType: question.type)
 
-        // Compare normalized answers
-        isCorrect = normalizedUserAnswer == normalizedCorrectAnswer
+        isCorrect = gradingResult.isFullyCorrect
+        partialCredit = gradingResult.creditPercentage
 
         showingExplanation = true
-        logger.info("📝 Answer submitted: \(isCorrect ? "Correct" : "Incorrect")")
+
+        if isCorrect {
+            logger.info("📝 Answer submitted: Correct (100%)")
+        } else if partialCredit > 0 {
+            logger.info("📝 Answer submitted: Partial credit (\(Int(partialCredit * 100))%)")
+        } else {
+            logger.info("📝 Answer submitted: Incorrect (0%)")
+        }
 
         // Save answer for persistence
         saveAnswer()
 
-        // Notify parent view about the answer result
-        let earnedPoints = isCorrect ? (question.points ?? 1) : 0
+        // Notify parent view about the answer result with partial credit
+        let maxPoints = question.points ?? 1
+        let earnedPoints = Int(Double(maxPoints) * partialCredit)
         onAnswerSubmitted?(isCorrect, earnedPoints)
     }
 
@@ -601,108 +681,216 @@ struct GeneratedQuestionDetailView: View {
         return normalized.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // MARK: - Mark Progress
+    // MARK: - Flexible Grading System
 
-    private var markProgressButton: some View {
-        VStack(spacing: 16) {
-            Button(action: {
-                // Only track if not already marked
-                if !hasMarkedProgress {
-                    trackPracticeProgress()
-                    hasMarkedProgress = true
-                    saveProgressState()
-                }
-
-                // Show success feedback
-                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                impactFeedback.impactOccurred()
-            }) {
-                HStack {
-                    Image(systemName: hasMarkedProgress ? "checkmark.circle.fill" : "chart.line.uptrend.xyaxis")
-                        .font(.title3)
-                    Text(hasMarkedProgress ? NSLocalizedString("questionDetail.progressMarked", comment: "") : NSLocalizedString("questionDetail.markProgress", comment: ""))
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    LinearGradient(
-                        colors: hasMarkedProgress ? [Color.green, Color.green.opacity(0.8)] : [Color.blue, Color.blue.opacity(0.8)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(16)
-                .shadow(color: (hasMarkedProgress ? Color.green : Color.blue).opacity(0.3), radius: 8, x: 0, y: 4)
-            }
-            .disabled(hasMarkedProgress)
-
-            if hasMarkedProgress {
-                Text(NSLocalizedString("questionDetail.progressUpdated", comment: ""))
-                    .font(.subheadline)
-                    .foregroundColor(.green)
-                    .multilineTextAlignment(.center)
-            } else {
-                Text(NSLocalizedString("questionDetail.progressTip", comment: ""))
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .padding(.top, 16)
+    /// Result of flexible grading
+    private struct GradingResult {
+        let isFullyCorrect: Bool
+        let creditPercentage: Double  // 0.0 to 1.0
+        let matchMethod: String  // For debugging/logging
     }
 
-    private var nextQuestionButton: some View {
-        VStack(spacing: 12) {
-            Button(action: {
-                // Load the next question
-                if let allQuestions = allQuestions,
-                   let currentIndex = currentIndex,
-                   currentIndex < allQuestions.count - 1 {
-                    nextQuestion = allQuestions[currentIndex + 1]
-                    showingNextQuestion = true
-                }
-            }) {
-                HStack(spacing: 12) {
-                    Text("Next Question")
-                        .font(.body)
-                        .fontWeight(.semibold)
+    /// Grade answer using multiple flexible methods with partial credit
+    private func gradeAnswerFlexibly(userAnswer: String, correctAnswer: String, questionType: QuestionGenerationService.GeneratedQuestion.QuestionType) -> GradingResult {
 
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.title3)
+        let normalizedUser = normalizeAnswer(userAnswer)
+        let normalizedCorrect = normalizeAnswer(correctAnswer)
+
+        // Strategy 1: Exact match (100% credit)
+        if normalizedUser == normalizedCorrect {
+            return GradingResult(isFullyCorrect: true, creditPercentage: 1.0, matchMethod: "exact")
+        }
+
+        // Strategy 2: Multiple choice and True/False - strict matching only
+        if questionType == .multipleChoice || questionType == .trueFalse {
+            // For MC/TF, only exact match counts
+            return GradingResult(isFullyCorrect: false, creditPercentage: 0.0, matchMethod: "strict")
+        }
+
+        // Strategy 3: Numerical answer matching (great for math problems)
+        if let numericalResult = gradeNumericalAnswer(userAnswer: normalizedUser, correctAnswer: normalizedCorrect) {
+            return numericalResult
+        }
+
+        // Strategy 4: Substring/containment matching (80% credit)
+        // Check if user's answer is contained in correct answer or vice versa
+        if normalizedCorrect.contains(normalizedUser) && normalizedUser.count >= 3 {
+            // User gave a shorter but correct answer (e.g., "11" vs "11 ducklings")
+            return GradingResult(isFullyCorrect: false, creditPercentage: 0.9, matchMethod: "substring-user-in-correct")
+        }
+
+        if normalizedUser.contains(normalizedCorrect) && normalizedCorrect.count >= 3 {
+            // User gave extra information (e.g., "the answer is 11 ducklings" vs "11 ducklings")
+            return GradingResult(isFullyCorrect: false, creditPercentage: 0.85, matchMethod: "substring-correct-in-user")
+        }
+
+        // Strategy 5: Keyword matching (70% credit)
+        let keywordScore = gradeByKeywords(userAnswer: normalizedUser, correctAnswer: normalizedCorrect)
+        if keywordScore >= 0.7 {
+            return GradingResult(isFullyCorrect: false, creditPercentage: keywordScore * 0.7, matchMethod: "keyword")
+        }
+
+        // Strategy 6: Fuzzy string similarity (50-70% credit based on similarity)
+        let similarity = stringSimilarity(normalizedUser, normalizedCorrect)
+        if similarity >= 0.7 {
+            let credit = 0.5 + (similarity - 0.7) * 1.0  // 50-80% credit for 70-100% similarity
+            return GradingResult(isFullyCorrect: false, creditPercentage: min(credit, 0.8), matchMethod: "fuzzy")
+        }
+
+        // No match found
+        return GradingResult(isFullyCorrect: false, creditPercentage: 0.0, matchMethod: "none")
+    }
+
+    /// Extract and compare numerical values from answers
+    private func gradeNumericalAnswer(userAnswer: String, correctAnswer: String) -> GradingResult? {
+        let userNumbers = extractNumbers(from: userAnswer)
+        let correctNumbers = extractNumbers(from: correctAnswer)
+
+        // No numbers found in either answer
+        guard !userNumbers.isEmpty || !correctNumbers.isEmpty else {
+            return nil
+        }
+
+        // If both have numbers, compare them
+        if !userNumbers.isEmpty && !correctNumbers.isEmpty {
+            // Check if all correct numbers are present in user's answer
+            let matchingNumbers = correctNumbers.filter { correctNum in
+                userNumbers.contains { userNum in
+                    abs(userNum - correctNum) < 0.0001  // Float comparison with tolerance
                 }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(
-                    LinearGradient(
-                        colors: [.blue, .blue.opacity(0.8)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(12)
-                .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
             }
 
-            if let currentIndex = currentIndex,
-               let allQuestions = allQuestions {
-                Text("Question \(currentIndex + 1) of \(allQuestions.count)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            let matchPercentage = Double(matchingNumbers.count) / Double(correctNumbers.count)
+
+            if matchPercentage == 1.0 {
+                // All numbers match - give 95% credit (very likely correct)
+                return GradingResult(isFullyCorrect: false, creditPercentage: 0.95, matchMethod: "numerical")
+            } else if matchPercentage >= 0.5 {
+                // At least half the numbers match - partial credit
+                return GradingResult(isFullyCorrect: false, creditPercentage: 0.5 * matchPercentage, matchMethod: "numerical-partial")
             }
         }
-        .padding(.top, 16)
+
+        return nil
     }
+
+    /// Extract all numbers (integers and decimals) from a string
+    private func extractNumbers(from text: String) -> [Double] {
+        var numbers: [Double] = []
+
+        // Pattern matches integers and decimals (including negative numbers)
+        let pattern = "-?\\d+\\.?\\d*"
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            let nsString = text as NSString
+            let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: nsString.length))
+
+            for match in matches {
+                let numberString = nsString.substring(with: match.range)
+                if let number = Double(numberString) {
+                    numbers.append(number)
+                }
+            }
+        }
+
+        return numbers
+    }
+
+    /// Grade by comparing keywords (important words)
+    private func gradeByKeywords(userAnswer: String, correctAnswer: String) -> Double {
+        // Extract keywords (words longer than 2 characters, excluding common words)
+        let commonWords = Set(["the", "and", "or", "in", "on", "at", "to", "for", "of", "with", "is", "are", "was", "were", "be", "been", "being"])
+
+        let userWords = Set(userAnswer.split(separator: " ")
+            .map { String($0).trimmingCharacters(in: .punctuationCharacters) }
+            .filter { $0.count > 2 && !commonWords.contains($0) })
+
+        let correctWords = Set(correctAnswer.split(separator: " ")
+            .map { String($0).trimmingCharacters(in: .punctuationCharacters) }
+            .filter { $0.count > 2 && !commonWords.contains($0) })
+
+        guard !correctWords.isEmpty else { return 0.0 }
+
+        let matchingWords = userWords.intersection(correctWords)
+        return Double(matchingWords.count) / Double(correctWords.count)
+    }
+
+    /// Calculate string similarity using Levenshtein distance
+    private func stringSimilarity(_ s1: String, _ s2: String) -> Double {
+        let longer = s1.count > s2.count ? s1 : s2
+        let shorter = s1.count > s2.count ? s2 : s1
+
+        let longerLength = longer.count
+        if longerLength == 0 { return 1.0 }
+
+        let distance = levenshteinDistance(shorter, longer)
+        return (Double(longerLength) - Double(distance)) / Double(longerLength)
+    }
+
+    /// Calculate Levenshtein distance between two strings
+    private func levenshteinDistance(_ s1: String, _ s2: String) -> Int {
+        let s1Array = Array(s1)
+        let s2Array = Array(s2)
+
+        var matrix = [[Int]](repeating: [Int](repeating: 0, count: s2Array.count + 1), count: s1Array.count + 1)
+
+        for i in 0...s1Array.count {
+            matrix[i][0] = i
+        }
+        for j in 0...s2Array.count {
+            matrix[0][j] = j
+        }
+
+        for i in 1...s1Array.count {
+            for j in 1...s2Array.count {
+                let cost = s1Array[i - 1] == s2Array[j - 1] ? 0 : 1
+                matrix[i][j] = min(
+                    matrix[i - 1][j] + 1,      // deletion
+                    matrix[i][j - 1] + 1,      // insertion
+                    matrix[i - 1][j - 1] + cost // substitution
+                )
+            }
+        }
+
+        return matrix[s1Array.count][s2Array.count]
+    }
+
+    // MARK: - AI Follow Up
+
+    private func askAIForHelp() {
+        // Dismiss the current view first
+        dismiss()
+
+        // Small delay to ensure view is dismissed before navigation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Construct user message for AI
+            let userMessage = """
+I need help understanding this question:
+
+Question: \(question.question)
+
+\(hasSubmitted ? "My answer was: \(getCurrentAnswer())\n\n" : "")Can you help me understand this better and explain the solution?
+"""
+
+            // Navigate to chat with question context
+            appState.navigateToChatWithMessage(userMessage, subject: question.topic)
+
+            // Haptic feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+        }
+    }
+
+    // MARK: - Progress Tracking
 
     private func trackPracticeProgress() {
         let subject = question.topic
         let totalAnswered = 1 // One question
-        let correctCount = isCorrect ? 1 : 0
 
-        logger.info("📊 [trackPracticeProgress] Marking progress: \(totalAnswered) question, \(correctCount) correct in \(subject)")
+        // Use partial credit for correct count
+        // If fully correct, count as 1. If partial credit, count proportionally
+        let correctCount = partialCredit >= 0.5 ? 1 : 0  // 50% or more counts as correct
+
+        logger.info("📊 [trackPracticeProgress] Marking progress: \(totalAnswered) question, \(correctCount) correct (\(Int(partialCredit * 100))% credit) in \(subject)")
 
         // Use the same progress marking system as homework
         pointsManager.markHomeworkProgress(
@@ -738,6 +926,7 @@ struct GeneratedQuestionDetailView: View {
             "selectedOption": selectedOption as Any,
             "hasSubmitted": hasSubmitted,
             "isCorrect": isCorrect,
+            "partialCredit": partialCredit,
             "timestamp": Date().timeIntervalSince1970
         ]
 
@@ -769,6 +958,10 @@ struct GeneratedQuestionDetailView: View {
         if let savedIsCorrect = answerData["isCorrect"] as? Bool {
             isCorrect = savedIsCorrect
             showingExplanation = hasSubmitted // Show explanation if already submitted
+        }
+
+        if let savedPartialCredit = answerData["partialCredit"] as? Double {
+            partialCredit = savedPartialCredit
         }
 
         logger.info("💾 Loaded saved answer for question: \(question.id)")

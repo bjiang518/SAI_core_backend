@@ -842,7 +842,7 @@ struct QuestionAnswerCard: View {
                                 let userMessage = """
 I need help understanding this question from my homework:
 
-Question: \(question.questionText)
+Question: \(question.rawQuestionText ?? question.questionText)
 
 \(question.isGraded && question.studentAnswer != nil && !question.studentAnswer!.isEmpty ? "My answer was: \(question.studentAnswer!)\n\n" : "")I'm unclear about how to approach this problem. Can you help me understand it better?
 """

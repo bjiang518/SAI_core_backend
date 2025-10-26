@@ -58,6 +58,7 @@ struct ParentAuthenticationView: View {
     @State private var errorMessage = ""
     @State private var attempts = 0
     @State private var isLocked = false
+    @State private var isAuthenticatingWithBiometrics = false
 
     var body: some View {
         NavigationView {
@@ -82,6 +83,53 @@ struct ParentAuthenticationView: View {
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
+
+                // Face ID Button (shown only if biometric auth is available and enabled)
+                if !isLocked && parentModeManager.canUseParentBiometrics() {
+                    Button(action: {
+                        authenticateWithBiometrics()
+                    }) {
+                        HStack {
+                            if isAuthenticatingWithBiometrics {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else {
+                                Image(systemName: biometricIcon)
+                                    .font(.system(size: 20))
+                                Text(localizedBiometricButtonText)
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            LinearGradient(
+                                colors: [Color.blue, Color.blue.opacity(0.8)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(12)
+                    }
+                    .disabled(isAuthenticatingWithBiometrics)
+                    .padding(.horizontal, 32)
+
+                    // Divider with "OR" text
+                    HStack {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 1)
+                        Text(NSLocalizedString("parentAuth.or", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 1)
+                    }
+                    .padding(.horizontal, 32)
+                }
 
                 // PIN Input
                 if !isLocked {
@@ -174,6 +222,76 @@ struct ParentAuthenticationView: View {
             // Haptic feedback for error
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(.error)
+        }
+    }
+
+    private func authenticateWithBiometrics() {
+        Task {
+            isAuthenticatingWithBiometrics = true
+
+            do {
+                let success = try await parentModeManager.verifyWithBiometrics()
+
+                await MainActor.run {
+                    isAuthenticatingWithBiometrics = false
+
+                    if success {
+                        // Haptic feedback for success
+                        let generator = UINotificationFeedbackGenerator()
+                        generator.notificationOccurred(.success)
+
+                        // Success - call completion handler and dismiss
+                        onSuccess()
+                        dismiss()
+                    } else {
+                        // Failed - show error
+                        errorMessage = NSLocalizedString("parentAuth.biometricFailed", comment: "")
+                        showingError = true
+
+                        // Haptic feedback for error
+                        let generator = UINotificationFeedbackGenerator()
+                        generator.notificationOccurred(.error)
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isAuthenticatingWithBiometrics = false
+                    errorMessage = String(format: NSLocalizedString("parentAuth.biometricError", comment: ""), error.localizedDescription)
+                    showingError = true
+
+                    // Haptic feedback for error
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.error)
+                }
+            }
+        }
+    }
+
+    private var biometricIcon: String {
+        let type = parentModeManager.getBiometricType()
+        switch type {
+        case "Face ID":
+            return "faceid"
+        case "Touch ID":
+            return "touchid"
+        case "Optic ID":
+            return "opticid"
+        default:
+            return "faceid"
+        }
+    }
+
+    private var localizedBiometricButtonText: String {
+        let type = parentModeManager.getBiometricType()
+        switch type {
+        case "Face ID":
+            return NSLocalizedString("parentAuth.useFaceID", comment: "")
+        case "Touch ID":
+            return NSLocalizedString("parentAuth.useTouchID", comment: "")
+        case "Optic ID":
+            return NSLocalizedString("parentAuth.useOpticID", comment: "")
+        default:
+            return NSLocalizedString("parentAuth.useFaceID", comment: "")
         }
     }
 }

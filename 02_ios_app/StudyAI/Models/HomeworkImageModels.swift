@@ -19,6 +19,7 @@ struct HomeworkImageRecord: Codable, Identifiable {
     let subject: String                 // Auto-detected subject
     let accuracy: Float                 // Performance percentage (0.0 - 1.0)
     let questionCount: Int              // Number of questions
+    let imageHash: String?              // SHA256 hash to detect duplicates
 
     // Optional fields for enhanced display
     let correctCount: Int?              // Number of correct answers
@@ -26,6 +27,37 @@ struct HomeworkImageRecord: Codable, Identifiable {
     let totalPoints: Float?             // Total points earned
     let maxPoints: Float?               // Maximum possible points
     let rawQuestions: [String]?         // Raw question texts for PDF generation
+
+    // Custom initializer with default value for imageHash
+    init(
+        id: String,
+        imageFileName: String,
+        thumbnailFileName: String,
+        submittedDate: Date,
+        subject: String,
+        accuracy: Float,
+        questionCount: Int,
+        imageHash: String? = nil,
+        correctCount: Int? = nil,
+        incorrectCount: Int? = nil,
+        totalPoints: Float? = nil,
+        maxPoints: Float? = nil,
+        rawQuestions: [String]? = nil
+    ) {
+        self.id = id
+        self.imageFileName = imageFileName
+        self.thumbnailFileName = thumbnailFileName
+        self.submittedDate = submittedDate
+        self.subject = subject
+        self.accuracy = accuracy
+        self.questionCount = questionCount
+        self.imageHash = imageHash
+        self.correctCount = correctCount
+        self.incorrectCount = incorrectCount
+        self.totalPoints = totalPoints
+        self.maxPoints = maxPoints
+        self.rawQuestions = rawQuestions
+    }
 
     var accuracyPercentage: String {
         return String(format: "%.0f%%", accuracy * 100)

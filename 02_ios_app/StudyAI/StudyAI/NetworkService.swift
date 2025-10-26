@@ -870,96 +870,124 @@ class NetworkService: ObservableObject {
         }
     }
     
-    func sendSessionMessage(sessionId: String, message: String) async -> (success: Bool, aiResponse: String?, tokensUsed: Int?, compressed: Bool?) {
+    func sendSessionMessage(sessionId: String, message: String) async -> (success: Bool, aiResponse: String?, suggestions: [FollowUpSuggestion]?, tokensUsed: Int?, compressed: Bool?) {
         // Check authentication first - use unified auth system
         guard AuthenticationService.shared.getAuthToken() != nil else {
             print("❌ Authentication required to send messages")
-            return (false, nil, nil, nil)
+            return (false, nil, nil, nil, nil)
         }
-        
+
         print("💬 Sending message to session...")
         print("🆔 Session ID: \(sessionId.prefix(8))...")
         print("📝 Message: \(message.prefix(100))...")
-        
+
         let messageURL = "\(baseURL)/api/ai/sessions/\(sessionId)/message"
         print("🔗 Message URL: \(messageURL)")
-        
+
         guard let url = URL(string: messageURL) else {
             print("❌ Invalid message URL")
-            return (false, nil, nil, nil)
+            return (false, nil, nil, nil, nil)
         }
-        
+
         let messageData = ["message": message]
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 90.0 // Extended timeout for AI processing
-        
+
         // Add authentication header
         addAuthHeader(to: &request)
-        
+
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: messageData)
-            
+
             print("📡 Sending session message...")
             let (data, response) = try await URLSession.shared.data(for: request)
-            
+
             if let httpResponse = response as? HTTPURLResponse {
                 print("✅ Session Message Response Status: \(httpResponse.statusCode)")
-                
+
                 if httpResponse.statusCode == 200 {
                     // Log raw response for debugging
                     let rawResponseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
                     print("🔍 === RAW AI ENDPOINT RESPONSE ===")
                     print("📡 Full Raw Response: \(rawResponseString)")
                     print("=====================================")
-                    
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let aiResponse = json["ai_response"] as? String {
-                        
-                        print("🎉 === SESSION MESSAGE SUCCESS ===")
-                        print("🤖 Raw AI Response: '\(aiResponse)'")
-                        print("📏 AI Response Length: \(aiResponse.count) characters")
-                        print("🔍 Response Preview: \(String(aiResponse.prefix(200)))...")
-                        
-                        let tokensUsed = json["tokens_used"] as? Int
-                        let compressed = json["compressed"] as? Bool
-                        
-                        print("📊 Tokens Used: \(tokensUsed ?? 0)")
-                        print("🗜️ Context Compressed: \(compressed ?? false)")
-                        
-                        // Update conversation history - only add AI response since user message was already added optimistically
-                        await MainActor.run {
-                            self.addToConversationHistory(role: "assistant", content: aiResponse)
-                            
-                            // Additional debug for conversation history update
-                            print("📚 === CONVERSATION HISTORY UPDATE ===")
-                            print("👤 User Message Already Added: '\(message)' (optimistic update)")
-                            print("🤖 AI Message Added: '\(aiResponse)'")
-                            print("📈 Total Messages in History: \(self.conversationHistory.count)")
-                            print("=====================================")
+
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        // Try parsing as new structured format first
+                        var aiResponse: String?
+                        var suggestions: [FollowUpSuggestion]? = nil
+                        var tokensUsed: Int?
+                        var compressed: Bool?
+
+                        // Check if response has new structured format
+                        if let textBody = json["text_body"] as? String {
+                            // New structured format
+                            aiResponse = textBody
+                            tokensUsed = json["tokens_used"] as? Int
+                            compressed = json["compressed"] as? Bool
+
+                            // Parse follow-up suggestions
+                            if let suggestionsArray = json["follow_up_suggestions"] as? [[String: String]] {
+                                suggestions = suggestionsArray.compactMap { suggestionDict in
+                                    guard let key = suggestionDict["key"],
+                                          let value = suggestionDict["value"] else {
+                                        return nil
+                                    }
+                                    return FollowUpSuggestion(key: key, value: value)
+                                }
+                                print("✨ Parsed \(suggestions?.count ?? 0) AI-generated suggestions")
+                            }
+                        } else if let oldFormatResponse = json["ai_response"] as? String {
+                            // Legacy format fallback
+                            aiResponse = oldFormatResponse
+                            tokensUsed = json["tokens_used"] as? Int
+                            compressed = json["compressed"] as? Bool
+                            print("⚠️ Using legacy response format (no suggestions)")
                         }
-                        
-                        return (true, aiResponse, tokensUsed, compressed)
+
+                        if let aiResponse = aiResponse {
+                            print("🎉 === SESSION MESSAGE SUCCESS ===")
+                            print("🤖 Raw AI Response: '\(aiResponse)'")
+                            print("📏 AI Response Length: \(aiResponse.count) characters")
+                            print("🔍 Response Preview: \(String(aiResponse.prefix(200)))...")
+                            print("📊 Tokens Used: \(tokensUsed ?? 0)")
+                            print("🗜️ Context Compressed: \(compressed ?? false)")
+
+                            // Update conversation history - only add AI response since user message was already added optimistically
+                            await MainActor.run {
+                                self.addToConversationHistory(role: "assistant", content: aiResponse)
+
+                                // Additional debug for conversation history update
+                                print("📚 === CONVERSATION HISTORY UPDATE ===")
+                                print("👤 User Message Already Added: '\(message)' (optimistic update)")
+                                print("🤖 AI Message Added: '\(aiResponse)'")
+                                print("📈 Total Messages in History: \(self.conversationHistory.count)")
+                                print("=====================================")
+                            }
+
+                            return (true, aiResponse, suggestions, tokensUsed, compressed)
+                        }
                     }
                 } else if httpResponse.statusCode == 401 {
                     // Authentication failed - let AuthenticationService handle it
                     print("❌ Authentication expired in sendSessionMessage")
-                    return (false, "Authentication expired", nil, nil)
+                    return (false, "Authentication expired", nil, nil, nil)
                 } else if httpResponse.statusCode == 403 {
-                    return (false, "Access denied - session belongs to different user", nil, nil)
+                    return (false, "Access denied - session belongs to different user", nil, nil, nil)
                 }
-                
+
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
                 print("❌ Session Message HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
-                return (false, nil, nil, nil)
+                return (false, nil, nil, nil, nil)
             }
-            
-            return (false, nil, nil, nil)
+
+            return (false, nil, nil, nil, nil)
         } catch {
             print("❌ Session message failed: \(error.localizedDescription)")
-            return (false, nil, nil, nil)
+            return (false, nil, nil, nil, nil)
         }
     }
 
@@ -970,6 +998,7 @@ class NetworkService: ObservableObject {
     ///   - sessionId: The session ID
     ///   - message: The user message
     ///   - onChunk: Callback for each streaming chunk (delta text)
+    ///   - onSuggestions: Callback when AI-generated follow-up suggestions arrive
     ///   - onComplete: Callback when streaming is complete (full text, tokens, compressed)
     /// - Returns: Success status
     @MainActor
@@ -977,6 +1006,7 @@ class NetworkService: ObservableObject {
         sessionId: String,
         message: String,
         onChunk: @escaping (String) -> Void,  // Called with accumulated text
+        onSuggestions: @escaping ([FollowUpSuggestion]) -> Void,  // Called when suggestions arrive
         onComplete: @escaping (Bool, String?, Int?, Bool?) -> Void  // (success, fullText, tokens, compressed)
     ) async -> Bool {
 
@@ -1071,15 +1101,33 @@ class NetworkService: ObservableObject {
                                             onChunk(accumulatedText)
                                         }
 
+                                        // Check for AI-generated suggestions in content events
+                                        if let suggestions = event.suggestions, !suggestions.isEmpty {
+                                            print("✨ Received \(suggestions.count) AI-generated suggestions")
+                                            await MainActor.run {
+                                                onSuggestions(suggestions)
+                                            }
+                                        }
+
                                     case "end":
                                         print("\n✅ Stream complete!")
                                         print("📊 Final text length: \(accumulatedText.count) chars")
 
-                                        // Add to conversation history
-                                        await MainActor.run {
-                                            self.addToConversationHistory(role: "assistant", content: accumulatedText)
-                                            print("📚 Added AI response to conversation history")
+                                        // Check for AI-generated suggestions in end event
+                                        if let suggestions = event.suggestions, !suggestions.isEmpty {
+                                            print("✨ Received \(suggestions.count) AI-generated suggestions at stream end")
+                                            await MainActor.run {
+                                                onSuggestions(suggestions)
+                                            }
                                         }
+
+                                        // ✅ FIX: Don't add to conversation history here
+                                        // SessionChatView already adds it during streaming (onChunk callback)
+                                        // Adding here would create duplicate messages
+                                        // await MainActor.run {
+                                        //     self.addToConversationHistory(role: "assistant", content: accumulatedText)
+                                        //     print("📚 Added AI response to conversation history")
+                                        // }
 
                                         // Call completion callback
                                         await MainActor.run {
@@ -1133,6 +1181,35 @@ class NetworkService: ObservableObject {
         let error: String?
         let finish_reason: String?
         let timestamp: String?
+        let suggestions: [FollowUpSuggestion]?  // NEW: AI-generated suggestions
+    }
+
+    // MARK: - AI Response Models
+
+    /// Structured AI response with follow-up suggestions
+    struct StructuredAIResponse: Codable {
+        let textBody: String
+        let followUpSuggestions: [FollowUpSuggestion]
+        let tokensUsed: Int?
+        let compressed: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case textBody = "text_body"
+            case followUpSuggestions = "follow_up_suggestions"
+            case tokensUsed = "tokens_used"
+            case compressed
+        }
+    }
+
+    /// Follow-up suggestion with key (button label) and value (full prompt)
+    struct FollowUpSuggestion: Codable, Identifiable {
+        let id = UUID()
+        let key: String    // Short label for button (e.g., "Show examples")
+        let value: String  // Full prompt to send (e.g., "Can you give me concrete examples?")
+
+        enum CodingKeys: String, CodingKey {
+            case key, value
+        }
     }
 
     // MARK: - Homework Follow-up with Grade Correction

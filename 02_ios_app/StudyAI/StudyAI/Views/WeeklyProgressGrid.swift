@@ -8,11 +8,59 @@
 import SwiftUI
 
 struct WeeklyProgressGrid: View {
-    @State private var weeklyActivities: [DailyQuestionActivity] = []
-    @State private var isLoading = false
+    @ObservedObject private var pointsManager = PointsEarningManager.shared
     @State private var showingDebugInfo = false
 
     private let viewId = UUID().uuidString.prefix(8)
+
+    // ✅ Computed property - generate full week (7 days) and populate with data from thisWeekProgress
+    private var weeklyActivities: [DailyQuestionActivity] {
+        let calendar = Calendar.current
+        let timezone = TimeZone.current.identifier
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.timeZone = TimeZone.current
+
+        let now = Date()
+
+        // Get the start of the current week (Monday)
+        let weekday = calendar.component(.weekday, from: now)
+        let daysFromMonday = (weekday == 1) ? -6 : (2 - weekday) // If Sunday, go back 6 days; otherwise go to Monday
+        guard let mondayThisWeek = calendar.date(byAdding: .day, value: daysFromMonday, to: now) else {
+            return []
+        }
+        let startOfWeek = calendar.startOfDay(for: mondayThisWeek)
+
+        // Create a dictionary for quick lookup of existing progress data
+        let progressByDate = Dictionary(uniqueKeysWithValues: pointsManager.thisWeekProgress.map { ($0.date, $0) })
+
+        // Generate all 7 days of the week (Monday to Sunday)
+        var activities: [DailyQuestionActivity] = []
+
+        for dayOffset in 0..<7 {
+            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: startOfWeek) else { continue }
+            let dateString = dateFormatter.string(from: date)
+
+            // Get weekday (1 = Sunday, 2 = Monday, ...)
+            let weekday = calendar.component(.weekday, from: date)
+            // Convert to Monday-first (1 = Mon, 7 = Sun)
+            let dayOfWeek = weekday == 1 ? 7 : weekday - 1
+
+            // Check if we have data for this day
+            let questionCount = progressByDate[dateString]?.totalQuestions ?? 0
+
+            let activity = DailyQuestionActivity(
+                date: dateString,
+                dayOfWeek: dayOfWeek,
+                questionCount: questionCount,
+                timezone: timezone
+            )
+
+            activities.append(activity)
+        }
+
+        return activities
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -30,42 +78,14 @@ struct WeeklyProgressGrid: View {
                 if ProcessInfo.processInfo.environment["DEBUG"] == "1" || showingDebugInfo {
                     debugSection(weeklyActivities)
                 }
-            } else if isLoading {
-                // Loading state
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding()
             } else {
                 // Empty state
                 emptyState
             }
         }
-        .onAppear {
-            // Load weekly activity from local storage
-            Task {
-                await loadWeeklyActivity()
-            }
-        }
         .onTapGesture(count: 3) {
             // Triple tap to show debug info
             showingDebugInfo.toggle()
-        }
-    }
-
-    // MARK: - Data Loading
-
-    private func loadWeeklyActivity() async {
-        await MainActor.run {
-            isLoading = true
-        }
-
-        // ✅ Use LocalProgressService to calculate weekly activity from local storage
-        let localProgressService = LocalProgressService.shared
-        let activities = await localProgressService.calculateWeeklyActivity()
-
-        await MainActor.run {
-            weeklyActivities = activities
-            isLoading = false
         }
     }
 

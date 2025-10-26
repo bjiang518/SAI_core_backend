@@ -263,10 +263,6 @@ struct UnifiedLibraryView: View {
                             }
                         }
 
-                        Button(NSLocalizedString("library.debugInfo", comment: "")) {
-                            userSession.printCurrentState()
-                        }
-
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }

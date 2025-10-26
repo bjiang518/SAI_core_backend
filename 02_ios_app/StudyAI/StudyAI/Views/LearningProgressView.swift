@@ -101,51 +101,6 @@ struct LearningProgressView: View {
         .navigationTitle(NSLocalizedString("progress.title", comment: "Progress tab title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Menu {
-                    Button(selectedSubjectFilter?.displayName ?? NSLocalizedString("progress.allSubjects", comment: "All subjects filter option")) {}
-                        .disabled(true)
-
-                    Divider()
-
-                    Button(NSLocalizedString("progress.allSubjects", comment: "All subjects filter option")) {
-                        selectedSubjectFilter = nil
-                        loadingTask?.cancel()
-                        loadingTask = Task {
-                            await loadSubjectBreakdown()
-                        }
-                    }
-
-                    ForEach(SubjectCategory.allCases, id: \.self) { subject in
-                        Button(action: {
-                            selectedSubjectFilter = subject
-                            loadingTask?.cancel()
-                            loadingTask = Task {
-                                await loadSubjectBreakdown()
-                            }
-                        }) {
-                            HStack {
-                                Image(systemName: subject.icon)
-                                Text(subject.displayName)
-                                if selectedSubjectFilter == subject {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                        if let filter = selectedSubjectFilter {
-                            Text(filter.displayName)
-                                .font(.caption)
-                        }
-                    }
-                    .foregroundColor(.blue)
-                }
-            }
-
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     ForEach(TimeframeOption.allCases, id: \.self) { option in
@@ -1313,17 +1268,6 @@ enum TimeframeOption: String, CaseIterable {
 
 struct MonthlyProgressGrid: View {
     @ObservedObject private var pointsManager = PointsEarningManager.shared
-    @StateObject private var networkService = NetworkService.shared
-    @State private var monthlyActivities: [DailyActivity] = []
-    @State private var isLoading = false
-
-    // Get actual user ID from authentication service
-    private var userId: String {
-        if let user = AuthenticationService.shared.currentUser {
-            return user.id
-        }
-        return "guest_user"
-    }
 
     private let calendar = Calendar.current
     private let dateFormatter: DateFormatter = {
@@ -1332,14 +1276,21 @@ struct MonthlyProgressGrid: View {
         return formatter
     }()
 
+    // ✅ Computed property - convert thisMonthProgress to DailyActivity format
+    private var monthlyActivities: [DailyActivity] {
+        return pointsManager.thisMonthProgress.map { dailyProgress in
+            DailyActivity(
+                date: dailyProgress.date,
+                questionCount: dailyProgress.totalQuestions
+            )
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             monthHeader
             monthlyCalendarGrid
             activityLegend
-        }
-        .onAppear {
-            loadMonthlyData()
         }
     }
 
@@ -1478,75 +1429,9 @@ struct MonthlyProgressGrid: View {
 
     // MARK: - Helper Methods
 
-    private func loadMonthlyData() {
-        // ✅ Calculate from LOCAL storage only (no server fetch)
-        // This ensures the monthly calendar shows data consistent with local question history
-        print("📅 Monthly: Calculating from local storage...")
-        Task {
-            await calculateMonthlyDataFromLocal()
-        }
-    }
-
-    private func calculateMonthlyDataFromLocal() async {
-        let currentMonth = Date() // Fetch current month data
-        let components = calendar.dateComponents([.year, .month], from: currentMonth)
-
-        guard let year = components.year, let month = components.month else {
-            print("📅 Monthly: Failed to get year/month components")
-            return
-        }
-
-        print("📅 Monthly: Calculating data for \(year)-\(month) from local storage")
-
-        // ✅ Use LocalProgressService instead of NetworkService
-        let localProgressService = LocalProgressService.shared
-        let activities = await localProgressService.calculateMonthlyActivity(year: year, month: month)
-
-        print("📅 Monthly: Local calculation returned \(activities.count) days")
-
-        await MainActor.run {
-            monthlyActivities = activities
-        }
-    }
-
     private func getActivityForDay(_ date: Date) -> DailyActivity? {
         let dateString = dateFormatter.string(from: date)
         return monthlyActivities.first { $0.date == dateString }
-    }
-
-    private func generateRealMonthlyData() -> [DailyActivity] {
-        var activities: [DailyActivity] = []
-        let currentMonth = Date() // Use current month, not last month
-
-        guard let monthInterval = calendar.dateInterval(of: .month, for: currentMonth) else {
-            return activities
-        }
-
-        // ✅ FIX: Use counter-based thisMonthProgress instead of removed weeklyProgressHistory
-        // Collect all daily activities from this month's progress
-        var allDailyActivities: [String: Int] = [:] // date -> questionCount
-
-        // Add this month's counter-based progress data
-        for dailyProgress in pointsManager.thisMonthProgress {
-            allDailyActivities[dailyProgress.date] = dailyProgress.totalQuestions
-        }
-
-        // Filter activities that fall within the target month
-        var currentDate = monthInterval.start
-        while currentDate < monthInterval.end {
-            let dateString = dateFormatter.string(from: currentDate)
-
-            if let questionCount = allDailyActivities[dateString], questionCount > 0 {
-                activities.append(DailyActivity(
-                    date: dateString,
-                    questionCount: questionCount
-                ))
-            }
-
-            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
-        }
-
-        return activities
     }
 }
 

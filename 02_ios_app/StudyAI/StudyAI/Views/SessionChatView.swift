@@ -75,28 +75,22 @@ struct VoiceInputButton: View {
     private func toggleRecording() {
         if isRecording {
             // Stop recording
-            print("🎙️ VoiceInputButton: Stopping speech recognition")
             speechService.stopListening()
             isRecording = false
             onVoiceEnd()
         } else {
             // Start recording
-            print("🎙️ VoiceInputButton: Starting speech recognition")
             isRecording = true
             onVoiceStart()
-            
+
             speechService.startListening { result in
-                print("🎙️ VoiceInputButton: Received result: '\(result.recognizedText)'")
-                
                 DispatchQueue.main.async {
                     self.isRecording = false
                     self.onVoiceEnd()
-                    
+
                     // Only send non-empty results
                     if !result.recognizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         self.onVoiceInput(result.recognizedText)
-                    } else {
-                        print("🎙️ VoiceInputButton: Empty recognition result, not sending")
                     }
                 }
             }
@@ -323,8 +317,6 @@ struct MessageVoiceControls: View {
     private func startSpeaking() {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
-        print("🔊 MessageVoiceControls: Starting TTS for message: \(messageId)")
-
         // Set this message as the current speaking message
         voiceService.setCurrentSpeakingMessage(messageId)
 
@@ -333,7 +325,6 @@ struct MessageVoiceControls: View {
     }
 
     private func stopSpeaking() {
-        print("🔊 MessageVoiceControls: Stopping TTS for message: \(messageId)")
         voiceService.stopSpeech()
     }
 }
@@ -399,6 +390,10 @@ struct SessionChatView: View {
     @State private var showingGradeCorrectionAlert = false
     @State private var detectedGradeCorrection: NetworkService.GradeCorrectionData?
     @State private var pendingGradeCorrectionResponse: String?
+
+    // AI-generated follow-up suggestions
+    @State private var aiGeneratedSuggestions: [NetworkService.FollowUpSuggestion] = []
+    @State private var isStreamingComplete = true  // Track if AI response streaming is complete
 
     private var subjects: [String] {
         [
@@ -741,9 +736,15 @@ struct SessionChatView: View {
     private var modernMessageInputView: some View {
         VStack(spacing: 12) {
             // Conversation continuation buttons (like ChatGPT)
+            // ✅ Only show when streaming is complete AND there's an assistant message
             if !networkService.conversationHistory.isEmpty &&
-               networkService.conversationHistory.last?["role"] == "assistant" {
+               networkService.conversationHistory.last?["role"] == "assistant" &&
+               isStreamingComplete {
                 conversationContinuationButtons
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.8).combined(with: .opacity).combined(with: .move(edge: .bottom)),
+                        removal: .opacity
+                    ))
             }
 
             // WeChat-style voice input or text input
@@ -837,16 +838,29 @@ struct SessionChatView: View {
     
     private var conversationContinuationButtons: some View {
         let lastMessage = networkService.conversationHistory.last?["content"] ?? ""
-        let contextButtons = generateContextualButtons(for: lastMessage)
-        
+
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(contextButtons, id: \.self) { buttonTitle in
-                    Button(buttonTitle) {
-                        messageText = generateContextualPrompt(for: buttonTitle, lastMessage: lastMessage)
-                        sendMessage()
+                // ✨ PRIORITY: Display AI-generated suggestions if available
+                if !aiGeneratedSuggestions.isEmpty {
+                    ForEach(aiGeneratedSuggestions, id: \.id) { suggestion in
+                        Button(suggestion.key) {
+                            // Use the full prompt from AI suggestions
+                            messageText = suggestion.value
+                            sendMessage()
+                        }
+                        .modernButtonStyle()
                     }
-                    .modernButtonStyle()
+                } else {
+                    // Fallback to manually-generated contextual buttons
+                    let contextButtons = generateContextualButtons(for: lastMessage)
+                    ForEach(contextButtons, id: \.self) { buttonTitle in
+                        Button(buttonTitle) {
+                            messageText = generateContextualPrompt(for: buttonTitle, lastMessage: lastMessage)
+                            sendMessage()
+                        }
+                        .modernButtonStyle()
+                    }
                 }
             }
             .padding(.horizontal, 20)
@@ -1510,7 +1524,6 @@ struct SessionChatView: View {
         addToHistory: Bool = true
     ) {
         guard let sessionId = networkService.currentSessionId else {
-            print("⚠️ No session ID, cannot persist message")
             return
         }
 
@@ -1536,8 +1549,6 @@ struct SessionChatView: View {
         )
 
         messageManager.saveMessage(persistedMsg)
-
-        print("💾 Persisted \(role) message (ID: \(messageId)): \(content.prefix(50))...")
     }
 
     /// Sync conversationHistory from SwiftData before archiving
@@ -1550,11 +1561,6 @@ struct SessionChatView: View {
 
         // Check for mismatch
         if persistedMessages.count != networkService.conversationHistory.count {
-            print("⚠️ MISMATCH DETECTED!")
-            print("   SwiftData: \(persistedMessages.count) messages")
-            print("   conversationHistory: \(networkService.conversationHistory.count) messages")
-            print("   🔄 Syncing from SwiftData (source of truth)...")
-
             // Rebuild conversationHistory from SwiftData
             networkService.conversationHistory = persistedMessages
                 .sorted { $0.timestamp < $1.timestamp }
@@ -1569,10 +1575,6 @@ struct SessionChatView: View {
                     }
                     return dict
                 }
-
-            print("✅ Sync complete: conversationHistory now has \(networkService.conversationHistory.count) messages")
-        } else {
-            print("✅ conversationHistory and SwiftData are in sync (\(networkService.conversationHistory.count) messages)")
         }
     }
 
@@ -1592,7 +1594,11 @@ struct SessionChatView: View {
         isSubmitting = true
         errorMessage = ""
         isMessageInputFocused = false
-        
+
+        // ✅ Hide follow-up suggestions when starting new message
+        aiGeneratedSuggestions = []
+        isStreamingComplete = false
+
         // Check if we have a session
         if let sessionId = networkService.currentSessionId {
             // For existing session: Add user message immediately (consistent with NetworkService behavior)
@@ -1627,10 +1633,6 @@ struct SessionChatView: View {
         Task {
             // 🔍 CHECK FOR HOMEWORK CONTEXT (for grade correction support)
             if let homeworkContext = appState.pendingHomeworkContext {
-                print("📚 === HOMEWORK FOLLOW-UP DETECTED ===" )
-                print("📋 Question Context: Q#\(homeworkContext.questionNumber ?? 0)")
-                print("📊 Current Grade: \(homeworkContext.currentGrade ?? "N/A")")
-
                 // Use HOMEWORK FOLLOW-UP endpoint (non-streaming, includes grade validation)
                 let result = await networkService.sendHomeworkFollowupMessage(
                     sessionId: sessionId,
@@ -1643,17 +1645,11 @@ struct SessionChatView: View {
                     showTypingIndicator = false
 
                     if result.success, let aiResponse = result.aiResponse {
-                        print("✅ Homework follow-up successful")
-
                         // ✅ PERSIST: Save AI response to SwiftData
                         persistMessage(role: "assistant", content: aiResponse, addToHistory: false)
 
                         // Check for grade correction
                         if let gradeCorrection = result.gradeCorrection {
-                            print("🔄 === GRADE CORRECTION DETECTED ===")
-                            print("📊 \(gradeCorrection.originalGrade) → \(gradeCorrection.correctedGrade)")
-                            print("💡 Reason: \(gradeCorrection.reason)")
-
                             // Store correction data and show confirmation dialog
                             detectedGradeCorrection = gradeCorrection
                             pendingGradeCorrectionResponse = aiResponse
@@ -1690,8 +1686,6 @@ struct SessionChatView: View {
             // 🔵 REGULAR SESSION MESSAGE PATH (no homework context)
             if useStreaming {
                 // 🟢 Use STREAMING endpoint
-                print("🚀 Using STREAMING mode")
-
                 _ = await networkService.sendSessionMessageStreaming(
                     sessionId: sessionId,
                     message: message,
@@ -1714,12 +1708,21 @@ struct SessionChatView: View {
                             refreshTrigger = UUID()
                         }
                     },
+                    onSuggestions: { suggestions in
+                        Task { @MainActor in
+                            aiGeneratedSuggestions = suggestions
+                        }
+                    },
                     onComplete: { success, fullText, tokens, compressed in
                         Task { @MainActor in
                             if success {
-                                print("✅ Streaming complete!")
                                 isSubmitting = false
                                 showTypingIndicator = false
+
+                                // ✅ Show follow-up suggestions after streaming completes
+                                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                                    isStreamingComplete = true
+                                }
 
                                 // ✅ PERSIST: Save AI response to SwiftData
                                 // Note: Message already added to conversationHistory during streaming
@@ -1729,8 +1732,6 @@ struct SessionChatView: View {
 
                                 // Final update is already in conversation history from streaming
                             } else {
-                                print("❌ Streaming failed - automatically falling back to non-streaming mode")
-
                                 // Remove failed streaming message if present
                                 if let lastMessage = networkService.conversationHistory.last,
                                    lastMessage["role"] == "assistant" {
@@ -1738,8 +1739,6 @@ struct SessionChatView: View {
                                 }
 
                                 // 🔄 AUTOMATIC FALLBACK: Retry with non-streaming endpoint
-                                print("🔄 Retrying with NON-STREAMING mode...")
-
                                 let fallbackResult = await networkService.sendSessionMessage(
                                     sessionId: sessionId,
                                     message: message
@@ -1754,8 +1753,6 @@ struct SessionChatView: View {
                 )
             } else {
                 // 🔵 Use NON-STREAMING endpoint (original behavior)
-                print("🔵 Using NON-STREAMING mode")
-
                 let result = await networkService.sendSessionMessage(
                     sessionId: sessionId,
                     message: message
@@ -1782,8 +1779,6 @@ struct SessionChatView: View {
 
                 if useStreaming {
                     // 🟢 Use STREAMING endpoint
-                    print("🚀 Using STREAMING mode for first message")
-
                     _ = await networkService.sendSessionMessageStreaming(
                         sessionId: sessionId,
                         message: message,
@@ -1801,10 +1796,14 @@ struct SessionChatView: View {
                                 refreshTrigger = UUID()
                             }
                         },
+                        onSuggestions: { suggestions in
+                            Task { @MainActor in
+                                aiGeneratedSuggestions = suggestions
+                            }
+                        },
                         onComplete: { success, fullText, tokens, compressed in
                             Task { @MainActor in
                                 if success {
-                                    print("✅ Streaming complete!")
                                     isSubmitting = false
                                     showTypingIndicator = false
 
@@ -1814,8 +1813,6 @@ struct SessionChatView: View {
                                         persistMessage(role: "assistant", content: fullText, addToHistory: false)
                                     }
                                 } else {
-                                    print("❌ Streaming failed - automatically falling back to non-streaming mode")
-
                                     // Remove failed streaming message if present
                                     if let lastMessage = networkService.conversationHistory.last,
                                        lastMessage["role"] == "assistant" {
@@ -1823,8 +1820,6 @@ struct SessionChatView: View {
                                     }
 
                                     // 🔄 AUTOMATIC FALLBACK: Retry with non-streaming endpoint
-                                    print("🔄 Retrying with NON-STREAMING mode...")
-
                                     let fallbackResult = await networkService.sendSessionMessage(
                                         sessionId: sessionId,
                                         message: message
@@ -1869,10 +1864,10 @@ struct SessionChatView: View {
         }
     }
     
-    private func handleSendMessageResult(_ result: (success: Bool, aiResponse: String?, tokensUsed: Int?, compressed: Bool?), originalMessage: String) {
+    private func handleSendMessageResult(_ result: (success: Bool, aiResponse: String?, suggestions: [NetworkService.FollowUpSuggestion]?, tokensUsed: Int?, compressed: Bool?), originalMessage: String) {
         isSubmitting = false
         showTypingIndicator = false
-        
+
         if result.success {
             // Message sent successfully - NetworkService already added both messages to history
             // Force UI refresh to ensure new messages are displayed
@@ -1882,6 +1877,11 @@ struct SessionChatView: View {
             // Note: Message already added to conversationHistory by NetworkService
             if let aiResponse = result.aiResponse {
                 persistMessage(role: "assistant", content: aiResponse, addToHistory: false)
+            }
+
+            // Store AI-generated suggestions if available
+            if let suggestions = result.suggestions, !suggestions.isEmpty {
+                aiGeneratedSuggestions = suggestions
             }
 
             // Track progress for this question using new points system
@@ -1924,17 +1924,18 @@ struct SessionChatView: View {
     
     private func handleVoiceInput(_ recognizedText: String) {
         guard !recognizedText.isEmpty else {
-            print("💬 SessionChatView: Voice input is empty, not sending")
             return
         }
-        
+
         // Set the message text and trigger send
         messageText = recognizedText
-        print("💬 SessionChatView: Sending message with voice input")
         sendMessage()
     }
     
     private func startNewSession() {
+        // Clear AI-generated suggestions when starting new session
+        aiGeneratedSuggestions = []
+
         Task {
             let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
 
@@ -2273,20 +2274,14 @@ struct SessionChatView: View {
         // Progress is only tracked when user grades homework and clicks "Mark Progress"
 
         // No-op: Chat interactions don't affect daily counters
-        print("💬 [Chat] Interaction logged (chat sessions don't update progress counters)")
     }
 
     // MARK: - Grade Correction System
 
     /// Apply grade correction by posting notification to HomeworkResultsView
     private func applyGradeCorrection(_ gradeCorrection: NetworkService.GradeCorrectionData) {
-        print("🔄 === APPLYING GRADE CORRECTION ===")
-        print("📊 Grade: \(gradeCorrection.originalGrade) → \(gradeCorrection.correctedGrade)")
-        print("🎯 Points: \(gradeCorrection.newPointsEarned) / \(gradeCorrection.pointsPossible)")
-
         // Get homework context for identifying which question to update
         guard let homeworkContext = appState.pendingHomeworkContext else {
-            print("❌ No homework context available for grade correction")
             return
         }
 
@@ -2306,8 +2301,6 @@ struct SessionChatView: View {
             object: nil,
             userInfo: userInfo
         )
-
-        print("✅ Grade correction notification posted successfully")
 
         // Show success message to user
         errorMessage = "✅ Grade updated to \(gradeCorrection.correctedGrade) with \(String(format: "%.1f", gradeCorrection.newPointsEarned)) points"
@@ -2378,13 +2371,6 @@ struct MessageBubbleView: View {
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
-                .onAppear {
-                    print("🎨 === MESSAGE RENDERING DEBUG ===")
-
-                    print("📏 Content length: \(rawContent.count)")
-                    print("🧮 Using MathFormattedText for proper LaTeX rendering")
-                    print("==========================================")
-                }
         }
         .padding(12)
         .background(isUser ? Color.green.opacity(0.15) : Color.blue.opacity(0.15))  // Updated colors
@@ -2549,8 +2535,6 @@ struct ModernAIMessageView: View {
     private func startSpeaking() {
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
-        print("🔊 ModernAIMessageView: Starting TTS for message: \(messageId)")
-
         // Set this message as the current speaking message
         voiceService.setCurrentSpeakingMessage("modern-ai-\(message.hashValue)")
 
@@ -2559,7 +2543,6 @@ struct ModernAIMessageView: View {
     }
 
     private func stopSpeaking() {
-        print("🔊 ModernAIMessageView: Stopping TTS for message: \(messageId)")
         voiceService.stopSpeech()
     }
 
@@ -2733,15 +2716,18 @@ extension View {
     func modernButtonStyle() -> some View {
         self
             .font(.system(size: 14, weight: .medium))
-            .foregroundColor(.primary)
+            .foregroundColor(.white)  // White text for better contrast
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color.primary.opacity(0.1))
+            .background(
+                LinearGradient(
+                    colors: [Color.blue.opacity(0.8), Color.blue.opacity(0.6)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )  // Blue gradient background - more distinct than grey
             .cornerRadius(20)
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.primary.opacity(0.2), lineWidth: 1)
-            )
+            .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)  // Add subtle shadow
     }
 }
 
@@ -3363,74 +3349,67 @@ struct WeChatStyleVoiceInput: View {
     
     private func startRecording() {
         guard speechService.isAvailable() else { return }
-        
-        print("🎙️ WeChat Voice: Starting recording")
+
         isRecording = true
         recordingStartTime = Date()
         recordingDuration = 0
-        
+
         // Start recording timer
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             if let startTime = recordingStartTime {
                 recordingDuration = Date().timeIntervalSince(startTime)
             }
         }
-        
+
         // Haptic feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
-        
+
         // Start speech recognition
         speechService.startListening { result in
             // Handle result when recording stops
         }
     }
-    
+
     private func stopRecordingAndSend() {
         guard isRecording else { return }
-        
-        print("🎙️ WeChat Voice: Stopping recording and sending")
-        
+
         // Stop recording
         speechService.stopListening()
         recordingTimer?.invalidate()
         recordingTimer = nil
-        
+
         // Get the recognized text
         let recognizedText = speechService.getLastRecognizedText()
-        
+
         // Reset state
         isRecording = false
         recordingStartTime = nil
         recordingDuration = 0
-        
+
         // Haptic feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
-        
+
         // Send the voice input if not empty
         if !recognizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             onVoiceInput(recognizedText)
-        } else {
-            print("🎙️ WeChat Voice: Empty recognition result, not sending")
         }
     }
-    
+
     private func cancelRecording() {
         guard isRecording else { return }
-        
-        print("🎙️ WeChat Voice: Canceling recording")
-        
+
         // Stop recording
         speechService.stopListening()
         recordingTimer?.invalidate()
         recordingTimer = nil
-        
+
         // Reset state
         isRecording = false
         recordingStartTime = nil
         recordingDuration = 0
-        
+
         // Haptic feedback
         let notificationFeedback = UINotificationFeedbackGenerator()
         notificationFeedback.notificationOccurred(.warning)

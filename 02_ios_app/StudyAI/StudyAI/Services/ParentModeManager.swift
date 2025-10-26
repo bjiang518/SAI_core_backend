@@ -10,21 +10,57 @@ import SwiftUI
 import Combine
 import os.log
 
+/// Protected features that can require parent authentication
+enum ProtectedFeature: String, CaseIterable, Codable, Hashable {
+    case chatFunction = "chat"
+    case homeworkGrader = "grader"
+    case parentReports = "reports"
+
+    var displayName: String {
+        switch self {
+        case .chatFunction: return "Chat Function"
+        case .homeworkGrader: return "Homework Grader"
+        case .parentReports: return "Parent Report"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .chatFunction: return "message.fill"
+        case .homeworkGrader: return "camera.fill"
+        case .parentReports: return "figure.2.and.child.holdinghands"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .chatFunction: return "AI chat conversations"
+        case .homeworkGrader: return "Scan and grade homework"
+        case .parentReports: return "View progress reports"
+        }
+    }
+}
+
 /// Manages parent mode authentication and password storage
 class ParentModeManager: ObservableObject {
     static let shared = ParentModeManager()
 
     @Published var isParentModeEnabled: Bool = false
     @Published var isParentAuthenticated: Bool = false
+    @Published var protectedFeatures: Set<ProtectedFeature> = []
 
     private let logger = Logger(subsystem: "com.studyai", category: "ParentModeManager")
+    private let biometricAuth = BiometricAuthService.shared
 
     // UserDefaults keys
     private let parentPasswordKey = "parent_password"
     private let parentModeEnabledKey = "parent_mode_enabled"
+    private let protectedFeaturesKey = "parent_protected_features"
+    private let parentFaceIDEnabledKey = "parent_faceid_enabled"
 
     private init() {
         loadParentModeStatus()
+        loadProtectedFeatures()
     }
 
     // MARK: - Parent Mode Status
@@ -119,5 +155,148 @@ class ParentModeManager: ObservableObject {
     /// Check if parent authentication is required for a feature
     func requiresParentAuthentication() -> Bool {
         return isParentModeEnabled && !isParentAuthenticated
+    }
+
+    // MARK: - Feature Protection Management
+
+    /// Load protected features from storage
+    func loadProtectedFeatures() {
+        if let data = UserDefaults.standard.data(forKey: protectedFeaturesKey),
+           let features = try? JSONDecoder().decode(Set<ProtectedFeature>.self, from: data) {
+            protectedFeatures = features
+            logger.info("📱 Loaded \(features.count) protected features")
+        } else {
+            protectedFeatures = []
+            logger.info("📱 No protected features configured")
+        }
+    }
+
+    /// Save protected features to storage
+    private func saveProtectedFeatures() {
+        if let data = try? JSONEncoder().encode(protectedFeatures) {
+            UserDefaults.standard.set(data, forKey: protectedFeaturesKey)
+            logger.info("💾 Saved \(self.protectedFeatures.count) protected features")
+        }
+    }
+
+    /// Check if a specific feature is protected
+    func isFeatureProtected(_ feature: ProtectedFeature) -> Bool {
+        return protectedFeatures.contains(feature)
+    }
+
+    /// Set protection status for a specific feature
+    func setFeatureProtection(_ feature: ProtectedFeature, protected: Bool) {
+        if protected {
+            protectedFeatures.insert(feature)
+            logger.info("🔒 Protected feature: \(feature.displayName)")
+        } else {
+            protectedFeatures.remove(feature)
+            logger.info("🔓 Unprotected feature: \(feature.displayName)")
+        }
+        saveProtectedFeatures()
+    }
+
+    /// Check if authentication is required for a specific feature
+    func requiresAuthentication(for feature: ProtectedFeature) -> Bool {
+        // If parent mode is not enabled, no authentication needed
+        guard isParentModeEnabled else {
+            return false
+        }
+
+        // If feature is not protected, no authentication needed
+        guard isFeatureProtected(feature) else {
+            return false
+        }
+
+        // If already authenticated, no need to authenticate again
+        return !isParentAuthenticated
+    }
+
+    // MARK: - Parent Face ID Management
+
+    /// Check if Face ID is enabled for parent mode
+    func isParentFaceIDEnabled() -> Bool {
+        return UserDefaults.standard.bool(forKey: parentFaceIDEnabledKey)
+    }
+
+    /// Enable Face ID for parent mode authentication
+    func enableParentFaceID() async throws {
+        guard biometricAuth.isBiometricAvailable() else {
+            throw AuthError.biometricNotAvailable
+        }
+
+        guard biometricAuth.isBiometricEnrolled() else {
+            throw AuthError.biometricNotEnrolled
+        }
+
+        guard isParentModeEnabled else {
+            throw AuthError.providerError("Please set up parent password first")
+        }
+
+        // Verify the parent password exists
+        guard isParentPasswordSet() else {
+            throw AuthError.providerError("No parent password set")
+        }
+
+        // Test biometric authentication
+        let success = try await biometricAuth.authenticateWithBiometrics(
+            reason: "Enable \(getBiometricType()) for Parent Mode"
+        )
+
+        if success {
+            await MainActor.run {
+                UserDefaults.standard.set(true, forKey: parentFaceIDEnabledKey)
+            }
+            logger.info("✅ Parent Face ID enabled")
+        } else {
+            throw AuthError.biometricFailed
+        }
+    }
+
+    /// Disable Face ID for parent mode
+    func disableParentFaceID() {
+        UserDefaults.standard.set(false, forKey: parentFaceIDEnabledKey)
+        logger.info("🔐 Parent Face ID disabled")
+    }
+
+    /// Verify parent authentication using biometrics
+    func verifyWithBiometrics() async throws -> Bool {
+        guard biometricAuth.isBiometricAvailable() else {
+            throw AuthError.biometricNotAvailable
+        }
+
+        guard biometricAuth.isBiometricEnrolled() else {
+            throw AuthError.biometricNotEnrolled
+        }
+
+        guard isParentFaceIDEnabled() else {
+            throw AuthError.providerError("Face ID not enabled for parent mode")
+        }
+
+        let success = try await biometricAuth.authenticateWithBiometrics(
+            reason: "Verify parent identity"
+        )
+
+        if success {
+            await MainActor.run {
+                isParentAuthenticated = true
+            }
+            logger.info("✅ Parent authenticated with biometrics")
+        }
+
+        return success
+    }
+
+    /// Get biometric type string
+    func getBiometricType() -> String {
+        return biometricAuth.getBiometricType()
+    }
+
+    /// Check if biometrics can be used for parent authentication
+    func canUseParentBiometrics() -> Bool {
+        return biometricAuth.isBiometricAvailable() &&
+               biometricAuth.isBiometricEnrolled() &&
+               isParentModeEnabled &&
+               isParentFaceIDEnabled()
     }
 }

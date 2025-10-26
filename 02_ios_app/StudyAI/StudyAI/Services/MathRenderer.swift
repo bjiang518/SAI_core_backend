@@ -176,6 +176,10 @@ class MathFormattingService {
     /// Detect if text contains mathematical expressions
     func containsMathExpressions(_ text: String) -> Bool {
         let mathPatterns = [
+            // LaTeX environments (PRIORITIZED)
+            "\\\\begin\\{(align|equation|gather|split|multline|cases)\\*?\\}", // LaTeX environments
+            "\\\\end\\{(align|equation|gather|split|multline|cases)\\*?\\}", // LaTeX environment ends
+
             // ChatGPT-recommended delimiters (prioritized)
             "\\\\\\(.*?\\\\\\)", // LaTeX inline math \(...\) - NEW PRIMARY
             "\\\\\\[.*?\\\\\\]", // LaTeX display math \[...\] - NEW PRIMARY
@@ -207,14 +211,18 @@ class MathFormattingService {
             // Greek letters (common in math)
             "\\\\(alpha|beta|gamma|delta|epsilon|theta|phi|psi|omega|sigma)", // LaTeX Greek
             "[αβγδεθφψωσ]", // Unicode Greek
+
+            // Alignment and line breaks in LaTeX
+            "\\\\\\\\", // LaTeX line break \\
+            "&", // LaTeX alignment character
         ]
-        
+
         for pattern in mathPatterns {
             if text.range(of: pattern, options: .regularExpression) != nil {
                 return true
             }
         }
-        
+
         return false
     }
     
@@ -391,15 +399,15 @@ class MathFormattingService {
         }
     }
     
-    /// Parse mixed text with math expressions
+    /// Parse mixed text with math expressions and markdown formatting
     func parseTextWithMath(_ text: String) -> [TextComponent] {
-        print("🔍 === MATH RENDERING DEBUG ===")
+        print("🔍 === ENHANCED RENDERING DEBUG (Math + Markdown) ===")
         print("📄 Input text length: \(text.count)")
         print("📄 Input preview: \(String(text.prefix(200)))")
-        
+
         // First, handle multi-line LaTeX display math blocks
         var processedText = text
-        
+
         // Replace ChatGPT-recommended display math \[ ... \] (prioritized)
         do {
             let displayMathRegex = try NSRegularExpression(
@@ -416,8 +424,8 @@ class MathFormattingService {
         } catch {
             print("❌ Display math regex error: \(error)")
         }
-        
-        // Handle ChatGPT-recommended inline LaTeX \( ... \) (prioritized) 
+
+        // Handle ChatGPT-recommended inline LaTeX \( ... \) (prioritized)
         do {
             let inlineMathRegex = try NSRegularExpression(
                 pattern: "\\\\\\(\\s*([^)]+?)\\s*\\\\\\)",
@@ -433,7 +441,7 @@ class MathFormattingService {
         } catch {
             print("❌ Inline math regex error: \(error)")
         }
-        
+
         // Fallback: Handle legacy $$ ... $$ display math
         do {
             let legacyDisplayRegex = try NSRegularExpression(
@@ -450,7 +458,7 @@ class MathFormattingService {
         } catch {
             print("❌ Legacy display math regex error: \(error)")
         }
-        
+
         // Fallback: Handle legacy $ ... $ inline math
         do {
             let legacyInlineRegex = try NSRegularExpression(
@@ -467,54 +475,85 @@ class MathFormattingService {
         } catch {
             print("❌ Legacy inline math regex error: \(error)")
         }
-        
+
         print("📝 After LaTeX preprocessing: \(String(processedText.prefix(200)))")
-        
+
         var components: [TextComponent] = []
         let lines = processedText.components(separatedBy: .newlines)
-        
+
         print("📊 Processing \(lines.count) lines")
-        
+
         for (index, line) in lines.enumerated() {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-            
+
             // Skip empty lines
             if trimmedLine.isEmpty {
                 continue
             }
-            
+
             // Skip empty math blocks (just $$ or $ with nothing or whitespace inside)
-            if trimmedLine == "$$" || trimmedLine == "$" || 
-               trimmedLine.range(of: "^\\$\\$\\s*\\$\\$$", options: .regularExpression) != nil || 
+            if trimmedLine == "$$" || trimmedLine == "$" ||
+               trimmedLine.range(of: "^\\$\\$\\s*\\$\\$$", options: .regularExpression) != nil ||
                trimmedLine.range(of: "^\\$\\s*\\$$", options: .regularExpression) != nil {
                 print("📝 Line \(index): SKIPPING empty math block - '\(trimmedLine)'")
                 continue
             }
-            
+
+            // Check for markdown first (prioritize markdown over math)
+            let hasMarkdown = containsMarkdown(line)
             let hasMath = containsMathExpressions(line)
-            print("📝 Line \(index): \(hasMath ? "HAS MATH" : "plain text") - '\(String(line.prefix(50)))'")
-            
-            if hasMath {
+
+            if hasMarkdown {
+                print("📋 Line \(index): HAS MARKDOWN - '\(String(line.prefix(50)))'")
+                components.append(.markdown(line))
+            } else if hasMath {
+                print("📝 Line \(index): HAS MATH - '\(String(line.prefix(50)))'")
                 let formatted = formatMathForDisplay(line)
                 print("🎨 Formatted math: '\(String(formatted.prefix(100)))'")
                 components.append(.math(formatted))
             } else {
+                print("📝 Line \(index): plain text - '\(String(line.prefix(50)))'")
                 components.append(.text(line))
             }
         }
-        
+
         print("✅ Created \(components.count) components")
         return components
     }
+
+    /// Detect if text contains markdown formatting
+    private func containsMarkdown(_ text: String) -> Bool {
+        let markdownPatterns = [
+            "^#{1,6}\\s+", // Headers: # Header, ## Header, etc.
+            "\\*\\*[^*]+\\*\\*", // Bold: **text**
+            "__[^_]+__", // Bold alt: __text__
+            "\\*[^*]+\\*", // Italic: *text*
+            "_[^_]+_", // Italic alt: _text_
+            "^[-*+]\\s+", // Unordered list: - item, * item, + item
+            "^\\d+\\.\\s+", // Ordered list: 1. item, 2. item
+            "`[^`]+`", // Inline code: `code`
+            "^```", // Code block: ```
+            "\\[[^]]+\\]\\([^)]+\\)", // Link: [text](url)
+        ]
+
+        for pattern in markdownPatterns {
+            if text.range(of: pattern, options: .regularExpression) != nil {
+                return true
+            }
+        }
+
+        return false
+    }
 }
 
-/// Represents different types of content (text or math)
+/// Represents different types of content (text, math, or markdown)
 enum TextComponent {
     case text(String)
     case math(String)
+    case markdown(String)
 }
 
-/// A view that displays mixed text and math content
+/// A view that displays mixed text, markdown, and math content
 struct MathFormattedText: View {
     let content: String
     let fontSize: CGFloat
@@ -548,14 +587,18 @@ struct MathFormattedText: View {
                         .onAppear {
                             print("🧮 Rendering math: '\(equation)' -> '\(SimpleMathRenderer.renderMathText(equation))'")
                         }
+                case .markdown(let markdownText):
+                    // Render markdown using AttributedString
+                    MarkdownTextView(markdownText, fontSize: fontSize)
                 }
             }
         }
         .fixedSize(horizontal: false, vertical: true)
         .onAppear {
             // Debug: Show the actual content being processed for this message
-            if content.contains("\\") || content.contains("equation") || content.contains("=") {
-                print("🧪 === MATH RENDERING DEBUG FOR CURRENT MESSAGE ===")
+            if content.contains("\\") || content.contains("equation") || content.contains("=") ||
+               content.contains("###") || content.contains("**") || content.contains("- ") {
+                print("🧪 === RENDERING DEBUG FOR CURRENT MESSAGE ===")
                 print("📄 Message content: '\(content)'")
                 print("📊 Components created: \(components.count)")
                 for (index, component) in components.enumerated() {
@@ -564,10 +607,82 @@ struct MathFormattedText: View {
                         print("📝 Component \(index): TEXT - '\(text.prefix(50))'")
                     case .math(let equation):
                         print("🧮 Component \(index): MATH - '\(equation.prefix(50))'")
+                    case .markdown(let md):
+                        print("📋 Component \(index): MARKDOWN - '\(md.prefix(50))'")
                     }
                 }
                 print("================================================")
             }
         }
+    }
+}
+
+/// View for rendering markdown text using AttributedString with custom styling
+struct MarkdownTextView: View {
+    let markdownText: String
+    let fontSize: CGFloat
+
+    init(_ markdownText: String, fontSize: CGFloat = 16) {
+        self.markdownText = markdownText
+        self.fontSize = fontSize
+    }
+
+    var body: some View {
+        // Check if this is a header line
+        if let headerLevel = detectHeaderLevel(markdownText) {
+            renderHeaderText(markdownText, level: headerLevel)
+        } else if let attributedString = try? AttributedString(markdown: markdownText, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+            // Use AttributedString for other markdown (bold, italic, lists, links)
+            Text(attributedString)
+                .font(.system(size: fontSize))
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            // Fallback if markdown parsing fails
+            Text(markdownText)
+                .font(.system(size: fontSize))
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Detect markdown header level (1-6 for #-######)
+    private func detectHeaderLevel(_ text: String) -> Int? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("#") {
+            let headerRegex = try? NSRegularExpression(pattern: "^(#{1,6})\\s+(.+)$", options: [])
+            if let match = headerRegex?.firstMatch(in: trimmed, options: [], range: NSRange(location: 0, length: trimmed.utf16.count)),
+               let hashRange = Range(match.range(at: 1), in: trimmed) {
+                let hashes = String(trimmed[hashRange])
+                return hashes.count
+            }
+        }
+        return nil
+    }
+
+    /// Render header text with appropriate font size
+    private func renderHeaderText(_ text: String, level: Int) -> some View {
+        // Remove the header markers (e.g., "### " from "### Header Text")
+        let cleanText = text.replacingOccurrences(of: "^#{1,6}\\s+", with: "", options: .regularExpression)
+
+        // Calculate font size based on header level
+        // Level 1 (# Header) = largest, Level 6 (###### Header) = smallest
+        let headerFontSize: CGFloat = {
+            switch level {
+            case 1: return fontSize + 12  // # - Largest
+            case 2: return fontSize + 8   // ##
+            case 3: return fontSize + 6   // ###
+            case 4: return fontSize + 4   // ####
+            case 5: return fontSize + 2   // #####
+            case 6: return fontSize + 1   // ###### - Smallest
+            default: return fontSize
+            }
+        }()
+
+        return Text(cleanText)
+            .font(.system(size: headerFontSize, weight: .bold))
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 4)  // Add some vertical spacing around headers
     }
 }

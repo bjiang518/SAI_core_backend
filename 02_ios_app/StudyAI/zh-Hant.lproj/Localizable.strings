@@ -899,3 +899,17 @@
 "mistakeReview.noAnswer" = "未作答";
 "mistakeReview.correctAnswerLabel" = "正確答案：";
 "mistakeReview.showExplanation" = "顯示解析";
+
+// Parent Mode - Face ID
+"parentAuth.useFaceID" = "使用 Face ID";
+"parentAuth.useTouchID" = "使用 Touch ID";
+"parentAuth.useOpticID" = "使用 Optic ID";
+"parentAuth.biometricFailed" = "生物識別認證失敗。請重試。";
+"parentAuth.biometricError" = "生物識別認證錯誤：%@";
+"parentAuth.or" = "或";
+"parentMode.faceIDForParentMode" = "家長模式的 Face ID";
+"parentMode.touchIDForParentMode" = "家長模式的 Touch ID";
+"parentMode.opticIDForParentMode" = "家長模式的 Optic ID";
+"parentMode.enabled" = "已啟用";
+"parentMode.disabled" = "已停用";
+"parentMode.faceIDUsageDescription" = "StudyMates 使用 Face ID 安全地驗證家長身分，以存取受保護的功能和家長控制。";

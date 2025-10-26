@@ -192,11 +192,81 @@ struct PasswordManagementView: View {
                             }
                         }
                         .buttonStyle(.plain)
+
+                        // Face ID Toggle
+                        HStack {
+                            Image(systemName: parentModeManager.getBiometricType() == "Face ID" ? "faceid" : "touchid")
+                                .foregroundColor(.blue)
+                                .frame(width: 24)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(localizedBiometricTitle)
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+
+                                Text(parentModeManager.isParentFaceIDEnabled() ? NSLocalizedString("parentMode.enabled", comment: "") : NSLocalizedString("parentMode.disabled", comment: ""))
+                                    .font(.caption)
+                                    .foregroundColor(parentModeManager.isParentFaceIDEnabled() ? .green : .secondary)
+                            }
+
+                            Spacer()
+
+                            Toggle("", isOn: Binding(
+                                get: { parentModeManager.isParentFaceIDEnabled() },
+                                set: { isEnabled in
+                                    if isEnabled {
+                                        Task {
+                                            do {
+                                                try await parentModeManager.enableParentFaceID()
+                                            } catch {
+                                                print("❌ Failed to enable Face ID: \(error.localizedDescription)")
+                                            }
+                                        }
+                                    } else {
+                                        parentModeManager.disableParentFaceID()
+                                    }
+                                }
+                            ))
+                            .tint(.blue)
+                        }
                     }
                 } header: {
                     Text("Parent Controls")
                 } footer: {
                     Text("Parent mode restricts access to sensitive features with a 6-digit PIN. Once enabled, certain features will require parent authentication.")
+                }
+
+                // Access Control Section
+                if parentModeManager.isParentModeEnabled {
+                    Section {
+                        ForEach(ProtectedFeature.allCases, id: \.self) { feature in
+                            Toggle(isOn: Binding(
+                                get: { parentModeManager.isFeatureProtected(feature) },
+                                set: { parentModeManager.setFeatureProtection(feature, protected: $0) }
+                            )) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: feature.icon)
+                                        .foregroundColor(.blue)
+                                        .frame(width: 24)
+
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(feature.displayName)
+                                            .font(.body)
+                                            .foregroundColor(.primary)
+
+                                        Text(feature.description)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                            .tint(.purple)
+                        }
+                    } header: {
+                        Text("Feature Access Control")
+                    } footer: {
+                        Text("Select which features require parent password to access. When enabled, parent authentication will be required each time.")
+                    }
                 }
             }
             .navigationTitle("Password Manager")
@@ -220,6 +290,20 @@ struct PasswordManagementView: View {
             .sheet(isPresented: $showingRemoveParentPassword) {
                 RemoveParentPasswordView()
             }
+        }
+    }
+
+    private var localizedBiometricTitle: String {
+        let type = parentModeManager.getBiometricType()
+        switch type {
+        case "Face ID":
+            return NSLocalizedString("parentMode.faceIDForParentMode", comment: "")
+        case "Touch ID":
+            return NSLocalizedString("parentMode.touchIDForParentMode", comment: "")
+        case "Optic ID":
+            return NSLocalizedString("parentMode.opticIDForParentMode", comment: "")
+        default:
+            return NSLocalizedString("parentMode.faceIDForParentMode", comment: "")
         }
     }
 }

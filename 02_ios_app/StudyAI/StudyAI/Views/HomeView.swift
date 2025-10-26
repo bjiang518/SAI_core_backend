@@ -14,6 +14,7 @@ struct HomeView: View {
     @StateObject private var networkService = NetworkService.shared
     @StateObject private var voiceService = VoiceInteractionService.shared
     @StateObject private var greetingVoice = GreetingVoiceService.shared
+    @StateObject private var parentModeManager = ParentModeManager.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @ObservedObject private var profileService = ProfileService.shared
     @State private var userName = ""
@@ -24,13 +25,26 @@ struct HomeView: View {
     @State private var showingParentReports = false
     @State private var showingHomeworkAlbum = false  // NEW: Homework Album
 
-    // Today's activity from local storage (matching Progress tab)
-    @State private var todayTotalQuestions: Int = 0
-    @State private var todayCorrectAnswers: Int = 0
-    @State private var todayAccuracy: Double = 0.0
+    // Parent authentication modals
+    @State private var showingParentAuthForChat = false
+    @State private var showingParentAuthForGrader = false
+    @State private var showingParentAuthForReports = false
+
+    // ✅ Computed properties for today's activity - read directly from PointsEarningManager (matching Progress tab)
+    private var todayTotalQuestions: Int {
+        pointsManager.todayProgress?.totalQuestions ?? 0
+    }
+
+    private var todayCorrectAnswers: Int {
+        pointsManager.todayProgress?.correctAnswers ?? 0
+    }
+
+    private var todayAccuracy: Double {
+        guard let todayProgress = pointsManager.todayProgress else { return 0.0 }
+        return todayProgress.accuracy
+    }
 
     private let logger = Logger(subsystem: "com.studyai", category: "HomeView")
-    private let localProgressService = LocalProgressService.shared
 
     var body: some View {
         NavigationView {
@@ -87,11 +101,6 @@ struct HomeView: View {
                 } else {
                     userName = NSLocalizedString("home.defaultStudentName", comment: "")
                 }
-
-                // Load today's activity from local storage (matching Progress tab)
-                Task {
-                    await loadTodayActivity()
-                }
             }
             .sheet(isPresented: $showingProfile) {
                 ModernProfileView(onLogout: {
@@ -110,6 +119,27 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingHomeworkAlbum) {
                 HomeworkAlbumView()
+            }
+            .sheet(isPresented: $showingParentAuthForChat) {
+                ParentAuthenticationView(
+                    title: "Parent Verification",
+                    message: "Chat function requires parent permission",
+                    onSuccess: { onSelectTab(.chat) }
+                )
+            }
+            .sheet(isPresented: $showingParentAuthForGrader) {
+                ParentAuthenticationView(
+                    title: "Parent Verification",
+                    message: "Homework Grader requires parent permission",
+                    onSuccess: { onSelectTab(.grader) }
+                )
+            }
+            .sheet(isPresented: $showingParentAuthForReports) {
+                ParentAuthenticationView(
+                    title: "Parent Verification",
+                    message: "Parent Reports require parent permission",
+                    onSuccess: { showingParentReports = true }
+                )
             }
         }
     }
@@ -277,18 +307,6 @@ struct HomeView: View {
         default: return NSLocalizedString("home.goodEvening", comment: "")
         }
     }
-
-    // MARK: - Load Today's Activity
-    private func loadTodayActivity() async {
-        // Calculate today's activity from local storage (same as Progress tab)
-        let (totalQuestions, correctAnswers, accuracy) = await localProgressService.calculateTodayActivity()
-
-        await MainActor.run {
-            self.todayTotalQuestions = totalQuestions
-            self.todayCorrectAnswers = correctAnswers
-            self.todayAccuracy = accuracy
-        }
-    }
 }
 
 // MARK: - StatBadge Component
@@ -343,7 +361,13 @@ extension HomeView {
                     color: Color(red: 1.0, green: 0.2, blue: 0.2),  // Red
                     lottieAnimation: "Checklist",
                     lottieScale: 0.29,
-                    action: { onSelectTab(.grader) }
+                    action: {
+                        if parentModeManager.requiresAuthentication(for: .homeworkGrader) {
+                            showingParentAuthForGrader = true
+                        } else {
+                            onSelectTab(.grader)
+                        }
+                    }
                 )
 
                 // Rainbow Card 2: Orange
@@ -354,7 +378,13 @@ extension HomeView {
                     color: Color(red: 1.0, green: 0.6, blue: 0.0),  // Orange
                     lottieAnimation: "Chat",
                     lottieScale: 0.2,
-                    action: { onSelectTab(.chat) }
+                    action: {
+                        if parentModeManager.requiresAuthentication(for: .chatFunction) {
+                            showingParentAuthForChat = true
+                        } else {
+                            onSelectTab(.chat)
+                        }
+                    }
                 )
 
                 // Rainbow Card 3: Yellow
@@ -419,7 +449,13 @@ extension HomeView {
                 title: NSLocalizedString("home.parentReports", comment: ""),
                 subtitle: NSLocalizedString("home.parentReportsDescription", comment: ""),
                 color: Color(red: 0.58, green: 0.0, blue: 0.83),  // Violet
-                action: { showingParentReports = true }
+                action: {
+                    if parentModeManager.requiresAuthentication(for: .parentReports) {
+                        showingParentAuthForReports = true
+                    } else {
+                        showingParentReports = true
+                    }
+                }
             )
             .padding(.horizontal, DesignTokens.Spacing.xl)
 

@@ -17,42 +17,60 @@ class LaTeXPostProcessor {
     /// AI uses \( \) and \[ \] (safer), we convert them to more readable format
     func processAIOutput(_ input: String) -> String {
         var processed = input
-        
+
         print("🔧 === LaTeX POST-PROCESSING DEBUG ===")
         print("📄 Input length: \(input.count)")
         print("📄 Raw input: '\(input)'")
-        
+
+        // STEP 0: Preserve LaTeX environments (don't strip delimiters from environments)
+        // Check if the input contains LaTeX environments
+        let hasLaTeXEnvironment = input.range(of: "\\\\begin\\{", options: .regularExpression) != nil
+
+        if hasLaTeXEnvironment {
+            print("🔍 Detected LaTeX environment - preserving structure")
+            // For LaTeX environments, we want to keep them intact and let SimpleMathRenderer handle them
+            // Just clean up the display math delimiters around the environment if present
+            processed = processed.replacingOccurrences(
+                of: "\\\\\\[(\\s*\\\\begin\\{.*?\\}[\\s\\S]*?\\\\end\\{.*?\\}\\s*)\\\\\\]",
+                with: "$1",
+                options: .regularExpression
+            )
+            print("✅ LaTeX environment preserved")
+            print("📄 Output: '\(processed)'")
+            return processed
+        }
+
         // Step 1: Handle mixed dollar sign format (legacy cleanup)
         // Fix cases like: "function$f$(x) = 2x$^2" → "function \\(f(x) = 2x^2\\)"
         let beforeLegacyFix = processed
-        
+
         // First, handle isolated dollar signs with variables/expressions
         processed = processed.replacingOccurrences(
             of: "\\$([a-zA-Z0-9_]+)\\$",
             with: "\\\\($1\\\\)",
             options: .regularExpression
         )
-        
+
         // Handle dollar signs with exponents like $^2
         processed = processed.replacingOccurrences(
             of: "\\$\\^([0-9]+)",
             with: "^$1",
             options: .regularExpression
         )
-        
+
         // Handle complex mixed cases like "function$f$(x) = 2x$^2"
         processed = processed.replacingOccurrences(
             of: "([a-zA-Z]+)\\$([a-zA-Z]+)\\$\\(([^)]+)\\)\\s*=\\s*([^$]+)\\$\\^([0-9]+)",
             with: "$1 \\\\($2($3) = $4^$5\\\\)",
             options: .regularExpression
         )
-        
+
         if beforeLegacyFix != processed {
             print("🔄 Step 1a - Legacy dollar sign fix:")
             print("   Before: '\(beforeLegacyFix)'")
             print("   After:  '\(processed)'")
         }
-        
+
         // Step 1b: Convert display math \[ ... \] to clean format with line breaks
         let beforeDisplayMath = processed
         processed = processed.replacingOccurrences(
@@ -65,7 +83,7 @@ class LaTeXPostProcessor {
             print("   Before: '\(beforeDisplayMath)'")
             print("   After:  '\(processed)'")
         }
-        
+
         // Step 2: Convert inline math \( ... \) to clean format
         let beforeInlineMath = processed
         processed = processed.replacingOccurrences(
@@ -78,7 +96,7 @@ class LaTeXPostProcessor {
             print("   Before: '\(beforeInlineMath)'")
             print("   After:  '\(processed)'")
         }
-        
+
         // Step 3: Convert common LaTeX symbols to Unicode equivalents
         let mathSymbols: [String: String] = [
             "\\\\frac\\{([^}]+)\\}\\{([^}]+)\\}": "($1)/($2)",
@@ -97,7 +115,7 @@ class LaTeXPostProcessor {
             "\\^2": "²",
             "\\^3": "³"
         ]
-        
+
         for (pattern, replacement) in mathSymbols {
             let beforeSymbol = processed
             processed = processed.replacingOccurrences(
@@ -111,7 +129,7 @@ class LaTeXPostProcessor {
                 print("   After:  '\(processed)'")
             }
         }
-        
+
         // Clean up remaining braces and backslashes
         let beforeCleanup = processed
         processed = processed.replacingOccurrences(of: "\\{", with: "")
@@ -122,7 +140,7 @@ class LaTeXPostProcessor {
             print("   Before: '\(beforeCleanup)'")
             print("   After:  '\(processed)'")
         }
-        
+
         print("✅ Post-processing complete")
         print("📄 Final output: '\(processed)'")
         print("📏 Final length: \(processed.count)")
@@ -134,7 +152,7 @@ class LaTeXPostProcessor {
         print("   - Layout: .fixedSize(horizontal: false, vertical: true)")
         print("   - Selection: .textSelection(.enabled)")
         print("=======================================================")
-        
+
         return processed
     }
     
@@ -144,14 +162,15 @@ class LaTeXPostProcessor {
             "\\\\\\[", "\\\\\\]", // Display math \[ \]
             "\\\\\\(", "\\\\\\)", // Inline math \( \)
             "\\\\\\\\frac", "\\\\\\\\sqrt", // Double-escaped commands
+            "\\\\begin\\{", "\\\\end\\{", // LaTeX environments
         ]
-        
+
         for pattern in patterns {
             if text.range(of: pattern, options: .regularExpression) != nil {
                 return true
             }
         }
-        
+
         return false
     }
 }
@@ -337,7 +356,100 @@ class SimpleMathRenderer {
 
         var rendered = input
 
-        // Remove LaTeX delimiters first
+        // PHASE 0: Handle LaTeX environments FIRST (before removing delimiters)
+
+        // Handle \begin{align} ... \end{align} environments
+        do {
+            let alignRegex = try NSRegularExpression(
+                pattern: "\\\\begin\\{align\\*?\\}([\\s\\S]*?)\\\\end\\{align\\*?\\}",
+                options: []
+            )
+            let range = NSRange(location: 0, length: rendered.utf16.count)
+            let matches = alignRegex.matches(in: rendered, options: [], range: range)
+
+            for match in matches.reversed() {
+                if let contentRange = Range(match.range(at: 1), in: rendered),
+                   let fullRange = Range(match.range(at: 0), in: rendered) {
+                    let alignContent = String(rendered[contentRange])
+                    print("🔍 Found align environment: '\(alignContent)'")
+
+                    // Process align content: split by \\, handle & alignment
+                    let lines = alignContent.components(separatedBy: "\\\\")
+                        .map { line in
+                            // Replace & with spacing for alignment
+                            line.replacingOccurrences(of: "&", with: "  ")
+                                .trimmingCharacters(in: .whitespacesAndNewlines)
+                        }
+                        .filter { !$0.isEmpty }
+
+                    let processedAlign = "\n" + lines.joined(separator: "\n") + "\n"
+                    rendered.replaceSubrange(fullRange, with: processedAlign)
+                    print("✅ Processed align environment: '\(processedAlign)'")
+                }
+            }
+        } catch {
+            print("❌ Align environment regex error: \(error)")
+        }
+
+        // Handle \begin{equation} ... \end{equation} environments
+        do {
+            let equationRegex = try NSRegularExpression(
+                pattern: "\\\\begin\\{equation\\*?\\}([\\s\\S]*?)\\\\end\\{equation\\*?\\}",
+                options: []
+            )
+            let range = NSRange(location: 0, length: rendered.utf16.count)
+            let matches = equationRegex.matches(in: rendered, options: [], range: range)
+
+            for match in matches.reversed() {
+                if let contentRange = Range(match.range(at: 1), in: rendered),
+                   let fullRange = Range(match.range(at: 0), in: rendered) {
+                    let eqContent = String(rendered[contentRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    print("🔍 Found equation environment: '\(eqContent)'")
+                    let processedEq = "\n" + eqContent + "\n"
+                    rendered.replaceSubrange(fullRange, with: processedEq)
+                    print("✅ Processed equation environment: '\(processedEq)'")
+                }
+            }
+        } catch {
+            print("❌ Equation environment regex error: \(error)")
+        }
+
+        // Handle \begin{gather} ... \end{gather} environments
+        do {
+            let gatherRegex = try NSRegularExpression(
+                pattern: "\\\\begin\\{gather\\*?\\}([\\s\\S]*?)\\\\end\\{gather\\*?\\}",
+                options: []
+            )
+            let range = NSRange(location: 0, length: rendered.utf16.count)
+            let matches = gatherRegex.matches(in: rendered, options: [], range: range)
+
+            for match in matches.reversed() {
+                if let contentRange = Range(match.range(at: 1), in: rendered),
+                   let fullRange = Range(match.range(at: 0), in: rendered) {
+                    let gatherContent = String(rendered[contentRange])
+                    print("🔍 Found gather environment: '\(gatherContent)'")
+
+                    // Process gather content: split by \\
+                    let lines = gatherContent.components(separatedBy: "\\\\")
+                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        .filter { !$0.isEmpty }
+
+                    let processedGather = "\n" + lines.joined(separator: "\n") + "\n"
+                    rendered.replaceSubrange(fullRange, with: processedGather)
+                    print("✅ Processed gather environment: '\(processedGather)'")
+                }
+            }
+        } catch {
+            print("❌ Gather environment regex error: \(error)")
+        }
+
+        // Handle remaining \\ line breaks in equations (outside of environments)
+        rendered = rendered.replacingOccurrences(of: "\\\\", with: "\n")
+
+        // Handle remaining & alignment signs (convert to spacing)
+        rendered = rendered.replacingOccurrences(of: "&", with: "  ")
+
+        // Remove LaTeX delimiters
         rendered = rendered.replacingOccurrences(of: "\\[", with: "")
         rendered = rendered.replacingOccurrences(of: "\\]", with: "")
         rendered = rendered.replacingOccurrences(of: "\\(", with: "")

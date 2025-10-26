@@ -948,3 +948,17 @@
 "mistakeReview.noAnswer" = "未作答";
 "mistakeReview.correctAnswerLabel" = "正确答案：";
 "mistakeReview.showExplanation" = "显示解析";
+
+// Parent Mode - Face ID
+"parentAuth.useFaceID" = "使用面容 ID";
+"parentAuth.useTouchID" = "使用触控 ID";
+"parentAuth.useOpticID" = "使用视网膜 ID";
+"parentAuth.biometricFailed" = "生物识别认证失败。请重试。";
+"parentAuth.biometricError" = "生物识别认证错误：%@";
+"parentAuth.or" = "或";
+"parentMode.faceIDForParentMode" = "家长模式的面容 ID";
+"parentMode.touchIDForParentMode" = "家长模式的触控 ID";
+"parentMode.opticIDForParentMode" = "家长模式的视网膜 ID";
+"parentMode.enabled" = "已启用";
+"parentMode.disabled" = "已禁用";
+"parentMode.faceIDUsageDescription" = "StudyMates 使用面容 ID 安全地验证家长身份，以访问受保护的功能和家长控制。";

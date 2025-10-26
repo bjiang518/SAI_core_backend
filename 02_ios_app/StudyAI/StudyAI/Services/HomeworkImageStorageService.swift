@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import UIKit
 import Combine
+import CryptoKit
 
 // MARK: - Homework Image Storage Service
 
@@ -70,6 +71,22 @@ final class HomeworkImageStorageService: ObservableObject {
         maxPoints: Float? = nil,
         rawQuestions: [String]? = nil
     ) -> HomeworkImageRecord? {
+        // Generate hash for deduplication
+        guard let imageHash = generateImageHash(image) else {
+            print("❌ Failed to generate image hash")
+            return nil
+        }
+
+        // Check if this image already exists
+        if let existingRecord = findDuplicateRecord(withHash: imageHash) {
+            print("⚠️ Duplicate image detected! Returning existing record: \(existingRecord.id)")
+            print("   Original submission: \(existingRecord.submittedDate)")
+            print("   Subject: \(existingRecord.subject)")
+            return existingRecord
+        }
+
+        print("✅ New unique image detected (hash: \(String(imageHash.prefix(16)))...)")
+
         // Check if we've reached the storage limit
         if homeworkImages.count >= maxStoredImages {
             // Remove oldest image to make space
@@ -108,7 +125,7 @@ final class HomeworkImageStorageService: ObservableObject {
             }
         }
 
-        // Create metadata record
+        // Create metadata record with hash
         let record = HomeworkImageRecord(
             id: recordId,
             imageFileName: imageFileName,
@@ -117,6 +134,7 @@ final class HomeworkImageStorageService: ObservableObject {
             subject: subject,
             accuracy: accuracy,
             questionCount: questionCount,
+            imageHash: imageHash,
             correctCount: correctCount,
             incorrectCount: incorrectCount,
             totalPoints: totalPoints,
@@ -319,5 +337,23 @@ final class HomeworkImageStorageService: ObservableObject {
         let sizeString = formatter.string(fromByteCount: totalSize)
 
         return (count, sizeString)
+    }
+
+    // MARK: - Image Hashing for Deduplication
+
+    /// Generate a SHA256 hash from an image to detect duplicates
+    private func generateImageHash(_ image: UIImage) -> String? {
+        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+            print("❌ Failed to get image data for hashing")
+            return nil
+        }
+
+        let hash = SHA256.hash(data: imageData)
+        return hash.compactMap { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Check if an image with the same hash already exists
+    private func findDuplicateRecord(withHash hash: String) -> HomeworkImageRecord? {
+        return homeworkImages.filter { $0.imageHash == hash }.first
     }
 }

@@ -35,6 +35,8 @@
 	<string>StudyMates needs photo library access to select homework images for analysis and to save processed results.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>StudyMates uses speech recognition to convert your voice questions into text so our AI can provide better learning assistance.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>StudyMates uses Face ID to securely authenticate parents for accessing protected features and parental controls.</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UILaunchScreen</key>

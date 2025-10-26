@@ -971,3 +971,17 @@
 "mistakeReview.noAnswer" = "No answer provided";
 "mistakeReview.correctAnswerLabel" = "Correct Answer:";
 "mistakeReview.showExplanation" = "Show Explanation";
+
+// Parent Mode - Face ID
+"parentAuth.useFaceID" = "Use Face ID";
+"parentAuth.useTouchID" = "Use Touch ID";
+"parentAuth.useOpticID" = "Use Optic ID";
+"parentAuth.biometricFailed" = "Biometric authentication failed. Please try again.";
+"parentAuth.biometricError" = "Biometric authentication error: %@";
+"parentAuth.or" = "OR";
+"parentMode.faceIDForParentMode" = "Face ID for Parent Mode";
+"parentMode.touchIDForParentMode" = "Touch ID for Parent Mode";
+"parentMode.opticIDForParentMode" = "Optic ID for Parent Mode";
+"parentMode.enabled" = "Enabled";
+"parentMode.disabled" = "Disabled";
+"parentMode.faceIDUsageDescription" = "StudyMates uses Face ID to securely authenticate parents for accessing protected features and parental controls.";
