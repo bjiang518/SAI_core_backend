@@ -485,6 +485,15 @@ struct UnifiedLibraryView: View {
                     }
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            Task {
+                                await deleteLibraryItem(item)
+                            }
+                        } label: {
+                            Label("Delete", systemImage: "trash.fill")
+                        }
+                    }
                 }
                 .listStyle(.plain)
                 .overlay {
@@ -497,15 +506,29 @@ struct UnifiedLibraryView: View {
             }
         }
     }
-    
+
     private func loadContent() async {
         libraryContent = await libraryService.fetchLibraryContent()
     }
-    
+
     private func refreshContent() async {
         libraryContent = await libraryService.refreshLibraryContent()
     }
-    
+
+    private func deleteLibraryItem(_ item: LibraryItem) async {
+        print("🗑️ [Library] Deleting item: \(item.id)")
+
+        let success = await libraryService.deleteLibraryItem(item)
+
+        if success {
+            // Refresh the library content after deletion
+            await refreshContent()
+            print("✅ [Library] Item deleted successfully")
+        } else {
+            print("❌ [Library] Failed to delete item")
+        }
+    }
+
     private func clearFilters() {
         searchText = ""
         selectedSubject = nil

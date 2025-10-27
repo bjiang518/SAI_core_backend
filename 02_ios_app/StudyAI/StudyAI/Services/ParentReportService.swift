@@ -23,7 +23,7 @@ class ParentReportService: ObservableObject {
     @Published var isGeneratingReport = false
     @Published var reportGenerationProgress: Double = 0.0
     @Published var lastGeneratedReport: ParentReport?
-    @Published var availableReports: [ReportListItem] = []
+    @Published var availableReports: [ParentReport] = []
     @Published var lastError: ParentReportError?
 
     private var cancellables = Set<AnyCancellable>()
@@ -117,7 +117,10 @@ class ParentReportService: ObservableObject {
         // Update our state based on the result
         if case .success(let reportsResponse) = result {
             await MainActor.run {
-                availableReports = reportsResponse.reports
+                // NOTE: availableReports now uses [ParentReport] instead of [ReportListItem]
+                // This method is kept for backward compatibility but is not used with local-only storage
+                // To populate availableReports, use getAllCachedReports() instead
+                print("⚠️ fetchStudentReports called but not updating availableReports (local-only storage)")
             }
         }
 

@@ -39,6 +39,9 @@ enum MainTab: Int, CaseIterable {
 
 struct ContentView: View {
     @StateObject private var authService = AuthenticationService.shared
+    @StateObject private var sessionManager = SessionManager.shared  // ✅ NEW: Session management
+    @Environment(\.scenePhase) private var scenePhase  // ✅ NEW: Monitor app lifecycle
+    @State private var showingFaceIDReauth = false  // ✅ NEW: Face ID re-auth sheet
 
     var body: some View {
         Group {
@@ -60,8 +63,60 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: authService.isAuthenticated)
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .sheet(isPresented: $showingFaceIDReauth) {
+            FaceIDReauthView(onSuccess: {
+                showingFaceIDReauth = false
+            }, onCancel: {
+                showingFaceIDReauth = false
+                authService.signOut()  // Sign out if user cancels Face ID
+            })
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            handleScenePhaseChange(oldPhase: oldPhase, newPhase: newPhase)
+        }
+        .onChange(of: authService.requiresFaceIDReauth) { _, requiresReauth in
+            // Show Face ID re-auth sheet when session expires
+            if requiresReauth && authService.currentUser != nil {
+                print("🔐 [ContentView] Session expired, showing Face ID re-authentication")
+                showingFaceIDReauth = true
+            }
+        }
         .onAppear {
             // ContentView appeared
+        }
+    }
+
+    // MARK: - App Lifecycle Handling
+
+    private func handleScenePhaseChange(oldPhase: ScenePhase, newPhase: ScenePhase) {
+        print("🔐 [ContentView] Scene phase changed: \(oldPhase) → \(newPhase)")
+
+        switch newPhase {
+        case .background:
+            // App is going to background - session will be ended immediately
+            print("🔐 [ContentView] App entering background - session will be ended (Face ID required on reopen)")
+            sessionManager.appWillResignActive()
+
+        case .active:
+            // App is returning to foreground - session was ended, so Face ID is required
+            print("🔐 [ContentView] App returning to foreground - checking if re-authentication is needed")
+            let isSessionValid = sessionManager.appDidBecomeActive()
+
+            if !isSessionValid && authService.currentUser != nil {
+                // Session expired (either from background or timeout)
+                print("🔐 [ContentView] Session expired - triggering Face ID re-authentication")
+                Task { @MainActor in
+                    authService.isAuthenticated = false
+                    authService.requiresFaceIDReauth = true
+                }
+            }
+
+        case .inactive:
+            // App is temporarily inactive (e.g., during transition)
+            print("🔐 [ContentView] App inactive (transition state)")
+
+        @unknown default:
+            break
         }
     }
 }

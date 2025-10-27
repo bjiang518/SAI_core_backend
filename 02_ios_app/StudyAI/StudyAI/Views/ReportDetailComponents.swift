@@ -278,6 +278,241 @@ struct PatternRow: View {
     }
 }
 
+// MARK: - ✅ NEW: Streak and Learning Goals Components
+
+struct StreakCard: View {
+    let streakInfo: StreakInfoData
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Current Streak")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(streakInfo.currentStreak)")
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundColor(.orange)
+
+                        Text(streakInfo.currentStreak == 1 ? "day" : "days")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Text(streakInfo.streakQualityText)
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                        .padding(.top, 2)
+                }
+
+                Spacer()
+
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(.orange)
+            }
+
+            Divider()
+
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Longest Streak")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(streakInfo.longestStreak)")
+                            .font(.headline)
+                            .fontWeight(.bold)
+
+                        Text(streakInfo.longestStreak == 1 ? "day" : "days")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                if let lastActivity = streakInfo.lastActivityDate {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("Last Activity")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Text(lastActivity, style: .relative)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct LearningGoalCard: View {
+    let goal: LearningGoalData
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(goal.title)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    if !goal.description.isEmpty {
+                        Text(goal.description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                // Status icon
+                Image(systemName: goal.statusIcon)
+                    .font(.system(size: 20))
+                    .foregroundColor(goal.isCompleted ? .green : .blue)
+            }
+
+            // Progress bar
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(goal.progressText)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    Text(String(format: "%.0f%%", goal.progressPercentage * 100))
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(goal.isCompleted ? .green : .blue)
+                }
+
+                ProgressView(value: min(goal.progressPercentage, 1.0))
+                    .tint(goal.isCompleted ? .green : .blue)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct DayOfWeekChart: View {
+    let patterns: [String: Int]
+
+    private let weekdayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+    private var maxCount: Int {
+        patterns.values.max() ?? 1
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Weekly Activity Pattern")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+
+            VStack(spacing: 8) {
+                ForEach(weekdayOrder, id: \.self) { day in
+                    HStack(spacing: 12) {
+                        Text(String(day.prefix(3)))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .frame(width: 30, alignment: .leading)
+
+                        ZStack(alignment: .leading) {
+                            // Background bar
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.blue.opacity(0.1))
+                                .frame(height: 20)
+
+                            // Activity bar
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.blue)
+                                .frame(width: barWidth(for: patterns[day] ?? 0), height: 20)
+
+                            // Count label
+                            if let count = patterns[day], count > 0 {
+                                Text("\(count)")
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                                    .padding(.leading, 6)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(.systemGray4), lineWidth: 1)
+        )
+    }
+
+    private func barWidth(for count: Int) -> CGFloat {
+        let maxBarWidth: CGFloat = 200 // Maximum bar width
+        guard maxCount > 0 else { return 0 }
+        return max(20, maxBarWidth * CGFloat(count) / CGFloat(maxCount))
+    }
+}
+
+struct WeeklyTrendCard: View {
+    let trend: String
+
+    private var trendInfo: (icon: String, color: Color, prefix: String) {
+        if trend.lowercased().contains("increasing") || trend.lowercased().contains("improving") {
+            return ("arrow.up.right.circle.fill", .green, "↑")
+        } else if trend.lowercased().contains("decreasing") || trend.lowercased().contains("declining") {
+            return ("arrow.down.right.circle.fill", .red, "↓")
+        } else {
+            return ("arrow.right.circle.fill", .blue, "→")
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: trendInfo.icon)
+                .font(.system(size: 24))
+                .foregroundColor(trendInfo.color)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Weekly Trend")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+
+                Text(trend)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(trendInfo.color)
+            }
+
+            Spacer()
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(.systemGray4), lineWidth: 1)
+        )
+    }
+}
+
 // MARK: - Mental Health Components
 
 struct WellbeingOverviewCard: View {

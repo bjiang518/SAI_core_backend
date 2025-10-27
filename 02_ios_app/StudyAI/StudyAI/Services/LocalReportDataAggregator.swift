@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import SwiftData
 
 /// Aggregates report data from local storage for parent reports
 class LocalReportDataAggregator {
@@ -15,6 +16,8 @@ class LocalReportDataAggregator {
     private let questionStorage = QuestionLocalStorage.shared
     private let conversationStorage = ConversationLocalStorage.shared
     private let progressService = LocalProgressService.shared
+    private let pointsManager = PointsEarningManager.shared
+    private let chatMessageManager = ChatMessageManager.shared
 
     private init() {}
 
@@ -169,16 +172,42 @@ class LocalReportDataAggregator {
         // Average session length (estimate)
         let averageSessionMinutes = activeDays > 0 ? totalStudyMinutes / activeDays : 0
 
-        // Conversation engagement
+        // ✅ NEW: Get actual message counts from SwiftData
         let totalConversations = conversations.count
-        let totalMessages = totalConversations * 5 // Estimate 5 messages per conversation
-        let averageMessagesPerConversation = totalConversations > 0 ? totalMessages / totalConversations : 0
+        let actualTotalMessages = calculateActualMessageCount(conversations: conversations)
+        let averageMessagesPerConversation = totalConversations > 0 ? actualTotalMessages / totalConversations : 0
         let conversationEngagementScore = min(1.0, Double(totalConversations) / 10.0) // 10+ conversations = 100% engagement
+
+        // ✅ NEW: Calculate actual preferred study times from timestamps
+        let preferredStudyTimes = calculatePreferredStudyTime(questions: questions)
+
+        // ✅ NEW: Get day-of-week patterns
+        let dayOfWeekPatterns = calculateDayOfWeekPatterns(questions: questions)
+
+        // ✅ NEW: Get streak information
+        let streakInfo = getStreakInformation()
+        let streakInfoData = StreakInfoData(
+            currentStreak: streakInfo.currentStreak,
+            longestStreak: streakInfo.longestStreak,
+            lastActivityDate: streakInfo.lastActivityDate
+        )
+
+        // ✅ NEW: Get learning goals progress
+        let learningGoalsProgress = getLearningGoalsProgress()
+        let learningGoalsData = learningGoalsProgress.map { goal in
+            LearningGoalData(
+                title: goal.title,
+                description: goal.description,
+                currentProgress: goal.currentProgress,
+                targetValue: goal.targetValue,
+                isCompleted: goal.isCompleted,
+                progressPercentage: goal.progressPercentage
+            )
+        }
 
         // Study patterns
         let subjectPreferences = Array(Set(questions.map { $0.normalizedSubject }))
-        let preferredStudyTimes = "afternoon" // Default, would need time data to calculate
-        let sessionLengthTrend = "consistent" // Default
+        let sessionLengthTrend = "consistent" // Default (would need session tracking)
 
         return ActivityMetrics(
             studyTime: StudyTimeMetrics(
@@ -189,15 +218,19 @@ class LocalReportDataAggregator {
             ),
             engagement: EngagementMetrics(
                 totalConversations: totalConversations,
-                totalMessages: totalMessages,
+                totalMessages: actualTotalMessages,
                 averageMessagesPerConversation: averageMessagesPerConversation,
                 conversationEngagementScore: conversationEngagementScore
             ),
             patterns: StudyPatterns(
                 preferredStudyTimes: preferredStudyTimes,
                 sessionLengthTrend: sessionLengthTrend,
-                subjectPreferences: subjectPreferences
-            )
+                subjectPreferences: subjectPreferences,
+                dayOfWeekPatterns: dayOfWeekPatterns,
+                weeklyTrend: calculateWeeklyTrend(questions: questions)
+            ),
+            streakInfo: streakInfoData,
+            learningGoals: learningGoalsData
         )
     }
 
@@ -408,6 +441,162 @@ class LocalReportDataAggregator {
         let formatter = ISO8601DateFormatter()
         return formatter.date(from: dateString)
     }
+
+    // MARK: - New Helper Functions for Enhanced Metrics
+
+    /// Calculate actual message count from SwiftData instead of estimating
+    private func calculateActualMessageCount(conversations: [[String: Any]]) -> Int {
+        var totalMessages = 0
+
+        // Get all unique session IDs from conversations
+        for conversation in conversations {
+            if let sessionId = conversation["session_id"] as? String {
+                // Query ChatMessageManager for actual message count in this session
+                let messages = chatMessageManager.loadMessages(for: sessionId)
+                totalMessages += messages.count
+            }
+        }
+
+        // Fallback to estimate if no messages found
+        return totalMessages > 0 ? totalMessages : conversations.count * 5
+    }
+
+    /// Calculate preferred study time from actual question timestamps
+    private func calculatePreferredStudyTime(questions: [QuestionSummary]) -> String {
+        guard !questions.isEmpty else { return "No clear pattern" }
+
+        let calendar = Calendar.current
+        var hourCounts: [Int: Int] = [:] // hour -> count
+
+        for question in questions {
+            let hour = calendar.component(.hour, from: question.archivedAt)
+            hourCounts[hour, default: 0] += 1
+        }
+
+        // Find the time period with most activity
+        let morningCount = (6...11).reduce(0) { $0 + (hourCounts[$1] ?? 0) }
+        let afternoonCount = (12...17).reduce(0) { $0 + (hourCounts[$1] ?? 0) }
+        let eveningCount = (18...23).reduce(0) { $0 + (hourCounts[$1] ?? 0) }
+        let nightCount = ([0, 1, 2, 3, 4, 5]).reduce(0) { $0 + (hourCounts[$1] ?? 0) }
+
+        let maxCount = max(morningCount, afternoonCount, eveningCount, nightCount)
+
+        if maxCount == morningCount { return "morning" }
+        if maxCount == afternoonCount { return "afternoon" }
+        if maxCount == eveningCount { return "evening" }
+        if maxCount == nightCount { return "late night" }
+
+        return "varied" // No clear pattern
+    }
+
+    /// Calculate day-of-week activity patterns
+    private func calculateDayOfWeekPatterns(questions: [QuestionSummary]) -> [String: Int] {
+        guard !questions.isEmpty else { return [:] }
+
+        let calendar = Calendar.current
+        var dayPatterns: [String: Int] = [
+            "Monday": 0,
+            "Tuesday": 0,
+            "Wednesday": 0,
+            "Thursday": 0,
+            "Friday": 0,
+            "Saturday": 0,
+            "Sunday": 0
+        ]
+
+        for question in questions {
+            let weekday = calendar.component(.weekday, from: question.archivedAt)
+            let dayName = calendar.weekdaySymbols[weekday - 1]
+            dayPatterns[dayName, default: 0] += 1
+        }
+
+        return dayPatterns
+    }
+
+    /// Calculate weekly trend using PointsEarningManager data
+    private func calculateWeeklyTrend(questions: [QuestionSummary]) -> String {
+        // Get current week data from PointsEarningManager
+        let currentWeekProgress = pointsManager.currentWeeklyProgress
+
+        let currentWeekQuestions = currentWeekProgress?.totalQuestionsThisWeek ?? 0
+
+        // Calculate trend based on daily progress within the week
+        let dailyProgress = pointsManager.thisWeekProgress
+
+        if dailyProgress.count >= 2 {
+            // Compare first half vs second half of the week
+            let midpoint = dailyProgress.count / 2
+            let firstHalfQuestions = dailyProgress.prefix(midpoint).reduce(0) { $0 + $1.totalQuestions }
+            let secondHalfQuestions = dailyProgress.suffix(dailyProgress.count - midpoint).reduce(0) { $0 + $1.totalQuestions }
+
+            if secondHalfQuestions > firstHalfQuestions {
+                let increase = firstHalfQuestions > 0 ? ((Double(secondHalfQuestions - firstHalfQuestions) / Double(firstHalfQuestions)) * 100) : 100
+                return String(format: "increasing (+%.0f%%)", increase)
+            } else if secondHalfQuestions < firstHalfQuestions {
+                let decrease = ((Double(firstHalfQuestions - secondHalfQuestions) / Double(max(firstHalfQuestions, 1))) * 100)
+                return String(format: "decreasing (-%.0f%%)", decrease)
+            }
+        }
+
+        return "stable"
+    }
+
+    /// Get streak information from PointsEarningManager
+    private func getStreakInformation() -> StreakInfo {
+        let currentStreak = pointsManager.currentStreak
+        // Use current streak as longest since we don't track longest separately in PointsEarningManager
+        let longestStreak = pointsManager.currentStreak
+
+        // Calculate last activity date from today's progress
+        var lastActivityDate: Date? = nil
+        if let todayProgressDate = pointsManager.todayProgress?.date {
+            // Convert date string (yyyy-MM-dd) to Date
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            lastActivityDate = dateFormatter.date(from: todayProgressDate)
+        }
+
+        return StreakInfo(
+            currentStreak: currentStreak,
+            longestStreak: longestStreak,
+            lastActivityDate: lastActivityDate
+        )
+    }
+
+    /// Get learning goals progress from PointsEarningManager
+    private func getLearningGoalsProgress() -> [LearningGoalProgress] {
+        let activeGoals = pointsManager.learningGoals
+
+        return activeGoals.map { goal in
+            LearningGoalProgress(
+                title: goal.title,
+                description: goal.description,
+                currentProgress: goal.currentProgress,
+                targetValue: goal.targetValue,
+                isCompleted: goal.isCheckedOut,
+                progressPercentage: Double(goal.currentProgress) / Double(max(goal.targetValue, 1))
+            )
+        }
+    }
+}
+
+// MARK: - Supporting Data Models
+
+/// Streak information for reports
+struct StreakInfo {
+    let currentStreak: Int
+    let longestStreak: Int
+    let lastActivityDate: Date?
+}
+
+/// Learning goal progress for reports
+struct LearningGoalProgress {
+    let title: String
+    let description: String
+    let currentProgress: Int
+    let targetValue: Int
+    let isCompleted: Bool
+    let progressPercentage: Double
 }
 
 // MARK: - Data Models

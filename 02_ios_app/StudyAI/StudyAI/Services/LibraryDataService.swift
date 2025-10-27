@@ -284,6 +284,36 @@ class LibraryDataService: ObservableObject {
 
         return stats
     }
+
+    // MARK: - Delete Operations
+
+    /// Delete a library item (question or conversation) from local storage
+    func deleteLibraryItem(_ item: LibraryItem) async -> Bool {
+        // Determine item type and delete accordingly
+        if item.itemType == .question {
+            // Delete question
+            QuestionLocalStorage.shared.removeQuestion(withId: item.id)
+
+            // Update cache
+            await MainActor.run {
+                cachedQuestions.removeAll { $0.id == item.id }
+            }
+
+            print("🗑️ [LibraryDataService] Deleted question: \(item.id)")
+            return true
+        } else {
+            // Delete conversation
+            ConversationLocalStorage.shared.removeConversation(withId: item.id)
+
+            // Update cache
+            await MainActor.run {
+                cachedConversations.removeAll { ($0["id"] as? String) == item.id }
+            }
+
+            print("🗑️ [LibraryDataService] Deleted conversation: \(item.id)")
+            return true
+        }
+    }
     
     /// Fetch all library content (questions + conversations)
     func fetchLibraryContent(forceRefresh: Bool = false) async -> LibraryContent {

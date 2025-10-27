@@ -374,8 +374,90 @@ struct ActivityMetrics: Codable {
     let engagement: EngagementMetrics
     let patterns: StudyPatterns
 
+    // ✅ NEW: Streak and learning goals information
+    let streakInfo: StreakInfoData?
+    let learningGoals: [LearningGoalData]?
+
     var totalStudyHours: Double {
         return Double(studyTime.totalMinutes) / 60.0
+    }
+}
+
+/// Streak information data
+struct StreakInfoData: Codable {
+    let currentStreak: Int
+    let longestStreak: Int
+    let lastActivityDate: Date?
+
+    var streakQualityText: String {
+        switch currentStreak {
+        case 0:
+            return "No current streak"
+        case 1...3:
+            return "Building momentum"
+        case 4...6:
+            return "Good consistency"
+        case 7...13:
+            return "Strong habit"
+        case 14...29:
+            return "Excellent dedication"
+        default:
+            return "Outstanding commitment"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case currentStreak, longestStreak, lastActivityDate
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        currentStreak = try container.decode(Int.self, forKey: .currentStreak)
+        longestStreak = try container.decode(Int.self, forKey: .longestStreak)
+
+        if let dateString = try container.decodeIfPresent(String.self, forKey: .lastActivityDate) {
+            let formatter = ISO8601DateFormatter()
+            lastActivityDate = formatter.date(from: dateString)
+        } else {
+            lastActivityDate = nil
+        }
+    }
+
+    init(currentStreak: Int, longestStreak: Int, lastActivityDate: Date?) {
+        self.currentStreak = currentStreak
+        self.longestStreak = longestStreak
+        self.lastActivityDate = lastActivityDate
+    }
+}
+
+/// Learning goal data
+struct LearningGoalData: Codable, Identifiable {
+    let id = UUID()
+    let title: String
+    let description: String
+    let currentProgress: Int
+    let targetValue: Int
+    let isCompleted: Bool
+    let progressPercentage: Double
+
+    var progressText: String {
+        return "\(currentProgress) / \(targetValue)"
+    }
+
+    var statusIcon: String {
+        if isCompleted {
+            return "checkmark.circle.fill"
+        } else if progressPercentage >= 0.75 {
+            return "clock.fill"
+        } else if progressPercentage >= 0.5 {
+            return "clock"
+        } else {
+            return "clock.badge.questionmark"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, currentProgress, targetValue, isCompleted, progressPercentage
     }
 }
 
@@ -419,13 +501,29 @@ struct StudyPatterns: Codable {
     let sessionLengthTrend: String
     let subjectPreferences: [String]
 
+    // ✅ NEW: Enhanced activity patterns
+    let dayOfWeekPatterns: [String: Int]?
+    let weeklyTrend: String?
+
     var preferredTimeDisplay: String {
         switch preferredStudyTimes.lowercased() {
         case "morning": return "🌅 Morning"
         case "afternoon": return "☀️ Afternoon"
         case "evening": return "🌙 Evening"
+        case "late night": return "🌃 Late Night"
+        case "varied": return "📅 Varied Times"
         default: return "📅 No Clear Pattern"
         }
+    }
+
+    var mostActiveDay: String? {
+        guard let patterns = dayOfWeekPatterns, !patterns.isEmpty else { return nil }
+        return patterns.max(by: { $0.value < $1.value })?.key
+    }
+
+    var leastActiveDay: String? {
+        guard let patterns = dayOfWeekPatterns, !patterns.isEmpty else { return nil }
+        return patterns.filter { $0.value > 0 }.min(by: { $0.value < $1.value })?.key
     }
 }
 
@@ -1146,8 +1244,41 @@ extension ReportData {
             patterns: StudyPatterns(
                 preferredStudyTimes: "evening",
                 sessionLengthTrend: "stable",
-                subjectPreferences: ["Mathematics", "Physics", "Chemistry"]
-            )
+                subjectPreferences: ["Mathematics", "Physics", "Chemistry"],
+                dayOfWeekPatterns: [
+                    "Monday": 3,
+                    "Tuesday": 8,
+                    "Wednesday": 4,
+                    "Thursday": 7,
+                    "Friday": 5,
+                    "Saturday": 6,
+                    "Sunday": 2
+                ],
+                weeklyTrend: "increasing (+15%)"
+            ),
+            streakInfo: StreakInfoData(
+                currentStreak: 7,
+                longestStreak: 10,
+                lastActivityDate: Date()
+            ),
+            learningGoals: [
+                LearningGoalData(
+                    title: "Complete 15 math questions",
+                    description: "Weekly goal",
+                    currentProgress: 18,
+                    targetValue: 15,
+                    isCompleted: true,
+                    progressPercentage: 1.2
+                ),
+                LearningGoalData(
+                    title: "Study 5 days this week",
+                    description: "Consistency goal",
+                    currentProgress: 5,
+                    targetValue: 5,
+                    isCompleted: true,
+                    progressPercentage: 1.0
+                )
+            ]
         ),
         mentalHealth: MentalHealthMetrics(
             overallWellbeing: 0.82,

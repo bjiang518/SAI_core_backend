@@ -140,26 +140,41 @@ struct ParentReportsView: View {
                 Spacer()
 
                 if !reportService.availableReports.isEmpty {
-                    Button(NSLocalizedString("parentReport.viewAll", comment: "")) {
-                        // Navigate to full reports list
+                    Button(action: {
+                        clearAllReports()
+                    }) {
+                        Text("Clear All")
+                            .font(.caption)
+                            .foregroundColor(.red)
                     }
-                    .font(.caption)
-                    .foregroundColor(.blue)
                 }
             }
 
             if reportService.availableReports.isEmpty {
                 RecentReportsEmptyState()
             } else {
-                LazyVStack(spacing: 12) {
+                List {
                     ForEach(reportService.availableReports.prefix(3)) { report in
                         ReportListCard(report: report) {
                             Task {
                                 await loadReportDetail(reportId: report.id)
                             }
                         }
+                        .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                deleteReport(reportId: report.id)
+                            } label: {
+                                Label("Delete", systemImage: "trash.fill")
+                            }
+                        }
                     }
                 }
+                .listStyle(.plain)
+                .frame(height: CGFloat(min(reportService.availableReports.count, 3)) * 110)
+                .scrollDisabled(true)
             }
         }
     }
@@ -169,11 +184,32 @@ struct ParentReportsView: View {
         guard let userId = authService.currentUser?.id else { return }
 
         Task {
-            _ = await reportService.fetchStudentReports(
-                studentId: userId,
-                limit: 5
-            )
+            // Load from LOCAL storage only (no backend query)
+            let localStorage = LocalReportStorage.shared
+            let localReports = await localStorage.getAllCachedReports()
+
+            await MainActor.run {
+                reportService.availableReports = Array(localReports.prefix(5))
+                print("📊 Loaded \(localReports.count) reports from local storage")
+            }
         }
+    }
+
+    private func deleteReport(reportId: String) {
+        Task {
+            let success = await reportService.deleteReport(reportId: reportId)
+
+            if success {
+                print("✅ Report \(reportId) deleted successfully")
+            } else {
+                print("❌ Failed to delete report \(reportId)")
+            }
+        }
+    }
+
+    private func clearAllReports() {
+        reportService.clearCache()
+        print("🗑️ All reports cleared from cache")
     }
 
     private func generateWeeklyReport() {
@@ -199,51 +235,50 @@ struct ParentReportsView: View {
         Task {
             print("🚀 Quick action for \(type.rawValue) report")
 
-            // First, check if we have a recent cached report for this period
-            let recentReports = await reportService.fetchStudentReports(studentId: userId, limit: 10, offset: 0)
+            // Check LOCAL storage first (no backend query)
+            let localStorage = LocalReportStorage.shared
+            let localReports = await localStorage.getAllCachedReports()
 
             var cachedReportId: String? = nil
 
-            switch recentReports {
-            case .success(let reportsResponse):
-                // Look for a report that matches the requested type and is still valid
-                let cachedReportItem = reportsResponse.reports.first { report in
-                    let isSameType = report.reportType == type
-                    let isNotExpired = !report.isExpired
+            // Look for a locally cached report that matches the requested type
+            let cachedReport = localReports.first { report in
+                let isSameType = report.reportType == type
+                let isNotExpired = !report.isExpired
 
-                    // For weekly/monthly reports, check if it covers a similar recent period
-                    if type == .weekly || type == .monthly {
-                        let daysDifference = abs(Calendar.current.dateComponents([.day], from: report.startDate, to: startDate).day ?? 999)
-                        let isRecentPeriod = daysDifference <= (type == .weekly ? 3 : 15) // Allow some flexibility
-                        return isSameType && isNotExpired && isRecentPeriod
-                    } else {
-                        // For custom/progress reports, use exact date matching
-                        let sameStartDate = Calendar.current.isDate(report.startDate, inSameDayAs: startDate)
-                        let sameEndDate = Calendar.current.isDate(report.endDate, inSameDayAs: endDate)
-                        return isSameType && isNotExpired && sameStartDate && sameEndDate
-                    }
+                // For weekly/monthly reports, check if it covers a similar recent period
+                if type == .weekly || type == .monthly {
+                    let daysDifference = abs(Calendar.current.dateComponents([.day], from: report.startDate, to: startDate).day ?? 999)
+                    let isRecentPeriod = daysDifference <= (type == .weekly ? 3 : 15) // Allow some flexibility
+                    return isSameType && isNotExpired && isRecentPeriod
+                } else {
+                    // For custom/progress reports, use exact date matching
+                    let sameStartDate = Calendar.current.isDate(report.startDate, inSameDayAs: startDate)
+                    let sameEndDate = Calendar.current.isDate(report.endDate, inSameDayAs: endDate)
+                    return isSameType && isNotExpired && sameStartDate && sameEndDate
                 }
+            }
 
-                if let cached = cachedReportItem {
-                    cachedReportId = cached.id
-                    print("✅ Found cached \(type.rawValue) report: \(cached.id)")
-                    print("📅 Cached report period: \(cached.startDate) - \(cached.endDate)")
-                }
-
-            case .failure(let error):
-                print("⚠️ Failed to check for cached reports: \(error.localizedDescription)")
+            if let cached = cachedReport {
+                cachedReportId = cached.id
+                print("✅ Found locally cached \(type.rawValue) report: \(cached.id)")
+                print("📅 Cached report period: \(cached.startDate) - \(cached.endDate)")
+            } else {
+                print("🔄 No suitable cached report found locally, generating new report")
             }
 
             await MainActor.run {
                 isGeneratingReport = false
 
                 if let reportId = cachedReportId {
-                    // Fetch the cached report directly
-                    print("🎯 Using cached report instead of generating new one")
-                    loadCachedReport(reportId: reportId)
+                    // Use the cached report directly
+                    print("🎯 Using locally cached report")
+                    if let report = cachedReport {
+                        selectedReport = report
+                    }
                 } else {
                     // No suitable cached report found, proceed with generation
-                    print("🔄 No suitable cached report found, generating new report")
+                    print("🔄 Generating new report from local data")
                     generateNewReport(type: type, startDate: startDate, endDate: endDate, userId: userId)
                 }
             }
@@ -349,7 +384,7 @@ struct ReportActionCard: View {
 }
 
 struct ReportListCard: View {
-    let report: ReportListItem
+    let report: ParentReport
     let onTap: () -> Void
 
     var body: some View {
@@ -371,17 +406,11 @@ struct ReportListCard: View {
                         .foregroundColor(.secondary)
 
                     HStack {
-                        if report.aiAnalysisIncluded {
-                            Label(NSLocalizedString("parentReport.aiAnalysis", comment: ""), systemImage: "brain.head.profile")
-                                .font(.caption2)
-                                .foregroundColor(.blue)
-                        }
-
-                        Spacer()
-
                         Text(RelativeDateTimeFormatter().localizedString(for: report.generatedAt, relativeTo: Date()))
                             .font(.caption2)
                             .foregroundColor(.secondary)
+
+                        Spacer()
                     }
                 }
 

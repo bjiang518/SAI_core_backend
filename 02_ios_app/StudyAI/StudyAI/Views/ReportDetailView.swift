@@ -594,6 +594,16 @@ struct ActivitySection: View {
                 )
             }
 
+            // ✅ NEW: Streak Information
+            if let streakInfo = report.reportData.activity?.streakInfo {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Learning Streak")
+                        .font(.headline)
+
+                    StreakCard(streakInfo: streakInfo)
+                }
+            }
+
             // Engagement Metrics
             VStack(alignment: .leading, spacing: 16) {
                 Text("Engagement")
@@ -612,6 +622,28 @@ struct ActivitySection: View {
 
                     if let patterns = report.reportData.activity?.patterns {
                         StudyPatternsCard(patterns: patterns)
+
+                        // ✅ NEW: Day-of-Week Activity Breakdown
+                        if let dayPatterns = patterns.dayOfWeekPatterns, !dayPatterns.isEmpty {
+                            DayOfWeekChart(patterns: dayPatterns)
+                        }
+
+                        // ✅ NEW: Weekly Trend Display
+                        if let weeklyTrend = patterns.weeklyTrend {
+                            WeeklyTrendCard(trend: weeklyTrend)
+                        }
+                    }
+                }
+            }
+
+            // ✅ NEW: Learning Goals Progress
+            if let goals = report.reportData.activity?.learningGoals, !goals.isEmpty {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Learning Goals")
+                        .font(.headline)
+
+                    ForEach(goals) { goal in
+                        LearningGoalCard(goal: goal)
                     }
                 }
             }

@@ -1833,6 +1833,43 @@ async def generate_narrative_report(request: NarrativeGenerationRequest, service
         total_conversations = activity.get('totalConversations', 0) or 0
         engagement_score = activity.get('engagementScore', 0) or 0
 
+        # ✅ NEW: Extract streak information
+        streak_info = activity.get('streakInfo', {}) or {}
+        current_streak = streak_info.get('currentStreak', 0) if streak_info else 0
+        longest_streak = streak_info.get('longestStreak', 0) if streak_info else 0
+
+        # Generate streak quality text based on numeric value if not provided
+        if streak_info and current_streak > 0:
+            if current_streak >= 7:
+                streak_quality = 'Excellent! Keep it up!'
+            elif current_streak >= 3:
+                streak_quality = 'Great consistency!'
+            elif current_streak >= 2:
+                streak_quality = 'Building momentum'
+            else:
+                streak_quality = 'Getting started'
+        else:
+            streak_quality = 'No current streak'
+
+        # ✅ NEW: Extract learning goals
+        learning_goals = activity.get('learningGoals', []) or []
+        completed_goals = [g for g in learning_goals if g.get('isCompleted', False)] if learning_goals else []
+        total_goals = len(learning_goals)
+        completed_goals_count = len(completed_goals)
+
+        # ✅ NEW: Extract activity patterns
+        patterns = activity.get('patterns', {}) or {}
+        day_of_week_patterns = patterns.get('dayOfWeekPatterns', {}) if patterns else {}
+        weekly_trend = patterns.get('weeklyTrend', 'stable') if patterns else 'stable'
+        preferred_study_time = patterns.get('preferredStudyTimes', 'varied') if patterns else 'varied'
+
+        # Find most active day
+        most_active_day = 'No clear pattern'
+        if day_of_week_patterns and isinstance(day_of_week_patterns, dict):
+            max_day = max(day_of_week_patterns.items(), key=lambda x: x[1], default=None)
+            if max_day and max_day[1] > 0:
+                most_active_day = max_day[0]
+
         # subjects is an ARRAY of objects: [{name, accuracy, questions, studyTime}, ...]
         subject_names = []
         if isinstance(subjects, list):
@@ -1857,6 +1894,14 @@ STUDENT PERFORMANCE DATA:
 CONVERSATION ENGAGEMENT:
 - Total Conversations: {total_conversations}
 - Engagement Score: {engagement_score:.1%}
+
+LEARNING HABITS & CONSISTENCY:
+- Current Streak: {current_streak} days ({streak_quality})
+- Longest Streak: {longest_streak} days
+- Learning Goals: {completed_goals_count} of {total_goals} completed
+- Preferred Study Time: {preferred_study_time}
+- Weekly Activity Trend: {weekly_trend}
+- Most Active Day: {most_active_day}
 
 PROGRESS INDICATORS:
 - Overall Trend: {progress.get('overallTrend', 'Steady progress')}

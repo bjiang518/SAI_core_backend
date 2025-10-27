@@ -104,10 +104,12 @@ final class AuthenticationService: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var lastRegisteredEmail: String? // For pre-filling login after registration
-    
+    @Published var requiresFaceIDReauth = false // Session expired, needs Face ID re-auth
+
     private let keychainService = KeychainService.shared
     private let biometricAuth = BiometricAuthService.shared
     private let networkService = NetworkService.shared
+    private let sessionManager = SessionManager.shared
     private let authLogger = Logger(subsystem: "com.studyai", category: "AuthService")
     
     private init() {
@@ -145,19 +147,19 @@ final class AuthenticationService: ObservableObject {
     private func checkAuthenticationStatusAsync() async {
         let checkStartTime = CFAbsoluteTimeGetCurrent()
         authLogger.info("🔍 === CHECKING AUTHENTICATION STATUS (ASYNC) ===")
-        
+
         let keychainStartTime = CFAbsoluteTimeGetCurrent()
         authLogger.info("🔑 Looking for stored user in keychain (background thread)...")
-        
+
         // Perform keychain access on background thread
         let userData = await Task.detached {
             return self.keychainService.getUser()
         }.value
-        
+
         let keychainEndTime = CFAbsoluteTimeGetCurrent()
         let keychainDuration = keychainEndTime - keychainStartTime
         authLogger.info("🔑 Keychain access completed in: \(keychainDuration * 1000, privacy: .public) ms")
-        
+
         // Update UI on main thread
         await MainActor.run {
             if let userData = userData {
@@ -165,25 +167,41 @@ final class AuthenticationService: ObservableObject {
                 let userLoadDuration = userLoadTime - checkStartTime
                 authLogger.info("✅ Found stored user: \(userData.email)")
                 authLogger.info("🔑 User loaded from keychain in: \(userLoadDuration * 1000, privacy: .public) ms")
-                
-                currentUser = userData
-                isAuthenticated = true
-                
-                // Auto-load cached profile or fetch from server
-                authLogger.info("👤 Loading user profile after login...")
-                Task {
-                    await loadUserProfileAfterLogin()
+
+                // ✅ NEW: Check session validity
+                let isSessionValid = sessionManager.checkSessionValidity()
+                authLogger.info("🔐 Session validity check: \(isSessionValid ? "VALID" : "EXPIRED")")
+
+                if isSessionValid {
+                    // Session is valid, auto-login
+                    authLogger.info("✅ Session is valid, auto-logging in user")
+                    currentUser = userData
+                    isAuthenticated = true
+                    requiresFaceIDReauth = false
+
+                    // Auto-load cached profile or fetch from server
+                    authLogger.info("👤 Loading user profile after login...")
+                    Task {
+                        await loadUserProfileAfterLogin()
+                    }
+                } else {
+                    // Session expired, require Face ID re-authentication
+                    authLogger.info("⏰ Session expired, requiring Face ID re-authentication")
+                    currentUser = userData  // Keep user data for Face ID context
+                    isAuthenticated = false
+                    requiresFaceIDReauth = true  // Signal UI to show Face ID prompt
                 }
             } else {
                 let noUserTime = CFAbsoluteTimeGetCurrent()
                 let noUserDuration = noUserTime - checkStartTime
                 authLogger.info("❌ No stored user found")
                 authLogger.info("🔑 Keychain check completed in: \(noUserDuration * 1000, privacy: .public) ms")
-                
+
                 isAuthenticated = false
                 currentUser = nil
+                requiresFaceIDReauth = false
             }
-            
+
             let totalCheckTime = CFAbsoluteTimeGetCurrent() - checkStartTime
             authLogger.info("🔍 Authentication status check completed in: \(totalCheckTime * 1000, privacy: .public) ms")
             authLogger.info("🔍 === AUTHENTICATION STATUS CHECK FINISHED ===")
@@ -265,7 +283,11 @@ final class AuthenticationService: ObservableObject {
                     print("👤 Current user ID now: \(user.id)")
                     print("===========================")
                 }
-                
+
+                // ✅ NEW: Start session after successful login
+                sessionManager.startSession()
+                authLogger.info("🔐 Session started for user: \(user.email)")
+
                 // Auto-load user profile after successful login
                 await loadUserProfileAfterLogin()
             }
@@ -378,6 +400,10 @@ final class AuthenticationService: ObservableObject {
                     currentUser = user
                     isAuthenticated = true
                 }
+
+                // ✅ NEW: Start session after successful email verification
+                sessionManager.startSession()
+                authLogger.info("🔐 Session started for user: \(user.email)")
 
                 authLogger.info("✅ Email verified and user logged in: \(user.email)")
             }
@@ -495,6 +521,10 @@ final class AuthenticationService: ObservableObject {
                         print("   - currentUser.id: \(currentUser?.id ?? "nil")")
                     }
 
+                    // ✅ NEW: Start session after successful Apple Sign-In
+                    sessionManager.startSession()
+                    authLogger.info("🔐 Session started for user: \(user.email)")
+
                     // Auto-load user profile after successful login
                     print("🍎 Step 9: Loading user profile...")
                     await loadUserProfileAfterLogin()
@@ -583,7 +613,11 @@ final class AuthenticationService: ObservableObject {
                     currentUser = user
                     isAuthenticated = true
                 }
-                
+
+                // ✅ NEW: Start session after successful Google Sign-In
+                sessionManager.startSession()
+                authLogger.info("🔐 Session started for user: \(user.email)")
+
                 // Auto-load user profile after successful login
                 await loadUserProfileAfterLogin()
             }
@@ -620,6 +654,10 @@ final class AuthenticationService: ObservableObject {
                     currentUser = userData
                     isAuthenticated = true
                 }
+
+                // ✅ NEW: Refresh session after successful biometric re-authentication
+                sessionManager.refreshSessionAfterBiometricAuth()
+                authLogger.info("🔐 Session refreshed after biometric authentication for user: \(userData.email)")
 
                 // Auto-load user profile after successful login
                 await loadUserProfileAfterLogin()
@@ -684,13 +722,19 @@ final class AuthenticationService: ObservableObject {
     }
     
     // MARK: - Sign Out
-    
+
     func signOut() {
         keychainService.clearAll()
+
+        // ✅ NEW: End session on sign out
+        sessionManager.endSession()
+        authLogger.info("🔐 Session ended on sign out")
+
         Task { @MainActor in
             currentUser = nil
             isAuthenticated = false
             errorMessage = nil
+            requiresFaceIDReauth = false
         }
     }
     

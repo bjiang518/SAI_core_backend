@@ -125,6 +125,12 @@
 		7B8E9EA12EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */; };
 		7B8E9EA22EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */; };
 		7B8E9EA32EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */; };
+		7B8E9EB12EAF38D000E83DA8 /* SessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EB02EAF38D000E83DA8 /* SessionManager.swift */; };
+		7B8E9EB22EAF38D000E83DA8 /* SessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EB02EAF38D000E83DA8 /* SessionManager.swift */; };
+		7B8E9EB32EAF38D000E83DA8 /* SessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EB02EAF38D000E83DA8 /* SessionManager.swift */; };
+		7B8E9EB52EAF395200E83DA8 /* FaceIDReauthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EB42EAF395200E83DA8 /* FaceIDReauthView.swift */; };
+		7B8E9EB62EAF395200E83DA8 /* FaceIDReauthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EB42EAF395200E83DA8 /* FaceIDReauthView.swift */; };
+		7B8E9EB72EAF395200E83DA8 /* FaceIDReauthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EB42EAF395200E83DA8 /* FaceIDReauthView.swift */; };
 		7B90451A2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
 		7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
 		7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B9045192E8FB1FE00E5DDFA /* Books.json */; };
@@ -302,6 +308,8 @@
 		7B8E9E982EAB516C00E83DA8 /* HomeworkImageModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeworkImageModels.swift; sourceTree = "<group>"; };
 		7B8E9E9C2EAB518100E83DA8 /* HomeworkImageStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkImageStorageService.swift; path = StudyAI/Services/HomeworkImageStorageService.swift; sourceTree = SOURCE_ROOT; };
 		7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkQuestionsPDFPreviewView.swift; path = StudyAI/Views/HomeworkQuestionsPDFPreviewView.swift; sourceTree = SOURCE_ROOT; };
+		7B8E9EB02EAF38D000E83DA8 /* SessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionManager.swift; path = StudyAI/Services/SessionManager.swift; sourceTree = SOURCE_ROOT; };
+		7B8E9EB42EAF395200E83DA8 /* FaceIDReauthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FaceIDReauthView.swift; path = StudyAI/Views/FaceIDReauthView.swift; sourceTree = SOURCE_ROOT; };
 		7B9045192E8FB1FE00E5DDFA /* Books.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Books.json; sourceTree = "<group>"; };
 		7B90451D2E8FB42E00E5DDFA /* Checklist.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Checklist.json; sourceTree = "<group>"; };
 		7B9045212E8FB5DD00E5DDFA /* Chart Graph.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Chart Graph.json"; sourceTree = "<group>"; };
@@ -510,6 +518,7 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7B8E9EB02EAF38D000E83DA8 /* SessionManager.swift */,
 				7B8E9E9C2EAB518100E83DA8 /* HomeworkImageStorageService.swift */,
 				7B8353472EA7509000199AC3 /* QuestionTypeRenderers.swift */,
 				7B8353432EA6F4F400199AC3 /* LocalReportDataAggregator.swift */,
@@ -553,6 +562,7 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7B8E9EB42EAF395200E83DA8 /* FaceIDReauthView.swift */,
 				7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */,
 				7B8E9E902EAB50F400E83DA8 /* HomeworkAlbumView.swift */,
 				7B8E9E912EAB50F400E83DA8 /* HomeworkImageDetailView.swift */,
@@ -851,6 +861,7 @@
 				7B1961F12E94E31A0024317A /* ParentModeManager.swift in Sources */,
 				D87DBC4B66CF4F958C156B26 /* QuestionArchiveModels.swift in Sources */,
 				EF7FC57F2FF9428F9F262123 /* SessionModels.swift in Sources */,
+				7B8E9EB52EAF395200E83DA8 /* FaceIDReauthView.swift in Sources */,
 				6AAA1280DC3B4E05B19E67B6 /* VoiceModels.swift in Sources */,
 				PROF567890123456BCDE8901 /* UserProfile.swift in Sources */,
 				PNTS789012345678EFGH0123 /* PointsEarningSystem.swift in Sources */,
@@ -882,6 +893,7 @@
 				7BEDA6282E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift in Sources */,
 				368449B00EC0466B89F7AFF6 /* RailwayArchiveService.swift in Sources */,
 				7B8E9E9B2EAB516C00E83DA8 /* HomeworkImageModels.swift in Sources */,
+				7B8E9EB32EAF38D000E83DA8 /* SessionManager.swift in Sources */,
 				BBC5F8E4CA694EABAD6955A2 /* SimpleMathRenderer.swift in Sources */,
 				D3FB6347F13948AB873BE1F8 /* SpeechRecognitionService.swift in Sources */,
 				7B1ED83E2E829B1700E5E57D /* ReportDateRangeSelector.swift in Sources */,
@@ -963,6 +975,7 @@
 				7B1961EB2E94E2740024317A /* PasswordManagementView.swift in Sources */,
 				7B8E9E9D2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				7B1961EC2E94E2740024317A /* ParentAuthenticationView.swift in Sources */,
+				7B8E9EB72EAF395200E83DA8 /* FaceIDReauthView.swift in Sources */,
 				7B8353452EA6F4F400199AC3 /* LocalReportDataAggregator.swift in Sources */,
 				7B1961F02E94E31A0024317A /* ParentModeManager.swift in Sources */,
 				7B8E9E9A2EAB516C00E83DA8 /* HomeworkImageModels.swift in Sources */,
@@ -977,6 +990,7 @@
 				7BEEB6202E8E419600957748 /* LottieView.swift in Sources */,
 				7B8E9E942EAB50F400E83DA8 /* HomeworkAlbumView.swift in Sources */,
 				7B8E9E952EAB50F400E83DA8 /* HomeworkImageDetailView.swift in Sources */,
+				7B8E9EB22EAF38D000E83DA8 /* SessionManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -994,6 +1008,7 @@
 				7B1961AE2E949DAD0024317A /* NotificationSettingsView.swift in Sources */,
 				7B1961CD2E94B32C0024317A /* LanguageSettingsView.swift in Sources */,
 				7B8353492EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */,
+				7B8E9EB12EAF38D000E83DA8 /* SessionManager.swift in Sources */,
 				7B8E9E922EAB50F400E83DA8 /* HomeworkAlbumView.swift in Sources */,
 				7B8E9E932EAB50F400E83DA8 /* HomeworkImageDetailView.swift in Sources */,
 				7B83533B2EA6F11400199AC3 /* AppLogger.swift in Sources */,
@@ -1003,6 +1018,7 @@
 				7B83533E2EA6F11400199AC3 /* RateLimitManager.swift in Sources */,
 				7B8E9E992EAB516C00E83DA8 /* HomeworkImageModels.swift in Sources */,
 				7B8E9EA22EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */,
+				7B8E9EB62EAF395200E83DA8 /* FaceIDReauthView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1181,7 +1197,7 @@
 				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 2ZZ99T96B8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1220,7 +1236,7 @@
 				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 2ZZ99T96B8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
