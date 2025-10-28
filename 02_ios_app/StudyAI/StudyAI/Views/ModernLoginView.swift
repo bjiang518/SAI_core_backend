@@ -15,10 +15,11 @@ struct ModernLoginView: View {
     @State private var showingSignUp = false
     @State private var showingError = false
     @State private var showingFaceIDPrompt = false
+    @State private var isPasswordVisible = false  // ✅ Password visibility toggle
     @FocusState private var focusedField: Field?
 
     var onLoginSuccess: () -> Void
-    
+
     enum Field {
         case email, password
     }
@@ -36,12 +37,13 @@ struct ModernLoginView: View {
                         .frame(minHeight: geometry.size.height * 0.65)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)  // ✅ Dismiss keyboard on scroll
+            .onTapGesture {
+                // ✅ Dismiss keyboard when tapping whitespace
+                hideKeyboard()
+            }
             .ignoresSafeArea(.container, edges: .top)
             .background(Color.white)
-            .safeAreaInset(edge: .bottom) {
-                // Modern iOS 26+ safe area handling
-                Color.clear.frame(height: 0)
-            }
         }
         .alert("Authentication Error", isPresented: $showingError) {
             Button("OK") { }
@@ -310,15 +312,37 @@ struct ModernLoginView: View {
                 Text("Password")
                     .font(.caption)
                     .foregroundColor(.gray)
-                
-                SecureField("Enter your password", text: $password)
-                    .textFieldStyle(PlayfulTextFieldStyle())
-                    .textContentType(.password)
-                    .focused($focusedField, equals: .password)
-                    .submitLabel(.go)
-                    .onSubmit {
-                        signInWithEmail()
+
+                HStack {
+                    if isPasswordVisible {
+                        TextField("Enter your password", text: $password)
+                            .textContentType(.password)
+                            .focused($focusedField, equals: .password)
+                            .submitLabel(.go)
+                            .onSubmit {
+                                signInWithEmail()
+                            }
+                    } else {
+                        SecureField("Enter your password", text: $password)
+                            .textContentType(.password)
+                            .focused($focusedField, equals: .password)
+                            .submitLabel(.go)
+                            .onSubmit {
+                                signInWithEmail()
+                            }
                     }
+
+                    // ✅ Password visibility toggle button
+                    Button(action: {
+                        isPasswordVisible.toggle()
+                    }) {
+                        Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
+                            .foregroundColor(.gray.opacity(0.7))
+                            .font(.system(size: 16))
+                    }
+                    .padding(.trailing, 12)
+                }
+                .textFieldStyle(PlayfulTextFieldStyle())
             }
             
             // Sign in button
@@ -524,6 +548,8 @@ struct ModernSignUpView: View {
     @State private var confirmPassword = ""
     @State private var showingError = false
     @State private var showingVerification = false
+    @State private var isPasswordVisible = false  // ✅ Password visibility toggle
+    @State private var isConfirmPasswordVisible = false  // ✅ Confirm password visibility toggle
     @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
 
@@ -586,11 +612,30 @@ struct ModernSignUpView: View {
                                 .font(.caption)
                                 .foregroundColor(.gray)
 
-                            SecureField("Create a password", text: $password)
-                                .textFieldStyle(PlayfulTextFieldStyle())
-                                .textContentType(.newPassword)
-                                .focused($focusedField, equals: .password)
-                                .onSubmit { focusedField = .confirmPassword }
+                            HStack {
+                                if isPasswordVisible {
+                                    TextField("Create a password", text: $password)
+                                        .textContentType(.newPassword)
+                                        .focused($focusedField, equals: .password)
+                                        .onSubmit { focusedField = .confirmPassword }
+                                } else {
+                                    SecureField("Create a password", text: $password)
+                                        .textContentType(.newPassword)
+                                        .focused($focusedField, equals: .password)
+                                        .onSubmit { focusedField = .confirmPassword }
+                                }
+
+                                // ✅ Password visibility toggle button
+                                Button(action: {
+                                    isPasswordVisible.toggle()
+                                }) {
+                                    Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
+                                        .foregroundColor(.gray.opacity(0.7))
+                                        .font(.system(size: 16))
+                                }
+                                .padding(.trailing, 12)
+                            }
+                            .textFieldStyle(PlayfulTextFieldStyle())
                         }
 
                         // Confirm password field
@@ -599,11 +644,30 @@ struct ModernSignUpView: View {
                                 .font(.caption)
                                 .foregroundColor(.gray)
 
-                            SecureField("Confirm your password", text: $confirmPassword)
-                                .textFieldStyle(PlayfulTextFieldStyle())
-                                .textContentType(.newPassword)
-                                .focused($focusedField, equals: .confirmPassword)
-                                .onSubmit { signUp() }
+                            HStack {
+                                if isConfirmPasswordVisible {
+                                    TextField("Confirm your password", text: $confirmPassword)
+                                        .textContentType(.newPassword)
+                                        .focused($focusedField, equals: .confirmPassword)
+                                        .onSubmit { signUp() }
+                                } else {
+                                    SecureField("Confirm your password", text: $confirmPassword)
+                                        .textContentType(.newPassword)
+                                        .focused($focusedField, equals: .confirmPassword)
+                                        .onSubmit { signUp() }
+                                }
+
+                                // ✅ Password visibility toggle button
+                                Button(action: {
+                                    isConfirmPasswordVisible.toggle()
+                                }) {
+                                    Image(systemName: isConfirmPasswordVisible ? "eye.slash.fill" : "eye.fill")
+                                        .foregroundColor(.gray.opacity(0.7))
+                                        .font(.system(size: 16))
+                                }
+                                .padding(.trailing, 12)
+                            }
+                            .textFieldStyle(PlayfulTextFieldStyle())
                         }
 
                         // Password validation
@@ -641,6 +705,7 @@ struct ModernSignUpView: View {
                 }
                 .padding(.horizontal, 32)
             }
+            .scrollDismissesKeyboard(.interactively)  // ✅ Dismiss keyboard on scroll
             .background(Color.white)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -124,6 +124,7 @@ struct ContentView: View {
 struct MainTabView: View {
     let onLogout: () -> Void
     @StateObject private var appState = AppState.shared
+    @StateObject private var sessionManager = SessionManager.shared  // ✅ Track user activity
 
     var body: some View {
         TabView(selection: Binding(
@@ -134,7 +135,7 @@ struct MainTabView: View {
             NavigationStack {
                 HomeView(onSelectTab: selectTab)
                     .onAppear {
-                        // HomeView appeared
+                        sessionManager.updateActivity()
                     }
             }
             .tabItem {
@@ -143,12 +144,12 @@ struct MainTabView: View {
                     .font(.caption2)
             }
             .tag(MainTab.home.rawValue)
-            
-            // Grader Tab  
+
+            // Grader Tab
             NavigationStack {
                 DirectAIHomeworkView()
                     .onAppear {
-                        // DirectAIHomeworkView appeared
+                        sessionManager.updateActivity()
                     }
             }
             .tabItem {
@@ -157,12 +158,12 @@ struct MainTabView: View {
                     .font(.caption2)
             }
             .tag(MainTab.grader.rawValue)
-            
+
             // Chat Tab
             NavigationStack {
                 SessionChatView()
                     .onAppear {
-                        // SessionChatView appeared
+                        sessionManager.updateActivity()
                     }
             }
             .tabItem {
@@ -171,13 +172,13 @@ struct MainTabView: View {
                     .font(.caption2)
             }
             .tag(MainTab.chat.rawValue)
-            
+
             // Progress Tab
             NavigationStack {
-                
+
                 LearningProgressView()
                     .onAppear {
-                        // LearningProgressView appeared
+                        sessionManager.updateActivity()
                     }
             }
             .tabItem {
@@ -186,12 +187,12 @@ struct MainTabView: View {
                     .font(.caption2)
             }
             .tag(MainTab.progress.rawValue)
-            
+
             // Library Tab
             NavigationStack {
                 UnifiedLibraryView()
                     .onAppear {
-                        // UnifiedLibraryView appeared
+                        sessionManager.updateActivity()
                     }
             }
             .tabItem {
@@ -203,10 +204,14 @@ struct MainTabView: View {
         }
         .tint(.blue)
         .onChange(of: appState.selectedTab) { oldTab, newTab in
-            // Tab selection changed
+            // Tab selection changed - update session activity
+            sessionManager.updateActivity()
+            print("🔐 [MainTabView] Tab changed: \(oldTab) → \(newTab), session activity updated")
         }
         .onAppear {
-            // MainTabView appeared
+            // MainTabView appeared - update session activity
+            sessionManager.updateActivity()
+            print("🔐 [MainTabView] MainTabView appeared, session activity updated")
         }
     }
 

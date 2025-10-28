@@ -265,6 +265,32 @@
 "auth.passwordRequirement.minLength" = "At least 6 characters";
 "auth.passwordRequirement.match" = "Passwords match";
 
+// Error Messages
+"error.offline" = "No internet connection";
+"error.rateLimit" = "Too many requests. Try again in %@";
+"error.rateLimitGeneric" = "Too many requests. Please try again later";
+"error.invalidImage" = "Image format not supported or corrupted";
+"error.aiProcessing" = "AI analysis failed. Please try again";
+"error.auth" = "Authentication failed. Please sign in again";
+
+// Homework Album
+"homeworkAlbum.title" = "Homework Album";
+"homeworkAlbum.select" = "Select";
+"homeworkAlbum.done" = "Done";
+"homeworkAlbum.delete" = "Delete";
+"homeworkAlbum.deleteCount" = "Delete (%d)";
+"homeworkAlbum.deleteConfirmation" = "Delete %d homework image%@?";
+"homeworkAlbum.deleteConfirmationMessage" = "This action cannot be undone.";
+"homeworkAlbum.emptyStateTitle" = "No Homework Yet";
+"homeworkAlbum.emptyStateMessage" = "Homework images will appear here after you submit them for AI grading";
+"homeworkAlbum.questionCount" = "%d question%@";
+"homeworkAlbum.filters" = "Filters";
+"homeworkAlbum.timeRange" = "Time Range";
+"homeworkAlbum.subject" = "Subject";
+"homeworkAlbum.grade" = "Grade";
+"homeworkAlbum.chooseHomework" = "Choose Homework";
+"homeworkAlbum.selectionHint" = "Tap any homework to select it for AI re-analysis";
+
 // Question Generation
 "questionGeneration.title" = "Generate Questions";
 "questionGeneration.aiQuestionGenerator" = "AI Question Generator";

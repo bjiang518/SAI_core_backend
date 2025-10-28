@@ -395,6 +395,9 @@ struct SessionChatView: View {
     @State private var aiGeneratedSuggestions: [NetworkService.FollowUpSuggestion] = []
     @State private var isStreamingComplete = true  // Track if AI response streaming is complete
 
+    // Dark mode detection
+    @Environment(\.colorScheme) var colorScheme
+
     private var subjects: [String] {
         [
             NSLocalizedString("chat.subjects.mathematics", comment: ""),
@@ -414,8 +417,8 @@ struct SessionChatView: View {
     
     var body: some View {
         ZStack {
-            // White background
-            Color.white
+            // Dynamic background that adapts to dark/light mode
+            Color(.systemBackground)
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -451,7 +454,6 @@ struct SessionChatView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .preferredColorScheme(.light) // Force light mode
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 // Subject selector button (moved to top navigation bar)
@@ -472,7 +474,7 @@ struct SessionChatView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.white)
+                    .background(colorScheme == .dark ? Color(.secondarySystemBackground) : Color.white)
                     .cornerRadius(16)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)

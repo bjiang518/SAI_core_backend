@@ -20,7 +20,6 @@ struct StudyAIApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .preferredColorScheme(.light) // Force light mode globally
                 .environment(\.locale, Locale(identifier: appLanguage))
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)

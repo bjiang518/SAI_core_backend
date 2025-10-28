@@ -69,7 +69,7 @@ struct HomeworkAlbumView: View {
                     }
                 }
             }
-            .navigationTitle("Homework Album")
+            .navigationTitle(NSLocalizedString("homeworkAlbum.title", value: "Homework Album", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -89,7 +89,7 @@ struct HomeworkAlbumView: View {
 
                         // Edit button
                         if !filteredImages.isEmpty {
-                            Button(editMode == .active ? "Done" : "Select") {
+                            Button(editMode == .active ? NSLocalizedString("homeworkAlbum.done", value: "Done", comment: "") : NSLocalizedString("homeworkAlbum.select", value: "Select", comment: "")) {
                                 withAnimation {
                                     if editMode == .active {
                                         editMode = .inactive
@@ -117,13 +117,13 @@ struct HomeworkAlbumView: View {
                 )
                 .presentationDetents([.medium])
             }
-            .alert("Delete \(selectedImages.count) homework image\(selectedImages.count > 1 ? "s" : "")?", isPresented: $showingDeleteConfirmation) {
-                Button("Cancel", role: .cancel) { }
-                Button("Delete", role: .destructive) {
+            .alert(String(format: NSLocalizedString("homeworkAlbum.deleteConfirmation", value: "Delete %d homework image%@?", comment: ""), selectedImages.count, selectedImages.count > 1 ? "s" : ""), isPresented: $showingDeleteConfirmation) {
+                Button(NSLocalizedString("common.cancel", value: "Cancel", comment: ""), role: .cancel) { }
+                Button(NSLocalizedString("homeworkAlbum.delete", value: "Delete", comment: ""), role: .destructive) {
                     deleteSelectedImages()
                 }
             } message: {
-                Text("This action cannot be undone.")
+                Text(NSLocalizedString("homeworkAlbum.deleteConfirmationMessage", value: "This action cannot be undone.", comment: ""))
             }
             .overlay(alignment: .bottom) {
                 if editMode == .active && !selectedImages.isEmpty {
@@ -141,11 +141,11 @@ struct HomeworkAlbumView: View {
                 .font(.system(size: 70))
                 .foregroundColor(.gray.opacity(0.5))
 
-            Text("No Homework Yet")
+            Text(NSLocalizedString("homeworkAlbum.emptyStateTitle", value: "No Homework Yet", comment: ""))
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Homework images will appear here after you submit them for AI grading")
+            Text(NSLocalizedString("homeworkAlbum.emptyStateMessage", value: "Homework images will appear here after you submit them for AI grading", comment: ""))
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -161,7 +161,7 @@ struct HomeworkAlbumView: View {
         }) {
             HStack {
                 Image(systemName: "trash.fill")
-                Text("Delete (\(selectedImages.count))")
+                Text(String(format: NSLocalizedString("homeworkAlbum.deleteCount", value: "Delete (%d)", comment: ""), selectedImages.count))
                     .fontWeight(.semibold)
             }
             .foregroundColor(.white)
@@ -251,7 +251,7 @@ struct HomeworkThumbnailCard: View {
 
                         // Question Count and Date
                         HStack {
-                            Text("\(record.questionCount) question\(record.questionCount > 1 ? "s" : "")")
+                            Text(String(format: NSLocalizedString("homeworkAlbum.questionCount", value: "%d question%@", comment: ""), record.questionCount, record.questionCount > 1 ? "s" : ""))
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
 
@@ -309,7 +309,7 @@ struct FilterMenuView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Time Range")) {
+                Section(header: Text(NSLocalizedString("homeworkAlbum.timeRange", value: "Time Range", comment: ""))) {
                     ForEach(HomeworkTimeFilter.allCases) { filter in
                         Button(action: {
                             timeFilter = filter
@@ -329,7 +329,7 @@ struct FilterMenuView: View {
                     }
                 }
 
-                Section(header: Text("Subject")) {
+                Section(header: Text(NSLocalizedString("homeworkAlbum.subject", value: "Subject", comment: ""))) {
                     ForEach(HomeworkSubjectFilter.allCases) { filter in
                         Button(action: {
                             subjectFilter = filter
@@ -349,7 +349,7 @@ struct FilterMenuView: View {
                     }
                 }
 
-                Section(header: Text("Grade")) {
+                Section(header: Text(NSLocalizedString("homeworkAlbum.grade", value: "Grade", comment: ""))) {
                     ForEach(HomeworkGradeFilter.allCases) { filter in
                         Button(action: {
                             gradeFilter = filter
@@ -369,11 +369,11 @@ struct FilterMenuView: View {
                     }
                 }
             }
-            .navigationTitle("Filters")
+            .navigationTitle(NSLocalizedString("homeworkAlbum.filters", value: "Filters", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("homeworkAlbum.done", value: "Done", comment: "")) {
                         dismiss()
                     }
                 }
@@ -426,7 +426,7 @@ struct HomeworkAlbumSelectionView: View {
                             HStack {
                                 Image(systemName: "hand.tap.fill")
                                     .foregroundColor(.blue)
-                                Text("Tap any homework to select it for AI re-analysis")
+                                Text(NSLocalizedString("homeworkAlbum.selectionHint", value: "Tap any homework to select it for AI re-analysis", comment: ""))
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                             }
@@ -450,7 +450,7 @@ struct HomeworkAlbumSelectionView: View {
                     }
                 }
             }
-            .navigationTitle("Choose Homework")
+            .navigationTitle(NSLocalizedString("homeworkAlbum.chooseHomework", value: "Choose Homework", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -487,11 +487,11 @@ struct HomeworkAlbumSelectionView: View {
                 .font(.system(size: 70))
                 .foregroundColor(.gray.opacity(0.5))
 
-            Text("No Homework Yet")
+            Text(NSLocalizedString("homeworkAlbum.emptyStateTitle", value: "No Homework Yet", comment: ""))
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Homework images will appear here after you submit them for AI grading")
+            Text(NSLocalizedString("homeworkAlbum.emptyStateMessage", value: "Homework images will appear here after you submit them for AI grading", comment: ""))
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

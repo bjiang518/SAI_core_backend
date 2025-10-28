@@ -6,7 +6,7 @@ struct DesignTokens {
     
     // MARK: - Colors
     struct Colors {
-        // Primary Colors - Refined Palette
+        // Primary Colors - Refined Palette (Adaptive)
         static let primary = Color(hex: "3B82F6") // Blue - AI features
         static let primaryVariant = Color(hex: "2563EB") // Darker blue
 
@@ -27,10 +27,10 @@ struct DesignTokens {
         static let secondary = Color("Secondary", bundle: .main) ?? Color.gray
         static let secondaryVariant = Color("SecondaryVariant", bundle: .main) ?? Color.gray.opacity(0.6)
 
-        // Surface Colors
-        static let surface = Color(hex: "F8FAFC") // Light background
-        static let surfaceVariant = Color("SurfaceVariant", bundle: .main) ?? Color(.secondarySystemBackground)
-        static let cardBackground = Color.white
+        // Surface Colors - Now Adaptive to Dark Mode
+        static let surface = Color(.systemBackground) // Adapts to light/dark mode
+        static let surfaceVariant = Color(.secondarySystemBackground) // Adapts to light/dark mode
+        static let cardBackground = Color(.secondarySystemBackground) // Adapts to light/dark mode
 
         // Text Colors
         static let onSurface = Color("OnSurface", bundle: .main) ?? Color.primary
@@ -71,6 +71,52 @@ struct DesignTokens {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
+
+        // MARK: - Adaptive Rainbow Colors for Cards
+        // These colors automatically adjust saturation and brightness for dark mode
+
+        // Rainbow Cards - Adaptive Colors (use in views with colorScheme environment)
+        // Light mode: Full saturation, bright
+        // Dark mode: Reduced saturation, darker tones
+        struct rainbowRed {
+            static let light = Color(red: 1.0, green: 0.2, blue: 0.2)      // Bright red
+            static let dark = Color(red: 0.8, green: 0.3, blue: 0.3)       // Muted red
+        }
+
+        struct rainbowOrange {
+            static let light = Color(red: 1.0, green: 0.6, blue: 0.0)      // Bright orange
+            static let dark = Color(red: 0.9, green: 0.5, blue: 0.2)       // Muted orange
+        }
+
+        struct rainbowYellow {
+            static let light = Color(red: 1.0, green: 0.9, blue: 0.0)      // Bright yellow
+            static let dark = Color(red: 0.8, green: 0.7, blue: 0.2)       // Muted yellow
+        }
+
+        struct rainbowGreen {
+            static let light = Color(red: 0.2, green: 0.8, blue: 0.2)      // Bright green
+            static let dark = Color(red: 0.3, green: 0.7, blue: 0.3)       // Muted green
+        }
+
+        struct rainbowBlue {
+            static let light = Color(red: 0.2, green: 0.4, blue: 1.0)      // Bright blue
+            static let dark = Color(red: 0.3, green: 0.5, blue: 0.9)       // Muted blue
+        }
+
+        struct rainbowIndigo {
+            static let light = Color(red: 0.3, green: 0.0, blue: 0.5)      // Bright indigo
+            static let dark = Color(red: 0.4, green: 0.2, blue: 0.6)       // Muted indigo
+        }
+
+        struct rainbowViolet {
+            static let light = Color(red: 0.58, green: 0.0, blue: 0.83)    // Bright violet
+            static let dark = Color(red: 0.6, green: 0.3, blue: 0.8)       // Muted violet
+        }
+
+        struct rainbowPink {
+            static let light = Color(red: 1.0, green: 0.4, blue: 0.7)      // Bright pink
+            static let dark = Color(red: 0.9, green: 0.5, blue: 0.7)       // Muted pink
+        }
     }
     
     // MARK: - Typography

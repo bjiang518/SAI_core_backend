@@ -22,6 +22,7 @@ struct HomeworkResultsView: View {
     @State private var hasAlreadySavedImage = false  // Track if image was already saved
     @State private var gradeCorrectionObserver: NSObjectProtocol?  // Track notification observer
     @State private var gradeOverrides: [Int: GradeOverride] = [:]  // Track grade corrections by question number
+    @State private var showingNoQuestionsAlert = false  // ✅ Alert for no questions selected
     @StateObject private var questionArchiveService = QuestionArchiveService.shared
 
     // Structure to hold grade override data
@@ -111,7 +112,12 @@ struct HomeworkResultsView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        showingQuestionArchiveDialog = true
+                        // ✅ Validate that questions are selected
+                        if selectedQuestionIndices.isEmpty {
+                            showingNoQuestionsAlert = true
+                        } else {
+                            showingQuestionArchiveDialog = true
+                        }
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "archivebox")
@@ -119,7 +125,7 @@ struct HomeworkResultsView: View {
                         }
                         .foregroundColor(.blue)
                     }
-                    .disabled(isArchiving || selectedQuestionIndices.isEmpty)
+                    .disabled(isArchiving)
                 }
             }
             .sheet(isPresented: $showingQuestionArchiveDialog) {
@@ -148,6 +154,11 @@ struct HomeworkResultsView: View {
                         }
                     }
                 )
+            }
+            .alert(NSLocalizedString("homeworkResults.noQuestionsSelected", comment: "No Questions Selected"), isPresented: $showingNoQuestionsAlert) {
+                Button(NSLocalizedString("common.ok", comment: "OK"), role: .cancel) { }
+            } message: {
+                Text(NSLocalizedString("homeworkResults.selectQuestionsToArchiveMessage", comment: "Please select at least one question to archive."))
             }
             .onAppear {
                 initializeQuestionData()

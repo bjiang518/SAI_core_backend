@@ -265,6 +265,32 @@
 "auth.passwordRequirement.minLength" = "至少6個字元";
 "auth.passwordRequirement.match" = "密碼相符";
 
+// Error Messages
+"error.offline" = "無網路連線";
+"error.rateLimit" = "請求過多。請在 %@ 後重試";
+"error.rateLimitGeneric" = "請求過多。請稍後重試";
+"error.invalidImage" = "圖片格式不支援或已損壞";
+"error.aiProcessing" = "AI分析失敗。請重試";
+"error.auth" = "認證失敗。請重新登入";
+
+// Homework Album
+"homeworkAlbum.title" = "作業相簿";
+"homeworkAlbum.select" = "選擇";
+"homeworkAlbum.done" = "完成";
+"homeworkAlbum.delete" = "刪除";
+"homeworkAlbum.deleteCount" = "刪除 (%d)";
+"homeworkAlbum.deleteConfirmation" = "刪除 %d 張作業圖片%@？";
+"homeworkAlbum.deleteConfirmationMessage" = "此操作無法復原。";
+"homeworkAlbum.emptyStateTitle" = "暫無作業";
+"homeworkAlbum.emptyStateMessage" = "提交作業進行AI評分後，圖片將在此顯示";
+"homeworkAlbum.questionCount" = "%d 道題目%@";
+"homeworkAlbum.filters" = "篩選";
+"homeworkAlbum.timeRange" = "時間範圍";
+"homeworkAlbum.subject" = "科目";
+"homeworkAlbum.grade" = "年級";
+"homeworkAlbum.chooseHomework" = "選擇作業";
+"homeworkAlbum.selectionHint" = "點擊任意作業以選擇它進行AI重新分析";
+
 // Question Generation
 "questionGeneration.title" = "生成題目";
 "questionGeneration.aiQuestionGenerator" = "AI題目生成器";
@@ -312,6 +338,28 @@
 "questionGeneration.questions" = "題目";
 "questionGeneration.selectArchives" = "選擇歸檔";
 "questionGeneration.conversation" = "對話";
+"questionGeneration.failedToLoadData" = "載入資料失敗：%@";
+"questionGeneration.defaultSubject.mathematics" = "數學";
+"questionGeneration.focusNotes.diversePractice" = "生成多樣化的練習題以建立基礎知識";
+"questionGeneration.focusNotes.improvementAreas" = "專注於學生需要改進的這些方面：%@";
+"questionGeneration.mistakeType.incorrectAnswer" = "答案錯誤";
+"questionGeneration.focusNotes.addressMistakes" = "專注於解決常見錯誤並加強薄弱環節";
+"questionGeneration.untitled" = "無標題";
+"questionGeneration.generalSubject" = "通用";
+"questionGeneration.difficulty.intermediate" = "中級";
+"questionGeneration.strengths.activeParticipation" = "積極參與";
+"questionGeneration.weaknesses.morePractice" = "需要更多練習";
+"questionGeneration.engagement.high" = "高";
+"questionGeneration.generalDiscussion" = "一般討論";
+"questionGeneration.focusNotes.conversationPatterns" = "基於對話主題和使用者參與模式";
+"questionGeneration.loadingConversations" = "載入對話中...";
+"questionGeneration.conversationsAvailable" = "%d 個對話可用於生成題目";
+"questionGeneration.noConversationsFound" = "未找到歸檔對話。請先進行一些對話。";
+"questionGeneration.messagesInConversation" = "對話中有 %d 條訊息";
+"questionGeneration.studySession" = "學習會話";
+"questionGeneration.discussionAbout" = "關於 %@ 的討論";
+"questionGeneration.questionType" = "題目類型";
+
 "settings.textSize" = "文字大小";
 "progress.title" = "進度";
 "progress.loadingProgress" = "正在載入您的進度...";

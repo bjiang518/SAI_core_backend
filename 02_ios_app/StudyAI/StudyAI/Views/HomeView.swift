@@ -25,6 +25,9 @@ struct HomeView: View {
     @State private var showingParentReports = false
     @State private var showingHomeworkAlbum = false  // NEW: Homework Album
 
+    // ✅ Dark Mode Support: Detect current color scheme
+    @Environment(\.colorScheme) var colorScheme
+
     // Parent authentication modals
     @State private var showingParentAuthForChat = false
     @State private var showingParentAuthForGrader = false
@@ -66,14 +69,15 @@ struct HomeView: View {
                 .padding(.vertical, DesignTokens.Spacing.md)
             }
             .background(
-                // Holographic gradient background - as a background layer
+                // Holographic gradient background - adaptive for dark mode
                 LottieView(
                     animationName: "Holographic gradient",
                     loopMode: .loop,
                     animationSpeed: 1.5
                 )
-                .scaleEffect(1.5)  // Scale factor - adjust this value
-                .opacity(0.8)
+                .scaleEffect(1.5)
+                .opacity(colorScheme == .dark ? 0.25 : 0.8)  // Much dimmer in dark mode
+                .blendMode(colorScheme == .dark ? .screen : .normal)  // Screen blend for dark mode
                 .ignoresSafeArea()
             )
             .background(DesignTokens.Colors.surface.ignoresSafeArea())
@@ -149,29 +153,42 @@ struct HomeView: View {
         VStack(spacing: DesignTokens.Spacing.md) {
             // Greeting card with gradient background - synced with voice type
             ZStack(alignment: .trailing) {
-                // Dynamic gradient based on selected voice type
-                // cornerRadius controls rounded corners (default: 24pt)
+                // Dynamic gradient based on selected voice type - adaptive for dark mode
                 RoundedRectangle(cornerRadius: 24)
                     .fill(
                         LinearGradient(
-                            colors: greetingVoice.currentVoiceType == .adam ? [
-                                // Adam (blue): sky-400 -> blue-500 -> indigo-600
-                                Color(hex: "38BDF8"),
-                                Color(hex: "3B82F6"),
-                                Color(hex: "4F46E5")
-                            ] : [
-                                // Eva (purple): fuchsia-300 -> purple-500 -> violet-600
-                                Color(hex: "F0ABFC"),
-                                Color(hex: "A855F7"),
-                                Color(hex: "7C3AED")
-                            ],
+                            colors: greetingVoice.currentVoiceType == .adam ?
+                                (colorScheme == .dark ? [
+                                    // Adam Dark Mode - much darker, muted blues
+                                    Color(hex: "0C1844"),  // Very dark navy (custom)
+                                    Color(hex: "1E3A8A"),  // navy-900
+                                    Color(hex: "1E40AF")   // blue-800
+                                ] : [
+                                    // Adam Light Mode - original bright blues
+                                    Color(hex: "38BDF8"),  // sky-400
+                                    Color(hex: "3B82F6"),  // blue-500
+                                    Color(hex: "4F46E5")   // indigo-600
+                                ]) :
+                                (colorScheme == .dark ? [
+                                    // Eva Dark Mode - much darker, richer purples
+                                    Color(hex: "2D0A4E"),  // Very dark purple (custom)
+                                    Color(hex: "581C87"),  // purple-900
+                                    Color(hex: "6B21A8")   // purple-800
+                                ] : [
+                                    // Eva Light Mode - original bright purples
+                                    Color(hex: "F0ABFC"),  // fuchsia-300
+                                    Color(hex: "A855F7"),  // purple-500
+                                    Color(hex: "7C3AED")   // violet-600
+                                ]),
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     .shadow(
-                        color: (greetingVoice.currentVoiceType == .adam ?
-                            DesignTokens.Colors.aiBlue : Color.purple).opacity(0.4),
+                        color: colorScheme == .dark ?
+                            Color.white.opacity(0.1) :  // Subtle light shadow in dark mode
+                            (greetingVoice.currentVoiceType == .adam ?
+                                DesignTokens.Colors.aiBlue : Color.purple).opacity(0.4),
                         radius: 12,
                         x: 0,
                         y: 6
@@ -278,7 +295,14 @@ struct HomeView: View {
                 .padding(DesignTokens.Spacing.md)
                 .background(DesignTokens.Colors.cardBackground)
                 .cornerRadius(16)
-                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                .shadow(
+                    color: colorScheme == .dark ?
+                        Color.white.opacity(0.05) :
+                        Color.black.opacity(0.05),
+                    radius: 4,
+                    x: 0,
+                    y: 2
+                )
             }
         }
         .padding(.horizontal, DesignTokens.Spacing.xl)  // Left and right margins
@@ -353,12 +377,12 @@ extension HomeView {
                 GridItem(.flexible(), spacing: DesignTokens.Spacing.md)
             ], spacing: DesignTokens.Spacing.md) {
 
-                // Rainbow Card 1: Red
+                // Rainbow Card 1: Red (Adaptive)
                 QuickActionCard_New(
                     icon: "camera.fill",
                     title: NSLocalizedString("home.homeworkGrader", comment: ""),
                     subtitle: NSLocalizedString("home.scanAndGrade", comment: ""),
-                    color: Color(red: 1.0, green: 0.2, blue: 0.2),  // Red
+                    color: colorScheme == .dark ? DesignTokens.Colors.rainbowRed.dark : DesignTokens.Colors.rainbowRed.light,
                     lottieAnimation: "Checklist",
                     lottieScale: 0.29,
                     action: {
@@ -370,12 +394,12 @@ extension HomeView {
                     }
                 )
 
-                // Rainbow Card 2: Orange
+                // Rainbow Card 2: Orange (Adaptive)
                 QuickActionCard_New(
                     icon: "message.fill",
                     title: NSLocalizedString("home.chat", comment: ""),
                     subtitle: NSLocalizedString("home.conversationalAI", comment: ""),
-                    color: Color(red: 1.0, green: 0.6, blue: 0.0),  // Orange
+                    color: colorScheme == .dark ? DesignTokens.Colors.rainbowOrange.dark : DesignTokens.Colors.rainbowOrange.light,
                     lottieAnimation: "Chat",
                     lottieScale: 0.2,
                     action: {
@@ -387,23 +411,23 @@ extension HomeView {
                     }
                 )
 
-                // Rainbow Card 3: Yellow
+                // Rainbow Card 3: Yellow (Adaptive)
                 QuickActionCard_New(
                     icon: "books.vertical.fill",
                     title: NSLocalizedString("home.library", comment: ""),
                     subtitle: NSLocalizedString("home.studySessions", comment: ""),
-                    color: Color(red: 1.0, green: 0.9, blue: 0.0),  // Yellow
+                    color: colorScheme == .dark ? DesignTokens.Colors.rainbowYellow.dark : DesignTokens.Colors.rainbowYellow.light,
                     lottieAnimation: "Books",
                     lottieScale: 0.12,
                     action: { onSelectTab(.library) }
                 )
 
-                // Rainbow Card 4: Green
+                // Rainbow Card 4: Green (Adaptive)
                 QuickActionCard_New(
                     icon: "chart.bar.fill",
                     title: NSLocalizedString("home.progress", comment: ""),
                     subtitle: NSLocalizedString("home.trackLearning", comment: ""),
-                    color: Color(red: 0.2, green: 0.8, blue: 0.2),  // Green
+                    color: colorScheme == .dark ? DesignTokens.Colors.rainbowGreen.dark : DesignTokens.Colors.rainbowGreen.light,
                     lottieAnimation: "Chart Graph",
                     lottieScale: 0.45,
                     action: { onSelectTab(.progress) }
@@ -423,32 +447,32 @@ extension HomeView {
                 .foregroundColor(.primary)
                 .padding(.horizontal, DesignTokens.Spacing.xl)
 
-            // Rainbow Card 5: Blue
+            // Rainbow Card 5: Blue (Adaptive)
             HorizontalActionButton(
                 icon: "doc.text.fill",
                 title: NSLocalizedString("home.practice", comment: ""),
                 subtitle: NSLocalizedString("home.practiceDescription", comment: ""),
-                color: Color(red: 0.2, green: 0.4, blue: 1.0),  // Blue
+                color: colorScheme == .dark ? DesignTokens.Colors.rainbowBlue.dark : DesignTokens.Colors.rainbowBlue.light,
                 action: { showingQuestionGeneration = true }
             )
             .padding(.horizontal, DesignTokens.Spacing.xl)
 
-            // Rainbow Card 6: Indigo
+            // Rainbow Card 6: Indigo (Adaptive)
             HorizontalActionButton(
                 icon: "xmark.circle.fill",
                 title: NSLocalizedString("home.mistakeReview", comment: ""),
                 subtitle: NSLocalizedString("home.mistakeReviewDescription", comment: ""),
-                color: Color(red: 0.3, green: 0.0, blue: 0.5),  // Indigo
+                color: colorScheme == .dark ? DesignTokens.Colors.rainbowIndigo.dark : DesignTokens.Colors.rainbowIndigo.light,
                 action: { showingMistakeReview = true }
             )
             .padding(.horizontal, DesignTokens.Spacing.xl)
 
-            // Rainbow Card 7: Violet
+            // Rainbow Card 7: Violet (Adaptive)
             HorizontalActionButton(
                 icon: "figure.2.and.child.holdinghands",
                 title: NSLocalizedString("home.parentReports", comment: ""),
                 subtitle: NSLocalizedString("home.parentReportsDescription", comment: ""),
-                color: Color(red: 0.58, green: 0.0, blue: 0.83),  // Violet
+                color: colorScheme == .dark ? DesignTokens.Colors.rainbowViolet.dark : DesignTokens.Colors.rainbowViolet.light,
                 action: {
                     if parentModeManager.requiresAuthentication(for: .parentReports) {
                         showingParentAuthForReports = true
@@ -459,12 +483,12 @@ extension HomeView {
             )
             .padding(.horizontal, DesignTokens.Spacing.xl)
 
-            // Rainbow Card 8: Pink/Magenta - Homework Album
+            // Rainbow Card 8: Pink/Magenta (Adaptive) - Homework Album
             HorizontalActionButton(
                 icon: "photo.on.rectangle.angled",
                 title: "Homework Album",
                 subtitle: "View all submitted homework",
-                color: Color(red: 1.0, green: 0.4, blue: 0.7),  // Pink/Magenta
+                color: colorScheme == .dark ? DesignTokens.Colors.rainbowPink.dark : DesignTokens.Colors.rainbowPink.light,
                 action: { showingHomeworkAlbum = true }
             )
             .padding(.horizontal, DesignTokens.Spacing.xl)
@@ -485,6 +509,7 @@ struct QuickActionCard_New: View {
     @State private var isPressed = false
     @State private var rotationAngle: Double = 0
     @State private var scale: CGFloat = 1.0
+    @Environment(\.colorScheme) var colorScheme  // ✅ Detect dark mode
 
     // Default initializer without Lottie animation
     init(icon: String, title: String, subtitle: String, color: Color, action: @escaping () -> Void) {
@@ -623,13 +648,17 @@ struct QuickActionCard_New: View {
                     )
             )
             .shadow(
-                color: color.opacity(isPressed ? 0.4 : 0.2),
+                color: colorScheme == .dark ?
+                    Color.white.opacity(isPressed ? 0.15 : 0.08) :  // Light shadow in dark mode
+                    color.opacity(isPressed ? 0.4 : 0.2),           // Colored shadow in light mode
                 radius: isPressed ? 16 : 10,
                 x: 0,
                 y: isPressed ? 8 : 5
             )
             .shadow(
-                color: Color.black.opacity(0.06),
+                color: colorScheme == .dark ?
+                    Color.clear :                           // No secondary shadow in dark mode
+                    Color.black.opacity(0.06),              // Subtle shadow in light mode
                 radius: 3,
                 x: 0,
                 y: 2
@@ -660,6 +689,7 @@ struct HorizontalActionButton: View {
     @State private var isPressed = false
     @State private var iconScale: CGFloat = 1.0
     @State private var iconRotation: Double = 0
+    @Environment(\.colorScheme) var colorScheme  // ✅ Detect dark mode
 
     var body: some View {
         Button(action: {
@@ -742,7 +772,9 @@ struct HorizontalActionButton: View {
                     .foregroundColor(isPressed ? color.opacity(0.6) : color.opacity(0.3))
             )
             .shadow(
-                color: isPressed ? color.opacity(0.2) : Color.black.opacity(0.03),
+                color: colorScheme == .dark ?
+                    Color.white.opacity(isPressed ? 0.1 : 0.05) :  // Light shadow in dark mode
+                    (isPressed ? color.opacity(0.2) : Color.black.opacity(0.03)),  // Colored/black shadow in light mode
                 radius: isPressed ? 6 : 2,
                 x: 0,
                 y: isPressed ? 3 : 1

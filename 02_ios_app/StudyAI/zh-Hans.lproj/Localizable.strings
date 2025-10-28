@@ -265,6 +265,32 @@
 "auth.passwordRequirement.minLength" = "至少6个字符";
 "auth.passwordRequirement.match" = "密码匹配";
 
+// Error Messages
+"error.offline" = "无网络连接";
+"error.rateLimit" = "请求过多。请在 %@ 后重试";
+"error.rateLimitGeneric" = "请求过多。请稍后重试";
+"error.invalidImage" = "图片格式不支持或已损坏";
+"error.aiProcessing" = "AI分析失败。请重试";
+"error.auth" = "认证失败。请重新登录";
+
+// Homework Album
+"homeworkAlbum.title" = "作业相册";
+"homeworkAlbum.select" = "选择";
+"homeworkAlbum.done" = "完成";
+"homeworkAlbum.delete" = "删除";
+"homeworkAlbum.deleteCount" = "删除 (%d)";
+"homeworkAlbum.deleteConfirmation" = "删除 %d 张作业图片%@？";
+"homeworkAlbum.deleteConfirmationMessage" = "此操作无法撤销。";
+"homeworkAlbum.emptyStateTitle" = "暂无作业";
+"homeworkAlbum.emptyStateMessage" = "提交作业进行AI评分后，图片将在此显示";
+"homeworkAlbum.questionCount" = "%d 道题目%@";
+"homeworkAlbum.filters" = "筛选";
+"homeworkAlbum.timeRange" = "时间范围";
+"homeworkAlbum.subject" = "科目";
+"homeworkAlbum.grade" = "年级";
+"homeworkAlbum.chooseHomework" = "选择作业";
+"homeworkAlbum.selectionHint" = "点击任意作业以选择它进行AI重新分析";
+
 // Question Generation
 "questionGeneration.title" = "生成题目";
 "questionGeneration.aiQuestionGenerator" = "AI题目生成器";
@@ -311,7 +337,29 @@
 "questionGeneration.conversations" = "对话";
 "questionGeneration.questions" = "题目";
 "questionGeneration.selectArchives" = "选择归档";
-"questionGeneration.conversation" = "对话";"settings.textSize" = "文字大小";
+"questionGeneration.conversation" = "对话";
+"questionGeneration.failedToLoadData" = "加载数据失败：%@";
+"questionGeneration.defaultSubject.mathematics" = "数学";
+"questionGeneration.focusNotes.diversePractice" = "生成多样化的练习题以建立基础知识";
+"questionGeneration.focusNotes.improvementAreas" = "专注于学生需要改进的这些方面：%@";
+"questionGeneration.mistakeType.incorrectAnswer" = "答案错误";
+"questionGeneration.focusNotes.addressMistakes" = "专注于解决常见错误并加强薄弱环节";
+"questionGeneration.untitled" = "无标题";
+"questionGeneration.generalSubject" = "通用";
+"questionGeneration.difficulty.intermediate" = "中级";
+"questionGeneration.strengths.activeParticipation" = "积极参与";
+"questionGeneration.weaknesses.morePractice" = "需要更多练习";
+"questionGeneration.engagement.high" = "高";
+"questionGeneration.generalDiscussion" = "一般讨论";
+"questionGeneration.focusNotes.conversationPatterns" = "基于对话主题和用户参与模式";
+"questionGeneration.loadingConversations" = "加载对话中...";
+"questionGeneration.conversationsAvailable" = "%d 个对话可用于生成题目";
+"questionGeneration.noConversationsFound" = "未找到归档对话。请先进行一些对话。";
+"questionGeneration.messagesInConversation" = "对话中有 %d 条消息";
+"questionGeneration.studySession" = "学习会话";
+"questionGeneration.discussionAbout" = "关于 %@ 的讨论";
+"questionGeneration.questionType" = "题目类型";
+"settings.textSize" = "文字大小";
 "settings.language" = "语言";
 "settings.voiceAudio" = "学习伙伴";
 "settings.voiceSettings" = "选择你的学习伙伴";
