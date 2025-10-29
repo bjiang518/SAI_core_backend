@@ -439,7 +439,7 @@ struct ModernSessionListCard: View {
                 
                 // Status indicator
                 HStack {
-                    Image(systemName: session["archived_at"] != nil || session["archivedAt"] != nil ? "archivebox.fill" : "circle.fill")
+                    Image(systemName: session["archived_at"] != nil || session["archivedAt"] != nil ? "books.vertical.fill" : "circle.fill")
                         .font(.caption)
                         .foregroundColor(session["archived_at"] != nil || session["archivedAt"] != nil ? .green : .blue)
                     

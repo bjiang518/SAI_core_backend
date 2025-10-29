@@ -37,6 +37,8 @@ struct QuestionGenerationView: View {
     @State private var selectedSubject = ""
     @State private var showingMistakeSelection = false // Add mistake selection sheet state
     @State private var showingArchiveSelection = false // Add archive selection sheet state
+    @State private var showingInfoAlert = false // Add info alert state
+    @Environment(\.dismiss) private var dismiss
 
     private let logger = Logger(subsystem: "com.studyai", category: "QuestionGeneration")
     private let dataAdapter = QuestionGenerationDataAdapter.shared
@@ -66,7 +68,7 @@ struct QuestionGenerationView: View {
             switch self {
             case .randomPractice: return "dice.fill"
             case .fromMistakes: return "xmark.circle.fill"
-            case .fromArchives: return "archivebox.fill"
+            case .fromArchives: return "books.vertical.fill"
             }
         }
 
@@ -111,6 +113,23 @@ struct QuestionGenerationView: View {
             }
             .navigationTitle(NSLocalizedString("questionGeneration.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showingInfoAlert = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(NSLocalizedString("common.done", comment: "")) {
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
             .sheet(isPresented: $showingQuestionsList) {
                 GeneratedQuestionsListView(questions: generatedQuestions)
             }
@@ -132,6 +151,13 @@ struct QuestionGenerationView: View {
                 Button(NSLocalizedString("common.ok", comment: "")) { }
             } message: {
                 Text(errorMessage)
+            }
+            .alert(NSLocalizedString("questionGeneration.howToUse.title", comment: ""), isPresented: $showingInfoAlert) {
+                Button(NSLocalizedString("common.ok", comment: "")) { }
+            } message: {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(NSLocalizedString("questionGeneration.howToUse.message", comment: ""))
+                }
             }
             .onAppear {
                 loadInitialData()
@@ -894,7 +920,7 @@ struct ArchiveBasedConfig: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Image(systemName: "archivebox.fill")
+                Image(systemName: "books.vertical.fill")
                     .font(.subheadline)
                     .foregroundColor(.green)
                 Text(NSLocalizedString("questionGeneration.archiveBasedSettings", comment: ""))
@@ -1038,7 +1064,7 @@ struct ConversationBasedConfig: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "archivebox.fill")
+                Image(systemName: "books.vertical.fill")
                     .font(.subheadline)
                     .foregroundColor(.green)
                 Text(NSLocalizedString("questionGeneration.archiveBasedSettings", comment: ""))
@@ -1179,7 +1205,7 @@ struct ArchiveSelectionView: View {
             VStack {
                 if conversations.isEmpty && questions.isEmpty {
                     VStack(spacing: 16) {
-                        Image(systemName: "archivebox")
+                        Image(systemName: "books.vertical.fill")
                             .font(.system(size: 64))
                             .foregroundColor(.green)
 

@@ -222,12 +222,12 @@ enum LearningGoalType: String, CaseIterable, Codable {
     
     var displayName: String {
         switch self {
-        case .dailyQuestions: return "Daily Questions"
-        case .weeklyStreak: return "Weekly Streak"
-        case .dailyStreak: return "Daily Streak"
-        case .accuracyGoal: return "Accuracy Goal"
-        case .studyTime: return "Study Time"
-        case .subjectMastery: return "Subject Mastery"
+        case .dailyQuestions: return NSLocalizedString("goals.dailyQuestions", comment: "")
+        case .weeklyStreak: return NSLocalizedString("goals.weeklyStreak", comment: "")
+        case .dailyStreak: return NSLocalizedString("goals.dailyStreak", comment: "")
+        case .accuracyGoal: return NSLocalizedString("goals.accuracyGoal", comment: "")
+        case .studyTime: return NSLocalizedString("goals.studyTime", comment: "")
+        case .subjectMastery: return NSLocalizedString("goals.subjectMastery", comment: "")
         }
     }
     
@@ -638,8 +638,8 @@ class PointsEarningManager: ObservableObject {
             learningGoals = [
                 LearningGoal(
                     type: .dailyQuestions,
-                    title: "Daily Questions",
-                    description: "Answer questions every day to build consistent learning habits",
+                    title: NSLocalizedString("goals.dailyQuestions", comment: ""),
+                    description: NSLocalizedString("goals.dailyQuestionsDescription", comment: ""),
                     targetValue: 5,
                     basePoints: 50,
                     bonusMultiplier: 10.0,
@@ -648,8 +648,8 @@ class PointsEarningManager: ObservableObject {
                 ),
                 LearningGoal(
                     type: .weeklyStreak,
-                    title: "Weekly Streak",
-                    description: "Maintain a 7-day learning streak to earn big bonus points",
+                    title: NSLocalizedString("goals.weeklyStreak", comment: ""),
+                    description: NSLocalizedString("goals.weeklyStreakDescription", comment: ""),
                     targetValue: 7,
                     basePoints: 200,
                     bonusMultiplier: 50.0,
@@ -658,8 +658,8 @@ class PointsEarningManager: ObservableObject {
                 ),
                 LearningGoal(
                     type: .dailyStreak,
-                    title: "Daily Streak",
-                    description: "Keep your learning momentum going with daily activity",
+                    title: NSLocalizedString("goals.dailyStreak", comment: ""),
+                    description: NSLocalizedString("goals.dailyStreakDescription", comment: ""),
                     targetValue: 1,
                     basePoints: 25,
                     bonusMultiplier: 5.0,
@@ -668,8 +668,8 @@ class PointsEarningManager: ObservableObject {
                 ),
                 LearningGoal(
                     type: .accuracyGoal,
-                    title: "Accuracy Goal",
-                    description: "Achieve high accuracy in your answers to maximize your score",
+                    title: NSLocalizedString("goals.accuracyGoal", comment: ""),
+                    description: NSLocalizedString("goals.accuracyGoalDescription", comment: ""),
                     targetValue: 80,
                     basePoints: 100,
                     bonusMultiplier: 5.0,
@@ -686,8 +686,8 @@ class PointsEarningManager: ObservableObject {
             if !hasDailyStreak {
                 let dailyStreakGoal = LearningGoal(
                     type: .dailyStreak,
-                    title: "Daily Streak",
-                    description: "Keep your learning momentum going with daily activity",
+                    title: NSLocalizedString("goals.dailyStreak", comment: ""),
+                    description: NSLocalizedString("goals.dailyStreakDescription", comment: ""),
                     targetValue: 1,
                     basePoints: 25,
                     bonusMultiplier: 5.0,

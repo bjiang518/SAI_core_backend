@@ -231,7 +231,7 @@ class VoiceInteractionService: ObservableObject {
         // Use enhanced TTS for character voices
         switch voiceType {
         // Character voices - always use enhanced TTS for best character experience
-        case .adam, .eva:
+        case .adam, .eva, .max, .mia:
             return true
         }
     }
@@ -390,6 +390,10 @@ class VoiceInteractionService: ObservableObject {
             return "Hi there! I'm Adam, your friendly learning buddy. I'm here to help you understand everything clearly and make studying fun!"
         case .eva:
             return "Hello! I'm Eva, your study companion. Let's explore knowledge together and make learning an amazing adventure!"
+        case .max:
+            return "Hey! I'm Max, your energetic study buddy. Let's tackle these questions together and have some fun while learning!"
+        case .mia:
+            return "Hi! I'm Mia, your playful learning friend. I'll make studying exciting and help you succeed!"
         }
     }
     

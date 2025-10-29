@@ -430,7 +430,7 @@ struct GeneratedQuestionDetailView: View {
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                     .scaleEffect(0.8)
                             } else {
-                                Image(systemName: "archivebox.fill")
+                                Image(systemName: "books.vertical.fill")
                                     .font(.body)
                             }
 

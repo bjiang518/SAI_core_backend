@@ -38,6 +38,8 @@ struct CharacterAvatar: View {
         switch voiceType {
         case .adam: return .blue      // Boy color
         case .eva: return .pink       // Girl color
+        case .max: return .orange     // Energetic orange
+        case .mia: return .purple     // Playful purple
         }
     }
 }
@@ -398,6 +400,9 @@ struct SessionChatView: View {
     // Dark mode detection
     @Environment(\.colorScheme) var colorScheme
 
+    // App lifecycle monitoring to stop audio when app backgrounds
+    @Environment(\.scenePhase) var scenePhase
+
     private var subjects: [String] {
         [
             NSLocalizedString("chat.subjects.mathematics", comment: ""),
@@ -646,9 +651,35 @@ struct SessionChatView: View {
                 Text("Grade correction information unavailable")
             }
         }
+        .onAppear {
+            // Clean up any lingering audio when view appears
+            // This catches cases where audio was playing when view was previously dismissed
+            stopCurrentAudio()
+
+            // Check for pending chat message from other tabs (e.g., grader follow-up)
+            // If there's a pending message, check if current session has messages
+            if let pendingMessage = appState.pendingChatMessage {
+                // Store the pending message and subject
+                pendingHomeworkQuestion = pendingMessage
+                pendingHomeworkSubject = appState.pendingChatSubject ?? "General"
+
+                // Check if current session has messages
+                if !networkService.conversationHistory.isEmpty {
+                    // Current session has messages - show alert
+                    showingExistingSessionAlert = true
+                    // Don't clear pending message yet - wait for user choice
+                } else {
+                    // No messages in current session - proceed directly
+                    proceedWithHomeworkQuestion()
+                }
+            } else {
+                // No pending message - create initial session if none exists
+                if networkService.currentSessionId == nil {
+                    startNewSession()
+                }
+            }
+        }
         .onDisappear {
-
-
             // Stop any playing audio when leaving the chat view
             stopCurrentAudio()
         }
@@ -656,6 +687,19 @@ struct SessionChatView: View {
             if newImage != nil {
                 // Show iOS Messages-style input sheet instead of direct processing
                 showingImageInputSheet = true
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            // Stop audio when app enters background or inactive state
+            switch newPhase {
+            case .background, .inactive:
+                print("🎙️ App backgrounded - stopping audio")
+                stopCurrentAudio()
+            case .active:
+                // App became active - no action needed
+                break
+            @unknown default:
+                break
             }
         }
     }
@@ -2420,6 +2464,7 @@ struct ModernAIMessageView: View {
     @StateObject private var voiceService = VoiceInteractionService.shared
     @State private var animationState: AIAvatarState = .idle
     @State private var isCurrentlyPlaying = false
+    @State private var hasAutoSpoken = false  // Track if this message has been auto-played
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -2477,10 +2522,12 @@ struct ModernAIMessageView: View {
                 }
             }
 
-            // Auto-speak if enabled
+            // Auto-speak if enabled AND this message hasn't been auto-spoken yet
             if voiceService.isVoiceEnabled &&
+               !hasAutoSpoken &&
                (voiceType == .eva || voiceService.voiceSettings.autoSpeakResponses) &&
                !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                hasAutoSpoken = true  // Mark as auto-spoken to prevent replay on scroll/refresh
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     startSpeaking()
                 }
@@ -2553,6 +2600,8 @@ struct ModernAIMessageView: View {
         switch voiceType {
         case .adam: return Color.blue.opacity(0.15)   // Light blue for Adam
         case .eva: return Color.pink.opacity(0.15)    // Light pink for Eva
+        case .max: return Color.orange.opacity(0.15)  // Light orange for Max
+        case .mia: return Color.purple.opacity(0.15)  // Light purple for Mia
         }
     }
 
@@ -2561,6 +2610,8 @@ struct ModernAIMessageView: View {
         switch voiceType {
         case .adam: return Color.blue.opacity(0.3)
         case .eva: return Color.pink.opacity(0.3)
+        case .max: return Color.orange.opacity(0.3)
+        case .mia: return Color.purple.opacity(0.3)
         }
     }
 
@@ -2569,6 +2620,8 @@ struct ModernAIMessageView: View {
         switch voiceType {
         case .adam: return Color.blue.opacity(0.15)   // Match Adam's box color
         case .eva: return Color.pink.opacity(0.15)    // Match Eva's box color
+        case .max: return Color.orange.opacity(0.15)  // Match Max's box color
+        case .mia: return Color.purple.opacity(0.15)  // Match Mia's box color
         }
     }
 }
@@ -3132,14 +3185,15 @@ struct WeChatStyleVoiceInput: View {
     let onModeToggle: () -> Void
     let onCameraAction: () -> Void
     let isCameraDisabled: Bool
-    
+
     @StateObject private var speechService = SpeechRecognitionService()
     @State private var isRecording = false
     @State private var isDraggedToCancel = false
     @State private var recordingStartTime: Date?
     @State private var recordingDuration: TimeInterval = 0
     @State private var dragOffset: CGSize = .zero
-    
+    @State private var realtimeTranscription = ""  // Show live transcription
+
     // Timer for recording duration
     @State private var recordingTimer: Timer?
     
@@ -3153,6 +3207,29 @@ struct WeChatStyleVoiceInput: View {
     
     private var weChatVoiceInterface: some View {
         VStack(spacing: 0) {
+            // Real-time transcription display (appears when recording)
+            if isRecording && !realtimeTranscription.isEmpty {
+                VStack(spacing: 8) {
+                    Text(NSLocalizedString("voicePreview.liveTranscription", comment: ""))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+
+                    Text(realtimeTranscription)
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                        .frame(maxWidth: .infinity)
+                        .lineLimit(3)
+                }
+                .padding(.vertical, 16)
+                .background(Color.blue.opacity(0.8))
+                .cornerRadius(12)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+
             // Cancel area (appears when recording)
             if isRecording {
                 cancelArea
@@ -3165,9 +3242,9 @@ struct WeChatStyleVoiceInput: View {
                 Button(action: onCameraAction) {
                     Image(systemName: "camera.fill")
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)  // ✅ Adaptive for dark mode
                         .frame(width: 44, height: 44)
-                        .background(Color.black.opacity(0.1))
+                        .background(Color(.secondarySystemBackground))  // ✅ Adaptive background
                         .clipShape(Circle())
                 }
                 .disabled(isCameraDisabled)
@@ -3181,9 +3258,9 @@ struct WeChatStyleVoiceInput: View {
                 }) {
                     Image(systemName: "keyboard")
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)  // ✅ Adaptive for dark mode
                         .frame(width: 44, height: 44)
-                        .background(Color.black.opacity(0.1))
+                        .background(Color(.secondarySystemBackground))  // ✅ Adaptive background
                         .clipShape(Circle())
                 }
             }
@@ -3224,21 +3301,52 @@ struct WeChatStyleVoiceInput: View {
     
     private var cancelArea: some View {
         VStack(spacing: 12) {
-            // Red cancel icon
-            Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 50))
-                .foregroundColor(isDraggedToCancel ? .red : .red.opacity(0.6))
-                .scaleEffect(isDraggedToCancel ? 1.2 : 1.0)
-                .animation(.easeInOut(duration: 0.2), value: isDraggedToCancel)
-            
-            Text(isDraggedToCancel ? "Release to Cancel" : "Slide up to Cancel")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(isDraggedToCancel ? 1.0 : 0.7))
-                .animation(.easeInOut(duration: 0.2), value: isDraggedToCancel)
+            // Red cancel icon with enhanced animations
+            ZStack {
+                // Pulsing background circle when in cancel zone
+                if isDraggedToCancel {
+                    Circle()
+                        .fill(Color.red.opacity(0.3))
+                        .frame(width: 80, height: 80)
+                        .scaleEffect(isDraggedToCancel ? 1.2 : 0.8)
+                        .opacity(isDraggedToCancel ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: isDraggedToCancel)
+                }
+
+                // Main cancel icon
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 50))
+                    .foregroundColor(isDraggedToCancel ? .red : .red.opacity(0.6))
+                    .scaleEffect(isDraggedToCancel ? 1.3 : 1.0)
+                    .rotationEffect(.degrees(isDraggedToCancel ? 90 : 0))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.6), value: isDraggedToCancel)
+            }
+
+            Text(isDraggedToCancel ? NSLocalizedString("voice.releaseToCancel", comment: "") : NSLocalizedString("voice.slideUpToCancel", comment: ""))
+                .font(.system(size: 14, weight: isDraggedToCancel ? .bold : .medium))
+                .foregroundColor(.white)
+                .opacity(isDraggedToCancel ? 1.0 : 0.7)
+                .scaleEffect(isDraggedToCancel ? 1.1 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDraggedToCancel)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 30)
-        .background(Color.black.opacity(0.4))
+        .background(
+            ZStack {
+                // Base background
+                Color.black.opacity(0.4)
+
+                // Red overlay when in cancel zone
+                if isDraggedToCancel {
+                    Color.red.opacity(0.2)
+                        .transition(.opacity)
+                }
+            }
+        )
+        .cornerRadius(20)
+        .padding(.horizontal, 20)
+        .shadow(color: isDraggedToCancel ? .red.opacity(0.5) : .clear, radius: 20, x: 0, y: 0)
+        .animation(.easeInOut(duration: 0.3), value: isDraggedToCancel)
     }
     
     private var weChatVoiceButton: some View {
@@ -3263,7 +3371,7 @@ struct WeChatStyleVoiceInput: View {
                             .foregroundColor(.white.opacity(0.8))
                     }
                 } else {
-                    Text("Press to Talk")
+                    Text(NSLocalizedString("voice.pressToTalk", comment: ""))
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.white)
                 }
@@ -3313,20 +3421,27 @@ struct WeChatStyleVoiceInput: View {
     
     private func handleDragChanged(_ value: DragGesture.Value) {
         dragOffset = value.translation
-        
+
         // Check if dragged up to cancel area (threshold: -80 points)
         let wasDraggedToCancel = isDraggedToCancel
         isDraggedToCancel = value.translation.height < -80
-        
+
         // Start recording on initial press
         if !isRecording && value.translation.magnitude < 10 {
             startRecording()
         }
-        
-        // Haptic feedback when entering/leaving cancel zone
+
+        // Enhanced haptic feedback when entering/leaving cancel zone
         if wasDraggedToCancel != isDraggedToCancel {
-            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-            impactFeedback.impactOccurred()
+            if isDraggedToCancel {
+                // Stronger feedback when entering cancel zone
+                let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
+                impactFeedback.impactOccurred()
+            } else {
+                // Lighter feedback when leaving cancel zone
+                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                impactFeedback.impactOccurred()
+            }
         }
     }
     
@@ -3355,12 +3470,16 @@ struct WeChatStyleVoiceInput: View {
         isRecording = true
         recordingStartTime = Date()
         recordingDuration = 0
+        realtimeTranscription = ""  // Reset transcription
 
         // Start recording timer
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             if let startTime = recordingStartTime {
                 recordingDuration = Date().timeIntervalSince(startTime)
             }
+
+            // Update real-time transcription from speech service
+            realtimeTranscription = speechService.recognizedText
         }
 
         // Haptic feedback
@@ -3369,7 +3488,7 @@ struct WeChatStyleVoiceInput: View {
 
         // Start speech recognition
         speechService.startListening { result in
-            // Handle result when recording stops
+            // Handle result when recording stops (in stopRecordingAndSend)
         }
     }
 
@@ -3381,19 +3500,21 @@ struct WeChatStyleVoiceInput: View {
         recordingTimer?.invalidate()
         recordingTimer = nil
 
-        // Get the recognized text
+        // Get the recognized text and confidence
         let recognizedText = speechService.getLastRecognizedText()
+        let confidence = speechService.confidence
 
         // Reset state
         isRecording = false
         recordingStartTime = nil
         recordingDuration = 0
+        realtimeTranscription = ""  // Clear live transcription
 
         // Haptic feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
 
-        // Send the voice input if not empty
+        // Send directly instead of showing preview
         if !recognizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             onVoiceInput(recognizedText)
         }
@@ -3407,14 +3528,23 @@ struct WeChatStyleVoiceInput: View {
         recordingTimer?.invalidate()
         recordingTimer = nil
 
-        // Reset state
-        isRecording = false
-        recordingStartTime = nil
-        recordingDuration = 0
+        // Reset state with animation
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            isRecording = false
+            recordingStartTime = nil
+            recordingDuration = 0
+            realtimeTranscription = ""  // Clear live transcription
+        }
 
-        // Haptic feedback
+        // Enhanced haptic feedback for cancel (error notification)
         let notificationFeedback = UINotificationFeedbackGenerator()
-        notificationFeedback.notificationOccurred(.warning)
+        notificationFeedback.notificationOccurred(.error)
+
+        // Additional impact for emphasis
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
+            impactFeedback.impactOccurred()
+        }
     }
     
     private func formatDuration(_ duration: TimeInterval) -> String {
@@ -3428,5 +3558,179 @@ struct WeChatStyleVoiceInput: View {
 extension CGSize {
     var magnitude: CGFloat {
         return sqrt(width * width + height * height)
+    }
+}
+
+// MARK: - VoicePreviewSheet
+
+struct VoicePreviewSheet: View {
+    @Binding var transcribedText: String
+    let confidence: Float
+    @Binding var isPresented: Bool
+
+    let onSend: (String) -> Void
+    let onReRecord: () -> Void
+
+    @FocusState private var isTextFieldFocused: Bool
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                // Header with confidence indicator
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 24))
+                            .foregroundColor(.blue)
+
+                        Text(NSLocalizedString("voicePreview.title", comment: ""))
+                            .font(.system(size: 20, weight: .semibold))
+
+                        Spacer()
+                    }
+
+                    // Confidence indicator
+                    if confidence > 0 {
+                        HStack(spacing: 8) {
+                            Image(systemName: confidenceIcon)
+                                .foregroundColor(confidenceColor)
+
+                            Text(confidenceMessage)
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+
+                            Spacer()
+                        }
+                    }
+                }
+                .padding(.horizontal)
+
+                // Editable transcription text
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(NSLocalizedString("voicePreview.transcribedText", comment: ""))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+
+                    TextEditor(text: $transcribedText)
+                        .font(.system(size: 16))
+                        .frame(minHeight: 120)
+                        .padding(12)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                        )
+                        .focused($isTextFieldFocused)
+                }
+                .padding(.horizontal)
+
+                // Action buttons
+                VStack(spacing: 12) {
+                    // Send button (primary action)
+                    Button(action: {
+                        onSend(transcribedText)
+                        isPresented = false
+                    }) {
+                        HStack {
+                            Image(systemName: "paperplane.fill")
+                            Text(NSLocalizedString("voicePreview.sendToAI", comment: ""))
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(transcribedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray : Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .disabled(transcribedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    HStack(spacing: 12) {
+                        // Re-record button
+                        Button(action: {
+                            onReRecord()
+                        }) {
+                            HStack {
+                                Image(systemName: "arrow.clockwise")
+                                Text(NSLocalizedString("voicePreview.reRecord", comment: ""))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color(.systemGray5))
+                            .foregroundColor(.primary)
+                            .cornerRadius(10)
+                        }
+
+                        // Cancel button
+                        Button(action: {
+                            isPresented = false
+                        }) {
+                            HStack {
+                                Image(systemName: "xmark")
+                                Text(NSLocalizedString("common.cancel", comment: ""))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color(.systemGray5))
+                            .foregroundColor(.primary)
+                            .cornerRadius(10)
+                        }
+                    }
+                }
+                .padding(.horizontal)
+
+                Spacer()
+            }
+            .padding(.top, 24)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(NSLocalizedString("common.done", comment: "")) {
+                        onSend(transcribedText)
+                        isPresented = false
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(transcribedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+        .onAppear {
+            // Auto-focus text field after a brief delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                isTextFieldFocused = true
+            }
+        }
+    }
+
+    // Confidence indicator helpers
+    private var confidenceIcon: String {
+        if confidence >= 0.8 {
+            return "checkmark.circle.fill"
+        } else if confidence >= 0.5 {
+            return "exclamationmark.circle.fill"
+        } else {
+            return "xmark.circle.fill"
+        }
+    }
+
+    private var confidenceColor: Color {
+        if confidence >= 0.8 {
+            return .green
+        } else if confidence >= 0.5 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+
+    private var confidenceMessage: String {
+        if confidence >= 0.8 {
+            return NSLocalizedString("voicePreview.confidence.high", comment: "")
+        } else if confidence >= 0.5 {
+            return NSLocalizedString("voicePreview.confidence.medium", comment: "")
+        } else {
+            return NSLocalizedString("voicePreview.confidence.low", comment: "")
+        }
     }
 }

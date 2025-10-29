@@ -45,53 +45,139 @@ struct VoiceSettings: Codable {
 // MARK: - Voice Type Enum
 
 enum VoiceType: String, CaseIterable, Codable {
-    // Simplified Voice Characters
-    case adam = "adam"  // Boy voice
-    case eva = "eva"    // Girl voice
-    
+    // Kid-Friendly Voice Characters (ElevenLabs powered)
+    case adam = "adam"  // Friendly boy voice
+    case eva = "eva"    // Kind girl voice
+    case max = "max"    // Energetic boy voice
+    case mia = "mia"    // Playful girl voice
+
     var displayName: String {
         switch self {
         case .adam:
             return "Adam"
         case .eva:
             return "Eva"
+        case .max:
+            return "Max"
+        case .mia:
+            return "Mia"
         }
     }
-    
+
     var description: String {
         switch self {
         case .adam:
-            return "A friendly boy voice"
+            return "A friendly, encouraging boy"
         case .eva:
-            return "A kind girl voice"
+            return "A kind, supportive girl"
+        case .max:
+            return "An energetic, enthusiastic boy"
+        case .mia:
+            return "A playful, curious girl"
         }
     }
-    
+
     var icon: String {
         switch self {
         case .adam:
-            return "person.fill"  // Boy icon
+            return "person.fill"
         case .eva:
-            return "person.crop.circle.fill"  // Girl icon
+            return "person.crop.circle.fill"
+        case .max:
+            return "figure.run"
+        case .mia:
+            return "star.fill"
         }
     }
-    
+
     // Voice characteristics for TTS
     var speakingRateMultiplier: Float {
         switch self {
         case .adam:
-            return 1.0 // Natural, comfortable boy pace
+            return 1.0 // Natural, comfortable pace
         case .eva:
-            return 1.05 // Slightly warmer girl pace
+            return 1.05 // Slightly warmer pace
+        case .max:
+            return 1.15 // Faster, more energetic
+        case .mia:
+            return 1.08 // Upbeat, playful pace
         }
     }
-    
+
     var pitchMultiplier: Float {
         switch self {
         case .adam:
             return 0.95 // Slightly lower pitch for boy voice
         case .eva:
-            return 1.25 // Cute, higher pitch for girl voice
+            return 1.25 // Higher pitch for girl voice
+        case .max:
+            return 1.0 // Natural boy pitch, slightly higher than Adam
+        case .mia:
+            return 1.3 // Bright, playful girl pitch
+        }
+    }
+
+    // TTS Provider (OpenAI or ElevenLabs)
+    var ttsProvider: String {
+        switch self {
+        case .adam, .eva:
+            return "openai"
+        case .max, .mia:
+            return "elevenlabs"
+        }
+    }
+
+    // OpenAI Voice IDs (for Adam and Eva)
+    var openAIVoiceId: String {
+        switch self {
+        case .adam:
+            return "echo" // Friendly male voice
+        case .eva:
+            return "nova" // Kind female voice
+        case .max, .mia:
+            return "" // Not used for ElevenLabs voices
+        }
+    }
+
+    // ElevenLabs Voice IDs (for Max and Mia)
+    var elevenLabsVoiceId: String {
+        switch self {
+        case .adam, .eva:
+            return "" // Not used for OpenAI voices
+        case .max:
+            return "zZLmKvCp1i04X8E0FJ8B" // Vince - Energetic Male
+        case .mia:
+            return "aEO01A4wXwd1O8GPgGlF" // Arabella - Playful Female
+        }
+    }
+
+    // Personality traits for text processing
+    var personality: CharacterPersonality {
+        switch self {
+        case .adam:
+            return CharacterPersonality(
+                greetingStyle: "Hey buddy!",
+                encouragementPhrases: ["Awesome work!", "You're doing great!"],
+                thinkingWord: "Hmm..."
+            )
+        case .eva:
+            return CharacterPersonality(
+                greetingStyle: "Hi there!",
+                encouragementPhrases: ["That's wonderful!", "Great job!"],
+                thinkingWord: "Let me think..."
+            )
+        case .max:
+            return CharacterPersonality(
+                greetingStyle: "Hey! Ready to learn?",
+                encouragementPhrases: ["Yes! You got it!", "Awesome!", "Amazing!"],
+                thinkingWord: "Okay so..."
+            )
+        case .mia:
+            return CharacterPersonality(
+                greetingStyle: "Hi friend!",
+                encouragementPhrases: ["Yay! Good job!", "That's so cool!", "You're amazing!"],
+                thinkingWord: "Ooh, let's see..."
+            )
         }
     }
     
@@ -102,8 +188,20 @@ enum VoiceType: String, CaseIterable, Codable {
             return ["Daniel (Enhanced)", "Alex (Enhanced)", "Tom (Enhanced)", "Daniel", "Alex", "Tom", "Fred"] // Male voices
         case .eva:
             return ["Ava (Enhanced)", "Samantha (Enhanced)", "Victoria (Enhanced)", "Ava", "Samantha", "Victoria", "Karen"] // Female voices
+        case .max:
+            return ["James (Enhanced)", "Reed (Enhanced)", "James", "Reed", "Aaron"] // Energetic male voices
+        case .mia:
+            return ["Nicky (Enhanced)", "Shelley (Enhanced)", "Nicky", "Shelley", "Emily"] // Playful female voices
         }
     }
+}
+
+// MARK: - Character Personality
+
+struct CharacterPersonality {
+    let greetingStyle: String
+    let encouragementPhrases: [String]
+    let thinkingWord: String
 }
 
 // MARK: - Voice Interaction State

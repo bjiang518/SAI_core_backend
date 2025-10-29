@@ -3219,6 +3219,85 @@ async function runDatabaseMigrations() {
       console.log('✅ raw_question_text migration already applied');
     }
 
+    // ============================================
+    // MIGRATION: Add metadata column to sessions (2025-01-27)
+    // ============================================
+    const sessionsMetadataCheck = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '007_add_sessions_metadata_column'
+    `);
+
+    if (sessionsMetadataCheck.rows.length === 0) {
+      console.log('📋 Applying sessions metadata migration...');
+      console.log('📊 Adding metadata JSONB column to sessions table');
+
+      try {
+        // Check if sessions table exists first
+        const sessionsTableCheck = await db.query(`
+          SELECT 1 FROM information_schema.tables
+          WHERE table_name = 'sessions'
+        `);
+
+        if (sessionsTableCheck.rows.length > 0) {
+          // Add metadata column (allows NULL for backward compatibility)
+          await db.query(`
+            ALTER TABLE sessions
+            ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+          `);
+
+          // Add comment to document the column's purpose
+          await db.query(`
+            COMMENT ON COLUMN sessions.metadata IS 'Flexible JSON storage for session preferences (language, theme, etc.)';
+          `);
+
+          // Check if index already exists before creating
+          const indexCheck = await db.query(`
+            SELECT indexname FROM pg_indexes
+            WHERE indexname = 'idx_sessions_metadata'
+            AND tablename = 'sessions'
+          `);
+
+          if (indexCheck.rows.length === 0) {
+            // Add GIN index for efficient JSONB queries
+            await db.query(`
+              CREATE INDEX idx_sessions_metadata
+              ON sessions USING gin(metadata);
+            `);
+            console.log('✅ Created GIN index on sessions.metadata');
+          } else {
+            console.log('✅ Index idx_sessions_metadata already exists');
+          }
+
+          console.log('✅ sessions.metadata column added successfully');
+        } else {
+          console.log('⚠️ sessions table does not exist yet, skipping metadata migration');
+        }
+
+        // Record the migration as completed
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('007_add_sessions_metadata_column')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+
+        console.log('✅ sessions metadata migration completed successfully!');
+        console.log('📊 sessions table now supports:');
+        console.log('   - Flexible metadata storage (JSONB)');
+        console.log('   - Language preferences per session');
+        console.log('   - Future-proof extensibility for session context');
+      } catch (sessionsMetadataError) {
+        console.warn('⚠️ sessions metadata migration warning (migration will continue):', sessionsMetadataError.message);
+        // Record migration as complete to prevent retry loops
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('007_add_sessions_metadata_column')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+        console.log('✅ sessions metadata migration marked as complete');
+      }
+    } else {
+      console.log('✅ sessions metadata migration already applied');
+    }
+
   } catch (error) {
     console.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has

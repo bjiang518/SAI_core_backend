@@ -12,6 +12,7 @@ import PDFKit
 struct GeneratedQuestionsListView: View {
     let questions: [QuestionGenerationService.GeneratedQuestion]
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
     @State private var selectedQuestion: QuestionGenerationService.GeneratedQuestion?
     @State private var showingQuestionDetail = false
     @State private var searchText = ""
@@ -78,7 +79,7 @@ struct GeneratedQuestionsListView: View {
                 }
             }
             .navigationTitle(NSLocalizedString("generatedQuestions.title", comment: ""))
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(trailing: closeButton)
             .sheet(isPresented: $showingQuestionDetail) {
                 if let selectedQuestion = selectedQuestion,
@@ -195,7 +196,11 @@ struct GeneratedQuestionsListView: View {
                 }
             }
             .padding()
-            .background(Color.gray.opacity(0.1))
+            .background(
+                colorScheme == .dark
+                    ? Color(.systemGray5)
+                    : Color.gray.opacity(0.1)
+            )
             .cornerRadius(8)
 
             // Filter summary
@@ -272,9 +277,18 @@ struct GeneratedQuestionsListView: View {
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
-                    .background(Color(.systemBackground))
+                    .background(DesignTokens.AdaptiveColors.cardBackground)
                     .cornerRadius(12)
-                    .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(DesignTokens.AdaptiveColors.border(colorScheme: colorScheme), lineWidth: 1)
+                    )
+                    .shadow(
+                        color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.05),
+                        radius: 2,
+                        x: 0,
+                        y: 1
+                    )
                 }
 
                 // Stats Summary at bottom
@@ -364,7 +378,11 @@ struct GeneratedQuestionsListView: View {
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.1))
+                .background(
+                    colorScheme == .dark
+                        ? Color(.systemGray5)
+                        : Color.gray.opacity(0.1)
+                )
                 .cornerRadius(12)
             }
         }
@@ -399,7 +417,7 @@ struct GeneratedQuestionsListView: View {
         // Convert GeneratedQuestion to ParsedQuestion format for renderers
         let parsedQuestion = ParsedQuestion(
             questionNumber: index,
-            rawQuestionText: nil,
+            rawQuestionText: question.question,  // ✅ Include full question text for math rendering
             questionText: question.question,
             answerText: question.correctAnswer,
             confidence: nil,
@@ -450,6 +468,7 @@ struct QuestionListCard: View {
     let isSelected: Bool
     let onToggleSelection: () -> Void
     let onTap: () -> Void
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         Button(action: {
@@ -503,7 +522,11 @@ struct QuestionListCard: View {
                         .font(.caption)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.gray.opacity(0.1))
+                        .background(
+                            colorScheme == .dark
+                                ? Color(.systemGray5)
+                                : Color.gray.opacity(0.1)
+                        )
                         .cornerRadius(6)
                 }
 
@@ -566,9 +589,18 @@ struct QuestionListCard: View {
                 }
             }
             .padding()
-            .background(Color(.systemBackground))
+            .background(DesignTokens.AdaptiveColors.cardBackground)
             .cornerRadius(12)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(DesignTokens.AdaptiveColors.border(colorScheme: colorScheme), lineWidth: 1)
+            )
+            .shadow(
+                color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.05),
+                radius: 2,
+                x: 0,
+                y: 1
+            )
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -579,6 +611,7 @@ struct SummaryCard: View {
     let count: Int
     let icon: String
     let color: Color
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         HStack(spacing: 8) {
@@ -601,7 +634,11 @@ struct SummaryCard: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(color.opacity(0.05))
+        .background(
+            colorScheme == .dark
+                ? color.opacity(0.15)
+                : color.opacity(0.05)
+        )
         .cornerRadius(8)
     }
 }

@@ -24,15 +24,22 @@ struct AIAvatarAnimation: View {
     var body: some View {
         ZStack {
             // Choose animation based on voice type and state
-            if voiceType == .adam {
+            switch voiceType {
+            case .adam:
                 // Adam uses Siri Animation
                 adamAnimation
-            } else {
+            case .eva:
                 // Eva uses AI Spiral Loading / Wave Animation
                 evaAnimation
+            case .max:
+                // Max uses Fire animation
+                maxAnimation
+            case .mia:
+                // Mia uses Foriday animation
+                miaAnimation
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: state)
+        .animation(.easeInOut(duration: 0.8), value: state)  // Longer duration for more visible animation changes
     }
 
     // MARK: - Adam Animation (Siri Animation)
@@ -67,7 +74,7 @@ struct AIAvatarAnimation: View {
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {
-                        blinkingOpacity = 0.3
+                        blinkingOpacity = 0.7  // More solid (was 0.3)
                     }
                 }
                 .onDisappear {
@@ -110,7 +117,7 @@ struct AIAvatarAnimation: View {
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {
-                        blinkingOpacity = 0.5
+                        blinkingOpacity = 0.85  // More solid (was 0.5)
                     }
                 }
                 .onDisappear {
@@ -154,7 +161,7 @@ struct AIAvatarAnimation: View {
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {
-                        blinkingOpacity = 0.3
+                        blinkingOpacity = 0.7  // More solid (was 0.3)
                     }
                 }
                 .onDisappear {
@@ -175,6 +182,138 @@ struct AIAvatarAnimation: View {
 
             case .speaking:
                 // Speaking state - Wave Animation (fast, same small size)
+                LottieView(
+                    animationName: "Wave Animation",
+                    loopMode: .loop,
+                    animationSpeed: 2.5  // Fast wave animation
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)  // Same small size as other states
+                .transition(.opacity)
+            }
+        }
+    }
+
+    // MARK: - Max Animation (Fire Animation)
+    private var maxAnimation: some View {
+        Group {
+            switch state {
+            case .idle:
+                // Idle state - Fire Animation (slow, small size)
+                LottieView(
+                    animationName: "Fire",
+                    loopMode: .loop,
+                    animationSpeed: 0.5  // Slow when idle
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)  // Small size
+                .opacity(1.0)  // Fully solid in idle mode
+                .transition(.opacity)
+
+            case .waiting:
+                // Waiting state - Fire Animation (fast, small, blinking)
+                LottieView(
+                    animationName: "Fire",
+                    loopMode: .loop,
+                    animationSpeed: 2.5  // Fast when waiting
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)  // Small size
+                .opacity(blinkingOpacity)  // Blinking effect
+                .transition(.opacity)
+                .onAppear {
+                    // Start blinking animation
+                    withAnimation(
+                        Animation.easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                    ) {
+                        blinkingOpacity = 0.7  // More solid (was 0.3)
+                    }
+                }
+                .onDisappear {
+                    // Reset opacity when waiting finishes
+                    blinkingOpacity = 1.0
+                }
+
+            case .processing:
+                // Processing state - Fire Animation (fast, small, no blinking)
+                LottieView(
+                    animationName: "Fire",
+                    loopMode: .loop,
+                    animationSpeed: 2.5  // Fast when processing
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)  // Small size
+                .transition(.opacity)
+
+            case .speaking:
+                // Speaking state - Wave Animation (switches to wave like Eva)
+                LottieView(
+                    animationName: "Wave Animation",
+                    loopMode: .loop,
+                    animationSpeed: 2.5  // Fast wave animation
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)  // Same small size as other states
+                .transition(.opacity)
+            }
+        }
+    }
+
+    // MARK: - Mia Animation (Foriday Animation)
+    private var miaAnimation: some View {
+        Group {
+            switch state {
+            case .idle:
+                // Idle state - Foriday Animation (slow, small size)
+                LottieView(
+                    animationName: "Foriday",
+                    loopMode: .loop,
+                    animationSpeed: 0.5  // Slow when idle
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)  // Small size
+                .opacity(1.0)  // Fully solid in idle mode
+                .transition(.opacity)
+
+            case .waiting:
+                // Waiting state - Foriday Animation (fast, small, blinking)
+                LottieView(
+                    animationName: "Foriday",
+                    loopMode: .loop,
+                    animationSpeed: 2.5  // Fast when waiting
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)  // Small size
+                .opacity(blinkingOpacity)  // Blinking effect
+                .transition(.opacity)
+                .onAppear {
+                    // Start blinking animation
+                    withAnimation(
+                        Animation.easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                    ) {
+                        blinkingOpacity = 0.7  // More solid (was 0.3)
+                    }
+                }
+                .onDisappear {
+                    // Reset opacity when waiting finishes
+                    blinkingOpacity = 1.0
+                }
+
+            case .processing:
+                // Processing state - Foriday Animation (fast, small, no blinking)
+                LottieView(
+                    animationName: "Foriday",
+                    loopMode: .loop,
+                    animationSpeed: 2.5  // Fast when processing
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)  // Small size
+                .transition(.opacity)
+
+            case .speaking:
+                // Speaking state - Wave Animation (switches to wave like Eva)
                 LottieView(
                     animationName: "Wave Animation",
                     loopMode: .loop,
@@ -215,5 +354,45 @@ struct AIAvatarAnimation: View {
 
 #Preview("Eva - Speaking State") {
     AIAvatarAnimation(state: .speaking, voiceType: .eva)
+        .frame(width: 60, height: 60)
+}
+
+#Preview("Max - Idle State") {
+    AIAvatarAnimation(state: .idle, voiceType: .max)
+        .frame(width: 60, height: 60)
+}
+
+#Preview("Max - Waiting State") {
+    AIAvatarAnimation(state: .waiting, voiceType: .max)
+        .frame(width: 60, height: 60)
+}
+
+#Preview("Max - Processing State") {
+    AIAvatarAnimation(state: .processing, voiceType: .max)
+        .frame(width: 60, height: 60)
+}
+
+#Preview("Max - Speaking State") {
+    AIAvatarAnimation(state: .speaking, voiceType: .max)
+        .frame(width: 60, height: 60)
+}
+
+#Preview("Mia - Idle State") {
+    AIAvatarAnimation(state: .idle, voiceType: .mia)
+        .frame(width: 60, height: 60)
+}
+
+#Preview("Mia - Waiting State") {
+    AIAvatarAnimation(state: .waiting, voiceType: .mia)
+        .frame(width: 60, height: 60)
+}
+
+#Preview("Mia - Processing State") {
+    AIAvatarAnimation(state: .processing, voiceType: .mia)
+        .frame(width: 60, height: 60)
+}
+
+#Preview("Mia - Speaking State") {
+    AIAvatarAnimation(state: .speaking, voiceType: .mia)
         .frame(width: 60, height: 60)
 }

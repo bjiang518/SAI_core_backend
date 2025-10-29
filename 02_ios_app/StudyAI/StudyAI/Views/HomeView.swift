@@ -157,29 +157,58 @@ struct HomeView: View {
                 RoundedRectangle(cornerRadius: 24)
                     .fill(
                         LinearGradient(
-                            colors: greetingVoice.currentVoiceType == .adam ?
-                                (colorScheme == .dark ? [
-                                    // Adam Dark Mode - much darker, muted blues
-                                    Color(hex: "0C1844"),  // Very dark navy (custom)
-                                    Color(hex: "1E3A8A"),  // navy-900
-                                    Color(hex: "1E40AF")   // blue-800
-                                ] : [
-                                    // Adam Light Mode - original bright blues
-                                    Color(hex: "38BDF8"),  // sky-400
-                                    Color(hex: "3B82F6"),  // blue-500
-                                    Color(hex: "4F46E5")   // indigo-600
-                                ]) :
-                                (colorScheme == .dark ? [
-                                    // Eva Dark Mode - much darker, richer purples
-                                    Color(hex: "2D0A4E"),  // Very dark purple (custom)
-                                    Color(hex: "581C87"),  // purple-900
-                                    Color(hex: "6B21A8")   // purple-800
-                                ] : [
-                                    // Eva Light Mode - original bright purples
-                                    Color(hex: "F0ABFC"),  // fuchsia-300
-                                    Color(hex: "A855F7"),  // purple-500
-                                    Color(hex: "7C3AED")   // violet-600
-                                ]),
+                            colors: {
+                                switch greetingVoice.currentVoiceType {
+                                case .adam:
+                                    return colorScheme == .dark ? [
+                                        // Adam Dark Mode - much darker, muted blues
+                                        Color(hex: "0C1844"),  // Very dark navy (custom)
+                                        Color(hex: "1E3A8A"),  // navy-900
+                                        Color(hex: "1E40AF")   // blue-800
+                                    ] : [
+                                        // Adam Light Mode - original bright blues
+                                        Color(hex: "38BDF8"),  // sky-400
+                                        Color(hex: "3B82F6"),  // blue-500
+                                        Color(hex: "4F46E5")   // indigo-600
+                                    ]
+                                case .eva:
+                                    return colorScheme == .dark ? [
+                                        // Eva Dark Mode - much darker, richer purples
+                                        Color(hex: "2D0A4E"),  // Very dark purple (custom)
+                                        Color(hex: "581C87"),  // purple-900
+                                        Color(hex: "6B21A8")   // purple-800
+                                    ] : [
+                                        // Eva Light Mode - original bright purples
+                                        Color(hex: "F0ABFC"),  // fuchsia-300
+                                        Color(hex: "A855F7"),  // purple-500
+                                        Color(hex: "7C3AED")   // violet-600
+                                    ]
+                                case .max:
+                                    return colorScheme == .dark ? [
+                                        // Max Dark Mode - darker oranges
+                                        Color(hex: "7C2D12"),  // orange-900
+                                        Color(hex: "9A3412"),  // orange-800
+                                        Color(hex: "C2410C")   // orange-700
+                                    ] : [
+                                        // Max Light Mode - bright oranges
+                                        Color(hex: "FB923C"),  // orange-400
+                                        Color(hex: "F97316"),  // orange-500
+                                        Color(hex: "EA580C")   // orange-600
+                                    ]
+                                case .mia:
+                                    return colorScheme == .dark ? [
+                                        // Mia Dark Mode - darker pinks
+                                        Color(hex: "831843"),  // pink-900
+                                        Color(hex: "9F1239"),  // pink-800
+                                        Color(hex: "BE123C")   // pink-700
+                                    ] : [
+                                        // Mia Light Mode - bright pinks
+                                        Color(hex: "F9A8D4"),  // pink-300
+                                        Color(hex: "EC4899"),  // pink-500
+                                        Color(hex: "DB2777")   // pink-600
+                                    ]
+                                }
+                            }(),
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -187,8 +216,18 @@ struct HomeView: View {
                     .shadow(
                         color: colorScheme == .dark ?
                             Color.white.opacity(0.1) :  // Subtle light shadow in dark mode
-                            (greetingVoice.currentVoiceType == .adam ?
-                                DesignTokens.Colors.aiBlue : Color.purple).opacity(0.4),
+                            {
+                                switch greetingVoice.currentVoiceType {
+                                case .adam:
+                                    return DesignTokens.Colors.aiBlue.opacity(0.4)
+                                case .eva:
+                                    return Color.purple.opacity(0.4)
+                                case .max:
+                                    return Color.orange.opacity(0.4)
+                                case .mia:
+                                    return Color.pink.opacity(0.4)
+                                }
+                            }(),
                         radius: 12,
                         x: 0,
                         y: 6
@@ -216,6 +255,7 @@ struct HomeView: View {
                             voiceType: greetingVoice.currentVoiceType
                         )
                         .frame(width: 90, height: 90)
+                        .id(greetingVoice.currentVoiceType.rawValue)  // Force recreation when voice type changes
                     }
                     .buttonStyle(PlainButtonStyle())
                     .disabled(greetingVoice.isPreloading)
@@ -486,8 +526,8 @@ extension HomeView {
             // Rainbow Card 8: Pink/Magenta (Adaptive) - Homework Album
             HorizontalActionButton(
                 icon: "photo.on.rectangle.angled",
-                title: "Homework Album",
-                subtitle: "View all submitted homework",
+                title: NSLocalizedString("home.homeworkAlbum", comment: ""),
+                subtitle: NSLocalizedString("home.homeworkAlbumDescription", comment: ""),
                 color: colorScheme == .dark ? DesignTokens.Colors.rainbowPink.dark : DesignTokens.Colors.rainbowPink.light,
                 action: { showingHomeworkAlbum = true }
             )

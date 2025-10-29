@@ -79,6 +79,12 @@
 		7B1ED8452E829DBE00E5E57D /* ReportDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8442E829DBE00E5E57D /* ReportDetailView.swift */; };
 		7B1ED8472E829DE900E5E57D /* ReportExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8462E829DE900E5E57D /* ReportExportView.swift */; };
 		7B1ED8492E829E5B00E5E57D /* ReportExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8482E829E5B00E5E57D /* ReportExportService.swift */; };
+		7B74A2052EB18078002DBE2B /* Fire.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B74A2032EB18078002DBE2B /* Fire.json */; };
+		7B74A2062EB18078002DBE2B /* Foriday.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B74A2042EB18078002DBE2B /* Foriday.json */; };
+		7B74A2072EB18078002DBE2B /* Fire.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B74A2032EB18078002DBE2B /* Fire.json */; };
+		7B74A2082EB18078002DBE2B /* Foriday.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B74A2042EB18078002DBE2B /* Foriday.json */; };
+		7B74A2092EB18078002DBE2B /* Fire.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B74A2032EB18078002DBE2B /* Fire.json */; };
+		7B74A20A2EB18078002DBE2B /* Foriday.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B74A2042EB18078002DBE2B /* Foriday.json */; };
 		7B83523A2E9625C900199AC3 /* ShareAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8352392E9625C900199AC3 /* ShareAppView.swift */; };
 		7B83523B2E9625C900199AC3 /* HelpCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8352372E9625C900199AC3 /* HelpCenterView.swift */; };
 		7B83523C2E9625C900199AC3 /* ContactSupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8352362E9625C900199AC3 /* ContactSupportView.swift */; };
@@ -288,6 +294,8 @@
 		7B1ED8442E829DBE00E5E57D /* ReportDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportDetailView.swift; path = StudyAI/Views/ReportDetailView.swift; sourceTree = SOURCE_ROOT; };
 		7B1ED8462E829DE900E5E57D /* ReportExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportExportView.swift; path = StudyAI/Views/ReportExportView.swift; sourceTree = SOURCE_ROOT; };
 		7B1ED8482E829E5B00E5E57D /* ReportExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportExportService.swift; path = StudyAI/Services/ReportExportService.swift; sourceTree = SOURCE_ROOT; };
+		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
+		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
 		7B8352362E9625C900199AC3 /* ContactSupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContactSupportView.swift; path = StudyAI/Views/ContactSupportView.swift; sourceTree = SOURCE_ROOT; };
 		7B8352372E9625C900199AC3 /* HelpCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HelpCenterView.swift; path = StudyAI/Views/HelpCenterView.swift; sourceTree = SOURCE_ROOT; };
 		7B8352382E9625C900199AC3 /* MessageActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MessageActionsView.swift; path = StudyAI/Views/MessageActionsView.swift; sourceTree = SOURCE_ROOT; };
@@ -637,6 +645,8 @@
 		7BEEB6292E8EFFCA00957748 /* Lottie */ = {
 			isa = PBXGroup;
 			children = (
+				7B74A2032EB18078002DBE2B /* Fire.json */,
+				7B74A2042EB18078002DBE2B /* Foriday.json */,
 				7B8352682E98DC9800199AC3 /* Siri Animation.json */,
 				7B1961A72E93AD240024317A /* Wave Animation.json */,
 				7B1961992E9285F20024317A /* Customised_report.json */,
@@ -794,6 +804,8 @@
 				7BEEB61C2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451A2E8FB1FE00E5DDFA /* Books.json in Resources */,
 				7B19619B2E9285F20024317A /* Sandy_Loading.json in Resources */,
+				7B74A2072EB18078002DBE2B /* Fire.json in Resources */,
+				7B74A2082EB18078002DBE2B /* Foriday.json in Resources */,
 				7B19619C2E9285F20024317A /* Customised_report.json in Resources */,
 				7B9045202E8FB42E00E5DDFA /* Checklist.json in Resources */,
 				7B1961A92E93AD240024317A /* Wave Animation.json in Resources */,
@@ -817,6 +829,8 @@
 				7BEEB61E2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */,
 				7B19619F2E9285F20024317A /* Sandy_Loading.json in Resources */,
+				7B74A2052EB18078002DBE2B /* Fire.json in Resources */,
+				7B74A2062EB18078002DBE2B /* Foriday.json in Resources */,
 				7B1961A02E9285F20024317A /* Customised_report.json in Resources */,
 				7B90451E2E8FB42E00E5DDFA /* Checklist.json in Resources */,
 				7B1961AA2E93AD240024317A /* Wave Animation.json in Resources */,
@@ -840,6 +854,8 @@
 				7BEEB61D2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */,
 				7B19619D2E9285F20024317A /* Sandy_Loading.json in Resources */,
+				7B74A2092EB18078002DBE2B /* Fire.json in Resources */,
+				7B74A20A2EB18078002DBE2B /* Foriday.json in Resources */,
 				7B19619E2E9285F20024317A /* Customised_report.json in Resources */,
 				7B90451F2E8FB42E00E5DDFA /* Checklist.json in Resources */,
 				7B1961A82E93AD240024317A /* Wave Animation.json in Resources */,
@@ -1197,7 +1213,7 @@
 				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 2ZZ99T96B8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1236,7 +1252,7 @@
 				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 2ZZ99T96B8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;

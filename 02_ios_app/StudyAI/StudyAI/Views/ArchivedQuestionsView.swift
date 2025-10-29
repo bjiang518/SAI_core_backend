@@ -96,7 +96,7 @@ struct ArchivedQuestionsView: View {
     
     private var emptyState: some View {
         VStack(spacing: 12) {
-            Image(systemName: "archivebox")
+            Image(systemName: "books.vertical.fill")
                 .font(.system(size: 48))
                 .foregroundColor(.gray.opacity(0.6))
             

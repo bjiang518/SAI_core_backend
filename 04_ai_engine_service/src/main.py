@@ -207,6 +207,7 @@ class SessionResponse(BaseModel):
 class SessionMessageRequest(BaseModel):
     message: str
     image_data: Optional[str] = None  # Base64 encoded image
+    language: Optional[str] = "en"  # User's preferred language
 
 class SessionMessageResponse(BaseModel):
     session_id: str
@@ -1142,6 +1143,7 @@ async def send_session_message(
         print(f"🔵 === SESSION MESSAGE (NON-STREAMING) ===")
         print(f"📨 Session ID: {session_id}")
         print(f"💬 Message: {request.message[:100]}...")
+        print(f"🌍 Language: {request.language}")
         print(f"🔍 Using NON-STREAMING endpoint")
         print(f"💡 For streaming, use: /api/v1/sessions/{session_id}/message/stream")
 
@@ -1166,11 +1168,11 @@ async def send_session_message(
             content=request.message
         )
 
-        # Create subject-specific system prompt
+        # Create subject-specific system prompt with language support
         system_prompt = prompt_service.create_enhanced_prompt(
             question=request.message,
             subject_string=session.subject,
-            context={"student_id": session.student_id}
+            context={"student_id": session.student_id, "language": request.language}
         )
 
         # Get conversation context for AI
@@ -1239,6 +1241,7 @@ async def send_session_message_stream(
         print(f"🟢 === SESSION MESSAGE (STREAMING) ===")
         print(f"📨 Session ID: {session_id}")
         print(f"💬 Message: {request.message[:100]}...")
+        print(f"🌍 Language: {request.language}")
         print(f"🔍 Using STREAMING endpoint")
 
         # Get or create the session
@@ -1262,11 +1265,11 @@ async def send_session_message_stream(
             content=request.message
         )
 
-        # Create subject-specific system prompt
+        # Create subject-specific system prompt with language support
         system_prompt = prompt_service.create_enhanced_prompt(
             question=request.message,
             subject_string=session.subject,
-            context={"student_id": session.student_id}
+            context={"student_id": session.student_id, "language": request.language}
         )
 
         # Get conversation context for AI

@@ -426,15 +426,26 @@ class AIProxyRoutes {
     // TTS endpoint - server-side OpenAI TTS with API key injection
     this.fastify.post('/api/ai/tts/generate', {
       schema: {
-        description: 'Generate TTS audio using OpenAI (server-side with API key)',
+        description: 'Generate TTS audio using OpenAI or ElevenLabs (server-side with API key)',
         tags: ['AI', 'TTS'],
         body: {
           type: 'object',
           required: ['text', 'voice'],
           properties: {
             text: { type: 'string', minLength: 1, maxLength: 4096 },
-            voice: { type: 'string', enum: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer', 'coral'] },
-            speed: { type: 'number', minimum: 0.25, maximum: 4.0, default: 1.0 }
+            voice: {
+              type: 'string',
+              enum: [
+                // OpenAI voices (Adam, Eva)
+                'echo', 'nova',
+                // Legacy OpenAI voices (kept for compatibility)
+                'alloy', 'fable', 'onyx', 'shimmer', 'coral',
+                // ElevenLabs voices (Max: Vince, Mia: Arabella)
+                'zZLmKvCp1i04X8E0FJ8B', 'aEO01A4wXwd1O8GPgGlF'
+              ]
+            },
+            speed: { type: 'number', minimum: 0.25, maximum: 4.0, default: 1.0 },
+            provider: { type: 'string', enum: ['openai', 'elevenlabs'], default: 'openai' }
           }
         }
       }
@@ -1051,56 +1062,58 @@ class AIProxyRoutes {
 
   async createSession(request, reply) {
     const startTime = Date.now();
-    const { subject } = request.body;
-    
+    const { subject, language = 'en' } = request.body;  // Extract language with default 'en'
+
     try {
       // Get authenticated user ID from token
       const userId = await this.getUserIdFromToken(request);
-      
+
       if (!userId) {
         return reply.status(401).send({
           error: 'Authentication required to create session',
           code: 'AUTHENTICATION_REQUIRED'
         });
       }
-      
-      this.fastify.log.info(`🆕 Creating new session for authenticated user: ${userId}, subject: ${subject}`);
-      
+
+      this.fastify.log.info(`🆕 Creating new session for authenticated user: ${userId}, subject: ${subject}, language: ${language}`);
+
       // Generate a new session ID
       const { v4: uuidv4 } = require('uuid');
       const sessionId = uuidv4();
-      
+
       // Get database connection
       const { db } = require('../../utils/railway-database');
-      
-      // Create session in our database with authenticated user ID
+
+      // Create session in our database with authenticated user ID and language
       const sessionQuery = `
-        INSERT INTO sessions (id, user_id, session_type, subject, title, status, start_time)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        INSERT INTO sessions (id, user_id, session_type, subject, title, status, start_time, metadata)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
         RETURNING *
       `;
-      
+
       const sessionValues = [
         sessionId,
         userId, // Use authenticated user ID
         'conversation',
         subject || 'general',
         `${subject || 'General'} Study Session`,
-        'active'
+        'active',
+        JSON.stringify({ language })  // Store language in metadata
       ];
-      
+
       const result = await db.query(sessionQuery, sessionValues);
       const createdSession = result.rows[0];
-      
-      this.fastify.log.info(`✅ Session created in database: ${sessionId} for user: ${userId}`);
-      
+
+      this.fastify.log.info(`✅ Session created in database: ${sessionId} for user: ${userId} with language: ${language}`);
+
       const duration = Date.now() - startTime;
-      
+
       return reply.send({
         success: true,
         session_id: sessionId,
         user_id: userId, // Return actual user ID
         subject: subject || 'general',
+        language: language,  // Include language in response
         session_type: 'conversation',
         status: 'active',
         created_at: createdSession.created_at,
@@ -1109,7 +1122,7 @@ class AIProxyRoutes {
           service: 'gateway-database'
         }
       });
-      
+
     } catch (error) {
       this.fastify.log.error('Session creation error:', error);
       return reply.status(500).send({
@@ -1171,12 +1184,12 @@ class AIProxyRoutes {
   async sendSessionMessage(request, reply) {
     const startTime = Date.now();
     const { sessionId } = request.params;
-    const { message, context } = request.body;
+    const { message, context, language } = request.body;  // Extract language parameter
 
     try {
       // Get authenticated user ID from token
       const authenticatedUserId = await this.getUserIdFromToken(request);
-      
+
       if (!authenticatedUserId) {
         return reply.status(401).send({
           error: 'Authentication required to send messages',
@@ -1188,7 +1201,7 @@ class AIProxyRoutes {
 
       // Get database connection
       const { db } = require('../../utils/railway-database');
-      
+
       // Get session info and verify ownership
       const sessionInfo = await this.getSessionFromDatabase(sessionId);
       if (!sessionInfo) {
@@ -1206,9 +1219,34 @@ class AIProxyRoutes {
         });
       }
 
+      // Get language from request, session metadata, or default to 'en'
+      let userLanguage = language;
+      if (!userLanguage && sessionInfo.metadata) {
+        try {
+          const metadata = typeof sessionInfo.metadata === 'string'
+            ? JSON.parse(sessionInfo.metadata)
+            : sessionInfo.metadata;
+          userLanguage = metadata.language || 'en';
+        } catch (e) {
+          userLanguage = 'en';
+        }
+      }
+      userLanguage = userLanguage || 'en';
+
+      this.fastify.log.info(`🌍 User language: ${userLanguage}`);
+
+      // Language-specific instructions
+      const languageInstructions = {
+        'en': 'Respond in clear, educational English.',
+        'zh-Hans': '用简体中文回答。使用清晰的教育性语言。',
+        'zh-Hant': '用繁體中文回答。使用清晰的教育性語言。'
+      };
+
+      const languageInstruction = languageInstructions[userLanguage] || languageInstructions['en'];
+
       // Get conversation history for context
       const rawConversationHistory = await db.getConversationHistory(sessionId, 10);
-      
+
       // Transform conversation history into the format expected by AI
       // Database format: {message_type: 'user'|'assistant', message_text: '...', created_at: ...}
       // AI format: [{role: 'user', content: '...'}, {role: 'assistant', content: '...'}]
@@ -1267,6 +1305,8 @@ ${conversationContext}
 
 The student just said: ${message}
 
+LANGUAGE: ${languageInstruction}
+
 TUTORING GUIDELINES:
 - For academic questions: Do NOT give direct answers. Instead, provide hints and guide the student to solve problems themselves through Socratic questioning.
 - For greetings or casual conversation: Respond naturally and warmly.
@@ -1276,12 +1316,14 @@ TUTORING GUIDELINES:
 
 Please provide a helpful response that takes into account our previous conversation. Be consistent with what we've discussed before and build upon previous topics when relevant.${isMathSubject ? mathFormattingRules : ''}`;
 
-        this.fastify.log.info(`📝 Enhanced question with conversation context (${conversationHistory.length} previous messages)${isMathSubject ? ' + math formatting' : ''}`);
+        this.fastify.log.info(`📝 Enhanced question with conversation context (${conversationHistory.length} previous messages)${isMathSubject ? ' + math formatting' : ''} + language: ${userLanguage}`);
       } else {
         // No conversation history - conditionally include formatting instructions
         enhancedQuestion = `You are an AI tutor helping a student in ${sessionInfo.subject || 'general studies'}.
 
 The student said: ${message}
+
+LANGUAGE: ${languageInstruction}
 
 TUTORING GUIDELINES:
 - For academic questions: Do NOT give direct answers. Instead, provide hints and guide the student to solve problems themselves through Socratic questioning.
@@ -1292,7 +1334,7 @@ TUTORING GUIDELINES:
 
 Please provide a helpful response to the student's question.${isMathSubject ? mathFormattingRules : ''}`;
 
-        this.fastify.log.info(`📝 Enhanced question${isMathSubject ? ' with math formatting' : ''} (no conversation history)`);
+        this.fastify.log.info(`📝 Enhanced question${isMathSubject ? ' with math formatting' : ''} + language: ${userLanguage} (no conversation history)`);
       }
       
       // Process the message using the same logic as processQuestion
@@ -1589,7 +1631,7 @@ TUTORING GUIDELINES:
   async sendSessionMessageStream(request, reply) {
     const startTime = Date.now();
     const { sessionId } = request.params;
-    const { message, context } = request.body;
+    const { message, context, language } = request.body;  // Extract language parameter
     const fetch = require('node-fetch');
 
     try {
@@ -1624,6 +1666,22 @@ TUTORING GUIDELINES:
         });
       }
 
+      // Get language from request, session metadata, or default to 'en'
+      let userLanguage = language;
+      if (!userLanguage && sessionInfo.metadata) {
+        try {
+          const metadata = typeof sessionInfo.metadata === 'string'
+            ? JSON.parse(sessionInfo.metadata)
+            : sessionInfo.metadata;
+          userLanguage = metadata.language || 'en';
+        } catch (e) {
+          userLanguage = 'en';
+        }
+      }
+      userLanguage = userLanguage || 'en';
+
+      this.fastify.log.info(`🌍 User language for streaming: ${userLanguage}`);
+
       // Get AI Engine URL
       const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:5001';
       const streamUrl = `${AI_ENGINE_URL}/api/v1/sessions/${sessionId}/message/stream`;
@@ -1641,7 +1699,8 @@ TUTORING GUIDELINES:
           } : {})
         },
         body: JSON.stringify({
-          message: message
+          message: message,
+          language: userLanguage  // Pass language to AI engine
           // Note: context is not part of SessionMessageRequest, removed
         })
       });
@@ -2707,9 +2766,13 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
         });
       }
 
-      const { text, voice, speed = 1.0 } = request.body;
+      const { text, voice, speed = 1.0, provider = 'openai' } = request.body;
+
+      // Debug logging
+      this.fastify.log.info(`🎤 TTS Request - provider: ${provider}, voice: "${voice}", textLength: ${text?.length || 0}`);
 
       if (!text || !voice) {
+        this.fastify.log.error(`❌ TTS validation failed - text: ${!!text}, voice: "${voice}"`);
         return reply.status(400).send({
           success: false,
           message: 'Missing required fields: text and voice',
@@ -2717,10 +2780,29 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
         });
       }
 
-      // Get OpenAI API key from environment and validate it
+      // Route to appropriate TTS provider
+      if (provider === 'elevenlabs') {
+        return this.generateElevenLabsTTS(text, voice, speed, reply);
+      } else {
+        return this.generateOpenAITTS(text, voice, speed, reply);
+      }
+
+    } catch (error) {
+      this.fastify.log.error('TTS generation error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'TTS generation failed',
+        code: 'TTS_ERROR',
+        error: error.message
+      });
+    }
+  }
+
+  async generateOpenAITTS(text, voice, speed, reply) {
+    try {
       const openaiApiKey = process.env.OPENAI_API_KEY;
 
-      if (!openaiApiKey || openaiApiKey === 'placeholder-for-local-dev' || openaiApiKey === 'your-openai-api-key') {
+      if (!openaiApiKey) {
         return reply.status(503).send({
           success: false,
           message: 'OpenAI TTS service not available - API key not configured',
@@ -2728,41 +2810,140 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
         });
       }
 
-      const trimmedKey = openaiApiKey.trim();
+      this.fastify.log.info(`🎤 Generating TTS with OpenAI for voice: ${voice}`);
 
-      // Validate API key format - support both legacy and project-based keys
-      const isLegacyKey = /^sk-[A-Za-z0-9]{48}$/.test(trimmedKey);
-      const isProjectKey = /^sk-proj-[A-Za-z0-9\-_]{140,200}$/.test(trimmedKey);
-
-      if (!isLegacyKey && !isProjectKey) {
-        return reply.status(503).send({
-          success: false,
-          message: 'OpenAI API key configuration error',
-          code: 'INVALID_API_KEY_FORMAT'
-        });
-      }
-
-      // Use native https module for better compatibility
       const https = require('https');
 
       const ttsData = JSON.stringify({
-        model: 'tts-1-hd',
+        model: "tts-1",
         input: text,
         voice: voice,
         speed: speed
       });
 
-      // Prepare headers carefully to avoid invalid characters
-      const headers = {
-        'Authorization': `Bearer ${trimmedKey}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(ttsData).toString()
-      };
-
       const options = {
         hostname: 'api.openai.com',
         port: 443,
         path: '/v1/audio/speech',
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey.trim()}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(ttsData).toString()
+        },
+        timeout: 30000
+      };
+
+      return new Promise((resolve, reject) => {
+        const req = https.request(options, (res) => {
+          if (res.statusCode === 200) {
+            const chunks = [];
+
+            res.on('data', (chunk) => {
+              chunks.push(chunk);
+            });
+
+            res.on('end', () => {
+              const audioBuffer = Buffer.concat(chunks);
+              this.fastify.log.info(`✅ OpenAI TTS audio generated successfully (${audioBuffer.length} bytes)`);
+              reply.type('audio/mpeg');
+              resolve(reply.send(audioBuffer));
+            });
+          } else {
+            let errorData = '';
+            res.on('data', (chunk) => {
+              errorData += chunk.toString();
+            });
+
+            res.on('end', () => {
+              this.fastify.log.error(`❌ OpenAI TTS API error: ${res.statusCode} - ${errorData}`);
+              resolve(reply.status(502).send({
+                success: false,
+                message: 'OpenAI TTS generation failed',
+                code: 'TTS_GENERATION_ERROR',
+                details: errorData,
+                statusCode: res.statusCode
+              }));
+            });
+          }
+        });
+
+        req.on('error', (error) => {
+          this.fastify.log.error('OpenAI TTS request error:', error);
+          resolve(reply.status(500).send({
+            success: false,
+            message: 'Failed to generate OpenAI TTS audio',
+            code: 'TTS_REQUEST_ERROR',
+            error: error.message
+          }));
+        });
+
+        req.on('timeout', () => {
+          req.destroy();
+          this.fastify.log.error('OpenAI TTS request timeout');
+          resolve(reply.status(504).send({
+            success: false,
+            message: 'OpenAI TTS request timeout',
+            code: 'TTS_TIMEOUT'
+          }));
+        });
+
+        req.write(ttsData);
+        req.end();
+      });
+    } catch (error) {
+      this.fastify.log.error('OpenAI TTS error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'OpenAI TTS generation failed',
+        code: 'TTS_ERROR',
+        error: error.message
+      });
+    }
+  }
+
+  async generateElevenLabsTTS(text, voice, speed, reply) {
+    try {
+      const elevenlabsApiKey = process.env.ELEVENLABS_API_KEY;
+
+      if (!elevenlabsApiKey || elevenlabsApiKey === 'your-elevenlabs-api-key-here') {
+        return reply.status(503).send({
+          success: false,
+          message: 'ElevenLabs TTS service not available - API key not configured',
+          code: 'TTS_SERVICE_UNAVAILABLE'
+        });
+      }
+
+      const trimmedKey = elevenlabsApiKey.trim();
+
+      this.fastify.log.info(`🎤 Generating TTS with ElevenLabs for voice: ${voice}`);
+
+      const https = require('https');
+
+      const voiceId = voice;
+
+      const ttsData = JSON.stringify({
+        text: text,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+          style: 0.5,
+          use_speaker_boost: true
+        }
+      });
+
+      const headers = {
+        'xi-api-key': trimmedKey,
+        'Content-Type': 'application/json',
+        'Accept': 'audio/mpeg',
+        'Content-Length': Buffer.byteLength(ttsData).toString()
+      };
+
+      const options = {
+        hostname: 'api.elevenlabs.io',
+        port: 443,
+        path: `/v1/text-to-speech/${voiceId}`,
         method: 'POST',
         headers: headers,
         timeout: 30000
@@ -2779,6 +2960,7 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
 
             res.on('end', () => {
               const audioBuffer = Buffer.concat(chunks);
+              this.fastify.log.info(`✅ ElevenLabs TTS audio generated successfully (${audioBuffer.length} bytes)`);
               reply.type('audio/mpeg');
               resolve(reply.send(audioBuffer));
             });
@@ -2789,10 +2971,10 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
             });
 
             res.on('end', () => {
-              this.fastify.log.error(`TTS API error: ${res.statusCode}`);
+              this.fastify.log.error(`❌ ElevenLabs TTS API error: ${res.statusCode} - ${errorData}`);
               resolve(reply.status(502).send({
                 success: false,
-                message: 'TTS generation failed',
+                message: 'ElevenLabs TTS generation failed',
                 code: 'TTS_GENERATION_ERROR',
                 details: errorData,
                 statusCode: res.statusCode
@@ -2802,10 +2984,10 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
         });
 
         req.on('error', (error) => {
-          this.fastify.log.error('TTS request error:', error);
+          this.fastify.log.error('ElevenLabs TTS request error:', error);
           resolve(reply.status(500).send({
             success: false,
-            message: 'Failed to generate TTS audio',
+            message: 'Failed to generate ElevenLabs TTS audio',
             code: 'TTS_REQUEST_ERROR',
             error: error.message
           }));
@@ -2813,10 +2995,10 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
 
         req.on('timeout', () => {
           req.destroy();
-          this.fastify.log.error('TTS request timeout');
+          this.fastify.log.error('ElevenLabs TTS request timeout');
           resolve(reply.status(504).send({
             success: false,
-            message: 'TTS request timeout',
+            message: 'ElevenLabs TTS request timeout',
             code: 'TTS_TIMEOUT'
           }));
         });
@@ -2826,13 +3008,12 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       });
 
     } catch (error) {
-      this.fastify.log.error('TTS generation error:', error);
+      this.fastify.log.error('ElevenLabs TTS error:', error);
       return reply.status(500).send({
         success: false,
-        message: 'Failed to generate TTS audio',
+        message: 'ElevenLabs TTS generation failed',
         code: 'TTS_ERROR',
-        error: error.message,
-        stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+        error: error.message
       });
     }
   }

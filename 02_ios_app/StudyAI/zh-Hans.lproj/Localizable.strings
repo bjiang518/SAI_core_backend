@@ -118,6 +118,8 @@
 "home.mistakeReviewDescription" = "从过往错误中学习";
 "home.parentReports" = "家长报告";
 "home.parentReportsDescription" = "学习进度与见解";
+"home.homeworkAlbum" = "作业相册";
+"home.homeworkAlbumDescription" = "查看所有提交的作业";
 
 // Parent Reports
 "parentReport.title" = "家长报告";
@@ -235,6 +237,8 @@
 "homeworkResults.archiveSuccess" = "成功归档";
 "homeworkResults.archiveSuccessSuffix" = "题到您的错题本！";
 "homeworkResults.archiveFailure" = "归档题目失败：";
+"homeworkResults.noQuestionsSelected" = "未选择题目";
+"homeworkResults.selectQuestionsToArchiveMessage" = "请至少选择一道题目进行归档。";
 
 // Authentication
 "auth.error.title" = "认证错误";
@@ -1010,3 +1014,59 @@
 "parentMode.enabled" = "已启用";
 "parentMode.disabled" = "已禁用";
 "parentMode.faceIDUsageDescription" = "StudyMates 使用面容 ID 安全地验证家长身份，以访问受保护的功能和家长控制。";
+
+// Voice Input Preview
+"voicePreview.liveTranscription" = "实时转写";
+"voicePreview.title" = "语音输入预览";
+"voicePreview.transcribedText" = "转写文本（点击编辑）";
+"voicePreview.sendToAI" = "发送给 AI";
+"voicePreview.reRecord" = "重新录制";
+"voicePreview.confidence.high" = "高可信度 - 转写看起来不错";
+"voicePreview.confidence.medium" = "中等可信度 - 请仔细检查";
+"voicePreview.confidence.low" = "低可信度 - 转写可能不准确";
+
+// Voice Input Controls
+"voice.pressToTalk" = "按住说话";
+"voice.slideUpToCancel" = "上滑取消";
+"voice.releaseToCancel" = "松开取消";
+
+// Learning Goals
+"goals.dailyQuestions" = "每日答题";
+"goals.dailyStreak" = "每日连续";
+"goals.weeklyStreak" = "每周连续";
+"goals.accuracyGoal" = "正确率目标";
+"goals.studyTime" = "学习时长";
+"goals.subjectMastery" = "科目掌握";
+"goals.dailyQuestionsDescription" = "每天回答问题以养成持续学习的习惯";
+"goals.accuracyGoalDescription" = "在答题中保持高正确率以获得最高分数";
+"goals.target" = "目标：";
+"goals.weeklyStreakDescription" = "保持 7 天的学习连续以获得丰厚的奖励积分";
+"goals.dailyStreakDescription" = "通过每日活动保持学习动力";
+
+// Subjects
+"subject.mathematics" = "数学";
+"subject.science" = "科学";
+"subject.physics" = "物理";
+"subject.chemistry" = "化学";
+"subject.biology" = "生物";
+"subject.english" = "英语";
+
+// Difficulty Levels
+"difficulty.beginner" = "初级";
+"difficulty.intermediate" = "中级";
+"difficulty.advanced" = "高级";
+"difficulty.adaptive" = "自适应";
+
+// Question Types
+"questionType.multipleChoice" = "选择题";
+"questionType.trueFalse" = "判断题";
+"questionType.fillBlank" = "填空题";
+"questionType.shortAnswer" = "简答题";
+"questionType.longAnswer" = "论述题";
+"questionType.calculation" = "计算题";
+"questionType.matching" = "配对题";
+"questionType.mixedTypes" = "混合题型";
+
+// Question Generation - How to Use
+"questionGeneration.howToUse.title" = "如何使用练习生成";
+"questionGeneration.howToUse.message" = "• 选择练习类型：随机练习、错题复习或从资料库生成\n• 选择科目和难度等级\n• 选择题型（选择题、判断题、填空题等）\n• 设置题目数量\n• 点击"生成练习题"按钮\n• 生成后开始答题并获得即时反馈";

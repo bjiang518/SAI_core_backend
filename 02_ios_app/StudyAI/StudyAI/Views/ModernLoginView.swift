@@ -17,6 +17,7 @@ struct ModernLoginView: View {
     @State private var showingFaceIDPrompt = false
     @State private var isPasswordVisible = false  // ✅ Password visibility toggle
     @FocusState private var focusedField: Field?
+    @State private var keyboardHeight: CGFloat = 0  // Track keyboard height
 
     var onLoginSuccess: () -> Void
 
@@ -43,7 +44,7 @@ struct ModernLoginView: View {
                 hideKeyboard()
             }
             .ignoresSafeArea(.container, edges: .top)
-            .background(Color.white)
+            .background(Color(.systemBackground))  // ✅ Adaptive background for dark mode
         }
         .alert("Authentication Error", isPresented: $showingError) {
             Button("OK") { }
@@ -117,6 +118,30 @@ struct ModernLoginView: View {
                     }
                 }
             }
+
+            // Monitor keyboard notifications
+            NotificationCenter.default.addObserver(
+                forName: UIResponder.keyboardWillShowNotification,
+                object: nil,
+                queue: .main
+            ) { notification in
+                if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                    keyboardHeight = keyboardFrame.height
+                }
+            }
+
+            NotificationCenter.default.addObserver(
+                forName: UIResponder.keyboardWillHideNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                keyboardHeight = 0
+            }
+        }
+        .onDisappear {
+            // Clean up keyboard observers
+            NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+            NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
         }
     }
     
@@ -156,7 +181,7 @@ struct ModernLoginView: View {
     }
     
     // MARK: - Authentication Section
-    
+
     private var authenticationSection: some View {
         VStack(spacing: 24) {
             VStack(spacing: 20) {
@@ -165,38 +190,40 @@ struct ModernLoginView: View {
                     Text("Welcome Back!")
                         .font(.title)
                         .foregroundColor(.primary)
-                    
+
                     Text("Sign in to continue your learning journey.")
                         .font(.body)
-                        .foregroundColor(.gray)
+                        .foregroundColor(.secondary)  // ✅ Adaptive for dark mode
                         .multilineTextAlignment(.center)
                 }
                 .padding(.top, 32)
-                
+
                 // Biometric authentication (if enabled)
                 if authService.isFaceIDEnabled() && authService.canUseBiometrics() {
                     biometricSignInButton
                 }
-                
+
                 // Social authentication buttons
                 socialAuthButtons
-                
+
                 // Divider
                 dividerWithText("or continue with email")
-                
+
                 // Email authentication form
                 emailAuthForm
-                
+
                 // Sign up prompt
                 signUpPrompt
             }
             .padding(.horizontal, 32)
-            
+
             Spacer()
         }
-        .background(Color.white)
+        .background(Color(.systemBackground))  // ✅ Adaptive background
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .offset(y: -30)
+        .padding(.bottom, keyboardHeight > 0 ? keyboardHeight - 50 : 0)  // ✅ Push content up when keyboard appears
+        .animation(.easeOut(duration: 0.3), value: keyboardHeight)  // ✅ Smooth keyboard animation
     }
     
     // MARK: - Biometric Sign In
@@ -253,6 +280,11 @@ struct ModernLoginView: View {
                 .padding()
                 .background(Color.black)
                 .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.3), lineWidth: 2)  // ✅ Add visible white border
+                )
+                .shadow(color: Color.white.opacity(0.15), radius: 8, x: 0, y: 2)  // ✅ Add glow effect
             }
             .disabled(authService.isLoading)
 
@@ -273,28 +305,32 @@ struct ModernLoginView: View {
 
                     Text("Continue with Google")
                         .font(.headline)
+                        .foregroundColor(.primary)  // ✅ Adaptive text color
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color.white)
-                .foregroundColor(.black)
+                .background(Color(.secondarySystemBackground))  // ✅ Adaptive background
                 .clipShape(Capsule())
-                .shadow(color: .gray.opacity(0.2), radius: 5, x: 0, y: 5)
+                .overlay(
+                    Capsule()
+                        .stroke(Color.primary.opacity(0.2), lineWidth: 1)  // ✅ Adaptive border
+                )
+                .shadow(color: Color.primary.opacity(0.1), radius: 5, x: 0, y: 5)  // ✅ Adaptive shadow
             }
             .disabled(authService.isLoading)
         }
     }
     
     // MARK: - Email Authentication Form
-    
+
     private var emailAuthForm: some View {
         VStack(spacing: 16) {
             // Email field
             VStack(alignment: .leading, spacing: 8) {
                 Text("Email Address")
                     .font(.caption)
-                    .foregroundColor(.gray)
-                
+                    .foregroundColor(.secondary)  // ✅ Adaptive
+
                 TextField("Enter your email", text: $email)
                     .textFieldStyle(PlayfulTextFieldStyle())
                     .textContentType(.emailAddress)
@@ -306,12 +342,12 @@ struct ModernLoginView: View {
                         focusedField = .password
                     }
             }
-            
+
             // Password field
             VStack(alignment: .leading, spacing: 8) {
                 Text("Password")
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondary)  // ✅ Adaptive
 
                 HStack {
                     if isPasswordVisible {
@@ -337,14 +373,14 @@ struct ModernLoginView: View {
                         isPasswordVisible.toggle()
                     }) {
                         Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
-                            .foregroundColor(.gray.opacity(0.7))
+                            .foregroundColor(.secondary)  // ✅ Adaptive
                             .font(.system(size: 16))
                     }
                     .padding(.trailing, 12)
                 }
                 .textFieldStyle(PlayfulTextFieldStyle())
             }
-            
+
             // Sign in button
             Button {
                 signInWithEmail()
@@ -355,7 +391,7 @@ struct ModernLoginView: View {
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             .scaleEffect(0.8)
                     }
-                    
+
                     Text("Sign In")
                         .font(.headline)
                 }
@@ -378,8 +414,8 @@ struct ModernLoginView: View {
         HStack {
             Text("Don't have an account?")
                 .font(.caption)
-                .foregroundColor(.gray)
-            
+                .foregroundColor(.secondary)  // ✅ Adaptive
+
             Button("Sign Up") {
                 showingSignUp = true
             }
@@ -395,17 +431,17 @@ struct ModernLoginView: View {
         HStack {
             Rectangle()
                 .frame(height: 1)
-                .foregroundColor(Color.gray.opacity(0.3))
+                .foregroundColor(Color.secondary.opacity(0.3))  // ✅ Adaptive
 
             Text(text)
                 .font(.caption)
-                .foregroundColor(.gray)
+                .foregroundColor(.secondary)  // ✅ Adaptive
                 .padding(.horizontal, 8)
                 .fixedSize()
 
             Rectangle()
                 .frame(height: 1)
-                .foregroundColor(Color.gray.opacity(0.3))
+                .foregroundColor(Color.secondary.opacity(0.3))  // ✅ Adaptive
         }
     }
     
@@ -524,17 +560,20 @@ struct ModernLoginView: View {
 // MARK: - Playful Text Field Style
 
 struct PlayfulTextFieldStyle: TextFieldStyle {
+    @Environment(\.colorScheme) var colorScheme
+
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
             .font(.body)
+            .foregroundColor(.primary)  // ✅ Adaptive text color
             .padding()
-            .background(Color.white)
+            .background(Color(.secondarySystemBackground))  // ✅ Adaptive background
             .cornerRadius(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 1.5)
+                    .stroke(Color.primary.opacity(0.2), lineWidth: 1.5)  // ✅ Adaptive border
             )
-            .shadow(color: .gray.opacity(0.1), radius: 3, y: 2)
+            .shadow(color: Color.primary.opacity(0.05), radius: 3, y: 2)  // ✅ Adaptive shadow
     }
 }
 
@@ -567,11 +606,11 @@ struct ModernSignUpView: View {
                     VStack(spacing: 8) {
                         Text("Create Your Account")
                             .font(.title)
-                            .foregroundColor(.black)
+                            .foregroundColor(.primary)  // ✅ Adaptive for dark mode
 
                         Text("Join Study Mates to start your learning adventure!")
                             .font(.body)
-                            .foregroundColor(.gray)
+                            .foregroundColor(.secondary)  // ✅ Adaptive for dark mode
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 32)
@@ -582,7 +621,7 @@ struct ModernSignUpView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Full Name")
                                 .font(.caption)
-                                .foregroundColor(.gray)
+                                .foregroundColor(.secondary)  // ✅ Adaptive
 
                             TextField("Enter your full name", text: $name)
                                 .textFieldStyle(PlayfulTextFieldStyle())
@@ -595,7 +634,7 @@ struct ModernSignUpView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Email Address")
                                 .font(.caption)
-                                .foregroundColor(.gray)
+                                .foregroundColor(.secondary)  // ✅ Adaptive
 
                             TextField("Enter your email", text: $email)
                                 .textFieldStyle(PlayfulTextFieldStyle())
@@ -610,16 +649,16 @@ struct ModernSignUpView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Password")
                                 .font(.caption)
-                                .foregroundColor(.gray)
+                                .foregroundColor(.secondary)  // ✅ Adaptive
 
                             HStack {
                                 if isPasswordVisible {
-                                    TextField("Create a password", text: $password)
+                                    TextField("Must include A-z, 0-9, !@#$", text: $password)
                                         .textContentType(.newPassword)
                                         .focused($focusedField, equals: .password)
                                         .onSubmit { focusedField = .confirmPassword }
                                 } else {
-                                    SecureField("Create a password", text: $password)
+                                    SecureField("Must include A-z, 0-9, !@#$", text: $password)
                                         .textContentType(.newPassword)
                                         .focused($focusedField, equals: .password)
                                         .onSubmit { focusedField = .confirmPassword }
@@ -630,7 +669,7 @@ struct ModernSignUpView: View {
                                     isPasswordVisible.toggle()
                                 }) {
                                     Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
-                                        .foregroundColor(.gray.opacity(0.7))
+                                        .foregroundColor(.secondary)  // ✅ Adaptive
                                         .font(.system(size: 16))
                                 }
                                 .padding(.trailing, 12)
@@ -642,7 +681,7 @@ struct ModernSignUpView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Confirm Password")
                                 .font(.caption)
-                                .foregroundColor(.gray)
+                                .foregroundColor(.secondary)  // ✅ Adaptive
 
                             HStack {
                                 if isConfirmPasswordVisible {
@@ -662,7 +701,7 @@ struct ModernSignUpView: View {
                                     isConfirmPasswordVisible.toggle()
                                 }) {
                                     Image(systemName: isConfirmPasswordVisible ? "eye.slash.fill" : "eye.fill")
-                                        .foregroundColor(.gray.opacity(0.7))
+                                        .foregroundColor(.secondary)  // ✅ Adaptive
                                         .font(.system(size: 16))
                                 }
                                 .padding(.trailing, 12)
@@ -673,8 +712,13 @@ struct ModernSignUpView: View {
                         // Password validation
                         if !password.isEmpty {
                             passwordValidationView
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .top).combined(with: .opacity),
+                                    removal: .opacity
+                                ))
                         }
                     }
+                    .animation(.easeInOut(duration: 0.3), value: password.isEmpty)
 
                     // Sign up button
                     Button {
@@ -706,7 +750,7 @@ struct ModernSignUpView: View {
                 .padding(.horizontal, 32)
             }
             .scrollDismissesKeyboard(.interactively)  // ✅ Dismiss keyboard on scroll
-            .background(Color.white)
+            .background(Color(.systemBackground))  // ✅ Adaptive background for dark mode
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -755,30 +799,70 @@ struct ModernSignUpView: View {
     }
     
     // MARK: - Password Validation View
-    
+
     private var passwordValidationView: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Password Requirements:")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+                .padding(.bottom, 4)
+
             PasswordRequirement(
-                text: "At least 6 characters",
-                isMet: password.count >= 6
+                text: "At least 8 characters",
+                isMet: password.count >= 8
             )
-            
+
+            PasswordRequirement(
+                text: "Contains uppercase letter (A-Z)",
+                isMet: password.range(of: "[A-Z]", options: .regularExpression) != nil
+            )
+
+            PasswordRequirement(
+                text: "Contains lowercase letter (a-z)",
+                isMet: password.range(of: "[a-z]", options: .regularExpression) != nil
+            )
+
+            PasswordRequirement(
+                text: "Contains number (0-9)",
+                isMet: password.range(of: "[0-9]", options: .regularExpression) != nil
+            )
+
+            PasswordRequirement(
+                text: "Contains symbol (!@#$%^&*)",
+                isMet: password.range(of: "[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]", options: .regularExpression) != nil
+            )
+
             PasswordRequirement(
                 text: "Passwords match",
                 isMet: !confirmPassword.isEmpty && password == confirmPassword
             )
         }
         .padding(.top, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .background(Color(.tertiarySystemBackground))
+        .cornerRadius(12)
     }
-    
+
     // MARK: - Helper Properties
-    
+
     private var isFormValid: Bool {
         !name.isEmpty &&
         !email.isEmpty &&
         email.contains("@") &&
-        password.count >= 6 &&
+        isPasswordValid &&
         password == confirmPassword
+    }
+
+    private var isPasswordValid: Bool {
+        // Enforce strong password requirements
+        guard password.count >= 8 else { return false }
+        guard password.range(of: "[A-Z]", options: .regularExpression) != nil else { return false }
+        guard password.range(of: "[a-z]", options: .regularExpression) != nil else { return false }
+        guard password.range(of: "[0-9]", options: .regularExpression) != nil else { return false }
+        guard password.range(of: "[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]", options: .regularExpression) != nil else { return false }
+        return true
     }
     
     // MARK: - Actions
@@ -833,11 +917,15 @@ struct PasswordRequirement: View {
         HStack(spacing: 8) {
             Image(systemName: isMet ? "checkmark.circle.fill" : "circle")
                 .font(.caption)
-                .foregroundColor(isMet ? .green : .gray)
+                .foregroundColor(isMet ? .green : .secondary.opacity(0.5))
+                .scaleEffect(isMet ? 1.1 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isMet)
 
             Text(text)
                 .font(.caption)
-                .foregroundColor(isMet ? .green : .gray)
+                .foregroundColor(isMet ? .green : .secondary)
+                .fontWeight(isMet ? .semibold : .regular)
+                .animation(.easeInOut(duration: 0.2), value: isMet)
         }
     }
 }

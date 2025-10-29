@@ -130,20 +130,33 @@ class EnhancedTTSService: NSObject, ObservableObject {
     
     private func addCharacterPersonality(to text: String, for voiceType: VoiceType) -> String {
         var processedText = text
-        
+        let personality = voiceType.personality
+
         // Add character-specific speech patterns and personality touches
         switch voiceType {
         case .adam:
             // Friendly, encouraging boy voice
             processedText = processedText.replacingOccurrences(of: "Great!", with: "Awesome work, buddy!")
             processedText = processedText.replacingOccurrences(of: "Good", with: "Really good")
-            
+
         case .eva:
             // Kind, supportive girl voice
             processedText = processedText.replacingOccurrences(of: "Great!", with: "That's wonderful!")
             processedText = processedText.replacingOccurrences(of: "Let's", with: "Let's explore this together")
+
+        case .max:
+            // Energetic, enthusiastic boy voice
+            processedText = processedText.replacingOccurrences(of: "Great!", with: "Yes! Awesome!")
+            processedText = processedText.replacingOccurrences(of: "Good", with: "Amazing")
+            processedText = processedText.replacingOccurrences(of: "Correct", with: "Yes! You got it!")
+
+        case .mia:
+            // Playful, curious girl voice
+            processedText = processedText.replacingOccurrences(of: "Great!", with: "Yay! That's so cool!")
+            processedText = processedText.replacingOccurrences(of: "Let's", with: "Ooh, let's")
+            processedText = processedText.replacingOccurrences(of: "Good", with: "So good")
         }
-        
+
         return processedText
     }
     
@@ -188,12 +201,9 @@ class EnhancedTTSService: NSObject, ObservableObject {
     }
     
     private func shouldUseOpenAITTS(for voiceType: VoiceType) -> Bool {
-        // Use OpenAI for character voices
-        switch voiceType {
-        // Character voices - always use OpenAI for best character experience
-        case .adam, .eva:
-            return true
-        }
+        // Use ElevenLabs for all character voices if enhanced voices are enabled
+        // All 4 characters (Adam, Eva, Max, Mia) use ElevenLabs for best quality
+        return currentVoiceSettings.useEnhancedVoices
     }
     
     private func generateOpenAIAudio(for request: TTSRequest) {
@@ -273,19 +283,26 @@ class EnhancedTTSService: NSObject, ObservableObject {
             throw TTSError.invalidURL
         }
 
-        // Map voice type to OpenAI voice
-        let openAIVoice = mapToOpenAIVoice(request.voiceSettings.voiceType)
+        let voiceType = request.voiceSettings.voiceType
+        let provider = voiceType.ttsProvider
+
+        // Get the appropriate voice ID based on provider
+        let voiceId = provider == "openai" ? voiceType.openAIVoiceId : voiceType.elevenLabsVoiceId
 
         // Calculate final speaking rate
         let baseRate = request.voiceSettings.speakingRate
-        let voiceTypeMultiplier = request.voiceSettings.voiceType.speakingRateMultiplier
+        let voiceTypeMultiplier = voiceType.speakingRateMultiplier
         let expressiveness = request.voiceSettings.expressiveness
         let finalRate = baseRate * voiceTypeMultiplier * expressiveness
 
+        // Debug logging
+        print("🎵 EnhancedTTS: voiceType=\(voiceType.rawValue), provider=\(provider), voiceId=\(voiceId), speed=\(finalRate)")
+
         let requestBody = [
             "text": request.text,
-            "voice": openAIVoice,
-            "speed": finalRate.clamped(to: 0.25...4.0)
+            "voice": voiceId,
+            "speed": finalRate.clamped(to: 0.25...4.0),
+            "provider": provider
         ] as [String: Any]
 
         var urlRequest = URLRequest(url: url)
@@ -322,15 +339,10 @@ class EnhancedTTSService: NSObject, ObservableObject {
 
         throw TTSError.noResponse
     }
-    
+
     private func mapToOpenAIVoice(_ voiceType: VoiceType) -> String {
-        // Map character voice types to OpenAI's available voices with personality matching
-        switch voiceType {
-        case .adam:
-            return "alloy" // More neutral, younger-sounding voice for Adam (boy)
-        case .eva:
-            return "nova" // Warm, upbeat female voice for Eva (girl)
-        }
+        // Return the appropriate voice ID based on provider
+        return voiceType.ttsProvider == "openai" ? voiceType.openAIVoiceId : voiceType.elevenLabsVoiceId
     }
     
     private func playAudioData(_ data: Data, for request: TTSRequest) {

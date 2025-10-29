@@ -35,6 +35,7 @@ struct HomeworkResultsView: View {
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @StateObject private var homeworkImageStorage = HomeworkImageStorageService.shared  // NEW: Storage service
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
 
     // Generate unique session ID for this homework session
     private var sessionId: String {
@@ -120,7 +121,7 @@ struct HomeworkResultsView: View {
                         }
                     }) {
                         HStack(spacing: 4) {
-                            Image(systemName: "archivebox")
+                            Image(systemName: "books.vertical.fill")
                             Text(NSLocalizedString("homeworkResults.archive", comment: ""))
                         }
                         .foregroundColor(.blue)
@@ -195,11 +196,11 @@ struct HomeworkResultsView: View {
                 HStack {
                     Text(NSLocalizedString("homeworkResults.subject", comment: ""))
                         .font(.subheadline)
-                        .foregroundColor(.gray)
+                        .foregroundColor(DesignTokens.AdaptiveColors.secondaryText)
                     Text(enhanced.detectedSubject)
                         .font(.subheadline)
                         .fontWeight(.medium)
-                        .foregroundColor(.black)
+                        .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
 
                     if enhanced.isHighConfidenceSubject {
                         Image(systemName: "checkmark.circle.fill")
@@ -230,7 +231,7 @@ struct HomeworkResultsView: View {
             }
         }
         .padding()
-        .background(Color.gray.opacity(0.1))
+        .background(DesignTokens.AdaptiveColors.summaryBackground(colorScheme: colorScheme))
         .cornerRadius(16)
     }
     
@@ -309,31 +310,26 @@ struct HomeworkResultsView: View {
         .padding(20)
         .background(
             ZStack {
-                // Gradient background
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.2, green: 0.4, blue: 0.9),
-                        Color(red: 0.3, green: 0.5, blue: 1.0)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                // Adaptive gradient background
+                DesignTokens.AdaptiveColors.performanceGradient(colorScheme: colorScheme)
 
-                // Shimmer overlay
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.0),
-                        Color.white.opacity(0.1),
-                        Color.white.opacity(0.0)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                // Adaptive shimmer overlay
+                DesignTokens.AdaptiveColors.shimmerOverlay(colorScheme: colorScheme)
             }
         )
         .cornerRadius(20)
-        .shadow(color: Color.blue.opacity(0.4), radius: 20, x: 0, y: 10)
-        .shadow(color: Color.blue.opacity(0.3), radius: 10, x: 0, y: 5)
+        .shadow(
+            color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.blue.opacity(0.4),
+            radius: 20,
+            x: 0,
+            y: 10
+        )
+        .shadow(
+            color: colorScheme == .dark ? Color.black.opacity(0.2) : Color.blue.opacity(0.3),
+            radius: 10,
+            x: 0,
+            y: 5
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 20)
                 .stroke(
@@ -353,7 +349,7 @@ struct HomeworkResultsView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(NSLocalizedString("homeworkResults.questionsAndAnswers", comment: ""))
                 .font(.headline)
-                .foregroundColor(.black) // Fixed: explicit black text
+                .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
                 .padding(.horizontal)
 
             // Numbered Questions
@@ -389,7 +385,7 @@ struct HomeworkResultsView: View {
                     Text(NSLocalizedString("homeworkResults.additionalItems", comment: ""))
                         .font(.subheadline)
                         .fontWeight(.medium)
-                        .foregroundColor(.gray) // Fixed: explicit gray text
+                        .foregroundColor(DesignTokens.AdaptiveColors.secondaryText)
                         .padding(.horizontal)
 
                     ForEach(Array(parsingResult.unnumberedQuestions.enumerated()), id: \.element.id) { index, question in
@@ -424,7 +420,7 @@ struct HomeworkResultsView: View {
             HStack {
                 Text(NSLocalizedString("homeworkResults.selectQuestionsToArchive", comment: ""))
                     .font(.headline)
-                    .foregroundColor(.black)
+                    .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
                 Spacer()
                 Button(selectedQuestionIndices.count == parsingResult.allQuestions.count ? NSLocalizedString("common.deselectAll", comment: "") : NSLocalizedString("common.selectAll", comment: "")) {
                     if selectedQuestionIndices.count == parsingResult.allQuestions.count {
@@ -440,12 +436,12 @@ struct HomeworkResultsView: View {
             HStack {
                 Text("\(selectedQuestionIndices.count) \(NSLocalizedString("common.of", comment: "")) \(parsingResult.allQuestions.count) \(NSLocalizedString("homeworkResults.questionsSelected", comment: ""))")
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(DesignTokens.AdaptiveColors.secondaryText)
                 Spacer()
             }
         }
         .padding()
-        .background(Color.blue.opacity(0.05))
+        .background(DesignTokens.AdaptiveColors.selectionBackground(colorScheme: colorScheme))
         .cornerRadius(12)
     }
     
@@ -483,7 +479,12 @@ struct HomeworkResultsView: View {
                     )
                 )
                 .cornerRadius(16)
-                .shadow(color: (hasMarkedProgress ? Color.green : Color.blue).opacity(0.3), radius: 8, x: 0, y: 4)
+                .shadow(
+                    color: (hasMarkedProgress ? Color.green : Color.blue).opacity(colorScheme == .dark ? 0.5 : 0.3),
+                    radius: 8,
+                    x: 0,
+                    y: 4
+                )
             }
             .disabled(hasMarkedProgress)
 
@@ -573,6 +574,7 @@ struct QuestionAnswerCard: View {
     let enhancedResult: EnhancedHomeworkParsingResult?
     @ObservedObject private var appState = AppState.shared
     @State private var expandedSubquestions: Set<String> = []
+    @Environment(\.colorScheme) var colorScheme
 
     init(question: ParsedQuestion, isExpanded: Bool, isSelected: Bool = false, onToggle: @escaping () -> Void, onSelectionToggle: (() -> Void)? = nil, showAsBullet: Bool = false, showSelection: Bool = false, onDismissParent: (() -> Void)? = nil, enhancedResult: EnhancedHomeworkParsingResult? = nil) {
         self.question = question
@@ -595,11 +597,11 @@ struct QuestionAnswerCard: View {
                 regularQuestionView
             }
         }
-        .background(isSelected ? Color.blue.opacity(0.05) : Color.white)
+        .background(isSelected ? DesignTokens.AdaptiveColors.selectionBackground(colorScheme: colorScheme) : DesignTokens.AdaptiveColors.cardBackground)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isSelected ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: isSelected ? 2 : 1)
+                .stroke(isSelected ? Color.blue.opacity(0.3) : DesignTokens.AdaptiveColors.border(colorScheme: colorScheme), lineWidth: isSelected ? 2 : 1)
         )
     }
 
@@ -644,7 +646,7 @@ struct QuestionAnswerCard: View {
                                 .font(.body)
                                 .fontWeight(.semibold)
                                 .multilineTextAlignment(.leading)
-                                .foregroundColor(.black)
+                                .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
 
                             Image(systemName: "arrow.down.right.and.arrow.up.left")
                                 .font(.caption2)
@@ -697,7 +699,7 @@ struct QuestionAnswerCard: View {
 
                                 Text(feedback)
                                     .font(.body)
-                                    .foregroundColor(.black)
+                                    .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
                                     .multilineTextAlignment(.leading)
                             }
 
@@ -761,7 +763,7 @@ struct QuestionAnswerCard: View {
                             .font(.body)
                             .fontWeight(.medium)
                             .multilineTextAlignment(.leading)
-                            .foregroundColor(.black) // Fixed: explicit black text on white background
+                            .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
                         
                         // Metadata
                         HStack(spacing: 12) {
@@ -811,12 +813,12 @@ struct QuestionAnswerCard: View {
                     // Expand/Collapse Icon
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
-                        .foregroundColor(.gray) // Fixed: explicit gray color
+                        .foregroundColor(DesignTokens.AdaptiveColors.secondaryText)
                 }
                 .padding()
             }
             .buttonStyle(PlainButtonStyle())
-            
+
             // Answer Content (Collapsible)
             if isExpanded {
                 VStack(alignment: .leading, spacing: 12) {
@@ -875,14 +877,14 @@ Question: \(question.rawQuestionText ?? question.questionText)
                     // Bottom padding
                     Color.clear.frame(height: 4)
                 }
-                .background(question.isGraded ? question.gradeColor.opacity(0.05) : Color.blue.opacity(0.05))
+                .background(question.isGraded ? question.gradeColor.opacity(0.05) : DesignTokens.AdaptiveColors.cardBackgroundElevated)
             }
         }
-        .background(isSelected ? Color.blue.opacity(0.05) : Color.white)
+        .background(isSelected ? DesignTokens.AdaptiveColors.selectionBackground(colorScheme: colorScheme) : DesignTokens.AdaptiveColors.cardBackground)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isSelected ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: isSelected ? 2 : 1)
+                .stroke(isSelected ? Color.blue.opacity(0.3) : DesignTokens.AdaptiveColors.border(colorScheme: colorScheme), lineWidth: isSelected ? 2 : 1)
         )
     }
 
@@ -986,6 +988,7 @@ struct SubquestionCard: View {
     let subquestion: ParsedQuestion
     let isExpanded: Bool
     let onToggle: () -> Void
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -1015,7 +1018,7 @@ struct SubquestionCard: View {
                         Text(subquestion.questionText)
                             .font(.subheadline)
                             .multilineTextAlignment(.leading)
-                            .foregroundColor(.black)
+                            .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
 
                         // Grade and Score
                         HStack(spacing: 12) {
@@ -1071,7 +1074,7 @@ struct SubquestionCard: View {
 
                                 Text(studentAnswer)
                                     .font(.subheadline)
-                                    .foregroundColor(.black)
+                                    .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
                                     .multilineTextAlignment(.leading)
                                     .textSelection(.enabled)
                             }
@@ -1120,7 +1123,7 @@ struct SubquestionCard: View {
 
                                 Text(correctAnswer)
                                     .font(.subheadline)
-                                    .foregroundColor(.black)
+                                    .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
                                     .multilineTextAlignment(.leading)
                                     .textSelection(.enabled)
                             }
@@ -1146,7 +1149,7 @@ struct SubquestionCard: View {
 
                                 Text(feedback)
                                     .font(.subheadline)
-                                    .foregroundColor(.black)
+                                    .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
                                     .multilineTextAlignment(.leading)
                                     .textSelection(.enabled)
                             }
@@ -1173,25 +1176,30 @@ struct StatCard: View {
     let value: String
     let icon: String
     let color: Color
-    
+    @Environment(\.colorScheme) var colorScheme
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title3)
                 .foregroundColor(color)
-            
+
             Text(value)
                 .font(.headline)
                 .fontWeight(.bold)
-                .foregroundColor(.black) // Fixed: explicit black text
-            
+                .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
+
             Text(title)
                 .font(.caption)
-                .foregroundColor(.gray) // Fixed: explicit gray text
+                .foregroundColor(DesignTokens.AdaptiveColors.secondaryText)
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(color.opacity(0.1))
+        .background(
+            colorScheme == .dark
+                ? color.opacity(0.15)
+                : color.opacity(0.1)
+        )
         .cornerRadius(12)
     }
 }
@@ -1203,6 +1211,7 @@ struct ScoreBreakdownItem: View {
     let label: String
     let color: Color
     let icon: String
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         HStack(spacing: 6) {
@@ -1213,15 +1222,19 @@ struct ScoreBreakdownItem: View {
             Text("\(count)")
                 .font(.caption)
                 .fontWeight(.semibold)
-                .foregroundColor(.black)
+                .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
 
             Text(label)
                 .font(.caption)
-                .foregroundColor(.gray)
+                .foregroundColor(DesignTokens.AdaptiveColors.secondaryText)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(color.opacity(0.1))
+        .background(
+            colorScheme == .dark
+                ? color.opacity(0.2)
+                : color.opacity(0.1)
+        )
         .cornerRadius(8)
     }
 }

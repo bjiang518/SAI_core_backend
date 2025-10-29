@@ -203,21 +203,37 @@ class AdvancedPromptService:
     def create_enhanced_prompt(self, question: str, subject_string: str, context: Optional[Dict] = None) -> str:
         """
         Create an enhanced prompt with subject-specific optimization.
-        
+
         Args:
             question: The student's question
             subject_string: Subject area (e.g., 'mathematics', 'physics')
-            context: Optional context like student level, learning history
-            
+            context: Optional context like student level, learning history, language preference
+
         Returns:
             Enhanced prompt optimized for the specific subject and context
         """
         subject = self.detect_subject(subject_string)
         template = self.prompt_templates.get(subject, self.prompt_templates[Subject.GENERAL])
-        
+
+        # Extract language from context (default to 'en')
+        user_language = 'en'
+        if context and 'language' in context:
+            user_language = context['language']
+
+        # Language-specific instructions
+        language_instructions = {
+            'en': 'Respond in clear, educational English.',
+            'zh-Hans': '用简体中文回答。使用清晰的教育性语言。',
+            'zh-Hant': '用繁體中文回答。使用清晰的教育性語言。'
+        }
+
+        language_instruction = language_instructions.get(user_language, language_instructions['en'])
+
         # Build the enhanced system prompt
         system_prompt_parts = [
             template.base_prompt,
+            "",
+            f"LANGUAGE INSTRUCTION: {language_instruction}",
             "",
             "IMPORTANT FORMATTING GUIDELINES:",
         ]

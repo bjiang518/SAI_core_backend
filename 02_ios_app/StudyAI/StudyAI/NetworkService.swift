@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 import Combine
 import Network
 import UIKit
@@ -13,9 +14,12 @@ import os.log
 
 class NetworkService: ObservableObject {
     static let shared = NetworkService()
-    
+
     // Primary: Production Railway backend with integrated AI proxy
     private let baseURL = "https://sai-backend-production.up.railway.app"
+
+    // Language preference for AI responses
+    @AppStorage("appLanguage") private var appLanguage: String = "en"
 
     // Public getter for base URL
     var apiBaseURL: String {
@@ -816,7 +820,8 @@ class NetworkService: ObservableObject {
         }
         
         let sessionData = [
-            "subject": subject
+            "subject": subject,
+            "language": appLanguage  // Pass user's language preference
         ]
         
         var request = URLRequest(url: url)
@@ -889,7 +894,10 @@ class NetworkService: ObservableObject {
             return (false, nil, nil, nil, nil)
         }
 
-        let messageData = ["message": message]
+        let messageData: [String: Any] = [
+            "message": message,
+            "language": appLanguage  // Pass user's language preference
+        ]
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1023,7 +1031,10 @@ class NetworkService: ObservableObject {
             return false
         }
 
-        let messageData = ["message": message]
+        let messageData: [String: Any] = [
+            "message": message,
+            "language": appLanguage  // Pass user's language preference
+        ]
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1259,7 +1270,8 @@ class NetworkService: ObservableObject {
 
         let requestData: [String: Any] = [
             "message": message,
-            "question_context": questionContext
+            "question_context": questionContext,
+            "language": appLanguage  // Pass user's language preference
         ]
 
         var request = URLRequest(url: url)

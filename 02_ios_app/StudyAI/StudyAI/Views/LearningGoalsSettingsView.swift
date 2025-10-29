@@ -94,10 +94,10 @@ struct LearningGoalsSettingsView: View {
                         .font(.title2)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Daily Questions")
+                        Text(NSLocalizedString("goals.dailyQuestions", comment: ""))
                             .font(.headline)
                             .fontWeight(.semibold)
-                        Text("Answer questions every day to build consistent learning habits")
+                        Text(NSLocalizedString("goals.dailyQuestionsDescription", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -106,7 +106,7 @@ struct LearningGoalsSettingsView: View {
                 }
 
                 HStack {
-                    Text("Target: ")
+                    Text(NSLocalizedString("goals.target", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text("\(Int(dailyQuestionsTarget))")
@@ -134,10 +134,10 @@ struct LearningGoalsSettingsView: View {
                         .font(.title2)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Accuracy Goal")
+                        Text(NSLocalizedString("goals.accuracyGoal", comment: ""))
                             .font(.headline)
                             .fontWeight(.semibold)
-                        Text("Achieve high accuracy in your answers to maximize your score")
+                        Text(NSLocalizedString("goals.accuracyGoalDescription", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -146,7 +146,7 @@ struct LearningGoalsSettingsView: View {
                 }
 
                 HStack {
-                    Text("Target: ")
+                    Text(NSLocalizedString("goals.target", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text("\(Int(accuracyTarget))")
@@ -186,7 +186,7 @@ struct LearningGoalsSettingsView: View {
                 }
 
                 HStack {
-                    Text("Target: ")
+                    Text(NSLocalizedString("goals.target", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text("\(Int(studyConsistencyTarget))")

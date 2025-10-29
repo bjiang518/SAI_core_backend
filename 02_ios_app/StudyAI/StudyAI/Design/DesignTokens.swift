@@ -118,7 +118,79 @@ struct DesignTokens {
             static let dark = Color(red: 0.9, green: 0.5, blue: 0.7)       // Muted pink
         }
     }
-    
+
+    // MARK: - Adaptive Text Colors
+    struct AdaptiveColors {
+        // Primary text - adapts to light/dark mode
+        static let primaryText = Color.primary
+
+        // Secondary text - adapts to light/dark mode
+        static let secondaryText = Color.secondary
+
+        // Tertiary text - subtle gray
+        static let tertiaryText = Color(.tertiaryLabel)
+
+        // Card backgrounds - adaptive
+        static let cardBackground = Color(.secondarySystemBackground)
+        static let cardBackgroundElevated = Color(.tertiarySystemBackground)
+
+        // Grouped backgrounds - adaptive
+        static let groupedBackground = Color(.systemGroupedBackground)
+        static let secondaryGroupedBackground = Color(.secondarySystemGroupedBackground)
+
+        // Adaptive gradients for performance summary
+        static func performanceGradient(colorScheme: ColorScheme) -> LinearGradient {
+            if colorScheme == .dark {
+                return LinearGradient(
+                    colors: [
+                        Color(red: 0.15, green: 0.35, blue: 0.75),
+                        Color(red: 0.2, green: 0.4, blue: 0.85)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            } else {
+                return LinearGradient(
+                    colors: [
+                        Color(red: 0.2, green: 0.4, blue: 0.9),
+                        Color(red: 0.3, green: 0.5, blue: 1.0)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        }
+
+        // Adaptive shimmer overlay
+        static func shimmerOverlay(colorScheme: ColorScheme) -> LinearGradient {
+            let baseOpacity: Double = colorScheme == .dark ? 0.05 : 0.1
+            return LinearGradient(
+                colors: [
+                    Color.white.opacity(0.0),
+                    Color.white.opacity(baseOpacity),
+                    Color.white.opacity(0.0)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+
+        // Adaptive borders
+        static func border(colorScheme: ColorScheme) -> Color {
+            colorScheme == .dark ? Color.white.opacity(0.15) : Color.gray.opacity(0.2)
+        }
+
+        // Adaptive selection background
+        static func selectionBackground(colorScheme: ColorScheme) -> Color {
+            colorScheme == .dark ? Color.blue.opacity(0.2) : Color.blue.opacity(0.05)
+        }
+
+        // Adaptive summary background
+        static func summaryBackground(colorScheme: ColorScheme) -> Color {
+            colorScheme == .dark ? Color(.systemGray5) : Color.gray.opacity(0.1)
+        }
+    }
+
     // MARK: - Typography
     struct Typography {
         // Headings - Refined sizes
@@ -197,8 +269,8 @@ struct DesignTokens {
     struct Icons {
         // Navigation
         static let history = "clock.arrow.circlepath"
-        static let archive = "archivebox"
-        static let unarchive = "archivebox.fill"
+        static let archive = "books.vertical.fill"
+        static let unarchive = "books.vertical.fill"
         static let search = "magnifyingglass"
         static let filter = "line.3.horizontal.decrease.circle"
         static let calendar = "calendar"

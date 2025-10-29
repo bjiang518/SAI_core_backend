@@ -118,7 +118,96 @@ struct DesignTokens {
             static let dark = Color(red: 0.85, green: 0.4, blue: 0.65)     // Darker muted pink
         }
     }
-    
+
+    // MARK: - Adaptive Colors for Dark Mode Support
+    struct AdaptiveColors {
+        // Text Colors
+        static let primaryText = Color.primary
+        static let secondaryText = Color.secondary
+        static let tertiaryText = Color(.tertiaryLabel)
+
+        // Background Colors
+        static let cardBackground = Color(.secondarySystemBackground)
+        static let cardBackgroundElevated = Color(.tertiarySystemBackground)
+        static let groupedBackground = Color(.systemGroupedBackground)
+        static let secondaryGroupedBackground = Color(.secondarySystemGroupedBackground)
+
+        // Performance Summary Gradient (adaptive to dark mode)
+        static func performanceGradient(colorScheme: ColorScheme) -> LinearGradient {
+            if colorScheme == .dark {
+                return LinearGradient(
+                    colors: [
+                        Color(red: 0.2, green: 0.3, blue: 0.5),   // Dark blue
+                        Color(red: 0.3, green: 0.2, blue: 0.4)    // Dark purple
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            } else {
+                return LinearGradient(
+                    colors: [
+                        Color(red: 0.4, green: 0.6, blue: 0.95),  // Bright blue
+                        Color(red: 0.6, green: 0.4, blue: 0.9)    // Bright purple
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        }
+
+        // Shimmer Overlay (adaptive)
+        static func shimmerOverlay(colorScheme: ColorScheme) -> some View {
+            if colorScheme == .dark {
+                return LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.05),
+                        Color.white.opacity(0.1),
+                        Color.white.opacity(0.05)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            } else {
+                return LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.2),
+                        Color.white.opacity(0.4),
+                        Color.white.opacity(0.2)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        }
+
+        // Summary Background (adaptive)
+        static func summaryBackground(colorScheme: ColorScheme) -> Color {
+            if colorScheme == .dark {
+                return Color(.systemGray6)
+            } else {
+                return Color(.systemGray6)
+            }
+        }
+
+        // Selection Background (adaptive)
+        static func selectionBackground(colorScheme: ColorScheme) -> Color {
+            if colorScheme == .dark {
+                return Color.blue.opacity(0.2)
+            } else {
+                return Color.blue.opacity(0.1)
+            }
+        }
+
+        // Border Color (adaptive)
+        static func border(colorScheme: ColorScheme) -> Color {
+            if colorScheme == .dark {
+                return Color(.systemGray4)
+            } else {
+                return Color(.systemGray5)
+            }
+        }
+    }
+
     // MARK: - Typography
     struct Typography {
         // Headings - Refined sizes
@@ -197,8 +286,8 @@ struct DesignTokens {
     struct Icons {
         // Navigation
         static let history = "clock.arrow.circlepath"
-        static let archive = "archivebox"
-        static let unarchive = "archivebox.fill"
+        static let archive = "books.vertical.fill"
+        static let unarchive = "books.vertical.fill"
         static let search = "magnifyingglass"
         static let filter = "line.3.horizontal.decrease.circle"
         static let calendar = "calendar"

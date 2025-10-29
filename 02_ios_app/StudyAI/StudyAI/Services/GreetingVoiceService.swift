@@ -14,10 +14,12 @@ class GreetingVoiceService: ObservableObject {
 
     @Published var isSpeaking = false
     @Published var isPreloading = false  // Published so UI can react to preloading state
+    @Published var currentVoiceType: VoiceType = .eva  // Published so UI reacts to voice type changes
 
     private let ttsService = EnhancedTTSService()
     private let voiceInteractionService = VoiceInteractionService.shared  // Access user's voice settings
     private var currentGreeting: String = ""
+    private var cancellables = Set<AnyCancellable>()  // For observing voice settings changes
 
     // 20 diverse greeting messages
     private let greetings = [
@@ -44,6 +46,18 @@ class GreetingVoiceService: ObservableObject {
     ]
 
     private init() {
+        // Initialize with current voice type
+        currentVoiceType = voiceInteractionService.voiceSettings.voiceType
+
+        // Observe voice settings changes and update currentVoiceType
+        voiceInteractionService.$voiceSettings
+            .map { $0.voiceType }
+            .removeDuplicates()
+            .sink { [weak self] newVoiceType in
+                self?.currentVoiceType = newVoiceType
+            }
+            .store(in: &cancellables)
+
         // Preload all greetings in background
         Task {
             await preloadGreetings()
@@ -143,11 +157,6 @@ class GreetingVoiceService: ObservableObject {
     // Get current greeting text (for debugging)
     func getCurrentGreeting() -> String {
         return currentGreeting
-    }
-
-    // Get current voice type for UI display
-    var currentVoiceType: VoiceType {
-        return voiceInteractionService.voiceSettings.voiceType
     }
 }
 

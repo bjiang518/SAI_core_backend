@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Lottie
 
 struct VoiceSettingsView: View {
     @StateObject private var voiceService = VoiceInteractionService.shared
@@ -38,7 +39,7 @@ struct VoiceSettingsView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Voice Settings")
+            .navigationTitle("Your AI Study Mates")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -62,8 +63,6 @@ struct VoiceSettingsView: View {
     
     private var voiceTypeSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionHeader("AI Voice Personality", icon: "person.wave.2.fill")
-            
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
@@ -89,7 +88,19 @@ struct VoiceSettingsView: View {
     // MARK: - Voice Controls Section
 
     private var voiceControlsSection: some View {
-        let voiceColor = tempSettings.voiceType == .adam ? Color.blue : Color.purple
+        // Assign colors based on voice character
+        let voiceColor: Color = {
+            switch tempSettings.voiceType {
+            case .adam:
+                return Color.blue
+            case .eva:
+                return Color.purple
+            case .max:
+                return Color.orange
+            case .mia:
+                return Color.pink
+            }
+        }()
 
         return VStack(alignment: .leading, spacing: 16) {
             sectionHeader("Voice Controls", icon: "slider.horizontal.3")
@@ -342,16 +353,44 @@ struct VoiceTypeCard: View {
 
     // Dynamic color based on voice type
     private var cardColor: Color {
-        voiceType == .adam ? .blue : .purple
+        switch voiceType {
+        case .adam:
+            return Color.blue
+        case .eva:
+            return Color.purple
+        case .max:
+            return Color.orange
+        case .mia:
+            return Color.pink
+        }
+    }
+
+    // Animation name based on voice type
+    private var animationName: String {
+        switch voiceType {
+        case .adam:
+            return "Siri Animation"
+        case .eva:
+            return "AI Spiral Loading"
+        case .max:
+            return "Fire"
+        case .mia:
+            return "Foriday"
+        }
     }
 
     var body: some View {
         Button(action: onSelect) {
             VStack(spacing: 12) {
-                // Icon
-                Image(systemName: voiceType.icon)
-                    .font(.title2)
-                    .foregroundColor(isSelected ? .white : cardColor)
+                // Lottie Animation Icon
+                LottieView(
+                    animationName: animationName,
+                    loopMode: .loop,
+                    animationSpeed: 1.0
+                )
+                .frame(width: 80, height: 80)  // Larger bounding box
+                .scaleEffect(0.08)  // Much smaller animation
+                .clipped()
 
                 // Title
                 Text(voiceType.displayName)
@@ -366,8 +405,10 @@ struct VoiceTypeCard: View {
                     .foregroundColor(isSelected ? .white.opacity(0.9) : .secondary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity)
+            .frame(height: 140)  // Fixed height for all cards
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 16)

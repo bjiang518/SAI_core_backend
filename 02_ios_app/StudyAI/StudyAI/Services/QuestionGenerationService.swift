@@ -57,10 +57,10 @@ class QuestionGenerationService: ObservableObject {
 
             var displayName: String {
                 switch self {
-                case .beginner: return "Beginner"
-                case .intermediate: return "Intermediate"
-                case .advanced: return "Advanced"
-                case .adaptive: return "Adaptive"
+                case .beginner: return NSLocalizedString("difficulty.beginner", comment: "")
+                case .intermediate: return NSLocalizedString("difficulty.intermediate", comment: "")
+                case .advanced: return NSLocalizedString("difficulty.advanced", comment: "")
+                case .adaptive: return NSLocalizedString("difficulty.adaptive", comment: "")
                 }
             }
 
@@ -199,14 +199,14 @@ class QuestionGenerationService: ObservableObject {
 
             var displayName: String {
                 switch self {
-                case .multipleChoice: return "Multiple Choice"
-                case .trueFalse: return "True/False"
-                case .fillBlank: return "Fill in the Blank"
-                case .shortAnswer: return "Short Answer"
-                case .longAnswer: return "Long Answer"
-                case .calculation: return "Calculation"
-                case .matching: return "Matching"
-                case .any: return "Mixed Types"
+                case .multipleChoice: return NSLocalizedString("questionType.multipleChoice", comment: "")
+                case .trueFalse: return NSLocalizedString("questionType.trueFalse", comment: "")
+                case .fillBlank: return NSLocalizedString("questionType.fillBlank", comment: "")
+                case .shortAnswer: return NSLocalizedString("questionType.shortAnswer", comment: "")
+                case .longAnswer: return NSLocalizedString("questionType.longAnswer", comment: "")
+                case .calculation: return NSLocalizedString("questionType.calculation", comment: "")
+                case .matching: return NSLocalizedString("questionType.matching", comment: "")
+                case .any: return NSLocalizedString("questionType.mixedTypes", comment: "")
                 }
             }
 

@@ -57,6 +57,13 @@ class QuestionGenerationDataAdapter {
 
     /// Get common subjects for selection
     func getMostCommonSubjects() -> [String] {
-        return ["Mathematics", "Science", "Physics", "Chemistry", "Biology", "English"]
+        return [
+            NSLocalizedString("subject.mathematics", comment: ""),
+            NSLocalizedString("subject.science", comment: ""),
+            NSLocalizedString("subject.physics", comment: ""),
+            NSLocalizedString("subject.chemistry", comment: ""),
+            NSLocalizedString("subject.biology", comment: ""),
+            NSLocalizedString("subject.english", comment: "")
+        ]
     }
 }

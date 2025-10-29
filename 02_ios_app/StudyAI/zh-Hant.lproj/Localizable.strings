@@ -118,6 +118,8 @@
 "home.mistakeReviewDescription" = "從過往錯誤中學習";
 "home.parentReports" = "家長報告";
 "home.parentReportsDescription" = "學習進度與見解";
+"home.homeworkAlbum" = "作業相簿";
+"home.homeworkAlbumDescription" = "查看所有提交的作業";
 
 // Parent Reports
 "parentReport.title" = "家長報告";
@@ -235,6 +237,8 @@
 "homeworkResults.archiveSuccess" = "成功歸檔";
 "homeworkResults.archiveSuccessSuffix" = "題到您的錯題本！";
 "homeworkResults.archiveFailure" = "歸檔題目失敗：";
+"homeworkResults.noQuestionsSelected" = "未選擇題目";
+"homeworkResults.selectQuestionsToArchiveMessage" = "請至少選擇一道題目進行歸檔。";
 
 // Authentication
 "auth.error.title" = "認證錯誤";
@@ -961,3 +965,59 @@
 "parentMode.enabled" = "已啟用";
 "parentMode.disabled" = "已停用";
 "parentMode.faceIDUsageDescription" = "StudyMates 使用 Face ID 安全地驗證家長身分，以存取受保護的功能和家長控制。";
+
+// Voice Input Preview
+"voicePreview.liveTranscription" = "即時轉寫";
+"voicePreview.title" = "語音輸入預覽";
+"voicePreview.transcribedText" = "轉寫文字（點擊編輯）";
+"voicePreview.sendToAI" = "發送給 AI";
+"voicePreview.reRecord" = "重新錄製";
+"voicePreview.confidence.high" = "高可信度 - 轉寫看起來不錯";
+"voicePreview.confidence.medium" = "中等可信度 - 請仔細檢查";
+"voicePreview.confidence.low" = "低可信度 - 轉寫可能不準確";
+
+// Voice Input Controls
+"voice.pressToTalk" = "按住說話";
+"voice.slideUpToCancel" = "上滑取消";
+"voice.releaseToCancel" = "放開取消";
+
+// Learning Goals
+"goals.dailyQuestions" = "每日答題";
+"goals.dailyStreak" = "每日連續";
+"goals.weeklyStreak" = "每週連續";
+"goals.accuracyGoal" = "正確率目標";
+"goals.studyTime" = "學習時長";
+"goals.subjectMastery" = "科目掌握";
+"goals.dailyQuestionsDescription" = "每天回答問題以養成持續學習的習慣";
+"goals.accuracyGoalDescription" = "在答題中保持高正確率以獲得最高分數";
+"goals.target" = "目標：";
+"goals.weeklyStreakDescription" = "保持 7 天的學習連續以獲得豐厚的獎勵積分";
+"goals.dailyStreakDescription" = "通過每日活動保持學習動力";
+
+// Subjects
+"subject.mathematics" = "數學";
+"subject.science" = "科學";
+"subject.physics" = "物理";
+"subject.chemistry" = "化學";
+"subject.biology" = "生物";
+"subject.english" = "英語";
+
+// Difficulty Levels
+"difficulty.beginner" = "初級";
+"difficulty.intermediate" = "中級";
+"difficulty.advanced" = "高級";
+"difficulty.adaptive" = "自適應";
+
+// Question Types
+"questionType.multipleChoice" = "選擇題";
+"questionType.trueFalse" = "判斷題";
+"questionType.fillBlank" = "填空題";
+"questionType.shortAnswer" = "簡答題";
+"questionType.longAnswer" = "論述題";
+"questionType.calculation" = "計算題";
+"questionType.matching" = "配對題";
+"questionType.mixedTypes" = "混合題型";
+
+// Question Generation - How to Use
+"questionGeneration.howToUse.title" = "如何使用練習生成";
+"questionGeneration.howToUse.message" = "• 選擇練習類型：隨機練習、錯題複習或從資料庫生成\n• 選擇科目和難度等級\n• 選擇題型（選擇題、判斷題、填空題等）\n• 設置題目數量\n• 點擊「生成練習題」按鈕\n• 生成後開始答題並獲得即時反饋";

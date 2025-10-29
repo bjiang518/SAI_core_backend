@@ -1011,3 +1011,22 @@
 "parentMode.enabled" = "Enabled";
 "parentMode.disabled" = "Disabled";
 "parentMode.faceIDUsageDescription" = "StudyMates uses Face ID to securely authenticate parents for accessing protected features and parental controls.";
+
+// Voice Input Preview
+"voicePreview.liveTranscription" = "Live Transcription";
+"voicePreview.title" = "Voice Input Preview";
+"voicePreview.transcribedText" = "Transcribed Text (tap to edit)";
+"voicePreview.sendToAI" = "Send to AI";
+"voicePreview.reRecord" = "Re-record";
+"voicePreview.confidence.high" = "High confidence - transcription looks good";
+"voicePreview.confidence.medium" = "Medium confidence - please review carefully";
+"voicePreview.confidence.low" = "Low confidence - transcription may be inaccurate";
+
+// Voice Input Controls
+"voice.pressToTalk" = "Press to Talk";
+"voice.slideUpToCancel" = "Slide up to Cancel";
+"voice.releaseToCancel" = "Release to Cancel";
+
+// Question Generation - How to Use
+"questionGeneration.howToUse.title" = "How to Use Question Generation";
+"questionGeneration.howToUse.message" = "• Select practice type: Random Practice, Mistake Review, or From Library\n• Choose subject and difficulty level\n• Select question type (Multiple Choice, True/False, Fill in Blank, etc.)\n• Set number of questions\n• Tap 'Generate Practice Questions' button\n• Start answering and receive instant feedback";
