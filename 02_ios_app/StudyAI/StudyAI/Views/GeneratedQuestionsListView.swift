@@ -24,6 +24,7 @@ struct GeneratedQuestionsListView: View {
 
     // Progress tracking state
     @State private var answeredQuestions: [UUID: QuestionResult] = [:] // Track answered questions with results
+    @State private var showingInfoAlert = false // Add info alert state
 
     private let logger = Logger(subsystem: "com.studyai", category: "GeneratedQuestionsList")
 
@@ -80,7 +81,20 @@ struct GeneratedQuestionsListView: View {
             }
             .navigationTitle(NSLocalizedString("generatedQuestions.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(trailing: closeButton)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showingInfoAlert = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    closeButton
+                }
+            }
             .sheet(isPresented: $showingQuestionDetail) {
                 if let selectedQuestion = selectedQuestion,
                    let questionIndex = questions.firstIndex(where: { $0.id == selectedQuestion.id }) {
@@ -105,6 +119,11 @@ struct GeneratedQuestionsListView: View {
                         generationType: "Custom Practice"
                     )
                 }
+            }
+            .alert(NSLocalizedString("generatedQuestions.howToUse.title", comment: ""), isPresented: $showingInfoAlert) {
+                Button(NSLocalizedString("common.ok", comment: "")) { }
+            } message: {
+                Text(NSLocalizedString("generatedQuestions.howToUse.message", comment: ""))
             }
             .onAppear {
                 logger.info("📝 Generated questions list appeared with \(questions.count) questions")

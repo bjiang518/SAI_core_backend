@@ -1020,4 +1020,8 @@
 
 // Question Generation - How to Use
 "questionGeneration.howToUse.title" = "如何使用練習生成";
-"questionGeneration.howToUse.message" = "• 選擇練習類型：隨機練習、錯題複習或從資料庫生成\n• 選擇科目和難度等級\n• 選擇題型（選擇題、判斷題、填空題等）\n• 設置題目數量\n• 點擊「生成練習題」按鈕\n• 生成後開始答題並獲得即時反饋";
+"questionGeneration.howToUse.message" = "• 選擇練習類型：隨機練習、錯題複習或從資料庫生成\n• 選擇科目和難度等級\n• 選擇題型（選擇題、判斷題、填空題等）\n• 設置題目數量\n• 點擊'生成練習題'按鈕\n• 生成後開始答題並獲得即時反饋";
+
+// Generated Questions - How to Use
+"generatedQuestions.howToUse.title" = "如何使用練習題";
+"generatedQuestions.howToUse.message" = "• 點擊任意題目卡片開始答題\n• 閱讀題目並選擇答案\n• 提交後查看即時反饋和解析\n• 通過勾選標記追蹤進度\n• 使用'生成PDF'導出選定題目供離線練習\n• 使用上一題/下一題按鈕在題目間導航";

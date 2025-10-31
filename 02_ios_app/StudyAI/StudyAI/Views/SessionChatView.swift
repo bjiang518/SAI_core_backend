@@ -383,6 +383,10 @@ struct SessionChatView: View {
     // Animation state for central example card
     @State private var exampleCardScale: CGFloat = 0.8
 
+    // Streaming UI update control (debounce for Chinese text stability)
+    @State private var streamingUpdateTimer: Timer?
+    @State private var pendingStreamingUpdate = false
+
     // Alert for existing chat session when "Ask AI for help" is clicked
     @State private var showingExistingSessionAlert = false
     @State private var pendingHomeworkQuestion = ""
@@ -651,37 +655,12 @@ struct SessionChatView: View {
                 Text("Grade correction information unavailable")
             }
         }
-        .onAppear {
-            // Clean up any lingering audio when view appears
-            // This catches cases where audio was playing when view was previously dismissed
-            stopCurrentAudio()
-
-            // Check for pending chat message from other tabs (e.g., grader follow-up)
-            // If there's a pending message, check if current session has messages
-            if let pendingMessage = appState.pendingChatMessage {
-                // Store the pending message and subject
-                pendingHomeworkQuestion = pendingMessage
-                pendingHomeworkSubject = appState.pendingChatSubject ?? "General"
-
-                // Check if current session has messages
-                if !networkService.conversationHistory.isEmpty {
-                    // Current session has messages - show alert
-                    showingExistingSessionAlert = true
-                    // Don't clear pending message yet - wait for user choice
-                } else {
-                    // No messages in current session - proceed directly
-                    proceedWithHomeworkQuestion()
-                }
-            } else {
-                // No pending message - create initial session if none exists
-                if networkService.currentSessionId == nil {
-                    startNewSession()
-                }
-            }
-        }
         .onDisappear {
             // Stop any playing audio when leaving the chat view
             stopCurrentAudio()
+
+            // Cancel any pending streaming updates
+            cancelStreamingUpdates()
         }
         .onChange(of: selectedImage) { _, newImage in
             if newImage != nil {
@@ -1558,6 +1537,35 @@ struct SessionChatView: View {
         }
     }
 
+    // MARK: - Streaming Update Management
+
+    /// Debounce streaming UI updates to prevent Chinese text shaking
+    /// Updates are batched and applied at a controlled interval (150ms) for stable rendering
+    private func scheduleStreamingUpdate() {
+        // Mark that an update is pending
+        pendingStreamingUpdate = true
+
+        // Cancel existing timer if any
+        streamingUpdateTimer?.invalidate()
+
+        // Schedule new timer for 150ms (optimized for Chinese character rendering)
+        streamingUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { _ in
+            // Only trigger update if there's actually a pending update
+            if self.pendingStreamingUpdate {
+                // Force UI refresh for the batched changes
+                self.refreshTrigger = UUID()
+                self.pendingStreamingUpdate = false
+            }
+        }
+    }
+
+    /// Cancel any pending streaming updates (used when streaming completes)
+    private func cancelStreamingUpdates() {
+        streamingUpdateTimer?.invalidate()
+        streamingUpdateTimer = nil
+        pendingStreamingUpdate = false
+    }
+
     // MARK: - Message Persistence
 
     /// Unified function to save messages to BOTH conversationHistory AND SwiftData
@@ -1736,7 +1744,7 @@ struct SessionChatView: View {
                     sessionId: sessionId,
                     message: message,
                     onChunk: { accumulatedText in
-                        // Update UI with streaming text in real-time
+                        // Update UI with streaming text in real-time (debounced for stability)
                         Task { @MainActor in
                             // Find and update the last AI message with streaming content
                             if networkService.conversationHistory.last?["role"] == "assistant" {
@@ -1750,8 +1758,9 @@ struct SessionChatView: View {
                                 ])
                             }
 
-                            // Update UI
-                            refreshTrigger = UUID()
+                            // ✅ OPTIMIZED: Use debounced update to prevent Chinese text shaking
+                            // Instead of immediate refresh, batch updates every 150ms for stable rendering
+                            scheduleStreamingUpdate()
                         }
                     },
                     onSuggestions: { suggestions in
@@ -1761,6 +1770,10 @@ struct SessionChatView: View {
                     },
                     onComplete: { success, fullText, tokens, compressed in
                         Task { @MainActor in
+                            // ✅ Cancel debounce timer and apply final update immediately
+                            cancelStreamingUpdates()
+                            refreshTrigger = UUID()  // Final update without debounce
+
                             if success {
                                 isSubmitting = false
                                 showTypingIndicator = false
@@ -1839,7 +1852,8 @@ struct SessionChatView: View {
                                         "content": accumulatedText
                                     ])
                                 }
-                                refreshTrigger = UUID()
+                                // ✅ OPTIMIZED: Use debounced update to prevent Chinese text shaking
+                                scheduleStreamingUpdate()
                             }
                         },
                         onSuggestions: { suggestions in
@@ -1849,6 +1863,10 @@ struct SessionChatView: View {
                         },
                         onComplete: { success, fullText, tokens, compressed in
                             Task { @MainActor in
+                                // ✅ Cancel debounce timer and apply final update immediately
+                                cancelStreamingUpdates()
+                                refreshTrigger = UUID()  // Final update without debounce
+
                                 if success {
                                     isSubmitting = false
                                     showTypingIndicator = false

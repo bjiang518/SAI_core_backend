@@ -5,6 +5,7 @@
 
 const AIServiceClient = require('../services/ai-client');
 const { features } = require('../config/services');
+const PIIMasking = require('../../utils/pii-masking');
 
 class AIProxyRoutes {
   constructor(fastify) {
@@ -21,6 +22,25 @@ class AIProxyRoutes {
         tags: ['AI'],
         consumes: ['multipart/form-data'],
         produces: ['application/json']
+      },
+      config: {
+        rateLimit: {
+          max: 15,  // 15 requests per hour
+          timeWindow: '1 hour',
+          keyGenerator: async (request) => {
+            // Rate limit by authenticated user ID
+            const userId = await this.getUserIdFromToken(request);
+            return userId || request.ip;  // Fallback to IP if no user ID
+          },
+          errorResponseBuilder: (request, context) => {
+            return {
+              error: 'Rate limit exceeded',
+              code: 'RATE_LIMIT_EXCEEDED',
+              message: `You can only process ${context.max} homework images per hour. Please try again later.`,
+              retryAfter: context.after
+            };
+          }
+        }
       }
     }, this.processHomeworkImage.bind(this));
 
@@ -41,7 +61,7 @@ class AIProxyRoutes {
       },
       config: {
         rateLimit: {
-          max: 10,  // 10 requests per hour
+          max: 15,  // 15 requests per hour (consistent with multipart endpoint)
           timeWindow: '1 hour',
           keyGenerator: async (request) => {
             // Rate limit by authenticated user ID
@@ -1075,7 +1095,7 @@ class AIProxyRoutes {
         });
       }
 
-      this.fastify.log.info(`🆕 Creating new session for authenticated user: ${userId}, subject: ${subject}, language: ${language}`);
+      this.fastify.log.info(`🆕 Creating new session for user: ${PIIMasking.maskUserId(userId)}, subject: ${subject}, language: ${language}`);
 
       // Generate a new session ID
       const { v4: uuidv4 } = require('uuid');
@@ -1104,7 +1124,7 @@ class AIProxyRoutes {
       const result = await db.query(sessionQuery, sessionValues);
       const createdSession = result.rows[0];
 
-      this.fastify.log.info(`✅ Session created in database: ${sessionId} for user: ${userId} with language: ${language}`);
+      this.fastify.log.info(`✅ Session created in database: ${sessionId} for user: ${PIIMasking.maskUserId(userId)} with language: ${language}`);
 
       const duration = Date.now() - startTime;
 
@@ -1353,11 +1373,10 @@ Please provide a helpful response to the student's question.${isMathSubject ? ma
       };
 
       this.fastify.log.info(`📤 Processing session message as question with enhanced prompt:`)
-      this.fastify.log.info(`🔍 === COMPLETE AI ENGINE REQUEST DEBUG ===`)
-      this.fastify.log.info(`📝 Original user message: "${message}"`)
-      this.fastify.log.info(`📋 Enhanced prompt being sent to AI:`)
-      this.fastify.log.info(`"${enhancedQuestion}"`)
-      this.fastify.log.info(`📦 Full AI request payload: ${JSON.stringify(aiRequestPayload, null, 2)}`)
+      this.fastify.log.info(`🔍 === COMPLETE AI ENGINE REQUEST (PII MASKED) ===`)
+      this.fastify.log.info(`📝 Original user message: "${PIIMasking.truncateText(message, 100)}"`)
+      this.fastify.log.info(`📋 Enhanced prompt (truncated): "${PIIMasking.truncateText(enhancedQuestion, 150)}"`)
+      this.fastify.log.info(`📦 AI request payload (masked): ${JSON.stringify(PIIMasking.maskAIPayload(aiRequestPayload), null, 2)}`)
       this.fastify.log.info(`===============================================`);
 
       // Use the specialized session conversation endpoint (NEW)
@@ -1371,7 +1390,7 @@ Please provide a helpful response to the student's question.${isMathSubject ? ma
         { 'Content-Type': 'application/json' }
       );
 
-      this.fastify.log.info(`📥 AI processing result: ${JSON.stringify(result, null, 2)}`);
+      this.fastify.log.info(`📥 AI processing result (masked): ${JSON.stringify(PIIMasking.maskAIResponse(result), null, 2)}`);
 
       if (result.success && result.data) {
         // Extract the response from the session conversation result
@@ -1621,7 +1640,7 @@ TUTORING GUIDELINES:
         tokensUsed: aiResponse.tokensUsed || 0
       });
 
-      this.fastify.log.info(`💾 Conversation stored for session: ${sessionId.substring(0, 8)}...`);
+      this.fastify.log.info(`💾 Conversation stored for session: ${PIIMasking.maskUserId(sessionId)}`);
     } catch (error) {
       this.fastify.log.error('Error storing conversation:', error);
       // Don't fail the request if storage fails
@@ -1646,8 +1665,8 @@ TUTORING GUIDELINES:
       }
 
       this.fastify.log.info(`🟢 === STREAMING SESSION MESSAGE REQUEST ===`);
-      this.fastify.log.info(`📨 Session: ${sessionId.substring(0, 8)}... User: ${authenticatedUserId}`);
-      this.fastify.log.info(`💬 Message: ${message.substring(0, 100)}...`);
+      this.fastify.log.info(`📨 Session: ${PIIMasking.maskUserId(sessionId)}, User: ${PIIMasking.maskUserId(authenticatedUserId)}`);
+      this.fastify.log.info(`💬 Message: ${PIIMasking.truncateText(message, 100)}`);
 
       // Get session info and verify ownership
       const sessionInfo = await this.getSessionFromDatabase(sessionId);
@@ -2079,7 +2098,7 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       const duration = Date.now() - startTime;
       
       if (sessionData && sessionData.user_id) {
-        this.fastify.log.info(`✅ Authentication successful in ${duration}ms for user: ${sessionData.user_id}`);
+        this.fastify.log.info(`✅ Authentication successful in ${duration}ms for user: ${PIIMasking.maskUserId(sessionData.user_id)}`);
         return sessionData.user_id;
       }
       
@@ -2558,7 +2577,7 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       this.fastify.log.info(`📚 Subject: ${request.body.subject}`);
       this.fastify.log.info(`⚙️  Config: ${JSON.stringify(request.body.config)}`);
       this.fastify.log.info(`👤 User Profile: ${JSON.stringify(request.body.user_profile)}`);
-      this.fastify.log.info(`🔐 User ID: ${userId}`);
+      this.fastify.log.info(`🔐 User ID: ${PIIMasking.maskUserId(userId)}`);
 
       // Proxy to AI Engine question generation service
       const result = await this.aiClient.proxyRequest(
@@ -2624,7 +2643,7 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       this.fastify.log.info(`❌ Mistakes Count: ${request.body.mistakes_data?.length || 0}`);
       this.fastify.log.info(`⚙️  Config: ${JSON.stringify(request.body.config)}`);
       this.fastify.log.info(`👤 User Profile: ${JSON.stringify(request.body.user_profile)}`);
-      this.fastify.log.info(`🔐 User ID: ${userId}`);
+      this.fastify.log.info(`🔐 User ID: ${PIIMasking.maskUserId(userId)}`);
 
       // Proxy to AI Engine question generation service
       const result = await this.aiClient.proxyRequest(
@@ -2692,7 +2711,7 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       this.fastify.log.info(`💬 Conversations Count: ${request.body.conversation_data?.length || 0}`);
       this.fastify.log.info(`⚙️  Config: ${JSON.stringify(request.body.config)}`);
       this.fastify.log.info(`👤 User Profile: ${JSON.stringify(request.body.user_profile)}`);
-      this.fastify.log.info(`🔐 User ID: ${userId}`);
+      this.fastify.log.info(`🔐 User ID: ${PIIMasking.maskUserId(userId)}`);
 
       // Proxy to AI Engine question generation service
       const result = await this.aiClient.proxyRequest(

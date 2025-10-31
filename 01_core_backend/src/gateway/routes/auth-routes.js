@@ -4,6 +4,7 @@
  */
 
 const { db } = require('../../utils/railway-database');
+const PIIMasking = require('../../utils/pii-masking');
 
 class AuthRoutes {
   constructor(fastify) {
@@ -251,7 +252,7 @@ class AuthRoutes {
     try {
       const { email, password } = request.body;
 
-      this.fastify.log.info(`🔐 Login attempt for user: ${email}`);
+      this.fastify.log.info(`🔐 Login attempt for user: ${PIIMasking.maskEmail(email)}`);
 
       // Verify user exists and password is correct
       const user = await db.verifyUserCredentials(email, password);
@@ -266,7 +267,7 @@ class AuthRoutes {
         
         const session = await db.createUserSession(user.id, deviceInfo, clientIP);
 
-        this.fastify.log.info(`✅ Login successful for: ${email} (User ID: ${user.id})`);
+        this.fastify.log.info(`✅ Login successful for: ${PIIMasking.maskEmail(email)} (User ID: ${PIIMasking.maskUserId(user.id)})`);
         
         return reply.send({
           success: true,
@@ -301,7 +302,7 @@ class AuthRoutes {
     try {
       const { idToken, accessToken, name, email, profileImageUrl } = request.body;
 
-      this.fastify.log.info(`🔐 Google login attempt for user: ${email}`);
+      this.fastify.log.info(`🔐 Google login attempt for user: ${PIIMasking.maskEmail(email)}`);
 
       // Validate required data
       if (!idToken || !email) {
@@ -331,7 +332,7 @@ class AuthRoutes {
 
       const session = await db.createUserSession(user.id, deviceInfo, clientIP);
 
-      this.fastify.log.info(`✅ Google login successful for: ${email} (User ID: ${user.id})`);
+      this.fastify.log.info(`✅ Google login successful for: ${PIIMasking.maskEmail(email)} (User ID: ${PIIMasking.maskUserId(user.id)})`);
 
       return reply.send({
         success: true,
@@ -361,8 +362,8 @@ class AuthRoutes {
       const { identityToken, authorizationCode, userIdentifier, name, email } = request.body;
 
       this.fastify.log.info(`🍏 === Apple Sign In Backend Request ===`);
-      this.fastify.log.info(`🍏 User: ${email}`);
-      this.fastify.log.info(`🍏 User ID: ${userIdentifier}`);
+      this.fastify.log.info(`🍏 User: ${PIIMasking.maskEmail(email)}`);
+      this.fastify.log.info(`🍏 User ID: ${PIIMasking.maskUserId(userIdentifier)}`);
       this.fastify.log.info(`🍏 Identity Token: ${identityToken ? `✅ Present (${identityToken.substring(0, 20)}...)` : '❌ Missing'}`);
       this.fastify.log.info(`🍏 Auth Code: ${authorizationCode ? `✅ Present (${authorizationCode.substring(0, 20)}...)` : '❌ Missing'}`);
 
@@ -398,7 +399,7 @@ class AuthRoutes {
 
       const session = await db.createUserSession(user.id, deviceInfo, clientIP);
 
-      this.fastify.log.info(`🍏 ✅ Apple login successful for: ${email} (User ID: ${user.id})`);
+      this.fastify.log.info(`🍏 ✅ Apple login successful for: ${PIIMasking.maskEmail(email)} (User ID: ${PIIMasking.maskUserId(user.id)})`);
       this.fastify.log.info(`🍏 Token generated: ${session.token.substring(0, 30)}...`);
 
       return reply.send({
@@ -428,7 +429,7 @@ class AuthRoutes {
     try {
       const { email, password, name } = request.body;
 
-      this.fastify.log.info(`📝 Registration attempt for user: ${email}`);
+      this.fastify.log.info(`📝 Registration attempt for user: ${PIIMasking.maskEmail(email)}`);
 
       // Validate password length
       if (password.length < 6) {
@@ -467,7 +468,7 @@ class AuthRoutes {
       
       const session = await db.createUserSession(user.id, deviceInfo, clientIP);
 
-      this.fastify.log.info(`✅ Registration successful for: ${email} (User ID: ${user.id})`);
+      this.fastify.log.info(`✅ Registration successful for: ${PIIMasking.maskEmail(email)} (User ID: ${PIIMasking.maskUserId(user.id)})`);
       
       return reply.status(201).send({
         success: true,
@@ -692,7 +693,7 @@ class AuthRoutes {
       const profileData = request.body;
 
       this.fastify.log.info(`📝 === UPDATE USER PROFILE ===`);
-      this.fastify.log.info(`📝 Updating profile for user: ${sessionData.email}`);
+      this.fastify.log.info(`📝 Updating profile for user: ${PIIMasking.maskEmail(sessionData.email)}`);
       this.fastify.log.info(`📝 Profile data received: ${JSON.stringify(profileData, null, 2)}`);
 
       // Update profile in database
@@ -700,7 +701,7 @@ class AuthRoutes {
 
       this.fastify.log.info(`✅ === UPDATE USER PROFILE ===`);
       this.fastify.log.info(`✅ Update Profile Status: 200`);
-      this.fastify.log.info(`✅ Profile updated successfully for user: ${sessionData.email}`);
+      this.fastify.log.info(`✅ Profile updated successfully for user: ${PIIMasking.maskEmail(sessionData.email)}`);
 
       return reply.send({
         success: true,
@@ -825,7 +826,7 @@ class AuthRoutes {
         });
       }
 
-      this.fastify.log.info(`🔑 Providing OpenAI API key to authenticated user: ${sessionData.email}`);
+      this.fastify.log.info(`🔑 Providing OpenAI API key to authenticated user: ${PIIMasking.maskEmail(sessionData.email)}`);
       
       return reply.send({
         success: true,
@@ -847,7 +848,7 @@ class AuthRoutes {
     try {
       const { email, name } = request.body;
 
-      this.fastify.log.info(`📧 Sending verification code to: ${email}`);
+      this.fastify.log.info(`📧 Sending verification code to: ${PIIMasking.maskEmail(email)}`);
 
       // Check if user already exists
       const existingUser = await db.getUserByEmail(email);
@@ -870,7 +871,7 @@ class AuthRoutes {
       // Send email with code
       await this.sendVerificationEmail(email, name, verificationCode);
 
-      this.fastify.log.info(`✅ Verification code sent to: ${email}`);
+      this.fastify.log.info(`✅ Verification code sent to: ${PIIMasking.maskEmail(email)}`);
 
       return reply.send({
         success: true,
@@ -891,7 +892,7 @@ class AuthRoutes {
     try {
       const { email, code, name, password } = request.body;
 
-      this.fastify.log.info(`✅ Verifying email code for: ${email}`);
+      this.fastify.log.info(`✅ Verifying email code for: ${PIIMasking.maskEmail(email)}`);
 
       // Validate password length
       if (password.length < 6) {
@@ -948,7 +949,7 @@ class AuthRoutes {
 
       const session = await db.createUserSession(user.id, deviceInfo, clientIP);
 
-      this.fastify.log.info(`✅ Email verified and user created: ${email} (User ID: ${user.id})`);
+      this.fastify.log.info(`✅ Email verified and user created: ${PIIMasking.maskEmail(email)} (User ID: ${PIIMasking.maskUserId(user.id)})`);
 
       return reply.status(201).send({
         success: true,
@@ -976,7 +977,7 @@ class AuthRoutes {
     try {
       const { email } = request.body;
 
-      this.fastify.log.info(`🔄 Resending verification code to: ${email}`);
+      this.fastify.log.info(`🔄 Resending verification code to: ${PIIMasking.maskEmail(email)}`);
 
       // Check if there's a pending verification
       const pendingVerification = await db.getPendingVerification(email);
@@ -998,7 +999,7 @@ class AuthRoutes {
       // Send email with new code
       await this.sendVerificationEmail(email, pendingVerification.name, verificationCode);
 
-      this.fastify.log.info(`✅ Verification code resent to: ${email}`);
+      this.fastify.log.info(`✅ Verification code resent to: ${PIIMasking.maskEmail(email)}`);
 
       return reply.send({
         success: true,
@@ -1079,7 +1080,7 @@ The StudyAI Team
         throw new Error(`Resend API error: ${error.message}`);
       }
 
-      this.fastify.log.info(`✅ Verification email sent successfully to: ${email}, Resend ID: ${data?.id}`);
+      this.fastify.log.info(`✅ Verification email sent successfully to: ${PIIMasking.maskEmail(email)}, Resend ID: ${data?.id}`);
 
     } catch (error) {
       this.fastify.log.error(`❌ Failed to send verification email to ${email}:`, error);

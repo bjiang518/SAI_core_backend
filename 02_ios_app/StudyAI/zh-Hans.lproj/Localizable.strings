@@ -1069,4 +1069,8 @@
 
 // Question Generation - How to Use
 "questionGeneration.howToUse.title" = "如何使用练习生成";
-"questionGeneration.howToUse.message" = "• 选择练习类型：随机练习、错题复习或从资料库生成\n• 选择科目和难度等级\n• 选择题型（选择题、判断题、填空题等）\n• 设置题目数量\n• 点击"生成练习题"按钮\n• 生成后开始答题并获得即时反馈";
+"questionGeneration.howToUse.message" = "• 选择练习类型：随机练习、错题复习或从资料库生成\n• 选择科目和难度等级\n• 选择题型（选择题、判断题、填空题等）\n• 设置题目数量\n• 点击'生成练习题'按钮\n• 生成后开始答题并获得即时反馈";
+
+// Generated Questions - How to Use
+"generatedQuestions.howToUse.title" = "如何使用练习题";
+"generatedQuestions.howToUse.message" = "• 点击任意题目卡片开始答题\n• 阅读题目并选择答案\n• 提交后查看即时反馈和解析\n• 通过勾选标记追踪进度\n• 使用'生成PDF'导出选定题目供离线练习\n• 使用上一题/下一题按钮在题目间导航";

@@ -220,7 +220,7 @@ struct QuestionGenerationView: View {
                             .font(.body)
                             .fontWeight(.medium)
                         Spacer()
-                        Text(selectedDifficulty.rawValue.capitalized)
+                        Text(selectedDifficulty.displayName)
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 8)
@@ -243,7 +243,7 @@ struct QuestionGenerationView: View {
                         // Custom difficulty picker using segmented control style
                         Picker(NSLocalizedString("questionGeneration.difficultyLevel", comment: ""), selection: $selectedDifficulty) {
                             ForEach(QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty.allCases, id: \.self) { difficulty in
-                                Text(difficulty.rawValue.capitalized).tag(difficulty)
+                                Text(difficulty.displayName).tag(difficulty)
                             }
                         }
                         .pickerStyle(SegmentedPickerStyle())

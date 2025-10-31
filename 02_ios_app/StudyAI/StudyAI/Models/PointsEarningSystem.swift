@@ -1012,13 +1012,12 @@ class PointsEarningManager: ObservableObject {
         // Save data locally
         saveData()
 
-        // Sync daily progress with backend asynchronously
-        Task {
-            await syncDailyProgressWithBackend()
-        }
+        // ✅ LOCAL-FIRST: Progress is saved locally only
+        // Sync will only happen when user explicitly chooses "Sync with Server" in Settings
+        // No automatic backend sync on marking progress
 
         print("📊 ========================================")
-        print("📊 [MARK PROGRESS] COMPLETE")
+        print("📊 [MARK PROGRESS] COMPLETE (LOCAL ONLY)")
         print("📊 ========================================\n")
     }
 

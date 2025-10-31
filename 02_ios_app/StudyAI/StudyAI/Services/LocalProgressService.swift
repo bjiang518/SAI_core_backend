@@ -40,7 +40,44 @@ class LocalProgressService {
         let filteredQuestions = filterQuestionsByTimeframe(questions, timeframe: timeframe)
 
         // Group by normalized subject
-        let questionsBySubject = Dictionary(grouping: filteredQuestions) { $0.normalizedSubject }
+        var questionsBySubject = Dictionary(grouping: filteredQuestions) { $0.normalizedSubject }
+
+        // ✅ ENHANCEMENT: Include today's manually marked progress from PointsEarningManager
+        // This ensures that progress marked via "Mark Progress" button shows up in subject breakdown
+        let pointsManager = await MainActor.run { PointsEarningManager.shared }
+        let todayProgress = await MainActor.run { pointsManager.todayProgress }
+
+        if let todayProgress = todayProgress, timeframe == "today" || timeframe == "current_week" {
+            // For each subject in today's progress, add synthetic questions to reflect the marked progress
+            for (subject, subjectProgress) in todayProgress.subjectProgress {
+                let normalized = normalizeSubjectName(subject)
+
+                // Create synthetic questions to represent manually marked progress
+                // This allows the subject breakdown to display manually marked data
+                let syntheticQuestions = (0..<subjectProgress.numberOfQuestions).map { index in
+                    let isCorrect = index < subjectProgress.numberOfCorrectQuestions
+                    return QuestionSummary(
+                        id: UUID().uuidString,
+                        questionText: "Manually marked question \(index + 1)",
+                        correctAnswer: isCorrect ? "Correct" : "Incorrect",
+                        subject: subject,
+                        grade: isCorrect ? .correct : .incorrect,
+                        pointsEarned: isCorrect ? 10.0 : 0.0,
+                        pointsPossible: 10.0,
+                        archivedAt: Date(), // Today's date
+                        studentAnswer: nil,
+                        feedback: nil
+                    )
+                }
+
+                // Merge with existing questions for this subject
+                var existingQuestions = questionsBySubject[normalized] ?? []
+                existingQuestions.append(contentsOf: syntheticQuestions)
+                questionsBySubject[normalized] = existingQuestions
+
+                print("📊 [LocalProgressService] Added \(syntheticQuestions.count) synthetic questions for \(subject) from marked progress")
+            }
+        }
 
         // Calculate subject progress data
         let subjectProgress = calculateSubjectProgress(questionsBySubject: questionsBySubject, allQuestions: filteredQuestions)

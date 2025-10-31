@@ -1030,3 +1030,7 @@
 // Question Generation - How to Use
 "questionGeneration.howToUse.title" = "How to Use Question Generation";
 "questionGeneration.howToUse.message" = "• Select practice type: Random Practice, Mistake Review, or From Library\n• Choose subject and difficulty level\n• Select question type (Multiple Choice, True/False, Fill in Blank, etc.)\n• Set number of questions\n• Tap 'Generate Practice Questions' button\n• Start answering and receive instant feedback";
+
+// Generated Questions - How to Use
+"generatedQuestions.howToUse.title" = "How to Use Practice Questions";
+"generatedQuestions.howToUse.message" = "• Tap any question card to start answering\n• Review the question and select your answer\n• Submit to see instant feedback and explanation\n• Track your progress with the checkmarks\n• Use 'Generate PDF' to export selected questions for offline practice\n• Navigate between questions using Previous/Next buttons";

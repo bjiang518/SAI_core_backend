@@ -5,6 +5,7 @@
 
 const { db, initializeDatabase } = require('../../utils/railway-database');
 const { authPreHandler } = require('../middleware/railway-auth');
+const PIIMasking = require('../../utils/pii-masking');
 
 // Initialize database once when module loads
 let dbInitialized = false;
@@ -306,7 +307,7 @@ class ArchiveRoutes {
         notes
       } = request.body;
 
-      this.fastify.log.info(`📁 Archiving session for user: ${userId}, subject: ${subject}`);
+      this.fastify.log.info(`📁 Archiving session for user: ${PIIMasking.maskUserId(userId)}, subject: ${subject}`);
 
       const archivedSession = await db.archiveSession({
         userId,
@@ -350,7 +351,7 @@ class ArchiveRoutes {
         endDate
       } = request.query;
 
-      this.fastify.log.info(`📚 Fetching sessions for user: ${userId}`);
+      this.fastify.log.info(`📚 Fetching sessions for user: ${PIIMasking.maskUserId(userId)}`);
 
       const filters = {};
       if (subject) filters.subject = subject;
@@ -547,7 +548,7 @@ class ArchiveRoutes {
       const userId = this.getUserId(request);
 
       this.fastify.log.info(`💬 === GET ALL CONVERSATIONS FOR SYNC ===`);
-      this.fastify.log.info(`💬 User ID: ${userId}`);
+      this.fastify.log.info(`💬 User ID: ${PIIMasking.maskUserId(userId)}`);
 
       if (!userId || userId === 'anonymous') {
         return reply.status(401).send({
@@ -565,7 +566,7 @@ class ArchiveRoutes {
 
       const result = await db.query(query, [userId]);
 
-      this.fastify.log.info(`💬 Found ${result.rows.length} conversations for user ${userId}`);
+      this.fastify.log.info(`💬 Found ${result.rows.length} conversations for user ${PIIMasking.maskUserId(userId)}`);
 
       return reply.status(200).send({
         success: true,
@@ -601,7 +602,7 @@ class ArchiveRoutes {
       } = request.body;
 
       this.fastify.log.info(`💬 === ARCHIVE CONVERSATION ===`);
-      this.fastify.log.info(`💬 User ID: ${userId}`);
+      this.fastify.log.info(`💬 User ID: ${PIIMasking.maskUserId(userId)}`);
       this.fastify.log.info(`💬 Subject: ${subject}`);
       this.fastify.log.info(`💬 Topic: ${topic}`);
       this.fastify.log.info(`💬 Content length: ${conversationContent.length} chars`);
@@ -690,7 +691,7 @@ class ArchiveRoutes {
       const userId = this.getUserId(request);
       const { id } = request.params;
 
-      this.fastify.log.info(`💬 Getting conversation ${id} for user ${userId}`);
+      this.fastify.log.info(`💬 Getting conversation ${id} for user ${PIIMasking.maskUserId(userId)}`);
 
       if (!userId || userId === 'anonymous') {
         return reply.status(401).send({
@@ -745,7 +746,7 @@ class ArchiveRoutes {
         processingTime = 0
       } = request.body;
 
-      this.fastify.log.info(`📝 Archiving ${selectedQuestionIndices.length} questions for user: ${userId}, subject: ${detectedSubject}`);
+      this.fastify.log.info(`📝 Archiving ${selectedQuestionIndices.length} questions for user: ${PIIMasking.maskUserId(userId)}, subject: ${detectedSubject}`);
 
       const archivedQuestions = [];
 
@@ -828,7 +829,7 @@ class ArchiveRoutes {
         grade
       } = request.query;
 
-      this.fastify.log.info(`📚 Fetching archived questions for user: ${userId}`);
+      this.fastify.log.info(`📚 Fetching archived questions for user: ${PIIMasking.maskUserId(userId)}`);
 
       let query = `
         SELECT
@@ -959,7 +960,7 @@ class ArchiveRoutes {
     try {
       const { userId } = request.params;
 
-      this.fastify.log.info(`📊 Fetching mistake subjects for user: ${userId}`);
+      this.fastify.log.info(`📊 Fetching mistake subjects for user: ${PIIMasking.maskUserId(userId)}`);
 
       // Helper function to get subject icon
       const getSubjectIcon = (subject) => {
@@ -1016,7 +1017,7 @@ class ArchiveRoutes {
       const { userId } = request.params;
       const { subject, range } = request.query;
 
-      this.fastify.log.info(`📚 Fetching mistakes/review questions for user: ${userId}, subject: ${subject}, range: ${range}`);
+      this.fastify.log.info(`📚 Fetching mistakes/review questions for user: ${PIIMasking.maskUserId(userId)}, subject: ${subject}, range: ${range}`);
 
       // Include multiple grade statuses for comprehensive review:
       // - INCORRECT: definitely mistakes
@@ -1092,7 +1093,7 @@ class ArchiveRoutes {
     try {
       const { userId } = request.params;
 
-      this.fastify.log.info(`📈 Fetching mistake statistics for user: ${userId}`);
+      this.fastify.log.info(`📈 Fetching mistake statistics for user: ${PIIMasking.maskUserId(userId)}`);
 
       const query = `
         SELECT

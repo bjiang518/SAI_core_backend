@@ -5,6 +5,7 @@
 
 const { db, initializeDatabase } = require('../../utils/railway-database');
 const { authPreHandler } = require('../middleware/railway-auth');
+const PIIMasking = require('../../utils/pii-masking');
 
 // Initialize database once when module loads
 let dbInitialized = false;
@@ -318,7 +319,7 @@ class ProgressRoutes {
       const userId = this.getUserId(request);
 
       this.fastify.log.info(`📊 === GET ENHANCED PROGRESS ===`);
-      this.fastify.log.info(`📊 User ID: ${userId}`);
+      this.fastify.log.info(`📊 User ID: ${PIIMasking.maskUserId(userId)}`);
 
       if (!userId || userId === 'anonymous') {
         this.fastify.log.error(`❌ No authenticated user found`);
@@ -506,7 +507,7 @@ class ProgressRoutes {
       const { userId } = request.params;
       const { timeframe = 'current_week' } = request.query; // Get timeframe from query
 
-      this.fastify.log.info(`📊 Fetching subject breakdown for user: ${userId}, timeframe: ${timeframe}`);
+      this.fastify.log.info(`📊 Fetching subject breakdown for user: ${PIIMasking.maskUserId(userId)}, timeframe: ${timeframe}`);
 
       // Calculate date range based on timeframe
       let startDate, endDate;
@@ -947,7 +948,7 @@ class ProgressRoutes {
       const { year, month, timezone = 'UTC' } = request.body || {};
 
       this.fastify.log.info(`📅 === GET MONTHLY ACTIVITY ===`);
-      this.fastify.log.info(`📅 User ID: ${userId}`);
+      this.fastify.log.info(`📅 User ID: ${PIIMasking.maskUserId(userId)}`);
       this.fastify.log.info(`📅 Year: ${year}, Month: ${month}`);
       this.fastify.log.info(`📅 Timezone: ${timezone}`);
 
@@ -1016,7 +1017,7 @@ class ProgressRoutes {
       const userId = this.getUserId(request);
 
       this.fastify.log.info(`📥 === GET PROGRESS FOR SYNC ===`);
-      this.fastify.log.info(`📥 User ID: ${userId}`);
+      this.fastify.log.info(`📥 User ID: ${PIIMasking.maskUserId(userId)}`);
 
       if (!userId || userId === 'anonymous') {
         return reply.status(401).send({
@@ -1050,7 +1051,7 @@ class ProgressRoutes {
 
       if (progressResult.rows.length === 0) {
         // No progress data yet, return empty
-        this.fastify.log.info(`📥 No progress data found for user ${userId}`);
+        this.fastify.log.info(`📥 No progress data found for user ${PIIMasking.maskUserId(userId)}`);
         return reply.status(200).send({
           success: true,
           data: {
@@ -1094,7 +1095,7 @@ class ProgressRoutes {
         serverTimestamp: new Date().toISOString()
       } : null;
 
-      this.fastify.log.info(`✅ Progress data retrieved for user ${userId}`);
+      this.fastify.log.info(`✅ Progress data retrieved for user ${PIIMasking.maskUserId(userId)}`);
 
       return reply.status(200).send({
         success: true,
@@ -1130,7 +1131,7 @@ class ProgressRoutes {
       } = request.body;
 
       this.fastify.log.info(`🔄 === SYNC PROGRESS DATA ===`);
-      this.fastify.log.info(`🔄 User ID: ${userId}`);
+      this.fastify.log.info(`🔄 User ID: ${PIIMasking.maskUserId(userId)}`);
       this.fastify.log.info(`🔄 Current Points: ${currentPoints}`);
       this.fastify.log.info(`🔄 Total Points: ${totalPoints}`);
       this.fastify.log.info(`🔄 Current Streak: ${currentStreak}`);
@@ -1177,7 +1178,7 @@ class ProgressRoutes {
       const learningGoalsJson = JSON.stringify(learningGoals);
       const progressResult = await db.query(upsertQuery, [userId, currentPoints, totalPoints, currentStreak, learningGoalsJson]);
 
-      this.fastify.log.info(`✅ Progress data synced for user ${userId}`);
+      this.fastify.log.info(`✅ Progress data synced for user ${PIIMasking.maskUserId(userId)}`);
 
       // Sync weekly progress data if provided
       if (weeklyProgress && weeklyProgress.dailyActivities) {
@@ -1238,7 +1239,7 @@ class ProgressRoutes {
       } = request.body;
 
       this.fastify.log.info(`📊 === SYNC DAILY PROGRESS ===`);
-      this.fastify.log.info(`📊 User ID: ${userId}`);
+      this.fastify.log.info(`📊 User ID: ${PIIMasking.maskUserId(userId)}`);
       this.fastify.log.info(`📊 Date: ${date}`);
       this.fastify.log.info(`📊 Total Questions: ${totalQuestions}`);
       this.fastify.log.info(`📊 Correct Answers: ${correctAnswers}`);
@@ -1304,7 +1305,7 @@ class ProgressRoutes {
       const progressRecord = result.rows[0];
       const wasCreated = progressRecord.created_at.getTime() === progressRecord.updated_at.getTime();
 
-      this.fastify.log.info(`✅ Daily progress ${wasCreated ? 'created' : 'updated'} for user ${userId} on ${date}`);
+      this.fastify.log.info(`✅ Daily progress ${wasCreated ? 'created' : 'updated'} for user ${PIIMasking.maskUserId(userId)} on ${date}`);
       this.fastify.log.info(`📊 Record ID: ${progressRecord.id}`);
 
       return reply.send({
