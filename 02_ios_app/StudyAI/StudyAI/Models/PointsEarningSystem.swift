@@ -1137,7 +1137,26 @@ class PointsEarningManager: ObservableObject {
         // This method is kept for compatibility but does nothing
         logger.info("⚠️ [trackStudyTime] DEPRECATED - Study time tracking removed")
     }
-    
+
+    /// Track focus session completion and award points
+    /// Awards 1 point per 5 minutes of focus time
+    func trackFocusSession(durationMinutes: Int, pointsEarned: Int) {
+        print("\n🧘 ========================================")
+        print("🧘 [FOCUS SESSION] Tracking completed session")
+        print("🧘 ========================================")
+        print("🧘 Duration: \(durationMinutes) minutes")
+        print("🧘 Points Earned: \(pointsEarned)")
+
+        // Award points immediately
+        currentPoints += pointsEarned
+        totalPointsEarned += pointsEarned
+
+        print("🧘 [FOCUS SESSION] ✅ Awarded \(pointsEarned) points")
+        print("🧘 [FOCUS SESSION] Current Total: \(currentPoints) points")
+
+        saveData()
+    }
+
     private func updateAccuracyGoal() {
         guard let progress = todayProgress, progress.totalQuestions > 0 else { return }
         

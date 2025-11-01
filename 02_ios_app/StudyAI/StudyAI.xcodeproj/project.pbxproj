@@ -7,8 +7,23 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		76DFA1C853F74631 /* PlaylistEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7328FFA07B1244DE /* PlaylistEditorView.swift */; };
+		CFF62B0E63B348CCA844F0C4 /* MusicPlaylist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F07F411EFCB4DC396642B00 /* MusicPlaylist.swift */; };
+		46AA3F2B6CC647C79C7ED4CB /* Focus_Flow_2025-10-30T054503.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 4D9740812D9D4CB299885393 /* Focus_Flow_2025-10-30T054503.mp3 */; };
+		99A9AEB85CBC4129878F84F8 /* AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A21B919EA56142DFAC1020BF /* AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3 */; };
+		C7AB5FD25BB44CF4BDAF0DC6 /* FocusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6C65EFF7824E2684B1CA40 /* FocusView.swift */; };
+		52C62E0B488A4000B350549B /* MyGardenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CFCA5D9882D4E82AD51FABE /* MyGardenView.swift */; };
+		0F87356DF3C14F9A8C93C7FE /* MusicSelectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95AC5A9701B74DBEAC7BE112 /* MusicSelectionSheet.swift */; };
+		206638C6B2804DD19C1C33D7 /* BackgroundMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DF193AD601745DBBF37C3CE /* BackgroundMusicService.swift */; };
+		FF70799317D845B984E9D04E /* FocusSessionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 445745AEB0574C81B20514BB /* FocusSessionService.swift */; };
+		42A0624D8941491D85336391 /* FocusTreeGardenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E60B8FECFE4FD98EC5A1E5 /* FocusTreeGardenService.swift */; };
+		0E9E4F564C054706AD843040 /* BackgroundMusicTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39653A2DCFE745B5BE54613C /* BackgroundMusicTrack.swift */; };
+		F81F4114C8EC4635ABEA492A /* FocusSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D01893A51CB492897B94156 /* FocusSession.swift */; };
+		1B0159EA6DF5471B89C172E8 /* FocusTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D785990576E433DBE36EA81 /* FocusTree.swift */; };
 		04A8227E20B44E2A9BB27336 /* QuestionArchiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4624BD01A8D5462385D269DE /* QuestionArchiveView.swift */; };
 		0B6A2DF7A9ED4CCEBEABDB0A /* EnhancedTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC15A890FCE4881A878DD17 /* EnhancedTTSService.swift */; };
+		PRVPLCY901234567890ABCD /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRVPLCVW1234567890ABCD /* PrivacyPolicyView.swift */; };
+		TRMSRVC901234567890ABCD /* TermsOfServiceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRMSRVVW1234567890ABCD /* TermsOfServiceView.swift */; };
 		12345678901234567890ABCD /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCD123456789012EFGH3456 /* UserSessionManager.swift */; };
 		17B3328E16B94A21AFE789F7 /* StudyAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2372BC21FDF74404A73B6D30 /* StudyAIApp.swift */; };
 		21C64949788648B5AB0D6515 /* SubjectBreakdownModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFAA0352B2D3E17EF96B1B49 /* SubjectBreakdownModels.swift */; };
@@ -187,7 +202,6 @@
 		B67097AEC09C4CA4B5C82F10 /* TextToSpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18BF91BCEE9B4980BC643CB2 /* TextToSpeechService.swift */; };
 		BBC5F8E4CA694EABAD6955A2 /* SimpleMathRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0011C726DB944E1CBD5D9102 /* SimpleMathRenderer.swift */; };
 		BF2B7897 /* GreetingVoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CEA0FCA /* GreetingVoiceService.swift */; };
-		C278552EF36F41E59A51F0FC /* UserProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D724DD29C2CD4B3AAC9114B6 /* UserProfileView.swift */; };
 		C42D5B1E2F9F422F898D739B /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ECE095FF4DB41A3B76FBE4F /* NetworkService.swift */; };
 		CAB7C1BE421684B5D6EBB59 /* CameraSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAS43139063DB4892D6DA7D /* CameraSessionManager.swift */; };
 		CBC9A72B2BBE4D5DB9556A4C /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 885943542F6749ACA3543873 /* CameraView.swift */; };
@@ -215,6 +229,8 @@
 		PRFS678901234567CDEF9012 /* ProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRFS234567890123BCDE8901 /* ProfileService.swift */; };
 		PROF567890123456BCDE8901 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROF123456789012ABCD7890 /* UserProfile.swift */; };
 		SYNC1234567890123456ABCD /* StorageSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SYNCFILE1234567890ABCD12 /* StorageSyncService.swift */; };
+		PRNCSNT901234567890ABCD /* ParentalConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRNCSNTVW1234567890ABCD /* ParentalConsentView.swift */; };
+		PRVSTGS901234567890ABCD /* PrivacySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRVSTGVW1234567890ABCD /* PrivacySettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -248,6 +264,19 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		7328FFA07B1244DE /* PlaylistEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaylistEditorView.swift; path = StudyAI/Views/PlaylistEditorView.swift; sourceTree = SOURCE_ROOT; };
+		8F07F411EFCB4DC396642B00 /* MusicPlaylist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MusicPlaylist.swift; path = StudyAI/Models/MusicPlaylist.swift; sourceTree = SOURCE_ROOT; };
+		4D9740812D9D4CB299885393 /* Focus_Flow_2025-10-30T054503.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; name = "Focus_Flow_2025-10-30T054503.mp3"; path = "StudyAI/Resources/Focus_Flow_2025-10-30T054503.mp3"; sourceTree = SOURCE_ROOT; };
+		A21B919EA56142DFAC1020BF /* AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; name = "AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3"; path = "StudyAI/Resources/AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3"; sourceTree = SOURCE_ROOT; };
+		7C6C65EFF7824E2684B1CA40 /* FocusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FocusView.swift; path = StudyAI/Views/FocusView.swift; sourceTree = SOURCE_ROOT; };
+		0CFCA5D9882D4E82AD51FABE /* MyGardenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MyGardenView.swift; path = StudyAI/Views/MyGardenView.swift; sourceTree = SOURCE_ROOT; };
+		95AC5A9701B74DBEAC7BE112 /* MusicSelectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MusicSelectionSheet.swift; path = StudyAI/Views/MusicSelectionSheet.swift; sourceTree = SOURCE_ROOT; };
+		4DF193AD601745DBBF37C3CE /* BackgroundMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackgroundMusicService.swift; path = StudyAI/Services/BackgroundMusicService.swift; sourceTree = SOURCE_ROOT; };
+		445745AEB0574C81B20514BB /* FocusSessionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FocusSessionService.swift; path = StudyAI/Services/FocusSessionService.swift; sourceTree = SOURCE_ROOT; };
+		D8E60B8FECFE4FD98EC5A1E5 /* FocusTreeGardenService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FocusTreeGardenService.swift; path = StudyAI/Services/FocusTreeGardenService.swift; sourceTree = SOURCE_ROOT; };
+		39653A2DCFE745B5BE54613C /* BackgroundMusicTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackgroundMusicTrack.swift; path = StudyAI/Models/BackgroundMusicTrack.swift; sourceTree = SOURCE_ROOT; };
+		8D01893A51CB492897B94156 /* FocusSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FocusSession.swift; path = StudyAI/Models/FocusSession.swift; sourceTree = SOURCE_ROOT; };
+		7D785990576E433DBE36EA81 /* FocusTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FocusTree.swift; path = StudyAI/Models/FocusTree.swift; sourceTree = SOURCE_ROOT; };
 		0011C726DB944E1CBD5D9102 /* SimpleMathRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SimpleMathRenderer.swift; path = StudyAI/Services/SimpleMathRenderer.swift; sourceTree = SOURCE_ROOT; };
 		03DB96F217C9458693CF5BDA /* VoiceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceSettingsView.swift; path = StudyAI/Views/VoiceSettingsView.swift; sourceTree = SOURCE_ROOT; };
 		06624CDF338947F0A3F8838D /* HomeworkModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkModels.swift; path = StudyAI/Models/HomeworkModels.swift; sourceTree = SOURCE_ROOT; };
@@ -355,7 +384,6 @@
 		CAS43139063DB4892D6DA7D /* CameraSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraSessionManager.swift; path = StudyAI/Services/CameraSessionManager.swift; sourceTree = SOURCE_ROOT; };
 		CDEF345678901234GHIJ5678 /* UnifiedLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UnifiedLibraryView.swift; path = StudyAI/Views/UnifiedLibraryView.swift; sourceTree = SOURCE_ROOT; };
 		CECFC862D6EF46829F4A05A3 /* MathRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MathRenderer.swift; path = StudyAI/Services/MathRenderer.swift; sourceTree = SOURCE_ROOT; };
-		D724DD29C2CD4B3AAC9114B6 /* UserProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserProfileView.swift; path = StudyAI/Views/UserProfileView.swift; sourceTree = SOURCE_ROOT; };
 		DBB6C78FB23E45A9AF19ECC9 /* AuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AuthenticationService.swift; path = StudyAI/Services/AuthenticationService.swift; sourceTree = SOURCE_ROOT; };
 		DCHK567890123456FGHI1234 /* DailyCheckoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyCheckoutView.swift; path = StudyAI/Views/DailyCheckoutView.swift; sourceTree = SOURCE_ROOT; };
 		DDEF456789012345HIJK6789 /* CameraViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraViewModel.swift; path = StudyAI/ViewModels/CameraViewModel.swift; sourceTree = SOURCE_ROOT; };
@@ -378,6 +406,10 @@
 		PRFS234567890123BCDE8901 /* ProfileService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileService.swift; path = StudyAI/Services/ProfileService.swift; sourceTree = SOURCE_ROOT; };
 		PROF123456789012ABCD7890 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserProfile.swift; path = StudyAI/Models/UserProfile.swift; sourceTree = SOURCE_ROOT; };
 		SYNCFILE1234567890ABCD12 /* StorageSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StorageSyncService.swift; path = StudyAI/Services/StorageSyncService.swift; sourceTree = SOURCE_ROOT; };
+		PRNCSNTVW1234567890ABCD /* ParentalConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentalConsentView.swift; path = StudyAI/Views/ParentalConsentView.swift; sourceTree = SOURCE_ROOT; };
+		PRVSTGVW1234567890ABCD /* PrivacySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivacySettingsView.swift; path = StudyAI/Views/PrivacySettingsView.swift; sourceTree = SOURCE_ROOT; };
+		PRVPLCVW1234567890ABCD /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivacyPolicyView.swift; path = StudyAI/Views/PrivacyPolicyView.swift; sourceTree = SOURCE_ROOT; };
+		TRMSRVVW1234567890ABCD /* TermsOfServiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TermsOfServiceView.swift; path = StudyAI/Views/TermsOfServiceView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -598,12 +630,20 @@
 				DCHK567890123456FGHI1234 /* DailyCheckoutView.swift */,
 				LGLS678901234567GHIJ2345 /* LearningGoalsSettingsView.swift */,
 				3007D1E356704A0C864FBEED /* HomeView.swift */,
+				7C6C65EFF7824E2684B1CA40 /* FocusView.swift */,
+				0CFCA5D9882D4E82AD51FABE /* MyGardenView.swift */,
+				95AC5A9701B74DBEAC7BE112 /* MusicSelectionSheet.swift */,
+				7328FFA07B1244DE /* PlaylistEditorView.swift */,
 				4C75C2233B72490A8E27CDEB /* HomeworkResultsView.swift */,
 				84F4782308454D1A98C2741E /* ImageCropView.swift */,
 				A495A22D3B7A4F948336AFBA /* UnifiedImageEditorView.swift */,
 				IMGPREP123456789012ABCD34 /* ImagePreprocessingView.swift */,
 				377AB348C798453AB804B3A9 /* ModernLoginView.swift */,
 				EMAILVERF1234567890ABCD /* EmailVerificationView.swift */,
+				PRNCSNTVW1234567890ABCD /* ParentalConsentView.swift */,
+				PRVSTGVW1234567890ABCD /* PrivacySettingsView.swift */,
+				PRVPLCVW1234567890ABCD /* PrivacyPolicyView.swift */,
+				TRMSRVVW1234567890ABCD /* TermsOfServiceView.swift */,
 				LRNP1132738F4C03AC421E7D /* LearningProgressView.swift */,
 				4624BD01A8D5462385D269DE /* QuestionArchiveView.swift */,
 				47128702183F4DCBB17F067E /* QuestionView.swift */,
@@ -611,7 +651,6 @@
 				6C25B8960EFF470BBE31F73A /* SessionChatView.swift */,
 				E13D4A8943284F528CD3C3C1 /* SessionDetailView.swift */,
 				B3318992F2294A6DA7A14EB3 /* SessionHistoryView.swift */,
-				D724DD29C2CD4B3AAC9114B6 /* UserProfileView.swift */,
 				03DB96F217C9458693CF5BDA /* VoiceSettingsView.swift */,
 				2575218B86324529B227C931 /* ZoomedRegionView.swift */,
 				298792E8091D453F913E76C5 /* StorageControlView.swift */,
@@ -651,6 +690,8 @@
 				7B1961A72E93AD240024317A /* Wave Animation.json */,
 				7B1961992E9285F20024317A /* Customised_report.json */,
 				7B19619A2E9285F20024317A /* Sandy_Loading.json */,
+				4D9740812D9D4CB299885393 /* Focus_Flow_2025-10-30T054503.mp3 */,
+				A21B919EA56142DFAC1020BF /* AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3 */,
 				7B9045212E8FB5DD00E5DDFA /* Chart Graph.json */,
 				7B9045222E8FB5DD00E5DDFA /* Chat.json */,
 				7B90451D2E8FB42E00E5DDFA /* Checklist.json */,
@@ -804,6 +845,8 @@
 				7BEEB61C2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451A2E8FB1FE00E5DDFA /* Books.json in Resources */,
 				7B19619B2E9285F20024317A /* Sandy_Loading.json in Resources */,
+				46AA3F2B6CC647C79C7ED4CB /* Focus_Flow_2025-10-30T054503.mp3 in Resources */,
+				99A9AEB85CBC4129878F84F8 /* AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3 in Resources */,
 				7B74A2072EB18078002DBE2B /* Fire.json in Resources */,
 				7B74A2082EB18078002DBE2B /* Foriday.json in Resources */,
 				7B19619C2E9285F20024317A /* Customised_report.json in Resources */,
@@ -933,12 +976,27 @@
 				7B8E9E9F2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				LGLS901234567890GHIJ2345 /* LearningGoalsSettingsView.swift in Sources */,
 				51E8895014244637989DCA32 /* HomeView.swift in Sources */,
+				CFF62B0E63B348CCA844F0C4 /* MusicPlaylist.swift in Sources */,
+				C7AB5FD25BB44CF4BDAF0DC6 /* FocusView.swift in Sources */,
+				52C62E0B488A4000B350549B /* MyGardenView.swift in Sources */,
+				0F87356DF3C14F9A8C93C7FE /* MusicSelectionSheet.swift in Sources */,
+				76DFA1C853F74631 /* PlaylistEditorView.swift in Sources */,
+				206638C6B2804DD19C1C33D7 /* BackgroundMusicService.swift in Sources */,
+				FF70799317D845B984E9D04E /* FocusSessionService.swift in Sources */,
+				42A0624D8941491D85336391 /* FocusTreeGardenService.swift in Sources */,
+				0E9E4F564C054706AD843040 /* BackgroundMusicTrack.swift in Sources */,
+				F81F4114C8EC4635ABEA492A /* FocusSession.swift in Sources */,
+				1B0159EA6DF5471B89C172E8 /* FocusTree.swift in Sources */,
 				44D8DB9D1B4C4CFA8A59EB3D /* HomeworkResultsView.swift in Sources */,
 				73BEB15D842A4FB3B7E6B147 /* ImageCropView.swift in Sources */,
 				43494EF404494E379A902F21 /* UnifiedImageEditorView.swift in Sources */,
 				IMGPREPBUILD123456789ABCD /* ImagePreprocessingView.swift in Sources */,
 				E892C474DD7F4C22968FF06B /* ModernLoginView.swift in Sources */,
 				EMAILVER901234567890ABCD /* EmailVerificationView.swift in Sources */,
+				PRNCSNT901234567890ABCD /* ParentalConsentView.swift in Sources */,
+				PRVSTGS901234567890ABCD /* PrivacySettingsView.swift in Sources */,
+				PRVPLCY901234567890ABCD /* PrivacyPolicyView.swift in Sources */,
+				TRMSRVC901234567890ABCD /* TermsOfServiceView.swift in Sources */,
 				LRNP36652115E4F419FE4EEEA /* LearningProgressView.swift in Sources */,
 				04A8227E20B44E2A9BB27336 /* QuestionArchiveView.swift in Sources */,
 				41384D26DC5E427FA23BC317 /* QuestionView.swift in Sources */,
@@ -947,7 +1005,6 @@
 				E50F5FB6D0B84192B07AC6D4 /* SessionChatView.swift in Sources */,
 				A6AAD8B3B1CF457696752650 /* SessionDetailView.swift in Sources */,
 				8F1EBFF4298743058E934595 /* SessionHistoryView.swift in Sources */,
-				C278552EF36F41E59A51F0FC /* UserProfileView.swift in Sources */,
 				7DCD4D51FBF64F74AEA6A5C3 /* VoiceSettingsView.swift in Sources */,
 				EBF42CC5063E45B7A36A22FD /* StorageControlView.swift in Sources */,
 				SYNC1234567890123456ABCD /* StorageSyncService.swift in Sources */,

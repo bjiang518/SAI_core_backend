@@ -561,6 +561,15 @@ struct SessionChatView: View {
             Text(NSLocalizedString("chat.alert.cameraPermission.message", comment: ""))
         }
         .onAppear {
+            print("🟢 === SESSIONCHATVIEW: VIEW APPEARED ===")
+            print("🟢 Pending chat message exists: \(appState.pendingChatMessage != nil)")
+            print("🟢 Pending homework context exists: \(appState.pendingHomeworkContext != nil)")
+            if let context = appState.pendingHomeworkContext {
+                print("🟢 Context question: \(context.questionText.prefix(100))")
+                print("🟢 Context grade: \(context.currentGrade ?? "nil")")
+            }
+            print("🟢 Current session has messages: \(!networkService.conversationHistory.isEmpty)")
+
             // Check for pending chat message from other tabs (e.g., grader follow-up)
             // If there's a pending message, check if current session has messages
             if let pendingMessage = appState.pendingChatMessage {
@@ -694,6 +703,52 @@ struct SessionChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 24) {  // Increased spacing for modern look
+                    // Homework context indicator banner
+                    if let homeworkContext = appState.pendingHomeworkContext {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "book.fill")
+                                    .foregroundColor(.blue)
+                                Text("Homework Help Mode")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                Spacer()
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                if let questionNum = homeworkContext.questionNumber {
+                                    Text("Question #\(questionNum)")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+
+                                HStack(spacing: 12) {
+                                    if let grade = homeworkContext.currentGrade {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "checkmark.seal.fill")
+                                                .font(.caption2)
+                                            Text("Current: \(grade)")
+                                        }
+                                        .font(.system(size: 11))
+                                        .foregroundColor(grade == "CORRECT" ? .green : .orange)
+                                    }
+
+                                    if let points = homeworkContext.pointsEarned,
+                                       let possible = homeworkContext.pointsPossible {
+                                        Text("\(String(format: "%.1f", points))/\(String(format: "%.1f", possible)) pts")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(12)
+                        .background(Color.blue.opacity(0.08))
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                    }
+
                     if networkService.conversationHistory.isEmpty {
                         modernEmptyStateView
                     } else {
@@ -1685,64 +1740,42 @@ struct SessionChatView: View {
 
     private func sendMessageToExistingSession(sessionId: String, message: String) {
         Task {
+            print("🟡 === SEND MESSAGE TO EXISTING SESSION (START) ===")
+            print("🟡 About to read appState.pendingHomeworkContext...")
+
             // 🔍 CHECK FOR HOMEWORK CONTEXT (for grade correction support)
-            if let homeworkContext = appState.pendingHomeworkContext {
-                // Use HOMEWORK FOLLOW-UP endpoint (non-streaming, includes grade validation)
-                let result = await networkService.sendHomeworkFollowupMessage(
-                    sessionId: sessionId,
-                    message: message,
-                    questionContext: homeworkContext.toDictionary()
-                )
+            let homeworkContext = appState.pendingHomeworkContext
 
-                await MainActor.run {
-                    isSubmitting = false
-                    showTypingIndicator = false
+            print("🟡 Finished reading appState.pendingHomeworkContext")
+            print("🟡 Context is nil: \(homeworkContext == nil)")
 
-                    if result.success, let aiResponse = result.aiResponse {
-                        // ✅ PERSIST: Save AI response to SwiftData
-                        persistMessage(role: "assistant", content: aiResponse, addToHistory: false)
+            print("🔍 === SEND MESSAGE TO EXISTING SESSION ===")
+            print("📨 Session ID: \(sessionId)")
+            print("💬 Message: \(message.prefix(100))...")
+            print("📚 Homework Context Present: \(homeworkContext != nil)")
 
-                        // Check for grade correction
-                        if let gradeCorrection = result.gradeCorrection {
-                            // Store correction data and show confirmation dialog
-                            detectedGradeCorrection = gradeCorrection
-                            pendingGradeCorrectionResponse = aiResponse
-                            showingGradeCorrectionAlert = true
-                        }
+            if let homeworkContext = homeworkContext {
+                // Enhanced logging for homework follow-up
+                print("📚 === HOMEWORK FOLLOW-UP (STREAMING) ===")
+                print("Question #\(homeworkContext.questionNumber ?? 0)")
+                print("Current Grade: \(homeworkContext.currentGrade ?? "N/A")")
+                print("Points: \(homeworkContext.pointsEarned ?? 0)/\(homeworkContext.pointsPossible ?? 0)")
 
-                        // Clear homework context after processing
-                        appState.clearPendingChatMessage()
-
-                        // Force UI refresh
-                        refreshTrigger = UUID()
-
-                        // Track progress
-                        trackChatInteraction(subject: selectedSubject, userMessage: message, aiResponse: aiResponse)
-                    } else {
-                        // Handle failure
-                        errorMessage = result.aiResponse ?? "Failed to process homework follow-up"
-
-                        // Remove optimistic user message on failure
-                        if let lastMessage = networkService.conversationHistory.last,
-                           lastMessage["role"] == "user",
-                           lastMessage["content"] == message {
-                            networkService.removeLastMessageFromHistory()
-                        }
-
-                        // Restore message text for retry
-                        messageText = message
-                    }
-                }
-
-                return // Exit early - homework follow-up path complete
+                // Debug: Show the dictionary that will be sent
+                let contextDict = homeworkContext.toDictionary()
+                print("📦 Context Dictionary Keys: \(contextDict.keys)")
+                print("📦 Context Dictionary: \(contextDict)")
+            } else {
+                print("ℹ️ No question_context - regular chat message")
             }
 
-            // 🔵 REGULAR SESSION MESSAGE PATH (no homework context)
+            // 🔵 USE STREAMING ENDPOINT (with optional homework context for grade correction)
             if useStreaming {
-                // 🟢 Use STREAMING endpoint
+                // 🟢 Use STREAMING endpoint with homework context support
                 _ = await networkService.sendSessionMessageStreaming(
                     sessionId: sessionId,
                     message: message,
+                    questionContext: homeworkContext?.toDictionary(),  // NEW: Pass homework context for grade correction
                     onChunk: { accumulatedText in
                         // Update UI with streaming text in real-time (debounced for stability)
                         Task { @MainActor in
@@ -1768,6 +1801,27 @@ struct SessionChatView: View {
                             aiGeneratedSuggestions = suggestions
                         }
                     },
+                    onGradeCorrection: { changeGrade, gradeCorrectionData in
+                        // NEW: Handle grade correction detection from streaming endpoint
+                        Task { @MainActor in
+                            if changeGrade, let gradeCorrection = gradeCorrectionData {
+                                print("✅ Grade correction: \(gradeCorrection.originalGrade) → \(gradeCorrection.correctedGrade)")
+                                print("💯 New points: \(gradeCorrection.newPointsEarned)/\(gradeCorrection.pointsPossible)")
+
+                                // Store correction data and show confirmation dialog
+                                detectedGradeCorrection = gradeCorrection
+
+                                // Get the AI response from conversation history
+                                if let lastMessage = networkService.conversationHistory.last,
+                                   lastMessage["role"] == "assistant",
+                                   let content = lastMessage["content"] {
+                                    pendingGradeCorrectionResponse = content
+                                }
+
+                                showingGradeCorrectionAlert = true
+                            }
+                        }
+                    },
                     onComplete: { success, fullText, tokens, compressed in
                         Task { @MainActor in
                             // ✅ Cancel debounce timer and apply final update immediately
@@ -1789,7 +1843,13 @@ struct SessionChatView: View {
                                     persistMessage(role: "assistant", content: fullText, addToHistory: false)
                                 }
 
-                                // Final update is already in conversation history from streaming
+                                // Clear homework context after processing
+                                if homeworkContext != nil {
+                                    appState.clearPendingChatMessage()
+                                }
+
+                                // Track progress
+                                trackChatInteraction(subject: selectedSubject, userMessage: message, aiResponse: fullText)
                             } else {
                                 // Remove failed streaming message if present
                                 if let lastMessage = networkService.conversationHistory.last,
@@ -1836,11 +1896,34 @@ struct SessionChatView: View {
                 // Note: Message already added to conversationHistory at line 1275
                 persistMessage(role: "user", content: message, addToHistory: false)
 
+                // 🔍 CHECK FOR HOMEWORK CONTEXT (for grade correction support)
+                let homeworkContext = appState.pendingHomeworkContext
+
+                print("🔍 === SEND FIRST MESSAGE ===")
+                print("📨 Session ID: \(sessionId)")
+                print("💬 Message: \(message.prefix(100))...")
+                print("📚 Homework Context Present: \(homeworkContext != nil)")
+
+                if let homeworkContext = homeworkContext {
+                    // Enhanced logging for homework follow-up
+                    print("📚 === HOMEWORK FOLLOW-UP (FIRST MESSAGE) ===")
+                    print("Question #\(homeworkContext.questionNumber ?? 0)")
+                    print("Current Grade: \(homeworkContext.currentGrade ?? "N/A")")
+                    print("Points: \(homeworkContext.pointsEarned ?? 0)/\(homeworkContext.pointsPossible ?? 0)")
+
+                    // Debug: Show the dictionary that will be sent
+                    let contextDict = homeworkContext.toDictionary()
+                    print("📦 Context Dictionary Keys: \(contextDict.keys)")
+                    print("📦 Context Dictionary: \(contextDict)")
+                }
+
+                // USE STREAMING ENDPOINT (with optional homework context for grade correction)
                 if useStreaming {
-                    // 🟢 Use STREAMING endpoint
+                    // 🟢 Use STREAMING endpoint with homework context support
                     _ = await networkService.sendSessionMessageStreaming(
                         sessionId: sessionId,
                         message: message,
+                        questionContext: homeworkContext?.toDictionary(),  // NEW: Pass homework context for grade correction
                         onChunk: { accumulatedText in
                             Task { @MainActor in
                                 if networkService.conversationHistory.last?["role"] == "assistant" {
@@ -1861,6 +1944,27 @@ struct SessionChatView: View {
                                 aiGeneratedSuggestions = suggestions
                             }
                         },
+                        onGradeCorrection: { changeGrade, gradeCorrectionData in
+                            // NEW: Handle grade correction detection from streaming endpoint
+                            Task { @MainActor in
+                                if changeGrade, let gradeCorrection = gradeCorrectionData {
+                                    print("✅ Grade correction: \(gradeCorrection.originalGrade) → \(gradeCorrection.correctedGrade)")
+                                    print("💯 New points: \(gradeCorrection.newPointsEarned)/\(gradeCorrection.pointsPossible)")
+
+                                    // Store correction data and show confirmation dialog
+                                    detectedGradeCorrection = gradeCorrection
+
+                                    // Get the AI response from conversation history
+                                    if let lastMessage = networkService.conversationHistory.last,
+                                       lastMessage["role"] == "assistant",
+                                       let content = lastMessage["content"] {
+                                        pendingGradeCorrectionResponse = content
+                                    }
+
+                                    showingGradeCorrectionAlert = true
+                                }
+                            }
+                        },
                         onComplete: { success, fullText, tokens, compressed in
                             Task { @MainActor in
                                 // ✅ Cancel debounce timer and apply final update immediately
@@ -1876,6 +1980,14 @@ struct SessionChatView: View {
                                     if let fullText = fullText {
                                         persistMessage(role: "assistant", content: fullText, addToHistory: false)
                                     }
+
+                                    // Clear homework context after processing
+                                    if homeworkContext != nil {
+                                        appState.clearPendingChatMessage()
+                                    }
+
+                                    // Track progress
+                                    trackChatInteraction(subject: selectedSubject, userMessage: message, aiResponse: fullText)
                                 } else {
                                     // Remove failed streaming message if present
                                     if let lastMessage = networkService.conversationHistory.last,
@@ -2013,6 +2125,9 @@ struct SessionChatView: View {
 
     /// Proceed with homework question from grading report
     private func proceedWithHomeworkQuestion() {
+        print("🟣 === PROCEED WITH HOMEWORK QUESTION ===")
+        print("🟣 Homework context exists before proceeding: \(appState.pendingHomeworkContext != nil)")
+
         // Set the subject
         selectedSubject = pendingHomeworkSubject
 
@@ -2022,11 +2137,21 @@ struct SessionChatView: View {
 
             await MainActor.run {
                 if result.success {
+                    print("🟣 New session created, scheduling message send in 0.5 seconds...")
+                    print("🟣 Context still exists: \(appState.pendingHomeworkContext != nil)")
+
                     // New session created successfully, now send the message
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        print("🟣 About to send message (after 0.5s delay)")
+                        print("🟣 Context still exists before send: \(self.appState.pendingHomeworkContext != nil)")
+
                         messageText = pendingHomeworkQuestion
                         sendMessage()
-                        appState.clearPendingChatMessage()
+
+                        // ⚠️ CRITICAL BUG FIX: Move clearPendingChatMessage() AFTER message is sent
+                        // The context is needed during sendMessage(), so don't clear it here!
+                        // It will be cleared in sendMessageToExistingSession/sendFirstMessage after the message is sent
+                        print("🟣 Message sent, context will be cleared by sendMessage handlers")
                     }
                 } else {
                     errorMessage = "Failed to create new session: \(result.message)"

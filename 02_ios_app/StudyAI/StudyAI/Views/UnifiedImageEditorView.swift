@@ -12,6 +12,7 @@ struct UnifiedImageEditorView: View {
     @Binding var originalImage: UIImage?
     @Binding var editedImage: UIImage?
     @Binding var isPresented: Bool
+    @Environment(\.colorScheme) var colorScheme
 
     @State private var currentImage: UIImage?
     @State private var imageUpdateTrigger = UUID() // Force image refresh when this changes
@@ -101,7 +102,11 @@ struct UnifiedImageEditorView: View {
                         }
                     }
                     .frame(height: UIScreen.main.bounds.height * 0.5)
-                    .background(Color.white)
+                    .background(
+                        colorScheme == .dark
+                            ? Color(.systemGray6)
+                            : Color.white
+                    )
                     .padding(.top, 20) // Add spacing at the top
                 }
 
@@ -117,12 +122,12 @@ struct UnifiedImageEditorView: View {
                                 Text(tab.rawValue)
                                     .font(.caption)
                             }
-                            .foregroundColor(selectedTab == tab ? .blue : .gray)
+                            .foregroundColor(selectedTab == tab ? .blue : (colorScheme == .dark ? Color(.systemGray) : .gray))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
                         }
                         .background(
-                            selectedTab == tab ? Color.blue.opacity(0.1) : Color.clear
+                            selectedTab == tab ? Color.blue.opacity(colorScheme == .dark ? 0.2 : 0.1) : Color.clear
                         )
                     }
                 }
@@ -233,7 +238,7 @@ struct UnifiedImageEditorView: View {
 
             // Crop rectangle border
             Rectangle()
-                .strokeBorder(Color.white, lineWidth: 2)
+                .strokeBorder(colorScheme == .dark ? Color(.systemGray) : Color.white, lineWidth: 2)
                 .background(Rectangle().fill(Color.clear))
                 .frame(width: cropRectScreen.width, height: cropRectScreen.height)
                 .position(x: cropRectScreen.midX, y: cropRectScreen.midY)
@@ -254,12 +259,12 @@ struct UnifiedImageEditorView: View {
                 path.move(to: CGPoint(x: cropRectScreen.minX, y: cropRectScreen.minY + 2 * oneThirdHeight))
                 path.addLine(to: CGPoint(x: cropRectScreen.maxX, y: cropRectScreen.minY + 2 * oneThirdHeight))
             }
-            .stroke(Color.white.opacity(0.5), lineWidth: 1)
+            .stroke((colorScheme == .dark ? Color(.systemGray) : Color.white).opacity(0.5), lineWidth: 1)
 
             // Corner handles for resizing
             ForEach(0..<4, id: \.self) { corner in
                 Circle()
-                    .fill(Color.white)
+                    .fill(colorScheme == .dark ? Color(.systemGray5) : Color.white)
                     .frame(width: 24, height: 24)
                     .overlay(Circle().stroke(Color.blue, lineWidth: 2))
                     .position(getCornerPosition(corner, cropRectScreen: cropRectScreen))
@@ -407,7 +412,7 @@ struct UnifiedImageEditorView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
-                .background(Color.green.opacity(0.15))
+                .background(Color.green.opacity(colorScheme == .dark ? 0.3 : 0.15))
                 .foregroundColor(.green)
                 .cornerRadius(10)
 
@@ -418,7 +423,7 @@ struct UnifiedImageEditorView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
-                .background(Color.gray.opacity(0.15))
+                .background(Color.gray.opacity(colorScheme == .dark ? 0.3 : 0.15))
                 .foregroundColor(.gray)
                 .cornerRadius(10)
             }
@@ -450,7 +455,7 @@ struct UnifiedImageEditorView: View {
                 .foregroundColor(.white)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
-                .background(isCropApplied ? Color.secondary : Color.blue)
+                .background(isCropApplied ? (colorScheme == .dark ? Color(.systemGray4) : Color.secondary) : Color.blue)
                 .cornerRadius(10)
                 .disabled(isCropApplied)
 
@@ -462,7 +467,7 @@ struct UnifiedImageEditorView: View {
                 .foregroundColor(.gray)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
-                .background(Color.gray.opacity(0.15))
+                .background(Color.gray.opacity(colorScheme == .dark ? 0.3 : 0.15))
                 .cornerRadius(10)
             }
         }
@@ -553,7 +558,7 @@ struct UnifiedImageEditorView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
-                    .background((selectedSizeReduction == .raw || isResizeApplied) ? Color.secondary : Color.blue)
+                    .background((selectedSizeReduction == .raw || isResizeApplied) ? (colorScheme == .dark ? Color(.systemGray4) : Color.secondary) : Color.blue)
                     .cornerRadius(10)
                     .disabled(selectedSizeReduction == .raw || isResizeApplied)
 
@@ -565,7 +570,7 @@ struct UnifiedImageEditorView: View {
                     .foregroundColor(.gray)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
-                    .background(Color.gray.opacity(0.15))
+                    .background(Color.gray.opacity(colorScheme == .dark ? 0.3 : 0.15))
                     .cornerRadius(10)
                 }
             }

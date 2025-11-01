@@ -1025,3 +1025,25 @@
 // Generated Questions - How to Use
 "generatedQuestions.howToUse.title" = "如何使用練習題";
 "generatedQuestions.howToUse.message" = "• 點擊任意題目卡片開始答題\n• 閱讀題目並選擇答案\n• 提交後查看即時反饋和解析\n• 通過勾選標記追蹤進度\n• 使用'生成PDF'導出選定題目供離線練習\n• 使用上一題/下一題按鈕在題目間導航";
+
+// Focus Mode - Music Player
+"focus.nowPlaying" = "正在播放";
+"focus.nextTrack" = "下一首: %@";
+
+// Focus Mode - Music Selection
+"focus.singleTrack" = "單曲";
+"focus.playlist" = "播放清單";
+"focus.createPlaylist" = "建立播放清單";
+"focus.createPlaylistDescription" = "組合多首曲目";
+"focus.noPlaylists" = "還沒有播放清單";
+"focus.createFirstPlaylist" = "建立你的第一個播放清單開始";
+"focus.tracks" = "首";
+"focus.deletePlaylist" = "刪除播放清單";
+"focus.deletePlaylistConfirmation" = "確定要刪除這個播放清單嗎？";
+
+// Focus Mode - Playlist Editor
+"focus.playlistName" = "播放清單名稱";
+"focus.enterPlaylistName" = "輸入播放清單名稱...";
+"focus.playlistNameRequired" = "播放清單名稱必填";
+"focus.selectTracks" = "選擇曲目";
+"focus.editPlaylist" = "編輯播放清單";

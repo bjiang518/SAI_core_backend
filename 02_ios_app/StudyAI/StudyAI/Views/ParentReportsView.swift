@@ -7,20 +7,20 @@
 //
 
 import SwiftUI
+import Lottie
 
 struct ParentReportsView: View {
     @StateObject private var reportService = ParentReportService.shared
     @StateObject private var authService = AuthenticationService.shared
     @State private var selectedReport: ParentReport?
     @State private var isGeneratingReport = false
+    @State private var showingInstructions = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Header Section
-                    headerSection
-
                     // Quick Actions
                     quickActionsSection
 
@@ -31,6 +31,27 @@ struct ParentReportsView: View {
             }
             .navigationTitle(NSLocalizedString("parentReport.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showingInstructions = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .font(.body)
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(NSLocalizedString("common.done", comment: "")) {
+                        dismiss()
+                    }
+                }
+            }
+            .alert(NSLocalizedString("parentReport.instructions.title", comment: ""), isPresented: $showingInstructions) {
+                Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }
+            } message: {
+                Text(NSLocalizedString("parentReport.instructions.message", comment: ""))
+            }
             .sheet(item: $selectedReport) { report in
                 ReportDetailView(report: report)
                     .onAppear {
@@ -48,33 +69,6 @@ struct ParentReportsView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Header Section
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(NSLocalizedString("parentReport.studyReports", comment: ""))
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    Text(NSLocalizedString("parentReport.trackProgress", comment: ""))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "doc.text.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.blue)
-                    .opacity(0.7)
-            }
-        }
-        .padding()
-        .background(Color.blue.opacity(0.05))
-        .cornerRadius(16)
     }
 
     // MARK: - Quick Actions Section
@@ -358,6 +352,7 @@ struct ReportActionCard: View {
     let title: String
     let subtitle: String
     let color: Color
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(spacing: 8) {
@@ -369,6 +364,7 @@ struct ReportActionCard: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .multilineTextAlignment(.center)
+                .foregroundColor(.primary)
 
             Text(subtitle)
                 .font(.caption)
@@ -378,14 +374,28 @@ struct ReportActionCard: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
         .padding(.horizontal, 12)
-        .background(Color(.systemGray6))
+        .background(
+            colorScheme == .dark
+                ? Color(.systemGray5)
+                : Color(.systemGray6)
+        )
         .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(
+                    colorScheme == .dark
+                        ? Color(.systemGray4)
+                        : Color.clear,
+                    lineWidth: 1
+                )
+        )
     }
 }
 
 struct ReportListCard: View {
     let report: ParentReport
     let onTap: () -> Void
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         Button(action: onTap) {
@@ -421,7 +431,11 @@ struct ReportListCard: View {
                     .foregroundColor(.secondary)
             }
             .padding()
-            .background(Color(.systemBackground))
+            .background(
+                colorScheme == .dark
+                    ? Color(.systemGray6)
+                    : Color(.systemBackground)
+            )
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -440,16 +454,19 @@ struct ReportListCard: View {
 }
 
 struct RecentReportsEmptyState: View {
+    @Environment(\.colorScheme) var colorScheme
+
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "doc.text.below.ecg")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundColor(colorScheme == .dark ? .gray : .secondary)
 
             VStack(spacing: 8) {
                 Text(NSLocalizedString("parentReport.noReportsYet", comment: ""))
                     .font(.headline)
                     .fontWeight(.medium)
+                    .foregroundColor(.primary)
 
                 Text(NSLocalizedString("parentReport.generateFirstReport", comment: ""))
                     .font(.subheadline)
@@ -458,7 +475,14 @@ struct RecentReportsEmptyState: View {
             }
         }
         .padding(.vertical, 32)
+        .padding(.horizontal, 20)
         .frame(maxWidth: .infinity)
+        .background(
+            colorScheme == .dark
+                ? Color(.systemGray6).opacity(0.3)
+                : Color(.systemGray6).opacity(0.5)
+        )
+        .cornerRadius(12)
     }
 }
 
@@ -467,29 +491,64 @@ struct ReportGenerationOverlay: View {
 
     var body: some View {
         ZStack {
+            // BACKGROUND OVERLAY: Semi-transparent dark background
+            // Adjust opacity value (0.0 to 1.0) to make lighter or darker
             Color.black.opacity(0.4)
                 .ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                ProgressView()
-                    .scaleEffect(1.2)
-                    .tint(.white)
+            GeometryReader { geometry in
+                VStack {
+                    Spacer()
 
-                Text(NSLocalizedString("parentReport.generatingReport", comment: ""))
-                    .font(.headline)
-                    .foregroundColor(.white)
+                    // ============================================
+                    // LOTTIE ANIMATION CONFIGURATION
+                    // ============================================
+                    // This displays while parent reports are being generated
 
-                ProgressView(value: progress)
-                    .frame(width: 200)
-                    .tint(.white)
+                    LottieView(
+                        // ANIMATION FILE: Name of the JSON file in Resources folder (without .json extension)
+                        // Available animations: "Bubbles x2", "Fire_moving", "Loading_animation_blue"
+                        animationName: "Loading_animation_blue",
 
-                Text(String(format: NSLocalizedString("parentReport.percentComplete", comment: ""), Int(progress * 100)))
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
+                        // LOOP MODE: How the animation repeats
+                        // Options: .loop (infinite repeat), .playOnce (plays once then stops),
+                        //          .autoReverse (plays forward then backward), .repeat(count) (repeat N times)
+                        loopMode: .loop,
+
+                        // ANIMATION SPEED: Playback speed multiplier
+                        // 1.0 = normal speed, 2.0 = twice as fast, 0.5 = half speed
+                        // Range: 0.1 to 10.0 (recommended: 0.5 to 2.0 for smooth playback)
+                        animationSpeed: 1.0
+                    )
+                    // FRAME SIZE: Dynamic sizing based on screen width
+                    // - Uses minimum of (screen width - padding) or max size
+                    // - geometry.size.width - 64 = screen width minus 32pt padding on each side
+                    // - 400 = maximum size cap to prevent cropping on larger devices
+                    // The animation adapts: 300x300 on iPhone 15 Pro, ~360x360 on Pro Max
+                    .frame(
+                        width: min(geometry.size.width - 64, 400),
+                        height: min(geometry.size.width - 64, 400)
+                    )
+
+                    // CLIPPING: Prevents animation from rendering outside the frame bounds
+                    // Remove .clipped() if you want overflow effects
+//                    .clipped()
+
+                    // ============================================
+                    // ADDITIONAL MODIFIERS YOU CAN ADD:
+                    // ============================================
+//                     .scaleEffect(1.0)                     // Scale up/down (1.0 = original size, removed to prevent cropping)
+                    // .opacity(0.9)                          // Transparency (0.0 = invisible, 1.0 = opaque)
+                    // .rotationEffect(.degrees(0))          // Rotate animation
+                    // .background(Color.white.opacity(0.1))  // Add background behind animation
+                    // .cornerRadius(20)                      // Round corners
+                    // .shadow(color: .blue, radius: 20)     // Add glow effect
+                    // .padding()                             // Add padding around animation
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
             }
-            .padding(30)
-            .background(Color.black.opacity(0.8))
-            .cornerRadius(16)
         }
     }
 }

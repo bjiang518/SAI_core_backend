@@ -122,7 +122,7 @@ enum HomeworkTimeFilter: String, CaseIterable, Identifiable {
 
 enum HomeworkSubjectFilter: String, CaseIterable, Identifiable {
     case all = "All Subjects"
-    case mathematics = "Mathematics"
+    case mathematics = "Math"
     case physics = "Physics"
     case chemistry = "Chemistry"
     case biology = "Biology"

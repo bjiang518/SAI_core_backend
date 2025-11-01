@@ -94,14 +94,6 @@ struct HomeworkImageDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.white)
-                            .font(.title3)
-                    }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 16) {
                         // Share Button
                         Button(action: {
@@ -129,6 +121,13 @@ struct HomeworkImageDetailView: View {
                                 .foregroundColor(.red)
                         }
                     }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(NSLocalizedString("common.done", value: "Done", comment: "")) {
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
                 }
             }
             .toolbarBackground(.visible, for: .navigationBar)

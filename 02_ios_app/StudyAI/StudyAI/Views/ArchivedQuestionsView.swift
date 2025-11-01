@@ -180,8 +180,8 @@ struct CompactQuestionCard: View {
             }
             
             // Question Text
-            Text(question.rawQuestionText ?? question.questionText)
-                .font(.subheadline)
+            // ✅ Use EnhancedMathText for LaTeX/math rendering
+            EnhancedMathText(question.rawQuestionText ?? question.questionText, fontSize: 14)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
             
@@ -387,8 +387,8 @@ struct QuestionDetailView: View {
                     Spacer()
                 }
 
-                Text(question.rawQuestionText ?? question.questionText)
-                    .font(.body)
+                // ✅ Use EnhancedMathText for LaTeX/math rendering
+                EnhancedMathText(question.rawQuestionText ?? question.questionText, fontSize: 16)
                     .fontWeight(.medium)
                     .textSelection(.enabled)
             }
@@ -430,8 +430,8 @@ struct QuestionDetailView: View {
                             .foregroundColor(.gray)
                     }
 
-                    Text(studentAnswer)
-                        .font(.body)
+                    // ✅ Use EnhancedMathText for math support in student answers
+                    EnhancedMathText(studentAnswer, fontSize: 16)
                         .foregroundColor(.black)
                         .textSelection(.enabled)
                 }
@@ -456,8 +456,8 @@ struct QuestionDetailView: View {
                         .foregroundColor(.gray)
                 }
 
-                Text(question.answerText)
-                    .font(.body)
+                // ✅ Use EnhancedMathText for LaTeX/math rendering in answers
+                EnhancedMathText(question.answerText, fontSize: 16)
                     .foregroundColor(.black)
                     .textSelection(.enabled)
 
@@ -475,8 +475,8 @@ struct QuestionDetailView: View {
                             .foregroundColor(.gray)
                     }
 
-                    Text(feedback)
-                        .font(.body)
+                    // ✅ Use EnhancedMathText for math support in feedback
+                    EnhancedMathText(feedback, fontSize: 16)
                         .foregroundColor(.black)
                         .textSelection(.enabled)
                 }

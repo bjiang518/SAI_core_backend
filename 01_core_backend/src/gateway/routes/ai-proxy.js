@@ -6,6 +6,45 @@
 const AIServiceClient = require('../services/ai-client');
 const { features } = require('../config/services');
 const PIIMasking = require('../../utils/pii-masking');
+const questionCacheService = require('../../services/question-cache-service');  // COST OPTIMIZATION: Question caching
+
+// COST OPTIMIZATION: Extract math formatting rules to reusable constant
+// This saves ~200 tokens per request by enabling OpenAI prompt caching
+const MATH_FORMATTING_SYSTEM_PROMPT = `
+CRITICAL MATHEMATICAL FORMATTING RULES:
+You MUST use backslash delimiters for ALL mathematical expressions. Here are EXACT examples:
+
+CORRECT EXAMPLES (copy this format exactly):
+1. Inline math: "Consider the function \\(f(x) = 2x^2 - 4x + 1\\). The vertex is at \\(x = 1\\)."
+2. Display math: "The quadratic formula is: \\[x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\\]"
+3. Multiple expressions: "We have \\(a = 2\\), \\(b = -4\\), and \\(c = 1\\). Substituting: \\[x = \\frac{4 \\pm \\sqrt{16 - 8}}{4} = \\frac{4 \\pm \\sqrt{8}}{4}\\]"
+
+WRONG EXAMPLES (never do this):
+- "Consider the function $f$(x) = 2x$^2 - 4x + 1$" ❌
+- "The solution is $x = 3$" ❌
+- "$$x^2 + 1 = 0$$" ❌
+
+FORMATTING RULES:
+- Inline math: \\(expression\\)
+- Display math: \\[expression\\]
+- Variables: \\(x\\), \\(y\\), \\(f(x)\\)
+- Exponents: \\(x^2\\), \\(2^n\\)
+- Fractions: \\(\\frac{a}{b}\\)
+- Square roots: \\(\\sqrt{x}\\)
+- NEVER use $ or $$ anywhere
+- ALWAYS wrap math expressions in \\( \\) or \\[ \\]
+`;
+
+const TUTORING_SYSTEM_PROMPT = `
+You are an AI tutor helping students learn effectively.
+
+TUTORING GUIDELINES:
+- For academic questions: Do NOT give direct answers. Instead, provide hints and guide the student to solve problems themselves through Socratic questioning.
+- For greetings or casual conversation: Respond naturally and warmly.
+- Be encouraging and supportive. Focus on helping students develop problem-solving skills.
+- Ask guiding questions that help students think through the problem step-by-step.
+- Only reveal answers after the student has made genuine effort and is close to the solution.
+`;
 
 class AIProxyRoutes {
   constructor(fastify) {
@@ -31,6 +70,12 @@ class AIProxyRoutes {
             // Rate limit by authenticated user ID
             const userId = await this.getUserIdFromToken(request);
             return userId || request.ip;  // Fallback to IP if no user ID
+          },
+          addHeaders: {  // Explicitly enable headers
+            'x-ratelimit-limit': true,
+            'x-ratelimit-remaining': true,
+            'x-ratelimit-reset': true,
+            'retry-after': true
           },
           errorResponseBuilder: (request, context) => {
             return {
@@ -67,6 +112,12 @@ class AIProxyRoutes {
             // Rate limit by authenticated user ID
             const userId = await this.getUserIdFromToken(request);
             return userId || request.ip;  // Fallback to IP if no user ID
+          },
+          addHeaders: {  // Explicitly enable headers
+            'x-ratelimit-limit': true,
+            'x-ratelimit-remaining': true,
+            'x-ratelimit-reset': true,
+            'retry-after': true
           },
           errorResponseBuilder: (request, context) => {
             return {
@@ -109,6 +160,12 @@ class AIProxyRoutes {
           keyGenerator: async (request) => {
             const userId = await this.getUserIdFromToken(request);
             return userId || request.ip;
+          },
+          addHeaders: {  // Explicitly enable headers
+            'x-ratelimit-limit': true,
+            'x-ratelimit-remaining': true,
+            'x-ratelimit-reset': true,
+            'retry-after': true
           },
           errorResponseBuilder: (request, context) => {
             return {
@@ -294,6 +351,7 @@ class AIProxyRoutes {
         }
       }
     }, this.sendSessionMessageStream.bind(this));
+
 
     // Archive session conversation - NEW
     this.fastify.post('/api/ai/sessions/:sessionId/archive', {
@@ -1270,113 +1328,77 @@ class AIProxyRoutes {
       // Transform conversation history into the format expected by AI
       // Database format: {message_type: 'user'|'assistant', message_text: '...', created_at: ...}
       // AI format: [{role: 'user', content: '...'}, {role: 'assistant', content: '...'}]
+      // COST OPTIMIZATION: Reduced from 10 to 3 messages (saves ~50-100 tokens per request)
       const conversationHistory = (rawConversationHistory || [])
-        .slice(-10) // Last 10 messages for context
+        .slice(-3) // Last 3 messages for context (reduced from 10)
         .map(msg => ({
           role: msg.message_type === 'user' ? 'user' : 'assistant',
           content: msg.message_text || ''
         }))
         .filter(msg => msg.content && msg.content.trim().length > 0); // Remove empty messages
 
-      this.fastify.log.info(`📚 Conversation history: ${conversationHistory.length} messages loaded for context`);
+      this.fastify.log.info(`📚 Conversation history: ${conversationHistory.length} messages loaded for context (optimized from 10 to 3)`);
       
       // Build comprehensive prompt with conversation history for AI Engine
-      let enhancedQuestion = message;
-
-      // Check if subject requires mathematical formatting rules
+      // COST OPTIMIZATION: Use system prompts instead of embedding in user message
       const subject = (sessionInfo.subject || '').toLowerCase();
       const isMathSubject = ['mathematics', 'math', 'physics', 'chemistry'].includes(subject);
 
-      // Math formatting rules (only for mathematical subjects)
-      const mathFormattingRules = `
-CRITICAL MATHEMATICAL FORMATTING RULES:
-You MUST use backslash delimiters for ALL mathematical expressions. Here are EXACT examples:
+      // Build system prompt with optional math formatting
+      let systemPrompt = TUTORING_SYSTEM_PROMPT;
+      if (isMathSubject) {
+        systemPrompt += '\n' + MATH_FORMATTING_SYSTEM_PROMPT;
+      }
 
-CORRECT EXAMPLES (copy this format exactly):
-1. Inline math: "Consider the function \\(f(x) = 2x^2 - 4x + 1\\). The vertex is at \\(x = 1\\)."
-2. Display math: "The quadratic formula is: \\[x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\\]"
-3. Multiple expressions: "We have \\(a = 2\\), \\(b = -4\\), and \\(c = 1\\). Substituting: \\[x = \\frac{4 \\pm \\sqrt{16 - 8}}{4} = \\frac{4 \\pm \\sqrt{8}}{4}\\]"
-
-WRONG EXAMPLES (never do this):
-- "Consider the function $f$(x) = 2x$^2 - 4x + 1$" ❌
-- "The solution is $x = 3$" ❌
-- "$$x^2 + 1 = 0$$" ❌
-
-FORMATTING RULES:
-- Inline math: \\(expression\\)
-- Display math: \\[expression\\]
-- Variables: \\(x\\), \\(y\\), \\(f(x)\\)
-- Exponents: \\(x^2\\), \\(2^n\\)
-- Fractions: \\(\\frac{a}{b}\\)
-- Square roots: \\(\\sqrt{x}\\)
-- NEVER use $ or $$ anywhere
-- ALWAYS wrap math expressions in \\( \\) or \\[ \\]`;
+      // Build user message with conversation context (no more embedded rules!)
+      let userMessage = message;
 
       if (conversationHistory.length > 0) {
-        // Create a conversation context string
+        // Create a conversation context string (simplified from previous version)
         const conversationContext = conversationHistory
           .map(msg => `${msg.role === 'user' ? 'Student' : 'AI Tutor'}: ${msg.content}`)
           .join('\n\n');
 
-        // Build enhanced prompt with full conversation context
-        enhancedQuestion = `You are an AI tutor helping a student in ${sessionInfo.subject || 'general studies'}. Here is our previous conversation:
-
+        // Build user message with conversation context
+        userMessage = `Previous conversation:
 ${conversationContext}
 
-The student just said: ${message}
+Current question: ${message}
 
-LANGUAGE: ${languageInstruction}
+LANGUAGE: ${languageInstruction}`;
 
-TUTORING GUIDELINES:
-- For academic questions: Do NOT give direct answers. Instead, provide hints and guide the student to solve problems themselves through Socratic questioning.
-- For greetings or casual conversation: Respond naturally and warmly.
-- Be encouraging and supportive. Focus on helping students develop problem-solving skills.
-- Ask guiding questions that help students think through the problem step-by-step.
-- Only reveal answers after the student has made genuine effort and is close to the solution.
-
-Please provide a helpful response that takes into account our previous conversation. Be consistent with what we've discussed before and build upon previous topics when relevant.${isMathSubject ? mathFormattingRules : ''}`;
-
-        this.fastify.log.info(`📝 Enhanced question with conversation context (${conversationHistory.length} previous messages)${isMathSubject ? ' + math formatting' : ''} + language: ${userLanguage}`);
+        this.fastify.log.info(`📝 Message with conversation context (${conversationHistory.length} previous messages) + language: ${userLanguage}`);
       } else {
-        // No conversation history - conditionally include formatting instructions
-        enhancedQuestion = `You are an AI tutor helping a student in ${sessionInfo.subject || 'general studies'}.
+        // No conversation history - simple user message
+        userMessage = `${message}
 
-The student said: ${message}
+LANGUAGE: ${languageInstruction}`;
 
-LANGUAGE: ${languageInstruction}
-
-TUTORING GUIDELINES:
-- For academic questions: Do NOT give direct answers. Instead, provide hints and guide the student to solve problems themselves through Socratic questioning.
-- For greetings or casual conversation: Respond naturally and warmly.
-- Be encouraging and supportive. Focus on helping students develop problem-solving skills.
-- Ask guiding questions that help students think through the problem step-by-step.
-- Only reveal answers after the student has made genuine effort and is close to the solution.
-
-Please provide a helpful response to the student's question.${isMathSubject ? mathFormattingRules : ''}`;
-
-        this.fastify.log.info(`📝 Enhanced question${isMathSubject ? ' with math formatting' : ''} + language: ${userLanguage} (no conversation history)`);
+        this.fastify.log.info(`📝 Simple message${isMathSubject ? ' with math formatting' : ''} + language: ${userLanguage} (no conversation history)`);
       }
-      
-      // Process the message using the same logic as processQuestion
-      // but with session context and conversation history embedded in the prompt
+
+      // COST OPTIMIZATION: Send system prompt + user message separately for prompt caching
       const aiRequestPayload = {
-        question: enhancedQuestion, // Enhanced with conversation history
+        message: userMessage, // User message only (no embedded rules)
+        system_prompt: systemPrompt, // System prompt for caching
         subject: sessionInfo.subject || 'general',
-        student_id: authenticatedUserId, // Use authenticated user ID
+        student_id: authenticatedUserId,
+        language: userLanguage,
         context: {
           session_id: sessionId,
           session_type: 'conversation',
           has_conversation_history: conversationHistory.length > 0,
+          is_math_subject: isMathSubject,
           ...context
         },
         include_followups: false // Don't need follow-ups for chat
       };
 
-      this.fastify.log.info(`📤 Processing session message as question with enhanced prompt:`)
-      this.fastify.log.info(`🔍 === COMPLETE AI ENGINE REQUEST (PII MASKED) ===`)
-      this.fastify.log.info(`📝 Original user message: "${PIIMasking.truncateText(message, 100)}"`)
-      this.fastify.log.info(`📋 Enhanced prompt (truncated): "${PIIMasking.truncateText(enhancedQuestion, 150)}"`)
-      this.fastify.log.info(`📦 AI request payload (masked): ${JSON.stringify(PIIMasking.maskAIPayload(aiRequestPayload), null, 2)}`)
+      this.fastify.log.info(`📤 Processing session message with optimized prompts:`)
+      this.fastify.log.info(`🔍 === OPTIMIZED AI ENGINE REQUEST (PII MASKED) ===`)
+      this.fastify.log.info(`📝 User message: "${PIIMasking.truncateText(userMessage, 100)}"`)
+      this.fastify.log.info(`🎯 System prompt length: ${systemPrompt.length} chars (cached)`)
+      this.fastify.log.info(`📦 AI request payload (masked): ${JSON.stringify(PIIMasking.maskObject({...aiRequestPayload, system_prompt: `[${systemPrompt.length} chars - cached]`}), null, 2)}`)
       this.fastify.log.info(`===============================================`);
 
       // Use the specialized session conversation endpoint (NEW)
@@ -1450,6 +1472,136 @@ Please provide a helpful response to the student's question.${isMathSubject ? ma
         error: 'Internal server error processing session message',
         code: 'PROCESSING_ERROR'
       });
+    }
+  }
+
+  // MARK: - Streaming Session Message (with Grade Correction Support)
+  buildGradeEvaluationPrompt(userMessage, questionContext, language) {
+    const languageInstructions = language === 'zh' || language === 'zh-Hans' || language === 'zh-Hant'
+      ? '请用中文回答学生的问题。'
+      : 'Please respond in English.';
+
+    const formatInstructions = language === 'zh' || language === 'zh-Hans' || language === 'zh-Hant'
+      ? '重要：如果需要修改评分，必须使用以下英文格式关键词（即使解释部分用中文）'
+      : 'IMPORTANT: If grade correction is needed, you MUST use the following format';
+
+    const prompt = `You are a homework grading assistant helping a student understand their graded work. A student is asking for clarification about a question they answered.
+
+${languageInstructions}
+
+QUESTION CONTEXT:
+- Question: ${questionContext.rawQuestionText || questionContext.questionText}
+- Student's Answer: ${questionContext.studentAnswer || '(no answer provided)'}
+- Correct Answer: ${questionContext.correctAnswer}
+- Current Grade: ${questionContext.currentGrade}
+- Original Feedback: ${questionContext.originalFeedback || 'None'}
+- Points: ${questionContext.pointsEarned || 0}/${questionContext.pointsPossible || 0}
+
+STUDENT'S QUESTION:
+${userMessage}
+
+CRITICAL GRADING RE-EVALUATION INSTRUCTIONS:
+1. FIRST, independently verify the student's answer against the question
+2. Compare YOUR evaluation with the "Correct Answer" provided
+3. If the "Correct Answer" is WRONG and the student's answer is actually correct:
+   - YOU MUST trigger a grade correction
+   - The original grader may have made an error - trust your own analysis
+4. If the student's answer deserves more/less credit than currently given:
+   - Trigger a grade correction with appropriate points
+
+${formatInstructions}:
+
+**MANDATORY FORMAT** (use EXACTLY these English keywords even if explaining in Chinese):
+GRADE_CORRECTION: [Brief statement - can be in response language]
+ORIGINAL_GRADE: ${questionContext.currentGrade}
+CORRECTED_GRADE: [CORRECT, INCORRECT, or PARTIAL_CREDIT]
+NEW_POINTS: [number]/${questionContext.pointsPossible || 10}
+REASON: [Detailed explanation - can be in response language]
+
+[Then continue with your educational explanation to help the student]
+
+**IMPORTANT**:
+- Use these EXACT English keywords: GRADE_CORRECTION, ORIGINAL_GRADE, CORRECTED_GRADE, NEW_POINTS, REASON
+- Even if responding in Chinese, these format markers MUST be in English
+- If no grade change needed, do NOT include GRADE_CORRECTION in your response`;
+
+    return prompt;
+  }
+
+  // Detect and parse grade correction from AI response
+  detectGradeCorrection(aiResponse, questionContext) {
+    try {
+      this.fastify.log.info(`🔍 === GRADE CORRECTION DETECTION START ===`);
+      this.fastify.log.info(`📄 Checking response for GRADE_CORRECTION marker...`);
+
+      // Check if response contains grade correction marker
+      if (!aiResponse.includes('GRADE_CORRECTION:')) {
+        this.fastify.log.info(`❌ No GRADE_CORRECTION marker found in response`);
+        return null; // No correction needed
+      }
+
+      this.fastify.log.info(`✅ GRADE_CORRECTION marker found! Parsing details...`);
+
+      // Extract grade correction details using regex
+      const originalGradeMatch = aiResponse.match(/ORIGINAL_GRADE:\s*(\w+)/);
+      const correctedGradeMatch = aiResponse.match(/CORRECTED_GRADE:\s*(\w+)/);
+      const newPointsMatch = aiResponse.match(/NEW_POINTS:\s*([\d.]+)\s*\/\s*([\d.]+)/);
+      const reasonMatch = aiResponse.match(/REASON:\s*(.+?)(?=\n\n|$)/s);
+
+      this.fastify.log.info(`🔍 Regex matches:`);
+      this.fastify.log.info(`   - originalGradeMatch: ${originalGradeMatch ? originalGradeMatch[1] : 'NOT FOUND'}`);
+      this.fastify.log.info(`   - correctedGradeMatch: ${correctedGradeMatch ? correctedGradeMatch[1] : 'NOT FOUND'}`);
+      this.fastify.log.info(`   - newPointsMatch: ${newPointsMatch ? `${newPointsMatch[1]}/${newPointsMatch[2]}` : 'NOT FOUND'}`);
+      this.fastify.log.info(`   - reasonMatch: ${reasonMatch ? reasonMatch[1].substring(0, 100) + '...' : 'NOT FOUND'}`);
+
+      if (!correctedGradeMatch || !newPointsMatch) {
+        this.fastify.log.warn(`⚠️ Grade correction marker found but unable to parse required fields`);
+        this.fastify.log.warn(`   Missing: ${!correctedGradeMatch ? 'CORRECTED_GRADE' : ''} ${!newPointsMatch ? 'NEW_POINTS' : ''}`);
+        return null;
+      }
+
+      const originalGrade = originalGradeMatch ? originalGradeMatch[1] : questionContext.currentGrade;
+      const correctedGrade = correctedGradeMatch[1];
+      const newPointsEarned = parseFloat(newPointsMatch[1]);
+      const pointsPossible = parseFloat(newPointsMatch[2]);
+      const reason = reasonMatch ? reasonMatch[1].trim() : 'Grade re-evaluation determined a correction was needed.';
+
+      this.fastify.log.info(`📊 Parsed values:`);
+      this.fastify.log.info(`   - Original Grade: ${originalGrade}`);
+      this.fastify.log.info(`   - Corrected Grade: ${correctedGrade}`);
+      this.fastify.log.info(`   - Points: ${newPointsEarned}/${pointsPossible}`);
+      this.fastify.log.info(`   - Reason: ${reason.substring(0, 100)}...`);
+
+      // Validate that there's actually a change
+      const oldPoints = questionContext.pointsEarned || 0;
+      const pointsDiff = Math.abs(newPointsEarned - oldPoints);
+
+      this.fastify.log.info(`🔍 Validation:`);
+      this.fastify.log.info(`   - Old points: ${oldPoints}, New points: ${newPointsEarned}, Diff: ${pointsDiff}`);
+      this.fastify.log.info(`   - Grade change: ${originalGrade} → ${correctedGrade}`);
+
+      if (originalGrade === correctedGrade && pointsDiff < 0.01) {
+        this.fastify.log.info(`ℹ️ No actual grade change detected (same grade and points)`);
+        return null;
+      }
+
+      this.fastify.log.info(`✅ Valid grade correction detected!`);
+
+      const correction = {
+        original_grade: originalGrade,
+        corrected_grade: correctedGrade,
+        new_points_earned: newPointsEarned,
+        points_possible: pointsPossible,
+        reason: reason
+      };
+
+      this.fastify.log.info(`📦 Returning correction object: ${JSON.stringify(correction, null, 2)}`);
+
+      return correction;
+    } catch (error) {
+      this.fastify.log.error('❌ Error detecting grade correction:', error);
+      this.fastify.log.error('Stack trace:', error.stack);
+      return null;
     }
   }
 
@@ -1650,7 +1802,7 @@ TUTORING GUIDELINES:
   async sendSessionMessageStream(request, reply) {
     const startTime = Date.now();
     const { sessionId } = request.params;
-    const { message, context, language } = request.body;  // Extract language parameter
+    const { message, context, language, question_context } = request.body;  // Add question_context
     const fetch = require('node-fetch');
 
     try {
@@ -1664,7 +1816,16 @@ TUTORING GUIDELINES:
         });
       }
 
-      this.fastify.log.info(`🟢 === STREAMING SESSION MESSAGE REQUEST ===`);
+      // 🔍 CHECK FOR HOMEWORK CONTEXT (for grade correction support)
+      const hasHomeworkContext = question_context && question_context.questionText;
+
+      if (hasHomeworkContext) {
+        this.fastify.log.info(`📚 === HOMEWORK FOLLOW-UP DETECTED IN STREAMING REQUEST ===`);
+        this.fastify.log.info(`📋 Question Context: ${JSON.stringify(question_context, null, 2)}`);
+      } else {
+        this.fastify.log.info(`🟢 === STREAMING SESSION MESSAGE REQUEST ===`);
+      }
+
       this.fastify.log.info(`📨 Session: ${PIIMasking.maskUserId(sessionId)}, User: ${PIIMasking.maskUserId(authenticatedUserId)}`);
       this.fastify.log.info(`💬 Message: ${PIIMasking.truncateText(message, 100)}`);
 
@@ -1701,6 +1862,14 @@ TUTORING GUIDELINES:
 
       this.fastify.log.info(`🌍 User language for streaming: ${userLanguage}`);
 
+      // 📝 BUILD PROMPT: Use grade evaluation prompt if homework context exists
+      let finalMessage = message;
+      if (hasHomeworkContext) {
+        finalMessage = this.buildGradeEvaluationPrompt(message, question_context, userLanguage);
+        this.fastify.log.info(`🔍 Using grade evaluation prompt for homework follow-up`);
+        this.fastify.log.info(`📄 Prompt preview: ${finalMessage.substring(0, 200)}...`);
+      }
+
       // Get AI Engine URL
       const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:5001';
       const streamUrl = `${AI_ENGINE_URL}/api/v1/sessions/${sessionId}/message/stream`;
@@ -1718,9 +1887,8 @@ TUTORING GUIDELINES:
           } : {})
         },
         body: JSON.stringify({
-          message: message,
-          language: userLanguage  // Pass language to AI engine
-          // Note: context is not part of SessionMessageRequest, removed
+          message: finalMessage,  // Use potentially modified message
+          language: userLanguage
         })
       });
 
@@ -1738,14 +1906,35 @@ TUTORING GUIDELINES:
 
       this.fastify.log.info('✅ Streaming connection established, proxying to client...');
 
-      // Track streaming metrics
+      // Track streaming metrics and accumulate response
       let hasReceivedData = false;
       let eventCount = 0;
+      let accumulatedResponse = '';  // Accumulate full response for grade correction detection
 
       // Pipe the stream from AI Engine to client
       response.body.on('data', (chunk) => {
         hasReceivedData = true;
         eventCount++;
+
+        // Parse SSE events to accumulate the full AI response
+        const chunkStr = chunk.toString();
+        const lines = chunkStr.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6));
+              if (data.type === 'content' && data.text) {
+                accumulatedResponse += data.text;
+              } else if (data.type === 'done' && data.full_text) {
+                accumulatedResponse = data.full_text;
+              }
+            } catch (e) {
+              // Ignore JSON parse errors for non-JSON SSE events
+            }
+          }
+        }
+
         reply.raw.write(chunk);
       });
 
@@ -1755,6 +1944,38 @@ TUTORING GUIDELINES:
         this.fastify.log.info(`⏱️ Total streaming time: ${duration}ms`);
         this.fastify.log.info(`📊 Events streamed: ${eventCount}`);
         this.fastify.log.info(`📈 Data received: ${hasReceivedData}`);
+
+        // 🎯 GRADE CORRECTION DETECTION (if homework context exists)
+        if (hasHomeworkContext && accumulatedResponse) {
+          this.fastify.log.info(`🔍 Checking for grade correction in accumulated response...`);
+          this.fastify.log.info(`📄 Response length: ${accumulatedResponse.length} characters`);
+
+          const gradeCorrection = this.detectGradeCorrection(accumulatedResponse, question_context);
+
+          if (gradeCorrection) {
+            this.fastify.log.info(`🎉 Grade correction detected! Sending grade_correction event...`);
+
+            // Send grade correction as a final SSE event
+            const gradeCorrectionEvent = `data: ${JSON.stringify({
+              type: 'grade_correction',
+              change_grade: true,
+              grade_correction: gradeCorrection
+            })}\n\n`;
+
+            reply.raw.write(gradeCorrectionEvent);
+          } else {
+            this.fastify.log.info(`ℹ️ No grade correction detected`);
+
+            // Send confirmation that no grade change is needed
+            const noChangeEvent = `data: ${JSON.stringify({
+              type: 'grade_correction',
+              change_grade: false
+            })}\n\n`;
+
+            reply.raw.write(noChangeEvent);
+          }
+        }
+
         reply.raw.end();
       });
 
@@ -2579,6 +2800,30 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       this.fastify.log.info(`👤 User Profile: ${JSON.stringify(request.body.user_profile)}`);
       this.fastify.log.info(`🔐 User ID: ${PIIMasking.maskUserId(userId)}`);
 
+      // COST OPTIMIZATION: Check cache first
+      const cacheKey = {
+        type: 'random',
+        subject: request.body.subject,
+        config: request.body.config
+      };
+
+      const cached = await questionCacheService.get(cacheKey);
+      if (cached) {
+        const duration = Date.now() - startTime;
+        this.fastify.log.info('💰 === CACHE HIT - Returning cached questions ===');
+        this.fastify.log.info(`⏱️ Response time: ${duration}ms (saved ~$0.50)`);
+
+        return reply.send({
+          ...cached,
+          _gateway: {
+            processTime: duration,
+            cached: true,
+            service: 'question-cache',
+            userId: userId
+          }
+        });
+      }
+
       // Proxy to AI Engine question generation service
       const result = await this.aiClient.proxyRequest(
         'POST',
@@ -2597,14 +2842,19 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       if (result.success) {
         const duration = Date.now() - startTime;
 
+        // COST OPTIMIZATION: Cache the result (7 days)
+        await questionCacheService.set(cacheKey, result.data);
+
         this.fastify.log.info('✅ === RANDOM QUESTIONS GENERATION SUCCESS ===');
         this.fastify.log.info(`⏱️ Gateway processing time: ${duration}ms`);
         this.fastify.log.info(`🎯 Questions generated: ${result.data?.question_count || 0}`);
+        this.fastify.log.info(`💾 Cached for 7 days`);
 
         return reply.send({
           ...result.data,
           _gateway: {
             processTime: duration,
+            cached: false,
             service: 'ai-engine',
             endpoint: '/api/v1/generate-questions/random',
             userId: userId
@@ -2645,6 +2895,31 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       this.fastify.log.info(`👤 User Profile: ${JSON.stringify(request.body.user_profile)}`);
       this.fastify.log.info(`🔐 User ID: ${PIIMasking.maskUserId(userId)}`);
 
+      // COST OPTIMIZATION: Check cache first
+      const cacheKey = {
+        type: 'mistakes',
+        subject: request.body.subject,
+        mistakes_data: request.body.mistakes_data,
+        config: request.body.config
+      };
+
+      const cached = await questionCacheService.get(cacheKey);
+      if (cached) {
+        const duration = Date.now() - startTime;
+        this.fastify.log.info('💰 === CACHE HIT - Returning cached mistake-based questions ===');
+        this.fastify.log.info(`⏱️ Response time: ${duration}ms (saved ~$0.50)`);
+
+        return reply.send({
+          ...cached,
+          _gateway: {
+            processTime: duration,
+            cached: true,
+            service: 'question-cache',
+            userId: userId
+          }
+        });
+      }
+
       // Proxy to AI Engine question generation service
       const result = await this.aiClient.proxyRequest(
         'POST',
@@ -2664,15 +2939,20 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       if (result.success) {
         const duration = Date.now() - startTime;
 
+        // COST OPTIMIZATION: Cache the result (7 days)
+        await questionCacheService.set(cacheKey, result.data);
+
         this.fastify.log.info('✅ === MISTAKE-BASED QUESTIONS GENERATION SUCCESS ===');
         this.fastify.log.info(`⏱️ Gateway processing time: ${duration}ms`);
         this.fastify.log.info(`🎯 Questions generated: ${result.data?.question_count || 0}`);
         this.fastify.log.info(`❌ Mistakes analyzed: ${result.data?.mistakes_analyzed || 0}`);
+        this.fastify.log.info(`💾 Cached for 7 days`);
 
         return reply.send({
           ...result.data,
           _gateway: {
             processTime: duration,
+            cached: false,
             service: 'ai-engine',
             endpoint: '/api/v1/generate-questions/mistakes',
             userId: userId
@@ -2713,6 +2993,31 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       this.fastify.log.info(`👤 User Profile: ${JSON.stringify(request.body.user_profile)}`);
       this.fastify.log.info(`🔐 User ID: ${PIIMasking.maskUserId(userId)}`);
 
+      // COST OPTIMIZATION: Check cache first
+      const cacheKey = {
+        type: 'conversations',
+        subject: request.body.subject,
+        conversation_data: request.body.conversation_data,
+        config: request.body.config
+      };
+
+      const cached = await questionCacheService.get(cacheKey);
+      if (cached) {
+        const duration = Date.now() - startTime;
+        this.fastify.log.info('💰 === CACHE HIT - Returning cached conversation-based questions ===');
+        this.fastify.log.info(`⏱️ Response time: ${duration}ms (saved ~$0.50)`);
+
+        return reply.send({
+          ...cached,
+          _gateway: {
+            processTime: duration,
+            cached: true,
+            service: 'question-cache',
+            userId: userId
+          }
+        });
+      }
+
       // Proxy to AI Engine question generation service
       const result = await this.aiClient.proxyRequest(
         'POST',
@@ -2732,15 +3037,20 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
       if (result.success) {
         const duration = Date.now() - startTime;
 
+        // COST OPTIMIZATION: Cache the result (7 days)
+        await questionCacheService.set(cacheKey, result.data);
+
         this.fastify.log.info('✅ === CONVERSATION-BASED QUESTIONS GENERATION SUCCESS ===');
         this.fastify.log.info(`⏱️ Gateway processing time: ${duration}ms`);
         this.fastify.log.info(`🎯 Questions generated: ${result.data?.question_count || 0}`);
         this.fastify.log.info(`💬 Conversations analyzed: ${result.data?.conversations_analyzed || 0}`);
+        this.fastify.log.info(`💾 Cached for 7 days`);
 
         return reply.send({
           ...result.data,
           _gateway: {
             processTime: duration,
+            cached: false,
             service: 'ai-engine',
             endpoint: '/api/v1/generate-questions/conversations',
             userId: userId

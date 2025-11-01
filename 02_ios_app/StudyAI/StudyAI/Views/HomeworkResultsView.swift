@@ -851,14 +851,41 @@ struct QuestionAnswerCard: View {
                                     subject: detectedSubject
                                 )
 
-                                // Construct user message for AI
-                                let userMessage = """
+                                // Construct user message for AI with explicit context
+                                var userMessage = """
 I need help understanding this question from my homework:
 
 Question: \(question.rawQuestionText ?? question.questionText)
-
-\(question.isGraded && question.studentAnswer != nil && !question.studentAnswer!.isEmpty ? "My answer was: \(question.studentAnswer!)\n\n" : "")I'm unclear about how to approach this problem. Can you help me understand it better?
 """
+
+                                // Add student answer if available
+                                if question.isGraded, let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
+                                    userMessage += "\n\nMy answer was: \(studentAnswer)"
+                                }
+
+                                // IMPORTANT: Explicitly include the correct answer and current grade
+                                // This helps the AI detect if there was a grading error
+                                if let correctAnswer = question.correctAnswer, !correctAnswer.isEmpty {
+                                    userMessage += "\n\nThe AI grader said the correct answer is: \(correctAnswer)"
+                                }
+
+                                if let grade = question.grade {
+                                    userMessage += "\nMy current grade for this question is: \(grade)"
+                                    if let pointsEarned = question.pointsEarned, let pointsPossible = question.pointsPossible {
+                                        userMessage += " (\(String(format: "%.1f", pointsEarned))/\(String(format: "%.1f", pointsPossible)) points)"
+                                    }
+                                }
+
+                                userMessage += "\n\nI'm unclear about how to approach this problem. Can you help me understand it better?"
+
+                                // Enhanced logging for debugging
+                                print("📚 === ASK AI FOR HELP - CONTEXT ===")
+                                print("Question #\(question.questionNumber ?? 0)")
+                                print("Grade: \(question.grade ?? "None")")
+                                print("Student Answer: \(question.studentAnswer ?? "None")")
+                                print("Correct Answer: \(question.correctAnswer ?? "None")")
+                                print("Points: \(question.pointsEarned ?? 0)/\(question.pointsPossible ?? 0)")
+                                print("===================================")
 
                                 // Navigate to chat with full homework context
                                 appState.navigateToChatWithHomeworkQuestion(
@@ -951,7 +978,7 @@ Question: \(question.rawQuestionText ?? question.questionText)
            lowercaseText.contains("calculate") || lowercaseText.contains("algebra") ||
            lowercaseText.contains("geometry") || lowercaseText.contains("integral") ||
            lowercaseText.contains("derivative") || lowercaseText.contains("function") {
-            return "Mathematics"
+            return "Math"
         }
 
         // Physics keywords
@@ -1393,7 +1420,7 @@ extension HomeworkResultsView {
            lowercaseText.contains("calculate") || lowercaseText.contains("algebra") ||
            lowercaseText.contains("geometry") || lowercaseText.contains("integral") ||
            lowercaseText.contains("derivative") || lowercaseText.contains("function") {
-            return "Mathematics"
+            return "Math"
         }
 
         // Physics keywords

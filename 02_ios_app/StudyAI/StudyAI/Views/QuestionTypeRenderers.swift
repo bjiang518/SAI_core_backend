@@ -206,8 +206,8 @@ struct MultipleChoiceRenderer: View {
                 .foregroundColor(isStudentChoice ? .blue : .gray.opacity(0.4))
                 .font(.system(size: 16))
 
-            // Option text
-            MathFormattedText(option, fontSize: 14)
+            // Option text with LaTeX post-processing
+            SmartMathRenderer(option, fontSize: 14)
 
             Spacer()
 

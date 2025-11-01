@@ -38,6 +38,8 @@ const { redisCacheManager } = require('./services/redis-cache');
 const { prometheusMetrics, healthMetrics } = require('./services/prometheus-metrics');
 const { secretsManager } = require('./services/secrets-manager');
 const { dailyResetService } = require('../services/daily-reset-service');
+const dataRetentionService = require('../services/data-retention-service');  // GDPR/COPPA compliance
+const questionCacheService = require('../services/question-cache-service');  // COST OPTIMIZATION: Question caching
 
 // Register multipart support for file uploads
 fastify.register(require('@fastify/multipart'), {
@@ -197,10 +199,29 @@ fastify.setErrorHandler((error, request, reply) => {
 
 // Not found handler
 fastify.setNotFoundHandler((request, reply) => {
+  fastify.log.warn(`⚠️ Route not found: ${request.method} ${request.url}`);
+
+  // In development, show available routes for debugging
+  const isDev = process.env.NODE_ENV !== 'production';
+  const similarRoutes = [];
+
+  if (isDev) {
+    const requestPath = request.url.split('?')[0]; // Remove query params
+    fastify.getRoutes().forEach(route => {
+      if (route.url && route.url.includes('/auth/consent')) {
+        similarRoutes.push(`${route.method} ${route.url}`);
+      }
+    });
+  }
+
   reply.status(404).send({
     error: 'Not Found',
     message: `Route ${request.method} ${request.url} not found`,
-    code: 'ROUTE_NOT_FOUND'
+    code: 'ROUTE_NOT_FOUND',
+    ...(isDev && similarRoutes.length > 0 && {
+      hint: 'Similar routes available',
+      similarRoutes
+    })
   });
 });
 
@@ -261,6 +282,78 @@ if (features.useGateway) {
     }
   });
 
+  // Data Retention Service management endpoints (GDPR/COPPA compliance)
+  fastify.get('/admin/data-retention/status', async (request, reply) => {
+    const status = dataRetentionService.getStats();
+    return reply.send({
+      success: true,
+      data: status,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  fastify.post('/admin/data-retention/trigger', async (request, reply) => {
+    try {
+      const result = await dataRetentionService.triggerManual();
+      return reply.send({
+        success: true,
+        message: 'Manual data retention policy executed successfully',
+        data: result,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      fastify.log.error('Manual data retention failed:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to trigger data retention policy',
+        message: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // User data deletion endpoint (GDPR Article 17 - Right to be forgotten)
+  fastify.post('/api/user/delete-my-data', async (request, reply) => {
+    try {
+      // Get authenticated user ID from token
+      const token = request.headers.authorization?.replace('Bearer ', '');
+      if (!token) {
+        return reply.status(401).send({
+          success: false,
+          error: 'Authentication required'
+        });
+      }
+
+      const { db } = require('../utils/railway-database');
+      const sessionData = await db.verifySessionToken(token);
+
+      if (!sessionData || !sessionData.user_id) {
+        return reply.status(401).send({
+          success: false,
+          error: 'Invalid or expired token'
+        });
+      }
+
+      const result = await dataRetentionService.deleteUserData(sessionData.user_id);
+
+      return reply.send({
+        success: true,
+        message: 'Your data has been marked for deletion',
+        details: 'All your data will be permanently deleted in 30 days. You can contact support within 30 days to recover your data.',
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      fastify.log.error('User data deletion failed:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to delete user data',
+        message: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Documentation server
   const docServer = new DocumentationServer();
   fastify.register(docServer.getFastifyPlugin());
@@ -294,6 +387,24 @@ if (features.useGateway) {
 
   // Authentication routes
   new AuthRoutes(fastify);
+
+  // Debug endpoint to list all routes
+  fastify.get('/api/debug/routes', async (request, reply) => {
+    const routes = [];
+    fastify.getRoutes().forEach(route => {
+      routes.push({
+        method: route.method,
+        url: route.url,
+        path: route.path
+      });
+    });
+    return {
+      success: true,
+      totalRoutes: routes.length,
+      routes: routes.sort((a, b) => a.url.localeCompare(b.url))
+    };
+  });
+  fastify.log.info('✅ Debug routes endpoint registered at /api/debug/routes');
 
   // Progress tracking routes
   new ProgressRoutes(fastify);
@@ -351,6 +462,25 @@ const start = async () => {
       // The service will still try to initialize on next startup
     }
 
+    // Initialize Data Retention Service for GDPR/COPPA compliance
+    try {
+      await dataRetentionService.initialize();
+      fastify.log.info('✅ Data Retention Service initialized successfully (90-day auto-delete)');
+    } catch (retentionError) {
+      fastify.log.error('❌ Failed to initialize Data Retention Service:', retentionError);
+      // Don't crash the server if retention service fails to initialize
+    }
+
+    // Initialize Question Cache Service for cost optimization
+    try {
+      await questionCacheService.initialize();
+      fastify.log.info('✅ Question Cache Service initialized successfully (7-day Redis cache)');
+    } catch (cacheError) {
+      fastify.log.error('❌ Failed to initialize Question Cache Service:', cacheError);
+      fastify.log.info('ℹ️ Question caching disabled - will make direct API calls');
+      // Don't crash the server if cache service fails to initialize
+    }
+
     // Graceful shutdown handling for cleanup
     const gracefulShutdown = async (signal) => {
       fastify.log.info(`🛑 Received ${signal}, shutting down gracefully...`);
@@ -361,6 +491,22 @@ const start = async () => {
         fastify.log.info('✅ Daily Reset Service stopped');
       } catch (e) {
         fastify.log.error('⚠️ Error stopping Daily Reset Service:', e);
+      }
+
+      // Stop data retention service
+      try {
+        dataRetentionService.stop();
+        fastify.log.info('✅ Data Retention Service stopped');
+      } catch (e) {
+        fastify.log.error('⚠️ Error stopping Data Retention Service:', e);
+      }
+
+      // Close question cache service
+      try {
+        await questionCacheService.close();
+        fastify.log.info('✅ Question Cache Service closed');
+      } catch (e) {
+        fastify.log.error('⚠️ Error closing Question Cache Service:', e);
       }
 
       // Close fastify server

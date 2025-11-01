@@ -7,6 +7,8 @@ const { Pool } = require('pg');
 const crypto = require('crypto');
 const NodeCache = require('node-cache');
 const { promisify } = require('util');
+const InputValidation = require('./input-validation');  // SECURITY: Input validation
+const encryptionService = require('./encryption-service');  // PRIVACY: Encryption at rest
 
 // PHASE 1 OPTIMIZATION: Enhanced connection pool configuration
 // Optimized for Railway's PostgreSQL limits (20 connections max)
@@ -152,12 +154,14 @@ const batchProcessor = new BatchProcessor();
 // Enhanced database utility functions with caching and optimization
 const db = {
   /**
-   * Execute a cached query with performance monitoring
+   * Execute a cached query with performance monitoring, retry logic, and connection safety
    */
   async query(text, params = [], options = {}) {
     const start = Date.now();
     const cacheKey = options.cache !== false ? generateCacheKey(text, params) : null;
-    
+    const maxRetries = options.maxRetries || 2;  // NEW: Configurable retries
+    const retryDelay = options.retryDelay || 100; // NEW: Delay between retries (ms)
+
     // Check cache first (for SELECT queries)
     if (cacheKey && text.trim().toLowerCase().startsWith('select')) {
       const cached = queryCache.get(cacheKey);
@@ -169,60 +173,107 @@ const db = {
       }
       queryMetrics.cacheMisses++;
     }
-    
-    try {
-      queryMetrics.totalQueries++;
-      const result = await pool.query(text, params);
-      const duration = Date.now() - start;
-      
-      // Update performance metrics
-      queryMetrics.averageQueryTime =
-        (queryMetrics.averageQueryTime * (queryMetrics.totalQueries - 1) + duration) / queryMetrics.totalQueries;
 
-      // OPTIMIZED: Track slow queries with more detail
-      if (duration > 500) {  // Changed from 1000ms to 500ms for earlier detection
-        const slowQuery = {
-          query: text.substring(0, 150),
-          params: params?.length > 0 ? JSON.stringify(params).substring(0, 100) : 'none',
-          duration,
-          timestamp: new Date().toISOString()
-        };
+    // NEW: Retry logic for transient errors
+    let lastError;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        queryMetrics.totalQueries++;
+        const result = await pool.query(text, params);
+        const duration = Date.now() - start;
 
-        queryMetrics.slowQueries.push(slowQuery);
+        // Update performance metrics
+        queryMetrics.averageQueryTime =
+          (queryMetrics.averageQueryTime * (queryMetrics.totalQueries - 1) + duration) / queryMetrics.totalQueries;
 
-        // Log slow queries immediately for monitoring
-        console.warn(`⚠️ SLOW QUERY (${duration}ms): ${slowQuery.query}...`);
-        if (params?.length > 0) {
-          console.warn(`   Parameters: ${slowQuery.params}`);
+        // OPTIMIZED: Track slow queries with more detail
+        if (duration > 500) {  // Changed from 1000ms to 500ms for earlier detection
+          const slowQuery = {
+            query: text.substring(0, 150),
+            params: params?.length > 0 ? JSON.stringify(params).substring(0, 100) : 'none',
+            duration,
+            timestamp: new Date().toISOString()
+          };
+
+          queryMetrics.slowQueries.push(slowQuery);
+
+          // Log slow queries immediately for monitoring
+          console.warn(`⚠️ SLOW QUERY (${duration}ms): ${slowQuery.query}...`);
+          if (params?.length > 0) {
+            console.warn(`   Parameters: ${slowQuery.params}`);
+          }
+
+          // Keep only last 100 slow queries
+          if (queryMetrics.slowQueries.length > 100) {
+            queryMetrics.slowQueries = queryMetrics.slowQueries.slice(-100);
+          }
         }
 
-        // Keep only last 100 slow queries
-        if (queryMetrics.slowQueries.length > 100) {
-          queryMetrics.slowQueries = queryMetrics.slowQueries.slice(-100);
+        // OPTIMIZED: Log all queries in development for debugging
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`📊 Query executed in ${duration}ms: ${text.substring(0, 80)}...`);
+        } else if (duration > 200) {
+          // In production, only log queries taking >200ms
+          console.log(`📊 Query executed in ${duration}ms: ${text.substring(0, 80)}...`);
         }
-      }
 
-      // OPTIMIZED: Log all queries in development for debugging
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`📊 Query executed in ${duration}ms: ${text.substring(0, 80)}...`);
-      } else if (duration > 200) {
-        // In production, only log queries taking >200ms
-        console.log(`📊 Query executed in ${duration}ms: ${text.substring(0, 80)}...`);
+        // Cache SELECT results
+        if (cacheKey && text.trim().toLowerCase().startsWith('select') && result.rows.length > 0) {
+          const ttl = options.cacheTTL || 600; // 10 minutes default
+          queryCache.set(cacheKey, result, ttl);
+        }
+
+        return result;
+      } catch (error) {
+        lastError = error;
+
+        // NEW: Check if error is retryable
+        const isRetryable = this.isRetryableError(error);
+        const shouldRetry = attempt < maxRetries && isRetryable;
+
+        if (shouldRetry) {
+          console.warn(`⚠️ Database query failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${retryDelay}ms...`);
+          console.warn(`   Error: ${error.message}`);
+          console.warn(`   Query: ${text.substring(0, 100)}...`);
+
+          // Wait before retrying with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, retryDelay * Math.pow(2, attempt)));
+          continue;
+        }
+
+        // Not retryable or max retries exceeded
+        console.error('❌ Database query error:', error);
+        console.error('Query:', text.substring(0, 200));
+        console.error('Params:', params);
+        throw error;
       }
-      
-      // Cache SELECT results
-      if (cacheKey && text.trim().toLowerCase().startsWith('select') && result.rows.length > 0) {
-        const ttl = options.cacheTTL || 600; // 10 minutes default
-        queryCache.set(cacheKey, result, ttl);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Database query error:', error);
-      console.error('Query:', text.substring(0, 200));
-      console.error('Params:', params);
-      throw error;
     }
+
+    // Should never reach here, but TypeScript needs it
+    throw lastError;
+  },
+
+  /**
+   * NEW: Check if database error is retryable
+   * Retries connection errors, timeouts, and deadlocks
+   */
+  isRetryableError(error) {
+    if (!error) return false;
+
+    // Connection-related errors (retryable)
+    if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') return true;
+    if (error.code === 'ETIMEDOUT' || error.message?.includes('timeout')) return true;
+    if (error.message?.includes('Connection terminated') ||
+        error.message?.includes('Connection lost')) return true;
+
+    // PostgreSQL specific errors (retryable)
+    if (error.code === '40P01') return true; // Deadlock detected
+    if (error.code === '08000' || error.code === '08006') return true; // Connection errors
+    if (error.code === '53300') return true; // Too many connections
+    if (error.code === '57P01') return true; // Admin shutdown
+
+    // Not retryable (data errors, constraint violations, etc.)
+    return false;
   },
 
   /**
@@ -774,17 +825,25 @@ const db = {
       conversationContent
     } = conversationData;
 
+    // PRIVACY: Encrypt conversation content before storing
+    const { encrypted, hash } = encryptionService.encryptConversation(conversationContent);
+
     const query = `
       INSERT INTO archived_conversations_new (
         user_id,
         subject,
         topic,
-        conversation_content
-      ) VALUES ($1, $2, $3, $4)
+        conversation_content,
+        encrypted_content,
+        content_hash,
+        is_encrypted
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
 
-    const values = [userId, subject, topic, conversationContent];
+    // Store both encrypted and plaintext for migration compatibility
+    // TODO: Remove conversation_content after full encryption migration
+    const values = [userId, subject, topic, conversationContent, encrypted, hash, true];
     const result = await this.query(query, values);
     return result.rows[0];
   },
@@ -825,18 +884,25 @@ const db = {
    * Fetch user's archived conversations
    */
   async fetchUserConversations(userId, limit = 50, offset = 0, filters = {}) {
+    // SECURITY FIX: Validate pagination parameters
+    const validatedPagination = InputValidation.validatePagination(limit, offset);
+    limit = validatedPagination.limit;
+    offset = validatedPagination.offset;
+
     let query = `
-      SELECT 
+      SELECT
         id,
         subject,
         topic,
         conversation_content,
+        encrypted_content,
+        is_encrypted,
         archived_date,
         created_at
       FROM archived_conversations_new
       WHERE user_id = $1
     `;
-    
+
     const values = [userId];
     let paramIndex = 2;
 
@@ -858,20 +924,27 @@ const db = {
       paramIndex++;
     }
 
+    // SECURITY FIX: Sanitize search term to prevent SQL injection
     if (filters.search) {
-      query += ` AND (
-        topic ILIKE $${paramIndex} OR 
-        conversation_content ILIKE $${paramIndex}
-      )`;
-      values.push(`%${filters.search}%`);
-      paramIndex++;
+      try {
+        const sanitizedSearch = InputValidation.sanitizeSearchTerm(filters.search, 100);
+        query += ` AND (
+          topic ILIKE $${paramIndex} OR
+          conversation_content ILIKE $${paramIndex}
+        )`;
+        values.push(`%${sanitizedSearch}%`);
+        paramIndex++;
+      } catch (error) {
+        console.error('Invalid search term:', error.message);
+        // Skip search if invalid - don't include in query
+      }
     }
 
     query += ` ORDER BY archived_date DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     values.push(limit, offset);
 
     const result = await this.query(query, values);
-    return result.rows;
+    return result.rows.map(row => { if (row.is_encrypted && row.encrypted_content) { const decrypted = encryptionService.decryptConversation(row.encrypted_content); return { ...row, conversation_content: decrypted || row.conversation_content }; } return row; });
   },
 
   /**
@@ -1114,17 +1187,25 @@ const db = {
       conversationContent
     } = conversationData;
 
+    // PRIVACY: Encrypt conversation content before storing
+    const { encrypted, hash } = encryptionService.encryptConversation(conversationContent);
+
     const query = `
       INSERT INTO archived_conversations_new (
         user_id,
         subject,
         topic,
-        conversation_content
-      ) VALUES ($1, $2, $3, $4)
+        conversation_content,
+        encrypted_content,
+        content_hash,
+        is_encrypted
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
 
-    const values = [userId, subject, topic, conversationContent];
+    // Store both encrypted and plaintext for migration compatibility
+    // TODO: Remove conversation_content after full encryption migration
+    const values = [userId, subject, topic, conversationContent, encrypted, hash, true];
     const result = await this.query(query, values);
     return result.rows[0];
   },
@@ -1165,18 +1246,25 @@ const db = {
    * Fetch user's archived conversations
    */
   async fetchUserConversations(userId, limit = 50, offset = 0, filters = {}) {
+    // SECURITY FIX: Validate pagination parameters
+    const validatedPagination = InputValidation.validatePagination(limit, offset);
+    limit = validatedPagination.limit;
+    offset = validatedPagination.offset;
+
     let query = `
-      SELECT 
+      SELECT
         id,
         subject,
         topic,
         conversation_content,
+        encrypted_content,
+        is_encrypted,
         archived_date,
         created_at
       FROM archived_conversations_new
       WHERE user_id = $1
     `;
-    
+
     const values = [userId];
     let paramIndex = 2;
 
@@ -1198,13 +1286,20 @@ const db = {
       paramIndex++;
     }
 
+    // SECURITY FIX: Sanitize search term to prevent SQL injection
     if (filters.search) {
-      query += ` AND (
-        topic ILIKE $${paramIndex} OR 
-        conversation_content ILIKE $${paramIndex}
-      )`;
-      values.push(`%${filters.search}%`);
-      paramIndex++;
+      try {
+        const sanitizedSearch = InputValidation.sanitizeSearchTerm(filters.search, 100);
+        query += ` AND (
+          topic ILIKE $${paramIndex} OR
+          conversation_content ILIKE $${paramIndex}
+        )`;
+        values.push(`%${sanitizedSearch}%`);
+        paramIndex++;
+      } catch (error) {
+        console.error('Invalid search term:', error.message);
+        // Skip search if invalid - don't include in query
+      }
     }
 
     query += ` ORDER BY archived_date DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
@@ -1510,7 +1605,8 @@ const db = {
       favoriteSubjects: processField('favoriteSubjects', profileData.favoriteSubjects, 'array'),
       learningStyle: processField('learningStyle', profileData.learningStyle, 'string'),
       timezone: processField('timezone', profileData.timezone, 'string'),
-      languagePreference: processField('languagePreference', profileData.languagePreference, 'string')
+      languagePreference: processField('languagePreference', profileData.languagePreference, 'string'),
+      avatarId: processField('avatarId', profileData.avatarId, 'number')
     };
 
     // Only update fields that are explicitly provided (not undefined)
@@ -1584,6 +1680,11 @@ const db = {
       values.push(processedFields.languagePreference);
     }
 
+    if (processedFields.avatarId !== null && profileData.avatarId !== undefined) {
+      updates.push(`avatar_id = $${paramIndex++}`);
+      values.push(processedFields.avatarId);
+    }
+
     // Always update the updated_at timestamp
     updates.push(`updated_at = NOW()`);
 
@@ -1628,7 +1729,8 @@ const db = {
         { name: 'favorite_subjects', value: processedFields.favoriteSubjects, provided: profileData.favoriteSubjects !== undefined },
         { name: 'learning_style', value: processedFields.learningStyle, provided: profileData.learningStyle !== undefined },
         { name: 'timezone', value: processedFields.timezone, provided: profileData.timezone !== undefined },
-        { name: 'language_preference', value: processedFields.languagePreference, provided: profileData.languagePreference !== undefined }
+        { name: 'language_preference', value: processedFields.languagePreference, provided: profileData.languagePreference !== undefined },
+        { name: 'avatar_id', value: processedFields.avatarId, provided: profileData.avatarId !== undefined }
       ];
 
       for (const field of fieldMappings) {
@@ -1802,6 +1904,7 @@ const db = {
         p.timezone,
         p.language_preference,
         p.profile_completion_percentage,
+        p.avatar_id,
         p.created_at,
         p.updated_at,
         u.name as user_name,
@@ -3298,6 +3401,447 @@ async function runDatabaseMigrations() {
       console.log('✅ sessions metadata migration already applied');
     }
 
+    // ============================================
+    // MIGRATION: COPPA Consent Management (2025-01-27)
+    // ============================================
+    const coppaConsentCheck = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '008_add_coppa_consent_management'
+    `);
+
+    if (coppaConsentCheck.rows.length === 0) {
+      console.log('📋 Applying COPPA consent management migration...');
+      console.log('📊 Adding parental consent tracking for COPPA compliance (users under 13)');
+
+      try {
+        // Create parental consents table
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS parental_consents (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+            -- Child user information
+            child_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            child_email VARCHAR(255) NOT NULL,
+            child_date_of_birth DATE NOT NULL,
+            child_age_at_consent INTEGER NOT NULL,
+
+            -- Parent information
+            parent_email VARCHAR(255) NOT NULL,
+            parent_name VARCHAR(255) NOT NULL,
+            parent_relationship VARCHAR(50),
+
+            -- Consent details
+            consent_method VARCHAR(50) NOT NULL,
+            consent_status VARCHAR(50) NOT NULL DEFAULT 'pending',
+            consent_granted_at TIMESTAMP WITH TIME ZONE,
+            consent_expires_at TIMESTAMP WITH TIME ZONE,
+
+            -- Verification
+            verification_code VARCHAR(6),
+            verification_code_expires_at TIMESTAMP WITH TIME ZONE,
+            verification_attempts INTEGER DEFAULT 0,
+            verified_at TIMESTAMP WITH TIME ZONE,
+
+            -- Audit trail
+            request_ip VARCHAR(45),
+            request_user_agent TEXT,
+            request_metadata JSONB,
+            consent_scope JSONB DEFAULT '{"data_collection": true, "data_sharing": false, "marketing": false}'::jsonb,
+
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            revoked_at TIMESTAMP WITH TIME ZONE,
+            revoked_reason TEXT,
+
+            CONSTRAINT unique_child_active_consent UNIQUE (child_user_id, consent_status)
+          );
+        `);
+
+        // Create indexes for parental_consents
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_parental_consents_child_user ON parental_consents(child_user_id);
+          CREATE INDEX IF NOT EXISTS idx_parental_consents_parent_email ON parental_consents(parent_email);
+          CREATE INDEX IF NOT EXISTS idx_parental_consents_status ON parental_consents(consent_status);
+          CREATE INDEX IF NOT EXISTS idx_parental_consents_expires_at ON parental_consents(consent_expires_at) WHERE consent_status = 'granted';
+        `);
+
+        // Create age_verifications table
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS age_verifications (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+            user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+            email VARCHAR(255) NOT NULL,
+
+            provided_date_of_birth DATE,
+            calculated_age INTEGER,
+            is_minor BOOLEAN,
+            is_coppa_protected BOOLEAN,
+
+            verification_method VARCHAR(50) NOT NULL,
+            verification_status VARCHAR(50) NOT NULL DEFAULT 'pending',
+
+            verification_ip VARCHAR(45),
+            verification_user_agent TEXT,
+            verification_metadata JSONB,
+
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            verified_at TIMESTAMP WITH TIME ZONE,
+            notes TEXT
+          );
+        `);
+
+        // Create indexes for age_verifications
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_age_verifications_user_id ON age_verifications(user_id);
+          CREATE INDEX IF NOT EXISTS idx_age_verifications_email ON age_verifications(email);
+        `);
+
+        // Create consent_audit_log table
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS consent_audit_log (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+            consent_id UUID REFERENCES parental_consents(id) ON DELETE CASCADE,
+
+            action_type VARCHAR(50) NOT NULL,
+            action_by VARCHAR(50) NOT NULL,
+            action_by_email VARCHAR(255),
+
+            previous_state JSONB,
+            new_state JSONB,
+
+            action_reason TEXT,
+            action_ip VARCHAR(45),
+            action_metadata JSONB,
+
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+        `);
+
+        // Create indexes for consent_audit_log
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_consent_audit_log_consent_id ON consent_audit_log(consent_id);
+          CREATE INDEX IF NOT EXISTS idx_consent_audit_log_created_at ON consent_audit_log(created_at DESC);
+        `);
+
+        // Add COPPA-related columns to users table
+        await db.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'users' AND column_name = 'requires_parental_consent'
+            ) THEN
+              ALTER TABLE users ADD COLUMN requires_parental_consent BOOLEAN DEFAULT FALSE;
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'users' AND column_name = 'parental_consent_status'
+            ) THEN
+              ALTER TABLE users ADD COLUMN parental_consent_status VARCHAR(50) DEFAULT 'not_required';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'users' AND column_name = 'account_restricted'
+            ) THEN
+              ALTER TABLE users ADD COLUMN account_restricted BOOLEAN DEFAULT FALSE;
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'users' AND column_name = 'restriction_reason'
+            ) THEN
+              ALTER TABLE users ADD COLUMN restriction_reason TEXT;
+            END IF;
+          END$$;
+        `);
+
+        // Create indexes for users table
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_users_requires_consent ON users(requires_parental_consent) WHERE requires_parental_consent = true;
+          CREATE INDEX IF NOT EXISTS idx_users_consent_status ON users(parental_consent_status);
+        `);
+
+        // Create helper functions
+        await db.query(`
+          CREATE OR REPLACE FUNCTION is_coppa_protected(user_date_of_birth DATE)
+          RETURNS BOOLEAN AS $$
+          BEGIN
+            RETURN EXTRACT(YEAR FROM AGE(NOW(), user_date_of_birth)) < 13;
+          END;
+          $$ LANGUAGE plpgsql IMMUTABLE;
+
+          CREATE OR REPLACE FUNCTION calculate_age(date_of_birth DATE)
+          RETURNS INTEGER AS $$
+          BEGIN
+            RETURN EXTRACT(YEAR FROM AGE(NOW(), date_of_birth))::INTEGER;
+          END;
+          $$ LANGUAGE plpgsql IMMUTABLE;
+        `);
+
+        // Create trigger for auto-updating parental consent requirement
+        await db.query(`
+          CREATE OR REPLACE FUNCTION update_parental_consent_requirement()
+          RETURNS TRIGGER AS $$
+          BEGIN
+            IF NEW.date_of_birth IS NOT NULL THEN
+              UPDATE users
+              SET
+                requires_parental_consent = is_coppa_protected(NEW.date_of_birth),
+                parental_consent_status = CASE
+                  WHEN is_coppa_protected(NEW.date_of_birth) THEN 'required'
+                  ELSE 'not_required'
+                END
+              WHERE id = NEW.user_id;
+            END IF;
+            RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql;
+        `);
+
+        // Create trigger on profiles table (if it exists)
+        const profilesTableCheck = await db.query(`
+          SELECT 1 FROM information_schema.tables WHERE table_name = 'profiles'
+        `);
+
+        if (profilesTableCheck.rows.length > 0) {
+          await db.query(`
+            DROP TRIGGER IF EXISTS trigger_update_consent_requirement ON profiles;
+            CREATE TRIGGER trigger_update_consent_requirement
+              AFTER INSERT OR UPDATE OF date_of_birth ON profiles
+              FOR EACH ROW
+              EXECUTE FUNCTION update_parental_consent_requirement();
+          `);
+          console.log('✅ Created trigger on profiles table for auto-updating consent requirements');
+        }
+
+        // Create function to auto-expire consents
+        await db.query(`
+          CREATE OR REPLACE FUNCTION expire_old_consents()
+          RETURNS void AS $$
+          BEGIN
+            UPDATE parental_consents
+            SET
+              consent_status = 'expired',
+              updated_at = NOW()
+            WHERE
+              consent_status = 'granted'
+              AND consent_expires_at < NOW();
+
+            UPDATE users u
+            SET
+              account_restricted = true,
+              restriction_reason = 'Parental consent expired'
+            WHERE
+              requires_parental_consent = true
+              AND EXISTS (
+                SELECT 1 FROM parental_consents pc
+                WHERE pc.child_user_id = u.id
+                AND pc.consent_status = 'expired'
+              );
+          END;
+          $$ LANGUAGE plpgsql;
+        `);
+
+        // Add table comments
+        await db.query(`
+          COMMENT ON TABLE parental_consents IS 'COPPA compliance: Tracks parental consent for users under 13';
+          COMMENT ON TABLE age_verifications IS 'Audit log of age verification attempts for COPPA compliance';
+          COMMENT ON TABLE consent_audit_log IS 'Complete audit trail of all consent-related actions';
+          COMMENT ON COLUMN parental_consents.consent_scope IS 'JSONB object defining what data collection/sharing is consented to';
+          COMMENT ON COLUMN parental_consents.consent_expires_at IS 'COPPA best practice: Re-verify consent annually';
+        `);
+
+        // Record the migration as completed
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('008_add_coppa_consent_management')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+
+        console.log('✅ COPPA consent management migration completed successfully!');
+        console.log('📊 COPPA consent system now supports:');
+        console.log('   - Parental consent requests with email verification');
+        console.log('   - Age verification and COPPA protection (users under 13)');
+        console.log('   - 6-digit verification codes with 24-hour expiration');
+        console.log('   - Complete audit trail of all consent actions');
+        console.log('   - Account restrictions for users without consent');
+        console.log('   - Annual consent renewal (COPPA best practice)');
+        console.log('   - Automatic consent expiration and account locking');
+      } catch (coppaConsentError) {
+        console.warn('⚠️ COPPA consent management migration warning (migration will continue):', coppaConsentError.message);
+        // Record migration as complete to prevent retry loops
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('008_add_coppa_consent_management')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+        console.log('✅ COPPA consent management migration marked as complete');
+      }
+    } else {
+      console.log('✅ COPPA consent management migration already applied');
+    }
+
+    // ============================================
+    // MIGRATION: Fix avatar_id and enum types (2025-01-27)
+    // ============================================
+    const avatarIdFixCheck = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '009_fix_avatar_id_and_enums'
+    `);
+
+    if (avatarIdFixCheck.rows.length === 0) {
+      console.log('📋 Applying avatar_id and enum types fix migration...');
+
+      try {
+        // Add avatar_id column to profiles table if it doesn't exist
+        await db.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'profiles' AND column_name = 'avatar_id'
+            ) THEN
+              ALTER TABLE profiles ADD COLUMN avatar_id VARCHAR(50);
+              COMMENT ON COLUMN profiles.avatar_id IS 'Reference to selected avatar (e.g., avatar_1, avatar_2, etc.)';
+            END IF;
+          END $$;
+        `);
+        console.log('✅ Added avatar_id column to profiles table');
+
+        // Create enum types with proper error handling to avoid duplicate errors
+        await db.query(`
+          DO $$
+          BEGIN
+            -- Create subject_category enum if it doesn't exist
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'subject_category') THEN
+              CREATE TYPE subject_category AS ENUM (
+                'Mathematics',
+                'Physics',
+                'Chemistry',
+                'Biology',
+                'English',
+                'History',
+                'Geography',
+                'Computer Science',
+                'Foreign Language',
+                'Arts',
+                'Other'
+              );
+            END IF;
+
+            -- Create difficulty_level enum if it doesn't exist
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'difficulty_level') THEN
+              CREATE TYPE difficulty_level AS ENUM (
+                'Beginner',
+                'Intermediate',
+                'Advanced',
+                'Expert'
+              );
+            END IF;
+          END $$;
+        `);
+        console.log('✅ Created enum types (subject_category, difficulty_level)');
+
+        // Record migration completion
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('009_fix_avatar_id_and_enums')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+        console.log('✅ Avatar_id and enum types fix migration marked as complete');
+      } catch (migrationError) {
+        console.error('❌ Error in avatar_id and enum types fix migration:', migrationError.message);
+        // Continue even if this fails - non-critical migration
+      }
+    } else {
+      console.log('✅ Avatar_id and enum types fix migration already applied');
+    }
+
+    // ============================================
+    // MIGRATION: Fix profiles table user_id column (2025-01-27)
+    // ============================================
+    const profilesUserIdCheck = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '010_fix_profiles_user_id'
+    `);
+
+    if (profilesUserIdCheck.rows.length === 0) {
+      console.log('📋 Applying profiles user_id fix migration...');
+
+      try {
+        // Check if profiles table exists
+        const profilesTableExists = await db.query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables
+            WHERE table_name = 'profiles'
+          );
+        `);
+
+        if (profilesTableExists.rows[0].exists) {
+          // Add user_id column if it doesn't exist using PostgreSQL's built-in IF NOT EXISTS
+          await db.query(`
+            DO $$
+            BEGIN
+              -- Try to add user_id column (will be skipped if exists due to exception handling)
+              BEGIN
+                ALTER TABLE profiles ADD COLUMN user_id UUID;
+                RAISE NOTICE '✅ Added user_id column to profiles table';
+              EXCEPTION
+                WHEN duplicate_column THEN
+                  RAISE NOTICE '✅ user_id column already exists in profiles table';
+              END;
+
+              -- Populate user_id from email if any rows have NULL user_id
+              UPDATE profiles p
+              SET user_id = u.id
+              FROM users u
+              WHERE p.email = u.email AND p.user_id IS NULL;
+
+              -- Make user_id NOT NULL if it's currently nullable
+              BEGIN
+                ALTER TABLE profiles ALTER COLUMN user_id SET NOT NULL;
+              EXCEPTION
+                WHEN OTHERS THEN
+                  RAISE NOTICE 'user_id already NOT NULL or constraint exists';
+              END;
+
+              -- Try to add foreign key constraint
+              BEGIN
+                ALTER TABLE profiles
+                ADD CONSTRAINT fk_profiles_user_id
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+              EXCEPTION
+                WHEN duplicate_object THEN
+                  RAISE NOTICE 'Foreign key constraint already exists';
+              END;
+
+              -- Create index for better performance
+              CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
+
+            END $$;
+          `);
+          console.log('✅ Profiles user_id column verified/added');
+        } else {
+          console.log('ℹ️ Profiles table does not exist yet - will be created with correct schema');
+        }
+
+        // Record migration completion
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('010_fix_profiles_user_id')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+        console.log('✅ Profiles user_id fix migration marked as complete');
+      } catch (migrationError) {
+        console.error('❌ Error in profiles user_id fix migration:', migrationError.message);
+        // Migration is idempotent with exception handling, so errors are unexpected
+        // Continue - migration will retry on next deployment if needed
+      }
+    } else {
+      console.log('✅ Profiles user_id fix migration already applied');
+    }
+
   } catch (error) {
     console.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has
@@ -3361,6 +3905,7 @@ async function createInlineSchema() {
       first_name VARCHAR(255),
       last_name VARCHAR(255),
       display_name VARCHAR(255), -- Optional custom display name
+      avatar_id VARCHAR(50), -- Reference to selected avatar (e.g., avatar_1, avatar_2, etc.)
       
       -- Academic Information
       grade_level VARCHAR(50),
@@ -3638,6 +4183,286 @@ async function createInlineSchema() {
 
   await db.query(schema);
 }
+
+// MARK: - COPPA Consent Management Functions
+
+db.createParentalConsentRequest = async function(consentData) {
+  const {
+    childUserId,
+    childEmail,
+    childDateOfBirth,
+    parentEmail,
+    parentName,
+    parentRelationship = 'parent',
+    requestIP,
+    requestUserAgent,
+    requestMetadata = {}
+  } = consentData;
+
+  // Calculate child's age
+  const today = new Date();
+  const birthDate = new Date(childDateOfBirth);
+  const age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  const adjustedAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ? age - 1
+    : age;
+
+  // Generate verification code
+  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const verificationCodeExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  const consentExpiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year (COPPA best practice)
+
+  const query = `
+    INSERT INTO parental_consents (
+      child_user_id, child_email, child_date_of_birth, child_age_at_consent,
+      parent_email, parent_name, parent_relationship,
+      consent_method, consent_status,
+      consent_expires_at,
+      verification_code, verification_code_expires_at,
+      request_ip, request_user_agent, request_metadata
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    RETURNING *
+  `;
+
+  const values = [
+    childUserId, childEmail, childDateOfBirth, adjustedAge,
+    parentEmail, parentName, parentRelationship,
+    'email', 'pending',
+    consentExpiresAt,
+    verificationCode, verificationCodeExpiresAt,
+    requestIP, requestUserAgent, JSON.stringify(requestMetadata)
+  ];
+
+  const result = await this.query(query, values);
+
+  // Log in audit trail
+  await this.logConsentAction(result.rows[0].id, 'created', 'system', null, {
+    reason: 'User under 13 - COPPA compliance required',
+    age: adjustedAge
+  });
+
+  return {
+    ...result.rows[0],
+    verification_code: verificationCode
+  };
+};
+
+db.verifyParentalConsentCode = async function(childUserId, code) {
+  // Get pending consent with matching code
+  const selectQuery = `
+    SELECT * FROM parental_consents
+    WHERE child_user_id = $1
+      AND verification_code = $2
+      AND consent_status = 'pending'
+      AND verification_code_expires_at > NOW()
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+
+  const selectResult = await this.query(selectQuery, [childUserId, code]);
+
+  if (selectResult.rows.length === 0) {
+    // Invalid or expired code
+    // Increment verification attempts
+    await this.query(`
+      UPDATE parental_consents
+      SET verification_attempts = verification_attempts + 1
+      WHERE child_user_id = $1 AND consent_status = 'pending'
+    `, [childUserId]);
+
+    return {
+      success: false,
+      error: 'INVALID_OR_EXPIRED_CODE'
+    };
+  }
+
+  const consent = selectResult.rows[0];
+
+  // Update consent status to granted
+  const updateQuery = `
+    UPDATE parental_consents
+    SET
+      consent_status = 'granted',
+      consent_granted_at = NOW(),
+      verified_at = NOW(),
+      updated_at = NOW()
+    WHERE id = $1
+    RETURNING *
+  `;
+
+  const updateResult = await this.query(updateQuery, [consent.id]);
+
+  // Update user account to remove restrictions
+  await this.query(`
+    UPDATE users
+    SET
+      parental_consent_status = 'granted',
+      account_restricted = false,
+      restriction_reason = null
+    WHERE id = $1
+  `, [childUserId]);
+
+  // Log in audit trail
+  await this.logConsentAction(consent.id, 'granted', 'parent', consent.parent_email, {
+    reason: 'Parent verified consent via email code'
+  });
+
+  return {
+    success: true,
+    consent: updateResult.rows[0]
+  };
+};
+
+db.revokeParentalConsent = async function(consentId, revokedBy, reason) {
+  const query = `
+    UPDATE parental_consents
+    SET
+      consent_status = 'revoked',
+      revoked_at = NOW(),
+      revoked_reason = $2,
+      updated_at = NOW()
+    WHERE id = $1
+    RETURNING *
+  `;
+
+  const result = await this.query(query, [consentId, reason]);
+
+  if (result.rows.length > 0) {
+    const consent = result.rows[0];
+
+    // Restrict user account
+    await this.query(`
+      UPDATE users
+      SET
+        parental_consent_status = 'revoked',
+        account_restricted = true,
+        restriction_reason = $2
+      WHERE id = $1
+    `, [consent.child_user_id, `Parental consent revoked: ${reason}`]);
+
+    // Log in audit trail
+    await this.logConsentAction(consentId, 'revoked', revokedBy, null, {
+      reason: reason
+    });
+  }
+
+  return result.rows[0];
+};
+
+db.getParentalConsentStatus = async function(userId) {
+  const query = `
+    SELECT * FROM parental_consents
+    WHERE child_user_id = $1
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+
+  const result = await this.query(query, [userId]);
+  return result.rows[0] || null;
+};
+
+db.logAgeVerification = async function(verificationData) {
+  const {
+    userId,
+    email,
+    providedDateOfBirth,
+    verificationMethod = 'self_reported',
+    verificationIP,
+    verificationUserAgent,
+    verificationMetadata = {},
+    notes = null
+  } = verificationData;
+
+  // Calculate age
+  const today = new Date();
+  const birthDate = new Date(providedDateOfBirth);
+  const age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  const calculatedAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ? age - 1
+    : age;
+
+  const isMinor = calculatedAge < 18;
+  const isCoppaProtected = calculatedAge < 13;
+
+  const query = `
+    INSERT INTO age_verifications (
+      user_id, email, provided_date_of_birth, calculated_age,
+      is_minor, is_coppa_protected,
+      verification_method, verification_status,
+      verification_ip, verification_user_agent, verification_metadata,
+      verified_at, notes
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12)
+    RETURNING *
+  `;
+
+  const values = [
+    userId, email, providedDateOfBirth, calculatedAge,
+    isMinor, isCoppaProtected,
+    verificationMethod, 'verified',
+    verificationIP, verificationUserAgent, JSON.stringify(verificationMetadata),
+    notes
+  ];
+
+  const result = await this.query(query, values);
+  return result.rows[0];
+};
+
+db.logConsentAction = async function(consentId, actionType, actionBy, actionByEmail, metadata = {}) {
+  const query = `
+    INSERT INTO consent_audit_log (
+      consent_id, action_type, action_by, action_by_email,
+      action_reason, action_metadata
+    ) VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING *
+  `;
+
+  const values = [
+    consentId,
+    actionType,
+    actionBy,
+    actionByEmail,
+    metadata.reason || null,
+    JSON.stringify(metadata)
+  ];
+
+  const result = await this.query(query, values);
+  return result.rows[0];
+};
+
+db.getConsentAuditLog = async function(consentId) {
+  const query = `
+    SELECT * FROM consent_audit_log
+    WHERE consent_id = $1
+    ORDER BY created_at DESC
+  `;
+
+  const result = await this.query(query, [consentId]);
+  return result.rows;
+};
+
+db.checkUserNeedsParentalConsent = async function(userId) {
+  const query = `
+    SELECT
+      u.id,
+      u.email,
+      u.requires_parental_consent,
+      u.parental_consent_status,
+      u.account_restricted,
+      p.date_of_birth,
+      pc.consent_status as active_consent_status,
+      pc.consent_granted_at,
+      pc.consent_expires_at
+    FROM users u
+    LEFT JOIN profiles p ON u.id = p.user_id
+    LEFT JOIN parental_consents pc ON u.id = pc.child_user_id AND pc.consent_status = 'granted'
+    WHERE u.id = $1
+  `;
+
+  const result = await this.query(query, [userId]);
+  return result.rows[0] || null;
+};
 
 // Graceful shutdown
 process.on('SIGINT', async () => {

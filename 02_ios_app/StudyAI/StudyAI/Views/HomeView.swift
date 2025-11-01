@@ -24,6 +24,7 @@ struct HomeView: View {
     @State private var showingQuestionGeneration = false
     @State private var showingParentReports = false
     @State private var showingHomeworkAlbum = false  // NEW: Homework Album
+    @State private var showingFocusMode = false  // NEW: Focus Mode
 
     // ✅ Dark Mode Support: Detect current color scheme
     @Environment(\.colorScheme) var colorScheme
@@ -123,6 +124,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingHomeworkAlbum) {
                 HomeworkAlbumView()
+            }
+            .sheet(isPresented: $showingFocusMode) {
+                FocusView()
             }
             .sheet(isPresented: $showingParentAuthForChat) {
                 ParentAuthenticationView(
@@ -260,7 +264,7 @@ struct HomeView: View {
                     .buttonStyle(PlainButtonStyle())
                     .disabled(greetingVoice.isPreloading)
                     .frame(width: 90, alignment: .leading)  // Align to leading edge
-                    .offset(x: -8)  // Move further left
+                    .offset(x: -8, y: -8)  // Move further left and up
 
                     // Center: Greeting text - wider central area
                     VStack(spacing: 2) {
@@ -530,6 +534,16 @@ extension HomeView {
                 subtitle: NSLocalizedString("home.homeworkAlbumDescription", comment: ""),
                 color: colorScheme == .dark ? DesignTokens.Colors.rainbowPink.dark : DesignTokens.Colors.rainbowPink.light,
                 action: { showingHomeworkAlbum = true }
+            )
+            .padding(.horizontal, DesignTokens.Spacing.xl)
+
+            // Rainbow Card 9: Teal (Adaptive) - Focus Mode
+            HorizontalActionButton(
+                icon: "brain.head.profile",
+                title: NSLocalizedString("home.focusMode", comment: ""),
+                subtitle: NSLocalizedString("home.focusModeDescription", comment: ""),
+                color: Color(red: 0.2, green: 0.8, blue: 0.7),
+                action: { showingFocusMode = true }
             )
             .padding(.horizontal, DesignTokens.Spacing.xl)
         }

@@ -28,7 +28,8 @@ struct EditProfileView: View {
     @State private var learningStyle: String = ""
     @State private var timezone: String = "UTC"
     @State private var languagePreference: String = "en"
-    
+    @State private var selectedAvatarId: Int? = nil
+
     // UI state
     @State private var isLoading = false
     @State private var showingError = false
@@ -39,6 +40,9 @@ struct EditProfileView: View {
     var body: some View {
         NavigationView {
             Form {
+                // Avatar Selection Section
+                avatarSelectionSection
+
                 // Personal Information Section
                 personalInformationSection
                 
@@ -95,9 +99,53 @@ struct EditProfileView: View {
             }
         }
     }
-    
+
+    // MARK: - Avatar Selection Section
+
+    private var avatarSelectionSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(NSLocalizedString("editProfile.selectAvatar", comment: ""))
+                    .font(.headline)
+                    .foregroundColor(.primary)
+
+                Text(NSLocalizedString("editProfile.selectAvatarDescription", comment: ""))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                // Avatar Grid
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 16) {
+                    ForEach(ProfileAvatar.allCases, id: \.self) { avatar in
+                        Button(action: {
+                            selectedAvatarId = avatar.rawValue
+                        }) {
+                            Image(avatar.imageName)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 70, height: 70)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            selectedAvatarId == avatar.rawValue ? Color.blue : Color.clear,
+                                            lineWidth: 3
+                                        )
+                                )
+                                .shadow(
+                                    color: selectedAvatarId == avatar.rawValue ? .blue.opacity(0.3) : .clear,
+                                    radius: 5
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 8)
+            }
+        }
+    }
+
     // MARK: - Personal Information Section
-    
+
     private var personalInformationSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 16) {
@@ -380,6 +428,7 @@ struct EditProfileView: View {
             learningStyle = profile.learningStyle ?? ""
             timezone = profile.timezone ?? "UTC"
             languagePreference = profile.languagePreference ?? "en"
+            selectedAvatarId = profile.avatarId
 
             print("✅ [EditProfileView] Profile loaded into @State variables")
             print("   - @State city: \(city)")
@@ -447,7 +496,8 @@ struct EditProfileView: View {
             timezone: timezone,
             languagePreference: languagePreference,
             profileCompletionPercentage: 0, // Will be calculated by server
-            lastUpdated: Date()
+            lastUpdated: Date(),
+            avatarId: selectedAvatarId
         )
         
         do {

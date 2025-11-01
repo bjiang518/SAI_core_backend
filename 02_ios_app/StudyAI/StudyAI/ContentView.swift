@@ -40,8 +40,15 @@ enum MainTab: Int, CaseIterable {
 struct ContentView: View {
     @StateObject private var authService = AuthenticationService.shared
     @StateObject private var sessionManager = SessionManager.shared  // ✅ NEW: Session management
+    @StateObject private var networkService = NetworkService.shared
     @Environment(\.scenePhase) private var scenePhase  // ✅ NEW: Monitor app lifecycle
     @State private var showingFaceIDReauth = false  // ✅ NEW: Face ID re-auth sheet
+
+    // COPPA Parental Consent
+    @State private var showingParentalConsent = false
+    @State private var requiresParentalConsent = false
+    @State private var isCheckingConsent = false
+    @State private var hasCheckedConsentOnce = false
 
     var body: some View {
         Group {
@@ -51,6 +58,19 @@ struct ContentView: View {
                 })
                 .onAppear {
                     // MainTabView appeared
+                }
+                .fullScreenCover(isPresented: $showingParentalConsent) {
+                    ParentalConsentView(
+                        childEmail: authService.currentUser?.email ?? "",
+                        childDateOfBirth: getUserDateOfBirth(),
+                        onConsentGranted: {
+                            // Consent granted - dismiss and refresh
+                            showingParentalConsent = false
+                            requiresParentalConsent = false
+
+                            // User data will be updated automatically after consent verification
+                        }
+                    )
                 }
             } else {
                 ModernLoginView(onLoginSuccess: {
@@ -81,9 +101,63 @@ struct ContentView: View {
                 showingFaceIDReauth = true
             }
         }
-        .onAppear {
-            // ContentView appeared
+        .onChange(of: authService.isAuthenticated) { _, isAuthenticated in
+            // Check parental consent when user authenticates
+            if isAuthenticated {
+                checkParentalConsent()
+            } else {
+                // Reset consent state on logout
+                hasCheckedConsentOnce = false
+                requiresParentalConsent = false
+            }
         }
+        .onAppear {
+            // ContentView appeared - check consent if authenticated
+            if authService.isAuthenticated && !hasCheckedConsentOnce {
+                checkParentalConsent()
+            }
+        }
+    }
+
+    // MARK: - Parental Consent Check
+
+    private func checkParentalConsent() {
+        guard !isCheckingConsent && !hasCheckedConsentOnce else { return }
+
+        isCheckingConsent = true
+        hasCheckedConsentOnce = true
+
+        print("🔍 [ContentView] Checking parental consent status...")
+
+        Task {
+            let result = await networkService.checkConsentStatus()
+
+            await MainActor.run {
+                isCheckingConsent = false
+
+                print("📋 [ContentView] Consent check result: requires=\(result.requiresConsent), status=\(result.consentStatus ?? "none"), restricted=\(result.isRestricted)")
+
+                // Show consent screen if:
+                // 1. User requires parental consent AND
+                // 2. Consent is not yet granted (pending, required, or denied)
+                if result.requiresConsent && result.isRestricted {
+                    let needsConsent = result.consentStatus != "granted"
+                    if needsConsent {
+                        print("⚠️ [ContentView] Parental consent required - showing consent screen")
+                        requiresParentalConsent = true
+                        showingParentalConsent = true
+                    } else {
+                        print("✅ [ContentView] Parental consent already granted")
+                    }
+                }
+            }
+        }
+    }
+
+    private func getUserDateOfBirth() -> String? {
+        // Date of birth is verified on the backend based on profile data
+        // Pass nil here - backend will use stored profile information
+        return nil
     }
 
     // MARK: - App Lifecycle Handling
@@ -222,8 +296,8 @@ struct MainTabView: View {
 
 struct ModernProfileView: View {
     let onLogout: () -> Void
-    @StateObject private var authService = AuthenticationService.shared
-    @StateObject private var profileService = ProfileService.shared
+    @ObservedObject private var authService = AuthenticationService.shared
+    @ObservedObject private var profileService = ProfileService.shared
     @State private var showingBiometricSetup = false
     @State private var showingEditProfile = false
     @State private var showingLearningGoals = false
@@ -231,126 +305,118 @@ struct ModernProfileView: View {
     @State private var showingNotificationSettings = false
     @State private var showingLanguageSettings = false
     @State private var showingPasswordManagement = false
+    @State private var showingParentControls = false
     @State private var showingHelpCenter = false
     @State private var showingContactSupport = false
     @State private var showingShareSheet = false
     @State private var showingStorageControl = false
+    @State private var showingPrivacySettings = false
 
     var body: some View {
         NavigationView {
             List {
-                // User Profile Section
+                // PROFILE HEADER SECTION (Tappable to Edit Profile)
                 Section {
-                    HStack(spacing: 16) {
-                        // Profile Image
-                        ZStack {
-                            Circle()
-                                .fill(LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ))
-                                .frame(width: 60, height: 60)
-                            
-                            if let user = authService.currentUser {
-                                Text(String(user.name.prefix(1)))
-                                    .font(.title)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                            } else {
-                                Image(systemName: "person.fill")
-                                    .font(.title)
-                                    .foregroundColor(.white)
-                            }
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            // Display full name from profile if available
-                            if let profile = profileService.currentProfile {
-                                Text(profile.fullName)
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                            } else {
-                                Text(authService.currentUser?.name ?? "User")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                            }
-                            
-                            Text(authService.currentUser?.email ?? "user@example.com")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            // Auth provider badge
-                            if let provider = authService.currentUser?.authProvider {
-                                HStack(spacing: 4) {
-                                    Image(systemName: authProviderIcon(provider))
-                                        .font(.caption)
-                                    Text(provider.rawValue.capitalized)
-                                        .font(.caption)
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 2)
-                                .background(Color.blue.opacity(0.1))
-                                .foregroundColor(.blue)
-                                .cornerRadius(8)
-                            }
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding(.vertical, 8)
-                }
-                
-                // Account Section
-                Section(NSLocalizedString("settings.account", comment: "")) {
                     Button(action: { showingEditProfile = true }) {
-                        SettingsRow(
-                            icon: "person.crop.circle.fill",
-                            title: NSLocalizedString("settings.editProfile", comment: ""),
-                            color: .blue
-                        )
-                    }
-                    .buttonStyle(.plain)
+                        HStack(spacing: 16) {
+                            // Profile Image / Avatar
+                            if let profile = profileService.currentProfile,
+                               let avatarId = profile.avatarId,
+                               let avatar = ProfileAvatar.from(id: avatarId) {
+                                // Display selected avatar
+                                Image(avatar.imageName)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(Circle())
+                            } else {
+                                // Fallback to gradient circle with initial
+                                ZStack {
+                                    Circle()
+                                        .fill(LinearGradient(
+                                            colors: [.blue, .purple],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ))
+                                        .frame(width: 60, height: 60)
 
-                    Button(action: onLogout) {
-                        HStack {
-                            Image(systemName: "arrow.right.square.fill")
-                                .foregroundColor(.red)
-                                .frame(width: 20)
-                            Text(NSLocalizedString("settings.signOut", comment: ""))
-                                .foregroundColor(.red)
-                        }
-                    }
-                }
-                
-                // Security Section
-                Section(NSLocalizedString("settings.security", comment: "")) {
-                    if authService.getBiometricType() != "None" {
-                        HStack {
-                            SettingsRow(
-                                icon: authService.getBiometricType() == "Face ID" ? "faceid" : "touchid",
-                                title: "\(authService.getBiometricType()) \(NSLocalizedString("profile.biometricLogin", comment: ""))",
-                                color: .green
-                            )
+                                    if let user = authService.currentUser {
+                                        Text(String(user.name.prefix(1)))
+                                            .font(.title)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.white)
+                                    } else {
+                                        Image(systemName: "person.fill")
+                                            .font(.title)
+                                            .foregroundColor(.white)
+                                    }
+                                }
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                // Display full name from profile if available
+                                if let profile = profileService.currentProfile {
+                                    Text(profile.fullName)
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.primary)
+                                } else {
+                                    Text(authService.currentUser?.name ?? "User")
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.primary)
+                                }
+
+                                Text(authService.currentUser?.email ?? "user@example.com")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+
+                                // Auth provider badge
+                                if let provider = authService.currentUser?.authProvider {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: authProviderIcon(provider))
+                                            .font(.caption)
+                                        Text(provider.rawValue.capitalized)
+                                            .font(.caption)
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(Color.blue.opacity(0.1))
+                                    .foregroundColor(.blue)
+                                    .cornerRadius(8)
+                                }
+                            }
 
                             Spacer()
 
-                            Toggle("", isOn: .constant(authService.canUseBiometrics()))
-                                .disabled(true)
+                            // Chevron to indicate tappable
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
+                        .padding(.vertical, 8)
                     }
+                    .buttonStyle(.plain)
+                }
 
+                // STUDY SETTINGS SECTION (Voice + Learning Goals combined)
+                Section(NSLocalizedString("settings.studySettings", comment: "Study Settings")) {
                     Button(action: {
-                        showingPasswordManagement = true
+                        showingVoiceSettings = true
                     }) {
-                        SettingsRow(icon: "key.fill", title: NSLocalizedString("settings.passwordManager", comment: ""), color: .blue)
+                        SettingsRow(icon: "waveform", title: NSLocalizedString("settings.voiceSettings", comment: ""), color: .indigo)
                     }
                     .buttonStyle(.plain)
 
-                    SettingsRow(icon: "lock.shield.fill", title: NSLocalizedString("settings.privacySettings", comment: ""), color: .orange)
+                    Button(action: {
+                        showingLearningGoals = true
+                    }) {
+                        SettingsRow(icon: "target", title: NSLocalizedString("settings.learningGoals", comment: ""), color: .red)
+                    }
+                    .buttonStyle(.plain)
                 }
-                
-                // App Settings Section
+
+                // APP SETTINGS SECTION
                 Section(NSLocalizedString("settings.appSettings", comment: "")) {
                     Button(action: {
                         showingNotificationSettings = true
@@ -376,27 +442,46 @@ struct ModernProfileView: View {
                     .buttonStyle(.plain)
                 }
 
-                // Voice & Audio Section
-                Section(NSLocalizedString("settings.voiceAudio", comment: "")) {
+                // SECURITY SECTION
+                Section(NSLocalizedString("settings.security", comment: "")) {
+                    if authService.getBiometricType() != "None" {
+                        HStack {
+                            SettingsRow(
+                                icon: authService.getBiometricType() == "Face ID" ? "faceid" : "touchid",
+                                title: "\(authService.getBiometricType()) \(NSLocalizedString("profile.biometricLogin", comment: ""))",
+                                color: .green
+                            )
+
+                            Spacer()
+
+                            Toggle("", isOn: .constant(authService.canUseBiometrics()))
+                                .disabled(true)
+                        }
+                    }
+
                     Button(action: {
-                        showingVoiceSettings = true
+                        showingPasswordManagement = true
                     }) {
-                        SettingsRow(icon: "waveform", title: NSLocalizedString("settings.voiceSettings", comment: ""), color: .indigo)
+                        SettingsRow(icon: "key.fill", title: NSLocalizedString("settings.passwordManager", comment: ""), color: .blue)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: {
+                        showingParentControls = true
+                    }) {
+                        SettingsRow(icon: "person.2.fill", title: NSLocalizedString("settings.parentControls", comment: ""), color: .purple)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: {
+                        showingPrivacySettings = true
+                    }) {
+                        SettingsRow(icon: "lock.shield.fill", title: NSLocalizedString("settings.privacySettings", comment: ""), color: .orange)
                     }
                     .buttonStyle(.plain)
                 }
 
-                // Learning Section
-                Section(NSLocalizedString("settings.learning", comment: "")) {
-                    Button(action: {
-                        showingLearningGoals = true
-                    }) {
-                        SettingsRow(icon: "target", title: NSLocalizedString("settings.learningGoals", comment: ""), color: .red)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                // Support Section
+                // SUPPORT SECTION
                 Section(NSLocalizedString("settings.support", comment: "")) {
                     Button(action: {
                         showingHelpCenter = true
@@ -426,8 +511,23 @@ struct ModernProfileView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                
-                // App Info Section
+
+                // SIGN OUT SECTION (separate at bottom)
+                Section {
+                    Button(action: onLogout) {
+                        HStack {
+                            Image(systemName: "arrow.right.square.fill")
+                                .foregroundColor(.red)
+                                .frame(width: 20)
+                            Text(NSLocalizedString("settings.signOut", comment: ""))
+                                .foregroundColor(.red)
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                // APP INFO SECTION
                 Section {
                     VStack(spacing: 8) {
                         Text("StudyMates v1.0")
@@ -456,6 +556,14 @@ struct ModernProfileView: View {
         .sheet(isPresented: $showingEditProfile) {
             EditProfileView()
         }
+        .onChange(of: showingEditProfile) { oldValue, newValue in
+            // Reload profile when returning from Edit Profile
+            if oldValue == true && newValue == false {
+                Task {
+                    try? await profileService.getUserProfile()
+                }
+            }
+        }
         .sheet(isPresented: $showingLearningGoals) {
             LearningGoalsSettingsView()
         }
@@ -474,6 +582,16 @@ struct ModernProfileView: View {
         .sheet(isPresented: $showingPasswordManagement) {
             PasswordManagementView()
         }
+        .sheet(isPresented: $showingParentControls) {
+            ParentAuthenticationView(
+                title: "Parent Controls",
+                message: "Verify parental access to manage settings",
+                onSuccess: {
+                    // Parent authenticated - show controls
+                    showingParentControls = false
+                }
+            )
+        }
         .sheet(isPresented: $showingHelpCenter) {
             HelpCenterView()
         }
@@ -482,6 +600,9 @@ struct ModernProfileView: View {
         }
         .sheet(isPresented: $showingShareSheet) {
             ShareAppView()
+        }
+        .sheet(isPresented: $showingPrivacySettings) {
+            PrivacySettingsView()
         }
     }
 

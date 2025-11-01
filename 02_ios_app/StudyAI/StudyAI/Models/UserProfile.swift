@@ -33,7 +33,8 @@ struct UserProfile: Codable {
     let languagePreference: String?
     let profileCompletionPercentage: Int
     let lastUpdated: Date?
-    
+    let avatarId: Int? // Profile avatar selection (1-6)
+
     // Computed properties for display
     var fullName: String {
         if let firstName = firstName, let lastName = lastName {
@@ -72,7 +73,7 @@ struct UserProfile: Codable {
         case dateOfBirth, kidsAges, gender, city
         case stateProvince = "stateProvince"
         case country, favoriteSubjects, learningStyle, timezone, languagePreference
-        case profileCompletionPercentage, lastUpdated
+        case profileCompletionPercentage, lastUpdated, avatarId
     }
     
     // Custom date handling for JSON
@@ -108,7 +109,8 @@ struct UserProfile: Codable {
         timezone = try container.decodeIfPresent(String.self, forKey: .timezone)
         languagePreference = try container.decodeIfPresent(String.self, forKey: .languagePreference)
         profileCompletionPercentage = try container.decodeIfPresent(Int.self, forKey: .profileCompletionPercentage) ?? 0
-        
+        avatarId = try container.decodeIfPresent(Int.self, forKey: .avatarId)
+
         // Handle lastUpdated date
         if let lastUpdatedString = try container.decodeIfPresent(String.self, forKey: .lastUpdated) {
             let formatter = ISO8601DateFormatter()
@@ -148,7 +150,8 @@ struct UserProfile: Codable {
         try container.encodeIfPresent(timezone, forKey: .timezone)
         try container.encodeIfPresent(languagePreference, forKey: .languagePreference)
         try container.encode(profileCompletionPercentage, forKey: .profileCompletionPercentage)
-        
+        try container.encodeIfPresent(avatarId, forKey: .avatarId)
+
         // Handle lastUpdated encoding
         if let lastUpdated = lastUpdated {
             let formatter = ISO8601DateFormatter()
@@ -174,6 +177,7 @@ struct ProfileUpdateRequest: Codable {
     let learningStyle: String?
     let timezone: String?
     let languagePreference: String?
+    let avatarId: Int?
     
     init(from profile: UserProfile) {
         self.firstName = profile.firstName
@@ -199,6 +203,7 @@ struct ProfileUpdateRequest: Codable {
         self.learningStyle = profile.learningStyle
         self.timezone = profile.timezone
         self.languagePreference = profile.languagePreference
+        self.avatarId = profile.avatarId
     }
 }
 
@@ -415,6 +420,18 @@ extension UserProfile {
             gradeLevel = gradeLevelStr
         }
 
+        // Parse avatarId - handle multiple numeric types (Int, NSNumber, String)
+        var avatarId: Int?
+        if let value = dict["avatarId"] ?? dict["avatar_id"] {
+            if let intValue = value as? Int {
+                avatarId = intValue
+            } else if let numberValue = value as? NSNumber {
+                avatarId = numberValue.intValue
+            } else if let stringValue = value as? String, let intValue = Int(stringValue) {
+                avatarId = intValue
+            }
+        }
+
         return UserProfile(
             id: id,
             email: email,
@@ -436,7 +453,8 @@ extension UserProfile {
             timezone: dict["timezone"] as? String ?? "UTC",
             languagePreference: dict["languagePreference"] as? String ?? dict["language_preference"] as? String ?? "en",
             profileCompletionPercentage: dict["profileCompletionPercentage"] as? Int ?? dict["profile_completion_percentage"] as? Int ?? 0,
-            lastUpdated: lastUpdated
+            lastUpdated: lastUpdated,
+            avatarId: avatarId  // Use the parsed avatarId variable
         )
     }
     
@@ -501,7 +519,10 @@ extension UserProfile {
             let formatter = ISO8601DateFormatter()
             dict["lastUpdated"] = formatter.string(from: lastUpdated)
         }
-        
+        if let avatarId = avatarId {
+            dict["avatarId"] = avatarId
+        }
+
         return dict
     }
     
@@ -527,7 +548,8 @@ extension UserProfile {
         timezone: String = "UTC",
         languagePreference: String = "en",
         profileCompletionPercentage: Int = 0,
-        lastUpdated: Date? = nil
+        lastUpdated: Date? = nil,
+        avatarId: Int? = nil
     ) {
         self.id = id
         self.email = email
@@ -550,6 +572,7 @@ extension UserProfile {
         self.languagePreference = languagePreference
         self.profileCompletionPercentage = profileCompletionPercentage
         self.lastUpdated = lastUpdated
+        self.avatarId = avatarId
     }
 }
 
@@ -584,5 +607,36 @@ extension ProfileCompletion {
             let fallbackData = try! JSONSerialization.data(withJSONObject: fallbackDict)
             return try! JSONDecoder().decode(ProfileCompletion.self, from: fallbackData)
         }
+    }
+}
+
+// MARK: - Profile Avatar
+
+enum ProfileAvatar: Int, CaseIterable {
+    case knight = 1
+    case astronaut = 2
+    case superhero = 3
+    case pirate = 4
+    case wizard = 5
+    case explorer = 6
+
+    var imageName: String {
+        return "\(self.rawValue)"
+    }
+
+    var displayName: String {
+        switch self {
+        case .knight: return NSLocalizedString("avatar.knight", comment: "")
+        case .astronaut: return NSLocalizedString("avatar.astronaut", comment: "")
+        case .superhero: return NSLocalizedString("avatar.superhero", comment: "")
+        case .pirate: return NSLocalizedString("avatar.pirate", comment: "")
+        case .wizard: return NSLocalizedString("avatar.wizard", comment: "")
+        case .explorer: return NSLocalizedString("avatar.explorer", comment: "")
+        }
+    }
+
+    static func from(id: Int?) -> ProfileAvatar? {
+        guard let id = id else { return nil }
+        return ProfileAvatar(rawValue: id)
     }
 }

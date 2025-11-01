@@ -18,16 +18,11 @@ class LaTeXPostProcessor {
     func processAIOutput(_ input: String) -> String {
         var processed = input
 
-        print("🔧 === LaTeX POST-PROCESSING DEBUG ===")
-        print("📄 Input length: \(input.count)")
-        print("📄 Raw input: '\(input)'")
-
         // STEP 0: Preserve LaTeX environments (don't strip delimiters from environments)
         // Check if the input contains LaTeX environments
         let hasLaTeXEnvironment = input.range(of: "\\\\begin\\{", options: .regularExpression) != nil
 
         if hasLaTeXEnvironment {
-            print("🔍 Detected LaTeX environment - preserving structure")
             // For LaTeX environments, we want to keep them intact and let SimpleMathRenderer handle them
             // Just clean up the display math delimiters around the environment if present
             processed = processed.replacingOccurrences(
@@ -35,14 +30,11 @@ class LaTeXPostProcessor {
                 with: "$1",
                 options: .regularExpression
             )
-            print("✅ LaTeX environment preserved")
-            print("📄 Output: '\(processed)'")
             return processed
         }
 
         // Step 1: Handle mixed dollar sign format (legacy cleanup)
         // Fix cases like: "function$f$(x) = 2x$^2" → "function \\(f(x) = 2x^2\\)"
-        let beforeLegacyFix = processed
 
         // First, handle isolated dollar signs with variables/expressions
         processed = processed.replacingOccurrences(
@@ -65,37 +57,19 @@ class LaTeXPostProcessor {
             options: .regularExpression
         )
 
-        if beforeLegacyFix != processed {
-            print("🔄 Step 1a - Legacy dollar sign fix:")
-            print("   Before: '\(beforeLegacyFix)'")
-            print("   After:  '\(processed)'")
-        }
-
         // Step 1b: Convert display math \[ ... \] to clean format with line breaks
-        let beforeDisplayMath = processed
         processed = processed.replacingOccurrences(
             of: "\\\\\\[([\\s\\S]*?)\\\\\\]",
             with: "\n\n$1\n\n",
             options: .regularExpression
         )
-        if beforeDisplayMath != processed {
-            print("🔄 Step 1 - Display math conversion:")
-            print("   Before: '\(beforeDisplayMath)'")
-            print("   After:  '\(processed)'")
-        }
 
         // Step 2: Convert inline math \( ... \) to clean format
-        let beforeInlineMath = processed
         processed = processed.replacingOccurrences(
             of: "\\\\\\(([^\\)]*?)\\\\\\)",
             with: "$1",
             options: .regularExpression
         )
-        if beforeInlineMath != processed {
-            print("🔄 Step 2 - Inline math conversion:")
-            print("   Before: '\(beforeInlineMath)'")
-            print("   After:  '\(processed)'")
-        }
 
         // Step 3: Convert common LaTeX symbols to Unicode equivalents
         let mathSymbols: [String: String] = [
@@ -117,41 +91,17 @@ class LaTeXPostProcessor {
         ]
 
         for (pattern, replacement) in mathSymbols {
-            let beforeSymbol = processed
             processed = processed.replacingOccurrences(
                 of: pattern,
                 with: replacement,
                 options: .regularExpression
             )
-            if beforeSymbol != processed {
-                print("🔄 Step 3 - Symbol conversion (\(pattern)):")
-                print("   Before: '\(beforeSymbol)'")
-                print("   After:  '\(processed)'")
-            }
         }
 
         // Clean up remaining braces and backslashes
-        let beforeCleanup = processed
         processed = processed.replacingOccurrences(of: "\\{", with: "")
         processed = processed.replacingOccurrences(of: "\\}", with: "")
         processed = processed.replacingOccurrences(of: "\\\\", with: "")
-        if beforeCleanup != processed {
-            print("🔄 Step 4 - Cleanup braces and backslashes:")
-            print("   Before: '\(beforeCleanup)'")
-            print("   After:  '\(processed)'")
-        }
-
-        print("✅ Post-processing complete")
-        print("📄 Final output: '\(processed)'")
-        print("📏 Final length: \(processed.count)")
-        print("🎯 === MATH RENDERING TOOL: Plain Text with LaTeX Post-Processing ===")
-        print("🛠️ Tool Details:")
-        print("   - Renderer: SwiftUI Text view")
-        print("   - Post-processor: LaTeXPostProcessor")
-        print("   - Math symbols: Unicode conversion")
-        print("   - Layout: .fixedSize(horizontal: false, vertical: true)")
-        print("   - Selection: .textSelection(.enabled)")
-        print("=======================================================")
 
         return processed
     }
@@ -285,11 +235,6 @@ struct SmartMathRenderer: View {
         
         // Use the original MathFormattedText with post-processed content
         MathFormattedText(processedContent, fontSize: fontSize)
-            .onAppear {
-                if LaTeXPostProcessor.shared.needsPostProcessing(content) {
-                    print("🔄 Applied LaTeX post-processing to message")
-                }
-            }
     }
 }
 
@@ -351,9 +296,6 @@ class SimpleMathRenderer {
     // MARK: - Main Rendering Function
 
     static func renderMathText(_ input: String) -> String {
-        print("🧮 === SIMPLE MATH RENDERER DEBUG ===")
-        print("📄 Input: '\(input)'")
-
         var rendered = input
 
         // PHASE 0: Handle LaTeX environments FIRST (before removing delimiters)
@@ -371,7 +313,6 @@ class SimpleMathRenderer {
                 if let contentRange = Range(match.range(at: 1), in: rendered),
                    let fullRange = Range(match.range(at: 0), in: rendered) {
                     let alignContent = String(rendered[contentRange])
-                    print("🔍 Found align environment: '\(alignContent)'")
 
                     // Process align content: split by \\, handle & alignment
                     let lines = alignContent.components(separatedBy: "\\\\")
@@ -384,11 +325,10 @@ class SimpleMathRenderer {
 
                     let processedAlign = "\n" + lines.joined(separator: "\n") + "\n"
                     rendered.replaceSubrange(fullRange, with: processedAlign)
-                    print("✅ Processed align environment: '\(processedAlign)'")
                 }
             }
         } catch {
-            print("❌ Align environment regex error: \(error)")
+            // Silently fail on regex error
         }
 
         // Handle \begin{equation} ... \end{equation} environments
@@ -404,14 +344,12 @@ class SimpleMathRenderer {
                 if let contentRange = Range(match.range(at: 1), in: rendered),
                    let fullRange = Range(match.range(at: 0), in: rendered) {
                     let eqContent = String(rendered[contentRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-                    print("🔍 Found equation environment: '\(eqContent)'")
                     let processedEq = "\n" + eqContent + "\n"
                     rendered.replaceSubrange(fullRange, with: processedEq)
-                    print("✅ Processed equation environment: '\(processedEq)'")
                 }
             }
         } catch {
-            print("❌ Equation environment regex error: \(error)")
+            // Silently fail on regex error
         }
 
         // Handle \begin{gather} ... \end{gather} environments
@@ -427,7 +365,6 @@ class SimpleMathRenderer {
                 if let contentRange = Range(match.range(at: 1), in: rendered),
                    let fullRange = Range(match.range(at: 0), in: rendered) {
                     let gatherContent = String(rendered[contentRange])
-                    print("🔍 Found gather environment: '\(gatherContent)'")
 
                     // Process gather content: split by \\
                     let lines = gatherContent.components(separatedBy: "\\\\")
@@ -436,24 +373,32 @@ class SimpleMathRenderer {
 
                     let processedGather = "\n" + lines.joined(separator: "\n") + "\n"
                     rendered.replaceSubrange(fullRange, with: processedGather)
-                    print("✅ Processed gather environment: '\(processedGather)'")
                 }
             }
         } catch {
-            print("❌ Gather environment regex error: \(error)")
+            // Silently fail on regex error
         }
+
+        // Remove LaTeX delimiters FIRST (before handling \\ line breaks)
+        // This prevents \\( and \\) from being split by the line break conversion
+
+        // Display math delimiters (keep line breaks for display equations)
+        rendered = rendered.replacingOccurrences(of: "\\[", with: "\n\n")
+        rendered = rendered.replacingOccurrences(of: "\\]", with: "\n\n")
+
+        // Inline math delimiters - handle double-escaped versions
+        rendered = rendered.replacingOccurrences(of: "\\\\(", with: "")
+        rendered = rendered.replacingOccurrences(of: "\\\\)", with: "")
+
+        // Then handle single-escaped versions
+        rendered = rendered.replacingOccurrences(of: "\\(", with: "")
+        rendered = rendered.replacingOccurrences(of: "\\)", with: "")
 
         // Handle remaining \\ line breaks in equations (outside of environments)
         rendered = rendered.replacingOccurrences(of: "\\\\", with: "\n")
 
         // Handle remaining & alignment signs (convert to spacing)
         rendered = rendered.replacingOccurrences(of: "&", with: "  ")
-
-        // Remove LaTeX delimiters
-        rendered = rendered.replacingOccurrences(of: "\\[", with: "")
-        rendered = rendered.replacingOccurrences(of: "\\]", with: "")
-        rendered = rendered.replacingOccurrences(of: "\\(", with: "")
-        rendered = rendered.replacingOccurrences(of: "\\)", with: "")
 
         // PHASE 1: Handle subscripts FIRST (before superscripts to support combined notation like x_i^2)
 
@@ -471,12 +416,11 @@ class SimpleMathRenderer {
 
                     if let fullRange = Range(match.range(at: 0), in: rendered) {
                         rendered.replaceSubrange(fullRange, with: subscriptStr)
-                        print("🔄 Converted braced subscript: _{\\(digits)} → \\(subscriptStr)")
                     }
                 }
             }
         } catch {
-            print("❌ Braced subscript regex error: \(error)")
+            // Silently fail on regex error
         }
 
         // Simple subscripts: _2 → ₂, _0 → ₀, log_2 → log₂
@@ -486,11 +430,7 @@ class SimpleMathRenderer {
         ]
 
         for (pattern, replacement) in simpleSubscripts {
-            let beforeConversion = rendered
             rendered = rendered.replacingOccurrences(of: pattern, with: replacement)
-            if beforeConversion != rendered {
-                print("🔄 Converted simple subscript: \(pattern) → \(replacement)")
-            }
         }
 
         // PHASE 2: Enhanced superscript support (multi-digit)
@@ -509,12 +449,11 @@ class SimpleMathRenderer {
 
                     if let fullRange = Range(match.range(at: 0), in: rendered) {
                         rendered.replaceSubrange(fullRange, with: superscriptStr)
-                        print("🔄 Converted braced superscript: ^{\\(digits)} → \\(superscriptStr)")
                     }
                 }
             }
         } catch {
-            print("❌ Braced superscript regex error: \(error)")
+            // Silently fail on regex error
         }
 
         // Convert LaTeX commands to Unicode
@@ -566,20 +505,12 @@ class SimpleMathRenderer {
         ]
 
         for (pattern, replacement) in conversions {
-            let beforeConversion = rendered
             rendered = rendered.replacingOccurrences(
                 of: pattern,
                 with: replacement,
                 options: .regularExpression
             )
-            if beforeConversion != rendered {
-                print("🔄 Converted '\(pattern)' -> '\(replacement)'")
-                print("   Result: '\(rendered)'")
-            }
         }
-
-        print("✅ Final rendered text: '\(rendered)'")
-        print("=====================================")
 
         return rendered
     }

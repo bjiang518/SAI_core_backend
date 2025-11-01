@@ -7,6 +7,7 @@
 const ReportExportService = require('../../services/report-export-service');
 const ReportNarrativeService = require('../../services/report-narrative-service');
 const { db } = require('../../utils/railway-database');
+const DataAnonymization = require('../../utils/data-anonymization');  // GDPR: Data anonymization for analytics
 
 class ParentReportsRoutes {
     constructor(fastify) {
@@ -248,6 +249,22 @@ class ParentReportsRoutes {
                 tags: ['Reports']
             }
         }, this.getReportAnalytics.bind(this));
+
+        // Get anonymized analytics data (GDPR-compliant)
+        this.fastify.get('/api/reports/analytics/anonymized', {
+            schema: {
+                description: 'Get GDPR-compliant anonymized analytics (no PII)',
+                tags: ['Reports', 'Privacy', 'Analytics'],
+                querystring: {
+                    type: 'object',
+                    properties: {
+                        startDate: { type: 'string', format: 'date' },
+                        endDate: { type: 'string', format: 'date' },
+                        reportType: { type: 'string', enum: ['weekly', 'monthly', 'custom', 'progress'] }
+                    }
+                }
+            }
+        }, this.getAnonymizedAnalytics.bind(this));
     }
 
 
@@ -1411,6 +1428,131 @@ class ParentReportsRoutes {
                 success: false,
                 error: 'Failed to retrieve student narratives',
                 code: 'STUDENT_NARRATIVES_RETRIEVAL_ERROR',
+                details: error.message
+            });
+        }
+    }
+
+    /**
+     * Get anonymized analytics data (GDPR-compliant)
+     * Removes all PII while preserving statistical insights
+     */
+    async getAnonymizedAnalytics(request, reply) {
+        try {
+            const { startDate, endDate, reportType } = request.query;
+
+            this.fastify.log.info('📊 === ANONYMIZED ANALYTICS REQUEST ===');
+            this.fastify.log.info(`📅 Date range: ${startDate || 'all'} to ${endDate || 'all'}`);
+            this.fastify.log.info(`📋 Report type: ${reportType || 'all'}`);
+
+            // Get authenticated user ID
+            const authenticatedUserId = await this.getUserIdFromToken(request);
+            if (!authenticatedUserId) {
+                return reply.status(401).send({
+                    success: false,
+                    error: 'Authentication required',
+                    code: 'AUTHENTICATION_REQUIRED'
+                });
+            }
+
+            // Build query for fetching reports
+            let reportQuery = `
+                SELECT
+                    pr.id as report_id,
+                    pr.user_id,
+                    pr.report_type,
+                    pr.start_date,
+                    pr.end_date,
+                    pr.report_data,
+                    pr.generation_time_ms,
+                    pr.created_at
+                FROM parent_reports pr
+                WHERE pr.status = 'completed'
+            `;
+
+            const queryParams = [];
+            let paramCount = 1;
+
+            // Add date filters if provided
+            if (startDate) {
+                reportQuery += ` AND pr.created_at >= $${paramCount}`;
+                queryParams.push(new Date(startDate));
+                paramCount++;
+            }
+
+            if (endDate) {
+                reportQuery += ` AND pr.created_at <= $${paramCount}`;
+                queryParams.push(new Date(endDate));
+                paramCount++;
+            }
+
+            // Add report type filter if provided
+            if (reportType) {
+                reportQuery += ` AND pr.report_type = $${paramCount}`;
+                queryParams.push(reportType);
+                paramCount++;
+            }
+
+            reportQuery += ` ORDER BY pr.created_at DESC LIMIT 1000`;
+
+            this.fastify.log.info(`📊 Fetching reports for anonymization...`);
+            const reportsResult = await db.query(reportQuery, queryParams);
+
+            this.fastify.log.info(`📊 Found ${reportsResult.rows.length} reports`);
+
+            // Anonymize all reports
+            const anonymizedReports = reportsResult.rows.map(report => {
+                // Parse report_data if it's a string
+                let reportData = report.report_data;
+                if (typeof reportData === 'string') {
+                    try {
+                        reportData = JSON.parse(reportData);
+                    } catch (e) {
+                        this.fastify.log.warn(`⚠️ Failed to parse report_data for report ${report.report_id}`);
+                    }
+                }
+
+                // Combine report metadata with report data
+                const completeReportData = {
+                    reportId: report.report_id,
+                    userId: report.user_id,
+                    reportType: report.report_type,
+                    startDate: report.start_date,
+                    endDate: report.end_date,
+                    generationTimeMs: report.generation_time_ms,
+                    createdAt: report.created_at,
+                    ...reportData
+                };
+
+                return DataAnonymization.anonymizeParentReport(completeReportData);
+            });
+
+            // Generate aggregated anonymous analytics
+            const analytics = DataAnonymization.generateAnonymousAnalytics(anonymizedReports);
+
+            this.fastify.log.info('✅ === ANONYMIZED ANALYTICS COMPLETE ===');
+            this.fastify.log.info(`📊 Total reports processed: ${analytics.totalReports}`);
+            this.fastify.log.info(`👥 Unique users (anonymized): ${analytics.totalUniqueUsers}`);
+            this.fastify.log.info(`📈 Average questions per report: ${analytics.averageMetrics.questionsPerReport.toFixed(2)}`);
+
+            return reply.send({
+                success: true,
+                analytics: analytics,
+                disclaimer: {
+                    dataProtection: 'All personally identifiable information (PII) has been removed',
+                    complianceStandard: 'GDPR Article 6(1)(f) - Legitimate Interest for Analytics',
+                    anonymizationMethod: 'One-way hash with salt, geographic aggregation, temporal bucketing',
+                    dataRetention: 'Anonymized analytics retained for 90 days, then deleted',
+                    privacyPolicy: 'https://study-mates.net/privacy'
+                }
+            });
+
+        } catch (error) {
+            this.fastify.log.error('❌ Get anonymized analytics error:', error);
+            return reply.status(500).send({
+                success: false,
+                error: 'Failed to retrieve anonymized analytics',
+                code: 'ANONYMIZED_ANALYTICS_ERROR',
                 details: error.message
             });
         }

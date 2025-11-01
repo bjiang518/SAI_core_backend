@@ -40,17 +40,17 @@ struct QuestionArchiveView: View {
                     notesAndTagsSection
                 }
             }
-            .navigationTitle("Archive Questions")
+            .navigationTitle(NSLocalizedString("archive.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         presentationMode.wrappedValue.dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Archive") {
+                    Button(NSLocalizedString("archive.archiveButton", comment: "")) {
                         archiveSelectedQuestions()
                     }
                     .disabled(selectedIndices.isEmpty || (useCustomSubject && customSubject.isEmpty))
@@ -76,46 +76,70 @@ struct QuestionArchiveView: View {
     }
     
     // MARK: - Subject Detection Section
-    
+
     private var subjectDetectionSection: some View {
-        Section("Subject Classification") {
-            HStack {
-                Image(systemName: "brain.head.profile.fill")
-                    .foregroundColor(.purple)
-                
-                VStack(alignment: .leading, spacing: 4) {
+        Section {
+            VStack(spacing: 12) {
+                // Subject Display/Input
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(NSLocalizedString("archive.subjectClassification", comment: ""))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+
                     if useCustomSubject {
-                        TextField("Enter subject", text: $customSubject)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        TextField(NSLocalizedString("archive.enterSubject", comment: ""), text: $customSubject)
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                            .padding()
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(12)
                     } else {
-                        Text(detectedSubject)
-                            .font(.headline)
-                            .foregroundColor(.black)
-                        
                         HStack {
-                            Text("AI Confidence: \(Int(subjectConfidence * 100))%")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            
+                            Text(detectedSubject)
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+
                             Spacer()
-                            
-                            Image(systemName: confidenceIcon(subjectConfidence))
-                                .font(.caption)
-                                .foregroundColor(confidenceColor(subjectConfidence))
+
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(.green)
                         }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.green.opacity(0.1))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                        )
                     }
                 }
-                
-                Spacer()
-            }
-            
-            Button(useCustomSubject ? "Use AI Detection" : "Enter Custom Subject") {
-                useCustomSubject.toggle()
-                if !useCustomSubject {
-                    customSubject = ""
+
+                // Toggle Button
+                Button(action: {
+                    useCustomSubject.toggle()
+                    if !useCustomSubject {
+                        customSubject = ""
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: useCustomSubject ? "wand.and.stars" : "pencil.circle.fill")
+                        Text(useCustomSubject ? NSLocalizedString("archive.useAIDetection", comment: "") : NSLocalizedString("archive.enterCustomSubject", comment: ""))
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.blue)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.blue.opacity(0.08))
+                    .cornerRadius(10)
                 }
+                .buttonStyle(PlainButtonStyle())
             }
-            .foregroundColor(.blue)
+            .padding(.vertical, 4)
         }
     }
     
@@ -362,16 +386,16 @@ struct QuestionPreviewCard: View {
                 Spacer()
             }
             
-            Text(question.questionText.count > 100 ? 
-                 String(question.questionText.prefix(97)) + "..." : 
+            Text(question.questionText.count > 100 ?
+                 String(question.questionText.prefix(97)) + "..." :
                  question.questionText)
                 .font(.subheadline)
-                .foregroundColor(.black)
+                .foregroundColor(.primary)
                 .lineLimit(3)
         }
         .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(8)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
     }
 }
 

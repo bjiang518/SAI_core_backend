@@ -2348,43 +2348,44 @@ struct RandomLottieAnimation: View {
             Color.black.opacity(0.02)
                 .ignoresSafeArea()
 
-            VStack(spacing: 30) {
-                Spacer()
+            GeometryReader { geometry in
+                VStack(spacing: 30) {
+                    Spacer()
 
-                // Lottie animation
-                if !selectedAnimation.isEmpty {
-                    LottieView(animationName: selectedAnimation, loopMode: .loop)
-                        .frame(width: 250, height: 250)
-                        .scaleEffect(0.9)
-                } else {
-                    ProgressView()
-                        .scaleEffect(1.5)
+                    // Lottie animation - adaptive sizing
+                    if !selectedAnimation.isEmpty {
+                        LottieView(animationName: selectedAnimation, loopMode: .loop)
+                            .frame(
+                                width: min(geometry.size.width * 0.6, 300),
+                                height: min(geometry.size.width * 0.6, 300)
+                            )
+                            .scaleEffect(0.9)
+                    } else {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                    }
+
+                        Spacer()
+
+                    // Status text at bottom with more details
+                    VStack(spacing: 12) {
+                        Text(NSLocalizedString("aiHomework.processing.message", comment: ""))
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.purple)
+                            .multilineTextAlignment(.center)
+
+                        Text(NSLocalizedString("aiHomework.processing.waitMessage", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 8)
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 20)
+                    .padding(.bottom, 60) // Space for tab bar
                 }
-
-                Spacer()
-
-                // Status text at bottom with more details
-                VStack(spacing: 12) {
-                    Text(NSLocalizedString("aiHomework.processing.message", comment: ""))
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.purple)
-                        .multilineTextAlignment(.center)
-
-                    Text("AI is carefully analyzing your homework")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-
-                    Text("Feel free to explore other features while you wait. We'll notify you when your grades are ready!")
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 8)
-                }
-                .padding(.horizontal, 32)
-                .padding(.vertical, 20)
-                .padding(.bottom, 60) // Space for tab bar
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .onAppear {

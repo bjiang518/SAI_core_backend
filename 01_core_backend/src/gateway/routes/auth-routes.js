@@ -13,6 +13,8 @@ class AuthRoutes {
   }
 
   setupRoutes() {
+    this.fastify.log.info('🔧 === SETTING UP AUTH ROUTES ===');
+
     // Login endpoint
     this.fastify.post('/api/auth/login', {
       schema: {
@@ -225,6 +227,20 @@ class AuthRoutes {
       }
     }, this.getProfileCompletion.bind(this));
 
+    // Export user data endpoint (GDPR Article 20 - Data Portability)
+    this.fastify.get('/api/user/export-data', {
+      schema: {
+        description: 'Export all user data for GDPR Article 20 compliance (Data Portability)',
+        tags: ['User', 'Privacy', 'GDPR'],
+        headers: {
+          type: 'object',
+          properties: {
+            authorization: { type: 'string' }
+          }
+        }
+      }
+    }, this.exportUserData.bind(this));
+
     // Health check for auth service
     this.fastify.get('/api/auth/health', {
       schema: {
@@ -246,6 +262,107 @@ class AuthRoutes {
         }
       }
     }, this.getOpenAIApiKey.bind(this));
+
+    // ==============================
+    // COPPA Consent Management Endpoints
+    // ==============================
+
+    // Request parental consent (for users under 13)
+    this.fastify.post('/api/auth/request-parental-consent', {
+      schema: {
+        description: 'Request parental consent for COPPA-protected user (under 13)',
+        tags: ['Authentication', 'COPPA', 'Privacy'],
+        body: {
+          type: 'object',
+          required: ['childUserId', 'childEmail', 'childDateOfBirth', 'parentEmail', 'parentName'],
+          properties: {
+            childUserId: { type: 'string', format: 'uuid' },
+            childEmail: { type: 'string', format: 'email' },
+            childDateOfBirth: { type: 'string', format: 'date' },
+            parentEmail: { type: 'string', format: 'email' },
+            parentName: { type: 'string', minLength: 1 },
+            parentRelationship: { type: 'string', enum: ['mother', 'father', 'guardian', 'other'] }
+          }
+        }
+      }
+    }, this.requestParentalConsent.bind(this));
+
+    // Verify parental consent code
+    this.fastify.post('/api/auth/verify-parental-consent', {
+      schema: {
+        description: 'Verify parental consent using 6-digit code sent to parent',
+        tags: ['Authentication', 'COPPA', 'Privacy'],
+        body: {
+          type: 'object',
+          required: ['childUserId', 'code'],
+          properties: {
+            childUserId: { type: 'string', format: 'uuid' },
+            code: { type: 'string', minLength: 6, maxLength: 6 }
+          }
+        }
+      }
+    }, this.verifyParentalConsent.bind(this));
+
+    // Get parental consent status (authenticated user - no userId param required)
+    this.fastify.get('/api/auth/consent-status', {
+      schema: {
+        description: 'Get current parental consent status for authenticated user',
+        tags: ['Authentication', 'COPPA', 'Privacy'],
+        headers: {
+          type: 'object',
+          properties: {
+            authorization: { type: 'string' }
+          }
+        }
+      }
+    }, this.getConsentStatusForAuthenticatedUser.bind(this));
+
+    this.fastify.log.info('✅ Registered route: GET /api/auth/consent-status (authenticated user)');
+
+    // Get parental consent status (by userId - for admin or parent access)
+    this.fastify.get('/api/auth/consent-status/:userId', {
+      schema: {
+        description: 'Get current parental consent status for user',
+        tags: ['Authentication', 'COPPA', 'Privacy'],
+        params: {
+          type: 'object',
+          properties: {
+            userId: { type: 'string', format: 'uuid' }
+          }
+        },
+        headers: {
+          type: 'object',
+          properties: {
+            authorization: { type: 'string' }
+          }
+        }
+      }
+    }, this.getConsentStatus.bind(this));
+
+    // Revoke parental consent
+    this.fastify.post('/api/auth/revoke-parental-consent', {
+      schema: {
+        description: 'Revoke parental consent (parent or guardian action)',
+        tags: ['Authentication', 'COPPA', 'Privacy'],
+        headers: {
+          type: 'object',
+          properties: {
+            authorization: { type: 'string' }
+          }
+        },
+        body: {
+          type: 'object',
+          required: ['consentId', 'reason'],
+          properties: {
+            consentId: { type: 'string', format: 'uuid' },
+            reason: { type: 'string', minLength: 1 }
+          }
+        }
+      }
+    }, this.revokeParentalConsent.bind(this));
+
+    this.fastify.log.info('✅ === ALL AUTH ROUTES REGISTERED ===');
+    this.fastify.log.info('✅ Total COPPA routes: 5 (request, verify, consent-status x2, revoke)');
   }
 
   async login(request, reply) {
@@ -625,6 +742,7 @@ class AuthRoutes {
             timezone: profileData.timezone || 'UTC',
             languagePreference: profileData.language_preference || 'en',
             profileCompletionPercentage: profileData.profile_completion_percentage || 0,
+            avatarId: profileData.avatar_id,
             lastUpdated: profileData.updated_at
           }
         });
@@ -653,6 +771,7 @@ class AuthRoutes {
             timezone: 'UTC',
             languagePreference: 'en',
             profileCompletionPercentage: 0,
+            avatarId: null,
             lastUpdated: null
           }
         });
@@ -724,6 +843,7 @@ class AuthRoutes {
           timezone: updatedProfile.timezone || 'UTC',
           languagePreference: updatedProfile.language_preference || 'en',
           profileCompletionPercentage: updatedProfile.profile_completion_percentage || 0,
+          avatarId: updatedProfile.avatar_id,
           lastUpdated: updatedProfile.updated_at
         }
       });
@@ -742,7 +862,7 @@ class AuthRoutes {
   async getProfileCompletion(request, reply) {
     try {
       const authHeader = request.headers.authorization;
-      
+
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return reply.status(401).send({
           success: false,
@@ -753,7 +873,7 @@ class AuthRoutes {
 
       const token = authHeader.substring(7);
       const sessionData = await db.verifyUserSession(token);
-      
+
       if (!sessionData) {
         return reply.status(401).send({
           success: false,
@@ -763,7 +883,7 @@ class AuthRoutes {
       }
 
       const completionData = await db.isProfileComplete(sessionData.user_id);
-      
+
       return reply.send({
         success: true,
         completion: {
@@ -772,13 +892,236 @@ class AuthRoutes {
           onboardingCompleted: completionData?.onboarding_completed || false
         }
       });
-      
+
     } catch (error) {
       this.fastify.log.error('Get profile completion error:', error);
       return reply.status(500).send({
         success: false,
         message: 'Failed to get profile completion',
         code: 'PROFILE_COMPLETION_ERROR'
+      });
+    }
+  }
+
+  async exportUserData(request, reply) {
+    try {
+      const authHeader = request.headers.authorization;
+
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Authentication required',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      const token = authHeader.substring(7);
+      const sessionData = await db.verifyUserSession(token);
+
+      if (!sessionData) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid or expired token',
+          code: 'TOKEN_EXPIRED'
+        });
+      }
+
+      const userId = sessionData.user_id;
+
+      this.fastify.log.info(`📦 === GDPR DATA EXPORT REQUEST ===`);
+      this.fastify.log.info(`📦 User ID: ${PIIMasking.maskUserId(userId)}`);
+      this.fastify.log.info(`📦 Email: ${PIIMasking.maskEmail(sessionData.email)}`);
+
+      // Fetch all user data in parallel for performance
+      const [
+        userProfile,
+        conversations,
+        questions,
+        sessions,
+        subjectProgress,
+        achievements,
+        progressSummary
+      ] = await Promise.all([
+        // User profile data
+        db.getEnhancedUserProfile(userId).catch(() => null),
+
+        // All conversations (archived)
+        db.fetchUserConversations(userId, 1000, 0).catch(() => []),
+
+        // All questions answered
+        db.fetchUserQuestions(userId, 1000, 0).catch(() => []),
+
+        // All sessions
+        db.fetchUserSessions(userId, 1000, 0).catch(() => []),
+
+        // Subject progress
+        db.getSubjectProgress(userId).catch(() => []),
+
+        // Achievements
+        db.getUserAchievements(userId, 1000).catch(() => []),
+
+        // Progress summary
+        db.getUserProgressSummary(userId).catch(() => null)
+      ]);
+
+      // Build comprehensive export
+      const dataExport = {
+        exportMetadata: {
+          exportDate: new Date().toISOString(),
+          exportType: 'GDPR_Article_20_Data_Portability',
+          userId: userId,
+          format: 'JSON',
+          version: '1.0'
+        },
+
+        personalInformation: {
+          userId: userId,
+          email: sessionData.email || userProfile?.user_email,
+          name: sessionData.name || userProfile?.user_name,
+          profileImageUrl: sessionData.profile_image_url || userProfile?.profile_image_url,
+          authProvider: sessionData.auth_provider || userProfile?.auth_provider,
+
+          // Enhanced profile fields
+          firstName: userProfile?.first_name,
+          lastName: userProfile?.last_name,
+          displayName: userProfile?.display_name,
+          gradeLevel: userProfile?.grade_level,
+          dateOfBirth: userProfile?.date_of_birth,
+          kidsAges: userProfile?.kids_ages || [],
+          gender: userProfile?.gender,
+          city: userProfile?.city,
+          stateProvince: userProfile?.state_province,
+          country: userProfile?.country,
+          timezone: userProfile?.timezone,
+          languagePreference: userProfile?.language_preference,
+
+          // Account info
+          accountCreatedAt: userProfile?.created_at || sessionData.created_at,
+          lastLogin: userProfile?.last_login_at || sessionData.last_login_at,
+          emailVerified: userProfile?.email_verified || false
+        },
+
+        learningData: {
+          favoriteSubjects: userProfile?.favorite_subjects || [],
+          learningStyle: userProfile?.learning_style,
+
+          subjectProgress: (subjectProgress || []).map(sp => ({
+            subject: sp.subject,
+            totalQuestionsAttempted: sp.total_questions_attempted,
+            totalQuestionsCorrect: sp.total_questions_correct,
+            accuracyRate: sp.accuracy_rate,
+            totalTimeSpent: sp.total_time_spent,
+            averageConfidence: sp.average_confidence,
+            streakCount: sp.streak_count,
+            lastActivityDate: sp.last_activity_date,
+            performanceTrend: sp.performance_trend,
+            recentSessions: sp.recent_sessions
+          })),
+
+          progressSummary: progressSummary ? {
+            totalXP: progressSummary.total_xp,
+            currentLevel: progressSummary.current_level,
+            currentStreak: progressSummary.current_streak,
+            longestStreak: progressSummary.longest_streak,
+            totalQuestionsAnswered: progressSummary.total_questions_answered,
+            totalCorrectAnswers: progressSummary.total_correct_answers,
+            overallAccuracy: progressSummary.overall_accuracy,
+            totalStudyTimeMinutes: progressSummary.total_study_time_minutes
+          } : null
+        },
+
+        conversations: {
+          totalCount: conversations?.length || 0,
+          data: (conversations || []).map(conv => ({
+            conversationId: conv.id,
+            subject: conv.subject,
+            topic: conv.topic,
+            archivedDate: conv.archived_date,
+            createdAt: conv.created_at,
+            conversationContent: conv.conversation_content
+          }))
+        },
+
+        questions: {
+          totalCount: questions?.length || 0,
+          data: (questions || []).map(q => ({
+            questionId: q.id,
+            subject: q.subject,
+            questionText: q.question_text,
+            studentAnswer: q.student_answer,
+            isCorrect: q.is_correct,
+            aiAnswer: q.ai_answer,
+            confidenceScore: q.confidence_score,
+            archivedDate: q.archived_date,
+            createdAt: q.created_at
+          }))
+        },
+
+        sessions: {
+          totalCount: sessions?.length || 0,
+          data: (sessions || []).map(s => ({
+            sessionId: s.id,
+            sessionType: s.session_type,
+            subject: s.subject,
+            title: s.title,
+            status: s.status,
+            startTime: s.start_time,
+            endTime: s.end_time,
+            createdAt: s.created_at,
+            updatedAt: s.updated_at
+          }))
+        },
+
+        achievements: {
+          totalCount: achievements?.length || 0,
+          data: (achievements || []).map(a => ({
+            achievementId: a.id,
+            achievementType: a.achievement_type,
+            achievementTitle: a.achievement_title,
+            achievementDescription: a.achievement_description,
+            pointsEarned: a.points_earned,
+            unlockedAt: a.unlocked_at
+          }))
+        },
+
+        privacyNotice: {
+          dataController: 'StudyAI',
+          purpose: 'Educational learning platform',
+          legalBasis: 'User consent and contract performance',
+          retentionPeriod: 'Data retained while account is active, deleted upon account deletion request',
+          dataProtectionRights: [
+            'Right to access (GDPR Article 15)',
+            'Right to rectification (GDPR Article 16)',
+            'Right to erasure (GDPR Article 17)',
+            'Right to data portability (GDPR Article 20)',
+            'Right to object (GDPR Article 21)'
+          ],
+          contactEmail: 'privacy@study-mates.net'
+        }
+      };
+
+      this.fastify.log.info(`✅ === DATA EXPORT COMPLETE ===`);
+      this.fastify.log.info(`📦 Exported data counts:`);
+      this.fastify.log.info(`   - Conversations: ${dataExport.conversations.totalCount}`);
+      this.fastify.log.info(`   - Questions: ${dataExport.questions.totalCount}`);
+      this.fastify.log.info(`   - Sessions: ${dataExport.sessions.totalCount}`);
+      this.fastify.log.info(`   - Achievements: ${dataExport.achievements.totalCount}`);
+      this.fastify.log.info(`   - Subject Progress: ${dataExport.learningData.subjectProgress.length}`);
+
+      // Set appropriate headers for file download
+      reply.header('Content-Type', 'application/json');
+      reply.header('Content-Disposition', `attachment; filename="studyai-data-export-${userId}-${new Date().toISOString().split('T')[0]}.json"`);
+
+      return reply.send(dataExport);
+
+    } catch (error) {
+      this.fastify.log.error('❌ Data export error:', error);
+      this.fastify.log.error('❌ Error stack:', error.stack);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to export user data',
+        code: 'DATA_EXPORT_ERROR',
+        error: error.message
       });
     }
   }
@@ -1099,6 +1442,397 @@ The StudyAI Team
     // In production, decode the JWT to get the Google user ID
     // For demo purposes, generate a fake ID based on the token
     return 'google_' + Buffer.from(idToken.substring(0, 20)).toString('base64').substring(0, 10);
+  }
+
+  // ==============================
+  // COPPA Consent Management Methods
+  // ==============================
+
+  async requestParentalConsent(request, reply) {
+    try {
+      const { childUserId, childEmail, childDateOfBirth, parentEmail, parentName, parentRelationship } = request.body;
+
+      this.fastify.log.info(`👶 === REQUEST PARENTAL CONSENT ===`);
+      this.fastify.log.info(`Child email: ${PIIMasking.maskEmail(childEmail)}`);
+      this.fastify.log.info(`Parent email: ${PIIMasking.maskEmail(parentEmail)}`);
+      this.fastify.log.info(`Child DOB: ${childDateOfBirth}`);
+
+      // Calculate child's age
+      const today = new Date();
+      const birthDate = new Date(childDateOfBirth);
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const calculatedAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())
+        ? age - 1
+        : age;
+
+      this.fastify.log.info(`Calculated age: ${calculatedAge}`);
+
+      // COPPA check: Must be under 13
+      if (calculatedAge >= 13) {
+        this.fastify.log.warn(`⚠️ User is ${calculatedAge} years old - not COPPA-protected (must be under 13)`);
+        return reply.status(400).send({
+          success: false,
+          message: 'Parental consent is only required for users under 13',
+          code: 'NOT_COPPA_PROTECTED'
+        });
+      }
+
+      // Log age verification
+      await db.logAgeVerification({
+        userId: childUserId,
+        email: childEmail,
+        providedDateOfBirth: childDateOfBirth,
+        verificationMethod: 'parental_consent_request',
+        verificationIP: request.ip,
+        verificationUserAgent: request.headers['user-agent'],
+        verificationMetadata: { parentEmail, parentName },
+        notes: `COPPA-protected user (age ${calculatedAge}) - parental consent requested`
+      });
+
+      // Create parental consent request
+      const consentRequest = await db.createParentalConsentRequest({
+        childUserId,
+        childEmail,
+        childDateOfBirth,
+        parentEmail,
+        parentName,
+        parentRelationship: parentRelationship || 'parent',
+        requestIP: request.ip,
+        requestUserAgent: request.headers['user-agent'],
+        requestMetadata: {
+          timestamp: new Date().toISOString(),
+          userAgent: request.headers['user-agent']
+        }
+      });
+
+      this.fastify.log.info(`✅ Parental consent request created: ${consentRequest.id}`);
+
+      // Send verification email to parent
+      await this.sendParentalConsentEmail(parentEmail, parentName, childEmail, consentRequest.verification_code);
+
+      // Update user account to require consent
+      await db.query(`
+        UPDATE users
+        SET
+          requires_parental_consent = true,
+          parental_consent_status = 'pending',
+          account_restricted = true,
+          restriction_reason = 'Awaiting parental consent (COPPA compliance)'
+        WHERE id = $1
+      `, [childUserId]);
+
+      this.fastify.log.info(`✅ === PARENTAL CONSENT EMAIL SENT ===`);
+
+      return reply.send({
+        success: true,
+        message: 'Parental consent request sent. Please check parent email for verification code.',
+        consentId: consentRequest.id,
+        parentEmail: PIIMasking.maskEmail(parentEmail),
+        expiresIn: 86400 // 24 hours in seconds
+      });
+
+    } catch (error) {
+      this.fastify.log.error('❌ Request parental consent error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to request parental consent',
+        error: error.message
+      });
+    }
+  }
+
+  async verifyParentalConsent(request, reply) {
+    try {
+      const { childUserId, code } = request.body;
+
+      this.fastify.log.info(`✅ === VERIFY PARENTAL CONSENT ===`);
+      this.fastify.log.info(`Child user ID: ${PIIMasking.maskUserId(childUserId)}`);
+      this.fastify.log.info(`Verification code: ${code}`);
+
+      const verificationResult = await db.verifyParentalConsentCode(childUserId, code);
+
+      if (!verificationResult.success) {
+        this.fastify.log.warn(`❌ Invalid or expired consent code for user: ${childUserId}`);
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid or expired verification code',
+          code: verificationResult.error
+        });
+      }
+
+      this.fastify.log.info(`✅ Parental consent verified successfully`);
+
+      return reply.send({
+        success: true,
+        message: 'Parental consent verified successfully. Account is now active.',
+        consentStatus: 'granted',
+        consentExpiresAt: verificationResult.consent.consent_expires_at
+      });
+
+    } catch (error) {
+      this.fastify.log.error('❌ Verify parental consent error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to verify parental consent',
+        error: error.message
+      });
+    }
+  }
+
+  async getConsentStatusForAuthenticatedUser(request, reply) {
+    try {
+      this.fastify.log.info(`📊 === GET CONSENT STATUS (AUTHENTICATED USER) ===`);
+
+      // Get authenticated user ID from token
+      const authenticatedUserId = await this.getUserIdFromToken(request);
+      if (!authenticatedUserId) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Authentication required',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      this.fastify.log.info(`User ID: ${PIIMasking.maskUserId(authenticatedUserId)}`);
+
+      const consentStatus = await db.checkUserNeedsParentalConsent(authenticatedUserId);
+
+      if (!consentStatus) {
+        return reply.status(404).send({
+          success: false,
+          message: 'User not found',
+          code: 'USER_NOT_FOUND'
+        });
+      }
+
+      this.fastify.log.info(`✅ Consent status retrieved: ${consentStatus.parental_consent_status}`);
+
+      return reply.send({
+        success: true,
+        consentStatus: {
+          requiresConsent: consentStatus.requires_parental_consent,
+          consentStatus: consentStatus.parental_consent_status,
+          accountRestricted: consentStatus.account_restricted,
+          activeConsentStatus: consentStatus.active_consent_status,
+          consentGrantedAt: consentStatus.consent_granted_at,
+          consentExpiresAt: consentStatus.consent_expires_at
+        }
+      });
+
+    } catch (error) {
+      this.fastify.log.error('❌ Get consent status error (authenticated user):', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to get consent status',
+        error: error.message
+      });
+    }
+  }
+
+  async getConsentStatus(request, reply) {
+    try {
+      const { userId } = request.params;
+
+      this.fastify.log.info(`📊 === GET CONSENT STATUS ===`);
+      this.fastify.log.info(`User ID: ${PIIMasking.maskUserId(userId)}`);
+
+      // Get authenticated user ID
+      const authenticatedUserId = await this.getUserIdFromToken(request);
+      if (!authenticatedUserId) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Authentication required',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      // Verify user has access (can only view own consent status)
+      if (authenticatedUserId !== userId) {
+        return reply.status(403).send({
+          success: false,
+          message: 'Access denied',
+          code: 'ACCESS_DENIED'
+        });
+      }
+
+      const consentStatus = await db.checkUserNeedsParentalConsent(userId);
+
+      if (!consentStatus) {
+        return reply.status(404).send({
+          success: false,
+          message: 'User not found',
+          code: 'USER_NOT_FOUND'
+        });
+      }
+
+      this.fastify.log.info(`✅ Consent status retrieved: ${consentStatus.parental_consent_status}`);
+
+      return reply.send({
+        success: true,
+        consentStatus: {
+          requiresConsent: consentStatus.requires_parental_consent,
+          consentStatus: consentStatus.parental_consent_status,
+          accountRestricted: consentStatus.account_restricted,
+          activeConsentStatus: consentStatus.active_consent_status,
+          consentGrantedAt: consentStatus.consent_granted_at,
+          consentExpiresAt: consentStatus.consent_expires_at
+        }
+      });
+
+    } catch (error) {
+      this.fastify.log.error('❌ Get consent status error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to get consent status',
+        error: error.message
+      });
+    }
+  }
+
+  async revokeParentalConsent(request, reply) {
+    try {
+      const { consentId, reason } = request.body;
+
+      this.fastify.log.info(`🚫 === REVOKE PARENTAL CONSENT ===`);
+      this.fastify.log.info(`Consent ID: ${consentId}`);
+      this.fastify.log.info(`Reason: ${reason}`);
+
+      // Get authenticated user ID
+      const authenticatedUserId = await this.getUserIdFromToken(request);
+      if (!authenticatedUserId) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Authentication required',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      // Revoke consent
+      const revokedConsent = await db.revokeParentalConsent(consentId, authenticatedUserId, reason);
+
+      if (!revokedConsent) {
+        return reply.status(404).send({
+          success: false,
+          message: 'Consent not found',
+          code: 'CONSENT_NOT_FOUND'
+        });
+      }
+
+      this.fastify.log.info(`✅ Parental consent revoked successfully`);
+
+      return reply.send({
+        success: true,
+        message: 'Parental consent has been revoked. User account is now restricted.',
+        consentId: revokedConsent.id,
+        revokedAt: revokedConsent.revoked_at,
+        revokedReason: revokedConsent.revoked_reason
+      });
+
+    } catch (error) {
+      this.fastify.log.error('❌ Revoke parental consent error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to revoke parental consent',
+        error: error.message
+      });
+    }
+  }
+
+  async sendParentalConsentEmail(parentEmail, parentName, childEmail, verificationCode) {
+    // Check if Resend API key is configured
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.EMAIL_FROM || 'StudyAI <noreply@study-mates.net>';
+
+    this.fastify.log.info(`📧 Sending parental consent email to: ${PIIMasking.maskEmail(parentEmail)}`);
+
+    // If Resend is not configured, just log it (development mode)
+    if (!resendApiKey) {
+      this.fastify.log.warn('⚠️ Resend API not configured - logging parental consent code to console');
+      this.fastify.log.info(`
+📧 ===== PARENTAL CONSENT EMAIL =====
+To: ${parentEmail}
+Subject: Parental Consent Required - StudyAI
+
+Hi ${parentName},
+
+Your child (${childEmail}) has signed up for StudyAI. Because they are under 13 years old, we require parental consent under COPPA (Children's Online Privacy Protection Act).
+
+Your verification code is: ${verificationCode}
+
+This code will expire in 24 hours.
+
+Please enter this code to grant consent for your child to use StudyAI.
+
+If you did not expect this email, please ignore it.
+
+Best regards,
+The StudyAI Team
+=====================================
+      `);
+      return; // Don't throw error in dev mode
+    }
+
+    // Send actual email using Resend HTTPS API
+    try {
+      const { Resend } = require('resend');
+      const resend = new Resend(resendApiKey);
+
+      const { data, error } = await resend.emails.send({
+        from: fromEmail,
+        to: [parentEmail],
+        subject: 'Parental Consent Required - StudyAI',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #2563eb;">Parental Consent Required</h2>
+            <p>Hi ${parentName},</p>
+            <p>Your child (<strong>${childEmail}</strong>) has signed up for StudyAI. Because they are under 13 years old, we require parental consent under <strong>COPPA</strong> (Children's Online Privacy Protection Act).</p>
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
+              <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">Your verification code is:</p>
+              <p style="font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 8px; margin: 10px 0;">${verificationCode}</p>
+              <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">This code will expire in 24 hours</p>
+            </div>
+            <p>Please enter this code in the StudyAI app to grant consent for your child to use StudyAI.</p>
+            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+              <p style="margin: 0; color: #92400e; font-size: 14px;"><strong>COPPA Privacy Notice:</strong></p>
+              <p style="margin: 5px 0 0 0; color: #92400e; font-size: 14px;">By providing consent, you authorize StudyAI to collect and process your child's learning data for educational purposes. You may revoke consent at any time.</p>
+            </div>
+            <p style="color: #6b7280; font-size: 14px;">If you did not expect this email or if you have questions, please contact us at privacy@study-mates.net</p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The StudyAI Team</p>
+          </div>
+        `,
+        text: `Hi ${parentName},\n\nYour child (${childEmail}) has signed up for StudyAI. Because they are under 13 years old, we require parental consent under COPPA (Children's Online Privacy Protection Act).\n\nYour verification code is: ${verificationCode}\n\nThis code will expire in 24 hours.\n\nPlease enter this code to grant consent for your child to use StudyAI.\n\nCOPPA Privacy Notice: By providing consent, you authorize StudyAI to collect and process your child's learning data for educational purposes. You may revoke consent at any time.\n\nIf you did not expect this email, please contact us at privacy@study-mates.net\n\nBest regards,\nThe StudyAI Team`
+      });
+
+      if (error) {
+        this.fastify.log.error(`❌ Resend API error:`, error);
+        throw new Error(`Resend API error: ${error.message}`);
+      }
+
+      this.fastify.log.info(`✅ Parental consent email sent successfully, Resend ID: ${data?.id}`);
+
+    } catch (error) {
+      this.fastify.log.error(`❌ Failed to send parental consent email:`, error);
+      this.fastify.log.error(`Email error details: ${error.message}`);
+      throw new Error('Failed to send parental consent email. Please try again later.');
+    }
+  }
+
+  async getUserIdFromToken(request) {
+    try {
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return null;
+      }
+
+      const token = authHeader.substring(7);
+      const sessionData = await db.verifyUserSession(token);
+      return sessionData?.user_id || null;
+    } catch (error) {
+      this.fastify.log.error('Token verification error:', error);
+      return null;
+    }
   }
 }
 

@@ -329,22 +329,71 @@ class ProgressRoutes {
         });
       }
 
-      // Query overall statistics
-      const overallQuery = `
+      // EFFICIENCY FIX: Combined query using CTEs to eliminate N+1 problem
+      // This replaces 5 separate queries with a single optimized query
+      const today = new Date().toISOString().split('T')[0];
+
+      const combinedQuery = `
+        WITH overall_stats AS (
+          SELECT
+            COUNT(DISTINCT subject) as total_subjects,
+            COALESCE(SUM(total_questions_attempted), 0) as total_questions,
+            COALESCE(SUM(total_questions_correct), 0) as total_correct,
+            COALESCE(AVG(accuracy_rate), 0) as avg_accuracy,
+            COALESCE(SUM(total_time_spent), 0) as total_time,
+            COALESCE(MAX(streak_count), 0) as current_streak,
+            COALESCE(MAX(streak_count), 0) as longest_streak
+          FROM subject_progress
+          WHERE user_id = $1
+        ),
+        today_stats AS (
+          SELECT
+            COALESCE(SUM(questions_attempted), 0) as questions_answered,
+            COALESCE(SUM(questions_correct), 0) as correct_answers,
+            COALESCE(SUM(time_spent), 0) as study_time,
+            COALESCE(SUM(points_earned), 0) as xp_earned
+          FROM daily_subject_activities
+          WHERE user_id = $1 AND DATE(activity_date) = $2
+        ),
+        week_stats AS (
+          SELECT
+            COUNT(DISTINCT DATE(activity_date)) as days_active,
+            COALESCE(SUM(questions_attempted), 0) as total_questions,
+            COALESCE(SUM(questions_correct), 0) as total_correct
+          FROM daily_subject_activities
+          WHERE user_id = $1 AND activity_date >= NOW() - INTERVAL '7 days'
+        ),
+        subject_data AS (
+          SELECT
+            subject,
+            total_questions_attempted as questions,
+            total_questions_correct as correct,
+            accuracy_rate as accuracy,
+            total_time_spent as xp,
+            'Intermediate' as proficiency
+          FROM subject_progress
+          WHERE user_id = $1
+          ORDER BY last_activity_date DESC
+        )
         SELECT
-          COUNT(DISTINCT subject) as total_subjects,
-          COALESCE(SUM(total_questions_attempted), 0) as total_questions,
-          COALESCE(SUM(total_questions_correct), 0) as total_correct,
-          COALESCE(AVG(accuracy_rate), 0) as avg_accuracy,
-          COALESCE(SUM(total_time_spent), 0) as total_time,
-          COALESCE(MAX(streak_count), 0) as current_streak,
-          COALESCE(MAX(streak_count), 0) as longest_streak
-        FROM subject_progress
-        WHERE user_id = $1
+          (SELECT row_to_json(overall_stats.*) FROM overall_stats) as overall,
+          (SELECT row_to_json(today_stats.*) FROM today_stats) as today,
+          (SELECT row_to_json(week_stats.*) FROM week_stats) as week,
+          (SELECT json_agg(subject_data.*) FROM subject_data) as subjects
       `;
 
-      const overallResult = await db.query(overallQuery, [userId]);
-      const overall = overallResult.rows[0] || {};
+      this.fastify.log.info(`🚀 Executing optimized combined query (1 query instead of 5)`);
+      const result = await db.query(combinedQuery, [userId, today]);
+
+      if (!result.rows || result.rows.length === 0) {
+        throw new Error('No data returned from combined query');
+      }
+
+      const data = result.rows[0];
+      const overall = data.overall || {};
+      const todayData = data.today || {};
+      const weekData = data.week || {};
+      const subjects = data.subjects || [];
 
       // Calculate XP and level (10 XP per correct answer)
       const totalXP = (parseInt(overall.total_correct) || 0) * 10;
@@ -355,71 +404,16 @@ class ProgressRoutes {
       const xpToNextLevel = xpForNextLevel - totalXP;
       const xpProgress = (xpInCurrentLevel / 100.0) * 100;
 
-      // Query today's progress
-      const today = new Date().toISOString().split('T')[0];
-      const todayQuery = `
-        SELECT
-          COALESCE(SUM(questions_attempted), 0) as questions_answered,
-          COALESCE(SUM(questions_correct), 0) as correct_answers,
-          COALESCE(SUM(time_spent), 0) as study_time,
-          COALESCE(SUM(points_earned), 0) as xp_earned
-        FROM daily_subject_activities
-        WHERE user_id = $1 AND DATE(activity_date) = $2
-      `;
-
-      const todayResult = await db.query(todayQuery, [userId, today]);
-      const todayData = todayResult.rows[0] || {};
       const todayAccuracy = (parseInt(todayData.questions_answered) || 0) > 0
         ? Math.round(((parseInt(todayData.correct_answers) || 0) / (parseInt(todayData.questions_answered) || 0)) * 100)
         : 0;
 
-      // Query this week's progress
-      const weekQuery = `
-        SELECT
-          COUNT(DISTINCT DATE(activity_date)) as days_active,
-          COALESCE(SUM(questions_attempted), 0) as total_questions,
-          COALESCE(SUM(questions_correct), 0) as total_correct
-        FROM daily_subject_activities
-        WHERE user_id = $1 AND activity_date >= NOW() - INTERVAL '7 days'
-      `;
-
-      const weekResult = await db.query(weekQuery, [userId]);
-      const weekData = weekResult.rows[0] || {};
       const weekAccuracy = (parseInt(weekData.total_questions) || 0) > 0
         ? Math.round(((parseInt(weekData.total_correct) || 0) / (parseInt(weekData.total_questions) || 0)) * 100)
         : 0;
 
-      // Query subject data
-      const subjectsQuery = `
-        SELECT
-          subject,
-          total_questions_attempted as questions,
-          total_questions_correct as correct,
-          accuracy_rate as accuracy,
-          total_time_spent as xp,
-          'Intermediate' as proficiency
-        FROM subject_progress
-        WHERE user_id = $1
-        ORDER BY last_activity_date DESC
-      `;
-
-      const subjectsResult = await db.query(subjectsQuery, [userId]);
-
-      // Query achievements (mock data for now)
-      const achievementsQuery = `
-        SELECT
-          'First Steps' as achievement_name,
-          'Answered your first question!' as description,
-          'common' as rarity,
-          10 as xp_reward,
-          'star.fill' as icon
-        LIMIT 0
-      `;
-
-      const achievementsResult = await db.query(achievementsQuery);
-
       // Build the response in the format iOS expects: { success, data: { ... } }
-      const data = {
+      const responseData = {
         overall: {
           current_level: currentLevel,
           total_xp: totalXP,
@@ -447,7 +441,7 @@ class ProgressRoutes {
           completed: (parseInt(todayData.questions_answered) || 0) >= 5,
           progress_percentage: Math.min(((parseInt(todayData.questions_answered) || 0) / 5.0) * 100, 100)
         },
-        subjects: subjectsResult.rows.map(row => ({
+        subjects: subjects.map(row => ({
           name: row.subject,
           questions: parseInt(row.questions) || 0,
           correct: parseInt(row.correct) || 0,
@@ -456,9 +450,9 @@ class ProgressRoutes {
           proficiency: row.proficiency
         })),
         achievements: {
-          total_unlocked: achievementsResult.rows.length,
+          total_unlocked: 0,
           available_count: 10,
-          recent: achievementsResult.rows
+          recent: []
         },
         next_milestones: [
           {
@@ -483,12 +477,12 @@ class ProgressRoutes {
         ai_message: "Great progress! Keep up the momentum and you'll reach your goals in no time. 🚀"
       };
 
-      this.fastify.log.info(`✅ Enhanced progress data prepared`);
-      this.fastify.log.info(`📊 Data keys: ${Object.keys(data).join(", ")}`);
+      this.fastify.log.info(`✅ Enhanced progress data prepared (1 query optimization: 5 → 1)`);
+      this.fastify.log.info(`📊 Data keys: ${Object.keys(responseData).join(", ")}`);
 
       return reply.send({
         success: true,
-        data: data
+        data: responseData
       });
 
     } catch (error) {
@@ -554,33 +548,77 @@ class ProgressRoutes {
 
       this.fastify.log.info(`📊 Date range: ${startDateStr} to ${endDateStr}`);
 
-      // Query daily activities for the timeframe and aggregate by subject
-      const subjectProgressQuery = `
+      // EFFICIENCY FIX: Combined query using CTEs to eliminate N+1 problem
+      // This replaces 3 separate queries with a single optimized query
+      const combinedQuery = `
+        WITH subject_progress_agg AS (
+          SELECT
+            subject,
+            SUM(questions_attempted) as total_questions_attempted,
+            SUM(questions_correct) as total_questions_correct,
+            CASE
+              WHEN SUM(questions_attempted) > 0
+              THEN (SUM(questions_correct)::float / SUM(questions_attempted)::float * 100)
+              ELSE 0
+            END as accuracy_rate,
+            SUM(time_spent) as total_time_spent,
+            0.8 as average_confidence,
+            0 as streak_count,
+            MAX(activity_date) as last_activity_date,
+            'stable' as performance_trend,
+            COUNT(DISTINCT DATE(activity_date)) as recent_sessions
+          FROM daily_subject_activities
+          WHERE user_id = $1
+            AND DATE(activity_date) >= $2
+            AND DATE(activity_date) <= $3
+          GROUP BY subject
+          ORDER BY last_activity_date DESC
+        ),
+        daily_activities_data AS (
+          SELECT
+            activity_date,
+            subject,
+            questions_attempted,
+            questions_correct,
+            time_spent,
+            points_earned
+          FROM daily_subject_activities
+          WHERE user_id = $1
+            AND DATE(activity_date) >= $2
+            AND DATE(activity_date) <= $3
+          ORDER BY activity_date DESC, subject
+        ),
+        insights_data AS (
+          SELECT
+            subject,
+            insight_type,
+            insight_message,
+            confidence_level,
+            action_recommended,
+            created_at
+          FROM subject_insights
+          WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '30 days'
+          ORDER BY created_at DESC
+          LIMIT 10
+        )
         SELECT
-          subject,
-          SUM(questions_attempted) as total_questions_attempted,
-          SUM(questions_correct) as total_questions_correct,
-          CASE
-            WHEN SUM(questions_attempted) > 0
-            THEN (SUM(questions_correct)::float / SUM(questions_attempted)::float * 100)
-            ELSE 0
-          END as accuracy_rate,
-          SUM(time_spent) as total_time_spent,
-          0.8 as average_confidence,
-          0 as streak_count,
-          MAX(activity_date) as last_activity_date,
-          'stable' as performance_trend,
-          COUNT(DISTINCT DATE(activity_date)) as recent_sessions
-        FROM daily_subject_activities
-        WHERE user_id = $1
-          AND DATE(activity_date) >= $2
-          AND DATE(activity_date) <= $3
-        GROUP BY subject
-        ORDER BY last_activity_date DESC
+          (SELECT json_agg(subject_progress_agg.*) FROM subject_progress_agg) as subject_progress,
+          (SELECT json_agg(daily_activities_data.*) FROM daily_activities_data) as daily_activities,
+          (SELECT json_agg(insights_data.*) FROM insights_data) as insights
       `;
 
-      const subjectProgress = await db.query(subjectProgressQuery, [userId, startDateStr, endDateStr]);
-      
+      this.fastify.log.info(`🚀 Executing optimized combined query (1 query instead of 3)`);
+      const result = await db.query(combinedQuery, [userId, startDateStr, endDateStr]);
+
+      if (!result.rows || result.rows.length === 0) {
+        throw new Error('No data returned from combined query');
+      }
+
+      const queryData = result.rows[0];
+      const subjectProgress = { rows: queryData.subject_progress || [] };
+      const dailyActivities = { rows: queryData.daily_activities || [] };
+      const insights = { rows: queryData.insights || [] };
+
       this.fastify.log.info(`🔍 DEBUG: Raw database query results:`);
       this.fastify.log.info(`🔍 DEBUG: Found ${subjectProgress.rows.length} subjects`);
       subjectProgress.rows.forEach((row, index) => {
@@ -590,41 +628,6 @@ class ProgressRoutes {
         this.fastify.log.info(`🔍 DEBUG:   - accuracy_rate: ${row.accuracy_rate}`);
         this.fastify.log.info(`🔍 DEBUG:   - total_time_spent: ${row.total_time_spent}`);
       });
-
-      // Get daily activities for the selected timeframe
-      const dailyActivitiesQuery = `
-        SELECT
-          activity_date,
-          subject,
-          questions_attempted,
-          questions_correct,
-          time_spent,
-          points_earned
-        FROM daily_subject_activities
-        WHERE user_id = $1
-          AND DATE(activity_date) >= $2
-          AND DATE(activity_date) <= $3
-        ORDER BY activity_date DESC, subject
-      `;
-
-      const dailyActivities = await db.query(dailyActivitiesQuery, [userId, startDateStr, endDateStr]);
-
-      // Get subject insights
-      const insightsQuery = `
-        SELECT 
-          subject,
-          insight_type,
-          insight_message,
-          confidence_level,
-          action_recommended,
-          created_at
-        FROM subject_insights
-        WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '30 days'
-        ORDER BY created_at DESC
-        LIMIT 10
-      `;
-
-      const insights = await db.query(insightsQuery, [userId]);
 
       // Calculate overall statistics
       const overallStats = {
@@ -706,7 +709,7 @@ class ProgressRoutes {
         recommendations: [] // TODO: Implement recommendations
       };
 
-      this.fastify.log.info(`✅ Subject breakdown retrieved: ${subjectBreakdown.subjectProgress.length} subjects`);
+      this.fastify.log.info(`✅ Subject breakdown retrieved: ${subjectBreakdown.subjectProgress.length} subjects (1 query optimization: 3 → 1)`);
       
       // Add detailed JSON logging for debugging iOS parsing
       this.fastify.log.info(`🔍 DEBUG: Full API response structure:`);

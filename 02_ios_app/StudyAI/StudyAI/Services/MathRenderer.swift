@@ -6,166 +6,7 @@
 //
 
 import SwiftUI
-import WebKit
 import Foundation
-
-/// A SwiftUI view that renders mathematical equations using MathJax
-struct MathEquationView: UIViewRepresentable {
-    let equation: String
-    let fontSize: CGFloat
-    
-    init(_ equation: String, fontSize: CGFloat = 16) {
-        self.equation = equation
-        self.fontSize = fontSize
-    }
-    
-    func makeUIView(context: Context) -> WKWebView {
-        let webView = WKWebView()
-        webView.navigationDelegate = context.coordinator
-        webView.isOpaque = false
-        webView.backgroundColor = UIColor.clear
-        webView.scrollView.backgroundColor = UIColor.clear
-        webView.scrollView.isScrollEnabled = false
-        return webView
-    }
-    
-    func updateUIView(_ webView: WKWebView, context: Context) {
-        print("🔄 === MATH EQUATION VIEW UPDATE ===")
-        print("📝 Equation to render: '\(equation)'")
-        print("📏 Font size: \(fontSize)")
-        
-        let mathHTML = createMathHTML(equation: equation, fontSize: fontSize)
-        print("📄 Generated HTML length: \(mathHTML.count)")
-        print("📄 HTML preview: \(String(mathHTML.prefix(300)))")
-        
-        webView.loadHTMLString(mathHTML, baseURL: nil)
-        print("✅ HTML loaded into WebKit")
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-    
-    class Coordinator: NSObject, WKNavigationDelegate {
-        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-            print("🌐 WebKit: Started loading MathJax")
-        }
-        
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            print("🎉 WebKit: MathJax page loaded successfully")
-            
-            // Check if MathJax is loaded
-            webView.evaluateJavaScript("typeof MathJax") { result, error in
-                if let result = result {
-                    print("🔍 MathJax object type: \(result)")
-                } else {
-                    print("❌ MathJax not found: \(error?.localizedDescription ?? "unknown error")")
-                }
-            }
-            
-            // Adjust height after content loads
-            webView.evaluateJavaScript("document.body.scrollHeight") { result, error in
-                if let height = result as? CGFloat {
-                    print("📏 WebKit content height: \(height)")
-                    DispatchQueue.main.async {
-                        webView.frame.size.height = height
-                    }
-                } else {
-                    print("❌ Failed to get content height: \(error?.localizedDescription ?? "unknown")")
-                }
-            }
-        }
-        
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            print("❌ WebKit: Failed to load MathJax - \(error.localizedDescription)")
-        }
-        
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            print("❌ WebKit: Failed to start loading MathJax - \(error.localizedDescription)")
-        }
-    }
-    
-    private func createMathHTML(equation: String, fontSize: CGFloat) -> String {
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-            <script>
-                window.MathJax = {
-                    tex: {
-                        // Prioritize $ delimiters for iOS compatibility
-                        inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
-                        displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
-                        processEscapes: true,
-                        processEnvironments: true,
-                        processRefs: true,
-                        autoload: {
-                            color: [],
-                            colorV2: ['color']
-                        }
-                    },
-                    options: {
-                        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
-                        ignoreHtmlClass: 'tex2jax_ignore',
-                        processHtmlClass: 'tex2jax_process'
-                    },
-                    svg: {
-                        fontCache: 'global'
-                    },
-                    startup: {
-                        ready: () => {
-                            MathJax.startup.defaultReady();
-                            // Auto-resize after rendering
-                            MathJax.startup.promise.then(() => {
-                                setTimeout(() => {
-                                    const height = Math.max(document.body.scrollHeight, document.body.offsetHeight);
-                                    document.body.style.height = height + 'px';
-                                }, 100);
-                            });
-                        }
-                    }
-                };
-            </script>
-            <style>
-                body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    font-size: \(fontSize)px;
-                    line-height: 1.6;
-                    margin: 8px;
-                    padding: 0;
-                    background-color: transparent;
-                    color: #000000;
-                    overflow-x: hidden;
-                }
-                .math-container {
-                    text-align: center;
-                    margin: 10px 0;
-                    width: 100%;
-                    box-sizing: border-box;
-                }
-                mjx-container {
-                    overflow-x: auto;
-                    overflow-y: hidden;
-                }
-                @media (prefers-color-scheme: dark) {
-                    body {
-                        color: #ffffff;
-                    }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="math-container">
-                \(equation)
-            </div>
-        </body>
-        </html>
-        """
-    }
-}
 
 /// Service to handle math equation formatting and detection
 class MathFormattingService {
@@ -235,12 +76,12 @@ class MathFormattingService {
             // Text already has ChatGPT-recommended display math formatting
             return formattedText
         }
-        
+
         if formattedText.contains("\\(") && formattedText.contains("\\)") {
-            // Text already has ChatGPT-recommended inline math formatting  
+            // Text already has ChatGPT-recommended inline math formatting
             return formattedText
         }
-        
+
         // Fallback: check legacy delimiters
         if formattedText.contains("$$") && (formattedText.hasPrefix("$$") || formattedText.hasSuffix("$$")) {
             // Convert legacy display math to new format
@@ -248,15 +89,13 @@ class MathFormattingService {
                 .replacingOccurrences(of: "$$", with: "\\]")
             return converted
         }
-        
+
         if formattedText.contains("$") && (formattedText.hasPrefix("$") || formattedText.hasSuffix("$")) {
             // Convert legacy inline math to new format
             let converted = formattedText.replacingOccurrences(of: "$", with: "\\(")
                 .replacingOccurrences(of: "$", with: "\\)")
             return converted
         }
-        
-        print("🔧 Formatting text: '\(formattedText)'")
         
         // Convert simple fractions to LaTeX (only for standalone fractions)
         formattedText = formattedText.replacingOccurrences(
@@ -300,8 +139,7 @@ class MathFormattingService {
                 formattedText = "\\(" + formattedText + "\\)"  // Inline math
             }
         }
-        
-        print("🎨 Final formatted: '\(formattedText)'")
+
         return formattedText
     }
     
@@ -354,57 +192,9 @@ class MathFormattingService {
         
         return result
     }
-    
-    /// Debug method to test math detection
-    func debugMathDetection(_ text: String) {
-        print("🧪 === DEBUGGING MATH DETECTION ===")
-        print("📄 Testing text: '\(text)'")
-        
-        let patterns = [
-            // ChatGPT-recommended delimiters (prioritized)
-            ("LaTeX inline \\(...\\)", "\\\\\\(.*?\\\\\\)"),
-            ("LaTeX display \\[...\\]", "\\\\\\[.*?\\\\\\]"),
-            ("LaTeX inline $...$", "\\$.*?\\$"),
-            ("LaTeX display $$...$$", "\\$\\$.*?\\$\\$"),
-            
-            // LaTeX functions
-            ("LaTeX sqrt", "\\\\sqrt\\{.*?\\}"),
-            ("LaTeX frac", "\\\\frac\\{.*?\\}\\{.*?\\}"),
-            ("LaTeX lim", "\\\\lim_\\{.*?\\}"),
-            ("LaTeX Greek", "\\\\(epsilon|delta|alpha|beta)"),
-            
-            // Basic patterns
-            ("Variables", "\\d+[x-z]"),
-            ("Operators", "[x-z]\\s*[+\\-*/=]"),
-            ("Exponents", "\\^\\{?\\d+\\}?"),
-            ("Simple fractions", "\\d+/\\d+"),
-            ("Math ops", "[+\\-*/=]\\s*\\d"),
-            ("Parentheses", "\\([^)]*[+\\-*/][^)]*\\)")
-        ]
-        
-        for (name, pattern) in patterns {
-            if text.range(of: pattern, options: .regularExpression) != nil {
-                print("✅ Found: \(name)")
-            } else {
-                print("❌ Not found: \(name)")
-            }
-        }
-        
-        let hasMath = containsMathExpressions(text)
-        print("🎯 Final result: \(hasMath ? "HAS MATH" : "NO MATH")")
-        
-        if hasMath {
-            let formatted = formatMathForDisplay(text)
-            print("🎨 Formatted result: '\(formatted)'")
-        }
-    }
-    
+
     /// Parse mixed text with math expressions and markdown formatting
     func parseTextWithMath(_ text: String) -> [TextComponent] {
-        print("🔍 === ENHANCED RENDERING DEBUG (Math + Markdown) ===")
-        print("📄 Input text length: \(text.count)")
-        print("📄 Input preview: \(String(text.prefix(200)))")
-
         // First, handle multi-line LaTeX display math blocks
         var processedText = text
 
@@ -422,7 +212,7 @@ class MathFormattingService {
                 withTemplate: "\\\\[$1\\\\]"  // Keep as \[...\] for display
             )
         } catch {
-            print("❌ Display math regex error: \(error)")
+            // Silently fail on regex error
         }
 
         // Handle ChatGPT-recommended inline LaTeX \( ... \) (prioritized)
@@ -439,7 +229,7 @@ class MathFormattingService {
                 withTemplate: "\\\\($1\\\\)"  // Keep as \(...\) for inline
             )
         } catch {
-            print("❌ Inline math regex error: \(error)")
+            // Silently fail on regex error
         }
 
         // Fallback: Handle legacy $$ ... $$ display math
@@ -456,7 +246,7 @@ class MathFormattingService {
                 withTemplate: "\\\\[$1\\\\]"  // Convert to \[...\] format
             )
         } catch {
-            print("❌ Legacy display math regex error: \(error)")
+            // Silently fail on regex error
         }
 
         // Fallback: Handle legacy $ ... $ inline math
@@ -473,17 +263,13 @@ class MathFormattingService {
                 withTemplate: "\\\\($1\\\\)"  // Convert to \(...\) format
             )
         } catch {
-            print("❌ Legacy inline math regex error: \(error)")
+            // Silently fail on regex error
         }
-
-        print("📝 After LaTeX preprocessing: \(String(processedText.prefix(200)))")
 
         var components: [TextComponent] = []
         let lines = processedText.components(separatedBy: .newlines)
 
-        print("📊 Processing \(lines.count) lines")
-
-        for (index, line) in lines.enumerated() {
+        for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
 
             // Skip empty lines
@@ -495,7 +281,6 @@ class MathFormattingService {
             if trimmedLine == "$$" || trimmedLine == "$" ||
                trimmedLine.range(of: "^\\$\\$\\s*\\$\\$$", options: .regularExpression) != nil ||
                trimmedLine.range(of: "^\\$\\s*\\$$", options: .regularExpression) != nil {
-                print("📝 Line \(index): SKIPPING empty math block - '\(trimmedLine)'")
                 continue
             }
 
@@ -504,20 +289,15 @@ class MathFormattingService {
             let hasMath = containsMathExpressions(line)
 
             if hasMarkdown {
-                print("📋 Line \(index): HAS MARKDOWN - '\(String(line.prefix(50)))'")
                 components.append(.markdown(line))
             } else if hasMath {
-                print("📝 Line \(index): HAS MATH - '\(String(line.prefix(50)))'")
                 let formatted = formatMathForDisplay(line)
-                print("🎨 Formatted math: '\(String(formatted.prefix(100)))'")
                 components.append(.math(formatted))
             } else {
-                print("📝 Line \(index): plain text - '\(String(line.prefix(50)))'")
                 components.append(.text(line))
             }
         }
 
-        print("✅ Created \(components.count) components")
         return components
     }
 
@@ -584,9 +364,6 @@ struct MathFormattedText: View {
                         .font(.system(size: fontSize))
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
-                        .onAppear {
-                            print("🧮 Rendering math: '\(equation)' -> '\(SimpleMathRenderer.renderMathText(equation))'")
-                        }
                 case .markdown(let markdownText):
                     // Render markdown using AttributedString
                     MarkdownTextView(markdownText, fontSize: fontSize)
@@ -594,26 +371,6 @@ struct MathFormattedText: View {
             }
         }
         .fixedSize(horizontal: false, vertical: true)
-        .onAppear {
-            // Debug: Show the actual content being processed for this message
-            if content.contains("\\") || content.contains("equation") || content.contains("=") ||
-               content.contains("###") || content.contains("**") || content.contains("- ") {
-                print("🧪 === RENDERING DEBUG FOR CURRENT MESSAGE ===")
-                print("📄 Message content: '\(content)'")
-                print("📊 Components created: \(components.count)")
-                for (index, component) in components.enumerated() {
-                    switch component {
-                    case .text(let text):
-                        print("📝 Component \(index): TEXT - '\(text.prefix(50))'")
-                    case .math(let equation):
-                        print("🧮 Component \(index): MATH - '\(equation.prefix(50))'")
-                    case .markdown(let md):
-                        print("📋 Component \(index): MARKDOWN - '\(md.prefix(50))'")
-                    }
-                }
-                print("================================================")
-            }
-        }
     }
 }
 

@@ -1005,25 +1005,48 @@ class NetworkService: ObservableObject {
     /// - Parameters:
     ///   - sessionId: The session ID
     ///   - message: The user message
+    ///   - questionContext: Optional homework question context for grade correction support
     ///   - onChunk: Callback for each streaming chunk (delta text)
     ///   - onSuggestions: Callback when AI-generated follow-up suggestions arrive
+    ///   - onGradeCorrection: Callback when grade correction is detected (changeGrade, gradeCorrectionData)
     ///   - onComplete: Callback when streaming is complete (full text, tokens, compressed)
     /// - Returns: Success status
     @MainActor
     func sendSessionMessageStreaming(
         sessionId: String,
         message: String,
+        questionContext: [String: Any]? = nil,  // NEW: Optional homework context
         onChunk: @escaping (String) -> Void,  // Called with accumulated text
         onSuggestions: @escaping ([FollowUpSuggestion]) -> Void,  // Called when suggestions arrive
+        onGradeCorrection: @escaping (Bool, GradeCorrectionData?) -> Void,  // NEW: Grade correction callback
         onComplete: @escaping (Bool, String?, Int?, Bool?) -> Void  // (success, fullText, tokens, compressed)
     ) async -> Bool {
 
         print("🟢 === STREAMING SESSION MESSAGE ===")
         print("📨 Session ID: \(sessionId)")
         print("💬 Message: \(message)")
+        print("📚 Question Context Parameter: \(questionContext != nil ? "PROVIDED" : "NIL")")
+
+        // Enhanced logging for homework context
+        if let questionContext = questionContext {
+            print("📚 === HOMEWORK CONTEXT DETECTED IN NETWORKSERVICE ===")
+            if let questionText = questionContext["questionText"] as? String {
+                print("📝 Question: \(questionText.prefix(100))...")
+            }
+            if let studentAnswer = questionContext["studentAnswer"] as? String {
+                print("✏️ Student Answer: \(studentAnswer.prefix(50))...")
+            }
+            if let currentGrade = questionContext["currentGrade"] as? String {
+                print("📊 Current Grade: \(currentGrade)")
+            }
+            if let points = questionContext["pointsEarned"] as? Float,
+               let possible = questionContext["pointsPossible"] as? Float {
+                print("💯 Points: \(points)/\(possible)")
+            }
+            print("🔍 Will include question_context in request body...")
+        }
 
         let streamURL = "\(baseURL)/api/ai/sessions/\(sessionId)/message/stream"
-        print("🔗 Streaming URL: \(streamURL)")
 
         guard let url = URL(string: streamURL) else {
             print("❌ Invalid streaming URL")
@@ -1031,10 +1054,19 @@ class NetworkService: ObservableObject {
             return false
         }
 
-        let messageData: [String: Any] = [
+        var messageData: [String: Any] = [
             "message": message,
-            "language": appLanguage  // Pass user's language preference
+            "language": appLanguage
         ]
+
+        // Add question context if provided (for homework follow-up)
+        if let questionContext = questionContext {
+            messageData["question_context"] = questionContext
+            print("✅ Added question_context to request body")
+            print("📦 Request body keys: \(messageData.keys)")
+        } else {
+            print("ℹ️ No question_context - regular chat message")
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1047,7 +1079,7 @@ class NetworkService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: messageData)
 
-            print("📡 Starting streaming request...")
+            print("📡 Sending request to AI Engine...")
 
             let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
 
@@ -1057,9 +1089,6 @@ class NetworkService: ObservableObject {
                 return false
             }
 
-            print("📊 HTTP Status Code: \(httpResponse.statusCode)")
-            print("📋 Response Headers: \(httpResponse.allHeaderFields)")
-
             guard httpResponse.statusCode == 200 else {
                 print("❌ Streaming request failed with status: \(httpResponse.statusCode)")
 
@@ -1068,18 +1097,19 @@ class NetworkService: ObservableObject {
                 for try await byte in asyncBytes {
                     let character = String(bytes: [byte], encoding: .utf8) ?? ""
                     errorBody += character
-                    if errorBody.count > 1000 { break }  // Limit error body size
+                    if errorBody.count > 1000 { break }
                 }
-                print("❌ Error body: \(errorBody)")
+                print("❌ Error: \(errorBody)")
 
                 onComplete(false, nil, nil, nil)
                 return false
             }
 
-            print("✅ Streaming connection established")
+            print("✅ Streaming connection established, receiving AI response...")
 
             var accumulatedText = ""
             var buffer = ""
+            var streamComplete = false  // Track if "end" event received
 
             for try await byte in asyncBytes {
                 let character = String(bytes: [byte], encoding: .utf8) ?? ""
@@ -1091,21 +1121,18 @@ class NetworkService: ObservableObject {
 
                     for line in lines {
                         if line.hasPrefix("data: ") {
-                            let jsonString = String(line.dropFirst(6))  // Remove "data: "
-                            print("🔍 Raw SSE data: \(jsonString)")
+                            let jsonString = String(line.dropFirst(6))
 
                             if let jsonData = jsonString.data(using: .utf8) {
                                 do {
                                     let event = try JSONDecoder().decode(SSEEvent.self, from: jsonData)
-                                    print("📦 Decoded event type: \(event.type)")
 
                                     switch event.type {
                                     case "start":
-                                        print("🎬 Stream started: \(event.session_id ?? "")")
+                                        break  // Silent start
 
                                     case "content":
                                         accumulatedText = event.content ?? ""
-                                        print("📝 Chunk: \(event.delta ?? "")", terminator: "")
 
                                         // Call the chunk callback on main thread
                                         await MainActor.run {
@@ -1114,56 +1141,75 @@ class NetworkService: ObservableObject {
 
                                         // Check for AI-generated suggestions in content events
                                         if let suggestions = event.suggestions, !suggestions.isEmpty {
-                                            print("✨ Received \(suggestions.count) AI-generated suggestions")
                                             await MainActor.run {
                                                 onSuggestions(suggestions)
                                             }
                                         }
 
                                     case "end":
-                                        print("\n✅ Stream complete!")
-                                        print("📊 Final text length: \(accumulatedText.count) chars")
+                                        print("✅ AI response complete (\(accumulatedText.count) chars)")
+
+                                        // Show first 200 chars of final response for debugging
+                                        if accumulatedText.count > 0 {
+                                            print("📄 Response preview: \(accumulatedText.prefix(200))...")
+                                        }
 
                                         // Check for AI-generated suggestions in end event
                                         if let suggestions = event.suggestions, !suggestions.isEmpty {
-                                            print("✨ Received \(suggestions.count) AI-generated suggestions at stream end")
                                             await MainActor.run {
                                                 onSuggestions(suggestions)
                                             }
                                         }
 
-                                        // ✅ FIX: Don't add to conversation history here
-                                        // SessionChatView already adds it during streaming (onChunk callback)
-                                        // Adding here would create duplicate messages
-                                        // await MainActor.run {
-                                        //     self.addToConversationHistory(role: "assistant", content: accumulatedText)
-                                        //     print("📚 Added AI response to conversation history")
-                                        // }
+                                        // ⚠️ BUG FIX: Don't return here! Keep reading stream for grade_correction event
+                                        // Call completion callback but DON'T exit the loop
+                                        print("📡 Stream complete, but continuing to listen for grade_correction event...")
+                                        streamComplete = true  // Mark as complete but continue listening
 
-                                        // Call completion callback
                                         await MainActor.run {
                                             onComplete(true, accumulatedText, nil, nil)
                                         }
 
-                                        return true
-
                                     case "error":
-                                        print("❌ Stream error type received")
-                                        print("❌ Error message: \(event.error ?? "No error message provided")")
-                                        print("❌ Full event: \(event)")
+                                        print("❌ Stream error: \(event.error ?? "Unknown error")")
                                         onComplete(false, nil, nil, nil)
                                         return false
 
+                                    case "grade_correction":
+                                        print("🎯 === GRADE CORRECTION EVENT ===")
+                                        let changeGrade = event.change_grade ?? false
+                                        print("📊 Change grade: \(changeGrade)")
+
+                                        if changeGrade, let gradeCorrection = event.grade_correction {
+                                            print("✅ Grade correction approved by AI!")
+                                            print("   Original: \(gradeCorrection.originalGrade)")
+                                            print("   Corrected: \(gradeCorrection.correctedGrade)")
+                                            print("   Points: \(gradeCorrection.newPointsEarned)/\(gradeCorrection.pointsPossible)")
+                                            print("   Reason: \(gradeCorrection.reason.prefix(100))...")
+
+                                            // Call grade correction callback on main thread
+                                            await MainActor.run {
+                                                onGradeCorrection(true, gradeCorrection)
+                                            }
+                                        } else {
+                                            print("ℹ️ No grade correction needed - original grading was correct")
+
+                                            // Call grade correction callback with false
+                                            await MainActor.run {
+                                                onGradeCorrection(false, nil)
+                                            }
+                                        }
+
+                                        // Grade correction is the final event, exit after receiving it
+                                        print("✅ Grade correction event received, stream complete")
+                                        return true
+
                                     default:
-                                        print("⚠️ Unknown event type: \(event.type)")
-                                        break
+                                        break  // Ignore unknown event types
                                     }
                                 } catch {
                                     print("❌ JSON decode error: \(error)")
-                                    print("❌ Failed to parse: \(jsonString)")
                                 }
-                            } else {
-                                print("❌ Failed to convert to JSON data: \(jsonString)")
                             }
                         }
                     }
@@ -1192,7 +1238,9 @@ class NetworkService: ObservableObject {
         let error: String?
         let finish_reason: String?
         let timestamp: String?
-        let suggestions: [FollowUpSuggestion]?  // NEW: AI-generated suggestions
+        let suggestions: [FollowUpSuggestion]?  // AI-generated suggestions
+        let change_grade: Bool?  // NEW: Grade correction flag
+        let grade_correction: GradeCorrectionData?  // NEW: Grade correction details
     }
 
     // MARK: - AI Response Models
@@ -1239,114 +1287,6 @@ class NetworkService: ObservableObject {
             case reason
             case newPointsEarned = "new_points_earned"
             case pointsPossible = "points_possible"
-        }
-    }
-
-    /// Send homework follow-up message with full question context and grade validation
-    func sendHomeworkFollowupMessage(
-        sessionId: String,
-        message: String,
-        questionContext: [String: Any]
-    ) async -> (success: Bool, aiResponse: String?, gradeCorrection: GradeCorrectionData?, tokensUsed: Int?, compressed: Bool?) {
-
-        // Check authentication
-        guard AuthenticationService.shared.getAuthToken() != nil else {
-            print("❌ Authentication required to send homework follow-up")
-            return (false, nil, nil, nil, nil)
-        }
-
-        print("📚 === HOMEWORK FOLLOW-UP MESSAGE ===")
-        print("🆔 Session ID: \(sessionId)")
-        print("💬 Message: \(message.prefix(100))...")
-        print("📋 Question Context: \(questionContext)")
-
-        let followupURL = "\(baseURL)/api/ai/homework-followup/\(sessionId)/message"
-        print("🔗 Follow-up URL: \(followupURL)")
-
-        guard let url = URL(string: followupURL) else {
-            print("❌ Invalid homework follow-up URL")
-            return (false, nil, nil, nil, nil)
-        }
-
-        let requestData: [String: Any] = [
-            "message": message,
-            "question_context": questionContext,
-            "language": appLanguage  // Pass user's language preference
-        ]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 90.0
-
-        // Add authentication header
-        addAuthHeader(to: &request)
-
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
-
-            print("📡 Sending homework follow-up message...")
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Homework Follow-up Response Status: \(httpResponse.statusCode)")
-
-                if httpResponse.statusCode == 200 {
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let aiResponse = json["ai_response"] as? String {
-
-                        print("🎉 === HOMEWORK FOLLOW-UP SUCCESS ===")
-                        print("🤖 AI Response: \(String(aiResponse.prefix(200)))...")
-
-                        let tokensUsed = json["tokens_used"] as? Int
-                        let compressed = json["compressed"] as? Bool
-
-                        // Check for grade correction
-                        var gradeCorrection: GradeCorrectionData? = nil
-                        if let gradeCorrectionDict = json["grade_correction"] as? [String: Any] {
-                            print("🔄 Grade correction detected!")
-
-                            // Manually parse grade correction
-                            if let originalGrade = gradeCorrectionDict["original_grade"] as? String,
-                               let correctedGrade = gradeCorrectionDict["corrected_grade"] as? String,
-                               let reason = gradeCorrectionDict["reason"] as? String,
-                               let newPointsEarned = gradeCorrectionDict["new_points_earned"] as? Float,
-                               let pointsPossible = gradeCorrectionDict["points_possible"] as? Float {
-
-                                gradeCorrection = GradeCorrectionData(
-                                    originalGrade: originalGrade,
-                                    correctedGrade: correctedGrade,
-                                    reason: reason,
-                                    newPointsEarned: newPointsEarned,
-                                    pointsPossible: pointsPossible
-                                )
-
-                                print("📊 Grade: \(originalGrade) → \(correctedGrade)")
-                                print("💡 Reason: \(String(reason.prefix(100)))...")
-                            }
-                        }
-
-                        // Update conversation history
-                        await MainActor.run {
-                            self.addToConversationHistory(role: "assistant", content: aiResponse)
-                        }
-
-                        return (true, aiResponse, gradeCorrection, tokensUsed, compressed)
-                    }
-                } else if httpResponse.statusCode == 401 {
-                    print("❌ Authentication expired in sendHomeworkFollowupMessage")
-                    return (false, "Authentication expired", nil, nil, nil)
-                }
-
-                let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                print("❌ Homework Follow-up HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
-                return (false, nil, nil, nil, nil)
-            }
-
-            return (false, nil, nil, nil, nil)
-        } catch {
-            print("❌ Homework follow-up failed: \(error.localizedDescription)")
-            return (false, nil, nil, nil, nil)
         }
     }
 
@@ -3537,6 +3477,153 @@ class NetworkService: ObservableObject {
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone(identifier: timezone) ?? TimeZone.current
         return formatter.string(from: Date())
+    }
+
+    // MARK: - Parental Consent (COPPA Compliance)
+
+    /// Check if current user requires parental consent
+    func checkConsentStatus() async -> (requiresConsent: Bool, consentStatus: String?, isRestricted: Bool, message: String?) {
+        let url = URL(string: "\(baseURL)/api/auth/consent-status")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+
+        // Add authentication
+        if let authToken = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if httpResponse.statusCode == 200 {
+                        let consentData = json["consentStatus"] as? [String: Any]
+                        let requiresConsent = consentData?["requiresParentalConsent"] as? Bool ?? false
+                        let consentStatus = consentData?["consentStatus"] as? String
+                        let isRestricted = consentData?["accountRestricted"] as? Bool ?? false
+                        let message = json["message"] as? String
+
+                        print("📋 Consent Status: requires=\(requiresConsent), status=\(consentStatus ?? "none"), restricted=\(isRestricted)")
+                        return (requiresConsent, consentStatus, isRestricted, message)
+                    } else {
+                        let message = json["message"] as? String ?? "Failed to check consent status"
+                        print("❌ Consent status check failed: \(message)")
+                        return (false, nil, false, message)
+                    }
+                }
+            }
+
+            return (false, nil, false, "Invalid response")
+        } catch {
+            print("❌ Consent status error: \(error.localizedDescription)")
+            return (false, nil, false, error.localizedDescription)
+        }
+    }
+
+    /// Request parental consent for a user under 13
+    func requestParentalConsent(childEmail: String, childDateOfBirth: String, parentEmail: String, parentName: String) async -> (success: Bool, message: String, verificationCode: String?) {
+        let url = URL(string: "\(baseURL)/api/auth/request-parental-consent")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Add authentication
+        if let authToken = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        // Get current user ID
+        guard let childUserId = AuthenticationService.shared.currentUser?.id else {
+            print("❌ Cannot request consent: User ID not available")
+            return (false, "User not authenticated", nil)
+        }
+
+        let requestData: [String: Any] = [
+            "childUserId": childUserId,
+            "childEmail": childEmail,
+            "childDateOfBirth": childDateOfBirth,
+            "parentEmail": parentEmail,
+            "parentName": parentName
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    let success = json["success"] as? Bool ?? false
+                    let message = json["message"] as? String ?? "Unknown error"
+
+                    if success {
+                        let consent = json["consent"] as? [String: Any]
+                        let verificationCode = consent?["verification_code"] as? String
+                        print("✅ Parental consent requested successfully")
+                        return (true, message, verificationCode)
+                    } else {
+                        print("❌ Consent request failed: \(message)")
+                        return (false, message, nil)
+                    }
+                }
+            }
+
+            return (false, "Invalid response", nil)
+        } catch {
+            print("❌ Consent request error: \(error.localizedDescription)")
+            return (false, error.localizedDescription, nil)
+        }
+    }
+
+    /// Verify parental consent with 6-digit code
+    func verifyParentalConsent(code: String) async -> (success: Bool, message: String) {
+        let url = URL(string: "\(baseURL)/api/auth/verify-parental-consent")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Add authentication
+        if let authToken = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        // Get current user ID
+        guard let childUserId = AuthenticationService.shared.currentUser?.id else {
+            print("❌ Cannot verify consent: User ID not available")
+            return (false, "User not authenticated")
+        }
+
+        let requestData: [String: Any] = [
+            "childUserId": childUserId,
+            "code": code
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    let success = json["success"] as? Bool ?? false
+                    let message = json["message"] as? String ?? "Unknown error"
+
+                    if success {
+                        print("✅ Parental consent verified successfully")
+                        return (true, message)
+                    } else {
+                        print("❌ Consent verification failed: \(message)")
+                        return (false, message)
+                    }
+                }
+            }
+
+            return (false, "Invalid response")
+        } catch {
+            print("❌ Consent verification error: \(error.localizedDescription)")
+            return (false, error.localizedDescription)
+        }
     }
 }
 

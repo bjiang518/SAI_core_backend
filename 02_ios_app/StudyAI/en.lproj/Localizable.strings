@@ -1034,3 +1034,25 @@
 // Generated Questions - How to Use
 "generatedQuestions.howToUse.title" = "How to Use Practice Questions";
 "generatedQuestions.howToUse.message" = "• Tap any question card to start answering\n• Review the question and select your answer\n• Submit to see instant feedback and explanation\n• Track your progress with the checkmarks\n• Use 'Generate PDF' to export selected questions for offline practice\n• Navigate between questions using Previous/Next buttons";
+
+// Focus Mode - Music Player
+"focus.nowPlaying" = "Now Playing";
+"focus.nextTrack" = "Next: %@";
+
+// Focus Mode - Music Selection
+"focus.singleTrack" = "Single Track";
+"focus.playlist" = "Playlist";
+"focus.createPlaylist" = "Create Playlist";
+"focus.createPlaylistDescription" = "Combine multiple tracks";
+"focus.noPlaylists" = "No playlists yet";
+"focus.createFirstPlaylist" = "Create your first playlist to get started";
+"focus.tracks" = "tracks";
+"focus.deletePlaylist" = "Delete Playlist";
+"focus.deletePlaylistConfirmation" = "Are you sure you want to delete this playlist?";
+
+// Focus Mode - Playlist Editor
+"focus.playlistName" = "Playlist Name";
+"focus.enterPlaylistName" = "Enter playlist name...";
+"focus.playlistNameRequired" = "Playlist name is required";
+"focus.selectTracks" = "Select Tracks";
+"focus.editPlaylist" = "Edit Playlist";

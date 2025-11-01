@@ -73,13 +73,6 @@ struct HomeworkAlbumView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.gray)
-                    }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 16) {
                         // Filter button
                         Button(action: { showingFilterMenu.toggle() }) {
@@ -101,6 +94,12 @@ struct HomeworkAlbumView: View {
                             }
                             .foregroundColor(.blue)
                         }
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(NSLocalizedString("common.done", value: "Done", comment: "")) {
+                        dismiss()
                     }
                 }
             }
@@ -454,17 +453,16 @@ struct HomeworkAlbumSelectionView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.gray)
-                    }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
                     // Filter button
                     Button(action: { showingFilterMenu.toggle() }) {
                         Image(systemName: "line.3.horizontal.decrease.circle\(showingFilterMenu ? ".fill" : "")")
                             .foregroundColor(.blue)
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(NSLocalizedString("common.done", value: "Done", comment: "")) {
+                        dismiss()
                     }
                 }
             }

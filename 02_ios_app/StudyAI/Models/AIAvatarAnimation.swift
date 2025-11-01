@@ -199,26 +199,26 @@ struct AIAvatarAnimation: View {
         Group {
             switch state {
             case .idle:
-                // Idle state - Fire Animation (slow, small size)
+                // Idle state - Fire Animation (slow, slightly reduced size)
                 LottieView(
                     animationName: "Fire",
                     loopMode: .loop,
                     animationSpeed: 0.5  // Slow when idle
                 )
                 .frame(width: 60, height: 60)
-                .scaleEffect(0.12)  // Small size
+                .scaleEffect(0.10)  // Slightly smaller size
                 .opacity(1.0)  // Fully solid in idle mode
                 .transition(.opacity)
 
             case .waiting:
-                // Waiting state - Fire Animation (fast, small, blinking)
+                // Waiting state - Fire Animation (fast, slightly reduced size, blinking)
                 LottieView(
                     animationName: "Fire",
                     loopMode: .loop,
                     animationSpeed: 2.5  // Fast when waiting
                 )
                 .frame(width: 60, height: 60)
-                .scaleEffect(0.12)  // Small size
+                .scaleEffect(0.10)  // Slightly smaller size
                 .opacity(blinkingOpacity)  // Blinking effect
                 .transition(.opacity)
                 .onAppear {
@@ -236,25 +236,27 @@ struct AIAvatarAnimation: View {
                 }
 
             case .processing:
-                // Processing state - Fire Animation (fast, small, no blinking)
+                // Processing state - Fire Animation (fast, slightly reduced size, no blinking)
                 LottieView(
                     animationName: "Fire",
                     loopMode: .loop,
                     animationSpeed: 2.5  // Fast when processing
                 )
                 .frame(width: 60, height: 60)
-                .scaleEffect(0.12)  // Small size
+                .scaleEffect(0.10)  // Slightly smaller size
                 .transition(.opacity)
 
             case .speaking:
-                // Speaking state - Wave Animation (switches to wave like Eva)
+                // Speaking state - Fire_moving Animation (slightly reduced size, moved up)
                 LottieView(
-                    animationName: "Wave Animation",
+                    animationName: "Fire_moving",
                     loopMode: .loop,
-                    animationSpeed: 2.5  // Fast wave animation
+                    animationSpeed: 3.0  // Faster motion for fire effect
                 )
                 .frame(width: 60, height: 60)
-                .scaleEffect(0.12)  // Same small size as other states
+                .scaleEffect(0.15)  // Slightly reduced size
+                .offset(y: -1)  // Move up slightly
+                .opacity(1.0)  // Keep full opacity
                 .transition(.opacity)
             }
         }

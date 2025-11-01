@@ -13,34 +13,13 @@ struct MistakeReviewView: View {
     @State private var selectedSubject: String?
     @State private var selectedTimeRange: MistakeTimeRange? = nil
     @State private var showingMistakeList = false
+    @State private var showingInstructions = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Header
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "arrow.uturn.backward.circle.fill")
-                                .font(.title)
-                                .foregroundColor(.orange)
-
-                            Text(NSLocalizedString("mistakeReview.header.title", comment: ""))
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.primary)
-                        }
-
-                        Text(NSLocalizedString("mistakeReview.header.subtitle", comment: ""))
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(12)
-
                     // Time Range Selection
                     VStack(alignment: .leading, spacing: 16) {
                         Text(NSLocalizedString("mistakeReview.timeRangeTitle", comment: ""))
@@ -147,10 +126,24 @@ struct MistakeReviewView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showingInstructions = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .font(.body)
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                 }
+            }
+            .alert(NSLocalizedString("mistakeReview.instructions.title", comment: ""), isPresented: $showingInstructions) {
+                Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }
+            } message: {
+                Text(NSLocalizedString("mistakeReview.instructions.message", comment: ""))
             }
             .task {
                 await mistakeService.fetchSubjectsWithMistakes(timeRange: selectedTimeRange)
@@ -449,8 +442,8 @@ struct MistakeQuestionCard: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
 
-                Text(question.rawQuestionText)  // ✅ Display full original question from image
-                    .font(.body)
+                // ✅ Use EnhancedMathText for LaTeX/math rendering
+                EnhancedMathText(question.rawQuestionText, fontSize: 16)
                     .fontWeight(.medium)
             }
 
@@ -461,19 +454,22 @@ struct MistakeQuestionCard: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
 
-                Text(question.studentAnswer.isEmpty ?
-                     NSLocalizedString("mistakeReview.noAnswer", comment: "") :
-                     question.studentAnswer)
-                    .font(.body)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.red.opacity(0.1))
-                    .foregroundColor(.red)
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                    )
+                // ✅ Use EnhancedMathText for math support in student answers
+                EnhancedMathText(
+                    question.studentAnswer.isEmpty ?
+                    NSLocalizedString("mistakeReview.noAnswer", comment: "") :
+                    question.studentAnswer,
+                    fontSize: 16
+                )
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.red.opacity(0.1))
+                .foregroundColor(.red)
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                )
             }
 
             // Correct answer
@@ -483,8 +479,8 @@ struct MistakeQuestionCard: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
 
-                Text(question.correctAnswer)
-                    .font(.body)
+                // ✅ Use EnhancedMathText for math support in correct answers
+                EnhancedMathText(question.correctAnswer, fontSize: 16)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(Color.green.opacity(0.1))
@@ -508,8 +504,8 @@ struct MistakeQuestionCard: View {
                 }
 
                 if showingExplanation {
-                    Text(question.explanation)
-                        .font(.caption)
+                    // ✅ Use EnhancedMathText for math support in explanations
+                    EnhancedMathText(question.explanation, fontSize: 13)
                         .padding(.top, 4)
                         .foregroundColor(.secondary)
                 }

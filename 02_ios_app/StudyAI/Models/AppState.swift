@@ -90,16 +90,33 @@ class AppState: ObservableObject {
         message: String,
         context: HomeworkQuestionContext
     ) {
+        print("🔵 === APPSTATE: SETTING HOMEWORK CONTEXT ===")
+        print("📝 Message Preview: \(message.prefix(100))")
+        print("📚 Context Question: \(context.questionText.prefix(100))")
+        print("📚 Context Subject: \(context.subject ?? "nil")")
+        print("📚 Context Current Grade: \(context.currentGrade ?? "nil")")
+
         pendingChatMessage = message
         pendingChatSubject = context.subject
         pendingHomeworkContext = context
+
+        print("✅ APPSTATE: Context stored successfully")
+        print("✅ APPSTATE: Switching to .chat tab")
         selectedTab = .chat
     }
 
     /// Clear the pending chat message (called after message is sent)
     func clearPendingChatMessage() {
+        print("🔴 === APPSTATE: CLEARING HOMEWORK CONTEXT ===")
+        print("🔴 Previous context existed: \(pendingHomeworkContext != nil)")
+        if let context = pendingHomeworkContext {
+            print("🔴 Clearing context for question: \(context.questionText.prefix(100))")
+        }
+
         pendingChatMessage = nil
         pendingChatSubject = nil
         pendingHomeworkContext = nil
+
+        print("🔴 APPSTATE: All pending data cleared")
     }
 }
