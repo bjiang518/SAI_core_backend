@@ -96,10 +96,10 @@ class SessionManager: ObservableObject {
 
     /// Called when app goes to background
     func appWillResignActive() {
-        // ✅ IMMEDIATELY end session when app closes/goes to background
-        // This ensures user must re-authenticate with Face ID when reopening the app
-        print("🔐 [SessionManager] App going to background - ENDING SESSION immediately")
-        endSession()
+        // Update last active timestamp but DON'T end the session
+        // Session will only expire if inactive for longer than sessionTimeoutMinutes (15 minutes)
+        updateActivity()
+        print("🔐 [SessionManager] App going to background - updating activity timestamp (session remains valid for \(sessionTimeoutMinutes) minutes)")
     }
 
     /// Called when app returns from background

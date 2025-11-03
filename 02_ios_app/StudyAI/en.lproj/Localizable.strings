@@ -198,6 +198,7 @@
 "aiHomework.results.confidence" = "Confidence";
 "aiHomework.results.viewDetails" = "View Detailed Results";
 "aiHomework.processing.message" = "AI is carefully examining your homework!";
+"aiHomework.processing.waitMessage" = "This may take a moment, please wait...";
 "imageViewer.instructions" = "Pinch to zoom • Drag to pan • Double tap to reset • Use Close button to exit";
 
 // Homework Results
@@ -857,6 +858,10 @@
 "editProfile.profileUpdatedMessage" = "Your profile has been updated successfully\!";
 "editProfile.savingProfile" = "Saving Profile...";
 
+// Avatar Selection
+"editProfile.selectAvatar" = "Select Your Avatar";
+"editProfile.selectAvatarDescription" = "Choose an avatar to represent you in the app";
+
 // Personal Information
 "editProfile.personalInfo" = "Personal Information";
 "editProfile.firstName" = "First Name";
@@ -1038,6 +1043,19 @@
 // Focus Mode - Music Player
 "focus.nowPlaying" = "Now Playing";
 "focus.nextTrack" = "Next: %@";
+"focus.cancelSession" = "Cancel";
+"focus.earnedTree" = "You earned a tree\!";
+"focus.endSession" = "End";
+"focus.focusTime" = "Focus Time";
+"focus.garden.title" = "My Garden";
+"focus.keepGoing" = "Keep going to grow bigger trees\!";
+"focus.noMusic" = "No Music";
+"focus.pauseSession" = "Pause";
+"focus.resumeSession" = "Resume";
+"focus.selectMusic" = "Select Music";
+"focus.sessionActive" = "Focusing";
+"focus.sessionPaused" = "Paused";
+"focus.startSession" = "Start Focus";
 
 // Focus Mode - Music Selection
 "focus.singleTrack" = "Single Track";
@@ -1056,3 +1074,126 @@
 "focus.playlistNameRequired" = "Playlist name is required";
 "focus.selectTracks" = "Select Tracks";
 "focus.editPlaylist" = "Edit Playlist";
+
+// Privacy Policy
+"privacy.changes.content" = "We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new policy and updating the \"Last Updated\" date.";
+"privacy.changes.title" = "Changes to This Policy";
+"privacy.collect.content" = "We collect information you provide directly, including your name, email, age, and study data. We also automatically collect usage data, device information, and analytics to improve our service.";
+"privacy.collect.title" = "Information We Collect";
+"privacy.contact.content" = "If you have questions about this Privacy Policy or our privacy practices, please contact us at privacy@studymates.app";
+"privacy.contact.title" = "Contact Us";
+"privacy.coppa.content" = "We comply with the Children's Online Privacy Protection Act (COPPA). For users under 13, we require verifiable parental consent before collecting personal information.";
+"privacy.coppa.title" = "COPPA Compliance";
+"privacy.gdpr.content" = "If you are in the European Economic Area, you have rights under GDPR including access to your data, correction, deletion, and data portability. Contact us to exercise these rights.";
+"privacy.gdpr.title" = "GDPR Rights";
+"privacy.intro.content" = "StudyAI is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our educational application.";
+"privacy.intro.title" = "Introduction";
+"privacy.lastUpdated" = "Last Updated: January 2025";
+"privacy.retention.content" = "We retain your personal information for as long as necessary to provide our services and comply with legal obligations. You may request deletion of your data at any time.";
+"privacy.retention.title" = "Data Retention";
+"privacy.rights.content" = "You have the right to access, correct, or delete your personal information. You can also object to processing and request data portability. Contact us to exercise these rights.";
+"privacy.rights.title" = "Your Rights";
+"privacy.security.content" = "We implement industry-standard security measures including encryption, secure authentication, and regular security audits to protect your data from unauthorized access.";
+"privacy.security.title" = "Data Security";
+"privacy.thirdParty.content" = "We use trusted third-party services for authentication, analytics, and cloud storage. These services are carefully selected and comply with applicable privacy laws.";
+"privacy.thirdParty.title" = "Third-Party Services";
+"privacy.title" = "Privacy Policy";
+"privacy.usage.content" = "We use your information to provide and improve our educational services, personalize your learning experience, communicate with you, and ensure the safety of our platform.";
+"privacy.usage.title" = "How We Use Your Information";
+
+// Terms of Service
+"terms.acceptable.content" = "You agree not to use the service for any unlawful purpose, to harm others, to upload malicious content, or to interfere with the operation of the service.";
+"terms.acceptable.title" = "Acceptable Use";
+"terms.acceptance.content" = "By accessing or using StudyAI, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our application.";
+"terms.acceptance.title" = "Acceptance of Terms";
+"terms.accounts.content" = "You are responsible for maintaining the security of your account and password. You must provide accurate information and keep it up to date.";
+"terms.accounts.title" = "User Accounts";
+"terms.changes.content" = "We reserve the right to modify these terms at any time. We will notify you of significant changes, and your continued use constitutes acceptance of the updated terms.";
+"terms.changes.title" = "Changes to Terms";
+"terms.contact.content" = "For questions about these Terms of Service, please contact us at support@studymates.app";
+"terms.contact.title" = "Contact Information";
+"terms.disclaimer.content" = "StudyAI is provided \"as is\" without warranties of any kind. While we strive for accuracy, we do not guarantee that our AI-generated content is error-free or complete.";
+"terms.disclaimer.title" = "Disclaimer";
+"terms.intellectual.content" = "All content and materials in StudyAI are owned by us or our licensors and protected by intellectual property laws. You may not copy, modify, or distribute our content without permission.";
+"terms.intellectual.title" = "Intellectual Property";
+"terms.lastUpdated" = "Last Updated: January 2025";
+"terms.law.content" = "These terms are governed by the laws of the jurisdiction in which we operate, without regard to conflict of law principles.";
+"terms.law.title" = "Governing Law";
+"terms.liability.content" = "To the maximum extent permitted by law, StudyAI shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the service.";
+"terms.liability.title" = "Limitation of Liability";
+"terms.termination.content" = "We may suspend or terminate your access to the service if you violate these terms. You may also terminate your account at any time.";
+"terms.termination.title" = "Termination";
+"terms.title" = "Terms of Service";
+"terms.use.content" = "StudyAI provides an educational platform powered by AI. You may use our service for personal, non-commercial educational purposes only.";
+"terms.use.title" = "Use of Service";
+"terms.userContent.content" = "You retain ownership of content you submit. By using our service, you grant us a license to use, store, and process your content to provide our services.";
+"terms.userContent.title" = "User Content";
+
+// Privacy Settings
+"privacy.settings.consentGranted" = "Parental consent has been granted";
+"privacy.settings.consentStatus.denied" = "Consent denied";
+"privacy.settings.consentStatus.expired" = "Consent expired";
+"privacy.settings.consentStatus.granted" = "Consent granted";
+"privacy.settings.consentStatus.loading" = "Loading consent status...";
+"privacy.settings.consentStatus.notRequired" = "Not required for your age group";
+"privacy.settings.consentStatus.pending" = "Consent pending";
+"privacy.settings.consentStatus.required" = "Parental consent required";
+"privacy.settings.coppaCompliance" = "COPPA Compliance";
+"privacy.settings.coppaNotice" = "According to COPPA regulations, users under 13 require parental consent to use certain features.";
+"privacy.settings.dataManagement" = "Data Management";
+"privacy.settings.dataManagementFooter" = "You have the right to access, export, or delete your personal data at any time.";
+"privacy.settings.deleteAccount" = "Delete Account";
+"privacy.settings.deleteAccountAlert.button" = "Delete";
+"privacy.settings.deleteAccountAlert.message" = "This action cannot be undone. All your data will be permanently deleted.";
+"privacy.settings.deleteAccountAlert.title" = "Delete Account";
+"privacy.settings.deleteAccountDesc" = "Permanently delete your account and all data";
+"privacy.settings.exportData" = "Export My Data";
+"privacy.settings.exportDataAlert.button" = "Export";
+"privacy.settings.exportDataAlert.message" = "We will prepare a copy of all your data and send it to your email address.";
+"privacy.settings.exportDataAlert.title" = "Export Your Data";
+"privacy.settings.exportDataDesc" = "Download a copy of your personal data";
+"privacy.settings.legal" = "Legal";
+"privacy.settings.parentalConsent" = "Parental Consent";
+"privacy.settings.privacyPolicy" = "Privacy Policy";
+"privacy.settings.requestConsent" = "Request Parental Consent";
+"privacy.settings.termsOfService" = "Terms of Service";
+"privacy.settings.title" = "Privacy Settings";
+
+// Additional Focus Mode and Settings Translations
+"focus.garden.allTrees" = "All Trees";
+"focus.garden.clearConfirmation" = "Are you sure you want to clear all trees from your garden? This cannot be undone.";
+"focus.garden.clearGarden" = "Clear Garden";
+"focus.garden.currentStreak" = "Current Streak";
+"focus.garden.days" = "days";
+"focus.garden.emptyState" = "Your garden is empty";
+"focus.garden.emptyStateMessage" = "Complete focus sessions to plant trees\!";
+"focus.garden.longestSession" = "Longest Session";
+"focus.garden.oldest" = "Oldest";
+"focus.garden.recent" = "Recent";
+"focus.garden.sortBy" = "Sort by:";
+"focus.garden.totalFocusTime" = "Total Focus Time";
+"focus.garden.totalTrees" = "Total Trees";
+"focus.music.category.ambient" = "Ambient";
+"focus.music.category.classical" = "Classical";
+"focus.music.category.lofi" = "Lo-fi Beats";
+"focus.music.category.nature" = "Nature Sounds";
+"focus.selectMusicSubtitle" = "Choose music or create a playlist for your focus session";
+"focus.tree.ancientTree" = "Ancient Trees";
+"focus.tree.matureTree" = "Mature Trees";
+"focus.tree.sapling" = "Saplings";
+"focus.tree.youngTree" = "Young Trees";
+"focus.volume" = "Volume";
+"home.focusMode" = "Focus Mode";
+"home.focusModeDescription" = "Study with focus music & timer";
+"settings.parentControls" = "Parent Controls";
+"settings.studySettings" = "Study Settings";
+
+// Custom Date Range Picker
+"library.filter.moreSpecific" = "More Specific";
+"library.customDate.title" = "Select Custom Date Range";
+"library.customDate.subtitle" = "Choose start and end dates for your filter";
+"library.customDate.startDate" = "Start Date";
+"library.customDate.endDate" = "End Date";
+"library.customDate.selectedRange" = "Selected Range:";
+"library.customDate.apply" = "Apply Date Filter";
+"library.customDate.navigationTitle" = "Custom Date Range";

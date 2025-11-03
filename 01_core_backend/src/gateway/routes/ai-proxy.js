@@ -1405,10 +1405,7 @@ LANGUAGE: ${languageInstruction}`;
       const result = await this.aiClient.proxyRequest(
         'POST',
         `/api/v1/sessions/${sessionId}/message`,
-        {
-          message: enhancedQuestion, // Send the enhanced prompt as the message
-          image_data: null // No image support in session conversations yet
-        },
+        aiRequestPayload,  // ✅ FIX: Use the correct payload variable instead of undefined 'enhancedQuestion'
         { 'Content-Type': 'application/json' }
       );
 

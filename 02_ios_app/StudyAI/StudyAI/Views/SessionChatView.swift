@@ -401,6 +401,18 @@ struct SessionChatView: View {
     @State private var aiGeneratedSuggestions: [NetworkService.FollowUpSuggestion] = []
     @State private var isStreamingComplete = true  // Track if AI response streaming is complete
 
+    // Smart chunking for long responses - split at sentence boundaries for better TTS
+    @State private var streamingChunks: [String] = []  // Completed chunks ready for TTS
+    @State private var totalProcessedLength = 0  // Track how much text we've already chunked
+    @State private var isFirstChunkOfResponse = true  // Track if this is the first chunk of current response
+    private let firstChunkSizeTarget = 150  // First chunk: ~150 chars for balanced initial TTS
+    private let chunkSizeTarget = 800  // Subsequent chunks: ~800 chars (balances TTS speed vs fragmentation)
+
+    // TTS queue management for sequential playback
+    @State private var ttsQueue: [(text: String, messageId: String)] = []  // Queue of pending TTS chunks
+    @State private var isPlayingTTS = false  // Track if TTS is currently active
+    @State private var currentSessionIdForTTS: String?  // Track which session's TTS is playing
+
     // Dark mode detection
     @Environment(\.colorScheme) var colorScheme
 
@@ -445,14 +457,14 @@ struct SessionChatView: View {
                         // Dismiss keyboard when tapping on messages area
                         dismissKeyboard()
                         // Stop any playing audio when user taps messages area
-                        stopCurrentAudio()
+                        stopAllTTS()
                     }
                 
                 // Modern floating message input
                 modernMessageInputView
                     .onTapGesture {
                         // Stop any playing audio when user taps input area
-                        stopCurrentAudio()
+                        stopAllTTS()
                     }
             }
             .safeAreaInset(edge: .bottom) {
@@ -561,37 +573,79 @@ struct SessionChatView: View {
             Text(NSLocalizedString("chat.alert.cameraPermission.message", comment: ""))
         }
         .onAppear {
+            print("🟢 ============================================")
             print("🟢 === SESSIONCHATVIEW: VIEW APPEARED ===")
-            print("🟢 Pending chat message exists: \(appState.pendingChatMessage != nil)")
-            print("🟢 Pending homework context exists: \(appState.pendingHomeworkContext != nil)")
-            if let context = appState.pendingHomeworkContext {
-                print("🟢 Context question: \(context.questionText.prefix(100))")
-                print("🟢 Context grade: \(context.currentGrade ?? "nil")")
+            print("🟢 ============================================")
+            print("🟢 Timestamp: \(Date())")
+            print("🟢 Thread: \(Thread.current)")
+            print("🟢 Current Session ID: \(networkService.currentSessionId ?? "nil")")
+            print("🟢 Conversation History Count: \(networkService.conversationHistory.count)")
+            print("🟢 ============================================")
+            print("🟢 === APPSTATE CHECK ===")
+            print("🟢 ============================================")
+            print("🟢 appState.pendingChatMessage exists: \(appState.pendingChatMessage != nil)")
+            print("🟢 appState.pendingChatSubject: \(appState.pendingChatSubject ?? "nil")")
+            print("🟢 appState.pendingHomeworkContext exists: \(appState.pendingHomeworkContext != nil)")
+
+            // ✅ CRITICAL FIX: Clear AI suggestions from previous sessions
+            aiGeneratedSuggestions = []
+            print("🟢 Cleared AI-generated suggestions from previous session")
+
+            if let message = appState.pendingChatMessage {
+                print("🟢 Pending Message: \(message)")
             }
-            print("🟢 Current session has messages: \(!networkService.conversationHistory.isEmpty)")
+
+            if let context = appState.pendingHomeworkContext {
+                print("🟢 ✅ HOMEWORK CONTEXT FOUND IN APPSTATE ON VIEW APPEAR!")
+                print("   - Question: \(context.questionText)")
+                print("   - Raw Question: \(context.rawQuestionText ?? "nil")")
+                print("   - Student Answer: \(context.studentAnswer ?? "nil")")
+                print("   - Correct Answer: \(context.correctAnswer ?? "nil")")
+                print("   - Current Grade: \(context.currentGrade ?? "nil")")
+                print("   - Original Feedback: \(context.originalFeedback ?? "nil")")
+                print("   - Points: \(context.pointsEarned ?? 0)/\(context.pointsPossible ?? 0)")
+                print("   - Subject: \(context.subject ?? "nil")")
+                print("   - Question Number: \(context.questionNumber ?? 0)")
+            } else {
+                print("🟢 ℹ️ No homework context found in appState")
+            }
+            print("🟢 ============================================")
 
             // Check for pending chat message from other tabs (e.g., grader follow-up)
             // If there's a pending message, check if current session has messages
             if let pendingMessage = appState.pendingChatMessage {
+                print("🟢 ✅ Pending message detected, storing locally...")
                 // Store the pending message and subject
                 pendingHomeworkQuestion = pendingMessage
                 pendingHomeworkSubject = appState.pendingChatSubject ?? "General"
 
+                print("🟢 Stored pendingHomeworkQuestion: \(pendingHomeworkQuestion)")
+                print("🟢 Stored pendingHomeworkSubject: \(pendingHomeworkSubject)")
+
                 // Check if current session has messages
                 if !networkService.conversationHistory.isEmpty {
+                    print("🟢 ⚠️ Current session has \(networkService.conversationHistory.count) messages - showing alert")
                     // Current session has messages - show alert
                     showingExistingSessionAlert = true
                     // Don't clear pending message yet - wait for user choice
                 } else {
+                    print("🟢 ✅ Current session is empty - proceeding with homework question")
                     // No messages in current session - proceed directly
                     proceedWithHomeworkQuestion()
                 }
             } else {
+                print("🟢 ℹ️ No pending message - checking if need to create new session")
                 // No pending message - create initial session if none exists
                 if networkService.currentSessionId == nil {
+                    print("🟢 Creating initial session...")
                     startNewSession()
+                } else {
+                    print("🟢 Session already exists: \(networkService.currentSessionId!)")
                 }
             }
+            print("🟢 ============================================")
+            print("🟢 === SESSIONCHATVIEW: VIEW APPEAR COMPLETE ===")
+            print("🟢 ============================================")
         }
         .alert(NSLocalizedString("chat.alert.currentChatExists.title", comment: ""), isPresented: $showingExistingSessionAlert) {
             Button(NSLocalizedString("chat.alert.currentChatExists.archiveCurrent", comment: "")) {
@@ -666,7 +720,7 @@ struct SessionChatView: View {
         }
         .onDisappear {
             // Stop any playing audio when leaving the chat view
-            stopCurrentAudio()
+            stopAllTTS()
 
             // Cancel any pending streaming updates
             cancelStreamingUpdates()
@@ -682,12 +736,26 @@ struct SessionChatView: View {
             switch newPhase {
             case .background, .inactive:
                 print("🎙️ App backgrounded - stopping audio")
-                stopCurrentAudio()
+                stopAllTTS()
             case .active:
                 // App became active - no action needed
                 break
             @unknown default:
                 break
+            }
+        }
+        .onReceive(voiceService.$interactionState) { state in
+            // ✅ SEQUENTIAL TTS: When TTS finishes, play next chunk in queue
+            if state == .idle && isPlayingTTS {
+                print("🎵 TTS finished, playing next chunk in queue")
+                playNextTTSChunk()
+            }
+        }
+        .onChange(of: messageText) { oldValue, newValue in
+            // ✅ Stop TTS when user starts typing
+            if oldValue.isEmpty && !newValue.isEmpty {
+                print("🎵 User started typing - stopping TTS")
+                stopAllTTS()
             }
         }
     }
@@ -921,10 +989,30 @@ struct SessionChatView: View {
 
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                // ✨ PRIORITY: Display AI-generated suggestions if available
-                if !aiGeneratedSuggestions.isEmpty {
+                // ✨ PRIORITY: Display AI-generated suggestions if available AND language matches
+                // ✅ FIX: Check if backend suggestions match the response language
+                let responseIsChinese = detectChinese(in: lastMessage)
+                let suggestionsMatchLanguage = !aiGeneratedSuggestions.isEmpty &&
+                    (aiGeneratedSuggestions.allSatisfy { responseIsChinese == detectChinese(in: $0.key) })
+
+                if !aiGeneratedSuggestions.isEmpty && suggestionsMatchLanguage {
                     ForEach(aiGeneratedSuggestions, id: \.id) { suggestion in
                         Button(suggestion.key) {
+                            print("🔵 ============================================")
+                            print("🔵 === SUGGESTION BUTTON TAPPED ===")
+                            print("🔵 ============================================")
+                            print("🔵 Timestamp: \(Date())")
+                            print("🔵 Thread: \(Thread.current)")
+                            print("🔵 Button Label (key): \(suggestion.key)")
+                            print("🔵 Full Prompt (value): \(suggestion.value)")
+                            print("🔵 Current aiGeneratedSuggestions count: \(aiGeneratedSuggestions.count)")
+                            print("🔵 All suggestions:")
+                            for (index, sug) in aiGeneratedSuggestions.enumerated() {
+                                print("🔵   [\(index)]: \(sug.key) -> \(sug.value)")
+                            }
+                            print("🔵 Call Stack: \(Thread.callStackSymbols[0...min(5, Thread.callStackSymbols.count-1)])")
+                            print("🔵 ============================================")
+
                             // Use the full prompt from AI suggestions
                             messageText = suggestion.value
                             sendMessage()
@@ -932,7 +1020,7 @@ struct SessionChatView: View {
                         .modernButtonStyle()
                     }
                 } else {
-                    // Fallback to manually-generated contextual buttons
+                    // Fallback to manually-generated contextual buttons (localized)
                     let contextButtons = generateContextualButtons(for: lastMessage)
                     ForEach(contextButtons, id: \.self) { buttonTitle in
                         Button(buttonTitle) {
@@ -1080,7 +1168,17 @@ struct SessionChatView: View {
 
         return buttonTitle.lowercased()
     }
-    
+
+    // Helper function to detect if text contains Chinese characters
+    private func detectChinese(in text: String) -> Bool {
+        // Check if text contains CJK (Chinese, Japanese, Korean) characters
+        // Chinese unicode ranges: \u4E00-\u9FFF (common), \u3400-\u4DBF (rare)
+        let chineseRange = NSRange(location: 0x4E00, length: 0x9FFF - 0x4E00 + 1)
+        return text.unicodeScalars.contains { scalar in
+            chineseRange.contains(Int(scalar.value))
+        }
+    }
+
     private var modernEmptyStateView: some View {
         VStack(spacing: 24) {
             // AI Spiral Animation - idle state
@@ -1690,10 +1788,35 @@ struct SessionChatView: View {
     // MARK: - Actions
     
     private func sendMessage() {
-        guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        print("🟢 ============================================")
+        print("🟢 === SEND MESSAGE CALLED ===")
+        print("🟢 ============================================")
+        print("🟢 Timestamp: \(Date())")
+        print("🟢 Thread: \(Thread.current)")
+        print("🟢 Call Stack: \(Thread.callStackSymbols[0...min(3, Thread.callStackSymbols.count-1)])")
+        print("🟢 Message Text: \(messageText)")
+        print("🟢 Is Empty: \(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+        print("🟢 Current Session ID: \(networkService.currentSessionId ?? "nil")")
+        print("🟢 CHECKING HOMEWORK CONTEXT...")
+        print("🟢 appState.pendingHomeworkContext exists: \(appState.pendingHomeworkContext != nil)")
+
+        if let context = appState.pendingHomeworkContext {
+            print("🟢 ✅ Homework Context EXISTS at sendMessage start:")
+            print("   - Question: \(context.questionText.prefix(50))")
+            print("   - Grade: \(context.currentGrade ?? "nil")")
+            print("   - Subject: \(context.subject ?? "nil")")
+        } else {
+            print("🟢 ℹ️ No homework context - this is a regular chat message")
+        }
+        print("🟢 ============================================")
+
+        guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            print("🟢 ⚠️ Message is empty, returning early")
+            return
+        }
 
         // Stop any currently playing audio when sending a new message
-        stopCurrentAudio()
+        stopAllTTS()
 
         let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         messageText = ""
@@ -1704,21 +1827,32 @@ struct SessionChatView: View {
         errorMessage = ""
         isMessageInputFocused = false
 
-        // ✅ Hide follow-up suggestions when starting new message
+        // ✅ CRITICAL FIX: Clear follow-up suggestions IMMEDIATELY to prevent auto-trigger
+        print("🔴 CLEARING aiGeneratedSuggestions at sendMessage start")
         aiGeneratedSuggestions = []
         isStreamingComplete = false
 
+        // ✅ Reset chunking for new streaming response
+        print("🔄 Starting new message - resetting chunking state")
+        resetChunking()
+
+        print("🟢 Prepared message: \(message.prefix(100))")
+        print("🟢 Checking session ID: \(networkService.currentSessionId ?? "nil")")
+
         // Check if we have a session
         if let sessionId = networkService.currentSessionId {
+            print("🟢 ➡️ Routing to EXISTING SESSION path")
+            print("🟢 Session ID: \(sessionId)")
             // For existing session: Add user message immediately (consistent with NetworkService behavior)
             // ✅ PERSIST: Save user message to both conversationHistory and SwiftData
             persistMessage(role: "user", content: message)
 
             // Show typing indicator
             showTypingIndicator = true
-            
+
             sendMessageToExistingSession(sessionId: sessionId, message: message)
         } else {
+            print("🟢 ➡️ Routing to FIRST MESSAGE path (new session)")
             // For first message: Create session and add user message immediately
             // Add user message to conversation history right away so it shows immediately
             networkService.addUserMessageToHistory(message)
@@ -1728,7 +1862,7 @@ struct SessionChatView: View {
 
             // Show typing indicator
             showTypingIndicator = true
-            
+
             sendFirstMessage(message: message)
         }
     }
@@ -1740,34 +1874,47 @@ struct SessionChatView: View {
 
     private func sendMessageToExistingSession(sessionId: String, message: String) {
         Task {
+            print("🟡 ============================================")
             print("🟡 === SEND MESSAGE TO EXISTING SESSION (START) ===")
+            print("🟡 ============================================")
+            print("🟡 Timestamp: \(Date())")
+            print("🟡 Thread: \(Thread.current)")
+            print("🟡 Session ID: \(sessionId)")
+            print("🟡 Message: \(message)")
             print("🟡 About to read appState.pendingHomeworkContext...")
 
             // 🔍 CHECK FOR HOMEWORK CONTEXT (for grade correction support)
             let homeworkContext = appState.pendingHomeworkContext
 
+            print("🟡 ============================================")
+            print("🟡 === HOMEWORK CONTEXT CHECK ===")
+            print("🟡 ============================================")
             print("🟡 Finished reading appState.pendingHomeworkContext")
             print("🟡 Context is nil: \(homeworkContext == nil)")
 
-            print("🔍 === SEND MESSAGE TO EXISTING SESSION ===")
-            print("📨 Session ID: \(sessionId)")
-            print("💬 Message: \(message.prefix(100))...")
-            print("📚 Homework Context Present: \(homeworkContext != nil)")
-
             if let homeworkContext = homeworkContext {
                 // Enhanced logging for homework follow-up
-                print("📚 === HOMEWORK FOLLOW-UP (STREAMING) ===")
-                print("Question #\(homeworkContext.questionNumber ?? 0)")
-                print("Current Grade: \(homeworkContext.currentGrade ?? "N/A")")
-                print("Points: \(homeworkContext.pointsEarned ?? 0)/\(homeworkContext.pointsPossible ?? 0)")
+                print("🟡 ✅ HOMEWORK CONTEXT EXISTS!")
+                print("🟡 === HOMEWORK FOLLOW-UP (STREAMING) ===")
+                print("🟡 Question Number: #\(homeworkContext.questionNumber ?? 0)")
+                print("🟡 Question Text: \(homeworkContext.questionText)")
+                print("🟡 Raw Question Text: \(homeworkContext.rawQuestionText ?? "nil")")
+                print("🟡 Student Answer: \(homeworkContext.studentAnswer ?? "nil")")
+                print("🟡 Correct Answer: \(homeworkContext.correctAnswer ?? "nil")")
+                print("🟡 Current Grade: \(homeworkContext.currentGrade ?? "N/A")")
+                print("🟡 Original Feedback: \(homeworkContext.originalFeedback ?? "nil")")
+                print("🟡 Points: \(homeworkContext.pointsEarned ?? 0)/\(homeworkContext.pointsPossible ?? 0)")
+                print("🟡 Subject: \(homeworkContext.subject ?? "nil")")
 
                 // Debug: Show the dictionary that will be sent
                 let contextDict = homeworkContext.toDictionary()
-                print("📦 Context Dictionary Keys: \(contextDict.keys)")
-                print("📦 Context Dictionary: \(contextDict)")
+                print("🟡 === CONTEXT DICTIONARY ===")
+                print("🟡 Dictionary Keys: \(contextDict.keys.sorted())")
+                print("🟡 Full Dictionary: \(contextDict)")
             } else {
-                print("ℹ️ No question_context - regular chat message")
+                print("🟡 ℹ️ No question_context - regular chat message (no homework context)")
             }
+            print("🟡 ============================================")
 
             // 🔵 USE STREAMING ENDPOINT (with optional homework context for grade correction)
             if useStreaming {
@@ -1777,22 +1924,71 @@ struct SessionChatView: View {
                     message: message,
                     questionContext: homeworkContext?.toDictionary(),  // NEW: Pass homework context for grade correction
                     onChunk: { accumulatedText in
-                        // Update UI with streaming text in real-time (debounced for stability)
+                        // ✅ Smart chunking: Split long responses into multiple messages at sentence boundaries
                         Task { @MainActor in
-                            // Find and update the last AI message with streaming content
-                            if networkService.conversationHistory.last?["role"] == "assistant" {
-                                // Update existing message
-                                networkService.conversationHistory[networkService.conversationHistory.count - 1]["content"] = accumulatedText
-                            } else {
-                                // Add new streaming message directly to conversationHistory
-                                networkService.conversationHistory.append([
-                                    "role": "assistant",
-                                    "content": accumulatedText
-                                ])
+                            print("📨 Streaming chunk received: \(accumulatedText.count) chars, isFirstChunkOfResponse: \(isFirstChunkOfResponse)")
+
+                            // ✅ Hide typing indicator as soon as first chunk arrives
+                            if showTypingIndicator {
+                                withAnimation {
+                                    showTypingIndicator = false
+                                }
                             }
 
-                            // ✅ OPTIMIZED: Use debounced update to prevent Chinese text shaking
-                            // Instead of immediate refresh, batch updates every 150ms for stable rendering
+                            let newChunks = processStreamingChunk(accumulatedText)
+
+                            // ✅ FIX: When we have completed chunks, remove the incomplete streaming message first
+                            if !newChunks.isEmpty {
+                                // Check if last message is an incomplete streaming message (not in streamingChunks yet)
+                                if let lastMessage = networkService.conversationHistory.last,
+                                   lastMessage["role"] == "assistant",
+                                   let lastContent = lastMessage["content"],
+                                   !streamingChunks.contains(lastContent) {
+                                    // Remove the incomplete streaming message before adding completed chunks
+                                    networkService.conversationHistory.removeLast()
+                                    print("🗑️ Removed incomplete streaming message before adding completed chunks")
+                                }
+                            }
+
+                            // Add each completed chunk as a separate message bubble
+                            for chunk in newChunks {
+                                // Add chunk as new complete AI message
+                                networkService.conversationHistory.append([
+                                    "role": "assistant",
+                                    "content": chunk
+                                ])
+                                print("📦 Added completed chunk to history: \(chunk.count) chars")
+
+                                streamingChunks.append(chunk)
+
+                                // ✅ SEQUENTIAL TTS: Enqueue chunk for sequential playback
+                                if voiceService.isVoiceEnabled {
+                                    let chunkIndex = streamingChunks.count - 1
+                                    let messageId = "chunk-\(sessionId)-\(chunkIndex)"
+                                    enqueueTTSChunk(text: chunk, messageId: messageId, sessionId: sessionId)
+                                }
+                            }
+
+                            // ✅ CLEAN: Update the last message with current incomplete chunk
+                            let incompleteChunk = getCurrentStreamingChunk(accumulatedText)
+                            if !incompleteChunk.isEmpty {
+                                // Check if last message is assistant and is the incomplete streaming message
+                                if networkService.conversationHistory.last?["role"] == "assistant",
+                                   let lastContent = networkService.conversationHistory.last?["content"],
+                                   !streamingChunks.contains(lastContent) {
+                                    // ✅ FIX: Only update if last message is NOT a completed chunk
+                                    // If it's not in streamingChunks, it's the incomplete streaming message
+                                    networkService.conversationHistory[networkService.conversationHistory.count - 1]["content"] = incompleteChunk
+                                } else if networkService.conversationHistory.last?["role"] != "assistant" {
+                                    // Add first streaming chunk (only if last message isn't assistant)
+                                    networkService.conversationHistory.append([
+                                        "role": "assistant",
+                                        "content": incompleteChunk
+                                    ])
+                                }
+                            }
+
+                            // ✅ Use debounced update to prevent Chinese text shaking
                             scheduleStreamingUpdate()
                         }
                     },
@@ -1804,9 +2000,18 @@ struct SessionChatView: View {
                     onGradeCorrection: { changeGrade, gradeCorrectionData in
                         // NEW: Handle grade correction detection from streaming endpoint
                         Task { @MainActor in
+                            print("🎯 ============================================")
+                            print("🎯 === GRADE CORRECTION CALLBACK ===")
+                            print("🎯 ============================================")
+                            print("🎯 changeGrade: \(changeGrade)")
+                            print("🎯 gradeCorrectionData exists: \(gradeCorrectionData != nil)")
+
                             if changeGrade, let gradeCorrection = gradeCorrectionData {
-                                print("✅ Grade correction: \(gradeCorrection.originalGrade) → \(gradeCorrection.correctedGrade)")
-                                print("💯 New points: \(gradeCorrection.newPointsEarned)/\(gradeCorrection.pointsPossible)")
+                                print("🎯 ✅ GRADE CORRECTION DETECTED!")
+                                print("🎯 Original Grade: \(gradeCorrection.originalGrade)")
+                                print("🎯 Corrected Grade: \(gradeCorrection.correctedGrade)")
+                                print("🎯 New Points: \(gradeCorrection.newPointsEarned)/\(gradeCorrection.pointsPossible)")
+                                print("🎯 Reason: \(gradeCorrection.reason)")
 
                                 // Store correction data and show confirmation dialog
                                 detectedGradeCorrection = gradeCorrection
@@ -1819,7 +2024,10 @@ struct SessionChatView: View {
                                 }
 
                                 showingGradeCorrectionAlert = true
+                            } else {
+                                print("🎯 ℹ️ No grade correction detected (changeGrade: \(changeGrade))")
                             }
+                            print("🎯 ============================================")
                         }
                     },
                     onComplete: { success, fullText, tokens, compressed in
@@ -1829,18 +2037,48 @@ struct SessionChatView: View {
                             refreshTrigger = UUID()  // Final update without debounce
 
                             if success {
-                                isSubmitting = false
-                                showTypingIndicator = false
+                                // ✅ CLEAN: Add final incomplete chunk if there's remaining text
+                                let finalIncompleteChunk = fullText.map { String($0.dropFirst(totalProcessedLength)) } ?? ""
+
+                                if !finalIncompleteChunk.isEmpty {
+                                    // Check if this chunk is already in history (from last update)
+                                    let isAlreadyAdded = networkService.conversationHistory.last?["content"] == finalIncompleteChunk
+
+                                    if !isAlreadyAdded {
+                                        networkService.conversationHistory.append([
+                                            "role": "assistant",
+                                            "content": finalIncompleteChunk
+                                        ])
+                                    }
+
+                                    streamingChunks.append(finalIncompleteChunk)
+
+                                    // ✅ SEQUENTIAL TTS: Enqueue final chunk for sequential playback
+                                    if voiceService.isVoiceEnabled {
+                                        let chunkIndex = streamingChunks.count - 1
+                                        let messageId = "chunk-\(sessionId)-\(chunkIndex)"
+                                        enqueueTTSChunk(text: finalIncompleteChunk, messageId: messageId, sessionId: sessionId)
+                                    }
+
+                                    print("📦 Final chunk added: \(finalIncompleteChunk.count) chars")
+                                    print("📊 Total chunks: \(streamingChunks.count)")
+                                }
+
+                                // Hide typing indicator with animation
+                                withAnimation {
+                                    isSubmitting = false
+                                    showTypingIndicator = false
+                                }
 
                                 // ✅ Show follow-up suggestions after streaming completes
                                 withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                                     isStreamingComplete = true
                                 }
 
-                                // ✅ PERSIST: Save AI response to SwiftData
-                                // Note: Message already added to conversationHistory during streaming
-                                if let fullText = fullText {
-                                    persistMessage(role: "assistant", content: fullText, addToHistory: false)
+                                // ✅ PERSIST: Save all chunks to SwiftData
+                                for (index, chunk) in streamingChunks.enumerated() {
+                                    persistMessage(role: "assistant", content: chunk, addToHistory: false)
+                                    print("💾 Saved chunk \(index + 1) to SwiftData")
                                 }
 
                                 // Clear homework context after processing
@@ -1848,8 +2086,9 @@ struct SessionChatView: View {
                                     appState.clearPendingChatMessage()
                                 }
 
-                                // Track progress
-                                trackChatInteraction(subject: selectedSubject, userMessage: message, aiResponse: fullText)
+                                // Track progress (use full text if available, or combine chunks)
+                                let combinedText = streamingChunks.joined(separator: " ")
+                                trackChatInteraction(subject: selectedSubject, userMessage: message, aiResponse: fullText ?? combinedText)
                             } else {
                                 // Remove failed streaming message if present
                                 if let lastMessage = networkService.conversationHistory.last,
@@ -1860,7 +2099,8 @@ struct SessionChatView: View {
                                 // 🔄 AUTOMATIC FALLBACK: Retry with non-streaming endpoint
                                 let fallbackResult = await networkService.sendSessionMessage(
                                     sessionId: sessionId,
-                                    message: message
+                                    message: message,
+                                    questionContext: homeworkContext?.toDictionary()  // ✅ FIX: Pass homework context to fallback
                                 )
 
                                 await MainActor.run {
@@ -1874,11 +2114,17 @@ struct SessionChatView: View {
                 // 🔵 Use NON-STREAMING endpoint (original behavior)
                 let result = await networkService.sendSessionMessage(
                     sessionId: sessionId,
-                    message: message
+                    message: message,
+                    questionContext: homeworkContext?.toDictionary()  // ✅ FIX: Pass homework context
                 )
 
                 await MainActor.run {
                     handleSendMessageResult(result, originalMessage: message)
+
+                    // Clear homework context after processing
+                    if homeworkContext != nil {
+                        appState.clearPendingChatMessage()
+                    }
                 }
             }
         }
@@ -1925,17 +2171,64 @@ struct SessionChatView: View {
                         message: message,
                         questionContext: homeworkContext?.toDictionary(),  // NEW: Pass homework context for grade correction
                         onChunk: { accumulatedText in
+                            // ✅ Smart chunking: Split long responses into multiple messages at sentence boundaries
                             Task { @MainActor in
-                                if networkService.conversationHistory.last?["role"] == "assistant" {
-                                    networkService.conversationHistory[networkService.conversationHistory.count - 1]["content"] = accumulatedText
-                                } else {
-                                    // Add new streaming message directly to conversationHistory
+                                print("📨 Streaming chunk received (first message): \(accumulatedText.count) chars, isFirstChunkOfResponse: \(isFirstChunkOfResponse)")
+
+                                let newChunks = processStreamingChunk(accumulatedText)
+
+                                // ✅ FIX: When we have completed chunks, remove the incomplete streaming message first
+                                if !newChunks.isEmpty {
+                                    // Check if last message is an incomplete streaming message (not in streamingChunks yet)
+                                    if let lastMessage = networkService.conversationHistory.last,
+                                       lastMessage["role"] == "assistant",
+                                       let lastContent = lastMessage["content"],
+                                       !streamingChunks.contains(lastContent) {
+                                        // Remove the incomplete streaming message before adding completed chunks
+                                        networkService.conversationHistory.removeLast()
+                                        print("🗑️ Removed incomplete streaming message before adding completed chunks")
+                                    }
+                                }
+
+                                // Add each completed chunk as a separate message bubble
+                                for chunk in newChunks {
+                                    // Add chunk as new complete AI message
                                     networkService.conversationHistory.append([
                                         "role": "assistant",
-                                        "content": accumulatedText
+                                        "content": chunk
                                     ])
+                                    print("📦 Added completed chunk to history: \(chunk.count) chars")
+
+                                    streamingChunks.append(chunk)
+
+                                    // ✅ SEQUENTIAL TTS: Enqueue chunk for sequential playback
+                                    if voiceService.isVoiceEnabled {
+                                        let chunkIndex = streamingChunks.count - 1
+                                        let messageId = "chunk-\(sessionId)-\(chunkIndex)"
+                                        enqueueTTSChunk(text: chunk, messageId: messageId, sessionId: sessionId)
+                                    }
                                 }
-                                // ✅ OPTIMIZED: Use debounced update to prevent Chinese text shaking
+
+                                // ✅ CLEAN: Update the last message with current incomplete chunk
+                                let incompleteChunk = getCurrentStreamingChunk(accumulatedText)
+                                if !incompleteChunk.isEmpty {
+                                    // Check if last message is assistant and is the incomplete streaming message
+                                    if networkService.conversationHistory.last?["role"] == "assistant",
+                                       let lastContent = networkService.conversationHistory.last?["content"],
+                                       !streamingChunks.contains(lastContent) {
+                                        // ✅ FIX: Only update if last message is NOT a completed chunk
+                                        // If it's not in streamingChunks, it's the incomplete streaming message
+                                        networkService.conversationHistory[networkService.conversationHistory.count - 1]["content"] = incompleteChunk
+                                    } else if networkService.conversationHistory.last?["role"] != "assistant" {
+                                        // Add first streaming chunk (only if last message isn't assistant)
+                                        networkService.conversationHistory.append([
+                                            "role": "assistant",
+                                            "content": incompleteChunk
+                                        ])
+                                    }
+                                }
+
+                                // ✅ Use debounced update to prevent Chinese text shaking
                                 scheduleStreamingUpdate()
                             }
                         },
@@ -1947,9 +2240,18 @@ struct SessionChatView: View {
                         onGradeCorrection: { changeGrade, gradeCorrectionData in
                             // NEW: Handle grade correction detection from streaming endpoint
                             Task { @MainActor in
+                                print("🎯 ============================================")
+                                print("🎯 === GRADE CORRECTION CALLBACK (FIRST MESSAGE) ===")
+                                print("🎯 ============================================")
+                                print("🎯 changeGrade: \(changeGrade)")
+                                print("🎯 gradeCorrectionData exists: \(gradeCorrectionData != nil)")
+
                                 if changeGrade, let gradeCorrection = gradeCorrectionData {
-                                    print("✅ Grade correction: \(gradeCorrection.originalGrade) → \(gradeCorrection.correctedGrade)")
-                                    print("💯 New points: \(gradeCorrection.newPointsEarned)/\(gradeCorrection.pointsPossible)")
+                                    print("🎯 ✅ GRADE CORRECTION DETECTED!")
+                                    print("🎯 Original Grade: \(gradeCorrection.originalGrade)")
+                                    print("🎯 Corrected Grade: \(gradeCorrection.correctedGrade)")
+                                    print("🎯 New Points: \(gradeCorrection.newPointsEarned)/\(gradeCorrection.pointsPossible)")
+                                    print("🎯 Reason: \(gradeCorrection.reason)")
 
                                     // Store correction data and show confirmation dialog
                                     detectedGradeCorrection = gradeCorrection
@@ -1962,7 +2264,10 @@ struct SessionChatView: View {
                                     }
 
                                     showingGradeCorrectionAlert = true
+                                } else {
+                                    print("🎯 ℹ️ No grade correction detected (changeGrade: \(changeGrade))")
                                 }
+                                print("🎯 ============================================")
                             }
                         },
                         onComplete: { success, fullText, tokens, compressed in
@@ -1972,13 +2277,43 @@ struct SessionChatView: View {
                                 refreshTrigger = UUID()  // Final update without debounce
 
                                 if success {
-                                    isSubmitting = false
-                                    showTypingIndicator = false
+                                    // ✅ CLEAN: Add final incomplete chunk if there's remaining text
+                                    let finalIncompleteChunk = fullText.map { String($0.dropFirst(totalProcessedLength)) } ?? ""
 
-                                    // ✅ PERSIST: Save AI response to SwiftData
-                                    // Note: Message already added to conversationHistory during streaming
-                                    if let fullText = fullText {
-                                        persistMessage(role: "assistant", content: fullText, addToHistory: false)
+                                    if !finalIncompleteChunk.isEmpty {
+                                        // Check if this chunk is already in history (from last update)
+                                        let isAlreadyAdded = networkService.conversationHistory.last?["content"] == finalIncompleteChunk
+
+                                        if !isAlreadyAdded {
+                                            networkService.conversationHistory.append([
+                                                "role": "assistant",
+                                                "content": finalIncompleteChunk
+                                            ])
+                                        }
+
+                                        streamingChunks.append(finalIncompleteChunk)
+
+                                        // ✅ SEQUENTIAL TTS: Enqueue final chunk for sequential playback
+                                        if voiceService.isVoiceEnabled {
+                                            let chunkIndex = streamingChunks.count - 1
+                                            let messageId = "chunk-\(sessionId)-\(chunkIndex)"
+                                            enqueueTTSChunk(text: finalIncompleteChunk, messageId: messageId, sessionId: sessionId)
+                                        }
+
+                                        print("📦 Final chunk added: \(finalIncompleteChunk.count) chars")
+                                        print("📊 Total chunks: \(streamingChunks.count)")
+                                    }
+
+                                    // Hide typing indicator with animation
+                                    withAnimation {
+                                        isSubmitting = false
+                                        showTypingIndicator = false
+                                    }
+
+                                    // ✅ PERSIST: Save all chunks to SwiftData
+                                    for (index, chunk) in streamingChunks.enumerated() {
+                                        persistMessage(role: "assistant", content: chunk, addToHistory: false)
+                                        print("💾 Saved chunk \(index + 1) to SwiftData")
                                     }
 
                                     // Clear homework context after processing
@@ -1986,8 +2321,9 @@ struct SessionChatView: View {
                                         appState.clearPendingChatMessage()
                                     }
 
-                                    // Track progress
-                                    trackChatInteraction(subject: selectedSubject, userMessage: message, aiResponse: fullText)
+                                    // Track progress (use full text if available, or combine chunks)
+                                    let combinedText = streamingChunks.joined(separator: " ")
+                                    trackChatInteraction(subject: selectedSubject, userMessage: message, aiResponse: fullText ?? combinedText)
                                 } else {
                                     // Remove failed streaming message if present
                                     if let lastMessage = networkService.conversationHistory.last,
@@ -1998,7 +2334,8 @@ struct SessionChatView: View {
                                     // 🔄 AUTOMATIC FALLBACK: Retry with non-streaming endpoint
                                     let fallbackResult = await networkService.sendSessionMessage(
                                         sessionId: sessionId,
-                                        message: message
+                                        message: message,
+                                        questionContext: homeworkContext?.toDictionary()  // ✅ FIX: Pass homework context to fallback
                                     )
 
                                     await MainActor.run {
@@ -2012,11 +2349,17 @@ struct SessionChatView: View {
                     // 🔵 Use NON-STREAMING endpoint
                     let messageResult = await networkService.sendSessionMessage(
                         sessionId: sessionId,
-                        message: message
+                        message: message,
+                        questionContext: homeworkContext?.toDictionary()  // ✅ FIX: Pass homework context
                     )
 
                     await MainActor.run {
                         handleSendMessageResult(messageResult, originalMessage: message)
+
+                        // Clear homework context after processing
+                        if homeworkContext != nil {
+                            appState.clearPendingChatMessage()
+                        }
                     }
                 }
             } else {
@@ -2111,6 +2454,7 @@ struct SessionChatView: View {
     private func startNewSession() {
         // Clear AI-generated suggestions when starting new session
         aiGeneratedSuggestions = []
+        print("🔄 Starting new session - cleared AI suggestions")
 
         Task {
             let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
@@ -2125,37 +2469,85 @@ struct SessionChatView: View {
 
     /// Proceed with homework question from grading report
     private func proceedWithHomeworkQuestion() {
+        print("🟣 ============================================")
         print("🟣 === PROCEED WITH HOMEWORK QUESTION ===")
-        print("🟣 Homework context exists before proceeding: \(appState.pendingHomeworkContext != nil)")
+        print("🟣 ============================================")
+        print("🟣 Timestamp: \(Date())")
+        print("🟣 Thread: \(Thread.current)")
+        print("🟣 Selected Subject: \(selectedSubject)")
+        print("🟣 Pending Homework Question: \(pendingHomeworkQuestion)")
+        print("🟣 Pending Homework Subject: \(pendingHomeworkSubject)")
+        print("🟣 appState.pendingHomeworkContext exists: \(appState.pendingHomeworkContext != nil)")
+
+        // ✅ CRITICAL FIX: Clear AI suggestions from previous session before starting homework follow-up
+        aiGeneratedSuggestions = []
+        print("🟣 Cleared AI-generated suggestions before homework follow-up")
+
+        if let context = appState.pendingHomeworkContext {
+            print("🟣 Context Details at proceedWithHomeworkQuestion:")
+            print("   - Question: \(context.questionText)")
+            print("   - Grade: \(context.currentGrade ?? "nil")")
+            print("   - Student Answer: \(context.studentAnswer ?? "nil")")
+        } else {
+            print("🟣 ⚠️ WARNING: No homework context found in appState!")
+        }
 
         // Set the subject
         selectedSubject = pendingHomeworkSubject
 
-        // Create a new session for homework follow-up questions
-        Task {
-            let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
+        // ✅ FIX: Check if session exists before creating new one
+        if let existingSessionId = networkService.currentSessionId {
+            print("🟣 ✅ Using existing session: \(existingSessionId)")
+            print("🟣 Conversation history count: \(networkService.conversationHistory.count)")
 
-            await MainActor.run {
-                if result.success {
-                    print("🟣 New session created, scheduling message send in 0.5 seconds...")
-                    print("🟣 Context still exists: \(appState.pendingHomeworkContext != nil)")
+            // Send homework question to existing session
+            messageText = pendingHomeworkQuestion
+            print("🟣 Message text set to: \(messageText)")
+            print("🟣 About to call sendMessage()...")
 
-                    // New session created successfully, now send the message
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        print("🟣 About to send message (after 0.5s delay)")
-                        print("🟣 Context still exists before send: \(self.appState.pendingHomeworkContext != nil)")
+            // ✅ CRITICAL FIX: Clear pendingHomeworkQuestion IMMEDIATELY after using it
+            print("🟣 🔴 Clearing pendingHomeworkQuestion to prevent reuse")
+            pendingHomeworkQuestion = ""
 
+            sendMessage()
+            print("🟣 sendMessage() called, context will be cleared after streaming completes")
+        } else {
+            // No existing session - create new one for homework follow-up
+            print("🟣 No existing session - creating new one")
+            Task {
+                print("🟣 Creating new session with subject: \(selectedSubject.lowercased())")
+                let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
+
+                await MainActor.run {
+                    if result.success {
+                        print("🟣 ✅ New session created successfully!")
+                        print("🟣 Session ID: \(networkService.currentSessionId ?? "nil")")
+                        print("🟣 Checking context again before sending...")
+                        print("🟣 Context exists: \(appState.pendingHomeworkContext != nil)")
+
+                        if let context = appState.pendingHomeworkContext {
+                            print("🟣 Context STILL EXISTS - GOOD!")
+                            print("   - Question: \(context.questionText.prefix(50))")
+                        } else {
+                            print("🟣 ⚠️ CRITICAL: Context was LOST between session creation and message send!")
+                        }
+
+                        // New session created successfully, now send the message immediately
                         messageText = pendingHomeworkQuestion
-                        sendMessage()
+                        print("🟣 Message text set to: \(messageText)")
+                        print("🟣 About to call sendMessage()...")
 
-                        // ⚠️ CRITICAL BUG FIX: Move clearPendingChatMessage() AFTER message is sent
-                        // The context is needed during sendMessage(), so don't clear it here!
-                        // It will be cleared in sendMessageToExistingSession/sendFirstMessage after the message is sent
-                        print("🟣 Message sent, context will be cleared by sendMessage handlers")
+                        // ✅ CRITICAL FIX: Clear pendingHomeworkQuestion IMMEDIATELY after using it
+                        print("🟣 🔴 Clearing pendingHomeworkQuestion to prevent reuse")
+                        pendingHomeworkQuestion = ""
+
+                        sendMessage()
+                        print("🟣 sendMessage() called, context will be cleared after streaming completes")
+                    } else {
+                        print("🟣 ❌ Failed to create new session: \(result.message)")
+                        errorMessage = "Failed to create new session: \(result.message)"
+                        appState.clearPendingChatMessage()
                     }
-                } else {
-                    errorMessage = "Failed to create new session: \(result.message)"
-                    appState.clearPendingChatMessage()
                 }
             }
         }
@@ -2498,6 +2890,183 @@ struct SessionChatView: View {
         // Haptic feedback
         let notificationFeedback = UINotificationFeedbackGenerator()
         notificationFeedback.notificationOccurred(.success)
+    }
+
+    // MARK: - Smart Chunking for TTS
+
+    /// Find the last sentence boundary in text before maxLength
+    /// Supports both English (. ! ?) and Chinese (。！？) punctuation
+    private func findSentenceBoundary(in text: String, before maxLength: Int) -> Int? {
+        guard text.count > maxLength else { return nil }
+
+        // Sentence ending characters for both English and Chinese
+        let sentenceEnders: Set<Character> = [".", "!", "?", "。", "！", "？", "\n"]
+
+        // Search backwards from maxLength to find last sentence boundary
+        let searchText = String(text.prefix(maxLength))
+
+        // Find the last occurrence of any sentence ender
+        var lastBoundary: Int?
+        for (index, char) in searchText.enumerated().reversed() {
+            if sentenceEnders.contains(char) {
+                lastBoundary = index + 1  // Include the punctuation
+                break
+            }
+        }
+
+        // If no sentence boundary found, try to split at last space/comma
+        if lastBoundary == nil {
+            let fallbackEnders: Set<Character> = [" ", ",", "，", ";", "；"]
+            for (index, char) in searchText.enumerated().reversed() {
+                if fallbackEnders.contains(char) {
+                    lastBoundary = index + 1
+                    break
+                }
+            }
+        }
+
+        return lastBoundary
+    }
+
+    /// Process streaming text and split into chunks at sentence boundaries
+    /// Returns completed chunks that are ready for display and TTS
+    ///
+    /// CLEAN LOGIC:
+    /// - accumulatedText: FULL text received from server so far
+    /// - totalProcessedLength: How many characters we've already converted to completed chunks
+    /// - Unprocessed text: Everything after totalProcessedLength
+    /// - Find sentence boundaries in unprocessed text to create new completed chunks
+    /// - Update totalProcessedLength after each completed chunk
+    /// - First chunk: Uses smaller target (~150 chars) for balanced initial TTS response
+    /// - Subsequent chunks: Uses larger target (~800 chars) for optimal TTS performance
+    private func processStreamingChunk(_ accumulatedText: String) -> [String] {
+        var completedChunks: [String] = []
+
+        // ✅ CLEAN: Get only the text we haven't processed yet
+        // This is simple: drop the first N characters we've already chunked
+        let unprocessedText = String(accumulatedText.dropFirst(totalProcessedLength))
+
+        // ✅ CLEAN: Process the unprocessed text to find chunk boundaries
+        var remainingText = unprocessedText
+
+        // ✅ FIX: Use explicit flag for first chunk, updated after creating first chunk
+        while remainingText.count >= (isFirstChunkOfResponse ? firstChunkSizeTarget : chunkSizeTarget) {
+            let targetSize = isFirstChunkOfResponse ? firstChunkSizeTarget : chunkSizeTarget
+
+            // Find sentence boundary in remaining text
+            if let boundary = findSentenceBoundary(in: remainingText, before: targetSize) {
+                // Extract completed chunk
+                let chunk = String(remainingText.prefix(boundary))
+                completedChunks.append(chunk)
+
+                // Track that we've processed this chunk
+                totalProcessedLength += chunk.count
+
+                // ✅ Mark that we've created the first chunk
+                if isFirstChunkOfResponse {
+                    isFirstChunkOfResponse = false
+                    print("📦 First chunk created: \(chunk.count) chars (target: \(targetSize))")
+                }
+
+                // Update remaining text
+                remainingText = String(remainingText.dropFirst(boundary))
+
+                print("📦 Smart chunk created: \(chunk.count) chars (target: \(targetSize)), remaining: \(remainingText.count) chars, total processed: \(totalProcessedLength)")
+            } else {
+                // No good boundary found, stop chunking for now
+                break
+            }
+        }
+
+        return completedChunks
+    }
+
+    /// Get the current incomplete chunk being streamed (for UI display)
+    /// This is simply the text we haven't chunked yet
+    private func getCurrentStreamingChunk(_ accumulatedText: String) -> String {
+        return String(accumulatedText.dropFirst(totalProcessedLength))
+    }
+
+    /// Reset chunking state for new streaming session
+    private func resetChunking() {
+        streamingChunks.removeAll()
+        totalProcessedLength = 0
+        isFirstChunkOfResponse = true  // Reset flag for next response
+        print("🔄 Chunking reset - ready for new response")
+    }
+
+    // MARK: - Sequential TTS Queue Management
+
+    /// Add chunk to TTS queue and start playing if not already playing
+    private func enqueueTTSChunk(text: String, messageId: String, sessionId: String) {
+        // Update current session for TTS
+        currentSessionIdForTTS = sessionId
+
+        // Add to queue
+        ttsQueue.append((text: text, messageId: messageId))
+        print("🎵 Enqueued TTS chunk: \(text.count) chars, queue size: \(ttsQueue.count)")
+
+        // Start playing if not already playing
+        if !isPlayingTTS {
+            playNextTTSChunk()
+        }
+    }
+
+    /// Play the next chunk in the TTS queue
+    private func playNextTTSChunk() {
+        guard !ttsQueue.isEmpty else {
+            print("🎵 TTS queue empty, stopping playback")
+            isPlayingTTS = false
+            currentSessionIdForTTS = nil
+            return
+        }
+
+        // ✅ SAFETY CHECK: Ensure current session matches the TTS session
+        guard let ttsSessionId = currentSessionIdForTTS,
+              ttsSessionId == networkService.currentSessionId else {
+            print("🎵 Session mismatch - clearing TTS queue (TTS: \(currentSessionIdForTTS ?? "nil"), Current: \(networkService.currentSessionId ?? "nil"))")
+            ttsQueue.removeAll()
+            isPlayingTTS = false
+            currentSessionIdForTTS = nil
+            return
+        }
+
+        guard voiceService.isVoiceEnabled else {
+            print("🎵 Voice disabled, clearing TTS queue")
+            ttsQueue.removeAll()
+            isPlayingTTS = false
+            currentSessionIdForTTS = nil
+            return
+        }
+
+        // Get next chunk
+        let nextChunk = ttsQueue.removeFirst()
+        isPlayingTTS = true
+
+        print("🎵 Playing TTS chunk: \(nextChunk.text.count) chars, remaining in queue: \(ttsQueue.count)")
+
+        // Set as current speaking message
+        voiceService.setCurrentSpeakingMessage(nextChunk.messageId)
+
+        // Speak the text
+        voiceService.speakText(nextChunk.text, autoSpeak: true)
+    }
+
+    /// Stop all TTS playback and clear queue
+    private func stopAllTTS() {
+        print("🎵 Stopping all TTS playback")
+        voiceService.stopSpeech()
+        ttsQueue.removeAll()
+        isPlayingTTS = false
+        currentSessionIdForTTS = nil
+    }
+
+    /// Clear TTS queue for a specific session
+    private func clearTTSQueueForSession(_ sessionId: String) {
+        if currentSessionIdForTTS == sessionId {
+            print("🎵 Clearing TTS queue for session: \(sessionId)")
+            stopAllTTS()
+        }
     }
 }
 

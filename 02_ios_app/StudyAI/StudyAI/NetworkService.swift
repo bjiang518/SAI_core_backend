@@ -875,29 +875,69 @@ class NetworkService: ObservableObject {
         }
     }
     
-    func sendSessionMessage(sessionId: String, message: String) async -> (success: Bool, aiResponse: String?, suggestions: [FollowUpSuggestion]?, tokensUsed: Int?, compressed: Bool?) {
+    func sendSessionMessage(sessionId: String, message: String, questionContext: [String: Any]? = nil) async -> (success: Bool, aiResponse: String?, suggestions: [FollowUpSuggestion]?, tokensUsed: Int?, compressed: Bool?) {
+        print("🌐 ============================================")
+        print("🌐 === NETWORK SERVICE: SEND SESSION MESSAGE ===")
+        print("🌐 ============================================")
+        print("🌐 Timestamp: \(Date())")
+        print("🌐 Thread: \(Thread.current)")
+
         // Check authentication first - use unified auth system
         guard AuthenticationService.shared.getAuthToken() != nil else {
             print("❌ Authentication required to send messages")
             return (false, nil, nil, nil, nil)
         }
 
-        print("💬 Sending message to session...")
-        print("🆔 Session ID: \(sessionId.prefix(8))...")
-        print("📝 Message: \(message.prefix(100))...")
+        print("🌐 Session ID: \(sessionId)")
+        print("🌐 Message: \(message)")
+        print("🌐 Language: \(appLanguage)")
+        print("🌐 ============================================")
+        print("🌐 === QUESTION CONTEXT CHECK ===")
+        print("🌐 ============================================")
+        print("🌐 questionContext parameter is nil: \(questionContext == nil)")
+
+        if let context = questionContext {
+            print("🌐 ✅ QUESTION CONTEXT PROVIDED!")
+            print("🌐 Context keys: \(context.keys.sorted())")
+            print("🌐 Full context data: \(context)")
+            if let questionText = context["questionText"] as? String {
+                print("🌐    - questionText: \(questionText.prefix(100))")
+            }
+            if let studentAnswer = context["studentAnswer"] as? String {
+                print("🌐    - studentAnswer: \(studentAnswer.prefix(50))")
+            }
+            if let correctAnswer = context["correctAnswer"] as? String {
+                print("🌐    - correctAnswer: \(correctAnswer.prefix(50))")
+            }
+            if let currentGrade = context["currentGrade"] as? String {
+                print("🌐    - currentGrade: \(currentGrade)")
+            }
+        } else {
+            print("🌐 ℹ️ No question context - regular chat message")
+        }
+        print("🌐 ============================================")
 
         let messageURL = "\(baseURL)/api/ai/sessions/\(sessionId)/message"
-        print("🔗 Message URL: \(messageURL)")
+        print("🌐 Message URL: \(messageURL)")
 
         guard let url = URL(string: messageURL) else {
             print("❌ Invalid message URL")
             return (false, nil, nil, nil, nil)
         }
 
-        let messageData: [String: Any] = [
+        var messageData: [String: Any] = [
             "message": message,
             "language": appLanguage  // Pass user's language preference
         ]
+
+        // Add homework context if provided (for grade correction support)
+        if let context = questionContext {
+            messageData["question_context"] = context
+            print("🌐 ✅ Added question_context to messageData")
+            print("🌐 Final messageData keys: \(messageData.keys.sorted())")
+        } else {
+            print("🌐 ℹ️ No question_context added to messageData")
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1021,30 +1061,58 @@ class NetworkService: ObservableObject {
         onGradeCorrection: @escaping (Bool, GradeCorrectionData?) -> Void,  // NEW: Grade correction callback
         onComplete: @escaping (Bool, String?, Int?, Bool?) -> Void  // (success, fullText, tokens, compressed)
     ) async -> Bool {
-
-        print("🟢 === STREAMING SESSION MESSAGE ===")
-        print("📨 Session ID: \(sessionId)")
-        print("💬 Message: \(message)")
-        print("📚 Question Context Parameter: \(questionContext != nil ? "PROVIDED" : "NIL")")
+        print("🟢 ============================================")
+        print("🟢 === NETWORK SERVICE: STREAMING SESSION MESSAGE ===")
+        print("🟢 ============================================")
+        print("🟢 Timestamp: \(Date())")
+        print("🟢 Thread: \(Thread.current)")
+        print("🟢 Session ID: \(sessionId)")
+        print("🟢 Message: \(message)")
+        print("🟢 Language: \(appLanguage)")
+        print("🟢 ============================================")
+        print("🟢 === QUESTION CONTEXT CHECK ===")
+        print("🟢 ============================================")
+        print("🟢 questionContext parameter: \(questionContext != nil ? "PROVIDED ✓" : "NIL ✗")")
 
         // Enhanced logging for homework context
         if let questionContext = questionContext {
-            print("📚 === HOMEWORK CONTEXT DETECTED IN NETWORKSERVICE ===")
+            print("🟢 ✅ HOMEWORK CONTEXT DETECTED IN NETWORKSERVICE!")
+            print("🟢 Context keys: \(questionContext.keys.sorted())")
+            print("🟢 Full context: \(questionContext)")
+
             if let questionText = questionContext["questionText"] as? String {
-                print("📝 Question: \(questionText.prefix(100))...")
+                print("🟢    - questionText: \(questionText)")
+            }
+            if let rawQuestionText = questionContext["rawQuestionText"] as? String {
+                print("🟢    - rawQuestionText: \(rawQuestionText.prefix(100))")
             }
             if let studentAnswer = questionContext["studentAnswer"] as? String {
-                print("✏️ Student Answer: \(studentAnswer.prefix(50))...")
+                print("🟢    - studentAnswer: \(studentAnswer)")
+            }
+            if let correctAnswer = questionContext["correctAnswer"] as? String {
+                print("🟢    - correctAnswer: \(correctAnswer)")
             }
             if let currentGrade = questionContext["currentGrade"] as? String {
-                print("📊 Current Grade: \(currentGrade)")
+                print("🟢    - currentGrade: \(currentGrade)")
+            }
+            if let originalFeedback = questionContext["originalFeedback"] as? String {
+                print("🟢    - originalFeedback: \(originalFeedback.prefix(100))")
             }
             if let points = questionContext["pointsEarned"] as? Float,
                let possible = questionContext["pointsPossible"] as? Float {
-                print("💯 Points: \(points)/\(possible)")
+                print("🟢    - points: \(points)/\(possible)")
             }
-            print("🔍 Will include question_context in request body...")
+            if let questionNumber = questionContext["questionNumber"] as? Int {
+                print("🟢    - questionNumber: \(questionNumber)")
+            }
+            if let subject = questionContext["subject"] as? String {
+                print("🟢    - subject: \(subject)")
+            }
+            print("🟢 📤 Will include question_context in request body...")
+        } else {
+            print("🟢 ℹ️ No question context - regular chat message")
         }
+        print("🟢 ============================================")
 
         let streamURL = "\(baseURL)/api/ai/sessions/\(sessionId)/message/stream"
 
@@ -1218,9 +1286,15 @@ class NetworkService: ObservableObject {
                 }
             }
 
-            print("⚠️ Stream ended without completion event")
-            onComplete(false, accumulatedText.isEmpty ? nil : accumulatedText, nil, nil)
-            return false
+            // Only report failure if we never received the "end" event
+            if !streamComplete {
+                print("⚠️ Stream ended without completion event")
+                onComplete(false, accumulatedText.isEmpty ? nil : accumulatedText, nil, nil)
+                return false
+            } else {
+                print("✅ Stream closed naturally after completion event")
+                return true
+            }
 
         } catch {
             print("❌ Streaming failed: \(error.localizedDescription)")

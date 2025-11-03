@@ -90,33 +90,54 @@ class AppState: ObservableObject {
         message: String,
         context: HomeworkQuestionContext
     ) {
+        print("🔵 ============================================")
         print("🔵 === APPSTATE: SETTING HOMEWORK CONTEXT ===")
-        print("📝 Message Preview: \(message.prefix(100))")
-        print("📚 Context Question: \(context.questionText.prefix(100))")
-        print("📚 Context Subject: \(context.subject ?? "nil")")
-        print("📚 Context Current Grade: \(context.currentGrade ?? "nil")")
+        print("🔵 ============================================")
+        print("🔵 Timestamp: \(Date())")
+        print("🔵 Thread: \(Thread.current)")
+        print("📝 Full Message: \(message)")
+        print("📚 Context Details:")
+        print("   - Question Text: \(context.questionText)")
+        print("   - Raw Question: \(context.rawQuestionText ?? "nil")")
+        print("   - Student Answer: \(context.studentAnswer ?? "nil")")
+        print("   - Correct Answer: \(context.correctAnswer ?? "nil")")
+        print("   - Current Grade: \(context.currentGrade ?? "nil")")
+        print("   - Original Feedback: \(context.originalFeedback ?? "nil")")
+        print("   - Points: \(context.pointsEarned ?? 0)/\(context.pointsPossible ?? 0)")
+        print("   - Subject: \(context.subject ?? "nil")")
 
         pendingChatMessage = message
         pendingChatSubject = context.subject
         pendingHomeworkContext = context
 
-        print("✅ APPSTATE: Context stored successfully")
+        print("✅ APPSTATE: Context stored in memory")
+        print("✅ APPSTATE: pendingHomeworkContext is now: \(pendingHomeworkContext != nil ? "SET ✓" : "NIL ✗")")
+        print("✅ APPSTATE: Memory address: \(Unmanaged.passUnretained(self).toOpaque())")
         print("✅ APPSTATE: Switching to .chat tab")
+        print("🔵 ============================================")
         selectedTab = .chat
     }
 
     /// Clear the pending chat message (called after message is sent)
     func clearPendingChatMessage() {
+        print("🔴 ============================================")
         print("🔴 === APPSTATE: CLEARING HOMEWORK CONTEXT ===")
+        print("🔴 ============================================")
+        print("🔴 Timestamp: \(Date())")
+        print("🔴 Thread: \(Thread.current)")
+        print("🔴 Called from: \(Thread.callStackSymbols[1])")
         print("🔴 Previous context existed: \(pendingHomeworkContext != nil)")
         if let context = pendingHomeworkContext {
-            print("🔴 Clearing context for question: \(context.questionText.prefix(100))")
+            print("🔴 Clearing context for question: \(context.questionText)")
+            print("🔴 Context had grade: \(context.currentGrade ?? "nil")")
         }
 
         pendingChatMessage = nil
         pendingChatSubject = nil
         pendingHomeworkContext = nil
 
-        print("🔴 APPSTATE: All pending data cleared")
+        print("🔴 APPSTATE: All pending data CLEARED")
+        print("🔴 pendingHomeworkContext is now: \(pendingHomeworkContext != nil ? "SET ✓" : "NIL ✗")")
+        print("🔴 ============================================")
     }
 }

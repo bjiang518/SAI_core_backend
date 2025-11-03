@@ -211,6 +211,7 @@ class SessionMessageRequest(BaseModel):
     system_prompt: Optional[str] = None  # COST OPTIMIZATION: Separate system prompt for caching
     subject: Optional[str] = None  # Subject for context
     context: Optional[Dict[str, Any]] = None  # Additional context
+    question_context: Optional[Dict[str, Any]] = None  # NEW: Homework question context for grade correction
 
 class SessionMessageResponse(BaseModel):
     session_id: str
@@ -1250,6 +1251,8 @@ async def send_session_message_stream(
 
     COST OPTIMIZATION: Now accepts system_prompt for prompt caching (40-50% token reduction)
 
+    🆕 HOMEWORK FOLLOWUP: Supports question_context for grade correction detection
+
     🔍 DEBUG: This is the STREAMING endpoint
     """
     try:
@@ -1258,6 +1261,7 @@ async def send_session_message_stream(
         print(f"💬 Message: {request.message[:100]}...")
         print(f"🌍 Language: {request.language}")
         print(f"🎯 System prompt provided: {request.system_prompt is not None}")
+        print(f"📚 Question context provided: {request.question_context is not None}")
         print(f"🔍 Using STREAMING endpoint")
 
         # Get or create the session
@@ -1281,11 +1285,29 @@ async def send_session_message_stream(
             content=request.message
         )
 
+        # 🆕 CHECK FOR HOMEWORK CONTEXT (for grade correction support)
+        is_homework_followup = request.question_context is not None
+
+        if is_homework_followup:
+            print(f"📚 === HOMEWORK FOLLOW-UP DETECTED (STREAMING) ===")
+            print(f"📚 Question context keys: {list(request.question_context.keys())}")
+            print(f"📚 Current grade: {request.question_context.get('current_grade')}")
+            print(f"📚 Student answer: {request.question_context.get('student_answer')}")
+            print(f"📚 Correct answer: {request.question_context.get('correct_answer')}")
+
         # COST OPTIMIZATION: Use provided system prompt if available, otherwise create one
         if request.system_prompt:
             # Use the cached system prompt from gateway (saves ~200 tokens!)
             system_prompt = request.system_prompt
             print(f"💰 Using cached system prompt from gateway ({len(system_prompt)} chars) - saves ~200 tokens!")
+        elif is_homework_followup:
+            # 🆕 HOMEWORK FOLLOWUP: Use specialized prompt with grade validation
+            system_prompt = prompt_service.create_homework_followup_prompt(
+                question_context=request.question_context,
+                student_message=request.message,
+                session_id=session_id
+            )
+            print(f"📚 Created homework followup prompt with grade validation ({len(system_prompt)} chars)")
         else:
             # Fallback to creating system prompt (legacy behavior)
             system_prompt = prompt_service.create_enhanced_prompt(
@@ -1364,7 +1386,28 @@ async def send_session_message_stream(
 
                             yield f"data: {json.dumps(end_event)}\n\n"
 
-                            # Break after sending end event to prevent duplicate message saves
+                            # 🆕 HOMEWORK FOLLOWUP: Detect grade correction after streaming completes
+                            if is_homework_followup:
+                                grade_correction_data = _detect_grade_correction(accumulated_content)
+
+                                if grade_correction_data:
+                                    print(f"🎯 === GRADE CORRECTION DETECTED (STREAMING) ===")
+                                    print(f"🎯 Original Grade: {grade_correction_data['original_grade']}")
+                                    print(f"🎯 Corrected Grade: {grade_correction_data['corrected_grade']}")
+                                    print(f"🎯 Reason: {grade_correction_data['reason'][:100]}...")
+
+                                    # Send grade_correction event
+                                    grade_event = {
+                                        'type': 'grade_correction',
+                                        'change_grade': True,
+                                        'grade_correction': grade_correction_data
+                                    }
+                                    yield f"data: {json.dumps(grade_event)}\n\n"
+                                    print(f"✅ Sent grade_correction SSE event")
+                                else:
+                                    print(f"ℹ️ No grade correction detected in response")
+
+                            # Break after sending all events
                             break
 
             except Exception as e:
@@ -1433,6 +1476,9 @@ async def generate_follow_up_suggestions(ai_response: str, user_message: str, su
     """
     Generate contextual follow-up suggestions based on AI response and conversation.
 
+    LANGUAGE AWARENESS: Detects the language of the AI response and generates
+    suggestions in the SAME language to ensure consistency.
+
     Returns list of suggestions in format:
     [
         {"key": "Give examples", "value": "Can you provide specific examples?"},
@@ -1445,6 +1491,37 @@ async def generate_follow_up_suggestions(ai_response: str, user_message: str, su
     print(f"📚 Subject: {subject}")
 
     try:
+        # Detect language from AI response (checks for Chinese characters)
+        def detect_chinese(text: str) -> bool:
+            """Detect if text contains Chinese characters (CJK range)."""
+            chinese_range_start = 0x4E00
+            chinese_range_end = 0x9FFF
+            for char in text:
+                if chinese_range_start <= ord(char) <= chinese_range_end:
+                    return True
+            return False
+
+        is_chinese = detect_chinese(ai_response)
+        detected_language = "Chinese (Simplified)" if is_chinese else "English"
+        print(f"🌐 Detected language: {detected_language}")
+
+        # Language-specific instructions
+        if is_chinese:
+            language_instruction = """
+CRITICAL LANGUAGE REQUIREMENT:
+The AI response is in CHINESE, so you MUST generate follow-up suggestions in CHINESE (简体中文).
+- All "key" labels must be in Chinese (2-4 Chinese characters)
+- All "value" questions must be in Chinese
+- Use natural, conversational Chinese appropriate for students
+"""
+        else:
+            language_instruction = """
+LANGUAGE REQUIREMENT:
+The AI response is in ENGLISH, so you MUST generate follow-up suggestions in ENGLISH.
+- All "key" labels must be in English (2-4 words)
+- All "value" questions must be in English
+"""
+
         # Create a prompt for generating follow-up suggestions
         suggestion_prompt = f"""Based on this educational conversation, generate 3 contextual follow-up questions that would help the student learn more.
 
@@ -1452,11 +1529,14 @@ Student asked: {user_message[:200]}
 AI explained: {ai_response[:500]}
 Subject: {subject}
 
+{language_instruction}
+
 Generate 3 follow-up questions that:
 1. Help deepen understanding of the concept
 2. Connect to related topics
 3. Encourage critical thinking
 4. Are natural conversation starters
+5. Match the SAME LANGUAGE as the AI response above
 
 Format your response EXACTLY as a JSON array:
 [
@@ -1465,7 +1545,9 @@ Format your response EXACTLY as a JSON array:
   {{"key": "Short button label", "value": "Full question to ask"}}
 ]
 
-IMPORTANT: Return ONLY the JSON array, no other text."""
+IMPORTANT:
+- Return ONLY the JSON array, no other text
+- The language of the suggestions MUST match the language of the AI response"""
 
         print(f"📤 Calling GPT-4o-mini for suggestions...")
 

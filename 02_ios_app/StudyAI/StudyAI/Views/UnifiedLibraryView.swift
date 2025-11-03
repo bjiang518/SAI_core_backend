@@ -59,6 +59,11 @@ struct UnifiedLibraryView: View {
     @State private var hasActiveImageFilter = false
     @State private var selectedQuestionType: QuestionType?
 
+    // Custom date picker states
+    @State private var showingCustomDatePicker = false
+    @State private var customStartDate = Date()
+    @State private var customEndDate = Date()
+
     // Computed properties for filtered counts
     // These counts MUST reflect all active filters (time, subject, question type)
     private var filteredQuestionCount: Int {
@@ -285,6 +290,18 @@ struct UnifiedLibraryView: View {
                     }
                 )
             }
+            .sheet(isPresented: $showingCustomDatePicker) {
+                CustomDateRangePickerView(
+                    startDate: $customStartDate,
+                    endDate: $customEndDate,
+                    onApply: {
+                        let customRange = DateRange.custom(startDate: customStartDate, endDate: customEndDate)
+                        activeQuickDateFilter = customRange
+                        searchFilters.dateRange = customRange
+                        Task { await performAdvancedSearch(searchFilters) }
+                    }
+                )
+            }
         }
         .task {
             await loadContent()
@@ -338,6 +355,14 @@ struct UnifiedLibraryView: View {
                         Task { await performAdvancedSearch(searchFilters) }
                     } label: {
                         Label(NSLocalizedString("library.filter.thisMonth", comment: ""), systemImage: "calendar")
+                    }
+
+                    Divider()
+
+                    Button {
+                        showingCustomDatePicker = true
+                    } label: {
+                        Label(NSLocalizedString("library.filter.moreSpecific", comment: ""), systemImage: "calendar.badge.plus")
                     }
                 } label: {
                     VStack(spacing: 2) {
@@ -1040,4 +1065,182 @@ struct QuickFilterButton: View {
 
 #Preview {
     UnifiedLibraryView()
+}
+// MARK: - Custom Date Range Picker
+
+struct CustomDateRangePickerView: View {
+    @Binding var startDate: Date
+    @Binding var endDate: Date
+    let onApply: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
+
+    @State private var isSelectingStart = true // true = selecting start, false = selecting end
+    @State private var selectedDate = Date()
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Single Calendar
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Calendar
+                        DatePicker(
+                            "",
+                            selection: $selectedDate,
+                            displayedComponents: [.date]
+                        )
+                        .datePickerStyle(.graphical)
+                        .labelsHidden()
+                        .onChange(of: selectedDate) { newDate in
+                            // Update start or end date based on mode
+                            if isSelectingStart {
+                                startDate = newDate
+                                // Ensure end date is not before start date
+                                if endDate < startDate {
+                                    endDate = startDate
+                                }
+                            } else {
+                                endDate = newDate
+                                // Ensure start date is not after end date
+                                if startDate > endDate {
+                                    startDate = endDate
+                                }
+                            }
+                        }
+
+                        // Visual indicator of current selection - Tappable to select which date to edit
+                        HStack(spacing: 8) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(NSLocalizedString("library.customDate.startDate", comment: ""))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(formatDate(startDate))
+                                    .font(.subheadline)
+                                    .fontWeight(isSelectingStart ? .bold : .regular)
+                                    .foregroundColor(isSelectingStart ? .blue : .primary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(isSelectingStart ? Color.blue.opacity(0.1) : Color.clear)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(isSelectingStart ? Color.blue : Color.clear, lineWidth: 2)
+                            )
+                            .onTapGesture {
+                                isSelectingStart = true
+                                selectedDate = startDate
+                            }
+
+                            Image(systemName: "arrow.right")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(NSLocalizedString("library.customDate.endDate", comment: ""))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(formatDate(endDate))
+                                    .font(.subheadline)
+                                    .fontWeight(!isSelectingStart ? .bold : .regular)
+                                    .foregroundColor(!isSelectingStart ? .blue : .primary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(!isSelectingStart ? Color.blue.opacity(0.1) : Color.clear)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(!isSelectingStart ? Color.blue : Color.clear, lineWidth: 2)
+                            )
+                            .onTapGesture {
+                                isSelectingStart = false
+                                selectedDate = endDate
+                            }
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                    .padding()
+                    .background(colorScheme == .dark ? Color(.systemGray6) : Color(.systemGray6).opacity(0.5))
+                    .cornerRadius(16)
+                    .padding(.horizontal)
+
+                    // Apply button
+                    Button(action: {
+                        onApply()
+                        dismiss()
+                    }) {
+                        Text(NSLocalizedString("library.customDate.apply", comment: ""))
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(16)
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
+                }
+                .padding(.top, 20)
+            }
+            .navigationTitle(NSLocalizedString("library.customDate.navigationTitle", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: resetDates) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .foregroundColor(.blue)
+                    }
+                }
+            }
+            .adaptiveNavigationBar()
+            .onAppear {
+                // Initialize selected date based on current mode
+                selectedDate = isSelectingStart ? startDate : endDate
+            }
+        }
+    }
+
+    private func resetDates() {
+        startDate = Date()
+        endDate = Date()
+        selectedDate = Date()
+        isSelectingStart = true
+    }
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: date)
+    }
+
+    private var formattedDateRange: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
+    }
+
+    private var daysBetween: Int {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.day], from: startDate, to: endDate)
+        return components.day ?? 0
+    }
 }

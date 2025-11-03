@@ -67,6 +67,7 @@ struct MusicSelectionSheet: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(NSLocalizedString("common.done", comment: "Done")) {
@@ -101,7 +102,7 @@ struct MusicSelectionSheet: View {
                 .fontWeight(.bold)
                 .foregroundColor(colorScheme == .dark ? .white : .primary)
 
-            Text("Choose music or create a playlist for your focus session")
+            Text(NSLocalizedString("focus.selectMusicSubtitle", comment: "Choose music or create a playlist for your focus session"))
                 .font(.subheadline)
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
                 .multilineTextAlignment(.center)

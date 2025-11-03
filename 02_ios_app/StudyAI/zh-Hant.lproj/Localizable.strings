@@ -200,6 +200,7 @@
 "aiHomework.results.confidence" = "置信度";
 "aiHomework.results.viewDetails" = "查看詳細結果";
 "aiHomework.processing.message" = "AI正在仔細檢查您的作業！";
+"aiHomework.processing.waitMessage" = "這可能需要一點時間，請稍候...";
 "imageViewer.instructions" = "雙指縮放 • 拖動平移 • 雙擊重置 • 使用關閉按鈕退出";
 
 // Homework Results
@@ -739,6 +740,10 @@
 "editProfile.profileUpdatedMessage" = "您的資料已成功更新！";
 "editProfile.savingProfile" = "儲存資料中...";
 
+// Avatar Selection
+"editProfile.selectAvatar" = "選擇您的頭像";
+"editProfile.selectAvatarDescription" = "選擇一個頭像來代表您";
+
 // Personal Information
 "editProfile.personalInfo" = "個人資訊";
 "editProfile.firstName" = "名字";
@@ -1029,6 +1034,19 @@
 // Focus Mode - Music Player
 "focus.nowPlaying" = "正在播放";
 "focus.nextTrack" = "下一首: %@";
+"focus.cancelSession" = "取消";
+"focus.earnedTree" = "你獲得了一棵樹！";
+"focus.endSession" = "結束";
+"focus.focusTime" = "專注時間";
+"focus.garden.title" = "我的花園";
+"focus.keepGoing" = "繼續專注以種植更大的樹！";
+"focus.noMusic" = "無音樂";
+"focus.pauseSession" = "暫停";
+"focus.resumeSession" = "繼續";
+"focus.selectMusic" = "選擇音樂";
+"focus.sessionActive" = "專注中";
+"focus.sessionPaused" = "已暫停";
+"focus.startSession" = "開始專注";
 
 // Focus Mode - Music Selection
 "focus.singleTrack" = "單曲";
@@ -1047,3 +1065,126 @@
 "focus.playlistNameRequired" = "播放清單名稱必填";
 "focus.selectTracks" = "選擇曲目";
 "focus.editPlaylist" = "編輯播放清單";
+
+// Privacy Policy
+"privacy.changes.content" = "我們可能會不時更新本隱私政策。我們將透過發布新政策並更新「最後更新」日期來通知您任何重大變更。";
+"privacy.changes.title" = "本政策的變更";
+"privacy.collect.content" = "我們收集您直接提供的資訊，包括您的姓名、電子郵件、年齡和學習資料。我們還自動收集使用資料、裝置資訊和分析資料以改進我們的服務。";
+"privacy.collect.title" = "我們收集的資訊";
+"privacy.contact.content" = "如果您對本隱私政策或我們的隱私做法有疑問，請透過privacy@studymates.app聯絡我們";
+"privacy.contact.title" = "聯絡我們";
+"privacy.coppa.content" = "我們遵守《兒童線上隱私保護法》(COPPA)。對於13歲以下的使用者，我們在收集個人資訊之前需要可驗證的家長同意。";
+"privacy.coppa.title" = "COPPA合規";
+"privacy.gdpr.content" = "如果您在歐洲經濟區，您享有GDPR下的權利，包括存取您的資料、更正、刪除和資料可攜性。請聯絡我們行使這些權利。";
+"privacy.gdpr.title" = "GDPR權利";
+"privacy.intro.content" = "StudyAI致力於保護您的隱私。本隱私政策說明我們如何收集、使用、披露和保護您在使用我們的教育應用程式時的資訊。";
+"privacy.intro.title" = "簡介";
+"privacy.lastUpdated" = "最後更新：2025年1月";
+"privacy.retention.content" = "我們保留您的個人資訊的時間僅限於提供我們的服務和遵守法律義務所必需的時間。您可以隨時請求刪除您的資料。";
+"privacy.retention.title" = "資料保留";
+"privacy.rights.content" = "您有權存取、更正或刪除您的個人資訊。您還可以反對處理並請求資料可攜性。請聯絡我們行使這些權利。";
+"privacy.rights.title" = "您的權利";
+"privacy.security.content" = "我們實施業界標準的安全措施，包括加密、安全身分驗證和定期安全稽核，以保護您的資料免受未經授權的存取。";
+"privacy.security.title" = "資料安全";
+"privacy.thirdParty.content" = "我們使用值得信賴的第三方服務進行身分驗證、分析和雲端儲存。這些服務經過精心挑選，符合適用的隱私法律。";
+"privacy.thirdParty.title" = "第三方服務";
+"privacy.title" = "隱私政策";
+"privacy.usage.content" = "我們使用您的資訊來提供和改進我們的教育服務、個人化您的學習體驗、與您溝通並確保我們平台的安全。";
+"privacy.usage.title" = "我們如何使用您的資訊";
+
+// Terms of Service
+"terms.acceptable.content" = "您同意不將服務用於任何非法目的、傷害他人、上傳惡意內容或干擾服務的運行。";
+"terms.acceptable.title" = "可接受的使用";
+"terms.acceptance.content" = "存取或使用StudyAI即表示您同意受這些服務條款的約束。如果您不同意這些條款，請不要使用我們的應用程式。";
+"terms.acceptance.title" = "接受條款";
+"terms.accounts.content" = "您負責維護您的帳戶和密碼的安全。您必須提供準確的資訊並保持更新。";
+"terms.accounts.title" = "使用者帳戶";
+"terms.changes.content" = "我們保留隨時修改這些條款的權利。我們將通知您重大變更，您的繼續使用構成對更新條款的接受。";
+"terms.changes.title" = "條款變更";
+"terms.contact.content" = "有關這些服務條款的問題，請透過support@studymates.app聯絡我們";
+"terms.contact.title" = "聯絡資訊";
+"terms.disclaimer.content" = "StudyAI「按原樣」提供，不提供任何形式的保證。雖然我們努力確保準確性，但我們不保證我們的AI生成內容是無錯誤或完整的。";
+"terms.disclaimer.title" = "免責聲明";
+"terms.intellectual.content" = "StudyAI中的所有內容和材料均歸我們或我們的授權方所有，並受智慧財產權法保護。未經許可，您不得複製、修改或分發我們的內容。";
+"terms.intellectual.title" = "智慧財產權";
+"terms.lastUpdated" = "最後更新：2025年1月";
+"terms.law.content" = "這些條款受我們營運所在司法管轄區的法律管轄，不考慮法律衝突原則。";
+"terms.law.title" = "管轄法律";
+"terms.liability.content" = "在法律允許的最大範圍內，StudyAI不對因您使用服務而產生的任何間接、附帶、特殊或後果性損害負責。";
+"terms.liability.title" = "責任限制";
+"terms.termination.content" = "如果您違反這些條款，我們可能會暫停或終止您對服務的存取。您也可以隨時終止您的帳戶。";
+"terms.termination.title" = "終止";
+"terms.title" = "服務條款";
+"terms.use.content" = "StudyAI提供由AI驅動的教育平台。您只能將我們的服務用於個人、非商業性教育目的。";
+"terms.use.title" = "服務使用";
+"terms.userContent.content" = "您保留對所提交內容的所有權。透過使用我們的服務，您授予我們使用、儲存和處理您的內容以提供我們服務的授權。";
+"terms.userContent.title" = "使用者內容";
+
+// Privacy Settings
+"privacy.settings.consentGranted" = "已獲得家長同意";
+"privacy.settings.consentStatus.denied" = "同意被拒絕";
+"privacy.settings.consentStatus.expired" = "同意已過期";
+"privacy.settings.consentStatus.granted" = "已同意";
+"privacy.settings.consentStatus.loading" = "正在載入同意狀態...";
+"privacy.settings.consentStatus.notRequired" = "您的年齡段不需要";
+"privacy.settings.consentStatus.pending" = "待同意";
+"privacy.settings.consentStatus.required" = "需要家長同意";
+"privacy.settings.coppaCompliance" = "COPPA合規";
+"privacy.settings.coppaNotice" = "根據COPPA法規，13歲以下的使用者需要家長同意才能使用某些功能。";
+"privacy.settings.dataManagement" = "資料管理";
+"privacy.settings.dataManagementFooter" = "您有權隨時存取、匯出或刪除您的個人資料。";
+"privacy.settings.deleteAccount" = "刪除帳戶";
+"privacy.settings.deleteAccountAlert.button" = "刪除";
+"privacy.settings.deleteAccountAlert.message" = "此操作無法復原。您的所有資料將被永久刪除。";
+"privacy.settings.deleteAccountAlert.title" = "刪除帳戶";
+"privacy.settings.deleteAccountDesc" = "永久刪除您的帳戶和所有資料";
+"privacy.settings.exportData" = "匯出我的資料";
+"privacy.settings.exportDataAlert.button" = "匯出";
+"privacy.settings.exportDataAlert.message" = "我們將準備您的所有資料副本並傳送到您的電子郵件地址。";
+"privacy.settings.exportDataAlert.title" = "匯出您的資料";
+"privacy.settings.exportDataDesc" = "下載您的個人資料副本";
+"privacy.settings.legal" = "法律";
+"privacy.settings.parentalConsent" = "家長同意";
+"privacy.settings.privacyPolicy" = "隱私政策";
+"privacy.settings.requestConsent" = "請求家長同意";
+"privacy.settings.termsOfService" = "服務條款";
+"privacy.settings.title" = "隱私設定";
+
+// Additional Focus Mode and Settings Translations
+"focus.garden.allTrees" = "所有樹木";
+"focus.garden.clearConfirmation" = "確定要清空花園中的所有樹木嗎？此操作無法復原。";
+"focus.garden.clearGarden" = "清空花園";
+"focus.garden.currentStreak" = "目前連續";
+"focus.garden.days" = "天";
+"focus.garden.emptyState" = "你的花園是空的";
+"focus.garden.emptyStateMessage" = "完成專注學習以種植樹木！";
+"focus.garden.longestSession" = "最長專注";
+"focus.garden.oldest" = "最早";
+"focus.garden.recent" = "最近";
+"focus.garden.sortBy" = "排序：";
+"focus.garden.totalFocusTime" = "總專注時間";
+"focus.garden.totalTrees" = "總樹木數";
+"focus.music.category.ambient" = "環境音樂";
+"focus.music.category.classical" = "古典音樂";
+"focus.music.category.lofi" = "Lo-fi 節拍";
+"focus.music.category.nature" = "自然聲音";
+"focus.selectMusicSubtitle" = "選擇音樂或建立播放清單來進行專注學習";
+"focus.tree.ancientTree" = "古樹";
+"focus.tree.matureTree" = "成樹";
+"focus.tree.sapling" = "樹苗";
+"focus.tree.youngTree" = "小樹";
+"focus.volume" = "音量";
+"home.focusMode" = "專注模式";
+"home.focusModeDescription" = "專注音樂與計時器學習";
+"settings.parentControls" = "家長控制";
+"settings.studySettings" = "學習設定";
+
+// Custom Date Range Picker
+"library.filter.moreSpecific" = "更具體";
+"library.customDate.title" = "選擇自訂日期範圍";
+"library.customDate.subtitle" = "選擇篩選的開始和結束日期";
+"library.customDate.startDate" = "開始日期";
+"library.customDate.endDate" = "結束日期";
+"library.customDate.selectedRange" = "已選範圍：";
+"library.customDate.apply" = "套用日期篩選";
+"library.customDate.navigationTitle" = "自訂日期範圍";

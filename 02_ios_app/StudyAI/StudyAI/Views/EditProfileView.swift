@@ -77,6 +77,7 @@ struct EditProfileView: View {
                     .disabled(isLoading)
                 }
             }
+            .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background
             .onAppear {
                 loadCurrentProfile()
             }
@@ -564,6 +565,7 @@ struct SubjectPickerView: View {
                     .fontWeight(.semibold)
                 }
             }
+            .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background
         }
     }
 }

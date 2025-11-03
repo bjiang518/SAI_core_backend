@@ -103,6 +103,7 @@ struct HomeworkAlbumView: View {
                     }
                 }
             }
+            .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background
             .sheet(isPresented: $showingDetailView) {
                 if let record = selectedRecord {
                     HomeworkImageDetailView(record: record)
@@ -377,6 +378,7 @@ struct FilterMenuView: View {
                     }
                 }
             }
+            .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background
         }
     }
 }
@@ -466,6 +468,7 @@ struct HomeworkAlbumSelectionView: View {
                     }
                 }
             }
+            .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background
             .sheet(isPresented: $showingFilterMenu) {
                 FilterMenuView(
                     timeFilter: $selectedTimeFilter,

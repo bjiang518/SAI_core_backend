@@ -95,6 +95,7 @@ struct GeneratedQuestionsListView: View {
                     closeButton
                 }
             }
+            .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background
             .sheet(isPresented: $showingQuestionDetail) {
                 if let selectedQuestion = selectedQuestion,
                    let questionIndex = questions.firstIndex(where: { $0.id == selectedQuestion.id }) {

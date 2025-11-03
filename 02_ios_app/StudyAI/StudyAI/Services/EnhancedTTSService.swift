@@ -34,16 +34,20 @@ class EnhancedTTSService: NSObject, ObservableObject {
     private let audioCache = NSCache<NSString, NSData>()
     private let fileManager = FileManager.default
     private var cacheDirectory: URL {
-        let urls = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)
+        // ✅ Use .documentDirectory for permanent storage instead of .cachesDirectory
+        let urls = fileManager.urls(for: .documentDirectory, in: .userDomainMask)
         return urls[0].appendingPathComponent("StudyAI_TTS")
     }
-    
+
+    // Cache version key for UserDefaults
+    private let cacheVersionKey = "StudyAI_TTS_CacheVersion"
+
     override init() {
         super.init()
         setupAudioSession()
         setupCache()
-        clearOldCache() // Clear old cache to ensure new voice settings take effect
         loadVoiceSettings()
+        clearOldCacheIfNeeded() // Only clear cache when voice settings change
     }
 
     private func setupCache() {
@@ -52,7 +56,29 @@ class EnhancedTTSService: NSObject, ObservableObject {
         audioCache.totalCostLimit = 50 * 1024 * 1024 // 50MB cache limit
     }
 
-    private func clearOldCache() {
+    /// Only clear cache when voice settings change to save bandwidth and improve performance
+    private func clearOldCacheIfNeeded() {
+        let currentVersion = getCurrentCacheVersion()
+        let savedVersion = UserDefaults.standard.string(forKey: cacheVersionKey) ?? ""
+
+        // Only clear if cache version changed (voice settings changed)
+        if currentVersion != savedVersion {
+            print("💾 Voice settings changed, clearing old TTS cache...")
+            clearCache()
+            UserDefaults.standard.set(currentVersion, forKey: cacheVersionKey)
+        } else {
+            print("💾 Voice settings unchanged, keeping cached TTS audio files")
+        }
+    }
+
+    /// Generate a version string based on current voice settings
+    private func getCurrentCacheVersion() -> String {
+        let settings = currentVoiceSettings
+        return "\(settings.voiceType.rawValue)_\(settings.speakingRate)_\(settings.voicePitch)_v1"
+    }
+
+    /// Clear all cached audio (only called when voice settings change)
+    private func clearCache() {
         // Clear memory cache
         audioCache.removeAllObjects()
 
@@ -241,8 +267,13 @@ class EnhancedTTSService: NSObject, ObservableObject {
                 }
             } catch {
                 print("🎵 EnhancedTTSService: Server TTS failed: \(error)")
+                print("⚠️ Skipping TTS for this chunk to maintain voice consistency")
                 await MainActor.run {
-                    self.useFallbackTTS(for: request)
+                    // ✅ DISABLED FALLBACK: Don't use iOS TTS fallback to maintain consistent voice quality
+                    // Instead of falling back to native iOS TTS (which sounds different), just skip this chunk
+                    self.isProcessing = false
+                    self.isSpeaking = false
+                    self.errorMessage = "TTS service temporarily unavailable"
                 }
             }
         }
@@ -257,6 +288,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
             return nil
         }
 
+        // ✅ Perform disk I/O synchronously but this method is already called from async contexts
         do {
             let data = try Data(contentsOf: fileURL)
             return data
@@ -266,12 +298,17 @@ class EnhancedTTSService: NSObject, ObservableObject {
     }
 
     private func saveToDiskCache(audioData: Data, cacheKey: String) {
-        let fileURL = cacheDirectory.appendingPathComponent("\(cacheKey).mp3")
+        // ✅ Move disk write to background thread to prevent main thread blocking
+        Task.detached(priority: .utility) { [weak self] in
+            guard let self = self else { return }
+            let fileURL = self.cacheDirectory.appendingPathComponent("\(cacheKey).mp3")
 
-        do {
-            try audioData.write(to: fileURL)
-        } catch {
-            // Silently fail - not critical
+            do {
+                try audioData.write(to: fileURL)
+                print("💾 Cached TTS audio to disk: \(cacheKey)")
+            } catch {
+                print("⚠️ Failed to save TTS cache to disk: \(error)")
+            }
         }
     }
     
@@ -295,11 +332,19 @@ class EnhancedTTSService: NSObject, ObservableObject {
         let expressiveness = request.voiceSettings.expressiveness
         let finalRate = baseRate * voiceTypeMultiplier * expressiveness
 
+        // ✅ FIX: Truncate text if too long (ElevenLabs limit is ~5000 chars, OpenAI is ~4096)
+        let maxChars = provider == "elevenlabs" ? 5000 : 4096
+        var textToSpeak = request.text
+        if textToSpeak.count > maxChars {
+            print("⚠️ TTS text too long (\(textToSpeak.count) chars), truncating to \(maxChars) chars")
+            textToSpeak = String(textToSpeak.prefix(maxChars))
+        }
+
         // Debug logging
-        print("🎵 EnhancedTTS: voiceType=\(voiceType.rawValue), provider=\(provider), voiceId=\(voiceId), speed=\(finalRate)")
+        print("🎵 EnhancedTTS: voiceType=\(voiceType.rawValue), provider=\(provider), voiceId=\(voiceId), speed=\(finalRate), textLength=\(textToSpeak.count)")
 
         let requestBody = [
-            "text": request.text,
+            "text": textToSpeak,
             "voice": voiceId,
             "speed": finalRate.clamped(to: 0.25...4.0),
             "provider": provider
@@ -346,33 +391,43 @@ class EnhancedTTSService: NSObject, ObservableObject {
     }
     
     private func playAudioData(_ data: Data, for request: TTSRequest) {
-        // Activate audio session just before playing
-        do {
-            let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setActive(true)
-        } catch {
-            print("🎵 EnhancedTTSService: Warning - could not activate audio session: \(error)")
-        }
+        // ✅ Move audio session activation to background to prevent main thread blocking
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return }
 
-        do {
-            audioPlayer = try AVAudioPlayer(data: data)
-            audioPlayer?.delegate = self
-            audioPlayer?.volume = request.voiceSettings.volume
+            // Activate audio session on background thread
+            do {
+                let audioSession = AVAudioSession.sharedInstance()
+                try audioSession.setActive(true)
+            } catch {
+                print("🎵 EnhancedTTSService: Warning - could not activate audio session: \(error)")
+            }
 
-            isSpeaking = true
-            isProcessing = false
-            speechProgress = 0.0
+            // Initialize audio player on main thread (required for AVAudioPlayer)
+            await MainActor.run {
+                do {
+                    self.audioPlayer = try AVAudioPlayer(data: data)
+                    self.audioPlayer?.delegate = self
+                    self.audioPlayer?.volume = request.voiceSettings.volume
 
-            // Start progress tracking
-            startProgressTracking()
+                    self.isSpeaking = true
+                    self.isProcessing = false
+                    self.speechProgress = 0.0
 
-            audioPlayer?.play()
+                    // Start progress tracking
+                    self.startProgressTracking()
 
-        } catch {
-            print("🎵 EnhancedTTSService: Audio playback failed: \(error)")
-            errorMessage = "Audio playback failed"
-            isProcessing = false
-            useFallbackTTS(for: request)
+                    self.audioPlayer?.play()
+
+                } catch {
+                    print("🎵 EnhancedTTSService: Audio playback failed: \(error)")
+                    print("⚠️ Skipping audio playback for this chunk to maintain voice consistency")
+                    // ✅ DISABLED FALLBACK: Don't use iOS TTS fallback to maintain consistent voice quality
+                    self.errorMessage = "Audio playback failed"
+                    self.isProcessing = false
+                    self.isSpeaking = false
+                }
+            }
         }
     }
 
@@ -389,13 +444,17 @@ class EnhancedTTSService: NSObject, ObservableObject {
     }
     
     private func startProgressTracking() {
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            guard let player = self.audioPlayer, player.isPlaying else { return }
-            
-            DispatchQueue.main.async {
-                if player.duration > 0 {
-                    self.speechProgress = Float(player.currentTime / player.duration)
-                }
+        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self = self,
+                  let player = self.audioPlayer,
+                  player.isPlaying,
+                  player.duration > 0 else { return }
+
+            // ✅ Calculate progress on background, update UI on main thread
+            let progress = Float(player.currentTime / player.duration)
+
+            Task { @MainActor in
+                self.speechProgress = progress
             }
         }
     }
@@ -418,8 +477,17 @@ class EnhancedTTSService: NSObject, ObservableObject {
     }
     
     func updateVoiceSettings(_ settings: VoiceSettings) {
+        let oldVersion = getCurrentCacheVersion()
         currentVoiceSettings = settings
         settings.save()
+
+        // Check if voice-related settings changed
+        let newVersion = getCurrentCacheVersion()
+        if oldVersion != newVersion {
+            print("💾 Voice settings changed from \(oldVersion) to \(newVersion), clearing cache...")
+            clearCache()
+            UserDefaults.standard.set(newVersion, forKey: cacheVersionKey)
+        }
     }
 }
 
