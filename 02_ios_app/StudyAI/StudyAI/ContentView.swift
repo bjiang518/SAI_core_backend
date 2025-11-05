@@ -81,7 +81,7 @@ struct ContentView: View {
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: authService.isAuthenticated)
+        .animationIfNotPowerSaving(.easeInOut(duration: 0.3), value: authService.isAuthenticated)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .sheet(isPresented: $showingFaceIDReauth) {
             FaceIDReauthView(onSuccess: {
@@ -298,6 +298,7 @@ struct ModernProfileView: View {
     let onLogout: () -> Void
     @ObservedObject private var authService = AuthenticationService.shared
     @ObservedObject private var profileService = ProfileService.shared
+    @ObservedObject private var appState = AppState.shared
     @State private var showingBiometricSetup = false
     @State private var showingEditProfile = false
     @State private var showingLearningGoals = false
@@ -440,6 +441,16 @@ struct ModernProfileView: View {
                         SettingsRow(icon: "externaldrive.fill", title: NSLocalizedString("settings.storageControl", comment: ""), color: .purple)
                     }
                     .buttonStyle(.plain)
+
+                    // Power Saving Mode Toggle
+                    HStack {
+                        SettingsRow(icon: "battery.100", title: NSLocalizedString("settings.powerSavingMode", comment: ""), color: .green)
+
+                        Spacer()
+
+                        Toggle("", isOn: $appState.isPowerSavingMode)
+                            .tint(.green)
+                    }
                 }
 
                 // SECURITY SECTION

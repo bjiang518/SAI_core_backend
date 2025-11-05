@@ -826,6 +826,7 @@
 
 // Storage Control
 "settings.storageControl" = "儲存管理";
+"settings.powerSavingMode" = "省電模式";
 "storage.title" = "儲存管理";
 "storage.totalUsed" = "總儲存使用量";
 "storage.archivedQuestions" = "已歸檔問題";

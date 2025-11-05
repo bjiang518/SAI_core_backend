@@ -75,7 +75,17 @@ class AppState: ObservableObject {
     /// Selected tab
     @Published var selectedTab: MainTab = .home
 
-    private init() {}
+    /// Power Saving Mode - disables all animations when enabled
+    @Published var isPowerSavingMode: Bool {
+        didSet {
+            UserDefaults.standard.set(isPowerSavingMode, forKey: "isPowerSavingMode")
+        }
+    }
+
+    private init() {
+        // Load power saving mode from UserDefaults
+        self.isPowerSavingMode = UserDefaults.standard.bool(forKey: "isPowerSavingMode")
+    }
 
     /// Set a pending chat message and navigate to chat tab
     func navigateToChatWithMessage(_ message: String, subject: String? = nil) {

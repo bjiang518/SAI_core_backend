@@ -243,6 +243,7 @@
 		PRVSTGS901234567890ABCD /* PrivacySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRVSTGVW1234567890ABCD /* PrivacySettingsView.swift */; };
 		SYNC1234567890123456ABCD /* StorageSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SYNCFILE1234567890ABCD12 /* StorageSyncService.swift */; };
 		TRMSRVC901234567890ABCD /* TermsOfServiceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRMSRVVW1234567890ABCD /* TermsOfServiceView.swift */; };
+		84E86475A7A740338E0C3AEC /* View+PowerSaving.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F1765FF054433787396665 /* View+PowerSaving.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -426,6 +427,7 @@
 		PRVSTGVW1234567890ABCD /* PrivacySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivacySettingsView.swift; path = StudyAI/Views/PrivacySettingsView.swift; sourceTree = SOURCE_ROOT; };
 		SYNCFILE1234567890ABCD12 /* StorageSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StorageSyncService.swift; path = StudyAI/Services/StorageSyncService.swift; sourceTree = SOURCE_ROOT; };
 		TRMSRVVW1234567890ABCD /* TermsOfServiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TermsOfServiceView.swift; path = StudyAI/Views/TermsOfServiceView.swift; sourceTree = SOURCE_ROOT; };
+		49F1765FF054433787396665 /* View+PowerSaving.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "View+PowerSaving.swift"; path = "StudyAI/Extensions/View+PowerSaving.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -1073,6 +1075,7 @@
 				7B1961CC2E94B32C0024317A /* LanguageSettingsView.swift in Sources */,
 				9CCC4910AC3F44ECA7EDB250 /* ReportFetcher.swift in Sources */,
 				5A2598A9E1964469A1158C2E /* LocalReportStorage.swift in Sources */,
+				84E86475A7A740338E0C3AEC /* View+PowerSaving.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

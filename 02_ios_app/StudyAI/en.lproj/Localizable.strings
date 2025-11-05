@@ -944,6 +944,7 @@
 
 // Storage Control
 "settings.storageControl" = "Storage Control";
+"settings.powerSavingMode" = "Power Saving Mode";
 "storage.title" = "Storage Control";
 "storage.totalUsed" = "Total Storage Used";
 "storage.archivedQuestions" = "Archived Questions";
