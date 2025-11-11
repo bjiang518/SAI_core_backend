@@ -3,23 +3,57 @@
 //  StudyAI
 //
 //  Background music track model for focus sessions
+//  Supports local, remote downloadable, and user library tracks
 //
 
 import Foundation
 import SwiftUI
+import MediaPlayer
 
 struct BackgroundMusicTrack: Identifiable, Codable, Hashable {
     let id: String
     let name: String
-    let fileName: String  // Audio file in bundle
+    let fileName: String  // Audio file in bundle or cache
     let category: MusicCategory
     let duration: TimeInterval
+    let source: TrackSource
+
+    // Remote download properties
+    var remoteURL: String?  // URL for downloadable tracks
+    var fileSize: Int64?    // Size in bytes
+    var isDownloaded: Bool = false
+
+    // User library properties
+    var userLibraryPersistentID: String?  // For user's own music
+
+    enum TrackSource: String, Codable {
+        case bundle      // Pre-bundled with app
+        case remote      // Downloadable from server
+        case userLibrary // From user's music library
+
+        var displayName: String {
+            switch self {
+            case .bundle: return "Built-in"
+            case .remote: return "Download"
+            case .userLibrary: return "My Music"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .bundle: return "app.badge.checkmark"
+            case .remote: return "arrow.down.circle"
+            case .userLibrary: return "music.note.house"
+            }
+        }
+    }
 
     enum MusicCategory: String, CaseIterable, Codable {
         case lofi = "lofi"
         case nature = "nature"
         case classical = "classical"
         case ambient = "ambient"
+        case userMusic = "user_music"  // New category for user's music
 
         var displayName: String {
             switch self {
@@ -31,6 +65,8 @@ struct BackgroundMusicTrack: Identifiable, Codable, Hashable {
                 return NSLocalizedString("focus.music.category.classical", comment: "Classical")
             case .ambient:
                 return NSLocalizedString("focus.music.category.ambient", comment: "Ambient")
+            case .userMusic:
+                return NSLocalizedString("focus.music.category.userMusic", comment: "My Music")
             }
         }
 
@@ -44,6 +80,8 @@ struct BackgroundMusicTrack: Identifiable, Codable, Hashable {
                 return "music.note"
             case .ambient:
                 return "waveform"
+            case .userMusic:
+                return "person.fill.badge.plus"
             }
         }
 
@@ -57,6 +95,8 @@ struct BackgroundMusicTrack: Identifiable, Codable, Hashable {
                 return .blue
             case .ambient:
                 return .cyan
+            case .userMusic:
+                return .pink
             }
         }
     }
@@ -68,5 +108,56 @@ struct BackgroundMusicTrack: Identifiable, Codable, Hashable {
 
     static func == (lhs: BackgroundMusicTrack, rhs: BackgroundMusicTrack) -> Bool {
         return lhs.id == rhs.id
+    }
+
+    // Formatted file size
+    var formattedFileSize: String? {
+        guard let size = fileSize else { return nil }
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useMB, .useKB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: size)
+    }
+
+    // Check if track needs download
+    var needsDownload: Bool {
+        return source == .remote && !isDownloaded
+    }
+
+    // Initializer for bundle tracks (backward compatible)
+    init(id: String, name: String, fileName: String, category: MusicCategory, duration: TimeInterval) {
+        self.id = id
+        self.name = name
+        self.fileName = fileName
+        self.category = category
+        self.duration = duration
+        self.source = .bundle
+        self.isDownloaded = true  // Bundle tracks are always "downloaded"
+    }
+
+    // Initializer for remote tracks
+    init(id: String, name: String, fileName: String, category: MusicCategory, duration: TimeInterval,
+         remoteURL: String, fileSize: Int64) {
+        self.id = id
+        self.name = name
+        self.fileName = fileName
+        self.category = category
+        self.duration = duration
+        self.source = .remote
+        self.remoteURL = remoteURL
+        self.fileSize = fileSize
+        self.isDownloaded = false
+    }
+
+    // Initializer for user library tracks
+    init(id: String, name: String, category: MusicCategory, duration: TimeInterval, persistentID: String) {
+        self.id = id
+        self.name = name
+        self.fileName = ""  // Not used for user library
+        self.category = category
+        self.duration = duration
+        self.source = .userLibrary
+        self.userLibraryPersistentID = persistentID
+        self.isDownloaded = true  // User library tracks are always "available"
     }
 }

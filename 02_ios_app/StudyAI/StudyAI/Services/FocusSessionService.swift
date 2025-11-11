@@ -15,13 +15,23 @@ class FocusSessionService: ObservableObject {
     // MARK: - Published Properties
     @Published var currentSession: FocusSession?
     @Published var elapsedTime: TimeInterval = 0
+    @Published var remainingTime: TimeInterval = 25 * 60  // 番茄钟：25分钟
     @Published var isRunning = false
     @Published var isPaused = false
+    @Published var isCompleted = false  // 标记是否已完成25分钟
+    @Published var isDeepFocusEnabled = false  // 深度专注模式状态
+
+    // MARK: - Constants
+    let pomodoroDuration: TimeInterval = 25 * 60  // 25分钟倒计时
+
+    // MARK: - Services
+    private let deepFocusService = DeepFocusService.shared
 
     // MARK: - Private Properties
     private var timer: AnyCancellable?
     private var sessionStartTime: Date?
     private var backgroundStartTime: Date?
+    private var previousPowerSavingMode: Bool = false
 
     private init() {
         setupLifecycleObservers()
@@ -55,10 +65,20 @@ class FocusSessionService: ObservableObject {
 
     @objc private func appDidBecomeActive() {
         // Update elapsed time based on actual time passed
-        if isRunning && !isPaused, let bgStartTime = backgroundStartTime, let startTime = sessionStartTime {
+        if isRunning && !isPaused, let _ = backgroundStartTime, let startTime = sessionStartTime {
             // Calculate total elapsed time from session start
             let totalElapsed = Date().timeIntervalSince(startTime)
             elapsedTime = totalElapsed
+
+            // 更新剩余时间（倒计时）
+            remainingTime = max(0, pomodoroDuration - elapsedTime)
+
+            // 检查是否已完成25分钟
+            if remainingTime <= 0 && !isCompleted {
+                isCompleted = true
+                // 可以触发完成提示音或振动
+                print("✅ Pomodoro completed!")
+            }
 
             // Update current session duration
             if var session = currentSession {
@@ -67,7 +87,7 @@ class FocusSessionService: ObservableObject {
             }
 
             backgroundStartTime = nil
-            print("📱 App returned to foreground - timer updated to \(formatTime(elapsedTime))")
+            print("📱 App returned to foreground - remaining: \(formatTime(remainingTime))")
         }
     }
 
@@ -78,10 +98,24 @@ class FocusSessionService: ObservableObject {
     // MARK: - Session Control
 
     /// Start a new focus session
-    func startSession(withMusic trackId: String? = nil) {
+    func startSession(withMusic trackId: String? = nil, enableDeepFocus: Bool = false) {
         guard currentSession == nil else {
             print("⚠️ Session already in progress")
             return
+        }
+
+        // Save current Power Saving Mode state and enable it for focus
+        previousPowerSavingMode = AppState.shared.isPowerSavingMode
+        if !previousPowerSavingMode {
+            AppState.shared.isPowerSavingMode = true
+            print("🔋 Enabled Power Saving Mode for focus session")
+        }
+
+        // 启用深度专注模式（如果用户选择）
+        if enableDeepFocus || deepFocusService.autoEnableDeepFocus {
+            deepFocusService.enableDeepFocus()
+            isDeepFocusEnabled = true
+            print("🔇 Deep Focus Mode enabled")
         }
 
         let session = FocusSession(
@@ -93,12 +127,27 @@ class FocusSessionService: ObservableObject {
         currentSession = session
         sessionStartTime = Date()
         elapsedTime = 0
+        remainingTime = pomodoroDuration  // 重置为25分钟
         isRunning = true
         isPaused = false
+        isCompleted = false  // 重置完成状态
 
         startTimer()
 
-        print("✅ Focus session started: \(session.id)")
+        print("✅ Pomodoro session started: 25:00")
+    }
+
+    // MARK: - Deep Focus Control
+
+    /// 切换深度专注模式
+    func toggleDeepFocus() {
+        if isDeepFocusEnabled {
+            deepFocusService.disableDeepFocus()
+            isDeepFocusEnabled = false
+        } else {
+            deepFocusService.enableDeepFocus()
+            isDeepFocusEnabled = true
+        }
     }
 
     /// Pause the current session
@@ -145,7 +194,24 @@ class FocusSessionService: ObservableObject {
         // Award points based on focus time
         awardFocusPoints(for: session)
 
+        // 记录深度专注统计
+        if isDeepFocusEnabled {
+            deepFocusService.recordSession(duration: elapsedTime)
+        }
+
+        // 禁用深度专注模式
+        if isDeepFocusEnabled {
+            deepFocusService.disableDeepFocus()
+            isDeepFocusEnabled = false
+        }
+
         print("✅ Session ended: \(session.formattedDuration)")
+
+        // Restore previous Power Saving Mode state
+        if !previousPowerSavingMode && AppState.shared.isPowerSavingMode {
+            AppState.shared.isPowerSavingMode = false
+            print("🔋 Restored Power Saving Mode to: off")
+        }
 
         // Reset state
         let completedSession = session
@@ -157,6 +223,19 @@ class FocusSessionService: ObservableObject {
     /// Cancel the current session without saving
     func cancelSession() {
         stopTimer()
+
+        // 禁用深度专注模式
+        if isDeepFocusEnabled {
+            deepFocusService.disableDeepFocus()
+            isDeepFocusEnabled = false
+        }
+
+        // Restore previous Power Saving Mode state
+        if !previousPowerSavingMode && AppState.shared.isPowerSavingMode {
+            AppState.shared.isPowerSavingMode = false
+            print("🔋 Restored Power Saving Mode to: off")
+        }
+
         reset()
         print("❌ Session cancelled")
     }
@@ -169,6 +248,13 @@ class FocusSessionService: ObservableObject {
             .sink { [weak self] _ in
                 guard let self = self else { return }
                 self.elapsedTime += 1
+                self.remainingTime = max(0, self.pomodoroDuration - self.elapsedTime)
+
+                // 检查是否完成25分钟倒计时
+                if self.remainingTime <= 0 && !self.isCompleted {
+                    self.isCompleted = true
+                    self.handlePomodoroCompletion()
+                }
 
                 // Update current session duration
                 if var session = self.currentSession {
@@ -176,6 +262,17 @@ class FocusSessionService: ObservableObject {
                     self.currentSession = session
                 }
             }
+    }
+
+    /// 处理番茄钟完成
+    private func handlePomodoroCompletion() {
+        print("🍅 Pomodoro completed! 25 minutes focused.")
+        // 触发震动反馈
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+
+        // 这里可以触发声音提示或其他反馈
+        // AudioServicesPlaySystemSound(SystemSoundID(1016))  // 可选
     }
 
     private func stopTimer() {
@@ -247,8 +344,10 @@ class FocusSessionService: ObservableObject {
         sessionStartTime = nil
         backgroundStartTime = nil
         elapsedTime = 0
+        remainingTime = pomodoroDuration
         isRunning = false
         isPaused = false
+        isCompleted = false
     }
 
     func formatTime(_ seconds: TimeInterval) -> String {

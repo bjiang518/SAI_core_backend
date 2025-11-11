@@ -156,7 +156,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
     
     private func addCharacterPersonality(to text: String, for voiceType: VoiceType) -> String {
         var processedText = text
-        let personality = voiceType.personality
+        let _ = voiceType.personality
 
         // Add character-specific speech patterns and personality touches
         switch voiceType {

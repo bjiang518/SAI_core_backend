@@ -25,19 +25,20 @@ extension View {
         let isPowerSaving = AppState.shared.isPowerSavingMode
         return self.transition(isPowerSaving ? .identity : transition)
     }
+}
 
-    /// Apply withAnimation only if Power Saving Mode is disabled
-    /// - Parameters:
-    ///   - animation: The animation to apply
-    ///   - action: The action to perform
-    static func withAnimationIfNotPowerSaving<Result>(_ animation: Animation? = .default, _ action: () throws -> Result) rethrows -> Result {
-        let isPowerSaving = AppState.shared.isPowerSavingMode
-        if isPowerSaving {
-            return try action()
-        } else {
-            return try withAnimation(animation) {
-                try action()
-            }
+/// Apply withAnimation only if Power Saving Mode is disabled
+/// - Parameters:
+///   - animation: The animation to apply
+///   - action: The action to perform
+/// - Returns: The result of the action
+func withAnimationIfNotPowerSaving<Result>(_ animation: Animation? = .default, _ action: () throws -> Result) rethrows -> Result {
+    let isPowerSaving = AppState.shared.isPowerSavingMode
+    if isPowerSaving {
+        return try action()
+    } else {
+        return try withAnimation(animation) {
+            try action()
         }
     }
 }

@@ -175,7 +175,7 @@ struct ParentReportsView: View {
 
     // MARK: - Actions
     private func loadRecentReports() {
-        guard let userId = authService.currentUser?.id else { return }
+        guard authService.currentUser?.id != nil else { return }
 
         Task {
             // Load from LOCAL storage only (no backend query)
@@ -264,7 +264,7 @@ struct ParentReportsView: View {
             await MainActor.run {
                 isGeneratingReport = false
 
-                if let reportId = cachedReportId {
+                if cachedReportId != nil {
                     // Use the cached report directly
                     print("🎯 Using locally cached report")
                     if let report = cachedReport {

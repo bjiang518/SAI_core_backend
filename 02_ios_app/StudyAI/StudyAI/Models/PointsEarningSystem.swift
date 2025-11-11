@@ -970,7 +970,7 @@ class PointsEarningManager: ObservableObject {
         print("📊 Questions: \(numberOfQuestions)")
         print("📊 Correct: \(numberOfCorrectQuestions)")
 
-        let calendar = Calendar.current
+        let _ = Calendar.current
         let now = Date()
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
@@ -1866,23 +1866,18 @@ class PointsEarningManager: ObservableObject {
 
         let currentTotalPoints = await MainActor.run { self.totalPointsEarned }
 
-        do {
-            let result = await networkService.syncTotalPoints(
-                userId: userId,
-                totalPoints: currentTotalPoints
-            )
+        let result = await networkService.syncTotalPoints(
+            userId: userId,
+            totalPoints: currentTotalPoints
+        )
 
-
-            if result.success {
-                if let levelData = result.updatedLevel {
-                    await MainActor.run {
-                        // Update local data with backend level information if needed
-                        // Could update UI or local state here based on level changes
-                    }
+        if result.success {
+            if result.updatedLevel != nil {
+                await MainActor.run {
+                    // Update local data with backend level information if needed
+                    // Could update UI or local state here based on level changes
                 }
-            } else {
             }
-        } catch {
         }
 
     }
@@ -1918,22 +1913,18 @@ class PointsEarningManager: ObservableObject {
         logger.info("[DAILY_PROGRESS_SYNC] Syncing progress for date: \(progress.date)")
         logger.info("[DAILY_PROGRESS_SYNC] Total questions: \(progress.totalQuestions), Correct: \(progress.correctAnswers)")
 
-        do {
-            let result = await networkService.syncDailyProgress(
-                userId: userId,
-                dailyProgress: progress
-            )
+        let result = await networkService.syncDailyProgress(
+            userId: userId,
+            dailyProgress: progress
+        )
 
-            if result.success {
-                logger.info("[DAILY_PROGRESS_SYNC] ✅ Daily progress synced successfully")
-                if let message = result.message {
-                    logger.info("[DAILY_PROGRESS_SYNC] Server message: \(message)")
-                }
-            } else {
-                logger.info("[DAILY_PROGRESS_SYNC] ❌ Sync failed: \(result.message ?? "Unknown error")")
+        if result.success {
+            logger.info("[DAILY_PROGRESS_SYNC] ✅ Daily progress synced successfully")
+            if let message = result.message {
+                logger.info("[DAILY_PROGRESS_SYNC] Server message: \(message)")
             }
-        } catch {
-            logger.info("[DAILY_PROGRESS_SYNC] ❌ Sync error: \(error.localizedDescription)")
+        } else {
+            logger.info("[DAILY_PROGRESS_SYNC] ❌ Sync failed: \(result.message ?? "Unknown error")")
         }
 
         logger.info("[DAILY_PROGRESS_SYNC] === SYNC COMPLETE ===")

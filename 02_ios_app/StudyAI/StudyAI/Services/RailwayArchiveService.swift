@@ -44,15 +44,15 @@ class RailwayArchiveService: ObservableObject {
         let requestData: [String: Any] = [
             "subject": request.subject.isEmpty ? "General" : request.subject,
             "title": generateTitle(request.homeworkResult, request.subject),
-            "originalImageUrl": request.originalImageUrl as String?,
-            "thumbnailUrl": nil as String?,
+            "originalImageUrl": (request.originalImageUrl as String?) as Any,
+            "thumbnailUrl": (nil as String?) as Any,
             "aiParsingResult": [
                 "questions": request.homeworkResult.questions.map { question in
                     [
                         "questionNumber": question.questionNumber as Any,
                         "questionText": question.questionText,
                         "answerText": question.answerText,
-                        "confidence": question.confidence,
+                        "confidence": (question.confidence as Float?) as Any,
                         "hasVisualElements": question.hasVisualElements
                     ]
                 },
@@ -575,7 +575,7 @@ class RailwayArchiveService: ObservableObject {
     
     private func convertToHomeworkParsingResult(_ data: [String: Any]) throws -> HomeworkParsingResult {
         guard let questionsData = data["questions"] as? [[String: Any]],
-              let questionCount = data["questionCount"] as? Int else {
+              let _ = data["questionCount"] as? Int else {
             throw ArchiveError.invalidData
         }
         
@@ -611,7 +611,7 @@ class RailwayArchiveService: ObservableObject {
     
     private func convertToArchiveStatistics(_ data: [String: Any]) throws -> ArchiveStatistics {
         let totalSessions = data["totalSessions"] as? Int ?? 0
-        let subjectsStudied = data["subjectsStudied"] as? Int ?? 0
+        let _ = data["subjectsStudied"] as? Int ?? 0
         let averageConfidence = Float(data["averageConfidence"] as? Double ?? 0)
         let totalQuestions = data["totalQuestions"] as? Int ?? 0
         let thisWeekSessions = data["thisWeekSessions"] as? Int ?? 0
@@ -644,7 +644,7 @@ class RailwayArchiveService: ObservableObject {
     // MARK: - Helper Functions
     
     private func convertToArchivedQuestion(_ data: [String: Any]) throws -> ArchivedQuestion {
-        guard let id = data["id"] as? String,
+        guard let _ = data["id"] as? String,
               let userId = data["userId"] as? String ?? data["user_id"] as? String,
               let subject = data["subject"] as? String,
               let questionText = data["questionText"] as? String ?? data["question_text"] as? String else {

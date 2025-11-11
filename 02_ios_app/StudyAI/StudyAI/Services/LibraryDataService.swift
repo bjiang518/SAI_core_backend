@@ -1156,7 +1156,7 @@ class QuestionLocalStorage {
 
         // Add new questions at the beginning (most recent first)
         for question in questions.reversed() {
-            guard let id = question["id"] as? String else {
+            guard question["id"] as? String != nil else {
                 print("   ⚠️ Skipping question without ID")
                 continue
             }
@@ -1717,7 +1717,7 @@ class LocalProgressService {
         let now = Date()
 
         let startDate: Date
-        let endDate: Date = now
+        let _: Date = now
 
         switch timeframe {
         case "today":

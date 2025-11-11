@@ -115,7 +115,7 @@ class ParentReportService: ObservableObject {
         )
 
         // Update our state based on the result
-        if case .success(let reportsResponse) = result {
+        if case .success(_) = result {
             await MainActor.run {
                 // NOTE: availableReports now uses [ParentReport] instead of [ReportListItem]
                 // This method is kept for backward compatibility but is not used with local-only storage

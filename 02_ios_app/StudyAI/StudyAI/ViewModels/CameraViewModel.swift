@@ -100,7 +100,7 @@ class CameraViewModel: ObservableObject {
             logger.info("✅ Image processing completed: \(processedImage.size.width)x\(processedImage.size.height)")
             
             // Store in persistent ViewModel and set to preview state
-            let beforeStorage = self.capturedImage != nil
+            let _ = self.capturedImage != nil
             self.capturedImage = processedImage
             self.captureState = .preview // Ready for user action
             self.lastCameraError = nil

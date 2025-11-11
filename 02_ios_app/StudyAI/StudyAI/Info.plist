@@ -26,7 +26,23 @@
 				<string>com.googleusercontent.apps.646716095953-pibr6eo6dqk1hk3he4h1gb61dako7q6v</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>PomodoroDeepLink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>studyai</string>
+			</array>
+		</dict>
 	</array>
+	<key>NSCalendarsUsageDescription</key>
+	<string>StudyMates需要访问您的日历，以便添加和查看番茄专注时间段，帮助您更好地安排学习计划。</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>StudyMates需要完整的日历访问权限，以便为您添加番茄专注提醒并查看您的日程安排。</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>StudyMates需要访问提醒事项，以便为您的专注时间段设置提醒通知。</string>
 	<key>NSCameraUsageDescription</key>
 	<string>StudyMates needs camera access to capture homework photos for AI-powered question analysis and solving.</string>
 	<key>NSMicrophoneUsageDescription</key>
@@ -37,6 +53,8 @@
 	<string>StudyMates uses speech recognition to convert your voice questions into text so our AI can provide better learning assistance.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>StudyMates uses Face ID to securely authenticate parents for accessing protected features and parental controls.</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>StudyMates needs access to your music library to play your own songs during focus sessions.</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UILaunchScreen</key>
@@ -46,6 +64,23 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>cdn.jsdelivr.net</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSExceptionRequiresForwardSecrecy</key>
+				<true/>
+				<key>NSExceptionMinimumTLSVersion</key>
+				<string>TLSv1.2</string>
+			</dict>
+		</dict>
+	</dict>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -203,14 +203,9 @@ class SpeechRecognitionService: NSObject, ObservableObject {
             // Check if input node has any taps before trying to remove them
             let inputNode = audioEngine.inputNode
             if inputNode.numberOfInputs > 0 {
-                do {
-                    // Remove tap safely with try-catch
-                    inputNode.removeTap(onBus: 0)
-                    print("🎙️ SpeechRecognitionService: Audio tap removed successfully")
-                } catch {
-                    print("🎙️ SpeechRecognitionService: Warning - Could not remove audio tap: \(error)")
-                    // Continue with cleanup even if tap removal fails
-                }
+                // Remove tap safely
+                inputNode.removeTap(onBus: 0)
+                print("🎙️ SpeechRecognitionService: Audio tap removed successfully")
             }
             
             // Stop the audio engine
@@ -268,27 +263,17 @@ class SpeechRecognitionService: NSObject, ObservableObject {
         print("🎙️ SpeechRecognitionService: Audio input node configured")
         
         // Ensure no existing taps before installing new one
-        do {
-            // Try to remove any existing tap first (this might fail silently)
-            if inputNode.numberOfInputs > 0 {
-                inputNode.removeTap(onBus: 0)
-                print("🎙️ SpeechRecognitionService: Removed existing audio tap")
-            }
-        } catch {
-            // Ignore error if no tap exists
-            print("🎙️ SpeechRecognitionService: No existing tap to remove (expected)")
+        // Try to remove any existing tap first
+        if inputNode.numberOfInputs > 0 {
+            inputNode.removeTap(onBus: 0)
+            print("🎙️ SpeechRecognitionService: Removed existing audio tap")
         }
-        
+
         // Install new tap on audio input
-        do {
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
-                self?.recognitionRequest?.append(buffer)
-            }
-            print("🎙️ SpeechRecognitionService: Audio tap installed successfully")
-        } catch {
-            print("🎙️ SpeechRecognitionService: Failed to install audio tap: \(error)")
-            throw error
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+            self?.recognitionRequest?.append(buffer)
         }
+        print("🎙️ SpeechRecognitionService: Audio tap installed successfully")
         
         // Start audio engine
         print("🎙️ SpeechRecognitionService: Starting audio engine")

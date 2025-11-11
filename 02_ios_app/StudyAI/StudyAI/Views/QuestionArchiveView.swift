@@ -18,7 +18,7 @@ struct QuestionArchiveView: View {
     let initialSubjectConfidence: Float?
     let onArchive: (String, Float, [String], [[String]]) -> Void
 
-    @State private var detectedSubject = "Other"
+    @State private var detectedSubject = NSLocalizedString("subject.other", comment: "")
     @State private var subjectConfidence: Float = 0.5
     @State private var customSubject = ""
     @State private var useCustomSubject = false
@@ -144,11 +144,11 @@ struct QuestionArchiveView: View {
     }
     
     // MARK: - Selected Questions Section
-    
+
     private var selectedQuestionsSection: some View {
-        Section("Selected Questions (\(selectedIndices.count))") {
+        Section(NSLocalizedString("archive.selectedQuestions", comment: "") + " (\(selectedIndices.count))") {
             if selectedIndices.isEmpty {
-                Text("No questions selected")
+                Text(NSLocalizedString("archive.noQuestionsSelected", comment: ""))
                     .foregroundColor(.gray)
                     .italic()
             } else {
@@ -165,21 +165,21 @@ struct QuestionArchiveView: View {
     }
     
     // MARK: - Notes and Tags Section
-    
+
     private var notesAndTagsSection: some View {
-        Section("Notes & Tags (Optional)") {
+        Section(NSLocalizedString("archive.notesAndTags", comment: "")) {
             ForEach(Array(selectedIndices).sorted(), id: \.self) { index in
                 if index < questions.count {
                     VStack(alignment: .leading, spacing: 8) {
                         // Question identifier
                         HStack {
-                            Text("Question \(index + 1)")
+                            Text(NSLocalizedString("archive.question", comment: "") + " \(index + 1)")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                                 .foregroundColor(.blue)
-                            
+
                             Spacer()
-                            
+
                             Button(action: {
                                 toggleNotesExpansion(index)
                             }) {
@@ -188,17 +188,17 @@ struct QuestionArchiveView: View {
                                     .foregroundColor(.gray)
                             }
                         }
-                        
+
                         if expandedNotes.contains(index) {
                             // Notes field
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Notes:")
+                                Text(NSLocalizedString("archive.notes", comment: ""))
                                     .font(.caption)
                                     .foregroundColor(.gray)
-                                
-                                TextField("Add notes about mistakes or insights...", text: Binding(
-                                    get: { 
-                                        index < questionNotes.count ? questionNotes[index] : "" 
+
+                                TextField(NSLocalizedString("archive.notesPlaceholder", comment: ""), text: Binding(
+                                    get: {
+                                        index < questionNotes.count ? questionNotes[index] : ""
                                     },
                                     set: { newValue in
                                         if index < questionNotes.count {
@@ -208,13 +208,13 @@ struct QuestionArchiveView: View {
                                 ), axis: .vertical)
                                 .lineLimit(2...4)
                             }
-                            
+
                             // Tags field
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Tags:")
+                                Text(NSLocalizedString("archive.tags", comment: ""))
                                     .font(.caption)
                                     .foregroundColor(.gray)
-                                
+
                                 // Display existing tags
                                 if index < questionTags.count && !questionTags[index].isEmpty {
                                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 4) {
@@ -225,13 +225,13 @@ struct QuestionArchiveView: View {
                                         }
                                     }
                                 }
-                                
+
                                 // Add new tag
                                 HStack {
-                                    TextField("Add tag", text: $newTagText)
+                                    TextField(NSLocalizedString("archive.addTag", comment: ""), text: $newTagText)
                                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                                    
-                                    Button("Add") {
+
+                                    Button(NSLocalizedString("archive.add", comment: "")) {
                                         addTag(to: index)
                                     }
                                     .disabled(newTagText.isEmpty)
@@ -251,17 +251,17 @@ struct QuestionArchiveView: View {
     private func autoDetectSubject() {
         // Simple subject detection based on keywords in questions
         let allText = questions.map { $0.questionText + " " + $0.answerText }.joined(separator: " ").lowercased()
-        
+
         let subjectKeywords: [(String, [String])] = [
-            ("Mathematics", ["math", "equation", "solve", "calculate", "derivative", "integral", "algebra", "geometry", "trigonometry", "calculus", "fraction", "polynomial"]),
-            ("Physics", ["force", "velocity", "acceleration", "momentum", "energy", "wave", "frequency", "electric", "magnetic", "quantum", "newton", "joule"]),
-            ("Chemistry", ["atom", "molecule", "reaction", "compound", "element", "bond", "acid", "base", "ph", "molar", "periodic", "organic"]),
-            ("Biology", ["cell", "dna", "gene", "organism", "evolution", "ecosystem", "protein", "enzyme", "bacteria", "virus", "photosynthesis"]),
-            ("English", ["grammar", "literature", "essay", "poem", "shakespeare", "metaphor", "syntax", "paragraph", "thesis", "analyze"]),
-            ("History", ["war", "treaty", "revolution", "empire", "democracy", "civilization", "ancient", "medieval", "renaissance", "century"])
+            (NSLocalizedString("subject.mathematics", comment: ""), ["math", "equation", "solve", "calculate", "derivative", "integral", "algebra", "geometry", "trigonometry", "calculus", "fraction", "polynomial"]),
+            (NSLocalizedString("subject.physics", comment: ""), ["force", "velocity", "acceleration", "momentum", "energy", "wave", "frequency", "electric", "magnetic", "quantum", "newton", "joule"]),
+            (NSLocalizedString("subject.chemistry", comment: ""), ["atom", "molecule", "reaction", "compound", "element", "bond", "acid", "base", "ph", "molar", "periodic", "organic"]),
+            (NSLocalizedString("subject.biology", comment: ""), ["cell", "dna", "gene", "organism", "evolution", "ecosystem", "protein", "enzyme", "bacteria", "virus", "photosynthesis"]),
+            (NSLocalizedString("subject.english", comment: ""), ["grammar", "literature", "essay", "poem", "shakespeare", "metaphor", "syntax", "paragraph", "thesis", "analyze"]),
+            (NSLocalizedString("subject.history", comment: ""), ["war", "treaty", "revolution", "empire", "democracy", "civilization", "ancient", "medieval", "renaissance", "century"])
         ]
-        
-        var bestMatch = ("Other", 0)
+
+        var bestMatch = (NSLocalizedString("subject.other", comment: ""), 0)
         for (subject, keywords) in subjectKeywords {
             let matchCount = keywords.reduce(0) { count, keyword in
                 count + (allText.contains(keyword) ? 1 : 0)
@@ -270,7 +270,7 @@ struct QuestionArchiveView: View {
                 bestMatch = (subject, matchCount)
             }
         }
-        
+
         detectedSubject = bestMatch.0
         subjectConfidence = bestMatch.1 > 0 ? min(Float(bestMatch.1) * 0.2 + 0.3, 1.0) : 0.3
     }
@@ -377,7 +377,7 @@ struct QuestionPreviewCard: View {
                         Image(systemName: "photo.fill")
                             .font(.caption2)
                             .foregroundColor(.blue)
-                        Text("Visual")
+                        Text(NSLocalizedString("archive.visual", comment: ""))
                             .font(.caption2)
                             .foregroundColor(.gray)
                     }
@@ -444,7 +444,7 @@ struct TagView: View {
         questionTags: .constant([[], []]),
         originalImageUrl: "test-url",
         processingTime: 2.3,
-        initialDetectedSubject: "Mathematics",
+        initialDetectedSubject: NSLocalizedString("subject.mathematics", comment: ""),
         initialSubjectConfidence: 0.95,
         onArchive: { _, _, _, _ in }
     )

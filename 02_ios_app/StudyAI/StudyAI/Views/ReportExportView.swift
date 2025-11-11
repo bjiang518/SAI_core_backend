@@ -61,7 +61,7 @@ struct ReportExportView: View {
                     }
 
                     // Step 3: Share Actions (only after PDF is generated)
-                    if let fileURL = exportedFileURL {
+                    if exportedFileURL != nil {
                         ShareActionsSection(onShare: { showingShareSheet = true })
                     }
                 }

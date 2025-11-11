@@ -974,44 +974,37 @@ Question: \(question.question)
         isArchiving = true
 
         Task {
-            do {
-                // Build question data for archiving
-                let questionData: [String: Any] = [
-                    "id": UUID().uuidString,
-                    "subject": question.topic,
-                    "questionText": question.question,
-                    "rawQuestionText": question.question,
-                    "answerText": question.correctAnswer,
-                    "confidence": 1.0,  // Generated questions have high confidence
-                    "hasVisualElements": false,
-                    "archivedAt": ISO8601DateFormatter().string(from: Date()),
-                    "reviewCount": 0,
-                    "tags": question.tags ?? [],  // Inherit tags from generated question
-                    "notes": "",
-                    "studentAnswer": getCurrentAnswer(),
-                    "grade": isCorrect ? "CORRECT" : "INCORRECT",
-                    "points": isCorrect ? (question.points ?? 1) : 0,
-                    "maxPoints": question.points ?? 1,
-                    "feedback": question.explanation,
-                    "isGraded": true,
-                    "isCorrect": isCorrect
-                ]
+            // Build question data for archiving
+            let questionData: [String: Any] = [
+                "id": UUID().uuidString,
+                "subject": question.topic,
+                "questionText": question.question,
+                "rawQuestionText": question.question,
+                "answerText": question.correctAnswer,
+                "confidence": 1.0,  // Generated questions have high confidence
+                "hasVisualElements": false,
+                "archivedAt": ISO8601DateFormatter().string(from: Date()),
+                "reviewCount": 0,
+                "tags": question.tags ?? [],  // Inherit tags from generated question
+                "notes": "",
+                "studentAnswer": getCurrentAnswer(),
+                "grade": isCorrect ? "CORRECT" : "INCORRECT",
+                "points": isCorrect ? (question.points ?? 1) : 0,
+                "maxPoints": question.points ?? 1,
+                "feedback": question.explanation,
+                "isGraded": true,
+                "isCorrect": isCorrect
+            ]
 
-                // Save to local storage
-                QuestionLocalStorage.shared.saveQuestions([questionData])
+            // Save to local storage
+            QuestionLocalStorage.shared.saveQuestions([questionData])
 
-                await MainActor.run {
-                    isArchiving = false
-                    isArchived = true
-                    saveArchivedState()  // Persist archived state
-                    showingArchiveSuccess = true
-                    logger.info("📚 [Archive] Practice question archived successfully")
-                }
-            } catch {
-                await MainActor.run {
-                    isArchiving = false
-                    logger.error("❌ [Archive] Failed to archive question: \(error.localizedDescription)")
-                }
+            await MainActor.run {
+                isArchiving = false
+                isArchived = true
+                saveArchivedState()  // Persist archived state
+                showingArchiveSuccess = true
+                logger.info("📚 [Archive] Practice question archived successfully")
             }
         }
     }

@@ -747,7 +747,7 @@ struct EnhancedCameraView: UIViewControllerRepresentable {
         @objc func saveButtonTapped() {
             logger.info("💾 Custom save button tapped")
 
-            guard let scanner = scanner else {
+            guard scanner != nil else {
                 logger.error("❌ Scanner reference not available")
                 return
             }

@@ -130,10 +130,10 @@ class QuestionSegmenter {
     
     private func preprocessImageForSegmentation(_ image: UIImage) async -> UIImage {
         // Use our existing ImageEnhancer for optimal preprocessing
-        let enhanced = await ImageEnhancer.shared.preprocessForSegmentation(image)
-        
+        let enhanced = ImageEnhancer.shared.preprocessForSegmentation(image)
+
         // Convert to grayscale for projection analysis
-        return await ImageEnhancer.shared.convertToGrayscale(enhanced)
+        return ImageEnhancer.shared.convertToGrayscale(enhanced)
     }
     
     private func computeHorizontalProjection(_ image: UIImage) async -> [Int]? {

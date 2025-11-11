@@ -107,7 +107,7 @@ class NetworkService: ObservableObject {
     /// Remove the last message from conversation history (for error recovery)
     func removeLastMessageFromHistory() {
         if !internalConversationHistory.isEmpty {
-            let removedMessage = internalConversationHistory.removeLast()
+            let _ = internalConversationHistory.removeLast()
             conversationHistory.removeLast()
         }
     }
@@ -278,7 +278,7 @@ class NetworkService: ObservableObject {
             // Handle HTTP response
             if let httpResponse = response as? HTTPURLResponse {
                 if httpResponse.statusCode >= 400 {
-                    let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                    let _ = String(data: data, encoding: .utf8) ?? "Unable to decode response"
                     
                     if httpResponse.statusCode == 401 {
                         throw NetworkError.authenticationRequired
@@ -819,9 +819,13 @@ class NetworkService: ObservableObject {
             return (false, nil, "Invalid URL")
         }
         
-        let sessionData = [
+        // Get current AI character from voice settings
+        let currentCharacter = VoiceInteractionService.shared.voiceSettings.voiceType.rawValue
+
+        let sessionData: [String: Any] = [
             "subject": subject,
-            "language": appLanguage  // Pass user's language preference
+            "language": appLanguage,  // Pass user's language preference
+            "character": currentCharacter  // ✅ NEW: Pass AI character for personality-based responses
         ]
         
         var request = URLRequest(url: url)
@@ -3626,7 +3630,7 @@ class NetworkService: ObservableObject {
 
             let (data, response) = try await URLSession.shared.data(for: request)
 
-            if let httpResponse = response as? HTTPURLResponse {
+            if (response as? HTTPURLResponse) != nil {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     let success = json["success"] as? Bool ?? false
                     let message = json["message"] as? String ?? "Unknown error"
@@ -3678,7 +3682,7 @@ class NetworkService: ObservableObject {
 
             let (data, response) = try await URLSession.shared.data(for: request)
 
-            if let httpResponse = response as? HTTPURLResponse {
+            if (response as? HTTPURLResponse) != nil {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     let success = json["success"] as? Bool ?? false
                     let message = json["message"] as? String ?? "Unknown error"

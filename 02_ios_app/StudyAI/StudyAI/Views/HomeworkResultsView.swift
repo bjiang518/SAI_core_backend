@@ -1346,7 +1346,7 @@ extension HomeworkResultsView {
         isArchiving = true
 
         do {
-            let archivedQuestions = try await questionArchiveService.archiveQuestions(request)
+            let _ = try await questionArchiveService.archiveQuestions(request)
 
             await MainActor.run {
                 // ✅ LOCAL-FIRST: Questions are saved locally only

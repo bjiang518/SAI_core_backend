@@ -23,7 +23,7 @@ class QuestionGenerationService: ObservableObject {
 
     // MARK: - Cache Management
     private var questionCache: [String: CachedQuestionSet] = [:]
-    private let cacheValidityInterval: TimeInterval = 86400 // 24 hours
+    private let cacheValidityInterval: TimeInterval = 300 // 5 minutes
 
     // Last generated questions - persists until replaced by new generation
     @Published var lastGeneratedQuestions: [GeneratedQuestion] = []
@@ -37,7 +37,7 @@ class QuestionGenerationService: ObservableObject {
         let generationType: String
 
         var isExpired: Bool {
-            Date().timeIntervalSince(timestamp) > 86400 // 24 hours
+            Date().timeIntervalSince(timestamp) > 300 // 5 minutes
         }
     }
 
@@ -250,11 +250,16 @@ class QuestionGenerationService: ObservableObject {
         userProfile: UserProfile
     ) async -> Result<[GeneratedQuestion], QuestionGenerationError> {
 
-        // Check cache first
-        let cacheKey = "random_\(subject)_\(config.difficulty.rawValue)_\(config.questionCount)"
-        if let cached = questionCache[cacheKey], !cached.isExpired {
+        // Build comprehensive cache key including all configuration parameters
+        let topicsString = config.topics.sorted().joined(separator: ",")
+        let focusNotesHash = (config.focusNotes ?? "").isEmpty ? "none" : String((config.focusNotes ?? "").hashValue)
+        let cacheKey = "random_\(subject)_\(topicsString)_\(config.difficulty.rawValue)_\(config.questionCount)_\(config.questionType.rawValue)_\(focusNotesHash)"
 
+        if let cached = questionCache[cacheKey], !cached.isExpired {
+            print("✅ Using cached questions (generated \(Int(Date().timeIntervalSince(cached.timestamp)))s ago)")
             return .success(cached.questions)
+        } else if let cached = questionCache[cacheKey] {
+            print("⏰ Cache expired (generated \(Int(Date().timeIntervalSince(cached.timestamp)))s ago), generating new questions...")
         }
 
         await MainActor.run {

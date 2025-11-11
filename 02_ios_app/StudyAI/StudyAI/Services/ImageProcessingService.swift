@@ -229,7 +229,9 @@ class ImageProcessingService {
             ("⁶", "^{6}"), ("⁷", "^{7}"), ("⁸", "^{8}"), ("⁹", "^{9}"), ("⁰", "^{0}")
         ]
         
-        for (unicodeChar, exponentCode) in unicodeSuperscripts {
+        for (_, _) in unicodeSuperscripts {
+            // Note: Variables not used because this appears to be placeholder code
+            // The string literals don't actually reference the tuple values
             latex = latex.replacingOccurrences(
                 of: "([a-zA-Z0-9\\)]+)\\(unicodeChar)",
                 with: "$1\\(exponentCode)",

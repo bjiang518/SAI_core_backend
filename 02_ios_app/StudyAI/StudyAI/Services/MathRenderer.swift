@@ -334,6 +334,8 @@ enum TextComponent {
 }
 
 /// A view that displays mixed text, markdown, and math content
+/// Legacy MathFormattedText - now uses MarkdownLaTeXText renderer by default
+/// This provides full markdown AND LaTeX support with automatic rendering
 struct MathFormattedText: View {
     let content: String
     let fontSize: CGFloat
@@ -346,31 +348,9 @@ struct MathFormattedText: View {
     }
 
     var body: some View {
-        let components = MathFormattingService.shared.parseTextWithMath(content)
-
-        return VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(components.enumerated()), id: \.offset) { index, component in
-                switch component {
-                case .text(let text):
-                    if !text.trimmingCharacters(in: .whitespaces).isEmpty {
-                        Text(text)
-                            .font(.system(size: fontSize))
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                case .math(let equation):
-                    // Use fallback text rendering instead of WebView for better reliability
-                    Text(SimpleMathRenderer.renderMathText(equation))
-                        .font(.system(size: fontSize))
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                case .markdown(let markdownText):
-                    // Render markdown using AttributedString
-                    MarkdownTextView(markdownText, fontSize: fontSize)
-                }
-            }
-        }
-        .fixedSize(horizontal: false, vertical: true)
+        // Use the new MarkdownLaTeXText renderer for all content
+        // This provides full markdown formatting AND LaTeX math support
+        MarkdownLaTeXText(content, fontSize: fontSize, isStreaming: false)
     }
 }
 

@@ -18,6 +18,7 @@ struct MusicSelectionSheet: View {
     @State private var selectionMode: SelectionMode = .track
     @State private var showingPlaylistEditor = false
     @State private var playlistToEdit: MusicPlaylist?
+    @State private var showingUserMusicPicker = false
 
     enum SelectionMode: String, CaseIterable {
         case track = "Single Track"
@@ -91,6 +92,9 @@ struct MusicSelectionSheet: View {
                 }
             }
         }
+        .sheet(isPresented: $showingUserMusicPicker) {
+            UserMusicPickerView()
+        }
     }
 
     // MARK: - Header Section
@@ -149,6 +153,48 @@ struct MusicSelectionSheet: View {
 
     private var trackListContent: some View {
         VStack(spacing: 24) {
+            // Add from Library Button
+            Button(action: { showingUserMusicPicker = true }) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.pink.opacity(0.15))
+                            .frame(width: 50, height: 50)
+
+                        Image(systemName: "music.note.house.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.pink)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Add from My Library")
+                            .font(.body.weight(.semibold))
+                            .foregroundColor(colorScheme == .dark ? .white : .primary)
+
+                        Text("Use your own music")
+                            .font(.caption)
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .secondary)
+                }
+                .padding(16)
+                .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white)
+                .cornerRadius(16)
+                .shadow(
+                    color: colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05),
+                    radius: 8,
+                    x: 0,
+                    y: 2
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+            .padding(.horizontal, 20)
+
             // No Music Option
             TrackRow(
                 track: musicService.availableTracks.first(where: { $0.id == "no_music" })!,

@@ -1,0 +1,295 @@
+/**
+ * Chat Image Routes Module
+ * Handles chat-based image analysis with streaming and non-streaming support
+ *
+ * Extracted from ai-proxy.js lines 182-1106
+ */
+
+const AIServiceClient = require('../../services/ai-client');
+
+class ChatImageRoutes {
+  constructor(fastify) {
+    this.fastify = fastify;
+    this.aiClient = new AIServiceClient();
+  }
+
+  /**
+   * Register all chat image routes
+   */
+  registerRoutes() {
+    // Chat with image - non-streaming
+    this.fastify.post('/api/ai/chat-image', {
+      schema: {
+        description: 'Chat with image context (non-streaming)',
+        tags: ['AI', 'Chat'],
+        body: {
+          type: 'object',
+          required: ['base64_image', 'prompt'],
+          properties: {
+            base64_image: { type: 'string' },
+            prompt: { type: 'string' },
+            subject: { type: 'string' },
+            session_id: { type: 'string' },
+            student_id: { type: 'string' }
+          }
+        }
+      }
+    }, this.processChatImage.bind(this));
+
+    // Chat with image - streaming (SSE)
+    this.fastify.post('/api/ai/chat-image-stream', {
+      schema: {
+        description: 'Chat with image context (SSE streaming)',
+        tags: ['AI', 'Chat', 'Streaming'],
+        body: {
+          type: 'object',
+          required: ['base64_image', 'prompt'],
+          properties: {
+            base64_image: { type: 'string' },
+            prompt: { type: 'string' },
+            subject: { type: 'string' },
+            session_id: { type: 'string' },
+            student_id: { type: 'string' }
+          }
+        }
+      }
+    }, this.processChatImageStream.bind(this));
+  }
+
+  /**
+   * Process chat image - non-streaming
+   */
+  async processChatImage(request, reply) {
+    const startTime = Date.now();
+
+    try {
+      // Validate payload size (prevent DoS attacks with huge payloads)
+      const MAX_PAYLOAD_SIZE = 3 * 1024 * 1024;  // 3MB max (includes base64 overhead)
+      const payloadSize = JSON.stringify(request.body).length;
+
+      if (payloadSize > MAX_PAYLOAD_SIZE) {
+        this.fastify.log.warn(`❌ Chat image payload too large: ${(payloadSize / 1024 / 1024).toFixed(2)} MB`);
+        return reply.status(413).send({
+          error: 'Image payload too large',
+          code: 'PAYLOAD_TOO_LARGE',
+          message: `Maximum allowed size is ${(MAX_PAYLOAD_SIZE / 1024 / 1024).toFixed(1)} MB. Your payload is ${(payloadSize / 1024 / 1024).toFixed(2)} MB.`,
+          maxSizeMB: MAX_PAYLOAD_SIZE / 1024 / 1024,
+          actualSizeMB: payloadSize / 1024 / 1024
+        });
+      }
+
+      this.fastify.log.info('🖼️ === CHAT IMAGE PROCESSING REQUEST ===');
+      this.fastify.log.info(`📝 Prompt: ${request.body.prompt}`);
+      this.fastify.log.info(`🆔 Session: ${request.body.session_id || 'none'}`);
+      this.fastify.log.info(`📚 Subject: ${request.body.subject || 'general'}`);
+      this.fastify.log.info(`📦 Payload size: ${(payloadSize / 1024).toFixed(2)} KB`);
+
+      // Proxy JSON request directly to AI Engine chat-image endpoint
+      const result = await this.aiClient.proxyRequest(
+        'POST',
+        '/api/v1/chat-image',
+        {
+          base64_image: request.body.base64_image,
+          prompt: request.body.prompt,
+          subject: request.body.subject || 'general',
+          session_id: request.body.session_id,
+          student_id: request.body.student_id || 'anonymous'
+        },
+        { 'Content-Type': 'application/json' }
+      );
+
+      if (result.success) {
+        const duration = Date.now() - startTime;
+
+        this.fastify.log.info('✅ === CHAT IMAGE PROCESSING SUCCESS ===');
+        this.fastify.log.info(`⏱️ Gateway processing time: ${duration}ms`);
+        this.fastify.log.info(`📝 Response length: ${result.data?.response?.length || 0} chars`);
+
+        return reply.send({
+          ...result.data,
+          _gateway: {
+            processTime: duration,
+            service: 'ai-engine',
+            endpoint: '/api/v1/chat-image'
+          }
+        });
+      } else {
+        this.fastify.log.error('❌ Chat image processing failed:', result.error);
+        return this.handleProxyError(reply, result.error);
+      }
+    } catch (error) {
+      this.fastify.log.error('Error processing chat image:', error);
+      return reply.status(500).send({
+        success: false,
+        response: 'I\'m having trouble analyzing this image right now. Please try again.',
+        error: 'Internal server error processing image',
+        code: 'CHAT_IMAGE_ERROR',
+        processing_time_ms: Date.now() - startTime
+      });
+    }
+  }
+
+  /**
+   * Process chat image with streaming (SSE)
+   */
+  async processChatImageStream(request, reply) {
+    const startTime = Date.now();
+    const fetch = require('node-fetch');
+
+    try {
+      // Validate payload size (prevent DoS attacks with huge payloads)
+      const MAX_PAYLOAD_SIZE = 3 * 1024 * 1024;  // 3MB max (includes base64 overhead)
+      const payloadSize = JSON.stringify(request.body).length;
+
+      if (payloadSize > MAX_PAYLOAD_SIZE) {
+        this.fastify.log.warn(`❌ Streaming chat image payload too large: ${(payloadSize / 1024 / 1024).toFixed(2)} MB`);
+        return reply.status(413).send({
+          error: 'Image payload too large',
+          code: 'PAYLOAD_TOO_LARGE',
+          message: `Maximum allowed size is ${(MAX_PAYLOAD_SIZE / 1024 / 1024).toFixed(1)} MB. Your payload is ${(payloadSize / 1024 / 1024).toFixed(2)} MB.`,
+          maxSizeMB: MAX_PAYLOAD_SIZE / 1024 / 1024,
+          actualSizeMB: payloadSize / 1024 / 1024
+        });
+      }
+
+      this.fastify.log.info('🖼️ === STREAMING CHAT IMAGE PROCESSING REQUEST ===');
+      this.fastify.log.info(`📝 Prompt: ${request.body.prompt}`);
+      this.fastify.log.info(`🆔 Session: ${request.body.session_id || 'none'}`);
+      this.fastify.log.info(`📚 Subject: ${request.body.subject || 'general'}`);
+      this.fastify.log.info(`📦 Payload size: ${(payloadSize / 1024).toFixed(2)} KB`);
+
+      // Get AI Engine URL from client or environment
+      const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:5001';
+      const streamUrl = `${AI_ENGINE_URL}/api/v1/chat-image-stream`;
+
+      this.fastify.log.info(`📡 Proxying to: ${streamUrl}`);
+
+      // Make streaming request to AI Engine
+      const response = await fetch(streamUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          ...(process.env.SERVICE_AUTH_SECRET ? {
+            'X-Service-Auth': process.env.SERVICE_AUTH_SECRET
+          } : {})
+        },
+        body: JSON.stringify({
+          base64_image: request.body.base64_image,
+          prompt: request.body.prompt,
+          subject: request.body.subject || 'general',
+          session_id: request.body.session_id,
+          student_id: request.body.student_id || 'anonymous'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI Engine returned ${response.status}: ${response.statusText}`);
+      }
+
+      // Set SSE headers
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no'
+      });
+
+      // Stream the response from AI Engine to client
+      this.fastify.log.info('✅ Starting SSE stream to client...');
+
+      // Track if we've received any data
+      let hasReceivedData = false;
+      let errorOccurred = false;
+
+      // Pipe the stream from AI Engine to client
+      response.body.on('data', (chunk) => {
+        hasReceivedData = true;
+        reply.raw.write(chunk);
+      });
+
+      response.body.on('end', () => {
+        const duration = Date.now() - startTime;
+        this.fastify.log.info('✅ === STREAMING CHAT IMAGE PROCESSING COMPLETE ===');
+        this.fastify.log.info(`⏱️ Total streaming time: ${duration}ms`);
+        this.fastify.log.info(`📊 Data received: ${hasReceivedData}`);
+        reply.raw.end();
+      });
+
+      response.body.on('error', (error) => {
+        errorOccurred = true;
+        this.fastify.log.error('❌ Stream error from AI Engine:', error);
+
+        // Send error event if we haven't sent data yet
+        if (!hasReceivedData) {
+          const errorEvent = `data: ${JSON.stringify({
+            type: 'error',
+            error: 'Stream error from AI Engine',
+            message: error.message
+          })}\n\n`;
+          reply.raw.write(errorEvent);
+        }
+        reply.raw.end();
+      });
+
+      // Handle client disconnect
+      request.raw.on('close', () => {
+        this.fastify.log.info('⚠️ Client disconnected from stream');
+        response.body.destroy();
+      });
+
+    } catch (error) {
+      this.fastify.log.error('❌ Error setting up streaming chat image:', error);
+
+      // If headers not sent yet, send error response
+      if (!reply.raw.headersSent) {
+        return reply.status(500).send({
+          success: false,
+          response: 'I\'m having trouble analyzing this image right now. Please try again with the non-streaming endpoint.',
+          error: 'Internal server error setting up streaming',
+          code: 'CHAT_IMAGE_STREAM_ERROR',
+          processing_time_ms: Date.now() - startTime,
+          fallback_endpoint: '/api/ai/chat-image'  // Suggest fallback
+        });
+      } else {
+        // If streaming already started, send SSE error event
+        const errorEvent = `data: ${JSON.stringify({
+          type: 'error',
+          error: error.message
+        })}\n\n`;
+        reply.raw.write(errorEvent);
+        reply.raw.end();
+      }
+    }
+  }
+
+  /**
+   * Handle proxy error responses
+   */
+  handleProxyError(reply, error) {
+    const statusCode = error.status || 500;
+
+    if (error.type === 'CONNECTION_ERROR') {
+      return reply.status(503).send({
+        error: 'AI service temporarily unavailable',
+        code: 'SERVICE_UNAVAILABLE',
+        retry: true
+      });
+    }
+
+    if (error.type === 'SERVICE_ERROR') {
+      return reply.status(statusCode).send({
+        error: error.message,
+        code: error.data?.code || 'AI_SERVICE_ERROR',
+        details: error.data
+      });
+    }
+
+    return reply.status(statusCode).send({
+      error: 'Unexpected error occurred',
+      code: 'UNKNOWN_ERROR'
+    });
+  }
+}
+
+module.exports = ChatImageRoutes;

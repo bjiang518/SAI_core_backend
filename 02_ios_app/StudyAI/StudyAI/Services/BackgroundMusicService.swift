@@ -29,36 +29,72 @@ class BackgroundMusicService: NSObject, ObservableObject {
     private var audioPlayer: AVAudioPlayer?
     private var audioSession: AVAudioSession = AVAudioSession.sharedInstance()
     private var playlists: [MusicPlaylist] = []
+    private let downloadService = MusicDownloadService.shared
+    private let libraryService = MusicLibraryService.shared
 
     // MARK: - Available Tracks
-    let availableTracks: [BackgroundMusicTrack] = [
-        // Lo-fi Beats Category
-        BackgroundMusicTrack(
-            id: "focus_flow",
-            name: "Focus Flow",
-            fileName: "Focus_Flow_2025-10-30T054503",
-            category: .lofi,
-            duration: 0
-        ),
+    var availableTracks: [BackgroundMusicTrack] {
+        var tracks: [BackgroundMusicTrack] = [
+            // No Music option
+            BackgroundMusicTrack(
+                id: "no_music",
+                name: NSLocalizedString("focus.noMusic", comment: "No Music"),
+                fileName: "",
+                category: .ambient,
+                duration: 0
+            ),
 
-        // Nature Sounds Category
-        BackgroundMusicTrack(
-            id: "soft_rain",
-            name: "Soft Rain",
-            fileName: "AMBRoom-Soft_rain_tapping_on-Elevenlabs",
-            category: .nature,
-            duration: 0
-        ),
+            // === BUNDLED TRACKS (Always available) ===
 
-        // No Music option
-        BackgroundMusicTrack(
-            id: "no_music",
-            name: NSLocalizedString("focus.noMusic", comment: "No Music"),
-            fileName: "",
-            category: .ambient,
-            duration: 0
-        )
-    ]
+            // Lo-fi Beats
+            BackgroundMusicTrack(
+                id: "focus_flow",
+                name: "Focus Flow",
+                fileName: "Focus_Flow_2025-10-30T054503",
+                category: .lofi,
+                duration: 180
+            ),
+
+            BackgroundMusicTrack(
+                id: "meditation_focus",
+                name: "Meditation & Focus",
+                fileName: "meditation-amp-focus",
+                category: .lofi,
+                duration: 240
+            ),
+
+            // Classical/Ambient
+            BackgroundMusicTrack(
+                id: "peaceful_piano",
+                name: "Peaceful Piano",
+                fileName: "peaceful-piano-instrumental-for-studying",
+                category: .classical,
+                duration: 210
+            ),
+
+            BackgroundMusicTrack(
+                id: "magic_healing",
+                name: "Magic Healing",
+                fileName: "magic-healing",
+                category: .ambient,
+                duration: 200
+            ),
+
+            // Nature Sounds
+            BackgroundMusicTrack(
+                id: "nature_sounds",
+                name: "Nature Sounds",
+                fileName: "nature",
+                category: .nature,
+                duration: 180
+            )
+        ]
+
+        // Add user library tracks
+        tracks.append(contentsOf: libraryService.userTracks)
+
+        return tracks
+    }
 
     private override init() {
         super.init()
@@ -129,15 +165,38 @@ class BackgroundMusicService: NSObject, ObservableObject {
 
     /// Internal method to play a track
     private func playTrack(_ track: BackgroundMusicTrack, inPlaylist: Bool = false) {
-        guard let audioURL = Bundle.main.url(forResource: track.fileName, withExtension: "mp3") ??
-                             Bundle.main.url(forResource: track.fileName, withExtension: "m4a") ??
-                             Bundle.main.url(forResource: track.fileName, withExtension: "wav") else {
+        // Get audio URL based on track source
+        let audioURL: URL?
+
+        switch track.source {
+        case .bundle:
+            // Try different extensions for bundled tracks
+            audioURL = Bundle.main.url(forResource: track.fileName, withExtension: "mp3") ??
+                       Bundle.main.url(forResource: track.fileName, withExtension: "m4a") ??
+                       Bundle.main.url(forResource: track.fileName, withExtension: "wav")
+
+        case .remote:
+            // Check if downloaded
+            if downloadService.isTrackDownloaded(track.id) {
+                audioURL = downloadService.getLocalURL(for: track.fileName)
+            } else {
+                print("❌ Track not downloaded: \(track.name)")
+                // Could trigger download here or show alert
+                return
+            }
+
+        case .userLibrary:
+            // Get from user's music library
+            audioURL = libraryService.getAssetURL(for: track)
+        }
+
+        guard let url = audioURL else {
             print("❌ Audio file not found: \(track.fileName)")
             return
         }
 
         do {
-            audioPlayer = try AVAudioPlayer(contentsOf: audioURL)
+            audioPlayer = try AVAudioPlayer(contentsOf: url)
             audioPlayer?.delegate = self
             audioPlayer?.numberOfLoops = inPlaylist ? 0 : -1  // Single play for playlist, loop for single track
             audioPlayer?.volume = volume
@@ -147,6 +206,7 @@ class BackgroundMusicService: NSObject, ObservableObject {
             isPlaying = true
             print("✅ Playing track: \(track.name)")
             print("📊 Duration: \(audioPlayer?.duration ?? 0) seconds")
+            print("🎵 Source: \(track.source.displayName)")
         } catch {
             print("❌ Failed to initialize audio player: \(error.localizedDescription)")
         }

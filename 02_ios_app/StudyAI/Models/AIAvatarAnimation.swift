@@ -39,7 +39,7 @@ struct AIAvatarAnimation: View {
                 miaAnimation
             }
         }
-        .animation(.easeInOut(duration: 0.8), value: state)  // Longer duration for more visible animation changes
+        .animationIfNotPowerSaving(.easeInOut(duration: 0.8), value: state)  // Longer duration for more visible animation changes
     }
 
     // MARK: - Adam Animation (Siri Animation)
@@ -70,7 +70,7 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
                 .onAppear {
                     // Start blinking animation
-                    withAnimation(
+                    withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {
@@ -106,14 +106,14 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
                 .onAppear {
                     // Start zoom in/out animation
-                    withAnimation(
+                    withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {
                         pulseScale = 1.3  // Zoom in by 30%
                     }
                     // Start blinking animation
-                    withAnimation(
+                    withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {
@@ -157,7 +157,7 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
                 .onAppear {
                     // Start blinking animation
-                    withAnimation(
+                    withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {
@@ -223,7 +223,7 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
                 .onAppear {
                     // Start blinking animation
-                    withAnimation(
+                    withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {
@@ -291,7 +291,7 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
                 .onAppear {
                     // Start blinking animation
-                    withAnimation(
+                    withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {

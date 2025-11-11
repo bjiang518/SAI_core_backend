@@ -11,6 +11,7 @@ import GoogleSignIn
 @main
 struct StudyAIApp: App {
     @AppStorage("appLanguage") private var appLanguage: String = "en"
+    @StateObject private var deepLinkHandler = PomodoroDeepLinkHandler.shared
 
     init() {
         setupGoogleSignIn()
@@ -21,8 +22,15 @@ struct StudyAIApp: App {
         WindowGroup {
             ContentView()
                 .environment(\.locale, Locale(identifier: appLanguage))
+                .environmentObject(deepLinkHandler)
                 .onOpenURL { url in
+                    // 处理Google登录
                     GIDSignIn.sharedInstance.handle(url)
+
+                    // 处理番茄专注Deep Link
+                    if url.scheme == "studyai" {
+                        deepLinkHandler.handleDeepLink(url: url)
+                    }
                 }
         }
     }

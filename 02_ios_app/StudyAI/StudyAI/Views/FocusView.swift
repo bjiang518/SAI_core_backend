@@ -10,16 +10,28 @@ import SwiftUI
 struct FocusView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme  // Dark mode detection
+    @EnvironmentObject var deepLinkHandler: PomodoroDeepLinkHandler
     @StateObject private var focusService = FocusSessionService.shared
     @StateObject private var musicService = BackgroundMusicService.shared
-    @StateObject private var gardenService = FocusTreeGardenService.shared
+    @StateObject private var tomatoGarden = TomatoGardenService.shared
+    @ObservedObject private var appState = AppState.shared  // 观察省电模式状态
 
     @State private var showMusicSelection = false
     @State private var selectedMusicTrack: BackgroundMusicTrack?
     @State private var selectedPlaylist: MusicPlaylist?
-    @State private var showGarden = false
+    @State private var showTomatoGarden = false
+    @State private var showCalendar = false  // 新增：显示日历
+    @State private var enableDeepFocus = false  // 新增：深度专注开关
+    @State private var showDeepFocusInfo = false  // 新增：深度专注说明
     @State private var showCompletionAnimation = false
-    @State private var earnedTree: FocusTree?
+    @State private var earnedTomato: Tomato?
+
+    // 拖拽停止相关状态
+    @State private var isDraggingStop = false
+    @State private var stopButtonOffset: CGSize = .zero
+    @State private var circleCenter: CGPoint = .zero
+    @State private var circleRadius: CGFloat = 0
+    @State private var isStopButtonInCircle = false  // 停止按钮是否在圆环内
 
     var body: some View {
         ZStack {
@@ -70,8 +82,8 @@ struct FocusView: View {
             }
 
             // Completion Animation Overlay
-            if showCompletionAnimation, let tree = earnedTree {
-                completionOverlay(tree: tree)
+            if showCompletionAnimation, let tomato = earnedTomato {
+                completionOverlay(tomato: tomato)
             }
         }
         .navigationBarHidden(true)
@@ -81,8 +93,31 @@ struct FocusView: View {
                 selectedPlaylist: $selectedPlaylist
             )
         }
-        .sheet(isPresented: $showGarden) {
-            MyGardenView()
+        .sheet(isPresented: $showTomatoGarden) {
+            TomatoPokedexView()
+        }
+        .sheet(isPresented: $showCalendar) {
+            PomodoroCalendarView()
+        }
+        .alert("深度专注模式", isPresented: $showDeepFocusInfo) {
+            Button("知道了", role: .cancel) {}
+            Button("查看设置指南") {
+                // 显示系统设置指南
+            }
+        } message: {
+            Text(DeepFocusService.shared.getSetupGuide())
+        }
+        .onAppear {
+            // 处理Deep Link自动启动
+            if deepLinkHandler.shouldShowPomodoro && deepLinkHandler.shouldAutoStart {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    startSession()
+                    deepLinkHandler.resetState()
+                }
+            }
+
+            // 同步深度专注状态
+            enableDeepFocus = focusService.isDeepFocusEnabled
         }
     }
 
@@ -92,48 +127,86 @@ struct FocusView: View {
         HStack {
             // Back Button
             Button(action: { dismiss() }) {
-                HStack(spacing: 6) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text(NSLocalizedString("common.close", comment: "Close"))
-                        .font(.body)
-                }
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .primary)
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .primary)
             }
 
             Spacer()
 
-            // My Garden Button
-            Button(action: { showGarden = true }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "leaf.fill")
-                        .font(.system(size: 16))
-                    Text(NSLocalizedString("focus.garden.title", comment: "My Garden"))
-                        .font(.body.weight(.semibold))
+            // 省电模式指示器
+            if appState.isPowerSavingMode {
+                HStack(spacing: 4) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.green)
+                    Text("省电")
+                        .font(.caption2)
+                        .foregroundColor(.green)
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
                 .background(
-                    LinearGradient(
-                        colors: colorScheme == .dark ? [
-                            Color.green.opacity(0.8),
-                            Color.green.opacity(0.6)
-                        ] : [
-                            Color.green,
-                            Color.green.opacity(0.8)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                    Capsule()
+                        .fill(Color.green.opacity(0.15))
+                )
+                .padding(.trailing, 8)
+            }
+
+            // 日历按钮（仅icon）
+            Button(action: { showCalendar = true }) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 20))
+                    .foregroundColor(.blue)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        Circle()
+                            .fill(colorScheme == .dark ? Color.blue.opacity(0.2) : Color.blue.opacity(0.1))
                     )
-                )
-                .cornerRadius(20)
-                .shadow(
-                    color: Color.green.opacity(colorScheme == .dark ? 0.2 : 0.3),
-                    radius: 8,
-                    x: 0,
-                    y: 4
-                )
+            }
+            .padding(.trailing, 8)
+
+            // 我的番茄园按钮（仅icon）
+            Button(action: { showTomatoGarden = true }) {
+                Text("🍅")
+                    .font(.system(size: 22))
+                    .frame(width: 44, height: 44)
+                    .background(
+                        Circle()
+                            .fill(colorScheme == .dark ? Color.red.opacity(0.2) : Color.red.opacity(0.1))
+                    )
+            }
+            .padding(.trailing, 8)
+
+            // 深度专注模式按钮（可点亮的icon）
+            Button(action: {
+                if !focusService.isRunning {
+                    enableDeepFocus.toggle()
+                } else {
+                    focusService.toggleDeepFocus()
+                }
+            }) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            (enableDeepFocus || focusService.isDeepFocusEnabled) ?
+                                LinearGradient(
+                                    colors: [Color.purple, Color.purple.opacity(0.7)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ) :
+                                LinearGradient(
+                                    colors: [Color.gray.opacity(0.2), Color.gray.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                        )
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: (enableDeepFocus || focusService.isDeepFocusEnabled) ? "moon.fill" : "moon")
+                        .font(.system(size: 20))
+                        .foregroundColor((enableDeepFocus || focusService.isDeepFocusEnabled) ? .white : .gray)
+                }
             }
         }
     }
@@ -175,18 +248,78 @@ struct FocusView: View {
                     .frame(width: size, height: size)
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 0.5), value: focusService.elapsedTime)
+                    // 当停止按钮进入圆环时显示红色发光效果
+                    .shadow(
+                        color: isStopButtonInCircle ? Color.red.opacity(0.6) : Color.clear,
+                        radius: isStopButtonInCircle ? 20 : 0,
+                        x: 0,
+                        y: 0
+                    )
+                    .shadow(
+                        color: isStopButtonInCircle ? Color.red.opacity(0.4) : Color.clear,
+                        radius: isStopButtonInCircle ? 40 : 0,
+                        x: 0,
+                        y: 0
+                    )
+                    .animation(.easeInOut(duration: 0.3), value: isStopButtonInCircle)
 
                 // Center Content
-                VStack(spacing: 16) {
-                    // Status Text
-                    Text(statusText)
-                        .font(.subheadline)
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .secondary)
-
-                    // Time Display
+                VStack(spacing: 0) {
+                    // Time Display (上方，加粗液态玻璃字体)
                     Text(formattedTime)
-                        .font(.system(size: 56, weight: .light, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? .white : .primary)
+                        .font(.system(size: 64, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: colorScheme == .dark ? [
+                                    Color.white,
+                                    Color.cyan.opacity(0.8),
+                                    Color.blue.opacity(0.6)
+                                ] : [
+                                    Color.blue,
+                                    Color.purple,
+                                    Color.blue.opacity(0.7)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .shadow(color: colorScheme == .dark ? .cyan.opacity(0.6) : .blue.opacity(0.4), radius: 20, x: 0, y: 0)
+                        .shadow(color: .white.opacity(0.5), radius: 10, x: 0, y: 0)
+                        .padding(.bottom, size * 0.15)
+
+                    // 暂停/开始按钮（中心）- No background box
+                    if focusService.isRunning {
+                        Button(action: togglePauseResume) {
+                            Image(systemName: focusService.isPaused ? "play.fill" : "pause.fill")
+                                .font(.system(size: size * 0.12, weight: .semibold))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: focusService.isPaused ? [
+                                            Color.green,
+                                            Color.green.opacity(0.7)
+                                        ] : [
+                                            Color.orange,
+                                            Color.orange.opacity(0.7)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                                .scaleEffect(focusService.isPaused ? 1.2 : 1.0)
+                                .animation(.spring(response: 0.3), value: focusService.isPaused)
+                        }
+                    } else {
+                        // 状态文字
+                        Text(statusText)
+                            .font(.title3)
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
+                    }
+                }
+                .onAppear {
+                    // 保存圆环中心和半径用于拖拽检测
+                    circleCenter = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    circleRadius = size / 2
                 }
             }
             .frame(width: size, height: size)
@@ -396,98 +529,157 @@ struct FocusView: View {
                     )
                 }
             } else {
-                HStack(spacing: 12) {
-                    // Pause/Resume Button
-                    Button(action: togglePauseResume) {
-                        HStack(spacing: 8) {
-                            Image(systemName: focusService.isPaused ? "play.fill" : "pause.fill")
-                                .font(.system(size: 18))
-                            Text(focusService.isPaused ?
-                                 NSLocalizedString("focus.resumeSession", comment: "Resume") :
-                                 NSLocalizedString("focus.pauseSession", comment: "Pause")
-                            )
-                            .font(.body.weight(.semibold))
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(
-                                colors: colorScheme == .dark ? [
-                                    Color.orange.opacity(0.8),
-                                    Color.orange.opacity(0.6)
-                                ] : [
-                                    Color.orange,
-                                    Color.orange.opacity(0.8)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .cornerRadius(16)
-                    }
-
-                    // End Button
-                    Button(action: endSession) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 18))
-                            Text(NSLocalizedString("focus.endSession", comment: "End"))
-                                .font(.body.weight(.semibold))
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(
-                                colors: colorScheme == .dark ? [
-                                    Color.green.opacity(0.8),
-                                    Color.green.opacity(0.6)
-                                ] : [
-                                    Color.green,
-                                    Color.green.opacity(0.8)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .cornerRadius(16)
-                    }
-                }
-
-                // Cancel Button
-                Button(action: cancelSession) {
-                    Text(NSLocalizedString("focus.cancelSession", comment: "Cancel"))
-                        .font(.body)
-                        .foregroundColor(colorScheme == .dark ? .red.opacity(0.8) : .red)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
+                // 拖拽停止按钮
+                draggableStopButton
             }
+        }
+    }
+
+    // MARK: - Draggable Stop Button
+
+    private var draggableStopButton: some View {
+        VStack(spacing: 20) {
+            // 提示文字（只在拖动时显示）
+            if isDraggingStop {
+                Text(NSLocalizedString("pomodoro.dragToStop", comment: "Drag button instruction"))
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .transition(.opacity)
+            }
+
+            // 停止按钮
+            ZStack {
+                // 光圈效果（拖动时显示）
+                if isDraggingStop {
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.red.opacity(0.8),
+                                    Color.red.opacity(0.3),
+                                    Color.red.opacity(0.8)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 3
+                        )
+                        .frame(width: 100, height: 100)
+                        .scaleEffect(1.5)
+                        .opacity(0.6)
+                }
+
+                // 停止文字 (只显示一个，根据语言自动选择)
+                Text(NSLocalizedString("pomodoro.stop", comment: "Stop button"))
+                    .font(.system(size: 32, weight: .ultraLight, design: .rounded))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: isDraggingStop ? [
+                                Color.red,
+                                Color.red.opacity(0.7)
+                            ] : [
+                                Color.gray,
+                                Color.gray.opacity(0.7)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(color: isDraggingStop ? .red.opacity(0.5) : .clear, radius: 10, x: 0, y: 0)
+            }
+            .offset(stopButtonOffset)
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        if !isDraggingStop {
+                            isDraggingStop = true
+                            // 开始震动
+                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                            generator.impactOccurred()
+                        }
+
+                        stopButtonOffset = value.translation
+
+                        // 实时检测是否进入圆环（向上拖拽超过200点）
+                        let draggedUpDistance = -value.translation.height
+                        let minimumDragDistance: CGFloat = 200
+                        let wasInCircle = isStopButtonInCircle
+                        isStopButtonInCircle = draggedUpDistance >= minimumDragDistance
+
+                        // 持续震动
+                        let generator = UIImpactFeedbackGenerator(style: .light)
+                        generator.impactOccurred()
+
+                        // 进入圆环时额外震动提示
+                        if isStopButtonInCircle && !wasInCircle {
+                            let strongGenerator = UIImpactFeedbackGenerator(style: .heavy)
+                            strongGenerator.impactOccurred()
+                        }
+                    }
+                    .onEnded { value in
+                        // 检查是否拖到圆环内（向上拖拽超过200点即认为进入圆环）
+                        // 使用translation.height的负值来判断向上拖拽的距离
+                        let draggedUpDistance = -value.translation.height
+                        let minimumDragDistance: CGFloat = 200  // 最小拖拽距离
+
+                        if draggedUpDistance >= minimumDragDistance {
+                            // 拖拽距离足够 - 确认停止
+                            let generator = UINotificationFeedbackGenerator()
+                            generator.notificationOccurred(.success)
+
+                            withAnimation(.spring()) {
+                                stopButtonOffset = .zero
+                                isDraggingStop = false
+                                isStopButtonInCircle = false  // 重置状态
+                            }
+
+                            // 延迟一下再结束session，让动画完成
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                endSession()
+                            }
+                        } else {
+                            // 拖拽距离不够 - 取消
+                            let generator = UINotificationFeedbackGenerator()
+                            generator.notificationOccurred(.warning)
+
+                            withAnimation(.spring()) {
+                                stopButtonOffset = .zero
+                                isDraggingStop = false
+                                isStopButtonInCircle = false  // 重置状态
+                            }
+                        }
+                    }
+            )
         }
     }
 
     // MARK: - Completion Overlay
 
-    private func completionOverlay(tree: FocusTree) -> some View {
+    private func completionOverlay(tomato: Tomato) -> some View {
         ZStack {
-            Color.black.opacity(0.5)
+            Color.black.opacity(0.85)
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
-                // Tree Emoji with Animation
-                Text(tree.type.emoji)
-                    .font(.system(size: 100))
+                // Tomato Image with Animation
+                Image(tomato.type.imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 150, height: 150)
                     .scaleEffect(showCompletionAnimation ? 1.0 : 0.5)
                     .animation(.spring(response: 0.6, dampingFraction: 0.6), value: showCompletionAnimation)
 
                 // Congratulations Text
                 VStack(spacing: 8) {
-                    Text(String(format: NSLocalizedString("focus.earnedTree", comment: "You earned a tree!"), tree.type.displayName))
+                    Text(NSLocalizedString("pomodoro.congratulations", comment: "Congratulations message"))
                         .font(.title2.weight(.bold))
                         .foregroundColor(.white)
 
-                    Text(NSLocalizedString("focus.keepGoing", comment: "Keep going to grow bigger trees!"))
+                    Text(tomato.type.displayName)
+                        .font(.title3.weight(.semibold))
+                        .foregroundColor(.white)
+
+                    Text(tomato.type.description)
                         .font(.body)
                         .foregroundColor(.white.opacity(0.8))
                         .multilineTextAlignment(.center)
@@ -499,14 +691,14 @@ struct FocusView: View {
                     HStack(spacing: 24) {
                         StatItem(
                             icon: "clock.fill",
-                            value: formatDuration(tree.focusDuration),
-                            label: NSLocalizedString("focus.focusTime", comment: "Focus Time")
+                            value: tomato.formattedDuration,
+                            label: NSLocalizedString("pomodoro.focusDuration", comment: "Focus duration")
                         )
 
                         StatItem(
                             icon: "star.fill",
-                            value: "+\(Int(tree.focusDuration / 60 / 5))",
-                            label: NSLocalizedString("progress.pointsEarned", comment: "Points")
+                            value: "+\(Int(tomato.focusDuration / 60 / 5))",
+                            label: NSLocalizedString("pomodoro.pointsEarned", comment: "Points earned")
                         )
                     }
                 }
@@ -517,23 +709,33 @@ struct FocusView: View {
                 // View Garden Button
                 Button(action: {
                     showCompletionAnimation = false
-                    earnedTree = nil
-                    showGarden = true
+                    earnedTomato = nil
+                    showTomatoGarden = true
                 }) {
-                    Text(NSLocalizedString("focus.garden.title", comment: "View My Garden"))
-                        .font(.body.weight(.semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color.green)
-                        .cornerRadius(12)
+                    HStack(spacing: 8) {
+                        Text("🍅")
+                            .font(.system(size: 20))
+                        Text(NSLocalizedString("pomodoro.viewGarden", comment: "View garden button"))
+                            .font(.body.weight(.semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.red, Color.red.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .cornerRadius(12)
                 }
                 .padding(.horizontal, 32)
 
                 // Dismiss Button
                 Button(action: {
                     showCompletionAnimation = false
-                    earnedTree = nil
+                    earnedTomato = nil
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 32))
@@ -572,29 +774,28 @@ struct FocusView: View {
     // MARK: - Computed Properties
 
     private var progressFraction: CGFloat {
-        let thirtyMinutes: TimeInterval = 30 * 60
-        return min(CGFloat(focusService.elapsedTime / thirtyMinutes), 1.0)
+        // 使用剩余时间计算进度（从满到空）
+        let progress = focusService.elapsedTime / focusService.pomodoroDuration
+        return min(CGFloat(progress), 1.0)
     }
 
     private var formattedTime: String {
-        let hours = Int(focusService.elapsedTime) / 3600
-        let minutes = (Int(focusService.elapsedTime) % 3600) / 60
-        let seconds = Int(focusService.elapsedTime) % 60
-
-        if hours > 0 {
-            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
-        } else {
-            return String(format: "%02d:%02d", minutes, seconds)
-        }
+        // 显示剩余时间（倒计时）
+        let seconds = Int(focusService.remainingTime)
+        let minutes = seconds / 60
+        let secs = seconds % 60
+        return String(format: "%02d:%02d", minutes, secs)
     }
 
     private var statusText: String {
-        if focusService.isPaused {
-            return NSLocalizedString("focus.sessionPaused", comment: "Paused")
+        if focusService.isCompleted {
+            return NSLocalizedString("pomodoro.completed", comment: "Pomodoro completed")
+        } else if focusService.isPaused {
+            return NSLocalizedString("focus.sessionPaused", comment: "Session paused")
         } else if focusService.isRunning {
-            return NSLocalizedString("focus.sessionActive", comment: "Focusing")
+            return NSLocalizedString("focus.sessionActive", comment: "Session active")
         } else {
-            return NSLocalizedString("focus.focusTime", comment: "Focus Time")
+            return NSLocalizedString("pomodoro.focusMode", comment: "Pomodoro focus")
         }
     }
 
@@ -623,15 +824,162 @@ struct FocusView: View {
     private func startSession() {
         if let playlist = selectedPlaylist {
             musicService.playPlaylist(playlist)
-            focusService.startSession(withMusic: playlist.id)
+            focusService.startSession(withMusic: playlist.id, enableDeepFocus: enableDeepFocus)
         } else if let track = selectedMusicTrack {
             if track.id != "no_music" {
                 musicService.play(track: track)
             }
-            focusService.startSession(withMusic: track.id)
+            focusService.startSession(withMusic: track.id, enableDeepFocus: enableDeepFocus)
         } else {
-            focusService.startSession()
+            focusService.startSession(enableDeepFocus: enableDeepFocus)
         }
+    }
+
+    // MARK: - Deep Focus UI Components
+
+    /// 深度专注模式开关（开始前）
+    private var deepFocusToggleSection: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                // 图标
+                ZStack {
+                    Circle()
+                        .fill(
+                            enableDeepFocus ?
+                                LinearGradient(
+                                    colors: [Color.purple, Color.purple.opacity(0.7)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ) :
+                                LinearGradient(
+                                    colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.2)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                        )
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: enableDeepFocus ? "moon.fill" : "moon")
+                        .font(.system(size: 18))
+                        .foregroundColor(enableDeepFocus ? .white : .gray)
+                }
+
+                // 文字说明
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(NSLocalizedString("pomodoro.deepFocusMode", comment: "Deep focus mode"))
+                        .font(.body.weight(.medium))
+                        .foregroundColor(colorScheme == .dark ? .white : .primary)
+
+                    Text(NSLocalizedString("pomodoro.autoOptimize", comment: "Auto optimize"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                // 信息按钮
+                Button(action: { showDeepFocusInfo = true }) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 18))
+                        .foregroundColor(.blue)
+                }
+                .padding(.trailing, 8)
+
+                // Toggle开关
+                Toggle("", isOn: $enableDeepFocus)
+                    .labelsHidden()
+            }
+            .padding(16)
+            .background(
+                colorScheme == .dark ?
+                    Color.white.opacity(0.05) :
+                    Color.white
+            )
+            .cornerRadius(16)
+            .shadow(
+                color: colorScheme == .dark ?
+                    Color.white.opacity(0.05) :
+                    Color.black.opacity(0.05),
+                radius: 8,
+                x: 0,
+                y: 2
+            )
+
+            // 提示文字
+            if enableDeepFocus {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.green)
+
+                    Text(NSLocalizedString("pomodoro.deepFocusReady", comment: "Deep focus ready"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut, value: enableDeepFocus)
+    }
+
+    /// 深度专注状态指示器（运行中）
+    private var deepFocusStatusBanner: some View {
+        HStack(spacing: 12) {
+            // 图标动画
+            ZStack {
+                Circle()
+                    .fill(Color.purple.opacity(0.2))
+                    .frame(width: 40, height: 40)
+
+                Image(systemName: "moon.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(.purple)
+            }
+
+            // 状态文字
+            VStack(alignment: .leading, spacing: 4) {
+                Text(NSLocalizedString("pomodoro.deepFocusActive", comment: "Deep focus active"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(colorScheme == .dark ? .white : .primary)
+
+                Text(NSLocalizedString("pomodoro.deepFocusStatus", comment: "Deep focus status"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            // 关闭按钮
+            Button(action: {
+                focusService.toggleDeepFocus()
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.gray.opacity(0.6))
+            }
+        }
+        .padding(12)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.purple.opacity(colorScheme == .dark ? 0.2 : 0.1),
+                    Color.purple.opacity(colorScheme == .dark ? 0.1 : 0.05)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Original Actions (Updated)
+
+    private func startSession_old() {
+        // 旧版本，已更新到上面
     }
 
     private func togglePauseResume() {
@@ -650,9 +998,9 @@ struct FocusView: View {
         if let completedSession = focusService.endSession() {
             musicService.stop()
 
-            // Plant tree in garden
-            let tree = gardenService.plantTree(from: completedSession)
-            earnedTree = tree
+            // Add tomato to garden
+            let tomato = tomatoGarden.addTomato(from: completedSession)
+            earnedTomato = tomato
 
             // Show completion animation
             withAnimation {

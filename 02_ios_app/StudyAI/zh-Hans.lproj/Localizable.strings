@@ -278,6 +278,36 @@
 "error.aiProcessing" = "AI分析失败。请重试";
 "error.auth" = "认证失败。请重新登录";
 
+// Chat Session Errors
+"error.session.creation" = "无法开始新的对话会话。请检查网络连接后重试。";
+"error.session.expired" = "会话已过期。别担心 - 您的消息已保存！点击重试在新会话中发送。";
+"error.session.loadInfo" = "无法加载会话信息。会话仍在正常运行。";
+"error.session.archive" = "对话保存失败。您的消息很安全 - 请重试归档。";
+
+// Message Errors
+"error.message.send" = "消息未送达。点击重试按钮重新发送。";
+"error.message.network" = "网络连接问题。请检查您的网络连接后重试。";
+"error.message.noResponse" = "AI未响应。这可能是暂时性问题 - 请重试您的消息。";
+
+// Image Processing Errors
+"error.image.prepare" = "无法准备上传图片。请尝试选择其他图片。";
+"error.image.process" = "图片分析失败。请确保图片清晰后重试。";
+"error.image.upload" = "上传图片失败。请检查网络连接后重试。";
+
+// Loading States
+"loading.session.creating" = "开始新对话...";
+"loading.message.sending" = "发送消息中...";
+"loading.image.processing" = "AI分析图片中...";
+"loading.archive.saving" = "保存对话中...";
+
+// Success Messages
+"success.session.created" = "✓ 新对话已开始";
+"success.message.sent" = "✓ 消息已送达";
+"success.image.processed" = "✓ 图片分析成功";
+"success.archive.saved" = "✓ 对话已保存到图书馆";
+"success.grade.updated" = "✅ 成绩已更新为 %@ (%@ 分)";
+"success.network.restored" = "✓ 网络连接已恢复";
+
 // Homework Album
 "homeworkAlbum.title" = "作业相册";
 "homeworkAlbum.select" = "选择";
@@ -1238,3 +1268,46 @@
 "library.customDate.selectedRange" = "已选范围：";
 "library.customDate.apply" = "应用日期筛选";
 "library.customDate.navigationTitle" = "自定义日期范围";
+
+// Question Archive View
+"archive.title" = "归档题目";
+"archive.archiveButton" = "归档";
+"archive.subjectClassification" = "科目分类";
+"archive.enterSubject" = "输入科目名称";
+"archive.useAIDetection" = "使用AI检测";
+"archive.enterCustomSubject" = "输入自定义科目";
+"archive.selectedQuestions" = "已选题目";
+"archive.noQuestionsSelected" = "未选择题目";
+"archive.notesAndTags" = "笔记与标签（可选）";
+"archive.question" = "题目";
+"archive.notes" = "笔记：";
+"archive.notesPlaceholder" = "添加关于错误或见解的笔记...";
+"archive.tags" = "标签：";
+"archive.addTag" = "添加标签";
+"archive.add" = "添加";
+"archive.visual" = "图形";
+
+// Subject Names
+"subject.mathematics" = "数学";
+"subject.physics" = "物理";
+"subject.chemistry" = "化学";
+"subject.biology" = "生物";
+"subject.english" = "英语";
+"subject.history" = "历史";
+"subject.other" = "其他";
+
+// Pomodoro Focus Mode
+"pomodoro.dragToStop" = "拖动下方按钮到圆环内以停止";
+"pomodoro.stop" = "停止";
+"pomodoro.completed" = "番茄钟完成！";
+"pomodoro.focusMode" = "番茄专注";
+"pomodoro.congratulations" = "🎉 恭喜获得番茄！";
+"pomodoro.focusDuration" = "专注时长";
+"pomodoro.pointsEarned" = "获得积分";
+"pomodoro.viewGarden" = "查看我的番茄园";
+"pomodoro.deepFocusMode" = "深度专注模式";
+"pomodoro.autoOptimize" = "自动优化专注环境";
+"pomodoro.deepFocusReady" = "深度专注模式已准备就绪";
+"pomodoro.deepFocusActive" = "深度专注模式已启用";
+"pomodoro.deepFocusStatus" = "已优化专注环境 · 全面保护中";
+

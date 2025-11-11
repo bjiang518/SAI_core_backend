@@ -274,6 +274,36 @@
 "error.aiProcessing" = "AI analysis failed. Please try again";
 "error.auth" = "Authentication failed. Please sign in again";
 
+// Chat Session Errors
+"error.session.creation" = "Unable to start new chat session. Please check your connection and try again.";
+"error.session.expired" = "Your session has expired. Don't worry - your message is saved! Tap retry to send in a new session.";
+"error.session.loadInfo" = "Unable to load session information. The session is still active and working normally.";
+"error.session.archive" = "Failed to save conversation. Your messages are safe - please try archiving again.";
+
+// Message Errors
+"error.message.send" = "Message not delivered. Tap the retry button to try again.";
+"error.message.network" = "Network connection issue. Please check your internet connection and retry.";
+"error.message.noResponse" = "AI didn't respond. This might be a temporary issue - please retry your message.";
+
+// Image Processing Errors
+"error.image.prepare" = "Unable to prepare image for upload. Please try selecting a different image.";
+"error.image.process" = "Image analysis failed. Make sure the image is clear and try again.";
+"error.image.upload" = "Failed to upload image. Please check your connection and try again.";
+
+// Loading States
+"loading.session.creating" = "Starting new conversation...";
+"loading.message.sending" = "Sending message...";
+"loading.image.processing" = "Analyzing image with AI...";
+"loading.archive.saving" = "Saving conversation...";
+
+// Success Messages
+"success.session.created" = "✓ New conversation started";
+"success.message.sent" = "✓ Message delivered";
+"success.image.processed" = "✓ Image analyzed successfully";
+"success.archive.saved" = "✓ Conversation saved to library";
+"success.grade.updated" = "✅ Grade updated to %@ (%@ points)";
+"success.network.restored" = "✓ Connection restored";
+
 // Homework Album
 "homeworkAlbum.title" = "Homework Album";
 "homeworkAlbum.select" = "Select";
@@ -1198,3 +1228,46 @@
 "library.customDate.selectedRange" = "Selected Range:";
 "library.customDate.apply" = "Apply Date Filter";
 "library.customDate.navigationTitle" = "Custom Date Range";
+
+// Question Archive View
+"archive.title" = "Archive Questions";
+"archive.archiveButton" = "Archive";
+"archive.subjectClassification" = "Subject Classification";
+"archive.enterSubject" = "Enter subject name";
+"archive.useAIDetection" = "Use AI Detection";
+"archive.enterCustomSubject" = "Enter Custom Subject";
+"archive.selectedQuestions" = "Selected Questions";
+"archive.noQuestionsSelected" = "No questions selected";
+"archive.notesAndTags" = "Notes & Tags (Optional)";
+"archive.question" = "Question";
+"archive.notes" = "Notes:";
+"archive.notesPlaceholder" = "Add notes about mistakes or insights...";
+"archive.tags" = "Tags:";
+"archive.addTag" = "Add tag";
+"archive.add" = "Add";
+"archive.visual" = "Visual";
+
+// Pomodoro Focus Mode
+"pomodoro.dragToStop" = "Drag button into circle to stop";
+"pomodoro.stop" = "STOP";
+"pomodoro.completed" = "Pomodoro Completed!";
+"pomodoro.focusMode" = "Pomodoro Focus";
+"pomodoro.congratulations" = "🎉 Congratulations! You earned a tomato!";
+"pomodoro.focusDuration" = "Focus Duration";
+"pomodoro.pointsEarned" = "Points Earned";
+"pomodoro.viewGarden" = "View My Tomato Garden";
+"pomodoro.deepFocusMode" = "Deep Focus Mode";
+"pomodoro.autoOptimize" = "Automatically optimize focus environment";
+"pomodoro.deepFocusReady" = "Deep focus mode is ready";
+"pomodoro.deepFocusActive" = "Deep Focus Mode Active";
+"pomodoro.deepFocusStatus" = "Focus environment optimized · Fully protected";
+
+
+// Subject Names
+"subject.mathematics" = "Mathematics";
+"subject.physics" = "Physics";
+"subject.chemistry" = "Chemistry";
+"subject.biology" = "Biology";
+"subject.english" = "English";
+"subject.history" = "History";
+"subject.other" = "Other";

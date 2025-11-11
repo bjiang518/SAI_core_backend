@@ -366,7 +366,7 @@ struct ParentalConsentView: View {
                     .frame(width: 0, height: 0)
                     .opacity(0)
                     .focused($focusedField, equals: .verificationCode)
-                    .onChange(of: verificationCode) { newValue in
+                    .onChange(of: verificationCode) { _, newValue in
                         // Limit to 6 digits
                         if newValue.count > codeLength {
                             verificationCode = String(newValue.prefix(codeLength))

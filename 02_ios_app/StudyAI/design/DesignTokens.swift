@@ -24,8 +24,8 @@ struct DesignTokens {
         static let libraryTeal = Color(hex: "14B8A6") // Library/Archive
 
         // Secondary Colors
-        static let secondary = Color("Secondary", bundle: .main) ?? Color.gray
-        static let secondaryVariant = Color("SecondaryVariant", bundle: .main) ?? Color.gray.opacity(0.6)
+        static let secondary = Color("Secondary", bundle: .main)
+        static let secondaryVariant = Color("SecondaryVariant", bundle: .main)
 
         // Surface Colors - Now Adaptive to Dark Mode
         static let surface = Color(.systemBackground) // Adapts to light/dark mode
@@ -33,8 +33,8 @@ struct DesignTokens {
         static let cardBackground = Color(.secondarySystemBackground) // Adapts to light/dark mode
 
         // Text Colors
-        static let onSurface = Color("OnSurface", bundle: .main) ?? Color.primary
-        static let onSurfaceVariant = Color("OnSurfaceVariant", bundle: .main) ?? Color.secondary
+        static let onSurface = Color("OnSurface", bundle: .main)
+        static let onSurfaceVariant = Color("OnSurfaceVariant", bundle: .main)
         static let textSecondary = Color.primary.opacity(0.7)
 
         // Status Colors
@@ -44,16 +44,16 @@ struct DesignTokens {
         static let info = Color(hex: "3B82F6")
 
         // Archive-specific Colors
-        static let archived = Color("Archived", bundle: .main) ?? Color.orange
-        static let unarchived = Color("Unarchived", bundle: .main) ?? Color.green
+        static let archived = Color("Archived", bundle: .main)
+        static let unarchived = Color("Unarchived", bundle: .main)
 
         // Conversation Colors
-        static let conversationBackground = Color("ConversationBackground", bundle: .main) ?? Color.white
-        static let conversationBorder = Color("ConversationBorder", bundle: .main) ?? Color.gray.opacity(0.2)
+        static let conversationBackground = Color("ConversationBackground", bundle: .main)
+        static let conversationBorder = Color("ConversationBorder", bundle: .main)
 
         // Filter Colors
-        static let filterActive = Color("FilterActive", bundle: .main) ?? Color.blue.opacity(0.1)
-        static let filterInactive = Color("FilterInactive", bundle: .main) ?? Color(.systemGray6)
+        static let filterActive = Color("FilterActive", bundle: .main)
+        static let filterInactive = Color("FilterInactive", bundle: .main)
 
         // Gradient Colors
         static let gradientBlue = LinearGradient(

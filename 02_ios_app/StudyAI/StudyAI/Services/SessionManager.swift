@@ -30,7 +30,7 @@ class SessionManager: ObservableObject {
     private let sessionStartedTimestampKey = "sessionStartedTimestamp"
 
     private init() {
-        checkSessionValidity()
+        _ = checkSessionValidity()
     }
 
     // MARK: - Public API

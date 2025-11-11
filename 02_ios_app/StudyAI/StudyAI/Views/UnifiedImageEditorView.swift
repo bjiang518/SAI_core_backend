@@ -178,7 +178,7 @@ struct UnifiedImageEditorView: View {
             .onAppear {
                 setupInitialImage()
             }
-            .onChange(of: selectedSizeReduction) { newSize in
+            .onChange(of: selectedSizeReduction) { _, _ in
                 updateResizePreview()
             }
         }

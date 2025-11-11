@@ -245,7 +245,7 @@ class QuestionArchiveService: ObservableObject {
         }()
 
         // Build request body - ensure isCorrect is included
-        var requestBody: [String: Any] = [
+        let requestBody: [String: Any] = [
             "subject": questionData["subject"] as? String ?? "Unknown",
             "questionText": questionData["questionText"] as? String ?? "",
             "rawQuestionText": questionData["rawQuestionText"] as? String ?? questionData["questionText"] as? String ?? "",

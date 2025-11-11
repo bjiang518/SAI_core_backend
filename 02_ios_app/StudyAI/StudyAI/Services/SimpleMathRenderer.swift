@@ -212,7 +212,8 @@ struct EnhancedMathText: View {
         
         // Superscript conversion
         let superscripts = ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"]
-        for (index, sup) in superscripts.enumerated() {
+        for (_, sup) in superscripts.enumerated() {
+            // Note: index not used because this appears to be placeholder/buggy code
             formatted = formatted.replacingOccurrences(of: "^\\(index)", with: sup)
         }
         

@@ -153,7 +153,9 @@ final class AuthenticationService: ObservableObject {
 
         // Perform keychain access on background thread
         let userData = await Task.detached {
-            return self.keychainService.getUser()
+            return await MainActor.run {
+                self.keychainService.getUser()
+            }
         }.value
 
         let keychainEndTime = CFAbsoluteTimeGetCurrent()
@@ -378,7 +380,7 @@ final class AuthenticationService: ObservableObject {
         if result.success {
             // Save authentication token
             if let token = result.token {
-                try await keychainService.saveAuthToken(token)
+                try keychainService.saveAuthToken(token)
             }
 
             // Create user object
@@ -394,7 +396,7 @@ final class AuthenticationService: ObservableObject {
                 )
 
                 // Save user data
-                try await keychainService.saveUser(user)
+                try keychainService.saveUser(user)
 
                 await MainActor.run {
                     currentUser = user

@@ -29,9 +29,10 @@ class LocalReportDataAggregator {
         userId: String,
         startDate: Date,
         endDate: Date,
-        options: ReportAggregationOptions = ReportAggregationOptions()
+        options: ReportAggregationOptions? = nil
     ) async -> ReportData {
 
+        _ = options ?? ReportAggregationOptions()
         let startTime = Date()
 
         // Fetch all local data
@@ -518,7 +519,7 @@ class LocalReportDataAggregator {
         // Get current week data from PointsEarningManager
         let currentWeekProgress = pointsManager.currentWeeklyProgress
 
-        let currentWeekQuestions = currentWeekProgress?.totalQuestionsThisWeek ?? 0
+        _ = currentWeekProgress?.totalQuestionsThisWeek ?? 0
 
         // Calculate trend based on daily progress within the week
         let dailyProgress = pointsManager.thisWeekProgress

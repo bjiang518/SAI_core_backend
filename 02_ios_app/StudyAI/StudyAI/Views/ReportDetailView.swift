@@ -41,7 +41,7 @@ struct ReportDetailView: View {
                     reportHeader
 
                     // Always try to show narrative content first if we have it
-                    if let narrativeContent = narrativeContent {
+                    if narrativeContent != nil {
                         // Show narrative content
                         narrativeReportContent
                             .padding()

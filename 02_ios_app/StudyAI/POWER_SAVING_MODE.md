@@ -1,7 +1,28 @@
 # Power Saving Mode - Usage Guide
 
 ## Overview
-Power Saving Mode disables all animations in the app to conserve battery and improve performance on older devices.
+Power Saving Mode disables all animations in the app to conserve battery and improve performance on older devices. This includes both SwiftUI animations and Lottie animations.
+
+## Focus Mode Integration
+
+**Power Saving Mode is automatically enabled during Focus Mode sessions!**
+
+- When starting a Focus Mode session, Power Saving Mode is automatically enabled (regardless of previous state)
+- The previous Power Saving Mode state is saved
+- When ending or canceling a Focus Mode session, the previous state is automatically restored
+- This ensures maximum performance and battery conservation during focused study sessions
+
+## Lottie Animation Support
+
+**All Lottie animations automatically respect Power Saving Mode!**
+
+The `LottieView` component has been enhanced to:
+- Monitor `AppState.shared.isPowerSavingMode` using Combine publishers
+- Automatically pause all Lottie animations when Power Saving Mode is enabled
+- Resume animations when Power Saving Mode is disabled
+- Handle real-time toggle changes without requiring app restart
+
+**No changes needed to existing Lottie code** - all `LottieView` instances will automatically work with Power Saving Mode.
 
 ## How to Use in Views
 

@@ -815,12 +815,12 @@ struct LearningProgressView: View {
             isLoading = true
         }
 
-        async let basicProgress = loadBasicProgress()
-        async let subjectData = loadSubjectBreakdown()
-        async let todayData = loadTodayActivity()
-
-        // Wait for all to complete (or be cancelled)
-        let _ = await (basicProgress, subjectData, todayData)
+        // Run all loading tasks concurrently
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await loadBasicProgress() }
+            group.addTask { await loadSubjectBreakdown() }
+            group.addTask { await loadTodayActivity() }
+        }
 
         if !Task.isCancelled {
             await MainActor.run {
@@ -1125,7 +1125,7 @@ struct LearningGoalProgressRow: View {
     }
 
     private func performCheckout() {
-        let pointsEarned = pointsManager.checkoutGoal(goal.id)
+        let _ = pointsManager.checkoutGoal(goal.id)
 
         // Trigger checkout animation
         withAnimation(.easeInOut(duration: 0.3)) {
@@ -1393,7 +1393,7 @@ struct MonthlyProgressGrid: View {
     private var calendarDays: [CalendarDay] {
         let currentMonth = Date() // Current month, not last month
 
-        guard let monthInterval = calendar.dateInterval(of: .month, for: currentMonth),
+        guard let _ = calendar.dateInterval(of: .month, for: currentMonth),
               let firstOfMonth = calendar.dateInterval(of: .month, for: currentMonth)?.start else {
             return []
         }
