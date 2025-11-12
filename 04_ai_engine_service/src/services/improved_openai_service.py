@@ -906,11 +906,140 @@ GENERAL GRADING RULES:
 - Award PARTIAL_CREDIT for partially correct or incomplete answers
 - Provide constructive feedback explaining what's correct and what needs improvement"""
 
+    def _create_essay_grading_prompt(self) -> str:
+        """Create Essay-specific grading prompt with LaTeX grammar corrections.
+
+        Returns JSON with grammar corrections and criterion scores.
+        """
+        return """You are an expert essay grader. Analyze this essay image and provide comprehensive feedback.
+
+**OUTPUT FORMAT (STRICT JSON):**
+
+{
+  "essay_title": "Detected or inferred essay title",
+  "word_count": 450,
+  "grammar_corrections": [
+    {
+      "sentence_number": 1,
+      "original_sentence": "The complete original sentence from the essay",
+      "issue_type": "grammar",
+      "explanation": "Clear explanation of the grammatical issue",
+      "latex_correction": "The student \\\\sout{went} \\\\textcolor{green}{goes} to school yesterday.",
+      "plain_correction": "The student goes to school yesterday."
+    }
+  ],
+  "criterion_scores": {
+    "grammar": {
+      "score": 7.5,
+      "feedback": "Overall assessment of grammar quality",
+      "strengths": ["Consistent tense usage", "Proper punctuation"],
+      "improvements": ["Subject-verb agreement", "Comma usage"]
+    },
+    "critical_thinking": {
+      "score": 8.0,
+      "feedback": "Evaluation of analytical skills",
+      "strengths": ["Clear thesis", "Evidence-based arguments"],
+      "improvements": ["Address counterarguments", "Deeper analysis"]
+    },
+    "organization": {
+      "score": 9.0,
+      "feedback": "Assessment of structure and flow",
+      "strengths": ["Clear introduction/conclusion", "Logical transitions"],
+      "improvements": ["More developed middle paragraphs"]
+    },
+    "coherence": {
+      "score": 8.5,
+      "feedback": "Evaluation of clarity and cohesion",
+      "strengths": ["Effective topic sentences", "Good transitions"],
+      "improvements": ["Strengthen section connections"]
+    },
+    "vocabulary": {
+      "score": 7.0,
+      "feedback": "Assessment of word choice",
+      "strengths": ["Appropriate academic tone", "Clear language"],
+      "improvements": ["More sophisticated vocabulary", "Avoid repetition"]
+    }
+  },
+  "overall_score": 80.0,
+  "overall_feedback": "Overall assessment of the essay (2-3 sentences)"
+}
+
+**LATEX FORMATTING RULES FOR GRAMMAR CORRECTIONS:**
+- Use \\\\sout{incorrect_text} for strikethrough (text to be removed/corrected)
+- Use \\\\textcolor{green}{correct_text} for the correct replacement (in green)
+- Use \\\\textcolor{red}{text} to highlight errors
+- Use \\\\textcolor{blue}{text} for suggestions or optional changes
+- Example: "I \\\\sout{dont} \\\\textcolor{green}{don't} like it."
+- Example: "She \\\\sout{are} \\\\textcolor{green}{is} a student."
+
+**GRADING CRITERIA (0-10 scale for each criterion):**
+
+1. **GRAMMAR & MECHANICS (0-10):**
+   - Sentence structure correctness
+   - Punctuation accuracy and consistency
+   - Spelling errors
+   - Verb tense consistency
+   - Subject-verb agreement
+   - Pronoun usage
+   Identify the MOST CRITICAL 10-15 grammar errors (not all minor issues)
+
+2. **CRITICAL THINKING (0-10):**
+   - Depth of analysis and reasoning
+   - Strength and validity of arguments
+   - Use of evidence to support claims
+   - Originality of ideas and perspectives
+   - Addressing of counterarguments (if applicable)
+
+3. **ORGANIZATION (0-10):**
+   - Introduction quality (hook, thesis statement)
+   - Paragraph structure and development
+   - Logical flow and progression of ideas
+   - Effectiveness of transitions between paragraphs
+   - Conclusion quality (summary, final thoughts)
+
+4. **COHERENCE & COHESION (0-10):**
+   - Topic sentence clarity in each paragraph
+   - Effectiveness of transition words/phrases
+   - Connectivity between ideas and paragraphs
+   - Overall readability and flow
+   - Consistency of focus throughout
+
+5. **VOCABULARY & STYLE (0-10):**
+   - Appropriateness of word choice
+   - Variety and sophistication of vocabulary
+   - Academic tone consistency
+   - Avoidance of redundancy and clichés
+   - Sentence variety and complexity
+
+**OVERALL SCORE CALCULATION:**
+- Calculate overall_score as average of all 5 criterion scores * 10
+- Example: If average of criteria is 8.0, overall_score = 80.0
+- Range: 0-100
+
+**IMPORTANT INSTRUCTIONS:**
+1. Identify 10-15 MOST CRITICAL grammar errors (focus on high-impact issues)
+2. For each grammar correction, provide COMPLETE original sentence and LaTeX-formatted correction
+3. Provide specific, actionable feedback for each criterion
+4. Balance criticism with encouragement - highlight strengths AND areas for improvement
+5. Focus on higher-order concerns (ideas, organization) as well as lower-order concerns (grammar)
+6. Be constructive - help the student improve their writing
+7. Ensure all feedback is under 50 words per criterion
+8. Estimate word count accurately by counting visible words in the essay
+
+**JSON VALIDATION:**
+- Ensure all keys are present in the output
+- Ensure "issue_type" is one of: "grammar", "spelling", "punctuation", "style", "word_choice", "structure", "clarity"
+- Ensure all scores are Float values between 0-10
+- Ensure overall_score is Float between 0-100
+- Ensure all arrays (strengths, improvements, grammar_corrections) are present (can be empty)
+"""
+
     def _create_json_schema_prompt(self, custom_prompt: Optional[str], student_context: Optional[Dict], parsing_mode: Optional[str] = None) -> str:
         """Create a concise prompt that enforces strict JSON schema for grading.
 
         HIERARCHICAL PARSING: Feature flag controlled (USE_HIERARCHICAL_PARSING or parsing_mode parameter)
         SUBJECT-SPECIFIC RULES: Always included for better grading accuracy.
+        ESSAY GRADING: Special handling for Essay subject with LaTeX grammar corrections.
         """
 
         # Extract subject from custom_prompt if provided
@@ -921,6 +1050,11 @@ GENERAL GRADING RULES:
                 if line.startswith('SUBJECT:'):
                     subject = line.replace('SUBJECT:', '').strip()
                     break
+
+        # Special handling for Essay grading
+        if subject and subject.lower() == "essay":
+            print(f"📝 Using Essay-specific grading prompt")
+            return self._create_essay_grading_prompt()
 
         # Get subject-specific grading rules
         subject_rules = self._get_subject_specific_rules(subject) if subject else ""
