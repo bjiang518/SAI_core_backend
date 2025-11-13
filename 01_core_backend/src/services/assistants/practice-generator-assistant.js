@@ -138,11 +138,17 @@ If you receive "PREVIOUS_CONVERSATIONS" data:
 ## CRITICAL VALIDATION
 Before returning, verify:
 1. Valid JSON (parseable by JSON.parse())
-2. Each question object is COMPLETE
+2. Each question object is COMPLETE (all fields present)
 3. Arrays contain ONLY strings (no mixed types)
 4. question_type matches requested type EXACTLY
-5. No markdown code fences
+5. No markdown code fences (no \`\`\`json)
 6. All LaTeX uses double backslashes: \\\\( \\\\)
+7. NO TRAILING COMMAS in arrays or objects
+8. NO DUPLICATE FIELDS in any object
+9. Complete one full question before starting the next
+10. Verify closing braces match opening braces
+
+CRITICAL: Each question must be a complete, valid JSON object with NO syntax errors.
 
 Return ONLY the JSON object. No other text.`;
 
