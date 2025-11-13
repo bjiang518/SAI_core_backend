@@ -160,11 +160,42 @@ class QuestionGenerationService: ObservableObject {
             self.correctAnswer = try container.decode(String.self, forKey: .correctAnswer)
             self.explanation = try container.decode(String.self, forKey: .explanation)
             self.topic = try container.decode(String.self, forKey: .topic)
-            self.difficulty = try container.decode(String.self, forKey: .difficulty)
+
+            // Handle difficulty - can be Int or String
+            if let difficultyInt = try? container.decode(Int.self, forKey: .difficulty) {
+                self.difficulty = String(difficultyInt)
+            } else {
+                self.difficulty = try container.decode(String.self, forKey: .difficulty)
+            }
+
             self.points = try container.decodeIfPresent(Int.self, forKey: .points)
             self.timeEstimate = try container.decodeIfPresent(String.self, forKey: .timeEstimate)
-            self.options = try container.decodeIfPresent([String].self, forKey: .options)
+
+            // Parse multiple_choice_options - backend sends array of objects with {label, text, is_correct}
+            if let multipleChoiceOptions = try? container.decode([MultipleChoiceOption].self, forKey: .options) {
+                // Extract just the text from each option
+                self.options = multipleChoiceOptions.map { "\($0.label). \($0.text)" }
+            } else if let simpleOptions = try? container.decode([String].self, forKey: .options) {
+                // Fallback: if backend sends simple string array
+                self.options = simpleOptions
+            } else {
+                self.options = nil
+            }
+
             self.tags = try container.decodeIfPresent([String].self, forKey: .tags)
+        }
+
+        // Helper struct for parsing backend multiple choice options
+        private struct MultipleChoiceOption: Codable {
+            let label: String
+            let text: String
+            let isCorrect: Bool
+
+            enum CodingKeys: String, CodingKey {
+                case label
+                case text
+                case isCorrect = "is_correct"
+            }
         }
 
         // Regular initializer for programmatic creation
@@ -183,8 +214,18 @@ class QuestionGenerationService: ObservableObject {
         }
 
         // Coding keys for JSON encoding/decoding (excludes id since it's generated)
+        // Maps iOS camelCase property names to backend snake_case JSON fields
         enum CodingKeys: String, CodingKey {
-            case question, type, correctAnswer, explanation, topic, difficulty, points, timeEstimate, options, tags
+            case question
+            case type = "question_type"              // Backend: question_type
+            case correctAnswer = "correct_answer"     // Backend: correct_answer
+            case explanation
+            case topic
+            case difficulty
+            case points
+            case timeEstimate = "estimated_time_minutes"  // Backend: estimated_time_minutes
+            case options = "multiple_choice_options"      // Backend: multiple_choice_options
+            case tags
         }
 
         enum QuestionType: String, Codable, CaseIterable {
