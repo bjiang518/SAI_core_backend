@@ -704,16 +704,18 @@ class QuestionGenerationService: ObservableObject {
     // MARK: - Private Helper Methods
 
     private func parseQuestionResponse(data: Data, generationType: String) throws -> QuestionGenerationResponse {
-        // First, let's see what we got
+        // First, let's see what we got - SHOW FULL RESPONSE
         if let rawString = String(data: data, encoding: .utf8) {
-            print("📄 Raw Response (\(generationType)): \(String(rawString.prefix(500)))...")
+            print("📄 Raw Response (\(generationType)) - FULL VERSION:")
+            print("--- START RESPONSE ---")
+            print(rawString)
+            print("--- END RESPONSE ---")
+            print("📏 Total response length: \(rawString.count) characters")
         }
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw QuestionGenerationError.invalidResponse("Invalid JSON format")
         }
-
-
 
         let success = json["success"] as? Bool ?? false
         let subject = json["subject"] as? String ?? ""
@@ -721,6 +723,13 @@ class QuestionGenerationService: ObservableObject {
         let questionCount = json["question_count"] as? Int ?? 0
         let processingDetails = json["processing_details"] as? [String: Any]
         let error = json["error"] as? String
+
+        print("✅ Success: \(success)")
+        print("📚 Subject: \(subject)")
+        print("🔢 Question Count: \(questionCount)")
+        if let error = error {
+            print("❌ Error from backend: \(error)")
+        }
 
         var questions: [GeneratedQuestion] = []
 
@@ -730,12 +739,18 @@ class QuestionGenerationService: ObservableObject {
             print("📝 Found questions array with \(questionsArray.count) questions, attempting to parse regardless of success flag...")
 
             for (index, questionDict) in questionsArray.enumerated() {
+                print("\n🔍 Parsing Question #\(index + 1):")
+                print("  - question_type: \(questionDict["question_type"] ?? "MISSING")")
+                print("  - question: \(String(describing: questionDict["question"] ?? "MISSING").prefix(100))...")
+                print("  - correct_answer: \(questionDict["correct_answer"] ?? "MISSING")")
+                print("  - multiple_choice_options: \(questionDict["multiple_choice_options"] ?? "null")")
+
                 do {
                     let question = try parseGeneratedQuestion(from: questionDict)
+                    print("  ✅ Parsed as type: \(question.type.rawValue)")
                     questions.append(question)
-
                 } catch {
-                    print("⚠️ Failed to parse question \(index + 1): \(error)")
+                    print("  ❌ Failed to parse question \(index + 1): \(error)")
                 }
             }
 
@@ -763,7 +778,6 @@ class QuestionGenerationService: ObservableObject {
                 do {
                     let question = try parseGeneratedQuestion(from: questionDict)
                     questions.append(question)
-
                 } catch {
                     print("⚠️ Failed to parse question \(index + 1): \(error)")
                 }
