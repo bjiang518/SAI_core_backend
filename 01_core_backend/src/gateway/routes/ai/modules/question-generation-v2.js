@@ -187,21 +187,46 @@ module.exports = async function (fastify, opts) {
         try {
           result = await generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, question_type, custom_message, mode, mistakes_data, conversation_data);
         } catch (error) {
-          fastify.log.error('❌ Assistants API failed, falling back to AI Engine:', error);
+          fastify.log.error('❌ Assistants API failed:', error);
 
-          if (AUTO_FALLBACK) {
+          // Fallback to AI Engine ONLY for mode 1 (random practice)
+          // Modes 2 and 3 require context that AI Engine doesn't support
+          if (AUTO_FALLBACK && mode === 1) {
+            fastify.log.info('🔄 Falling back to AI Engine for mode 1...');
             usedFallback = true;
             result = await generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, aiClient);
           } else {
+            // For modes 2 and 3, or if AUTO_FALLBACK is disabled, throw error
+            if (mode === 2 || mode === 3) {
+              fastify.log.error(`❌ Cannot fallback to AI Engine for mode ${mode} (requires context)`);
+              throw new Error(`Practice generation mode ${mode} requires Assistants API. AI Engine fallback not supported for this mode.`);
+            }
             throw error;
           }
         }
       } else {
-        // Use AI Engine directly
+        // Use AI Engine directly (only supports mode 1)
+        if (mode === 2 || mode === 3) {
+          throw new Error(`AI Engine does not support mode ${mode}. Please enable Assistants API for this feature.`);
+        }
         result = await generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, aiClient);
       }
 
       const totalLatency = Date.now() - startTime;
+
+      // Ensure result has required structure
+      if (!result || !result.questions) {
+        fastify.log.error('❌ Invalid result structure from generation:', { result });
+        throw new Error('Invalid response structure: missing questions array');
+      }
+
+      fastify.log.info({
+        msg: '✅ Questions generated successfully',
+        questionCount: result.questions.length,
+        usedFallback,
+        mode,
+        implementation: usedFallback ? 'ai_engine' : (useAssistantsAPI ? 'assistants_api' : 'ai_engine')
+      });
 
       // Log metrics
       await logMetrics({
@@ -562,39 +587,54 @@ Generate questions that feel like a natural continuation of their learning journ
  * Generate questions using AI Engine (fallback/legacy)
  */
 async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, aiClient) {
-  const response = await aiClient.proxyRequest(
-    'POST',
-    '/api/v1/generate-questions/random',
-    {
-      student_id: userId,
-      subject,
-      topic,
-      difficulty: difficulty || 3,
-      count,
-      language,
-      user_profile: {
-        subject_proficiency: {}
-      },
-      config: {
-        include_hints: true,
-        include_explanations: true,
-        question_types: ['multiple_choice', 'short_answer', 'calculation']
-      }
-    }
-  );
+  try {
+    console.log('🔄 Calling AI Engine /api/v1/generate-questions/random...');
 
-  return {
-    questions: response.questions || [],
-    metadata: {
-      total_questions: response.questions?.length || 0,
-      language
-    },
-    model: response.model || 'gpt-4o-mini',
-    tokens: {
-      input: response.input_tokens || 0,
-      output: response.output_tokens || 0
+    const response = await aiClient.proxyRequest(
+      'POST',
+      '/api/v1/generate-questions/random',
+      {
+        student_id: userId,
+        subject,
+        topic,
+        difficulty: difficulty || 3,
+        count,
+        language,
+        user_profile: {
+          subject_proficiency: {}
+        },
+        config: {
+          include_hints: true,
+          include_explanations: true,
+          question_types: ['multiple_choice', 'short_answer', 'calculation']
+        }
+      }
+    );
+
+    console.log(`✅ AI Engine returned ${response?.questions?.length || 0} questions`);
+
+    // Validate response
+    if (!response || !response.questions) {
+      console.error('❌ AI Engine response invalid:', { response });
+      throw new Error('AI Engine returned invalid response: missing questions array');
     }
-  };
+
+    return {
+      questions: response.questions || [],
+      metadata: {
+        total_questions: response.questions?.length || 0,
+        language
+      },
+      model: response.model || 'gpt-4o-mini',
+      tokens: {
+        input: response.input_tokens || 0,
+        output: response.output_tokens || 0
+      }
+    };
+  } catch (error) {
+    console.error('❌ AI Engine request failed:', error);
+    throw new Error(`AI Engine fallback failed: ${error.message}`);
+  }
 }
 
 /**
