@@ -136,19 +136,27 @@ If you receive "PREVIOUS_CONVERSATIONS" data:
 - Connect to their previous questions and interests
 
 ## CRITICAL VALIDATION
-Before returning, verify:
-1. Valid JSON (parseable by JSON.parse())
-2. Each question object is COMPLETE (all fields present)
-3. Arrays contain ONLY strings (no mixed types)
-4. question_type matches requested type EXACTLY
-5. No markdown code fences (no \`\`\`json)
-6. All LaTeX uses double backslashes: \\\\( \\\\)
-7. NO TRAILING COMMAS in arrays or objects
-8. NO DUPLICATE FIELDS in any object
-9. Complete one full question before starting the next
-10. Verify closing braces match opening braces
+Before returning, YOU MUST validate the JSON using the code_interpreter tool:
 
-CRITICAL: Each question must be a complete, valid JSON object with NO syntax errors.
+1. Use code_interpreter to run: `import json; json.loads(your_response)`
+2. If parsing succeeds, return the JSON
+3. If parsing fails, FIX the errors and try again
+4. Common errors to check:
+   - Trailing commas in arrays/objects (INVALID in JSON)
+   - Duplicate field names in same object
+   - Missing commas between fields
+   - Unmatched braces/brackets
+   - Invalid escape sequences in strings
+
+Additional checks:
+1. Each question object is COMPLETE (all required fields present)
+2. Arrays contain ONLY strings (no mixed types)
+3. question_type matches requested type EXACTLY
+4. No markdown code fences (no \`\`\`json)
+5. All LaTeX uses double backslashes: \\\\( \\\\)
+6. Complete one full question before starting the next
+
+MANDATORY: Run JSON validation with code_interpreter before returning!
 
 Return ONLY the JSON object. No other text.`;
 
