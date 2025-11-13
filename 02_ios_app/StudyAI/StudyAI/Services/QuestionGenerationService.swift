@@ -895,35 +895,56 @@ class QuestionGenerationService: ObservableObject {
         return nil
     }
 
-    private func parseGeneratedQuestion(from dict: [String: Any]) throws -> GeneratedQuestion {
+        private func parseGeneratedQuestion(from dict: [String: Any]) throws -> GeneratedQuestion {
         // Required fields with fallbacks
         guard let question = dict["question"] as? String else {
             throw QuestionGenerationError.invalidResponse("Missing 'question' field")
         }
 
-        let typeString = dict["type"] as? String ?? "short_answer"
+        // CRITICAL FIX: Backend sends "question_type" not "type"!
+        let typeString = dict["question_type"] as? String ?? "short_answer"
         let type = GeneratedQuestion.QuestionType(rawValue: typeString) ?? .shortAnswer
 
+        // Backend sends "correct_answer" (snake_case)
         let correctAnswer = dict["correct_answer"] as? String ?? ""
         let explanation = dict["explanation"] as? String ?? "No explanation provided"
         let topic = dict["topic"] as? String ?? "General"
 
-        // Optional fields with fallbacks (this is where the robustness improvement happens)
-        let difficulty = dict["difficulty"] as? String ?? "intermediate"
-        let points = dict["points"] as? Int
-        let timeEstimate = dict["time_estimate"] as? String ?? dict["estimated_time"] as? String
-        let options = dict["options"] as? [String]
-        let tags = dict["tags"] as? [String]  // Parse tags from backend response
-
-        // These fields are optional and not required for question generation
-        // Removed addresses_mistake and builds_on - they're not necessary for the iOS app
-
-        // No need to log missing fields anymore since they're truly optional
-        if dict["difficulty"] == nil {
-            print("⚠️ Question parsing: Using fallback difficulty 'intermediate'")
+        // Handle difficulty - can be Int or String
+        var difficulty = "intermediate"
+        if let difficultyInt = dict["difficulty"] as? Int {
+            difficulty = String(difficultyInt)
+        } else if let difficultyString = dict["difficulty"] as? String {
+            difficulty = difficultyString
         }
-        if dict["time_estimate"] == nil && dict["estimated_time"] == nil {
-            print("⚠️ Question parsing: No time estimate provided")
+
+        let points = dict["points"] as? Int
+
+        // Backend sends "estimated_time_minutes"
+        let timeEstimate = dict["estimated_time_minutes"] as? String ?? dict["time_estimate"] as? String ?? dict["estimated_time"] as? String
+
+        // Parse multiple_choice_options from backend
+        var options: [String]?
+        if let multipleChoiceOptions = dict["multiple_choice_options"] as? [[String: Any]] {
+            // Backend format: [{"label": "A", "text": "...", "is_correct": true}]
+            options = multipleChoiceOptions.map { option in
+                let label = option["label"] as? String ?? ""
+                let text = option["text"] as? String ?? ""
+                return "\(label). \(text)"
+            }
+            print("  ✅ Parsed \(options?.count ?? 0) multiple choice options")
+        } else if let simpleOptions = dict["options"] as? [String] {
+            options = simpleOptions
+        }
+
+        let tags = dict["tags"] as? [String]
+
+        // Debug logging
+        print("  📝 Parsed Question:")
+        print("     - Type: \(typeString) → \(type.rawValue)")
+        print("     - Has options: \(options != nil)")
+        if let opts = options {
+            print("     - Options count: \(opts.count)")
         }
 
         return GeneratedQuestion(
