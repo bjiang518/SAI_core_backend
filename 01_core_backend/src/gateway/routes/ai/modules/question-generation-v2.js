@@ -320,8 +320,26 @@ module.exports = async function (fastify, opts) {
    * Generate questions based on mistakes (iOS sends local mistake data)
    */
   fastify.post('/api/ai/generate-questions/mistakes', async (request, reply) => {
+    const startTime = Date.now();
     const userId = await getUserId(request);
+
+    if (!userId) {
+      return reply.status(401).send({
+        success: false,
+        error: 'AUTHENTICATION_REQUIRED',
+        message: 'Please log in to generate practice questions'
+      });
+    }
+
     const { subject, mistakes_data = [], config = {}, user_profile = {} } = request.body;
+
+    fastify.log.info({
+      msg: '🔄 Mistakes endpoint called',
+      userId,
+      subject,
+      mistakesCount: mistakes_data.length,
+      configReceived: !!config
+    });
 
     if (!mistakes_data || mistakes_data.length === 0) {
       return reply.status(400).send({
@@ -331,26 +349,29 @@ module.exports = async function (fastify, opts) {
       });
     }
 
-    const questionCount = config.question_count || 5;
-    const questionType = config.question_type || 'any';
+    try {
+      const questionCount = config.question_count || 5;
+      const questionType = config.question_type || 'any';
+      const difficulty = config.difficulty || 3;
+      const language = config.language || 'en';
 
-    // Extract unique tags from all mistakes
-    const allTags = mistakes_data.flatMap(m => m.tags || []);
-    const uniqueTags = [...new Set(allTags)];
+      // Extract unique tags from all mistakes
+      const allTags = mistakes_data.flatMap(m => m.tags || []);
+      const uniqueTags = [...new Set(allTags)];
 
-    // Build mistakes context
-    const mistakesContext = mistakes_data.map((m, i) => `
+      // Build mistakes context
+      const mistakesContext = mistakes_data.map((m, i) => `
 Mistake #${i+1}:
-- Original Question: ${m.original_question}
-- Your Answer: ${m.user_answer}
-- Correct Answer: ${m.correct_answer}
-- Mistake Type: ${m.mistake_type}
-- Topic: ${m.topic}
-- Date: ${m.date}
+- Original Question: ${m.original_question || 'N/A'}
+- Your Answer: ${m.user_answer || 'N/A'}
+- Correct Answer: ${m.correct_answer || 'N/A'}
+- Mistake Type: ${m.mistake_type || 'Unknown'}
+- Topic: ${m.topic || subject}
+- Date: ${m.date || 'Unknown'}
 - Tags: ${(m.tags || []).join(', ')}
-    `).join('\n');
+      `).join('\n');
 
-    const customMessage = `Generate ${questionCount} practice questions for ${subject}.
+      const customMessage = `Generate ${questionCount} practice questions for ${subject}.
 
 PREVIOUS_MISTAKES (analyze these and create targeted remedial practice):
 ${mistakesContext}
@@ -358,91 +379,236 @@ ${mistakesContext}
 Requirements:
 - Question Type: ${questionType}
 - Count: ${questionCount}
-- Language: en
+- Language: ${language}
+- Difficulty: ${difficulty}
 - IMPORTANT: Use EXACTLY these tags: ${JSON.stringify(uniqueTags)}. Do NOT create new tags.
 
 Focus on helping the student overcome these specific error patterns. Generate questions that address the same concepts but with different contexts.`;
 
-    // Forward to unified endpoint
-    const response = await fastify.inject({
-      method: 'POST',
-      url: '/api/ai/generate-questions/practice',
-      headers: request.headers,
-      payload: {
+      // Call generateQuestionsWithAssistant directly instead of using inject
+      const result = await generateQuestionsWithAssistant(
+        userId,
         subject,
-        count: questionCount,
-        question_type: questionType,
-        force_assistants_api: true,
-        custom_message: customMessage
-      }
-    });
+        null, // topic
+        difficulty,
+        questionCount,
+        language,
+        questionType,
+        customMessage,
+        2, // mode = 2 (mistakes)
+        mistakes_data,
+        [] // conversation_data
+      );
 
-    return JSON.parse(response.body);
+      const totalLatency = Date.now() - startTime;
+
+      // Log metrics
+      await logMetrics({
+        userId,
+        assistantType: 'practice_generator',
+        endpoint: '/api/ai/generate-questions/mistakes',
+        totalLatency,
+        inputTokens: result.tokens?.input || 0,
+        outputTokens: result.tokens?.output || 0,
+        model: result.model || 'gpt-4o-mini',
+        wasSuccessful: true,
+        useAssistantsAPI: true,
+        experimentGroup: 'treatment',
+        threadId: result.thread_id,
+        runId: result.run_id
+      });
+
+      return {
+        success: true,
+        questions: result.questions,
+        metadata: {
+          ...result.metadata,
+          using_assistants_api: true,
+          mode: 2,
+          total_latency_ms: totalLatency
+        }
+      };
+    } catch (error) {
+      fastify.log.error('❌ Mistake-based generation failed:', error);
+
+      return reply.status(500).send({
+        success: false,
+        error: 'GENERATION_FAILED',
+        message: error.message || 'Failed to generate questions from mistakes'
+      });
+    }
   });
 
   /**
-   * Generate questions based on conversations (iOS sends local conversation data)
+   * Generate questions based on conversations/archives (iOS sends local data)
+   * Supports: conversations, questions (archived), or both combined
    */
   fastify.post('/api/ai/generate-questions/conversations', async (request, reply) => {
+    const startTime = Date.now();
     const userId = await getUserId(request);
-    const { subject, conversation_data = [], config = {}, user_profile = {} } = request.body;
 
-    if (!conversation_data || conversation_data.length === 0) {
-      return reply.status(400).send({
+    if (!userId) {
+      return reply.status(401).send({
         success: false,
-        error: 'NO_CONVERSATIONS_PROVIDED',
-        message: 'No conversation data provided. Please select conversations from your chat history.'
+        error: 'AUTHENTICATION_REQUIRED',
+        message: 'Please log in to generate practice questions'
       });
     }
 
-    const questionCount = config.question_count || 5;
-    const questionType = config.question_type || 'any';
+    const { subject, conversation_data = [], question_data = [], config = {}, user_profile = {} } = request.body;
 
-    // Build conversations context
-    const conversationsContext = conversation_data.map((c, i) => `
-Conversation #${i+1} (${c.date}):
-- Topics Discussed: ${Array.isArray(c.topics) ? c.topics.join(', ') : c.topics}
-- Student Questions: ${c.student_questions}
-- Difficulty Level: ${c.difficulty_level}
-- Strengths Observed: ${Array.isArray(c.strengths) ? c.strengths.join(', ') : c.strengths}
-- Areas for Improvement: ${Array.isArray(c.weaknesses) ? c.weaknesses.join(', ') : c.weaknesses}
-- Key Concepts: ${c.key_concepts}
-- Engagement Level: ${c.engagement}
-    `).join('\n');
+    fastify.log.info({
+      msg: '🔄 Archive/Conversation endpoint called',
+      userId,
+      subject,
+      conversationsCount: conversation_data.length,
+      questionsCount: question_data.length,
+      configReceived: !!config
+    });
 
-    const customMessage = `Generate ${questionCount} practice questions for ${subject}.
+    // Check if at least one type of data is provided
+    const hasConversations = conversation_data && conversation_data.length > 0;
+    const hasQuestions = question_data && question_data.length > 0;
 
-PREVIOUS_CONVERSATIONS (build upon these learning interactions):
+    if (!hasConversations && !hasQuestions) {
+      return reply.status(400).send({
+        success: false,
+        error: 'NO_DATA_PROVIDED',
+        message: 'No conversation data or question data provided. Please select items from your archives.'
+      });
+    }
+
+    try {
+      const questionCount = config.question_count || 5;
+      const questionType = config.question_type || 'any';
+      const difficulty = config.difficulty || 3;
+      const language = config.language || 'en';
+
+      // Build context from conversations
+      let conversationsContext = '';
+      if (hasConversations) {
+        conversationsContext = conversation_data.map((c, i) => `
+Conversation #${i+1} (${c.date || 'Unknown date'}):
+- Topics Discussed: ${Array.isArray(c.topics) ? c.topics.join(', ') : (c.topics || 'N/A')}
+- Student Questions: ${c.student_questions || 'N/A'}
+- Difficulty Level: ${c.difficulty_level || 'intermediate'}
+- Strengths Observed: ${Array.isArray(c.strengths) ? c.strengths.join(', ') : (c.strengths || 'N/A')}
+- Areas for Improvement: ${Array.isArray(c.weaknesses) ? c.weaknesses.join(', ') : (c.weaknesses || 'N/A')}
+- Key Concepts: ${c.key_concepts || 'N/A'}
+- Engagement Level: ${c.engagement || 'medium'}
+        `).join('\n');
+      }
+
+      // Build context from archived questions
+      let questionsContext = '';
+      if (hasQuestions) {
+        questionsContext = question_data.map((q, i) => `
+Archived Question #${i+1}:
+- Question: ${q.question_text || q.question || 'N/A'}
+- Student Answer: ${q.student_answer || q.user_answer || 'N/A'}
+- Correct Answer: ${q.correct_answer || q.ai_answer || 'N/A'}
+- Was Correct: ${q.is_correct || q.was_correct || 'unknown'}
+- Topic: ${q.topic || subject}
+- Date: ${q.date || q.created_at || 'Unknown'}
+- Tags: ${(q.tags || []).join(', ')}
+        `).join('\n');
+      }
+
+      // Build combined message
+      let contextSection = '';
+      if (hasConversations && hasQuestions) {
+        contextSection = `
+PREVIOUS_CONVERSATIONS (analyze learning patterns):
 ${conversationsContext}
+
+ARCHIVED_QUESTIONS (review past practice):
+${questionsContext}
+
+Analyze BOTH the conversations and questions to understand the student's learning journey.`;
+      } else if (hasConversations) {
+        contextSection = `
+PREVIOUS_CONVERSATIONS (build upon these learning interactions):
+${conversationsContext}`;
+      } else {
+        contextSection = `
+ARCHIVED_QUESTIONS (build upon past practice):
+${questionsContext}`;
+      }
+
+      const customMessage = `Generate ${questionCount} practice questions for ${subject}.
+
+${contextSection}
 
 Requirements:
 - Question Type: ${questionType}
 - Count: ${questionCount}
-- Language: en
+- Language: ${language}
+- Difficulty: ${difficulty}
 
 Create personalized questions that:
 1. Build upon concepts the student has shown interest in
-2. Address knowledge gaps identified in conversations
+2. Address knowledge gaps identified in their history
 3. Match the student's demonstrated ability level
 4. Connect to topics they've previously engaged with successfully
 
 Generate questions that feel like a natural continuation of their learning journey.`;
 
-    // Forward to unified endpoint
-    const response = await fastify.inject({
-      method: 'POST',
-      url: '/api/ai/generate-questions/practice',
-      headers: request.headers,
-      payload: {
+      // Call generateQuestionsWithAssistant directly
+      const result = await generateQuestionsWithAssistant(
+        userId,
         subject,
-        count: questionCount,
-        question_type: questionType,
-        force_assistants_api: true,
-        custom_message: customMessage
-      }
-    });
+        null, // topic
+        difficulty,
+        questionCount,
+        language,
+        questionType,
+        customMessage,
+        3, // mode = 3 (archives/conversations)
+        [], // mistakes_data
+        conversation_data // conversation_data (or combined)
+      );
 
-    return JSON.parse(response.body);
+      const totalLatency = Date.now() - startTime;
+
+      // Log metrics
+      await logMetrics({
+        userId,
+        assistantType: 'practice_generator',
+        endpoint: '/api/ai/generate-questions/conversations',
+        totalLatency,
+        inputTokens: result.tokens?.input || 0,
+        outputTokens: result.tokens?.output || 0,
+        model: result.model || 'gpt-4o-mini',
+        wasSuccessful: true,
+        useAssistantsAPI: true,
+        experimentGroup: 'treatment',
+        threadId: result.thread_id,
+        runId: result.run_id
+      });
+
+      return {
+        success: true,
+        questions: result.questions,
+        metadata: {
+          ...result.metadata,
+          using_assistants_api: true,
+          mode: 3,
+          sources: {
+            conversations: conversation_data.length,
+            questions: question_data.length
+          },
+          total_latency_ms: totalLatency
+        }
+      };
+    } catch (error) {
+      fastify.log.error('❌ Archive-based generation failed:', error);
+
+      return reply.status(500).send({
+        success: false,
+        error: 'GENERATION_FAILED',
+        message: error.message || 'Failed to generate questions from archives'
+      });
+    }
   });
 };
 

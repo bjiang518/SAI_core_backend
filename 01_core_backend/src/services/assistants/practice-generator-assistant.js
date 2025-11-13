@@ -73,14 +73,14 @@ Each question MUST have (complete each question before starting the next):
 
 ## QUESTION TYPES
 When question_type is specified, generate ONLY that type:
-- multiple_choice: 4 options, 1 correct
+- multiple_choice: 4 options, 1 correct (format: {label: "A", text: "...", is_correct: true})
 - true_false: True/False with explanation
 - fill_blank: Complete the sentence/expression
 - short_answer: 1-3 sentence response
 - long_answer: Extended response (essay)
 - calculation: Math/science computation
 - matching: Match items (A-D with 1-4)
-- any: Mix of different types
+- any: IMPORTANT - Generate a DIVERSE MIX of types! For 5 questions, use at least 3-4 different types. Example mix: 2 multiple_choice, 1 true_false, 1 calculation, 1 short_answer
 
 ## MATH FORMATTING (iOS Rendering)
 For Mathematics, Physics, Chemistry:
