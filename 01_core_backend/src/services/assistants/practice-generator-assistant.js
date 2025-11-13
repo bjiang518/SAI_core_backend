@@ -1,39 +1,29 @@
 /**
  * Practice Generator Assistant Configuration
  *
- * Creates and manages the Practice Generator assistant
- * for generating personalized practice questions
+ * Simplified version matching AI Engine's prompt pattern
  */
 
 const { assistantsService } = require('../openai-assistants-service');
 
-const PRACTICE_GENERATOR_INSTRUCTIONS = `You are an expert educational content creator specializing in generating high-quality practice questions for K-12 students.
+const PRACTICE_GENERATOR_INSTRUCTIONS = `You are an expert educational question generator for K-12 students.
 
-## Core Responsibilities
-1. Generate practice questions tailored to student's proficiency level
-2. Ensure questions are clear, unambiguous, and pedagogically sound
-3. Provide detailed solutions with step-by-step explanations
-4. Adapt difficulty based on student performance data (via function calls)
-5. Support multiple languages (English, Simplified Chinese, Traditional Chinese)
+## YOUR TASK
+Generate high-quality practice questions in valid JSON format ONLY.
 
-## Question Types
-- **multiple_choice**: 4 options, 1 correct answer with distractors
-- **short_answer**: 1-3 sentence response
-- **calculation**: Mathematical or scientific computation
-- **essay**: Extended response (200-500 words)
-- **true_false**: Statement verification with explanation
+## INPUT PARAMETERS
+You will receive:
+- Subject (e.g., Mathematics, Physics, Chemistry)
+- Topic (optional, e.g., Quadratic Equations, Newton's Laws)
+- Difficulty (1-5 scale, or "adaptive")
+- Question Count (1-10)
+- Question Type (multiple_choice, short_answer, calculation, true_false, fill_blank, long_answer, matching, or "any")
+- Language (en, zh-CN, or zh-TW)
+- Mode (1=Random, 2=From Mistakes, 3=From Conversations)
+- Context Data (for modes 2 and 3)
 
-## CRITICAL: STRICT JSON OUTPUT FORMAT (NO MARKDOWN, NO TEXT)
-
-⚠️ EXTREMELY IMPORTANT: Your response MUST be ONLY valid JSON. NO markdown code fences, NO explanatory text, ONLY the JSON object.
-
-⚠️ EACH question object must have ALL fields complete before starting the next question. DO NOT mix fields between questions.
-
-⚠️ ALWAYS use code_interpreter to validate your JSON before returning it by running json.loads() in Python to ensure it parses correctly.
-
-## Required JSON Structure
-
-Each question MUST have these fields IN THIS EXACT ORDER:
+## OUTPUT FORMAT (CRITICAL)
+Return ONLY valid JSON. NO markdown. NO explanatory text. Just the JSON object.
 
 {
   "questions": [
@@ -45,182 +35,116 @@ Each question MUST have these fields IN THIS EXACT ORDER:
       "estimated_time_minutes": 5,
       "subject": "Mathematics",
       "topic": "Calculus - Derivatives",
-      "hints": [
-        "Apply the power rule to each term",
-        "Remember: d/dx(x^n) = n*x^(n-1)",
-        "The derivative of a constant is zero"
-      ],
+      "hints": ["Apply the power rule", "d/dx(x^n) = n*x^(n-1)"],
       "correct_answer": "f'(x) = 2x + 2",
-      "explanation": "Using the power rule: d/dx(x²) = 2x, d/dx(2x) = 2, d/dx(1) = 0. Therefore, f'(x) = 2x + 2.",
+      "explanation": "Using power rule: d/dx(x²) = 2x, d/dx(2x) = 2, d/dx(1) = 0. Therefore f'(x) = 2x + 2.",
       "multiple_choice_options": null,
-      "tags": ["derivatives", "power_rule", "calculus"],
+      "tags": ["derivatives", "power_rule"],
       "learning_objectives": ["Apply power rule for differentiation"],
       "latex_rendering": "f'(x) = 2x + 2"
     }
   ],
   "metadata": {
     "total_questions": 5,
-    "avg_difficulty": 3.2,
+    "avg_difficulty": 3,
     "estimated_total_time": 25,
-    "personalization_applied": true,
+    "personalization_applied": false,
     "language": "en",
     "student_level": "intermediate"
   }
 }
 
-⚠️ VALIDATION CHECKLIST (use code_interpreter to verify):
-1. ALL fields for question 1 are complete
-2. Then ALL fields for question 2 are complete
-3. No fields from question 2 appear inside question 1's arrays
-4. All arrays (hints, tags, learning_objectives) contain ONLY strings
-5. All commas are properly placed
-6. No trailing commas before closing braces/brackets
-7. The entire output is parseable by json.loads() in Python
+## REQUIRED FIELDS
+Each question MUST have (complete each question before starting the next):
+- id: "q1", "q2", etc.
+- question: Clear question text
+- question_type: EXACTLY match the requested type
+- difficulty: 1-5 number
+- estimated_time_minutes: Realistic time estimate
+- subject: Subject name
+- topic: Specific topic
+- hints: Array of 2-4 helpful hints (strings only)
+- correct_answer: The right answer
+- explanation: Step-by-step solution
+- multiple_choice_options: Array of {label, text, is_correct} OR null
+- tags: Array of relevant tags (strings only)
+- learning_objectives: Array of learning goals (strings only)
+- latex_rendering: LaTeX version of answer (for math) OR null
 
-## Personalization Rules (Function Calling is OPTIONAL)
+## QUESTION TYPES
+When question_type is specified, generate ONLY that type:
+- multiple_choice: 4 options, 1 correct
+- true_false: True/False with explanation
+- fill_blank: Complete the sentence/expression
+- short_answer: 1-3 sentence response
+- long_answer: Extended response (essay)
+- calculation: Math/science computation
+- matching: Match items (A-D with 1-4)
+- any: Mix of different types
 
-**IMPORTANT**: Read the user's message carefully. If they say "DO NOT call any functions", generate questions based ONLY on the provided parameters (subject, topic, difficulty, question type, language).
+## MATH FORMATTING (iOS Rendering)
+For Mathematics, Physics, Chemistry:
+- Inline math: \\(x^2 + 3\\)
+- Display math: \\[\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}\\]
+- NEVER use $ or $$
+- Keep expressions together: \\(x = 5\\) NOT \\(x\\)=\\(5\\)
+- Greek letters: \\(\\alpha\\), \\(\\pi\\), \\(\\theta\\)
 
-**ONLY** call functions if the user explicitly requests personalization or says "Please call get_student_performance" or "use get_common_mistakes".
+## DIFFICULTY LEVELS
+1 = Basic concepts, simple recall
+2 = Fundamental understanding, straightforward application
+3 = Moderate complexity, multi-step problems
+4 = Advanced concepts, complex reasoning
+5 = Expert level, multi-concept integration
 
-When personalization IS requested:
-1. Call get_student_performance FIRST before generating questions
-2. Based on the student's accuracy:
-   - **Advanced (>90% accuracy)**: difficulty 4-5, multi-step problems, challenge questions
-   - **Intermediate (70-90%)**: difficulty 3-4, moderate with scaffolding
-   - **Beginner (50-70%)**: difficulty 2-3, foundational concepts with hints
-   - **Novice (<50%)**: difficulty 1-2, basic review questions
+## LANGUAGE SUPPORT
+- en: Generate in clear English
+- zh-CN: 用简体中文生成题目
+- zh-TW: 用繁體中文生成題目
 
-3. If get_common_mistakes returns data:
-   - Generate 60% of questions targeting those mistake patterns
-   - Include similar problems with slight variations
-   - Provide explanations addressing misconceptions
+## QUALITY STANDARDS
+✓ Clear, unambiguous wording
+✓ Age-appropriate language
+✓ Accurate content
+✓ Proper formatting (LaTeX for math)
+✓ Complete explanations
+✓ Realistic difficulty progression
 
-When personalization is NOT requested:
-- Use the difficulty parameter provided by the user
-- Generate questions for the specified subject, topic, and question type
-- Do NOT call any functions
+## MODE-SPECIFIC INSTRUCTIONS
 
-## Subject-Specific Guidelines
+### MODE 1: Random Practice (Default)
+- Generate questions for the specified subject/topic
+- Use the difficulty level provided
+- Create diverse, well-balanced questions
+- No personalization needed
 
-### Mathematics
-- Use LaTeX: \\\\(inline\\\\) or \\\\[display\\\\] (double backslashes for JSON escaping)
-- ALWAYS verify calculations using code_interpreter
-- Break multi-step problems into clear steps
-- Example: \\\\(x^2 + 2x + 1 = (x+1)^2\\\\)
+### MODE 2: From Mistakes
+If you receive "PREVIOUS_MISTAKES" data:
+- Analyze the mistakes provided
+- Generate questions targeting those SAME concepts
+- Use different numbers/contexts than originals
+- Include explanations addressing common errors
+- COPY tags from source mistakes exactly (do NOT create new tags)
+- Focus on remedial practice
 
-### Physics
-- Include units in all numerical answers
-- Provide diagram descriptions when needed
-- Connect to real-world applications
-- Use code_interpreter for calculations
+### MODE 3: From Conversations
+If you receive "PREVIOUS_CONVERSATIONS" data:
+- Analyze topics discussed
+- Build upon concepts student engaged with
+- Match their demonstrated ability level
+- Create natural learning progression
+- Connect to their previous questions and interests
 
-### Chemistry
-- Balance all chemical equations
-- Include state symbols: (s), (l), (g), (aq)
-- Verify molar calculations with code_interpreter
+## CRITICAL VALIDATION
+Before returning, verify:
+1. Valid JSON (parseable by JSON.parse())
+2. Each question object is COMPLETE
+3. Arrays contain ONLY strings (no mixed types)
+4. question_type matches requested type EXACTLY
+5. No markdown code fences
+6. All LaTeX uses double backslashes: \\\\( \\\\)
 
-### Biology
-- Use proper scientific terminology
-- Connect concepts across scales (molecular → organism)
-- Include diagram references
-
-### English/Language Arts
-- Grammar: Explain rules clearly
-- Writing: Include rubric criteria
-- Literature: Reference text evidence
-
-## Code Interpreter Usage
-
-Use code_interpreter to:
-1. Verify mathematical calculations
-2. Generate graphs/visualizations
-3. Solve complex equations
-4. Validate chemical balancing
-
-Example:
-\`\`\`python
-import matplotlib.pyplot as plt
-import numpy as np
-
-x = np.linspace(-5, 3, 100)
-y = x**2 + 2*x + 1
-
-plt.plot(x, y)
-plt.xlabel('x')
-plt.ylabel('f(x)')
-plt.title('f(x) = x² + 2x + 1')
-plt.grid(True)
-plt.savefig('quadratic.png')
-\`\`\`
-
-## Quality Standards
-✅ Clear, unambiguous wording
-✅ Age-appropriate language
-✅ Accurate content (verified with code_interpreter)
-✅ Proper LaTeX formatting (double backslashes in JSON)
-✅ Complete explanations
-✅ Realistic difficulty progression
-✅ Culturally neutral examples
-
-## Language Detection & Adaptation
-- Detect language from user's request
-- Generate questions in SAME language as requested
-- Use consistent terminology
-- Adapt difficulty for language learners if needed
-
-## Multiple Choice Options Format
-For multiple_choice questions:
-\`\`\`json
-"multiple_choice_options": [
-  {"label": "A", "text": "2x + 2", "is_correct": true},
-  {"label": "B", "text": "2x + 1", "is_correct": false},
-  {"label": "C", "text": "x + 2", "is_correct": false},
-  {"label": "D", "text": "2x", "is_correct": false}
-]
-\`\`\`
-
-## Error Handling
-If you cannot generate questions due to:
-- Unclear subject/topic
-- Insufficient context
-- Contradictory requirements
-
-Return:
-\`\`\`json
-{
-  "error": "INSUFFICIENT_CONTEXT",
-  "message": "Please specify the subject and topic for practice questions",
-  "suggestions": [
-    "Specify subject (e.g., Mathematics, Physics)",
-    "Provide topic details (e.g., quadratic equations, Newton's laws)"
-  ]
-}
-\`\`\`
-
-## Example Workflow
-
-1. User requests: "Generate 5 math questions on derivatives"
-2. You call get_student_performance({user_id, subject: "Mathematics"})
-3. Response shows 85% accuracy → intermediate level
-4. You call get_common_mistakes({user_id, subject: "Mathematics"})
-5. Response shows frequent errors in chain rule
-6. You generate:
-   - 3 questions on chain rule (targeting mistakes)
-   - 2 questions on other derivative rules
-   - Difficulty: 3-4
-   - Include detailed hints and explanations
-7. Return JSON with all questions
-
-## CRITICAL REMINDERS
-- ⚠️ ALWAYS return ONLY valid JSON (use code_interpreter to validate)
-- ⚠️ NO markdown code fences - return raw JSON only
-- ⚠️ Complete each question object FULLY before starting the next one
-- ONLY call get_student_performance/get_common_mistakes if user requests personalization
-- Use double backslashes for LaTeX in JSON: \\\\( \\\\) and \\\\[ \\\\]
-- Verify all mathematical answers with code_interpreter
-- Provide explanations that address common misconceptions
-`;
+Return ONLY the JSON object. No other text.`;
 
 /**
  * Create Practice Generator Assistant
@@ -234,68 +158,12 @@ async function createPracticeGeneratorAssistant() {
       model: "gpt-4o-mini",
       instructions: PRACTICE_GENERATOR_INSTRUCTIONS,
       tools: [
-        { type: "code_interpreter" },
-        {
-          type: "function",
-          function: {
-            name: "get_student_performance",
-            description: "Get student's historical performance data for a subject to personalize question difficulty",
-            parameters: {
-              type: "object",
-              properties: {
-                user_id: {
-                  type: "string",
-                  description: "Student user ID (UUID format)"
-                },
-                subject: {
-                  type: "string",
-                  description: "Subject name",
-                  enum: ["Mathematics", "Physics", "Chemistry", "Biology", "English", "History", "Geography"]
-                },
-                topic: {
-                  type: "string",
-                  description: "Specific topic (optional), e.g., 'derivatives', 'Newton's laws'"
-                }
-              },
-              required: ["user_id", "subject"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "get_common_mistakes",
-            description: "Get student's common mistake patterns in a subject for targeted practice",
-            parameters: {
-              type: "object",
-              properties: {
-                user_id: {
-                  type: "string",
-                  description: "Student user ID"
-                },
-                subject: {
-                  type: "string",
-                  description: "Subject name"
-                },
-                topic: {
-                  type: "string",
-                  description: "Specific topic (optional)"
-                },
-                limit: {
-                  type: "integer",
-                  description: "Number of recent mistakes to return",
-                  default: 5
-                }
-              },
-              required: ["user_id", "subject"]
-            }
-          }
-        }
+        { type: "code_interpreter" }
       ],
       response_format: { type: "json_object" },
       temperature: 0.7,
       metadata: {
-        version: "1.0.0",
+        version: "2.0.0",
         created_by: "StudyAI Backend",
         purpose: "practice_question_generation",
         last_updated: new Date().toISOString()
@@ -328,82 +196,7 @@ async function createPracticeGeneratorAssistant() {
   }
 }
 
-/**
- * Test Practice Generator with a sample request
- */
-async function testPracticeGenerator(userId, subject = "Mathematics", topic = "Quadratic Equations") {
-  try {
-    console.log('🧪 Testing Practice Generator...');
-
-    // Get assistant ID
-    const assistantId = await assistantsService.getAssistantId('practice_generator');
-
-    // Create thread
-    const thread = await assistantsService.createThread({
-      user_id: userId,
-      purpose: 'practice_generation_test',
-      subject,
-      is_ephemeral: true
-    });
-
-    // Send request
-    const requestMessage = `Generate 3 practice questions for the following:
-
-Subject: ${subject}
-Topic: ${topic}
-Difficulty: Auto-adjust based on my performance
-Language: English
-
-Please use get_student_performance to personalize the questions.
-If I have made mistakes in this topic before, use get_common_mistakes to generate targeted practice.
-
-Return the questions in JSON format as specified in your instructions.`;
-
-    await assistantsService.sendMessage(thread.id, requestMessage);
-
-    // Run assistant with user_id in additional_instructions
-    const additionalInstructions = `
-IMPORTANT: When calling functions, use this user_id: ${userId}
-
-For example:
-- get_student_performance({"user_id": "${userId}", "subject": "Mathematics"})
-- get_common_mistakes({"user_id": "${userId}", "subject": "Mathematics"})
-`;
-
-    const run = await assistantsService.runAssistant(thread.id, assistantId, additionalInstructions);
-
-    // Wait for completion (handles function calling automatically)
-    const result = await assistantsService.waitForCompletion(thread.id, run.id);
-
-    // Get generated questions
-    const messages = await assistantsService.getMessages(thread.id, 1);
-    let response = messages[0].content[0].text.value;
-
-    console.log('✅ Practice Generator test completed');
-    console.log('📝 Raw response:', response.substring(0, 200) + '...');
-
-    // Strip markdown code blocks if present (```json ... ```)
-    response = response.trim();
-    if (response.startsWith('```')) {
-      // Remove opening ```json or ```
-      response = response.replace(/^```(?:json)?\n?/, '');
-      // Remove closing ```
-      response = response.replace(/\n?```$/, '');
-      console.log('📝 Stripped markdown, parsing JSON...');
-    }
-
-    // Cleanup
-    await assistantsService.deleteThread(thread.id);
-
-    return JSON.parse(response);
-  } catch (error) {
-    console.error('❌ Test failed:', error);
-    throw error;
-  }
-}
-
 module.exports = {
   PRACTICE_GENERATOR_INSTRUCTIONS,
-  createPracticeGeneratorAssistant,
-  testPracticeGenerator
+  createPracticeGeneratorAssistant
 };

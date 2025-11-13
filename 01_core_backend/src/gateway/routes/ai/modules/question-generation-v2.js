@@ -69,6 +69,45 @@ module.exports = async function (fastify, opts) {
             default: 'en',
             description: 'Question language'
           },
+          mode: {
+            type: 'integer',
+            enum: [1, 2, 3],
+            default: 1,
+            description: 'Generation mode: 1=Random Practice, 2=From Mistakes, 3=From Conversations'
+          },
+          mistakes_data: {
+            type: 'array',
+            description: 'Array of mistake objects (required for mode 2)',
+            items: {
+              type: 'object',
+              properties: {
+                original_question: { type: 'string' },
+                user_answer: { type: 'string' },
+                correct_answer: { type: 'string' },
+                mistake_type: { type: 'string' },
+                topic: { type: 'string' },
+                date: { type: 'string' },
+                tags: { type: 'array', items: { type: 'string' } }
+              }
+            }
+          },
+          conversation_data: {
+            type: 'array',
+            description: 'Array of conversation objects (required for mode 3)',
+            items: {
+              type: 'object',
+              properties: {
+                date: { type: 'string' },
+                topics: { type: 'array', items: { type: 'string' } },
+                student_questions: { type: 'string' },
+                difficulty_level: { type: 'string' },
+                strengths: { type: 'array', items: { type: 'string' } },
+                weaknesses: { type: 'array', items: { type: 'string' } },
+                key_concepts: { type: 'string' },
+                engagement: { type: 'string' }
+              }
+            }
+          },
           force_assistants_api: {
             type: 'boolean',
             description: 'Force use of Assistants API (for testing)'
@@ -103,7 +142,24 @@ module.exports = async function (fastify, opts) {
       });
     }
 
-    const { subject, topic, difficulty, count = 5, language = 'en', question_type = 'any', force_assistants_api, force_ai_engine, use_personalization = false, custom_message } = request.body;
+    const { subject, topic, difficulty, count = 5, language = 'en', question_type = 'any', force_assistants_api, force_ai_engine, use_personalization = false, custom_message, mode = 1, mistakes_data = [], conversation_data = [] } = request.body;
+
+    // Validate mode-specific requirements
+    if (mode === 2 && (!mistakes_data || mistakes_data.length === 0)) {
+      return reply.status(400).send({
+        success: false,
+        error: 'NO_MISTAKES_PROVIDED',
+        message: 'Mode 2 requires mistakes_data array with at least one mistake'
+      });
+    }
+
+    if (mode === 3 && (!conversation_data || conversation_data.length === 0)) {
+      return reply.status(400).send({
+        success: false,
+        error: 'NO_CONVERSATIONS_PROVIDED',
+        message: 'Mode 3 requires conversation_data array with at least one conversation'
+      });
+    }
 
     // Determine which implementation to use
     const useAssistantsAPI = shouldUseAssistantsAPI(userId, force_assistants_api, force_ai_engine);
@@ -116,6 +172,7 @@ module.exports = async function (fastify, opts) {
       topic,
       count,
       questionType: question_type,
+      mode,
       useAssistantsAPI,
       hasCustomMessage: !!custom_message,
       experimentGroup
@@ -128,7 +185,7 @@ module.exports = async function (fastify, opts) {
       if (useAssistantsAPI) {
         // Try Assistants API first
         try {
-          result = await generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, question_type, custom_message);
+          result = await generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, question_type, custom_message, mode, mistakes_data, conversation_data);
         } catch (error) {
           fastify.log.error('❌ Assistants API failed, falling back to AI Engine:', error);
 
@@ -371,7 +428,7 @@ Generate questions that feel like a natural continuation of their learning journ
 /**
  * Generate questions using OpenAI Assistants API
  */
-async function generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, questionType = 'any', customMessage = null) {
+async function generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, questionType = 'any', customMessage = null, mode = 1, mistakesData = [], conversationData = []) {
   const startTime = Date.now();
 
   // Get Practice Generator assistant ID
@@ -387,8 +444,76 @@ async function generateQuestionsWithAssistant(userId, subject, topic, difficulty
   });
 
   try {
-    // Build request message
-    const requestMessage = customMessage || buildPracticeRequestMessage(subject, topic, difficulty, count, language, questionType);
+    // Build request message based on mode
+    let requestMessage;
+
+    if (customMessage) {
+      // Custom message takes precedence (for backward compatibility)
+      requestMessage = customMessage;
+    } else if (mode === 2) {
+      // Mode 2: From Mistakes
+      const allTags = mistakesData.flatMap(m => m.tags || []);
+      const uniqueTags = [...new Set(allTags)];
+
+      const mistakesContext = mistakesData.map((m, i) => `
+Mistake #${i+1}:
+- Original Question: ${m.original_question}
+- Your Answer: ${m.user_answer}
+- Correct Answer: ${m.correct_answer}
+- Mistake Type: ${m.mistake_type || 'Unknown'}
+- Topic: ${m.topic}
+- Date: ${m.date}
+- Tags: ${(m.tags || []).join(', ')}
+      `).join('\n');
+
+      requestMessage = `Generate ${count} practice questions for ${subject}.
+
+PREVIOUS_MISTAKES (analyze these and create targeted remedial practice):
+${mistakesContext}
+
+Requirements:
+- Question Type: ${questionType}
+- Count: ${count}
+- Language: ${language}
+- Difficulty: ${difficulty || 'adaptive'}
+- IMPORTANT: Use EXACTLY these tags: ${JSON.stringify(uniqueTags)}. Do NOT create new tags.
+
+Focus on helping the student overcome these specific error patterns. Generate questions that address the same concepts but with different contexts.`;
+    } else if (mode === 3) {
+      // Mode 3: From Conversations
+      const conversationsContext = conversationData.map((c, i) => `
+Conversation #${i+1} (${c.date}):
+- Topics Discussed: ${Array.isArray(c.topics) ? c.topics.join(', ') : c.topics}
+- Student Questions: ${c.student_questions}
+- Difficulty Level: ${c.difficulty_level}
+- Strengths Observed: ${Array.isArray(c.strengths) ? c.strengths.join(', ') : c.strengths}
+- Areas for Improvement: ${Array.isArray(c.weaknesses) ? c.weaknesses.join(', ') : c.weaknesses}
+- Key Concepts: ${c.key_concepts}
+- Engagement Level: ${c.engagement}
+      `).join('\n');
+
+      requestMessage = `Generate ${count} practice questions for ${subject}.
+
+PREVIOUS_CONVERSATIONS (build upon these learning interactions):
+${conversationsContext}
+
+Requirements:
+- Question Type: ${questionType}
+- Count: ${count}
+- Language: ${language}
+- Difficulty: ${difficulty || 'adaptive'}
+
+Create personalized questions that:
+1. Build upon concepts the student has shown interest in
+2. Address knowledge gaps identified in conversations
+3. Match the student's demonstrated ability level
+4. Connect to topics they've previously engaged with successfully
+
+Generate questions that feel like a natural continuation of their learning journey.`;
+    } else {
+      // Mode 1: Random Practice (default)
+      requestMessage = buildPracticeRequestMessage(subject, topic, difficulty, count, language, questionType);
+    }
 
     // Send message
     await assistantsService.sendMessage(thread.id, requestMessage);
