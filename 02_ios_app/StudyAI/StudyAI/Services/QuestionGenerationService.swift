@@ -282,23 +282,21 @@ class QuestionGenerationService: ObservableObject {
         print("🏷️ Topics: \(config.topics)")
         print("👤 User Grade: \(userProfile.grade)")
 
-        let endpoint = "/api/ai/generate-questions/random"
+        // NEW: Use Assistants API endpoint
+        let endpoint = "/api/ai/generate-questions/practice"
 
         guard let url = URL(string: "\(baseURL)\(endpoint)") else {
             await MainActor.run { self.lastError = "Invalid URL" }
             return .failure(.invalidURL)
         }
 
+        // NEW: Simplified request format for Assistants API
         let requestBody: [String: Any] = [
             "subject": subject,
-            "config": [
-                "topics": config.topics,
-                "focus_notes": config.focusNotes ?? "",
-                "difficulty": config.difficulty.rawValue,
-                "question_count": config.questionCount,
-                "question_type": config.questionType.rawValue
-            ],
-            "user_profile": userProfile.dictionary
+            "topic": config.topics.joined(separator: ", "), // Combine topics
+            "count": config.questionCount,
+            "difficulty": mapDifficultyToNumber(config.difficulty), // Convert to 1-5
+            "language": "en"
         ]
 
         var request = URLRequest(url: url)
@@ -884,6 +882,22 @@ class QuestionGenerationService: ObservableObject {
             options: options,
             tags: tags
         )
+    }
+
+    // MARK: - Difficulty Mapping for Assistants API
+
+    /// Maps difficulty enum to 1-5 scale for Assistants API
+    private func mapDifficultyToNumber(_ difficulty: RandomQuestionsConfig.QuestionDifficulty) -> Int? {
+        switch difficulty {
+        case .beginner:
+            return 2
+        case .intermediate:
+            return 3
+        case .advanced:
+            return 4
+        case .adaptive:
+            return nil // Let backend auto-adjust
+        }
     }
 }
 

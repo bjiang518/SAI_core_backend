@@ -16,6 +16,7 @@ const QuestionProcessingRoutes = require('./modules/question-processing');
 const SessionManagementRoutes = require('./modules/session-management');
 const ArchiveRetrievalRoutes = require('./modules/archive-retrieval');
 const QuestionGenerationRoutes = require('./modules/question-generation');
+const QuestionGenerationV2Routes = require('./modules/question-generation-v2'); // NEW: Assistants API support
 const TTSRoutes = require('./modules/tts');
 const AnalyticsRoutes = require('./modules/analytics');
 
@@ -27,19 +28,19 @@ const AnalyticsRoutes = require('./modules/analytics');
 async function aiRoutes(fastify, opts) {
   fastify.log.info('🤖 Registering AI routes (modular architecture)...');
 
-  // Initialize and register all route modules
-  const modules = [
+  // Initialize and register all route modules (class-based)
+  const classModules = [
     { name: 'Homework Processing', Class: HomeworkProcessingRoutes },
     { name: 'Chat Image', Class: ChatImageRoutes },
     { name: 'Question Processing', Class: QuestionProcessingRoutes },
     { name: 'Session Management', Class: SessionManagementRoutes },
     { name: 'Archive Retrieval', Class: ArchiveRetrievalRoutes },
-    { name: 'Question Generation', Class: QuestionGenerationRoutes },
+    { name: 'Question Generation (Legacy)', Class: QuestionGenerationRoutes },
     { name: 'Text-to-Speech', Class: TTSRoutes },
     { name: 'Analytics', Class: AnalyticsRoutes },
   ];
 
-  for (const module of modules) {
+  for (const module of classModules) {
     try {
       const routeModule = new module.Class(fastify);
       routeModule.registerRoutes();
@@ -48,6 +49,15 @@ async function aiRoutes(fastify, opts) {
       fastify.log.error(`  ❌ Failed to register ${module.name} routes:`, error);
       throw error;
     }
+  }
+
+  // Register plugin-based modules (NEW: Assistants API)
+  try {
+    await fastify.register(QuestionGenerationV2Routes);
+    fastify.log.info(`  ✅ Question Generation V2 (Assistants API) routes registered`);
+  } catch (error) {
+    fastify.log.error(`  ❌ Failed to register Question Generation V2 routes:`, error);
+    // Don't throw - allow app to continue with legacy routes
   }
 
   fastify.log.info('✅ All AI routes registered successfully');
