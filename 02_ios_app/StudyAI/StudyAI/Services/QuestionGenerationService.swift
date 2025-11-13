@@ -295,7 +295,8 @@ class QuestionGenerationService: ObservableObject {
             "subject": subject,
             "topic": config.topics.joined(separator: ", "), // Combine topics
             "count": config.questionCount,
-            "difficulty": mapDifficultyToNumber(config.difficulty), // Convert to 1-5
+            "difficulty": mapDifficultyToNumber(config.difficulty) as Any, // Convert to 1-5
+            "question_type": config.questionType.rawValue, // Send question type filter
             "language": "en"
         ]
 

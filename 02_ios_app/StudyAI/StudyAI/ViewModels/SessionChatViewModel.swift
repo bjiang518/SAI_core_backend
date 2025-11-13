@@ -799,6 +799,7 @@ class SessionChatViewModel: ObservableObject {
     private func handleSendMessageResult(_ result: (success: Bool, aiResponse: String?, suggestions: [NetworkService.FollowUpSuggestion]?, tokensUsed: Int?, compressed: Bool?), originalMessage: String) {
         isSubmitting = false
         showTypingIndicator = false
+        isStreamingComplete = true  // ✅ FIX: Ensure suggestions show after non-streaming responses
 
         if result.success {
             refreshTrigger = UUID()
@@ -914,10 +915,12 @@ class SessionChatViewModel: ObservableObject {
         streamingUpdateTimer?.invalidate()
 
         streamingUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
-            guard let self = self else { return }
-            if self.pendingStreamingUpdate {
-                self.refreshTrigger = UUID()
-                self.pendingStreamingUpdate = false
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                if self.pendingStreamingUpdate {
+                    self.refreshTrigger = UUID()
+                    self.pendingStreamingUpdate = false
+                }
             }
         }
     }

@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 
+@MainActor
 class TomatoGardenService: ObservableObject {
     static let shared = TomatoGardenService()
 

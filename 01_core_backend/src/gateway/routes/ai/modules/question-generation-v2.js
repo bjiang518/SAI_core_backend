@@ -103,7 +103,7 @@ module.exports = async function (fastify, opts) {
       });
     }
 
-    const { subject, topic, difficulty, count = 5, language = 'en', question_type = 'any', force_assistants_api, force_ai_engine, use_personalization = false } = request.body;
+    const { subject, topic, difficulty, count = 5, language = 'en', question_type = 'any', force_assistants_api, force_ai_engine, use_personalization = false, custom_message } = request.body;
 
     // Determine which implementation to use
     const useAssistantsAPI = shouldUseAssistantsAPI(userId, force_assistants_api, force_ai_engine);
@@ -117,7 +117,7 @@ module.exports = async function (fastify, opts) {
       count,
       questionType: question_type,
       useAssistantsAPI,
-      usePersonalization: use_personalization,
+      hasCustomMessage: !!custom_message,
       experimentGroup
     });
 
@@ -128,7 +128,7 @@ module.exports = async function (fastify, opts) {
       if (useAssistantsAPI) {
         // Try Assistants API first
         try {
-          result = await generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, question_type, use_personalization);
+          result = await generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, question_type, custom_message);
         } catch (error) {
           fastify.log.error('❌ Assistants API failed, falling back to AI Engine:', error);
 
@@ -235,47 +235,131 @@ module.exports = async function (fastify, opts) {
   });
 
   /**
-   * Legacy: Generate questions based on mistakes
+   * Generate questions based on mistakes (iOS sends local mistake data)
    */
   fastify.post('/api/ai/generate-questions/mistakes', async (request, reply) => {
     const userId = await getUserId(request);
-    const { subject, time_range, count = 5 } = request.body;
+    const { subject, mistakes_data = [], config = {}, user_profile = {} } = request.body;
 
-    // Forward to unified endpoint WITH personalization enabled
+    if (!mistakes_data || mistakes_data.length === 0) {
+      return reply.status(400).send({
+        success: false,
+        error: 'NO_MISTAKES_PROVIDED',
+        message: 'No mistakes data provided. Please select mistakes from your practice history.'
+      });
+    }
+
+    const questionCount = config.question_count || 5;
+    const questionType = config.question_type || 'any';
+
+    // Extract unique tags from all mistakes
+    const allTags = mistakes_data.flatMap(m => m.tags || []);
+    const uniqueTags = [...new Set(allTags)];
+
+    // Build mistakes context
+    const mistakesContext = mistakes_data.map((m, i) => `
+Mistake #${i+1}:
+- Original Question: ${m.original_question}
+- Your Answer: ${m.user_answer}
+- Correct Answer: ${m.correct_answer}
+- Mistake Type: ${m.mistake_type}
+- Topic: ${m.topic}
+- Date: ${m.date}
+- Tags: ${(m.tags || []).join(', ')}
+    `).join('\n');
+
+    const customMessage = `Generate ${questionCount} practice questions for ${subject}.
+
+PREVIOUS_MISTAKES (analyze these and create targeted remedial practice):
+${mistakesContext}
+
+Requirements:
+- Question Type: ${questionType}
+- Count: ${questionCount}
+- Language: en
+- IMPORTANT: Use EXACTLY these tags: ${JSON.stringify(uniqueTags)}. Do NOT create new tags.
+
+Focus on helping the student overcome these specific error patterns. Generate questions that address the same concepts but with different contexts.`;
+
+    // Forward to unified endpoint
     const response = await fastify.inject({
       method: 'POST',
       url: '/api/ai/generate-questions/practice',
       headers: request.headers,
       payload: {
         subject,
-        count,
-        force_assistants_api: true, // Force Assistants API for mistake analysis
-        use_personalization: true,  // Enable function calls for mistake analysis
+        count: questionCount,
+        question_type: questionType,
+        force_assistants_api: true,
+        custom_message: customMessage
       }
     });
 
-    // Extract JSON from inject response to avoid circular structure
     return JSON.parse(response.body);
   });
 
   /**
-   * Legacy: Generate questions based on conversations
+   * Generate questions based on conversations (iOS sends local conversation data)
    */
   fastify.post('/api/ai/generate-questions/conversations', async (request, reply) => {
-    // Forward to unified endpoint
-    const { subject, conversation_ids, count = 5 } = request.body;
+    const userId = await getUserId(request);
+    const { subject, conversation_data = [], config = {}, user_profile = {} } = request.body;
 
+    if (!conversation_data || conversation_data.length === 0) {
+      return reply.status(400).send({
+        success: false,
+        error: 'NO_CONVERSATIONS_PROVIDED',
+        message: 'No conversation data provided. Please select conversations from your chat history.'
+      });
+    }
+
+    const questionCount = config.question_count || 5;
+    const questionType = config.question_type || 'any';
+
+    // Build conversations context
+    const conversationsContext = conversation_data.map((c, i) => `
+Conversation #${i+1} (${c.date}):
+- Topics Discussed: ${Array.isArray(c.topics) ? c.topics.join(', ') : c.topics}
+- Student Questions: ${c.student_questions}
+- Difficulty Level: ${c.difficulty_level}
+- Strengths Observed: ${Array.isArray(c.strengths) ? c.strengths.join(', ') : c.strengths}
+- Areas for Improvement: ${Array.isArray(c.weaknesses) ? c.weaknesses.join(', ') : c.weaknesses}
+- Key Concepts: ${c.key_concepts}
+- Engagement Level: ${c.engagement}
+    `).join('\n');
+
+    const customMessage = `Generate ${questionCount} practice questions for ${subject}.
+
+PREVIOUS_CONVERSATIONS (build upon these learning interactions):
+${conversationsContext}
+
+Requirements:
+- Question Type: ${questionType}
+- Count: ${questionCount}
+- Language: en
+
+Create personalized questions that:
+1. Build upon concepts the student has shown interest in
+2. Address knowledge gaps identified in conversations
+3. Match the student's demonstrated ability level
+4. Connect to topics they've previously engaged with successfully
+
+Generate questions that feel like a natural continuation of their learning journey.`;
+
+    // Forward to unified endpoint
     const response = await fastify.inject({
       method: 'POST',
       url: '/api/ai/generate-questions/practice',
       headers: request.headers,
       payload: {
         subject,
-        count
+        count: questionCount,
+        question_type: questionType,
+        force_assistants_api: true,
+        custom_message: customMessage
       }
     });
 
-    // Extract JSON from inject response to avoid circular structure
     return JSON.parse(response.body);
   });
 };
@@ -287,7 +371,7 @@ module.exports = async function (fastify, opts) {
 /**
  * Generate questions using OpenAI Assistants API
  */
-async function generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, questionType = 'any', usePersonalization = false) {
+async function generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, questionType = 'any', customMessage = null) {
   const startTime = Date.now();
 
   // Get Practice Generator assistant ID
@@ -303,13 +387,13 @@ async function generateQuestionsWithAssistant(userId, subject, topic, difficulty
   });
 
   try {
-    // Build request message (with or without personalization)
-    const requestMessage = buildPracticeRequestMessage(subject, topic, difficulty, count, language, questionType, userId, usePersonalization);
+    // Build request message
+    const requestMessage = customMessage || buildPracticeRequestMessage(subject, topic, difficulty, count, language, questionType);
 
     // Send message
     await assistantsService.sendMessage(thread.id, requestMessage);
 
-    // Run assistant (handles function calling automatically)
+    // Run assistant
     const run = await assistantsService.runAssistant(thread.id, assistantId);
 
     // Wait for completion
@@ -389,44 +473,26 @@ async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty,
 }
 
 /**
- * Build request message for Practice Generator assistant
+ * Build request message for Practice Generator assistant (Mode 1: Random Practice)
  */
-function buildPracticeRequestMessage(subject, topic, difficulty, count, language, questionType = 'any', userId, usePersonalization = false) {
+function buildPracticeRequestMessage(subject, topic, difficulty, count, language, questionType = 'any') {
   const languageMap = {
     'en': 'English',
     'zh-CN': 'Simplified Chinese',
     'zh-TW': 'Traditional Chinese'
   };
 
-  const questionTypeMap = {
-    'any': 'Mix of different types (multiple choice, short answer, calculation, etc.)',
-    'multiple_choice': 'Multiple choice questions ONLY (4 options each)',
-    'true_false': 'True/False questions ONLY',
-    'fill_blank': 'Fill in the blank questions ONLY',
-    'short_answer': 'Short answer questions ONLY (1-3 sentences)',
-    'long_answer': 'Long answer/essay questions ONLY',
-    'calculation': 'Calculation/mathematical problems ONLY',
-    'matching': 'Matching questions ONLY'
-  };
+  let message = `Generate ${count} practice questions for ${subject}.\n\n`;
 
-  let message = `Generate ${count} practice questions for the following:\n\n`;
-  message += `Subject: ${subject}\n`;
-  if (topic) message += `Topic: ${topic}\n`;
-  if (difficulty) message += `Difficulty: ${difficulty}/5\n`;
-  message += `Language: ${languageMap[language] || 'English'}\n`;
-  message += `Question Type: ${questionTypeMap[questionType] || questionTypeMap['any']}\n\n`;
+  message += `Requirements:\n`;
+  message += `- Subject: ${subject}\n`;
+  if (topic) message += `- Topic: ${topic}\n`;
+  if (difficulty) message += `- Difficulty: ${difficulty}/5\n`;
+  message += `- Question Type: ${questionType}\n`;
+  message += `- Language: ${languageMap[language] || 'English'}\n`;
+  message += `- Count: ${count}\n\n`;
 
-  message += `IMPORTANT: All questions MUST be of type "${questionType}". ${questionTypeMap[questionType]}\n\n`;
-
-  // ONLY include function calls if personalization is requested
-  if (usePersonalization) {
-    message += `IMPORTANT: Please call get_student_performance({user_id: "${userId}", subject: "${subject}"}) to personalize the difficulty based on my performance.\n\n`;
-    message += `If I have made mistakes in this topic before, use get_common_mistakes({user_id: "${userId}", subject: "${subject}"}) to generate targeted practice questions.\n\n`;
-  } else {
-    message += `DO NOT call any functions. Generate questions based ONLY on the parameters provided above (subject, topic, difficulty, question type, language).\n\n`;
-  }
-
-  message += `Return the questions in JSON format as specified in your instructions.`;
+  message += `Generate diverse, high-quality practice questions that match these requirements. Return the questions in JSON format.`;
 
   return message;
 }

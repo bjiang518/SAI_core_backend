@@ -45,117 +45,48 @@ class AdvancedPromptService:
         
         templates = {}
         
-        # Mathematics Template
+        # 🚀 OPTIMIZATION: Shortened Mathematics template (from 70+ lines to ~15 lines)
         templates[Subject.MATHEMATICS] = PromptTemplate(
             subject=Subject.MATHEMATICS,
-            base_prompt="""You are an expert mathematics tutor providing educational content for iOS mobile devices. Your responses will be rendered using MathJax on iPhone/iPad screens with limited vertical space.""",
+            base_prompt="""Expert math tutor for iOS devices. Use MathJax-compatible LaTeX formatting.""",
             formatting_rules=[
-                "🚨 CRITICAL iOS MOBILE MATH RENDERING RULES:",
-                "",
-                "📱 MOBILE SCREEN OPTIMIZATION:",
-                "Your math will be displayed on iPhone/iPad screens - choose formatting carefully!",
-                "",
-                "1. DELIMITER RULES - Use \\(...\\) and \\[...\\] (NOT $ signs):",
-                "   ✅ CORRECT: 'For every \\(\\epsilon > 0\\), there exists \\(\\delta > 0\\)'",
-                "   ✅ CORRECT: '\\[\\lim_{x \\to c} f(x) = L\\]'",
-                "   ❌ WRONG: 'For every $\\epsilon > 0$, there exists $\\delta > 0$'",
-                "",
-                "2. SINGLE EXPRESSION RULE - Never break expressions:",
-                "   ✅ CORRECT: '\\(0 < |x - c| < \\delta \\implies |f(x) - L| < \\epsilon\\)'",
-                "   ❌ WRONG: '\\(0 < |x - c| < \\delta\\) implies \\(|f(x) - L| < \\epsilon\\)'",
-                "",
-                "2. MOBILE DISPLAY MATH - Use $$ for tall expressions that need vertical space:",
-                "   ✅ Use $$...$$ for: limits, integrals, large fractions, summations",
-                "   ✅ Use $...$ for: simple variables, short expressions",
-                "",
-                "   EXAMPLES - When to use display math ($$):",
-                "   ✅ $$\\lim_{x \\to c} f(x) = L$$ (subscripts need space)",
-                "   ✅ $$\\int_a^b f(x) dx$$ (limits need space)", 
-                "   ✅ $$\\sum_{i=1}^n x_i$$ (summation bounds need space)",
-                "   ✅ $$\\frac{\\sqrt{b^2-4ac}}{2a}$$ (complex fraction needs space)",
-                "   ✅ $$x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$ (quadratic formula)",
-                "",
-                "   EXAMPLES - When to use inline math ($):",
-                "   ✅ $f(x) = 2x + 3$ (simple function)",
-                "   ✅ $\\epsilon > 0$ (simple inequality)", 
-                "   ✅ $x \\in \\mathbb{R}$ (set membership)",
-                "   ✅ $\\sin(x)$ (simple function)",
-                "",
-                "3. Greek letters - ALWAYS use LaTeX commands in $ delimiters:",
-                "   ✅ $\\alpha$, $\\beta$, $\\gamma$, $\\delta$, $\\epsilon$, $\\theta$, $\\phi$, $\\psi$, $\\omega$",
-                "   ❌ Never use: α, β, γ, δ, ε, θ, φ, ψ, ω (raw Unicode)",
-                "",
-                "4. Mathematical operators - ALWAYS in $ delimiters:",
-                "   ✅ $\\leq$, $\\geq$, $\\neq$, $\\approx$, $\\equiv$, $\\cdot$, $\\times$, $\\pm$",
-                "   ❌ Never use: ≤, ≥, ≠, ≈, ≡, ·, ×, ± (raw Unicode)",
-                "",
-                "5. MOBILE-SPECIFIC FORMATTING:",
-                "   • Break long expressions into multiple lines",
-                "   • Use display math for expressions with vertical elements",
-                "   • Keep inline math simple and short",
-                "   • Test: 'Would this render clearly on an iPhone screen?'",
-                "",
-                "6. QUALITY CHECK for iOS rendering:",
-                "   • No nested $ delimiters (breaks MathJax)",
-                "   • Tall expressions use $$ (prevents clipping)",
-                "   • All Greek letters wrapped: $\\epsilon$, not ε", 
-                "   • All operators wrapped: $\\leq$, not ≤",
-                "   • Complex expressions get their own display block"
+                "Use \\(...\\) for inline math: \\(x^2 + 3\\)",
+                "Use \\[...\\] for display math: \\[\\frac{a}{b}\\]",
+                "NEVER use $ signs",
+                "Keep expressions together: \\(x = 5\\) not \\(x\\)=\\(5\\)",
+                "Greek letters: \\(\\alpha\\), \\(\\beta\\), \\(\\epsilon\\)",
+                "Break long expressions across lines for mobile",
             ],
             examples=[
-                "PERFECT iOS MOBILE MATH FORMATTING (ChatGPT method):",
-                "",
-                "EPSILON-DELTA DEFINITION (using \\(...\\) delimiters):",
-                "The epsilon-delta definition provides a rigorous way to define limits.",
-                "",
-                "We say that:",
+                "Epsilon-delta definition:",
                 "\\[\\lim_{x \\to c} f(x) = L\\]",
-                "",
-                "This means for every \\(\\epsilon > 0\\), there exists \\(\\delta > 0\\) such that:",
-                "\\[0 < |x - c| < \\delta \\implies |f(x) - L| < \\epsilon\\]",
-                "",
-                "Breaking this down:",
-                "- \\(\\epsilon\\) represents our tolerance for how close \\(f(x)\\) must be to \\(L\\)",
-                "- \\(\\delta\\) represents how close \\(x\\) must be to \\(c\\)", 
-                "- The implication shows the relationship between these distances"
+                "For every \\(\\epsilon > 0\\), there exists \\(\\delta > 0\\) such that:",
+                "\\[0 < |x - c| < \\delta \\implies |f(x) - L| < \\epsilon\\]"
             ]
         )
         
-        # Physics Template
+        # 🚀 OPTIMIZATION: Shortened Physics template
         templates[Subject.PHYSICS] = PromptTemplate(
             subject=Subject.PHYSICS,
-            base_prompt="""You are an expert physics tutor. Explain physics concepts clearly with real-world applications, proper units, and step-by-step problem solving.""",
+            base_prompt="""Expert physics tutor. Explain clearly with real-world applications and proper units.""",
             formatting_rules=[
-                "Always include proper units (m/s, N, J, etc.)",
-                "Use clear variable definitions",
-                "Show formula first, then substitution",
-                "Explain the physics concept behind each step",
-                "Use simple mathematical notation for mobile display",
-                "Include diagrams descriptions when helpful"
+                "Always include units (m/s, N, J, etc.)",
+                "Show formula → substitution → result",
+                "Use LaTeX for equations: \\(F = ma\\)"
             ],
-            examples=[
-                "Given: v₀ = 10 m/s, a = 5 m/s², t = 3 s",
-                "Formula: v = v₀ + at",
-                "Substitution: v = 10 + (5)(3) = 25 m/s"
-            ]
+            examples=["Given: v₀ = 10 m/s, a = 5 m/s², t = 3 s", "v = v₀ + at = 10 + (5)(3) = 25 m/s"]
         )
-        
-        # Chemistry Template  
+
+        # 🚀 OPTIMIZATION: Shortened Chemistry template
         templates[Subject.CHEMISTRY] = PromptTemplate(
             subject=Subject.CHEMISTRY,
-            base_prompt="""You are an expert chemistry tutor. Provide clear explanations of chemical concepts, balanced equations, and step-by-step problem solving with proper chemical notation.""",
+            base_prompt="""Expert chemistry tutor. Provide clear explanations with balanced equations.""",
             formatting_rules=[
-                "Use simple chemical formulas: H2O, CO2, etc.",
-                "Show balanced chemical equations clearly",
-                "Include proper units for measurements", 
-                "Explain chemical concepts and reasoning",
-                "Use clear step-by-step approach for calculations",
-                "Define chemical terms when first used"
+                "Use simple chemical formulas: H2O, CO2",
+                "Show balanced equations clearly",
+                "Include proper units"
             ],
-            examples=[
-                "Balanced equation: 2H2 + O2 → 2H2O",
-                "Molar ratio: 2 mol H2 : 1 mol O2 : 2 mol H2O"
-            ]
+            examples=["2H2 + O2 → 2H2O", "Molar ratio: 2:1:2"]
         )
         
         # Add more subjects as needed...
@@ -258,33 +189,14 @@ class AdvancedPromptService:
                 self._format_context_instructions(context)
             ])
         
-        # Add subject-specific enhancements
+        # 🚀 OPTIMIZATION: Shortened math formatting rules (from 26 lines to 6 lines)
         if subject in self.math_subjects:
             system_prompt_parts.extend([
                 "",
-                "CRITICAL MATHEMATICAL FORMATTING FOR iOS POST-PROCESSING:",
-                "- ALL mathematical expressions MUST use backslash delimiters ONLY",
-                "- Inline math: \\(expression\\) (backslash parentheses)",
-                "- Display math: \\[expression\\] (backslash brackets)",
-                "- NEVER use $ or $$ delimiters - these will be handled by iOS",
-                "- NEVER split mathematical expressions across multiple delimiter pairs",
-                "- NO markdown headers (###), bold (**), or bullet points (-)",
-                "- NO plain text math notation like 'x^2' or '3/4'",
-                "- Use \\frac{}{}, \\sqrt{}, x^{} consistently inside delimiters",
-                "- Write complete sentences between mathematical expressions",
-                "- Separate solution steps with blank lines for clarity",
-                "",
-                "EXAMPLES OF CORRECT FORMATTING FOR iOS:",
-                "✅ For every \\(\\epsilon > 0\\), there exists \\(\\delta > 0\\)",
-                "✅ \\[\\lim_{x \\to c} f(x) = L\\]", 
-                "✅ We need \\(0 < |x - c| < \\delta\\) to ensure \\(|f(x) - L| < \\epsilon\\)",
-                "✅ The quadratic formula is \\[x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}\\]",
-                "",
-                "❌ NEVER USE:",
-                "❌ $\\epsilon > 0$, $$\\lim_{x \\to c} f(x) = L$$ (dollar signs)",
-                "❌ \\(\\epsilon\\)>\\(0\\) (split expressions)",
-                "❌ \\(\\lim_{x \\to c} f\\)(x) =\\(L\\) (broken across delimiters)",
-                "❌ \\(0\\)< |x - c| <\\(\\delta\\) (comparison operators outside math)"
+                "MATH FORMATTING (iOS):",
+                "- Inline: \\(x^2\\), Display: \\[\\frac{a}{b}\\]",
+                "- NO $ signs, NO split expressions like \\(x\\)=\\(5\\)",
+                "- Examples: \\(\\epsilon > 0\\), \\[\\lim_{x \\to c} f(x) = L\\]",
             ])
         
         system_prompt_parts.extend([
@@ -789,94 +701,40 @@ Remember: Your goal is to help the student learn and understand both the image c
         
         subject = self.detect_subject(subject_hint)
         
-        # Build session-specific system prompt
+        # 🚀 OPTIMIZATION: Shortened session prompt (from 200+ to ~100 tokens)
         system_prompt_parts = [
-            "You are StudyAI, an expert AI tutor engaged in a conversational learning session.",
+            "You are StudyAI, an expert AI tutor. Use warm, conversational tone.",
             "",
-            "CONVERSATION OBJECTIVES:",
-            "- Maintain engaging, back-and-forth educational dialogue",
-            "- Build upon previous conversation context when available",
-            "- Provide clear, step-by-step explanations appropriate for the student's level",
-            "- Encourage questions and deeper exploration of topics",
-            "- Use a warm, supportive, and encouraging tone",
-            "",
-            "CONVERSATIONAL GUIDELINES:",
-            "- Keep responses conversational and engaging (not formal lecture style)",
-            "- Use follow-up questions when helpful to assess understanding, but respond naturally based on context",
-            "- Connect new concepts to previously discussed topics when relevant",
-            "- Provide specific examples and real-world applications",
-            "- Acknowledge when students make good observations or ask thoughtful questions",
-            "- Break complex topics into digestible chunks",
+            "OBJECTIVES:",
+            "- Clear, step-by-step explanations",
+            "- Build on previous context",
+            "- Encourage exploration with examples",
             "",
         ]
         
         # Add subject-specific conversation guidance
         if subject in self.math_subjects:
             system_prompt_parts.extend([
-                "MATHEMATICAL CONVERSATION SPECIFICS:",
-                "- Work through problems step-by-step in a conversational manner",
-                "- Check student understanding after each major step",
-                "- Use visual descriptions for geometric concepts",
-                "- Connect abstract concepts to concrete examples",
-                "- Encourage students to explain their reasoning",
-                "",
-                "CRITICAL iOS MATHEMATICAL FORMATTING - CONVERSATION MODE:",
-                "Since this is a conversation that will be displayed on iOS devices, follow these LaTeX rules:",
-                "",
-                "✅ CORRECT FORMATTING (use these patterns exactly):",
-                "- Inline math: \"The function \\\\(f(x) = 2x^2 - 4x + 1\\\\) has a vertex at \\\\(x = 1\\\\).\"",
-                "- Display math: \"The quadratic formula is: \\\\[x = \\\\frac{-b \\\\pm \\\\sqrt{b^2 - 4ac}}{2a}\\\\]\"", 
-                "- Multiple expressions: \"Since \\\\(a = 2\\\\), \\\\(b = -4\\\\), and \\\\(c = 1\\\\), we get: \\\\[x = \\\\frac{4 \\\\pm \\\\sqrt{8}}{4}\\\\]\"",
-                "",
-                "❌ NEVER USE (these break iOS rendering):",
-                "- Dollar signs: $x^2$ or $$x = 5$$ ❌",
-                "- Mixed delimiters: \\\\(x^2$ or $y\\\\) ❌", 
-                "- Split expressions: \\\\(x\\\\) = \\\\(5\\\\) ❌",
-                "",
-                "FORMATTING RULES:",
-                "- Inline math: \\\\(expression\\\\) for variables, simple equations, short expressions",
-                "- Display math: \\\\[expression\\\\] for complex formulas, large fractions, multi-step equations",
-                "- Variables: \\\\(x\\\\), \\\\(y\\\\), \\\\(f(x)\\\\), \\\\(\\\\theta\\\\)",
-                "- Operations: \\\\(a + b\\\\), \\\\(x^2\\\\), \\\\(\\\\frac{a}{b}\\\\), \\\\(\\\\sqrt{x}\\\\)",
-                "- Greek letters: \\\\(\\\\alpha\\\\), \\\\(\\\\beta\\\\), \\\\(\\\\pi\\\\), \\\\(\\\\theta\\\\)",
-                "- Functions: \\\\(\\\\sin(x)\\\\), \\\\(\\\\log(x)\\\\), \\\\(\\\\lim_{x \\\\to 0}\\\\)",
+                "MATH FORMATTING (iOS):",
+                "- Inline: \\(x^2 + 3\\)",
+                "- Display: \\[\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}\\]",
+                "- NEVER use $ or $$",
+                "- Keep expressions together: \\(x = 5\\) not \\(x\\)=\\(5\\)",
                 "",
             ])
         else:
             system_prompt_parts.extend([
-                f"SUBJECT-SPECIFIC CONVERSATION ({subject.value.title()}):",
-                f"- Focus conversation on {subject.value} concepts and applications",
-                "- Use subject-appropriate terminology and examples",
-                "- Connect topics to real-world applications in this field",
-                "- Encourage exploration of related concepts within the subject",
+                f"FOCUS: {subject.value.title()} concepts with real-world applications",
                 "",
             ])
         
-        # Add context-specific instructions
-        if context:
-            system_prompt_parts.extend([
-                "SESSION CONTEXT:",
-                f"- Session ID: {session_id}",
-            ])
-            
-            if context.get('student_id'):
-                system_prompt_parts.append(f"- Student: {context['student_id']}")
-            
-            if context.get('conversation_history'):
-                system_prompt_parts.append("- This conversation has previous context - build upon it naturally")
-            
+        # Add context-specific instructions (minimal)
+        if context and context.get('conversation_history'):
+            system_prompt_parts.append("- Build on previous conversation")
             system_prompt_parts.append("")
-        
-        system_prompt_parts.extend([
-            "RESPONSE STYLE:",
-            "- Write in a conversational, engaging tone (like talking to a student in person)",
-            "- Keep responses focused but not overly long (2-4 paragraphs typically)",
-            "- Respond naturally - use questions to check understanding when helpful, but not every response needs to end with a question",
-            "- Show enthusiasm for learning and discovery",
-            "",
-            "Remember: You're having a conversation with a student, not giving a lecture. Make it interactive and engaging!"
-        ])
-        
+
+        system_prompt_parts.append("Remember: You're helping a student learn, not lecturing.")
+
         return "\n".join(system_prompt_parts)
     
     def optimize_session_response(self, response: str, context: Optional[Dict] = None) -> str:

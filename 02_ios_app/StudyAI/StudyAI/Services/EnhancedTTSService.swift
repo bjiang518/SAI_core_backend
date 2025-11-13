@@ -11,6 +11,7 @@ import AVFoundation
 import Combine
 import CryptoKit
 
+@MainActor
 class EnhancedTTSService: NSObject, ObservableObject {
     
     // MARK: - Published Properties
@@ -298,10 +299,12 @@ class EnhancedTTSService: NSObject, ObservableObject {
     }
 
     private func saveToDiskCache(audioData: Data, cacheKey: String) {
+        // ✅ Capture cache directory URL on main actor before detaching
+        let cacheDir = cacheDirectory
+
         // ✅ Move disk write to background thread to prevent main thread blocking
-        Task.detached(priority: .utility) { [weak self] in
-            guard let self = self else { return }
-            let fileURL = self.cacheDirectory.appendingPathComponent("\(cacheKey).mp3")
+        Task.detached(priority: .utility) {
+            let fileURL = cacheDir.appendingPathComponent("\(cacheKey).mp3")
 
             do {
                 try audioData.write(to: fileURL)

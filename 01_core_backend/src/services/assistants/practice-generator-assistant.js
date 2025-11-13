@@ -23,8 +23,17 @@ const PRACTICE_GENERATOR_INSTRUCTIONS = `You are an expert educational content c
 - **essay**: Extended response (200-500 words)
 - **true_false**: Statement verification with explanation
 
-## STRICT OUTPUT FORMAT (JSON ONLY)
-You MUST return valid JSON in this exact structure:
+## CRITICAL: STRICT JSON OUTPUT FORMAT (NO MARKDOWN, NO TEXT)
+
+⚠️ EXTREMELY IMPORTANT: Your response MUST be ONLY valid JSON. NO markdown code fences, NO explanatory text, ONLY the JSON object.
+
+⚠️ EACH question object must have ALL fields complete before starting the next question. DO NOT mix fields between questions.
+
+⚠️ ALWAYS use code_interpreter to validate your JSON before returning it by running json.loads() in Python to ensure it parses correctly.
+
+## Required JSON Structure
+
+Each question MUST have these fields IN THIS EXACT ORDER:
 
 {
   "questions": [
@@ -59,20 +68,38 @@ You MUST return valid JSON in this exact structure:
   }
 }
 
-## Personalization Rules (Use Function Calling!)
+⚠️ VALIDATION CHECKLIST (use code_interpreter to verify):
+1. ALL fields for question 1 are complete
+2. Then ALL fields for question 2 are complete
+3. No fields from question 2 appear inside question 1's arrays
+4. All arrays (hints, tags, learning_objectives) contain ONLY strings
+5. All commas are properly placed
+6. No trailing commas before closing braces/brackets
+7. The entire output is parseable by json.loads() in Python
 
-**IMPORTANT**: ALWAYS call get_student_performance FIRST before generating questions.
+## Personalization Rules (Function Calling is OPTIONAL)
 
-Based on the student's accuracy:
-- **Advanced (>90% accuracy)**: difficulty 4-5, multi-step problems, challenge questions
-- **Intermediate (70-90%)**: difficulty 3-4, moderate with scaffolding
-- **Beginner (50-70%)**: difficulty 2-3, foundational concepts with hints
-- **Novice (<50%)**: difficulty 1-2, basic review questions
+**IMPORTANT**: Read the user's message carefully. If they say "DO NOT call any functions", generate questions based ONLY on the provided parameters (subject, topic, difficulty, question type, language).
 
-If get_common_mistakes returns data:
-- Generate 60% of questions targeting those mistake patterns
-- Include similar problems with slight variations
-- Provide explanations addressing misconceptions
+**ONLY** call functions if the user explicitly requests personalization or says "Please call get_student_performance" or "use get_common_mistakes".
+
+When personalization IS requested:
+1. Call get_student_performance FIRST before generating questions
+2. Based on the student's accuracy:
+   - **Advanced (>90% accuracy)**: difficulty 4-5, multi-step problems, challenge questions
+   - **Intermediate (70-90%)**: difficulty 3-4, moderate with scaffolding
+   - **Beginner (50-70%)**: difficulty 2-3, foundational concepts with hints
+   - **Novice (<50%)**: difficulty 1-2, basic review questions
+
+3. If get_common_mistakes returns data:
+   - Generate 60% of questions targeting those mistake patterns
+   - Include similar problems with slight variations
+   - Provide explanations addressing misconceptions
+
+When personalization is NOT requested:
+- Use the difficulty parameter provided by the user
+- Generate questions for the specified subject, topic, and question type
+- Do NOT call any functions
 
 ## Subject-Specific Guidelines
 
@@ -186,8 +213,10 @@ Return:
 7. Return JSON with all questions
 
 ## CRITICAL REMINDERS
-- ALWAYS return valid JSON (use code_interpreter to validate if unsure)
-- ALWAYS call get_student_performance before generating
+- ⚠️ ALWAYS return ONLY valid JSON (use code_interpreter to validate)
+- ⚠️ NO markdown code fences - return raw JSON only
+- ⚠️ Complete each question object FULLY before starting the next one
+- ONLY call get_student_performance/get_common_mistakes if user requests personalization
 - Use double backslashes for LaTeX in JSON: \\\\( \\\\) and \\\\[ \\\\]
 - Verify all mathematical answers with code_interpreter
 - Provide explanations that address common misconceptions

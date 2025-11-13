@@ -118,6 +118,8 @@
 "home.mistakeReviewDescription" = "Learn from past errors";
 "home.parentReports" = "Parent Reports";
 "home.parentReportsDescription" = "Study progress & insights";
+"home.homeworkAlbum" = "Homework Album";
+"home.homeworkAlbumDescription" = "View all submitted homework";
 
 // Parent Reports
 "parentReport.title" = "Parent Reports";
@@ -1066,6 +1068,22 @@
 // Question Generation - How to Use
 "questionGeneration.howToUse.title" = "How to Use Question Generation";
 "questionGeneration.howToUse.message" = "• Select practice type: Random Practice, Mistake Review, or From Library\n• Choose subject and difficulty level\n• Select question type (Multiple Choice, True/False, Fill in Blank, etc.)\n• Set number of questions\n• Tap 'Generate Practice Questions' button\n• Start answering and receive instant feedback";
+
+// Question Types
+"questionType.multipleChoice" = "Multiple Choice";
+"questionType.trueFalse" = "True/False";
+"questionType.fillBlank" = "Fill in Blank";
+"questionType.shortAnswer" = "Short Answer";
+"questionType.longAnswer" = "Long Answer";
+"questionType.calculation" = "Calculation";
+"questionType.matching" = "Matching";
+"questionType.mixedTypes" = "Mixed Types";
+
+// Difficulty Levels
+"difficulty.beginner" = "Beginner";
+"difficulty.intermediate" = "Intermediate";
+"difficulty.advanced" = "Advanced";
+"difficulty.adaptive" = "Adaptive";
 
 // Generated Questions - How to Use
 "generatedQuestions.howToUse.title" = "How to Use Practice Questions";

@@ -280,9 +280,6 @@ class PointsEarningManager: ObservableObject {
     @Published var currentWeeklyProgress: WeeklyProgress?
     @Published var lastTimezoneUpdate: Date?
 
-    // MARK: - Concurrency Control
-    private let syncQueue = DispatchQueue(label: "com.studyai.pointsmanager.sync", qos: .utility)
-
     // MARK: - Daily Reset Timer
     private var midnightTimer: Timer?
     private var dayChangeObserver: NSObjectProtocol?
@@ -344,7 +341,9 @@ class PointsEarningManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.forceSave()
+            Task { @MainActor [weak self] in
+                self?.forceSave()
+            }
         }
 
         NotificationCenter.default.addObserver(
@@ -352,7 +351,9 @@ class PointsEarningManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.forceSave()
+            Task { @MainActor [weak self] in
+                self?.forceSave()
+            }
         }
 
         NotificationCenter.default.addObserver(
@@ -568,26 +569,20 @@ class PointsEarningManager: ObservableObject {
     
     // MARK: - Batched UserDefaults Operations
 
-    private let saveQueue = DispatchQueue(label: "com.studyai.pointsmanager.save", qos: .utility)
-    private var pendingSaveTask: DispatchWorkItem?
+    private var pendingSaveTask: Task<Void, Never>?
     private let saveBatchDelay: TimeInterval = 0.5 // 500ms delay to batch saves
 
     /// Schedule a batched save operation to reduce I/O frequency
     private func scheduleBatchedSave() {
-        saveQueue.async { [weak self] in
-            guard let self = self else { return }
+        // Cancel any pending save task
+        pendingSaveTask?.cancel()
 
-            // Cancel any pending save task
-            self.pendingSaveTask?.cancel()
+        // Create new save task with delay
+        pendingSaveTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(0.5 * 1_000_000_000)) // 500ms
 
-            // Create new save task with delay
-            self.pendingSaveTask = DispatchWorkItem { [weak self] in
-                guard let self = self else { return }
-                self.performBatchedSave()
-            }
-
-            // Execute after delay
-            self.saveQueue.asyncAfter(deadline: .now() + self.saveBatchDelay, execute: self.pendingSaveTask!)
+            guard let self = self, !Task.isCancelled else { return }
+            self.performBatchedSave()
         }
     }
 

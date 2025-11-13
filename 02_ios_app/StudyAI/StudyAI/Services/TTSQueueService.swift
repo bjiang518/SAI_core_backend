@@ -95,7 +95,7 @@ class TTSQueueService: ObservableObject {
 
         if effectiveQueueSize >= maxQueueSize {
             print("⚠️ [TTSQueueService] Queue full, dropping oldest item")
-            dequeueItem() // Drop oldest
+            _ = dequeueItem() // Drop oldest
         }
 
         // Check total memory usage
@@ -103,7 +103,7 @@ class TTSQueueService: ObservableObject {
         if currentMemory + newItem.estimatedMemoryBytes > maxQueueMemoryBytes {
             print("⚠️ [TTSQueueService] Memory limit reached (\(currentMemory/1024)KB), dropping oldest items")
             while getTotalQueueMemory() + newItem.estimatedMemoryBytes > maxQueueMemoryBytes && effectiveQueueSize > 0 {
-                dequeueItem()
+                _ = dequeueItem()
             }
         }
 

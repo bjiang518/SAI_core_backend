@@ -139,7 +139,7 @@ struct PomodoroCalendarView: View {
                 displayedComponents: [.date]
             )
             .datePickerStyle(.graphical)
-            .onChange(of: selectedDate) { _ in
+            .onChange(of: selectedDate) {
                 refreshEvents()
             }
         }
@@ -271,7 +271,7 @@ struct PomodoroCalendarView: View {
 
         // 请求通知权限
         if !notificationService.hasNotificationAccess {
-            await notificationService.requestNotificationPermission()
+            _ = await notificationService.requestNotificationPermission()
         }
     }
 
@@ -285,11 +285,7 @@ struct PomodoroCalendarView: View {
 
         if let eventId = eventId {
             // 安排提醒通知
-            let formatter = DateFormatter()
-            formatter.dateFormat = "HH:mm"
-            let timeString = formatter.string(from: startTime)
-
-            notificationService.scheduleNotification(
+            _ = notificationService.scheduleNotification(
                 for: eventId,
                 title: "番茄专注时间",
                 startDate: startTime
@@ -484,7 +480,7 @@ struct AddPomodoroEventSheet: View {
         )
 
         if let eventId = eventId, withReminder {
-            notificationService.scheduleNotification(
+            _ = notificationService.scheduleNotification(
                 for: eventId,
                 title: eventTitle,
                 startDate: startTime

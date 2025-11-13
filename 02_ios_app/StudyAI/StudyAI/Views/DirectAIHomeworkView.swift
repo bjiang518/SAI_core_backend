@@ -71,6 +71,7 @@ class AIHomeworkStateManager: ObservableObject {
     @Published var originalImageUrl: String?
     @Published var parsingResult: HomeworkParsingResult?
     @Published var enhancedResult: EnhancedHomeworkParsingResult?
+    @Published var essayResult: EssayGradingResult?  // NEW: Essay grading result
     @Published var processingStatus = "Select an image to analyze homework"
     @Published var parsingError: String?
     @Published var sessionId: String?
@@ -129,6 +130,7 @@ class AIHomeworkStateManager: ObservableObject {
         originalImageUrl = nil
         parsingResult = nil
         enhancedResult = nil
+        essayResult = nil  // NEW: Clear Essay result
         processingStatus = "Select an image to analyze homework"
         parsingError = nil
         sessionId = nil
@@ -173,13 +175,14 @@ struct DirectAIHomeworkView: View {
     @State private var animationCompleted = false
 
     // Subject selection for AI grading
-    @State private var selectedSubject: String = "Mathematics"
+    @State private var selectedSubject: String = "Language"
     private let availableSubjects = [
         "Mathematics",
         "Physics",
         "Chemistry",
         "Biology",
-        "English",
+        "Language",
+        "Essay",
         "History",
         "Geography",
         "Computer Science"
@@ -271,7 +274,12 @@ struct DirectAIHomeworkView: View {
         }
         .navigationBarHidden(true) // Hide iOS back button
         .sheet(isPresented: $showingResults) {
-            if let enhanced = stateManager.enhancedResult {
+            // Check for Essay results first
+            if let essayResult = stateManager.essayResult {
+                EssayResultsView(essayResult: essayResult)
+            }
+            // Standard homework results
+            else if let enhanced = stateManager.enhancedResult {
                 HomeworkResultsView(
                     enhancedResult: enhanced,
                     originalImageUrl: stateManager.originalImageUrl,
@@ -312,7 +320,7 @@ struct DirectAIHomeworkView: View {
 
                     if !capturedImages.isEmpty {
                         // Add each image to stateManager
-                        for (index, image) in capturedImages.enumerated() {
+                        for image in capturedImages {
                             let added = stateManager.addImage(image)
                             if !added {
                                 showingImageLimitAlert = true
@@ -1492,8 +1500,10 @@ struct DirectAIHomeworkView: View {
             return "flask"
         case "Biology":
             return "leaf"
-        case "English":
-            return "book"
+        case "Language":
+            return "book.closed"
+        case "Essay":
+            return "pencil.and.list.clipboard"
         case "History":
             return "clock"
         case "Geography":
@@ -1909,10 +1919,12 @@ struct DirectAIHomeworkView: View {
         await MainActor.run {
             stateManager.currentStage = .parsing
             stateManager.processingStatus = stateManager.currentStage.message
+        }
 
-            if result.success, let response = result.response {
-                processSuccessfulResponse(response, processingTime: processingTime)
+        if result.success, let response = result.response {
+            await processSuccessfulResponse(response, processingTime: processingTime)
 
+            await MainActor.run {
                 // Success: Add vibration and notification
                 let questionCount = stateManager.parsingResult?.questionCount ?? 0
 
@@ -1922,9 +1934,14 @@ struct DirectAIHomeworkView: View {
 
                 // Send notification
                 NotificationService.shared.sendHomeworkCompletionNotification(questionCount: questionCount)
-            } else {
+            }
+        } else {
+            await MainActor.run {
                 processFailedResponse(result, processingTime: processingTime)
             }
+        }
+
+        await MainActor.run {
             isProcessing = false
         }
     }
@@ -1938,20 +1955,31 @@ struct DirectAIHomeworkView: View {
             try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
         }
     }
-    
-    private func processSuccessfulResponse(_ response: String, processingTime: TimeInterval) {
+
+    @MainActor
+    private func processSuccessfulResponse(_ response: String, processingTime: TimeInterval) async {
         stateManager.currentStage = .parsing
         stateManager.processingStatus = stateManager.currentStage.message
 
         var enhanced: EnhancedHomeworkParsingResult? = nil
+        var essayGrading: EssayGradingResult? = nil
         var actualResponse = response  // Store for error handling
 
         // Check if response is JSON and extract raw_json for fast parsing
         if let jsonData = response.data(using: .utf8),
            let jsonObject = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
 
-            // Try JSON parsing first (fast path - 30-50% faster)
-            if let rawJson = jsonObject["raw_json"] as? [String: Any] {
+            // Check for Essay response first
+            if let rawJson = jsonObject["raw_json"] as? [String: Any],
+               EnhancedHomeworkParser.shared.isEssayResponse(rawJson) {
+                print("📝 Detected Essay response")
+                essayGrading = EnhancedHomeworkParser.shared.parseEssayResponse(rawJson)
+                if essayGrading != nil {
+                    print("✅ Using Essay parsing for single image")
+                }
+            }
+            // Try standard homework JSON parsing if not Essay
+            else if let rawJson = jsonObject["raw_json"] as? [String: Any] {
                 enhanced = EnhancedHomeworkParser.shared.parseBackendJSON(rawJson)
                 if enhanced != nil {
                     print("✅ Using fast JSON parsing for single image")
@@ -1959,7 +1987,7 @@ struct DirectAIHomeworkView: View {
             }
 
             // Fallback to text parsing if JSON parsing failed
-            if enhanced == nil, let textResponse = jsonObject["response"] as? String {
+            if enhanced == nil && essayGrading == nil, let textResponse = jsonObject["response"] as? String {
                 actualResponse = textResponse  // Update for error handling
                 enhanced = EnhancedHomeworkParser.shared.parseEnhancedHomeworkResponse(textResponse)
                 if enhanced != nil {
@@ -1974,8 +2002,13 @@ struct DirectAIHomeworkView: View {
             }
         }
 
-        // Process parsed result
-        if let enhanced = enhanced {
+        // Process Essay result
+        if let essayResult = essayGrading {
+            stateManager.essayResult = essayResult
+            stateManager.processingStatus = "✅ Essay grading complete: \(Int(essayResult.overallScore))/100"
+        }
+        // Process standard homework result
+        else if let enhanced = enhanced {
             stateManager.enhancedResult = EnhancedHomeworkParsingResult(
                 questions: enhanced.questions,
                 detectedSubject: enhanced.detectedSubject,

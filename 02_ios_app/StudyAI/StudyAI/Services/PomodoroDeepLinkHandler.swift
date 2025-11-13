@@ -128,7 +128,7 @@ class PomodoroDeepLinkHandler: NSObject, ObservableObject {
            let title = userInfo["title"] as? String {
             let snoozeDate = Date().addingTimeInterval(5 * 60)
 
-            PomodoroNotificationService.shared.scheduleNotification(
+            _ = PomodoroNotificationService.shared.scheduleNotification(
                 for: eventId,
                 title: title,
                 startDate: snoozeDate,

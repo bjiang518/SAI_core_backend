@@ -1093,16 +1093,16 @@ struct CustomDateRangePickerView: View {
                         )
                         .datePickerStyle(.graphical)
                         .labelsHidden()
-                        .onChange(of: selectedDate) { newDate in
+                        .onChange(of: selectedDate) {
                             // Update start or end date based on mode
                             if isSelectingStart {
-                                startDate = newDate
+                                startDate = selectedDate
                                 // Ensure end date is not before start date
                                 if endDate < startDate {
                                     endDate = startDate
                                 }
                             } else {
-                                endDate = newDate
+                                endDate = selectedDate
                                 // Ensure start date is not after end date
                                 if startDate > endDate {
                                     startDate = endDate

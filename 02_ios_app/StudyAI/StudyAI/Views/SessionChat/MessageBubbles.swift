@@ -121,48 +121,50 @@ struct ModernAIMessageView: View {
     @State private var hasAutoSpoken = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // AI Avatar Animation - 点击播放/停止音频
-            Button(action: toggleSpeech) {
-                AIAvatarAnimation(state: animationState, voiceType: voiceType)
-                    .frame(width: 24, height: 24)
-            }
-            .buttonStyle(PlainButtonStyle())
-            .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        // Avatar and name at top-left, message box below
+        VStack(alignment: .leading, spacing: 8) {
+            // Avatar and name at the top
+            HStack(spacing: 6) {
+                // AI Avatar - clickable to toggle speech
+                Button(action: toggleSpeech) {
+                    AIAvatarAnimation(state: animationState, voiceType: voiceType)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-            VStack(alignment: .leading, spacing: 8) {
-                // 角色名称
+                // Character name
                 Text(voiceType.displayName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary.opacity(0.9))
-                    .padding(.leading, 8)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary.opacity(0.8))
+            }
+            .padding(.leading, 2)
 
+            // Message content box - compact layout
+            VStack(alignment: .leading, spacing: 0) {
                 // 流式音频播放器
                 if isStreaming {
                     ChatGPTStyleAudioPlayer()
-                        .padding(.bottom, 8)
+                        .padding(.bottom, 4)
                 }
 
-                // 消息内容
-                VStack(alignment: .leading, spacing: 8) {
-                    MarkdownLaTeXText(message, fontSize: 18, isStreaming: isStreaming)
-                        .foregroundColor(.primary.opacity(0.95))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .id("\(messageId)-\(message.count)-\(isStreaming)") // Stable identity to preserve state
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(characterBackgroundColor)
-                .cornerRadius(18)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(characterBorderColor, lineWidth: 0.5)
-                )
+                // 消息内容 - more compact
+                MarkdownLaTeXText(message, fontSize: 17, isStreaming: isStreaming)
+                    .foregroundColor(.primary.opacity(0.95))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .id("\(messageId)-\(message.count)-\(isStreaming)") // Stable identity to preserve state
             }
-            .fixedSize(horizontal: false, vertical: true)
-
-            Spacer()
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(characterBackgroundColor)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(characterBorderColor, lineWidth: 0.5)
+            )
         }
         .padding(.horizontal, 0)
         .fixedSize(horizontal: false, vertical: true)

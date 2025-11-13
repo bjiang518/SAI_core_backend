@@ -884,7 +884,8 @@ class NetworkService: ObservableObject {
         print("🌐 === NETWORK SERVICE: SEND SESSION MESSAGE ===")
         print("🌐 ============================================")
         print("🌐 Timestamp: \(Date())")
-        print("🌐 Thread: \(Thread.current)")
+        // Thread.current not available in async context
+        // print("🌐 Thread: \(Thread.current)")
 
         // Check authentication first - use unified auth system
         guard AuthenticationService.shared.getAuthToken() != nil else {
@@ -1069,7 +1070,8 @@ class NetworkService: ObservableObject {
         print("🟢 === NETWORK SERVICE: STREAMING SESSION MESSAGE ===")
         print("🟢 ============================================")
         print("🟢 Timestamp: \(Date())")
-        print("🟢 Thread: \(Thread.current)")
+        // Thread.current not available in async context
+        // print("🟢 Thread: \(Thread.current)")
         print("🟢 Session ID: \(sessionId)")
         print("🟢 Message: \(message)")
         print("🟢 Language: \(appLanguage)")
@@ -1226,20 +1228,34 @@ class NetworkService: ObservableObject {
                                             print("📄 Response preview: \(accumulatedText.prefix(200))...")
                                         }
 
-                                        // Check for AI-generated suggestions in end event
+                                        // 🚀 OPTIMIZATION: Suggestions now sent separately
+                                        // Legacy support: Check for suggestions in end event (will be empty after backend update)
                                         if let suggestions = event.suggestions, !suggestions.isEmpty {
+                                            print("💡 Received suggestions in 'end' event (legacy format)")
                                             await MainActor.run {
                                                 onSuggestions(suggestions)
                                             }
                                         }
 
-                                        // ⚠️ BUG FIX: Don't return here! Keep reading stream for grade_correction event
+                                        // ⚠️ BUG FIX: Don't return here! Keep reading stream for suggestions/grade_correction events
                                         // Call completion callback but DON'T exit the loop
-                                        print("📡 Stream complete, but continuing to listen for grade_correction event...")
+                                        print("📡 Stream complete, continuing to listen for suggestions/grade_correction...")
                                         streamComplete = true  // Mark as complete but continue listening
 
                                         await MainActor.run {
                                             onComplete(true, accumulatedText, nil, nil)
+                                        }
+
+                                    case "suggestions":
+                                        // 🚀 NEW: Handle deferred suggestions event (sent after 'end' event)
+                                        print("💡 === SUGGESTIONS EVENT (deferred) ===")
+                                        if let suggestions = event.suggestions, !suggestions.isEmpty {
+                                            print("📋 Received \(suggestions.count) follow-up suggestions")
+                                            await MainActor.run {
+                                                onSuggestions(suggestions)
+                                            }
+                                        } else {
+                                            print("ℹ️ No suggestions provided")
                                         }
 
                                     case "error":

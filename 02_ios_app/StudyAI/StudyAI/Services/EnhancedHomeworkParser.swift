@@ -12,6 +12,80 @@ class EnhancedHomeworkParser {
 
     private init() {}
 
+    // MARK: - Essay Response Detection & Parsing
+
+    /// Check if the response is an Essay grading response
+    func isEssayResponse(_ jsonData: [String: Any]) -> Bool {
+        // Essay responses have these keys: word_count, grammar_corrections, criterion_scores, overall_score
+        let hasWordCount = jsonData["word_count"] != nil
+        let hasGrammarCorrections = jsonData["grammar_corrections"] != nil
+        let hasCriterionScores = jsonData["criterion_scores"] != nil
+        let hasOverallScore = jsonData["overall_score"] != nil
+
+        return hasWordCount && hasGrammarCorrections && hasCriterionScores && hasOverallScore
+    }
+
+    /// Parse Essay grading JSON response
+    func parseEssayResponse(_ jsonData: [String: Any]) -> EssayGradingResult? {
+        print("📝 === PARSING ESSAY RESPONSE ===")
+        print("📊 JSON keys: \(jsonData.keys.joined(separator: ", "))")
+
+        do {
+            // Convert dictionary to Data
+            let data = try JSONSerialization.data(withJSONObject: jsonData)
+
+            // Decode using Codable with DTOs
+            let decoder = JSONDecoder()
+            let essayResponse = try decoder.decode(EssayGradingResponse.self, from: data)
+
+            // Convert DTOs to models
+            let grammarCorrections = essayResponse.grammarCorrections.compactMap { $0.toModel() }
+            let criterionScores = essayResponse.criterionScores.toModel()
+
+            let result = EssayGradingResult(
+                essayTitle: essayResponse.essayTitle,
+                wordCount: essayResponse.wordCount,
+                grammarCorrections: grammarCorrections,
+                criterionScores: criterionScores,
+                overallScore: essayResponse.overallScore,
+                overallFeedback: essayResponse.overallFeedback
+            )
+
+            print("✅ === ESSAY PARSING SUCCESS ===")
+            print("📝 Title: \(essayResponse.essayTitle ?? "Untitled")")
+            print("📊 Word count: \(essayResponse.wordCount)")
+            print("📈 Overall score: \(essayResponse.overallScore)/100")
+            print("🔍 Grammar issues: \(grammarCorrections.count)")
+            print("⭐ Average criterion score: \(criterionScores.averageScore)/10")
+
+            return result
+
+        } catch {
+            print("❌ Essay JSON parsing error: \(error)")
+            print("📋 Error details: \(error.localizedDescription)")
+            if let decodingError = error as? DecodingError {
+                switch decodingError {
+                case .keyNotFound(let key, let context):
+                    print("❌ Missing key: \(key.stringValue)")
+                    print("❌ Context: \(context.debugDescription)")
+                case .typeMismatch(let type, let context):
+                    print("❌ Type mismatch for type: \(type)")
+                    print("❌ Context: \(context.debugDescription)")
+                case .valueNotFound(let type, let context):
+                    print("❌ Value not found for type: \(type)")
+                    print("❌ Context: \(context.debugDescription)")
+                case .dataCorrupted(let context):
+                    print("❌ Data corrupted: \(context.debugDescription)")
+                @unknown default:
+                    print("❌ Unknown decoding error")
+                }
+            }
+            return nil
+        }
+    }
+
+    // MARK: - Standard Homework Parsing
+
     /// Parse backend JSON response directly (NEW - High Performance)
     func parseBackendJSON(_ jsonData: [String: Any]) -> EnhancedHomeworkParsingResult? {
         print("🚀 === PARSING BACKEND JSON DIRECTLY ===")

@@ -38,12 +38,20 @@ struct LottieView: UIViewRepresentable {
             animationView.loopMode = loopMode
             animationView.animationSpeed = animationSpeed
 
+            // Store reference in coordinator for updates
+            context.coordinator.animationView = animationView
+
+            // Subscribe to Power Saving Mode changes BEFORE playing
+            context.coordinator.setupPowerSavingObserver()
+
             // Only play if Power Saving Mode is disabled
             if !AppState.shared.isPowerSavingMode {
                 animationView.play()
                 print("▶️ Started playing animation")
             } else {
-                print("⏸️ Animation paused (Power Saving Mode enabled)")
+                // In power saving mode, show first frame only
+                animationView.currentProgress = 0
+                print("🔋 Animation stopped (Power Saving Mode enabled)")
             }
         } else {
             print("❌ Failed to load Lottie animation: '\(animationName)'")
@@ -53,28 +61,33 @@ struct LottieView: UIViewRepresentable {
             }
         }
 
-        // Store reference in coordinator for updates
-        context.coordinator.animationView = animationView
-
-        // Subscribe to Power Saving Mode changes
-        context.coordinator.setupPowerSavingObserver()
-
         return animationView
     }
 
     func updateUIView(_ uiView: LottieAnimationView, context: Context) {
+        // Update animation speed and loop mode if changed
+        if uiView.animationSpeed != animationSpeed {
+            uiView.animationSpeed = animationSpeed
+        }
+        if uiView.loopMode != loopMode {
+            uiView.loopMode = loopMode
+        }
+
         // Handle Power Saving Mode changes
         let isPowerSaving = AppState.shared.isPowerSavingMode
 
         if isPowerSaving {
+            // IMPORTANT: Immediately stop animation in power saving mode
             if uiView.isAnimationPlaying {
-                uiView.pause()
-                print("⏸️ Paused Lottie animation '\(animationName)' (Power Saving Mode)")
+                uiView.stop()
+                uiView.currentProgress = 0  // Reset to first frame
+                print("🔋 [PowerSaving] Stopped Lottie animation: '\(animationName)'")
             }
         } else {
+            // Resume animation if not in power saving mode
             if !uiView.isAnimationPlaying && uiView.animation != nil {
                 uiView.play()
-                print("▶️ Resumed Lottie animation '\(animationName)'")
+                print("🔋 [PowerSaving] Resumed Lottie animation: '\(animationName)'")
             }
         }
     }
@@ -92,15 +105,20 @@ struct LottieView: UIViewRepresentable {
                 .sink { [weak self] isPowerSaving in
                     guard let animationView = self?.animationView else { return }
 
-                    if isPowerSaving {
-                        if animationView.isAnimationPlaying {
-                            animationView.pause()
-                            print("⏸️ Power Saving Mode enabled - paused Lottie animation")
-                        }
-                    } else {
-                        if !animationView.isAnimationPlaying && animationView.animation != nil {
-                            animationView.play()
-                            print("▶️ Power Saving Mode disabled - resumed Lottie animation")
+                    DispatchQueue.main.async {
+                        if isPowerSaving {
+                            // IMPORTANT: Immediately stop animation in power saving mode
+                            if animationView.isAnimationPlaying {
+                                animationView.stop()
+                                animationView.currentProgress = 0  // Reset to first frame
+                                print("🔋 [PowerSaving] Observer stopped Lottie animation")
+                            }
+                        } else {
+                            // Resume animation if not in power saving mode
+                            if !animationView.isAnimationPlaying && animationView.animation != nil {
+                                animationView.play()
+                                print("🔋 [PowerSaving] Observer resumed Lottie animation")
+                            }
                         }
                     }
                 }

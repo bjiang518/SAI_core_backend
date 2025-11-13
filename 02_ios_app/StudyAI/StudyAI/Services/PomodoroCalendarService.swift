@@ -30,10 +30,11 @@ class PomodoroCalendarService: ObservableObject {
     func checkAuthorizationStatus() {
         if #available(iOS 17.0, *) {
             authorizationStatus = EKEventStore.authorizationStatus(for: .event)
+            hasCalendarAccess = (authorizationStatus == .fullAccess || authorizationStatus == .writeOnly)
         } else {
             authorizationStatus = EKEventStore.authorizationStatus(for: .event)
+            hasCalendarAccess = (authorizationStatus == .authorized)
         }
-        hasCalendarAccess = (authorizationStatus == .authorized || authorizationStatus == .fullAccess)
         print("📅 Calendar authorization status: \(authorizationStatus.rawValue)")
     }
 

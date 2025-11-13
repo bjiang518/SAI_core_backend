@@ -90,19 +90,19 @@ class FullLaTeXRenderer: ObservableObject {
     // MARK: - Optimized Pattern Detection
 
     // Pre-compiled regex pattern (compiled once, reused for all detections)
-    // Only match COMPLEX LaTeX that requires MathJax rendering
-    // Simple variables and basic equations can be handled by SimpleMathRenderer
+    // Match LaTeX that's PROPERLY DELIMITED or uses LaTeX environments/commands
     private static let latexPattern: NSRegularExpression? = {
-        // ONLY match complex LaTeX features, not simple math
+        // Match: display math delimiters, inline math delimiters, or LaTeX environments
+        // This ensures we only trigger MathJax when LaTeX is properly formatted
         let pattern = """
-        \\\\\\[|\\$\\$|\\\\begin\\{|\\\\frac|\\\\int|\\\\sum|\\\\prod|\\\\lim|\
-        \\\\matrix|\\\\pmatrix|\\\\bmatrix|\\\\sqrt\\{|\
-        \\\\text\\{|\\\\mathrm\\{|\\\\mathbf\\{|\\\\mathit\\{|\
-        \\\\alpha|\\\\beta|\\\\gamma|\\\\delta|\\\\Delta|\\\\epsilon|\\\\theta|\\\\lambda|\
-        \\\\mu|\\\\pi|\\\\sigma|\\\\Sigma|\\\\phi|\\\\omega|\
-        \\\\sim|\\\\approx|\\\\leq|\\\\geq|\\\\neq|\\\\times|\\\\cdot|\\\\infty
+        \\\\\\[.*?\\\\\\]|\
+        \\$\\$.*?\\$\\$|\
+        \\\\\\(.*?\\\\\\)|\
+        \\$(?!\\$).*?(?<!\\$)\\$|\
+        \\\\begin\\{[^}]+\\}.*?\\\\end\\{[^}]+\\}|\
+        \\\\frac\\{|\\\\sqrt\\{|\\\\int|\\\\sum|\\\\prod|\\\\lim
         """
-        return try? NSRegularExpression(pattern: pattern, options: [])
+        return try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
     }()
 
     /// Determine best rendering strategy based on content complexity
@@ -146,9 +146,6 @@ class FullLaTeXRenderer: ObservableObject {
 
         // Force white text in dark mode, black in light mode
         let textColor = colorScheme == .dark ? "#FFFFFF" : "#000000"
-
-        // IMPORTANT: Use transparent background to match SwiftUI container
-        let backgroundColor = "transparent"
 
         // Preserve line breaks by converting \n to <br>
         // Escape HTML but preserve LaTeX delimiters and line breaks
@@ -207,7 +204,7 @@ class FullLaTeXRenderer: ObservableObject {
                 body {
                     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
                     font-size: \(fontSize)px;
-                    line-height: 1.6;
+                    line-height: 1.4;
                     color: \(textColor) !important;
                     padding: 0;
                     margin: 0;
@@ -223,6 +220,8 @@ class FullLaTeXRenderer: ObservableObject {
                     -webkit-overflow-scrolling: touch;
                     color: \(textColor) !important;
                     background-color: transparent !important;
+                    padding: 0;
+                    margin: 0;
                 }
                 mjx-container {
                     overflow-x: auto;
@@ -230,11 +229,13 @@ class FullLaTeXRenderer: ObservableObject {
                     display: inline-block !important;
                     max-width: 100%;
                     color: \(textColor) !important;
+                    margin: 0.1em 0;
+                    vertical-align: middle;
                 }
                 mjx-container[display="true"] {
                     display: block !important;
                     text-align: center;
-                    margin: 1em 0;
+                    margin: 0.2em 0;
                 }
                 /* Force text color in all elements */
                 mjx-math, mjx-mtext, mjx-mi, mjx-mn, mjx-mo {
@@ -600,7 +601,7 @@ extension FullLaTeXRenderer {
     /// Parse mixed content and render each component appropriately
     func parseMixedContent(_ text: String) -> [MixedContentComponent] {
         var components: [MixedContentComponent] = []
-        var currentText = text
+        let currentText = text
 
         // Find all math blocks (display and inline)
         let mathPattern = #"(\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$\$[\s\S]*?\$\$|\$[^\$]+\$)"#
@@ -725,25 +726,59 @@ struct MarkdownLaTeXText: View {
                 detectLaTeX()
             }
         }
+        .onChange(of: isStreaming) { oldValue, newValue in
+            // When streaming completes, detect LaTeX in the final content
+            if !newValue && oldValue {
+                detectLaTeX()
+            }
+        }
     }
 
     // MARK: - Streaming View (Simple + Fast)
 
     @ViewBuilder
     private var streamingView: some View {
-        // During streaming: simple text with basic markdown
-        // This is fast and doesn't trigger heavy LaTeX detection
-        if let attributedString = try? AttributedString(markdown: content, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-            Text(attributedString)
-                .font(.system(size: fontSize))
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } else {
-            Text(content)
-                .font(.system(size: fontSize))
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
+        // During streaming: use simple text with SimpleMathRenderer
+        // NO MathJax, NO AttributedString markdown (which can fail on LaTeX delimiters)
+        // Parse markdown manually for headers and lists
+        let components = parseMarkdownComponents(content)
+
+        ForEach(Array(components.enumerated()), id: \.offset) { index, component in
+            renderStreamingComponent(component)
         }
+    }
+
+    @ViewBuilder
+    private func renderStreamingComponent(_ component: MarkdownComponent) -> some View {
+        switch component {
+        case .header(let text, let level):
+            renderHeader(text, level: level)
+        case .text(let text):
+            // Use SimpleMathRenderer for basic math rendering during streaming
+            Text(SimpleMathRenderer.renderMathText(text))
+                .font(.system(size: fontSize))
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        case .list(let items):
+            renderStreamingList(items)
+        }
+    }
+
+    @ViewBuilder
+    private func renderStreamingList(_ items: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                HStack(alignment: .top, spacing: 8) {
+                    Text("•")
+                        .font(.system(size: fontSize))
+                    Text(SimpleMathRenderer.renderMathText(item))
+                        .font(.system(size: fontSize))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(.leading, 8)
     }
 
     // MARK: - Markdown-Only View (No LaTeX Detected)
@@ -762,17 +797,9 @@ struct MarkdownLaTeXText: View {
 
     @ViewBuilder
     private var mathjaxWithMarkdownView: some View {
-        // Parse content into markdown and LaTeX blocks
-        let components = parseMarkdownAndLaTeX(content)
-
-        ForEach(Array(components.enumerated()), id: \.offset) { index, component in
-            switch component {
-            case .markdown(let text):
-                renderMarkdownComponent(text)
-            case .latex(let latex):
-                SmartLaTeXView(latex, fontSize: fontSize, colorScheme: colorScheme, strategy: .mathjax)
-            }
-        }
+        // When LaTeX is detected, render the entire content with MathJax
+        // MathJax can handle both markdown and LaTeX together
+        SmartLaTeXView(content, fontSize: fontSize, colorScheme: colorScheme, strategy: .mathjax)
     }
 
     // MARK: - Component Rendering
@@ -892,7 +919,7 @@ struct MarkdownLaTeXText: View {
             }
 
             // Check for header (# to ######)
-            if let headerMatch = trimmed.range(of: "^(#{1,6})\\s+(.+)$", options: .regularExpression),
+            if let _ = trimmed.range(of: "^(#{1,6})\\s+(.+)$", options: .regularExpression),
                let hashRange = trimmed.range(of: "^#{1,6}", options: .regularExpression) {
                 // End current list if any
                 if !currentListItems.isEmpty {
