@@ -138,7 +138,7 @@ If you receive "PREVIOUS_CONVERSATIONS" data:
 ## CRITICAL VALIDATION
 Before returning, YOU MUST validate the JSON using the code_interpreter tool:
 
-1. Use code_interpreter to run: `import json; json.loads(your_response)`
+1. Use code_interpreter to run: import json; json.loads(your_response)
 2. If parsing succeeds, return the JSON
 3. If parsing fails, FIX the errors and try again
 4. Common errors to check:
@@ -152,7 +152,7 @@ Additional checks:
 1. Each question object is COMPLETE (all required fields present)
 2. Arrays contain ONLY strings (no mixed types)
 3. question_type matches requested type EXACTLY
-4. No markdown code fences (no \`\`\`json)
+4. No markdown code fences (no triple backticks with json)
 5. All LaTeX uses double backslashes: \\\\( \\\\)
 6. Complete one full question before starting the next
 
