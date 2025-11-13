@@ -18,7 +18,7 @@ class SessionHelper {
    */
   async getSessionFromDatabase(sessionId) {
     try {
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../../utils/railway-database');
 
       // First try the sessions table
       const sessionQuery = `
@@ -58,7 +58,7 @@ class SessionHelper {
    */
   async storeConversation(sessionId, userId, userMessage, aiResponse) {
     try {
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../../utils/railway-database');
 
       // Store user message
       await db.addConversationMessage({

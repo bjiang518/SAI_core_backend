@@ -23,6 +23,7 @@ const fastify = require('fastify')({
 // Import our enhanced components
 const { features } = require('./config/services');
 const AIProxyRoutes = require('./routes/ai-proxy');
+const AIModularRoutes = require('./routes/ai'); // NEW: Modular AI routes with Assistants API
 const ArchiveRoutes = require('./routes/archive-routes');
 const AuthRoutes = require('./routes/auth-routes');
 const ProgressRoutes = require('./routes/progress-routes');
@@ -412,8 +413,11 @@ if (features.useGateway) {
   // Parent Reports routes - NEW
   new ParentReportsRoutes(fastify);
 
-  // AI Engine proxy routes
-  new AIProxyRoutes(fastify);
+  // AI Engine proxy routes - NEW: Use modular routes with Assistants API support
+  fastify.register(AIModularRoutes);
+
+  // OLD: Commented out for migration to modular routes
+  // new AIProxyRoutes(fastify);
 
   // Archive routes for session management
   new ArchiveRoutes(fastify);

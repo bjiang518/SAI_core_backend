@@ -10,7 +10,7 @@ const AIServiceClient = require('../../../services/ai-client');
 const AuthHelper = require('../utils/auth-helper');
 const SessionHelper = require('../utils/session-helper');
 const { TUTORING_SYSTEM_PROMPT, MATH_FORMATTING_SYSTEM_PROMPT } = require('../utils/prompts');
-const PIIMasking = require('../../../../utils/pii-masking');
+const PIIMasking = require('../../utils/pii-masking');
 
 class SessionManagementRoutes {
   constructor(fastify) {
@@ -128,7 +128,7 @@ class SessionManagementRoutes {
       const sessionId = uuidv4();
 
       // Get database connection
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
 
       // Create session in database
       const sessionQuery = `
@@ -199,7 +199,7 @@ class SessionManagementRoutes {
       }
 
       // Get conversation history
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
       const conversationHistory = await db.getConversationHistory(sessionId, 50);
 
       return reply.send({
@@ -246,7 +246,7 @@ class SessionManagementRoutes {
       this.fastify.log.info(`💬 Processing session message: ${sessionId.substring(0, 8)}...`);
 
       // Get and verify session
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
       const sessionInfo = await this.sessionHelper.getSessionFromDatabase(sessionId);
 
       if (!sessionInfo) {
@@ -400,7 +400,7 @@ LANGUAGE: ${languageInstruction}`;
       this.fastify.log.info(`💬 Processing streaming session message: ${sessionId.substring(0, 8)}...`);
 
       // Get and verify session (same as non-streaming)
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
       const sessionInfo = await this.sessionHelper.getSessionFromDatabase(sessionId);
 
       if (!sessionInfo) {
@@ -564,7 +564,7 @@ LANGUAGE: ${languageInstruction}`;
       this.fastify.log.info(`📦 Archiving session: ${sessionId}`);
 
       // Get session and conversation history
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
       const sessionInfo = await this.sessionHelper.getSessionFromDatabase(sessionId);
 
       if (!sessionInfo) {
@@ -637,7 +637,7 @@ LANGUAGE: ${languageInstruction}`;
     const { sessionId } = request.params;
 
     try {
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
       const archivedSession = await db.getArchivedConversationBySessionId(sessionId);
 
       if (!archivedSession) {

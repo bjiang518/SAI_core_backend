@@ -28,7 +28,7 @@ class AuthHelper {
       const token = authHeader.substring(7);
       this.fastify.log.info(`🔐 Starting authentication for token: ${token.substring(0, 8)}...`);
 
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../../utils/railway-database');
 
       // Add timeout wrapper to prevent hanging
       const sessionDataPromise = db.verifyUserSession(token);
@@ -74,40 +74,4 @@ class AuthHelper {
   }
 }
 
-/**
- * Standalone function to extract user ID from request (for use in plugin-based routes)
- * @param {FastifyRequest} request - Fastify request object
- * @returns {string|null} - User ID from token or null
- */
-async function getUserId(request) {
-  try {
-    const authHeader = request.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return null;
-    }
-
-    const token = authHeader.substring(7);
-    const { db } = require('../../../../utils/railway-database');
-
-    // Add timeout wrapper
-    const sessionDataPromise = db.verifyUserSession(token);
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Token verification timeout')), 20000)
-    );
-
-    const sessionData = await Promise.race([sessionDataPromise, timeoutPromise]);
-
-    if (sessionData && sessionData.user_id) {
-      return sessionData.user_id;
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Token verification error:', error);
-    return null;
-  }
-}
-
 module.exports = AuthHelper;
-module.exports.getUserId = getUserId;

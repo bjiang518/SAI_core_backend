@@ -6,7 +6,7 @@
  */
 
 const AuthHelper = require('../utils/auth-helper');
-const PIIMasking = require('../../../../utils/pii-masking');
+const PIIMasking = require('../../utils/pii-masking');
 
 class ArchiveRetrievalRoutes {
   constructor(fastify) {
@@ -132,7 +132,7 @@ class ArchiveRetrievalRoutes {
       this.fastify.log.info(`📚 Getting archived conversations for user: ${PIIMasking.maskUserId(userId)}`);
 
       // Get database connection
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
 
       // Build query with filters
       let query = `
@@ -213,7 +213,7 @@ class ArchiveRetrievalRoutes {
 
       this.fastify.log.info(`📖 Getting archived conversation: ${conversationId}`);
 
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
 
       // Get conversation with full history
       const query = `
@@ -261,7 +261,7 @@ class ArchiveRetrievalRoutes {
 
       this.fastify.log.info(`📚 Getting archived sessions for user: ${PIIMasking.maskUserId(userId)}`);
 
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
 
       const query = `
         SELECT
@@ -307,7 +307,7 @@ class ArchiveRetrievalRoutes {
 
       this.fastify.log.info(`🔍 Searching archived conversations: "${searchQuery}"`);
 
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
 
       // Full-text search in title, summary, and key_topics
       let query = `
@@ -364,7 +364,7 @@ class ArchiveRetrievalRoutes {
 
       this.fastify.log.info(`📅 Getting conversations from ${start_date} to ${end_date}`);
 
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
 
       let query = `
         SELECT id, user_id, subject, title, summary, created_at, message_count, duration_minutes
@@ -441,7 +441,7 @@ class ArchiveRetrievalRoutes {
       const queryEmbedding = embeddingResponse.data[0].embedding;
 
       // Search using vector similarity (cosine distance)
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
 
       let sqlQuery = `
         SELECT

@@ -11,9 +11,9 @@
  */
 
 const AIServiceClient = require('../../../services/ai-client');
-const { assistantsService } = require('../../../../services/openai-assistants-service');
+const { assistantsService } = require('../../../services/openai-assistants-service');
 const { getUserId } = require('../utils/auth-helper');
-const { db } = require('../../../../utils/railway-database');
+const { db } = require('../../../utils/railway-database');
 const crypto = require('crypto');
 
 // Feature flags
@@ -93,7 +93,7 @@ module.exports = async function (fastify, opts) {
     }
   }, async (request, reply) => {
     const startTime = Date.now();
-    const userId = await getUserId(request);
+    const userId = getUserId(request);
 
     if (!userId) {
       return reply.status(401).send({
@@ -103,7 +103,7 @@ module.exports = async function (fastify, opts) {
       });
     }
 
-    const { subject, topic, difficulty, count = 5, language = 'en', question_type = 'any', force_assistants_api, force_ai_engine, use_personalization = false } = request.body;
+    const { subject, topic, difficulty, count = 5, language = 'en', force_assistants_api, force_ai_engine } = request.body;
 
     // Determine which implementation to use
     const useAssistantsAPI = shouldUseAssistantsAPI(userId, force_assistants_api, force_ai_engine);
@@ -115,9 +115,7 @@ module.exports = async function (fastify, opts) {
       subject,
       topic,
       count,
-      questionType: question_type,
       useAssistantsAPI,
-      usePersonalization: use_personalization,
       experimentGroup
     });
 
@@ -128,7 +126,7 @@ module.exports = async function (fastify, opts) {
       if (useAssistantsAPI) {
         // Try Assistants API first
         try {
-          result = await generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, question_type, use_personalization);
+          result = await generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language);
         } catch (error) {
           fastify.log.error('❌ Assistants API failed, falling back to AI Engine:', error);
 
@@ -238,24 +236,21 @@ module.exports = async function (fastify, opts) {
    * Legacy: Generate questions based on mistakes
    */
   fastify.post('/api/ai/generate-questions/mistakes', async (request, reply) => {
-    const userId = await getUserId(request);
+    const userId = getUserId(request);
     const { subject, time_range, count = 5 } = request.body;
 
-    // Forward to unified endpoint WITH personalization enabled
-    const response = await fastify.inject({
+    // For now, forward to unified endpoint
+    // In future, we can add mistake analysis to additional_instructions
+    return await fastify.inject({
       method: 'POST',
       url: '/api/ai/generate-questions/practice',
       headers: request.headers,
       payload: {
         subject,
         count,
-        force_assistants_api: true, // Force Assistants API for mistake analysis
-        use_personalization: true,  // Enable function calls for mistake analysis
+        // The assistant will call get_common_mistakes automatically
       }
     });
-
-    // Extract JSON from inject response to avoid circular structure
-    return JSON.parse(response.body);
   });
 
   /**
@@ -265,7 +260,7 @@ module.exports = async function (fastify, opts) {
     // Forward to unified endpoint
     const { subject, conversation_ids, count = 5 } = request.body;
 
-    const response = await fastify.inject({
+    return await fastify.inject({
       method: 'POST',
       url: '/api/ai/generate-questions/practice',
       headers: request.headers,
@@ -274,9 +269,6 @@ module.exports = async function (fastify, opts) {
         count
       }
     });
-
-    // Extract JSON from inject response to avoid circular structure
-    return JSON.parse(response.body);
   });
 };
 
@@ -287,7 +279,7 @@ module.exports = async function (fastify, opts) {
 /**
  * Generate questions using OpenAI Assistants API
  */
-async function generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, questionType = 'any', usePersonalization = false) {
+async function generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language) {
   const startTime = Date.now();
 
   // Get Practice Generator assistant ID
@@ -303,8 +295,8 @@ async function generateQuestionsWithAssistant(userId, subject, topic, difficulty
   });
 
   try {
-    // Build request message (with or without personalization)
-    const requestMessage = buildPracticeRequestMessage(subject, topic, difficulty, count, language, questionType, userId, usePersonalization);
+    // Build request message
+    const requestMessage = buildPracticeRequestMessage(subject, topic, difficulty, count, language, userId);
 
     // Send message
     await assistantsService.sendMessage(thread.id, requestMessage);
@@ -391,41 +383,20 @@ async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty,
 /**
  * Build request message for Practice Generator assistant
  */
-function buildPracticeRequestMessage(subject, topic, difficulty, count, language, questionType = 'any', userId, usePersonalization = false) {
+function buildPracticeRequestMessage(subject, topic, difficulty, count, language, userId) {
   const languageMap = {
     'en': 'English',
     'zh-CN': 'Simplified Chinese',
     'zh-TW': 'Traditional Chinese'
   };
 
-  const questionTypeMap = {
-    'any': 'Mix of different types (multiple choice, short answer, calculation, etc.)',
-    'multiple_choice': 'Multiple choice questions ONLY (4 options each)',
-    'true_false': 'True/False questions ONLY',
-    'fill_blank': 'Fill in the blank questions ONLY',
-    'short_answer': 'Short answer questions ONLY (1-3 sentences)',
-    'long_answer': 'Long answer/essay questions ONLY',
-    'calculation': 'Calculation/mathematical problems ONLY',
-    'matching': 'Matching questions ONLY'
-  };
-
   let message = `Generate ${count} practice questions for the following:\n\n`;
   message += `Subject: ${subject}\n`;
   if (topic) message += `Topic: ${topic}\n`;
   if (difficulty) message += `Difficulty: ${difficulty}/5\n`;
-  message += `Language: ${languageMap[language] || 'English'}\n`;
-  message += `Question Type: ${questionTypeMap[questionType] || questionTypeMap['any']}\n\n`;
-
-  message += `IMPORTANT: All questions MUST be of type "${questionType}". ${questionTypeMap[questionType]}\n\n`;
-
-  // ONLY include function calls if personalization is requested
-  if (usePersonalization) {
-    message += `IMPORTANT: Please call get_student_performance({user_id: "${userId}", subject: "${subject}"}) to personalize the difficulty based on my performance.\n\n`;
-    message += `If I have made mistakes in this topic before, use get_common_mistakes({user_id: "${userId}", subject: "${subject}"}) to generate targeted practice questions.\n\n`;
-  } else {
-    message += `DO NOT call any functions. Generate questions based ONLY on the parameters provided above (subject, topic, difficulty, question type, language).\n\n`;
-  }
-
+  message += `Language: ${languageMap[language] || 'English'}\n\n`;
+  message += `IMPORTANT: Please call get_student_performance({user_id: "${userId}", subject: "${subject}"}) to personalize the difficulty based on my performance.\n\n`;
+  message += `If I have made mistakes in this topic before, use get_common_mistakes({user_id: "${userId}", subject: "${subject}"}) to generate targeted practice questions.\n\n`;
   message += `Return the questions in JSON format as specified in your instructions.`;
 
   return message;

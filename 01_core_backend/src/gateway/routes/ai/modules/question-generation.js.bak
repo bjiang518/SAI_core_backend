@@ -151,7 +151,7 @@ class QuestionGenerationRoutes {
       this.fastify.log.info(`❌ Generating ${count} questions based on mistakes: ${subject}, ${time_range}`);
 
       // Get user's mistakes from database
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
 
       // Calculate date range
       let startDate;
@@ -282,7 +282,7 @@ class QuestionGenerationRoutes {
       this.fastify.log.info(`💬 Generating ${count} questions based on conversations`);
 
       // Get conversation history from database
-      const { db } = require('../../../../utils/railway-database');
+      const { db } = require('../../utils/railway-database');
 
       let conversationData = [];
 

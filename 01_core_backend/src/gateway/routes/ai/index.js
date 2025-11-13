@@ -35,7 +35,8 @@ async function aiRoutes(fastify, opts) {
     { name: 'Question Processing', Class: QuestionProcessingRoutes },
     { name: 'Session Management', Class: SessionManagementRoutes },
     { name: 'Archive Retrieval', Class: ArchiveRetrievalRoutes },
-    { name: 'Question Generation (Legacy)', Class: QuestionGenerationRoutes },
+    // DISABLED: Using Question Generation V2 (Assistants API) instead
+    // { name: 'Question Generation (Legacy)', Class: QuestionGenerationRoutes },
     { name: 'Text-to-Speech', Class: TTSRoutes },
     { name: 'Analytics', Class: AnalyticsRoutes },
   ];
