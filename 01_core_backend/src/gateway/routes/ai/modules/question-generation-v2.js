@@ -179,37 +179,30 @@ module.exports = async function (fastify, opts) {
     });
 
     let result;
-    let usedFallback = false;
+    let usedAssistantsAPI = false;
 
     try {
-      if (useAssistantsAPI) {
-        // Try Assistants API first
+      // MODE ROUTING: Modes 2 & 3 require Assistants API (need context support)
+      if (mode === 2 || mode === 3) {
+        fastify.log.info(`📋 Mode ${mode} requires Assistants API (context-based generation)`);
+        result = await generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, question_type, custom_message, mode, mistakes_data, conversation_data);
+        usedAssistantsAPI = true;
+      } else {
+        // MODE 1: Try AI Engine first (faster!), fallback to Assistants API
         try {
-          result = await generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, question_type, custom_message, mode, mistakes_data, conversation_data);
+          fastify.log.info('⚡ Using AI Engine (primary - faster)...');
+          result = await generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, aiClient);
         } catch (error) {
-          fastify.log.error('❌ Assistants API failed:', error);
+          fastify.log.error('❌ AI Engine failed:', error);
 
-          // Fallback to AI Engine ONLY for mode 1 (random practice)
-          // Modes 2 and 3 require context that AI Engine doesn't support
-          if (AUTO_FALLBACK && mode === 1) {
-            fastify.log.info('🔄 Falling back to AI Engine for mode 1...');
-            usedFallback = true;
-            result = await generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, aiClient);
+          if (AUTO_FALLBACK) {
+            fastify.log.info('🔄 Falling back to Assistants API...');
+            usedAssistantsAPI = true;
+            result = await generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, question_type, custom_message, mode, mistakes_data, conversation_data);
           } else {
-            // For modes 2 and 3, or if AUTO_FALLBACK is disabled, throw error
-            if (mode === 2 || mode === 3) {
-              fastify.log.error(`❌ Cannot fallback to AI Engine for mode ${mode} (requires context)`);
-              throw new Error(`Practice generation mode ${mode} requires Assistants API. AI Engine fallback not supported for this mode.`);
-            }
             throw error;
           }
         }
-      } else {
-        // Use AI Engine directly (only supports mode 1)
-        if (mode === 2 || mode === 3) {
-          throw new Error(`AI Engine does not support mode ${mode}. Please enable Assistants API for this feature.`);
-        }
-        result = await generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, aiClient);
       }
 
       const totalLatency = Date.now() - startTime;
@@ -223,9 +216,9 @@ module.exports = async function (fastify, opts) {
       fastify.log.info({
         msg: '✅ Questions generated successfully',
         questionCount: result.questions.length,
-        usedFallback,
         mode,
-        implementation: usedFallback ? 'ai_engine' : (useAssistantsAPI ? 'assistants_api' : 'ai_engine')
+        implementation: usedAssistantsAPI ? 'assistants_api (fallback)' : 'ai_engine (primary)',
+        latency_ms: totalLatency
       });
 
       // Log metrics
@@ -236,9 +229,9 @@ module.exports = async function (fastify, opts) {
         totalLatency,
         inputTokens: result.tokens?.input || 0,
         outputTokens: result.tokens?.output || 0,
-        model: result.model || (useAssistantsAPI ? 'gpt-4o-mini' : 'unknown'),
+        model: result.model || 'gpt-4o-mini',
         wasSuccessful: true,
-        useAssistantsAPI: useAssistantsAPI && !usedFallback,
+        useAssistantsAPI: usedAssistantsAPI,
         experimentGroup,
         threadId: result.thread_id,
         runId: result.run_id
@@ -249,14 +242,14 @@ module.exports = async function (fastify, opts) {
         questions: result.questions,
         metadata: {
           ...result.metadata,
-          using_assistants_api: useAssistantsAPI && !usedFallback,
-          used_fallback: usedFallback,
+          using_assistants_api: usedAssistantsAPI,
+          primary_engine: 'ai_engine',
           experiment_group: experimentGroup,
           total_latency_ms: totalLatency
         },
         _performance: {
           latency_ms: totalLatency,
-          implementation: usedFallback ? 'ai_engine (fallback)' : (useAssistantsAPI ? 'assistants_api' : 'ai_engine')
+          implementation: usedAssistantsAPI ? 'assistants_api (fallback)' : 'ai_engine (primary)'
         }
       };
     } catch (error) {
@@ -712,8 +705,9 @@ Generate questions that feel like a natural continuation of their learning journ
     // Run assistant
     const run = await assistantsService.runAssistant(thread.id, assistantId);
 
-    // Wait for completion
-    const result = await assistantsService.waitForCompletion(thread.id, run.id);
+    // Wait for completion with extended timeout for question generation (120 seconds)
+    // Question generation can take longer due to multiple questions being created
+    const result = await assistantsService.waitForCompletion(thread.id, run.id, 120000);
 
     // Get generated questions (JSON response)
     const messages = await assistantsService.getMessages(thread.id, 1);
@@ -777,24 +771,29 @@ async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty,
       }
     );
 
-    console.log(`✅ AI Engine returned ${response?.questions?.length || 0} questions`);
+    // AI Engine wraps response in a 'data' field
+    const aiEngineData = response.data || response;
+
+    console.log(`✅ AI Engine returned ${aiEngineData?.questions?.length || 0} questions`);
 
     // Validate response
-    if (!response || !response.questions) {
-      console.error('❌ AI Engine response invalid:', { response });
+    if (!aiEngineData || !aiEngineData.questions) {
+      console.error('❌ AI Engine response invalid:', { response, aiEngineData });
       throw new Error('AI Engine returned invalid response: missing questions array');
     }
 
     return {
-      questions: response.questions || [],
+      questions: aiEngineData.questions || [],
       metadata: {
-        total_questions: response.questions?.length || 0,
-        language
+        total_questions: aiEngineData.questions?.length || 0,
+        language,
+        tokens_used: aiEngineData.tokens_used,
+        generation_type: aiEngineData.generation_type
       },
-      model: response.model || 'gpt-4o-mini',
+      model: aiEngineData.model || 'gpt-4o-mini',
       tokens: {
-        input: response.input_tokens || 0,
-        output: response.output_tokens || 0
+        input: aiEngineData.input_tokens || 0,
+        output: aiEngineData.output_tokens || 0
       }
     };
   } catch (error) {
