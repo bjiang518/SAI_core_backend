@@ -172,6 +172,7 @@ module.exports = async function (fastify, opts) {
       topic,
       count,
       questionType: question_type,
+      difficulty,
       mode,
       useAssistantsAPI,
       hasCustomMessage: !!custom_message,
@@ -191,7 +192,7 @@ module.exports = async function (fastify, opts) {
         // MODE 1: Try AI Engine first (faster!), fallback to Assistants API
         try {
           fastify.log.info('⚡ Using AI Engine (primary - faster)...');
-          result = await generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, aiClient);
+          result = await generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, question_type, aiClient);
         } catch (error) {
           fastify.log.error('❌ AI Engine failed:', error);
 
@@ -746,9 +747,20 @@ Generate questions that feel like a natural continuation of their learning journ
 /**
  * Generate questions using AI Engine (fallback/legacy)
  */
-async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, aiClient) {
+async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, questionType, aiClient) {
   try {
     console.log('🔄 Calling AI Engine /api/v1/generate-questions/random...');
+    console.log('📊 Parameters:', { userId, subject, topic, difficulty, count, language, questionType });
+
+    // Map questionType to AI Engine format
+    let questionTypes = [];
+    if (questionType === 'any' || !questionType) {
+      // Mixed types - let AI choose
+      questionTypes = ['multiple_choice', 'short_answer', 'calculation', 'fill_blank'];
+    } else {
+      // Specific type requested
+      questionTypes = [questionType];
+    }
 
     const response = await aiClient.proxyRequest(
       'POST',
@@ -758,7 +770,7 @@ async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty,
         subject,
         topic,
         difficulty: difficulty || 3,
-        count,
+        count: count || 5,  // Use the count parameter from request
         language,
         user_profile: {
           subject_proficiency: {}
@@ -766,7 +778,7 @@ async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty,
         config: {
           include_hints: true,
           include_explanations: true,
-          question_types: ['multiple_choice', 'short_answer', 'calculation']
+          question_types: questionTypes  // ✅ Use dynamic question types from iOS
         }
       }
     );
