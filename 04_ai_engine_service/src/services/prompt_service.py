@@ -1070,12 +1070,16 @@ Remember: Be honest about grading errors. If the student was right and the AI wa
         # Simplified prompt - only include LaTeX rules for math subjects
         is_math = detected_subject in {Subject.MATHEMATICS, Subject.PHYSICS, Subject.CHEMISTRY}
 
+        # Build math formatting instruction (can't use backslashes in f-string)
+        math_note = "Math formatting: Use \\(...\\) for inline math, \\[...\\] for display math. Use LaTeX: $\\alpha$, $\\leq$, etc." if is_math else ""
+        focus_line = f"Focus: {focus_notes}" if focus_notes else ""
+
         prompt = f"""Generate {question_count} {difficulty} {subject} questions for {grade_level}.
 
 Topics: {', '.join(topics) if topics else 'general'}
-{"Focus: " + focus_notes if focus_notes else ""}
+{focus_line}
 
-{"Math formatting: Use \\(...\\) for inline math, \\[...\\] for display math. Use LaTeX: $\\\\alpha$, $\\\\leq$, etc." if is_math else ""}
+{math_note}
 
 OUTPUT FORMAT:
 Return your response as a JSON object with a "questions" array. Each question must follow this exact structure:
@@ -1142,12 +1146,16 @@ Generate now:"""
         detected_subject = self.detect_subject(subject)
         is_math = detected_subject in {Subject.MATHEMATICS, Subject.PHYSICS, Subject.CHEMISTRY}
 
+        # Build notes outside f-string (can't use backslashes in f-string)
+        math_note = "Math: Use \\(...\\) for inline, \\[...\\] for display. LaTeX: $\\alpha$, $\\leq$" if is_math else ""
+        tags_note = f"TAGS: Use EXACTLY these tags: {str(unique_source_tags)} (copy exactly, no new tags)" if unique_source_tags else ""
+
         prompt = f"""Generate {question_count} remedial {subject} questions targeting these mistakes:
 
 {chr(10).join(mistakes_summary)}
 
-{"Math: Use \\(...\\) for inline, \\[...\\] for display. LaTeX: $\\\\alpha$, $\\\\leq$" if is_math else ""}
-{"TAGS: Use EXACTLY these tags: " + str(unique_source_tags) + " (copy exactly, no new tags)" if unique_source_tags else ""}
+{math_note}
+{tags_note}
 
 OUTPUT FORMAT:
 Return your response as a JSON object with a "questions" array. Each question must follow this exact structure:
@@ -1178,7 +1186,7 @@ CRITICAL:
 - Use "question_type", "multiple_choice_options", "estimated_time_minutes"
 - For MC: "multiple_choice_options" = [{{"label":"A","text":"...","is_correct":true/false}}]
 - For non-MC: set "multiple_choice_options" to null
-{"- TAGS: Use EXACTLY " + str(unique_source_tags) + " (copy, no new)" if unique_source_tags else ""}
+{tags_note if unique_source_tags else ""}
 - Generate EXACTLY {question_count} questions
 
 Generate now:"""
@@ -1215,12 +1223,15 @@ Generate now:"""
         detected_subject = self.detect_subject(subject)
         is_math = detected_subject in {Subject.MATHEMATICS, Subject.PHYSICS, Subject.CHEMISTRY}
 
+        # Build math note outside f-string (can't use backslashes in f-string)
+        math_note = "Math: Use \\(...\\) for inline, \\[...\\] for display. LaTeX: $\\alpha$, $\\leq$" if is_math else ""
+
         prompt = f"""Generate {question_count} personalized {subject} questions based on conversation history:
 
 {chr(10).join(conv_summary)}
 
 Build on topics they engaged with, address knowledge gaps.
-{"Math: Use \\(...\\) for inline, \\[...\\] for display. LaTeX: $\\\\alpha$, $\\\\leq$" if is_math else ""}
+{math_note}
 
 OUTPUT FORMAT:
 Return your response as a JSON object with a "questions" array. Each question must follow this exact structure:
