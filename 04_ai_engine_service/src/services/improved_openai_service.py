@@ -362,10 +362,11 @@ class OptimizedEducationalAIService:
                 if question_match:
                     current_question['question'] = question_match.group(1)
 
-            elif '"type"' in line and ':' in line:
-                type_match = re.search(r'"type":\s*"([^"]*)"', line)
+            elif ('"question_type"' in line or '"type"' in line) and ':' in line:
+                # Support both "question_type" (new format) and "type" (old format for backward compatibility)
+                type_match = re.search(r'"(?:question_type|type)":\s*"([^"]*)"', line)
                 if type_match:
-                    current_question['type'] = type_match.group(1)
+                    current_question['question_type'] = type_match.group(1)
 
             elif '"correct_answer"' in line and ':' in line:
                 answer_match = re.search(r'"correct_answer":\s*"([^"]*)"', line)
@@ -387,21 +388,22 @@ class OptimizedEducationalAIService:
                 if difficulty_match:
                     current_question['difficulty'] = difficulty_match.group(1)
 
-            elif '"options"' in line and '[' in line:
-                # Extract options array
-                options_match = re.search(r'"options":\s*\[(.*?)\]', line)
+            elif ('"multiple_choice_options"' in line or '"options"' in line) and '[' in line:
+                # Support both "multiple_choice_options" (new format) and "options" (old format)
+                # Extract options array - can be simple strings or objects with {label, text, is_correct}
+                options_match = re.search(r'"(?:multiple_choice_options|options)":\s*\[(.*?)\]', line)
                 if options_match:
                     options_str = options_match.group(1)
                     # Parse individual options
                     options = []
                     for opt in re.findall(r'"([^"]*)"', options_str):
                         options.append(opt)
-                    current_question['options'] = options
+                    current_question['multiple_choice_options'] = options
 
             # Check if we have a complete question
             if (len(current_question) >= 4 and
                 'question' in current_question and
-                'type' in current_question and
+                'question_type' in current_question and
                 'correct_answer' in current_question and
                 'explanation' in current_question):
 
@@ -1987,10 +1989,11 @@ class EducationalAIService:
                 if question_match:
                     current_question['question'] = question_match.group(1)
 
-            elif '"type"' in line and ':' in line:
-                type_match = re.search(r'"type":\s*"([^"]*)"', line)
+            elif ('"question_type"' in line or '"type"' in line) and ':' in line:
+                # Support both "question_type" (new format) and "type" (old format for backward compatibility)
+                type_match = re.search(r'"(?:question_type|type)":\s*"([^"]*)"', line)
                 if type_match:
-                    current_question['type'] = type_match.group(1)
+                    current_question['question_type'] = type_match.group(1)
 
             elif '"correct_answer"' in line and ':' in line:
                 answer_match = re.search(r'"correct_answer":\s*"([^"]*)"', line)
@@ -2012,21 +2015,22 @@ class EducationalAIService:
                 if difficulty_match:
                     current_question['difficulty'] = difficulty_match.group(1)
 
-            elif '"options"' in line and '[' in line:
-                # Extract options array
-                options_match = re.search(r'"options":\s*\[(.*?)\]', line)
+            elif ('"multiple_choice_options"' in line or '"options"' in line) and '[' in line:
+                # Support both "multiple_choice_options" (new format) and "options" (old format)
+                # Extract options array - can be simple strings or objects with {label, text, is_correct}
+                options_match = re.search(r'"(?:multiple_choice_options|options)":\s*\[(.*?)\]', line)
                 if options_match:
                     options_str = options_match.group(1)
                     # Parse individual options
                     options = []
                     for opt in re.findall(r'"([^"]*)"', options_str):
                         options.append(opt)
-                    current_question['options'] = options
+                    current_question['multiple_choice_options'] = options
 
             # Check if we have a complete question
             if (len(current_question) >= 4 and
                 'question' in current_question and
-                'type' in current_question and
+                'question_type' in current_question and
                 'correct_answer' in current_question and
                 'explanation' in current_question):
 
@@ -2499,8 +2503,14 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     raise ValueError("No valid questions could be extracted from response")
 
                 # Validate each question has required fields
-                required_fields = ["question", "type", "correct_answer", "explanation", "topic"]
+                required_fields = ["question", "question_type", "correct_answer", "explanation", "topic"]
                 for i, question in enumerate(questions_json):
+                    # Support both old and new field names for backward compatibility
+                    if "type" in question and "question_type" not in question:
+                        question["question_type"] = question["type"]
+                    if "options" in question and "multiple_choice_options" not in question:
+                        question["multiple_choice_options"] = question["options"]
+
                     for field in required_fields:
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")
@@ -2636,8 +2646,14 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     print(f"⚠️ No source tags found in mistakes_data, generated questions will have no tags")
 
                 # Validate each question has required fields
-                required_fields = ["question", "type", "correct_answer", "explanation", "topic"]
+                required_fields = ["question", "question_type", "correct_answer", "explanation", "topic"]
                 for i, question in enumerate(questions_json):
+                    # Support both old and new field names for backward compatibility
+                    if "type" in question and "question_type" not in question:
+                        question["question_type"] = question["type"]
+                    if "options" in question and "multiple_choice_options" not in question:
+                        question["multiple_choice_options"] = question["options"]
+
                     for field in required_fields:
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")
@@ -2757,8 +2773,14 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     raise ValueError("No valid questions could be extracted from response")
 
                 # Validate each question has required fields
-                required_fields = ["question", "type", "correct_answer", "explanation", "topic"]
+                required_fields = ["question", "question_type", "correct_answer", "explanation", "topic"]
                 for i, question in enumerate(questions_json):
+                    # Support both old and new field names for backward compatibility
+                    if "type" in question and "question_type" not in question:
+                        question["question_type"] = question["type"]
+                    if "options" in question and "multiple_choice_options" not in question:
+                        question["multiple_choice_options"] = question["options"]
+
                     for field in required_fields:
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")

@@ -92,12 +92,10 @@ class AdvancedPromptService:
         # Add more subjects as needed...
         templates[Subject.GENERAL] = PromptTemplate(
             subject=Subject.GENERAL,
-            base_prompt="""You are an expert tutor. Provide clear, educational explanations that help students understand concepts step-by-step.""",
+            base_prompt="""You are a helpful tutor. Explain clearly and simply.""",
             formatting_rules=[
-                "Use clear, structured explanations",
-                "Break complex topics into simple steps", 
-                "Provide examples when helpful",
-                "Use proper formatting for mobile display"
+                "Use clear explanations",
+                "Break down complex ideas"
             ],
             examples=[]
         )
@@ -1121,23 +1119,30 @@ Return your response as a JSON object with a "questions" array. Each question mu
     "questions": [
         {{
             "question": "Clear, well-formatted question text with proper mathematical notation",
-            "type": "multiple_choice|short_answer|calculation",
-            "options": ["A) option1", "B) option2", "C) option3", "D) option4"],
-            "correct_answer": "The correct answer (for MC: just the letter and text, e.g., 'A) option1')",
+            "question_type": "multiple_choice|short_answer|calculation|fill_blank|true_false",
+            "multiple_choice_options": [
+                {{"label": "A", "text": "First option", "is_correct": true}},
+                {{"label": "B", "text": "Second option", "is_correct": false}},
+                {{"label": "C", "text": "Third option", "is_correct": false}},
+                {{"label": "D", "text": "Fourth option", "is_correct": false}}
+            ],
+            "correct_answer": "The correct answer (for MC: full text of correct option)",
             "explanation": "Step-by-step explanation showing the solution process",
             "difficulty": "{difficulty}",
             "topic": "specific topic name from the focus areas",
-            "estimated_time": "time in minutes (e.g., '3 minutes')"
+            "estimated_time_minutes": "time in minutes (e.g., '3')"
         }}
     ]
 }}
 
 CRITICAL NOTES:
-- For multiple choice: include exactly 4 options in the "options" array
-- For short answer/calculation: set "options" to null
+- FIELD NAMES: Use "question_type" (NOT "type"), "multiple_choice_options" (NOT "options"), "estimated_time_minutes" (NOT "estimated_time")
+- For multiple choice: "multiple_choice_options" must be array of objects with "label", "text", "is_correct" fields
+- For short answer/calculation/fill_blank/true_false: set "multiple_choice_options" to null
 - Make sure all mathematical expressions use proper LaTeX formatting
 - Explanations should be educational and help students learn
 - Each question should be independent and self-contained
+- Generate EXACTLY {question_count} questions (no more, no less)
 
 Generate the questions now:"""
 
@@ -1243,25 +1248,34 @@ Return your response as a JSON object with a "questions" array. Each question mu
     "questions": [
         {{
             "question": "Question text that addresses the mistake pattern",
-            "type": "multiple_choice|short_answer|calculation",
-            "options": ["A) option1", "B) option2", "C) option3", "D) option4"],
+            "question_type": "multiple_choice|short_answer|calculation|fill_blank|true_false",
+            "multiple_choice_options": [
+                {{"label": "A", "text": "First option", "is_correct": true}},
+                {{"label": "B", "text": "Second option", "is_correct": false}},
+                {{"label": "C", "text": "Third option", "is_correct": false}},
+                {{"label": "D", "text": "Fourth option", "is_correct": false}}
+            ],
             "correct_answer": "The correct answer",
             "explanation": "Detailed explanation that addresses the common mistake and shows correct reasoning",
             "difficulty": "beginner|intermediate|advanced",
             "topic": "specific topic from the mistake analysis",
             "tags": {unique_source_tags if unique_source_tags else "[]"},
             "addresses_mistake": "Brief description of which mistake pattern this question helps with (optional)",
-            "estimated_time": "time in minutes"
+            "estimated_time_minutes": "time in minutes"
         }}
     ]
 }}
 
 CRITICAL NOTES:
+- FIELD NAMES: Use "question_type" (NOT "type"), "multiple_choice_options" (NOT "options"), "estimated_time_minutes" (NOT "estimated_time")
+- For multiple choice: "multiple_choice_options" must be array of objects with "label", "text", "is_correct" fields
+- For short answer/calculation/fill_blank/true_false: set "multiple_choice_options" to null
 - ⚠️ CRITICAL - TAGS FIELD: You MUST use EXACTLY these tags {unique_source_tags if unique_source_tags else "[]"} for ALL questions. Do NOT create new tags. Copy the tags array exactly as shown above.
 - Focus on helping the student overcome their specific error patterns
 - Make sure explanations explicitly address why the student's previous approach was incorrect
 - For multiple choice, include distractors that represent common mistakes
 - Questions should build understanding, not just test memorization
+- Generate EXACTLY {question_count} questions (no more, no less)
 
 Generate the remedial questions now:"""
 
@@ -1358,23 +1372,32 @@ Return your response as a JSON object with a "questions" array. Each question mu
     "questions": [
         {{
             "question": "Personalized question text building on their conversation history",
-            "type": "multiple_choice|short_answer|calculation",
-            "options": ["A) option1", "B) option2", "C) option3", "D) option4"],
+            "question_type": "multiple_choice|short_answer|calculation|fill_blank|true_false",
+            "multiple_choice_options": [
+                {{"label": "A", "text": "First option", "is_correct": true}},
+                {{"label": "B", "text": "Second option", "is_correct": false}},
+                {{"label": "C", "text": "Third option", "is_correct": false}},
+                {{"label": "D", "text": "Fourth option", "is_correct": false}}
+            ],
             "correct_answer": "The correct answer",
             "explanation": "Explanation that connects to their previous understanding and conversations",
             "difficulty": "beginner|intermediate|advanced",
             "topic": "specific topic from conversation analysis",
             "builds_on": "Brief description of which conversation element this builds upon (optional)",
-            "estimated_time": "time in minutes"
+            "estimated_time_minutes": "time in minutes"
         }}
     ]
 }}
 
 CRITICAL NOTES:
+- FIELD NAMES: Use "question_type" (NOT "type"), "multiple_choice_options" (NOT "options"), "estimated_time_minutes" (NOT "estimated_time")
+- For multiple choice: "multiple_choice_options" must be array of objects with "label", "text", "is_correct" fields
+- For short answer/calculation/fill_blank/true_false: set "multiple_choice_options" to null
 - Questions should feel like a natural continuation of their learning journey
 - Reference concepts from their conversations when appropriate
 - Explanations should connect new material to what they already know
 - Maintain the engagement style that worked well in their conversations
+- Generate EXACTLY {question_count} questions (no more, no less)
 
 Generate the personalized questions now:"""
 

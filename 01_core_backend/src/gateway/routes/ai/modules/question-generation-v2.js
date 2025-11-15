@@ -768,17 +768,18 @@ async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty,
       {
         student_id: userId,
         subject,
-        topic,
-        difficulty: difficulty || 3,
-        count: count || 5,  // Use the count parameter from request
-        language,
-        user_profile: {
-          subject_proficiency: {}
-        },
         config: {
+          topics: topic ? [topic] : [],
+          question_count: count || 5,  // ✅ AI Engine expects this in config
+          difficulty: difficulty || 'intermediate',
+          question_types: questionTypes,  // ✅ Dynamic question types from iOS
           include_hints: true,
-          include_explanations: true,
-          question_types: questionTypes  // ✅ Use dynamic question types from iOS
+          include_explanations: true
+        },
+        user_profile: {
+          grade: 'High School',
+          location: 'US',
+          subject_proficiency: {}
         }
       }
     );
