@@ -3860,16 +3860,30 @@ async function runDatabaseMigrations() {
           ADD COLUMN IF NOT EXISTS retention_expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '90 days');
         `);
 
-        // Step 2: Create indexes for efficient cleanup queries
-        await db.query(`
-          CREATE INDEX IF NOT EXISTS idx_archived_conversations_retention
-          ON archived_conversations_new(retention_expires_at)
-          WHERE deleted_at IS NULL;
+        // Step 2: Create indexes for efficient cleanup queries (separate queries to avoid constraint issues)
+        try {
+          await db.query(`
+            CREATE INDEX IF NOT EXISTS idx_archived_conversations_retention
+            ON archived_conversations_new(retention_expires_at)
+            WHERE deleted_at IS NULL;
+          `);
+        } catch (indexError) {
+          if (indexError.code !== '42P07') { // Ignore "already exists" errors
+            console.warn('⚠️ Index idx_archived_conversations_retention creation warning:', indexError.message);
+          }
+        }
 
-          CREATE INDEX IF NOT EXISTS idx_archived_conversations_deleted
-          ON archived_conversations_new(deleted_at)
-          WHERE deleted_at IS NOT NULL;
-        `);
+        try {
+          await db.query(`
+            CREATE INDEX IF NOT EXISTS idx_archived_conversations_deleted
+            ON archived_conversations_new(deleted_at)
+            WHERE deleted_at IS NOT NULL;
+          `);
+        } catch (indexError) {
+          if (indexError.code !== '42P07') {
+            console.warn('⚠️ Index idx_archived_conversations_deleted creation warning:', indexError.message);
+          }
+        }
 
         // Step 3: Add retention policy to question_sessions table (if exists)
         const questionSessionsExists = await db.query(`
@@ -3884,11 +3898,19 @@ async function runDatabaseMigrations() {
             ALTER TABLE question_sessions
             ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP,
             ADD COLUMN IF NOT EXISTS retention_expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '90 days');
-
-            CREATE INDEX IF NOT EXISTS idx_question_sessions_retention
-            ON question_sessions(retention_expires_at)
-            WHERE deleted_at IS NULL;
           `);
+
+          try {
+            await db.query(`
+              CREATE INDEX IF NOT EXISTS idx_question_sessions_retention
+              ON question_sessions(retention_expires_at)
+              WHERE deleted_at IS NULL;
+            `);
+          } catch (indexError) {
+            if (indexError.code !== '42P07') {
+              console.warn('⚠️ Index idx_question_sessions_retention creation warning:', indexError.message);
+            }
+          }
         }
 
         // Step 4: Add retention policy to sessions table
@@ -3896,11 +3918,19 @@ async function runDatabaseMigrations() {
           ALTER TABLE sessions
           ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP,
           ADD COLUMN IF NOT EXISTS retention_expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '90 days');
-
-          CREATE INDEX IF NOT EXISTS idx_sessions_retention
-          ON sessions(retention_expires_at)
-          WHERE deleted_at IS NULL;
         `);
+
+        try {
+          await db.query(`
+            CREATE INDEX IF NOT EXISTS idx_sessions_retention
+            ON sessions(retention_expires_at)
+            WHERE deleted_at IS NULL;
+          `);
+        } catch (indexError) {
+          if (indexError.code !== '42P07') {
+            console.warn('⚠️ Index idx_sessions_retention creation warning:', indexError.message);
+          }
+        }
 
         // Step 5: Create function to soft delete expired data
         await db.query(`
@@ -3987,7 +4017,9 @@ async function runDatabaseMigrations() {
           UPDATE archived_conversations_new
           SET retention_expires_at = archived_date + INTERVAL '90 days'
           WHERE retention_expires_at IS NULL;
+        `);
 
+        await db.query(`
           UPDATE sessions
           SET retention_expires_at = start_time + INTERVAL '90 days'
           WHERE retention_expires_at IS NULL;
@@ -4007,13 +4039,20 @@ async function runDatabaseMigrations() {
           SELECT *
           FROM archived_conversations_new
           WHERE deleted_at IS NULL;
+        `);
 
+        await db.query(`
           CREATE OR REPLACE VIEW active_sessions AS
           SELECT *
           FROM sessions
           WHERE deleted_at IS NULL;
+        `);
 
+        await db.query(`
           COMMENT ON VIEW active_conversations IS 'Only shows non-deleted conversations for GDPR compliance';
+        `);
+
+        await db.query(`
           COMMENT ON VIEW active_sessions IS 'Only shows non-deleted sessions for GDPR compliance';
         `);
 
@@ -4023,7 +4062,9 @@ async function runDatabaseMigrations() {
             SELECT *
             FROM question_sessions
             WHERE deleted_at IS NULL;
+          `);
 
+          await db.query(`
             COMMENT ON VIEW active_question_sessions IS 'Only shows non-deleted question sessions for GDPR compliance';
           `);
         }
