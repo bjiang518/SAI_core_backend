@@ -1071,7 +1071,7 @@ Remember: Be honest about grading errors. If the student was right and the AI wa
         is_math = detected_subject in {Subject.MATHEMATICS, Subject.PHYSICS, Subject.CHEMISTRY}
 
         # Build math formatting instruction (can't use backslashes in f-string)
-        math_note = "Math formatting: Use \\(...\\) for inline math, \\[...\\] for display math. Use LaTeX: $\\alpha$, $\\leq$, etc." if is_math else ""
+        math_note = "Math: Use \\(...\\) delimiters. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, \\alpha, \\leq (NOT double \\\\)" if is_math else ""
         focus_line = f"Focus: {focus_notes}" if focus_notes else ""
 
         prompt = f"""Generate {question_count} {difficulty} {subject} questions for {grade_level}.
@@ -1147,7 +1147,7 @@ Generate now:"""
         is_math = detected_subject in {Subject.MATHEMATICS, Subject.PHYSICS, Subject.CHEMISTRY}
 
         # Build notes outside f-string (can't use backslashes in f-string)
-        math_note = "Math: Use \\(...\\) for inline, \\[...\\] for display. LaTeX: $\\alpha$, $\\leq$" if is_math else ""
+        math_note = "Math: Use \\(...\\) delimiters. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, \\alpha, \\leq (NOT double \\\\)" if is_math else ""
         tags_note = f"TAGS: Use EXACTLY these tags: {str(unique_source_tags)} (copy exactly, no new tags)" if unique_source_tags else ""
 
         prompt = f"""Generate {question_count} remedial {subject} questions targeting these mistakes:
@@ -1224,7 +1224,7 @@ Generate now:"""
         is_math = detected_subject in {Subject.MATHEMATICS, Subject.PHYSICS, Subject.CHEMISTRY}
 
         # Build math note outside f-string (can't use backslashes in f-string)
-        math_note = "Math: Use \\(...\\) for inline, \\[...\\] for display. LaTeX: $\\alpha$, $\\leq$" if is_math else ""
+        math_note = "Math: Use \\(...\\) delimiters. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, \\alpha, \\leq (NOT double \\\\)" if is_math else ""
 
         prompt = f"""Generate {question_count} personalized {subject} questions based on conversation history:
 
