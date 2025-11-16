@@ -3146,5 +3146,5 @@ OUTPUT: JSON only, no extra text
 """
 
 
-# Create singleton instance (backward compatibility)
-EducationalAIService = OptimizedEducationalAIService
+# Note: EducationalAIService class is defined above (lines 1746-3147)
+# It wraps OptimizedEducationalAIService and adds progressive grading methods
