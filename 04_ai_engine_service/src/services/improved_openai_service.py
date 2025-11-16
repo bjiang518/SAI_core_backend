@@ -1759,6 +1759,7 @@ class EducationalAIService:
         self.prompt_service = AdvancedPromptService()
         self.model = "gpt-4o-mini"
         self.vision_model = "gpt-4o"  # Full model for vision tasks
+        self.structured_output_model = "gpt-4o-2024-08-06"  # For structured outputs (progressive grading)
 
         # Add the improved service for homework parsing
         self.improved_service = OptimizedEducationalAIService()
