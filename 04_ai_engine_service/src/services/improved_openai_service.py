@@ -2830,3 +2830,321 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 "generation_type": "conversation_based",
                 "subject": subject
             }
+
+
+    # ======================================================================
+    # PROGRESSIVE HOMEWORK GRADING METHODS
+    # ======================================================================
+
+    async def parse_homework_questions_with_coordinates(
+        self,
+        base64_image: str,
+        parsing_mode: str = "standard"
+    ) -> Dict[str, Any]:
+        """
+        Parse homework image and extract questions with normalized image coordinates.
+
+        This is Phase 1 of progressive grading:
+        1. Analyze the homework image
+        2. Extract each question and student's answer
+        3. Identify questions that need image context (diagrams, graphs)
+        4. Return normalized coordinates [0-1] for image regions
+
+        Args:
+            base64_image: Base64 encoded homework image
+            parsing_mode: "standard" (faster) or "detailed" (more accurate)
+
+        Returns:
+            Dict with:
+            - success: Boolean
+            - subject: Detected subject
+            - subject_confidence: Float 0-1
+            - total_questions: Int
+            - questions: List of ParsedQuestion objects with coordinates
+        """
+
+        print(f"📝 === PARSING HOMEWORK WITH COORDINATES ===")
+        print(f"🔧 Mode: {parsing_mode}")
+
+        try:
+            # Build prompt for parsing with coordinates
+            system_prompt = self._build_parse_with_coordinates_prompt(parsing_mode)
+
+            # Prepare image message
+            image_url = f"data:image/jpeg;base64,{base64_image}"
+
+            print(f"🚀 Calling OpenAI Vision API...")
+            start_time = time.time()
+
+            # Call OpenAI with JSON response format
+            response = await self.client.chat.completions.create(
+                model=self.structured_output_model,  # gpt-4o-2024-08-06 for structured outputs
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Parse this homework image. Extract all questions with student answers and normalized image coordinates."
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": image_url,
+                                    "detail": "high"  # High detail for accurate coordinate detection
+                                }
+                            }
+                        ]
+                    }
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.2,
+                max_tokens=6000  # Enough for 20+ questions with coordinates
+            )
+
+            api_duration = time.time() - start_time
+            print(f"✅ OpenAI API completed in {api_duration:.2f}s")
+
+            # Parse JSON response
+            raw_response = response.choices[0].message.content
+            result = json.loads(raw_response)
+
+            print(f"📊 Parsed {result.get('total_questions', 0)} questions")
+            print(f"📚 Subject: {result.get('subject', 'Unknown')}")
+
+            return {
+                "success": True,
+                "subject": result.get("subject", "Unknown"),
+                "subject_confidence": result.get("subject_confidence", 0.5),
+                "total_questions": result.get("total_questions", 0),
+                "questions": result.get("questions", [])
+            }
+
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON parsing error: {e}")
+            return {
+                "success": False,
+                "error": f"Failed to parse JSON response: {str(e)}"
+            }
+        except Exception as e:
+            print(f"❌ Parsing error: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "error": f"Homework parsing failed: {str(e)}"
+            }
+
+
+    async def grade_single_question(
+        self,
+        question_text: str,
+        student_answer: str,
+        correct_answer: Optional[str] = None,
+        subject: Optional[str] = None,
+        context_image: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Grade a single question using gpt-4o-mini for fast, low-cost grading.
+
+        This is Phase 2 of progressive grading.
+        iOS calls this endpoint for each question with concurrency limit = 5.
+
+        Args:
+            question_text: The question to grade
+            student_answer: What the student wrote
+            correct_answer: Optional expected answer (AI will determine if not provided)
+            subject: Optional subject for subject-specific grading rules
+            context_image: Optional base64 image if question needs visual context
+
+        Returns:
+            Dict with:
+            - success: Boolean
+            - grade: Dict with score, is_correct, feedback, confidence
+        """
+
+        print(f"📝 === GRADING SINGLE QUESTION ===")
+        print(f"📚 Subject: {subject or 'General'}")
+        print(f"❓ Question: {question_text[:50]}...")
+        print(f"✍️ Student Answer: {student_answer[:50]}...")
+
+        try:
+            # Build grading prompt
+            system_prompt = self._build_grading_prompt(subject)
+
+            # Prepare user message
+            user_text = f"""
+Question: {question_text}
+
+Student's Answer: {student_answer}
+
+{f'Expected Answer: {correct_answer}' if correct_answer else ''}
+
+Grade this answer. Return JSON with:
+{{
+  "score": 0.95,  // 0.0-1.0
+  "is_correct": true,  // score >= 0.9
+  "feedback": "Excellent! Correct method and calculation.",  // max 30 words
+  "confidence": 0.95  // 0.0-1.0
+}}
+"""
+
+            messages = [{"role": "system", "content": system_prompt}]
+
+            # Add image if provided
+            if context_image:
+                messages.append({
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": user_text},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{context_image}",
+                                "detail": "low"  # Low detail for cropped images (save cost)
+                            }
+                        }
+                    ]
+                })
+            else:
+                messages.append({"role": "user", "content": user_text})
+
+            print(f"🚀 Calling gpt-4o-mini...")
+            start_time = time.time()
+
+            # Call gpt-4o-mini (fast & cheap)
+            response = await self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                response_format={"type": "json_object"},
+                temperature=0.2,
+                max_tokens=300  # Short response needed
+            )
+
+            api_duration = time.time() - start_time
+            print(f"✅ Grading completed in {api_duration:.2f}s")
+
+            # Parse result
+            raw_response = response.choices[0].message.content
+            grade_data = json.loads(raw_response)
+
+            print(f"📊 Score: {grade_data.get('score', 0.0)}")
+            print(f"✓ Correct: {grade_data.get('is_correct', False)}")
+
+            return {
+                "success": True,
+                "grade": grade_data
+            }
+
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON parsing error: {e}")
+            return {
+                "success": False,
+                "error": f"Failed to parse grading response: {str(e)}"
+            }
+        except Exception as e:
+            print(f"❌ Grading error: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "error": f"Question grading failed: {str(e)}"
+            }
+
+
+    def _build_parse_with_coordinates_prompt(self, parsing_mode: str) -> str:
+        """Build prompt for parsing homework with normalized coordinates."""
+
+        return f"""You are a homework parsing AI. Extract questions from images with normalized coordinates.
+
+OUTPUT JSON FORMAT:
+{{
+  "subject": "Mathematics|Physics|Chemistry|Biology|English|History|Geography|Computer Science|Other",
+  "subject_confidence": 0.95,
+  "total_questions": 5,
+  "questions": [
+    {{
+      "id": 1,
+      "question_text": "Complete question text extracted from image",
+      "student_answer": "What the student wrote",
+      "has_image": true,
+      "image_region": {{
+        "top_left": [0.1, 0.3],  // [x, y] normalized to [0-1]
+        "bottom_right": [0.5, 0.7],  // [x, y] normalized to [0-1]
+        "description": "Force diagram showing 5kg mass"
+      }},
+      "question_type": "multiple_choice|calculation|short_answer|true_false|fill_blank"
+    }}
+  ]
+}}
+
+COORDINATE RULES:
+1. Normalize ALL coordinates to [0-1] range
+   - top_left = [x1, y1] where x1=0 is left edge, y1=0 is top edge
+   - bottom_right = [x2, y2] where x2=1 is right edge, y2=1 is bottom edge
+2. Add 10% padding around detected diagrams/graphs
+3. ONLY set has_image=true if diagram/graph is ESSENTIAL for solving
+4. description should be brief (max 15 words)
+
+QUESTION EXTRACTION RULES:
+1. Extract COMPLETE question text
+2. Extract EXACTLY what student wrote (even if wrong/empty)
+3. Detect question type accurately
+4. Preserve question numbering from image
+
+MODE: {parsing_mode}
+{"- Use high accuracy, check all details" if parsing_mode == "detailed" else "- Balance speed and accuracy"}
+"""
+
+
+    def _build_grading_prompt(self, subject: Optional[str]) -> str:
+        """Build prompt for grading individual questions."""
+
+        subject_rules = ""
+        if subject:
+            subject_lower = subject.lower()
+            if "math" in subject_lower:
+                subject_rules = """
+MATH GRADING RULES:
+- Check numerical accuracy
+- Verify units (missing units = 0.7 score)
+- Award partial credit for correct method but arithmetic error (0.5-0.7)
+"""
+            elif "phys" in subject_lower:
+                subject_rules = """
+PHYSICS GRADING RULES:
+- Units are MANDATORY (missing = 0.5 score max)
+- Check vector directions (signs matter)
+- Partial credit for correct formula but calculation error (0.6-0.8)
+"""
+            elif "chem" in subject_lower:
+                subject_rules = """
+CHEMISTRY GRADING RULES:
+- Chemical formulas must be exact
+- Balanced equations required
+- Include states of matter if question requires
+"""
+
+        return f"""You are a grading assistant. Grade student answers fairly and encouragingly.
+
+{subject_rules}
+
+GRADING SCALE:
+- score = 1.0: Completely correct
+- score = 0.7-0.9: Minor errors (missing units, small mistake)
+- score = 0.5-0.7: Partial understanding, significant errors
+- score = 0.0-0.5: Incorrect or empty
+
+RULES:
+1. is_correct = (score >= 0.9)
+2. Feedback must be encouraging and educational (<30 words)
+3. Explain WHERE error occurred and HOW to fix
+4. Be lenient with minor notation differences
+
+OUTPUT: JSON only, no extra text
+"""
+
+
+# Create singleton instance (backward compatibility)
+EducationalAIService = OptimizedEducationalAIService

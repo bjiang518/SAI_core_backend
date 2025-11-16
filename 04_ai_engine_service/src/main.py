@@ -665,6 +665,59 @@ class HomeworkParsingResponse(BaseModel):
     error: Optional[str] = None
     raw_json: Optional[Dict[str, Any]] = None  # JSON structure for fast iOS parsing
 
+# Progressive Homework Grading Models
+class ImageRegion(BaseModel):
+    """Normalized coordinates for image region (0-1 range)"""
+    top_left: List[float]  # [x, y] normalized coordinates
+    bottom_right: List[float]  # [x, y] normalized coordinates
+    description: Optional[str] = None  # Brief description of the image content
+
+class ParsedQuestion(BaseModel):
+    """Individual question parsed from homework image"""
+    id: int
+    question_text: str  # Full question text
+    student_answer: str  # What student wrote
+    has_image: bool  # Whether this question needs an image
+    image_region: Optional[ImageRegion] = None  # Normalized coordinates if has_image=true
+    question_type: Optional[str] = "unknown"  # multiple_choice, calculation, short_answer, etc.
+
+class ParseHomeworkQuestionsRequest(BaseModel):
+    """Request to parse homework into individual questions"""
+    base64_image: str
+    parsing_mode: Optional[str] = "standard"  # "standard" or "detailed"
+
+class ParseHomeworkQuestionsResponse(BaseModel):
+    """Response with parsed questions and image regions"""
+    success: bool
+    subject: str
+    subject_confidence: float
+    total_questions: int
+    questions: List[ParsedQuestion]
+    processing_time_ms: int
+    error: Optional[str] = None
+
+class GradeSingleQuestionRequest(BaseModel):
+    """Request to grade a single question"""
+    question_text: str
+    student_answer: str
+    correct_answer: Optional[str] = None  # Optional - AI will determine if not provided
+    subject: Optional[str] = None  # For subject-specific grading rules
+    context_image_base64: Optional[str] = None  # Optional image if question needs visual context
+
+class GradeResult(BaseModel):
+    """Result of grading a single question"""
+    score: float  # 0.0-1.0
+    is_correct: bool  # True if score >= 0.9
+    feedback: str  # Max 30 words
+    confidence: float  # 0.0-1.0
+
+class GradeSingleQuestionResponse(BaseModel):
+    """Response for single question grading"""
+    success: bool
+    grade: Optional[GradeResult] = None
+    processing_time_ms: int
+    error: Optional[str] = None
+
 # Chat Image Endpoint - Fast Processing for Chat Interactions
 @app.post("/api/v1/chat-image", response_model=ChatImageResponse)
 async def process_chat_image(request: ChatImageRequest):
@@ -860,6 +913,169 @@ async def process_homework_image(request: HomeworkParsingRequest):
             processing_time_ms=processing_time,
             error=f"Homework parsing error: {type(e).__name__}: {str(e)}"
         )
+
+
+# ======================================================================
+# PROGRESSIVE HOMEWORK GRADING ENDPOINTS
+# Phase 1: Parse questions + coordinates
+# Phase 2: Grade individual questions
+# ======================================================================
+
+@app.post("/api/v1/parse-homework-questions", response_model=ParseHomeworkQuestionsResponse)
+async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
+    """
+    Parse homework image into individual questions with normalized image coordinates.
+
+    This is Phase 1 of the progressive grading system:
+    1. Extract all questions from the homework image
+    2. Extract student answers for each question
+    3. Identify which questions need image context
+    4. Return normalized coordinates [0-1] for image regions
+
+    iOS will:
+    - Receive this JSON response
+    - Crop image regions using normalized coordinates
+    - Render electronic paper version
+    - Send individual questions for grading (Phase 2)
+
+    Performance: 5-8 seconds for typical homework (20 questions)
+    Cost: ~$0.06 per image (gpt-4o-2024-08-06)
+    """
+
+    import time
+    start_time = time.time()
+
+    try:
+        # Call AI service to parse questions with coordinates
+        result = await ai_service.parse_homework_questions_with_coordinates(
+            base64_image=request.base64_image,
+            parsing_mode=request.parsing_mode
+        )
+
+        if not result["success"]:
+            error_msg = result.get("error", "Question parsing failed")
+            raise HTTPException(status_code=500, detail=error_msg)
+
+        processing_time = int((time.time() - start_time) * 1000)
+
+        return ParseHomeworkQuestionsResponse(
+            success=True,
+            subject=result.get("subject", "Unknown"),
+            subject_confidence=result.get("subject_confidence", 0.5),
+            total_questions=result.get("total_questions", 0),
+            questions=result.get("questions", []),
+            processing_time_ms=processing_time,
+            error=None
+        )
+
+    except HTTPException as he:
+        processing_time = int((time.time() - start_time) * 1000)
+        return ParseHomeworkQuestionsResponse(
+            success=False,
+            subject="Unknown",
+            subject_confidence=0.0,
+            total_questions=0,
+            questions=[],
+            processing_time_ms=processing_time,
+            error=f"Parsing error: {he.detail}"
+        )
+    except Exception as e:
+        processing_time = int((time.time() - start_time) * 1000)
+        import traceback
+        traceback.print_exc()
+        return ParseHomeworkQuestionsResponse(
+            success=False,
+            subject="Unknown",
+            subject_confidence=0.0,
+            total_questions=0,
+            questions=[],
+            processing_time_ms=processing_time,
+            error=f"Parsing error: {type(e).__name__}: {str(e)}"
+        )
+
+
+@app.post("/api/v1/grade-question", response_model=GradeSingleQuestionResponse)
+async def grade_single_question(request: GradeSingleQuestionRequest):
+    """
+    Grade a single question with optional image context.
+
+    This is Phase 2 of the progressive grading system.
+    iOS will call this endpoint for each question (with concurrency limit = 5).
+
+    Uses gpt-4o-mini for:
+    - Fast response (1.5-2 seconds per question)
+    - Low cost ($0.0009 per question)
+    - Simple grading task
+
+    Input:
+    - question_text: The question to grade
+    - student_answer: What the student wrote
+    - context_image_base64: Optional cropped image if question needs visual context
+    - subject: Optional subject for subject-specific grading rules
+
+    Output:
+    - score: 0.0-1.0 (1.0 = perfect, 0.5 = partial credit, 0.0 = incorrect)
+    - is_correct: Boolean (score >= 0.9)
+    - feedback: Brief explanation (<30 words)
+    - confidence: AI's confidence in the grading (0.0-1.0)
+
+    Performance: 1.5-2 seconds per question
+    Cost: ~$0.0009 per question
+    """
+
+    import time
+    start_time = time.time()
+
+    try:
+        # Call AI service for single question grading
+        result = await ai_service.grade_single_question(
+            question_text=request.question_text,
+            student_answer=request.student_answer,
+            correct_answer=request.correct_answer,
+            subject=request.subject,
+            context_image=request.context_image_base64
+        )
+
+        if not result["success"]:
+            error_msg = result.get("error", "Grading failed")
+            raise HTTPException(status_code=500, detail=error_msg)
+
+        processing_time = int((time.time() - start_time) * 1000)
+
+        # Extract grade data
+        grade_data = result.get("grade", {})
+
+        return GradeSingleQuestionResponse(
+            success=True,
+            grade=GradeResult(
+                score=grade_data.get("score", 0.0),
+                is_correct=grade_data.get("is_correct", False),
+                feedback=grade_data.get("feedback", ""),
+                confidence=grade_data.get("confidence", 0.5)
+            ),
+            processing_time_ms=processing_time,
+            error=None
+        )
+
+    except HTTPException as he:
+        processing_time = int((time.time() - start_time) * 1000)
+        return GradeSingleQuestionResponse(
+            success=False,
+            grade=None,
+            processing_time_ms=processing_time,
+            error=f"Grading error: {he.detail}"
+        )
+    except Exception as e:
+        processing_time = int((time.time() - start_time) * 1000)
+        import traceback
+        traceback.print_exc()
+        return GradeSingleQuestionResponse(
+            success=False,
+            grade=None,
+            processing_time_ms=processing_time,
+            error=f"Grading error: {type(e).__name__}: {str(e)}"
+        )
+
 
 # NEW: Question Generation Request/Response Models
 

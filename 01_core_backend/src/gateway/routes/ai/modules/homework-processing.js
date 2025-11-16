@@ -141,6 +141,89 @@ class HomeworkProcessingRoutes {
         }
       }
     }, this.processHomeworkImagesBatch.bind(this));
+
+    // Progressive grading - Phase 1: Parse questions with coordinates
+    this.fastify.post('/api/ai/parse-homework-questions', {
+      schema: {
+        description: 'Parse homework image into questions with normalized coordinates (Progressive Phase 1)',
+        tags: ['AI', 'Homework', 'Progressive'],
+        body: {
+          type: 'object',
+          required: ['base64_image'],
+          properties: {
+            base64_image: { type: 'string' },
+            parsing_mode: { type: 'string', enum: ['standard', 'detailed'], default: 'standard' }
+          }
+        }
+      },
+      config: {
+        rateLimit: {
+          max: 15,
+          timeWindow: '1 hour',
+          keyGenerator: async (request) => {
+            const userId = await this.authHelper.getUserIdFromToken(request);
+            return userId || request.ip;
+          },
+          addHeaders: {
+            'x-ratelimit-limit': true,
+            'x-ratelimit-remaining': true,
+            'x-ratelimit-reset': true,
+            'retry-after': true
+          },
+          errorResponseBuilder: (request, context) => {
+            return {
+              error: 'Rate limit exceeded',
+              code: 'RATE_LIMIT_EXCEEDED',
+              message: `You can only parse ${context.max} homework images per hour. Please try again later.`,
+              retryAfter: context.after
+            };
+          }
+        }
+      }
+    }, this.parseHomeworkQuestions.bind(this));
+
+    // Progressive grading - Phase 2: Grade single question
+    this.fastify.post('/api/ai/grade-question', {
+      schema: {
+        description: 'Grade a single question (Progressive Phase 2)',
+        tags: ['AI', 'Homework', 'Progressive'],
+        body: {
+          type: 'object',
+          required: ['question_text', 'student_answer'],
+          properties: {
+            question_text: { type: 'string' },
+            student_answer: { type: 'string' },
+            correct_answer: { type: 'string' },
+            subject: { type: 'string' },
+            context_image_base64: { type: 'string' }
+          }
+        }
+      },
+      config: {
+        rateLimit: {
+          max: 100,
+          timeWindow: '1 minute',
+          keyGenerator: async (request) => {
+            const userId = await this.authHelper.getUserIdFromToken(request);
+            return userId || request.ip;
+          },
+          addHeaders: {
+            'x-ratelimit-limit': true,
+            'x-ratelimit-remaining': true,
+            'x-ratelimit-reset': true,
+            'retry-after': true
+          },
+          errorResponseBuilder: (request, context) => {
+            return {
+              error: 'Rate limit exceeded',
+              code: 'RATE_LIMIT_EXCEEDED',
+              message: `You can only grade ${context.max} questions per minute. Please try again later.`,
+              retryAfter: context.after
+            };
+          }
+        }
+      }
+    }, this.gradeSingleQuestion.bind(this));
   }
 
   /**
@@ -378,6 +461,79 @@ class HomeworkProcessingRoutes {
         code: 'BATCH_PROCESSING_ERROR',
         message: error.message
       });
+    }
+  }
+
+  // ======================================================================
+  // PROGRESSIVE HOMEWORK GRADING ENDPOINTS
+  // ======================================================================
+
+  /**
+   * Parse homework questions with normalized coordinates (Phase 1)
+   */
+  async parseHomeworkQuestions(request, reply) {
+    const startTime = Date.now();
+
+    try {
+      this.fastify.log.info('📝 Parsing homework questions with coordinates...');
+
+      // Forward to AI Engine
+      const result = await this.aiClient.proxyRequest(
+        'POST',
+        '/api/v1/parse-homework-questions',
+        request.body,
+        { 'Content-Type': 'application/json' }
+      );
+
+      const duration = Date.now() - startTime;
+      this.fastify.log.info(`✅ Question parsing completed: ${duration}ms`);
+
+      return reply.send({
+        ...result.data,
+        _gateway: {
+          processTime: duration,
+          service: 'ai-engine',
+          mode: 'progressive_phase1'
+        }
+      });
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.fastify.log.error(`❌ Question parsing failed: ${error.message}`);
+      return this.handleProxyError(reply, error);
+    }
+  }
+
+  /**
+   * Grade a single question (Phase 2)
+   */
+  async gradeSingleQuestion(request, reply) {
+    const startTime = Date.now();
+
+    try {
+      // Forward to AI Engine
+      const result = await this.aiClient.proxyRequest(
+        'POST',
+        '/api/v1/grade-question',
+        request.body,
+        { 'Content-Type': 'application/json' }
+      );
+
+      const duration = Date.now() - startTime;
+
+      return reply.send({
+        ...result.data,
+        _gateway: {
+          processTime: duration,
+          service: 'ai-engine',
+          mode: 'progressive_phase2'
+        }
+      });
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.fastify.log.error(`❌ Question grading failed: ${error.message}`);
+      return this.handleProxyError(reply, error);
     }
   }
 
