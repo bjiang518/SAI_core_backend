@@ -414,36 +414,83 @@ class AssistantsService {
    * @returns {Promise<Object>} Common mistakes
    */
   async getCommonMistakes({ user_id, subject, topic = null, limit = 5 }) {
-    let query = `
-      SELECT
-        question_text,
-        student_answer,
-        ai_answer,
-        created_at
-      FROM questions
-      WHERE user_id = $1
-        AND subject = $2
-        AND is_correct = false
-      ORDER BY created_at DESC
-      LIMIT $3
-    `;
+    // First, check which columns exist in the questions table
+    const columnCheck = await db.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'questions'
+        AND column_name IN ('student_answer', 'is_correct', 'ai_answer')
+    `);
+
+    const existingColumns = columnCheck.rows.map(row => row.column_name);
+    const hasStudentAnswer = existingColumns.includes('student_answer');
+    const hasIsCorrect = existingColumns.includes('is_correct');
+    const hasAIAnswer = existingColumns.includes('ai_answer');
+
+    // Build query based on available columns
+    let query;
+    if (hasStudentAnswer && hasIsCorrect && hasAIAnswer) {
+      // Full query with all columns
+      query = `
+        SELECT
+          question_text,
+          student_answer,
+          ai_answer,
+          created_at
+        FROM questions
+        WHERE user_id = $1
+          AND subject = $2
+          AND is_correct = false
+        ORDER BY created_at DESC
+        LIMIT $3
+      `;
+    } else {
+      // Fallback query - get questions without filtering by correctness
+      console.warn('⚠️ Questions table missing columns: student_answer, is_correct, or ai_answer');
+      console.warn('⚠️ Returning all questions for this subject instead of just incorrect ones');
+      query = `
+        SELECT
+          question_text,
+          created_at
+        FROM questions
+        WHERE user_id = $1
+          AND subject = $2
+        ORDER BY created_at DESC
+        LIMIT $3
+      `;
+    }
 
     const params = [user_id, subject, limit];
 
-    const result = await db.query(query, params);
+    try {
+      const result = await db.query(query, params);
 
-    return {
-      user_id,
-      subject,
-      topic,
-      common_mistakes: result.rows.map(row => ({
-        question: row.question_text,
-        student_answer: row.student_answer,
-        correct_answer: row.ai_answer,
-        date: row.created_at
-      })),
-      total_mistakes_found: result.rows.length
-    };
+      return {
+        user_id,
+        subject,
+        topic,
+        common_mistakes: result.rows.map(row => ({
+          question: row.question_text,
+          student_answer: hasStudentAnswer ? row.student_answer : 'N/A (data not available)',
+          correct_answer: hasAIAnswer ? row.ai_answer : 'N/A (data not available)',
+          date: row.created_at,
+          _note: !hasStudentAnswer ? 'Database schema missing student_answer column' : undefined
+        })),
+        total_mistakes_found: result.rows.length,
+        _schema_warning: !hasStudentAnswer ? 'Questions table is missing required columns. Please run database migration.' : undefined
+      };
+    } catch (error) {
+      console.error('❌ Error in getCommonMistakes:', error);
+      // Return empty result instead of throwing
+      return {
+        user_id,
+        subject,
+        topic,
+        common_mistakes: [],
+        total_mistakes_found: 0,
+        _error: error.message
+      };
+    }
   }
 
   // ============================================
