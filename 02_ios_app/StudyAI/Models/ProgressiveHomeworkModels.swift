@@ -3,12 +3,14 @@
 //  StudyAI
 //
 //  Data models for progressive homework grading system
-//  Two-phase architecture: Parse → Grade
+//  Supports both flat and hierarchical question structures
 //
 
 import Foundation
 
 // MARK: - Phase 1: Parsing Models
+
+// Note: ProgressiveSubquestion is now in ProgressiveSubquestionModel.swift
 
 /// Image region with normalized coordinates
 struct ImageRegion: Codable {
@@ -24,21 +26,57 @@ struct ImageRegion: Codable {
 }
 
 /// Individual question parsed from homework
+/// Supports both flat questions and hierarchical parent questions
 struct ProgressiveQuestion: Codable, Identifiable {
     let id: Int
-    let questionText: String
-    let studentAnswer: String
+    let questionNumber: String?
+
+    // Hierarchical support
+    let isParent: Bool?
+    let hasSubquestions: Bool?
+    let parentContent: String?
+    let subquestions: [ProgressiveSubquestion]?
+
+    // Regular question fields (used when isParent = false or nil)
+    let questionText: String?
+    let studentAnswer: String?
+
+    // Image region (optional)
     let hasImage: Bool
     let imageRegion: ImageRegion?
     let questionType: String?
 
     enum CodingKeys: String, CodingKey {
         case id
+        case questionNumber = "question_number"
+        case isParent = "is_parent"
+        case hasSubquestions = "has_subquestions"
+        case parentContent = "parent_content"
+        case subquestions
         case questionText = "question_text"
         case studentAnswer = "student_answer"
         case hasImage = "has_image"
         case imageRegion = "image_region"
         case questionType = "question_type"
+    }
+
+    /// Check if this is a parent question with subquestions
+    var isParentQuestion: Bool {
+        return isParent == true && hasSubquestions == true
+    }
+
+    /// Get display text (parent content or question text)
+    var displayText: String {
+        if isParentQuestion {
+            return parentContent ?? "Question \(id)"
+        } else {
+            return questionText ?? ""
+        }
+    }
+
+    /// Get student answer (for regular questions only)
+    var displayStudentAnswer: String {
+        return studentAnswer ?? ""
     }
 }
 
@@ -49,7 +87,7 @@ struct ParseHomeworkQuestionsResponse: Codable {
     let subjectConfidence: Float
     let totalQuestions: Int
     let questions: [ProgressiveQuestion]
-    let processingTimeMs: Int
+    let processingTimeMs: Int?
     let error: String?
 
     enum CodingKeys: String, CodingKey {
@@ -65,7 +103,7 @@ struct ParseHomeworkQuestionsResponse: Codable {
 
 // MARK: - Phase 2: Grading Models
 
-/// Result of grading a single question
+/// Result of grading a single question or subquestion
 struct ProgressiveGradeResult: Codable {
     let score: Float              // 0.0-1.0
     let isCorrect: Bool           // score >= 0.9
@@ -97,7 +135,7 @@ struct ProgressiveGradeResult: Codable {
 struct GradeSingleQuestionResponse: Codable {
     let success: Bool
     let grade: ProgressiveGradeResult?
-    let processingTimeMs: Int
+    let processingTimeMs: Int?
     let error: String?
 
     enum CodingKeys: String, CodingKey {
@@ -111,16 +149,62 @@ struct GradeSingleQuestionResponse: Codable {
 // MARK: - Combined Models for ViewModel
 
 /// Question with its grade result
+/// Supports both flat questions and hierarchical parent questions
 struct ProgressiveQuestionWithGrade: Identifiable {
     let id: Int
     let question: ProgressiveQuestion
+
+    // For regular questions: single grade
     var grade: ProgressiveGradeResult?
     var isGrading: Bool = false
     var gradingError: String?
 
+    // For parent questions: grades for each subquestion
+    var subquestionGrades: [String: ProgressiveGradeResult] = [:]  // key = subquestion id
+    var subquestionGradingStatus: [String: Bool] = [:]  // key = subquestion id, value = isGrading
+    var subquestionErrors: [String: String] = [:]  // key = subquestion id
+
+    /// Check if this question is a parent with subquestions
+    var isParentQuestion: Bool {
+        return question.isParentQuestion
+    }
+
+    /// Get total graded subquestions (for parent questions)
+    var gradedSubquestionsCount: Int {
+        return subquestionGrades.count
+    }
+
+    /// Get total subquestions (for parent questions)
+    var totalSubquestionsCount: Int {
+        return question.subquestions?.count ?? 0
+    }
+
+    /// Check if all subquestions are graded (for parent questions)
+    var allSubquestionsGraded: Bool {
+        guard isParentQuestion else { return grade != nil }
+        return gradedSubquestionsCount == totalSubquestionsCount
+    }
+
+    /// Calculate overall score for parent question (average of subquestions)
+    var parentScore: Float? {
+        guard isParentQuestion, !subquestionGrades.isEmpty else { return nil }
+        let totalScore = subquestionGrades.values.reduce(0.0) { $0 + $1.score }
+        return totalScore / Float(subquestionGrades.count)
+    }
+
+    /// Check if parent question is correct (all subquestions correct)
+    var parentIsCorrect: Bool? {
+        guard isParentQuestion else { return grade?.isCorrect }
+        return subquestionGrades.values.allSatisfy { $0.isCorrect }
+    }
+
     /// Whether this question is complete (graded successfully or failed)
     var isComplete: Bool {
-        return grade != nil || gradingError != nil
+        if isParentQuestion {
+            return allSubquestionsGraded || !subquestionErrors.isEmpty
+        } else {
+            return grade != nil || gradingError != nil
+        }
     }
 }
 
@@ -140,15 +224,40 @@ struct HomeworkGradingState {
 
     /// Number of correctly answered questions
     var correctCount: Int {
-        return questions.filter { $0.grade?.isCorrect == true }.count
+        var count = 0
+        for q in questions {
+            if q.isParentQuestion {
+                // For parent questions, count as correct if ALL subquestions correct
+                if q.parentIsCorrect == true {
+                    count += 1
+                }
+            } else {
+                // For regular questions
+                if q.grade?.isCorrect == true {
+                    count += 1
+                }
+            }
+        }
+        return count
     }
 
     /// Number of incorrect or partial credit questions
     var incorrectCount: Int {
-        return questions.filter {
-            guard let grade = $0.grade else { return false }
-            return !grade.isCorrect && grade.score < 0.9
-        }.count
+        var count = 0
+        for q in questions {
+            if q.isParentQuestion {
+                // For parent questions, count as incorrect if ANY subquestion incorrect
+                if q.parentIsCorrect == false {
+                    count += 1
+                }
+            } else {
+                // For regular questions
+                if let grade = q.grade, !grade.isCorrect && grade.score < 0.9 {
+                    count += 1
+                }
+            }
+        }
+        return count
     }
 
     /// Accuracy rate: 0.0 to 1.0
