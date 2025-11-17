@@ -8,13 +8,13 @@
 import Foundation
 
 /// Subquestion within a parent question (for hierarchical structure)
-struct ProgressiveSubquestion: Codable, Identifiable {
-    let id: String
-    let questionText: String
-    let studentAnswer: String
-    let questionType: String?
+public struct ProgressiveSubquestion: Codable, Identifiable {
+    public let id: String
+    public let questionText: String
+    public let studentAnswer: String
+    public let questionType: String?
 
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case id
         case questionText = "question_text"
         case studentAnswer = "student_answer"
