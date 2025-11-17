@@ -2914,12 +2914,26 @@ Focus on being helpful and educational while maintaining a conversational tone."
             print(f"📊 Parsed {result.get('total_questions', 0)} questions")
             print(f"📚 Subject: {result.get('subject', 'Unknown')}")
 
+            # VALIDATION: Fix total_questions counting bug
+            questions_array = result.get("questions", [])
+            ai_total = result.get("total_questions", 0)
+            actual_total = len(questions_array)
+
+            if ai_total != actual_total:
+                print(f"⚠️  WARNING: total_questions mismatch!")
+                print(f"   AI claimed: {ai_total}")
+                print(f"   Actual array length: {actual_total}")
+                print(f"   ✅ Using actual array length: {actual_total}")
+
+                # Override with correct count
+                result["total_questions"] = actual_total
+
             return {
                 "success": True,
                 "subject": result.get("subject", "Unknown"),
                 "subject_confidence": result.get("subject_confidence", 0.5),
                 "total_questions": result.get("total_questions", 0),
-                "questions": result.get("questions", [])
+                "questions": questions_array
             }
 
         except json.JSONDecodeError as e:
@@ -3055,47 +3069,127 @@ Grade this answer. Return JSON with:
 
 
     def _build_parse_with_coordinates_prompt(self, parsing_mode: str) -> str:
-        """Build prompt for parsing homework with normalized coordinates."""
+        """Build prompt for parsing homework with normalized coordinates.
 
-        return f"""You are a homework parsing AI. Extract questions from images with normalized coordinates.
+        HIERARCHICAL SUPPORT: Recognizes parent questions with subquestions (e.g., 1.a, 1.b, 2.a, 2.b)
+        ACCURATE COORDINATES: Improved guidance for precise image region detection
+        """
 
-OUTPUT JSON FORMAT:
+        return f"""You are a homework parsing AI. Extract questions with hierarchical structure and normalized coordinates.
+
+OUTPUT JSON FORMAT (HIERARCHICAL):
 {{
   "subject": "Mathematics|Physics|Chemistry|Biology|English|History|Geography|Computer Science|Other",
   "subject_confidence": 0.95,
-  "total_questions": 5,
+  "total_questions": 3,  // Count PARENT questions only (e.g., Q1, Q2, Q3), NOT subquestions
   "questions": [
     {{
       "id": 1,
-      "question_text": "Complete question text extracted from image",
-      "student_answer": "What the student wrote",
+      "question_number": "1",
+      "is_parent": true,
+      "has_subquestions": true,
+      "parent_content": "Label the number line from 10-19 by counting by ones.",
       "has_image": true,
       "image_region": {{
-        "top_left": [0.1, 0.3],  // [x, y] normalized to [0-1]
-        "bottom_right": [0.5, 0.7],  // [x, y] normalized to [0-1]
-        "description": "Force diagram showing 5kg mass"
+        "top_left": [0.1, 0.12],
+        "bottom_right": [0.9, 0.22],
+        "description": "Number line 10-19"
       }},
-      "question_type": "multiple_choice|calculation|short_answer|true_false|fill_blank"
+      "subquestions": [
+        {{
+          "id": "1a",
+          "question_text": "What number is one more than 14?",
+          "student_answer": "15",
+          "question_type": "short_answer"
+        }},
+        {{
+          "id": "1b",
+          "question_text": "What number is one less than 17?",
+          "student_answer": "16",
+          "question_type": "short_answer"
+        }}
+      ]
+    }},
+    {{
+      "id": 2,
+      "question_number": "2",
+      "is_parent": false,
+      "question_text": "Write the number represented by the picture.",
+      "student_answer": "41",
+      "has_image": true,
+      "image_region": {{
+        "top_left": [0.78, 0.48],
+        "bottom_right": [0.98, 0.56],
+        "description": "Blocks representing 41"
+      }},
+      "question_type": "calculation"
     }}
   ]
 }}
 
-COORDINATE RULES:
-1. Normalize ALL coordinates to [0-1] range
+CRITICAL RULES FOR QUESTION NUMBERING:
+1. PARENT QUESTIONS: Main questions like "1.", "2.", "3." with potential subquestions
+2. SUBQUESTIONS: Questions like "a.", "b.", "c.", "d." under a parent question
+3. "total_questions" = COUNT PARENT QUESTIONS ONLY (e.g., if you have Q1 with a,b,c,d and Q2 with a,b,c, total=2)
+4. "is_parent": true means this question has subquestions (a, b, c, d)
+5. "is_parent": false means this is a standalone question
+6. For parent questions with subquestions:
+   - "parent_content" = the main question instruction
+   - "subquestions" array contains all sub-parts (a, b, c, d)
+   - Parent question's image (if any) applies to ALL subquestions
+
+COORDINATE RULES (CRITICAL FOR ACCURACY):
+1. Normalize ALL coordinates to [0-1] range:
    - top_left = [x1, y1] where x1=0 is left edge, y1=0 is top edge
    - bottom_right = [x2, y2] where x2=1 is right edge, y2=1 is bottom edge
-2. Add 10% padding around detected diagrams/graphs
-3. ONLY set has_image=true if diagram/graph is ESSENTIAL for solving
-4. description should be brief (max 15 words)
+
+2. IMAGE POSITIONING GUIDE:
+   - Number lines: Usually horizontal across page (width: 0.1-0.9, height: narrow ~0.1)
+   - Blocks/tallies: Usually in margins or corners (small regions ~0.1x0.1)
+   - Diagrams/graphs: Usually embedded in question text (varies)
+
+3. COORDINATE PRECISION:
+   - Look at the ACTUAL position of the visual element in the image
+   - For number lines: y-coordinate should match where you SEE the line (top=0.0, middle=0.5, bottom=1.0)
+   - For blocks in top-right: x should be ~0.75-0.95, y should be ~0.0-0.3 (NOT 0.8-0.9!)
+   - For blocks in bottom-right: x should be ~0.75-0.95, y should be ~0.7-1.0
+   - Add 5-10% padding around the actual visual element
+
+4. VALIDATION:
+   - ONLY set has_image=true if diagram/graph is ESSENTIAL for solving
+   - description should be brief and specific (max 15 words)
+   - Double-check coordinates make sense (blocks in corner shouldn't be [0.8, 0.8] - that's center-bottom!)
 
 QUESTION EXTRACTION RULES:
-1. Extract COMPLETE question text
-2. Extract EXACTLY what student wrote (even if wrong/empty)
-3. Detect question type accurately
-4. Preserve question numbering from image
+1. HIERARCHICAL STRUCTURE:
+   - If you see "1. Main instruction" followed by "a. Sub-question", "b. Sub-question":
+     → Create ONE parent question (id=1, is_parent=true) with subquestions array
+   - If you see standalone "1. Question" with no subparts:
+     → Create regular question (id=1, is_parent=false)
+
+2. COMPLETE TEXT EXTRACTION:
+   - Extract COMPLETE question text including ALL instructions
+   - For parent questions: extract the main instruction in "parent_content"
+   - For subquestions: extract each sub-part completely in "question_text"
+
+3. STUDENT ANSWER EXTRACTION:
+   - Extract EXACTLY what student wrote (even if wrong/empty)
+   - For number line questions: check if student filled in numbers on the line
+   - For tens/ones questions: extract full answer like "65 = 6 tens 5 ones" (not just "65")
+   - For empty answers: use empty string ""
+
+4. QUESTION NUMBERING:
+   - Preserve EXACT numbering from image (1, 2, 3, NOT 1, 2, 3, 4, 5... for subquestions)
+   - Question "1" with parts a,b,c,d → ONE question (id=1) with 4 subquestions
+   - Question "2" with parts a,b,c → ONE question (id=2) with 3 subquestions
 
 MODE: {parsing_mode}
 {"- Use high accuracy, check all details" if parsing_mode == "detailed" else "- Balance speed and accuracy"}
+
+EXAMPLE (from your image):
+- "1. Label the number line..." with "a. What number is...", "b. What number is..."
+  → ONE parent question (id=1) with subquestions ["a", "b", "c", "d"]
+  → total_questions = 1 (not 5!)
 """
 
 
