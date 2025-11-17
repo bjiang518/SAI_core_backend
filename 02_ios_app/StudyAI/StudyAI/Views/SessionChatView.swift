@@ -43,6 +43,15 @@ struct SessionChatView: View {
     // Focus state for message input
     @FocusState private var isMessageInputFocused: Bool
 
+    // Track if first message sent (for toolbar display)
+    @State private var hasConversationStarted = false
+
+    // AI Avatar state for floating display at top
+    @State private var topAvatarState: AIAvatarState = .idle
+    @State private var latestAIMessageId: String?
+    @State private var latestAIMessage: String = ""
+    @State private var latestAIVoiceType: VoiceType = .eva
+
     // Animation state for central example card
     @State private var exampleCardScale: CGFloat = 0.8
 
@@ -101,43 +110,40 @@ struct SessionChatView: View {
     private var baseContent: some View {
         AnyView(
             ZStack {
-                Color(.systemBackground)
-                    .ignoresSafeArea()
+                Color(.systemBackground)  // Keep main background
+                    .ignoresSafeArea(.all, edges: .bottom)  // Only ignore safe area at bottom, not top
                 contentVStack
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)  // Hide navigation bar background
         )
     }
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
             ToolbarItem(placement: .navigationBarLeading) {
-                // Subject selector button (moved to top navigation bar)
-                Button(action: {
-                    showingSubjectPicker = true
-                }) {
-                    HStack(spacing: 8) {
-                        Text(subjectIcon(for: viewModel.selectedSubject))
-                            .font(.system(size: 14, weight: .medium))
-
-                        Text(viewModel.selectedSubject)
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(.primary)
-
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.primary.opacity(0.6))
+                // Only show Subject Picker before first message
+                // After first message, this area stays empty - AI avatar appears naturally in message bubbles
+                if !hasConversationStarted {
+                    // Subject Picker (before first message)
+                    Button(action: { showingSubjectPicker = true }) {
+                        HStack(spacing: 8) {
+                            Text(subjectEmoji(for: viewModel.selectedSubject))
+                                .font(.system(size: 20))
+                            Text(viewModel.selectedSubject)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(colorScheme == .dark ? Color(.secondarySystemBackground) : Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.primary.opacity(0.15), lineWidth: 1)
+                        )
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(colorScheme == .dark ? Color(.secondarySystemBackground) : Color.white)
-                    .cornerRadius(16)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.primary.opacity(0.15), lineWidth: 1)
-                    )
                 }
             }
 
@@ -288,70 +294,23 @@ struct SessionChatView: View {
     private func applyLifecycleHandlers<V: View>(_ content: V) -> some View {
         content
             .onAppear {
-                print("🟢 ============================================")
-                print("🟢 === SESSIONCHATVIEW: VIEW APPEARED ===")
-                print("🟢 ============================================")
-                print("🟢 Timestamp: \(Date())")
-                print("🟢 Thread: \(Thread.current)")
-                print("🟢 Current Session ID: \(networkService.currentSessionId ?? "nil")")
-                print("🟢 Conversation History Count: \(networkService.conversationHistory.count)")
-                print("🟢 ============================================")
-                print("🟢 === APPSTATE CHECK ===")
-                print("🟢 ============================================")
-                print("🟢 appState.pendingChatMessage exists: \(appState.pendingChatMessage != nil)")
-                print("🟢 appState.pendingChatSubject: \(appState.pendingChatSubject ?? "nil")")
-                print("🟢 appState.pendingHomeworkContext exists: \(appState.pendingHomeworkContext != nil)")
-
+                // Initialize and clear previous session data
                 viewModel.aiGeneratedSuggestions = []
-                print("🟢 Cleared AI-generated suggestions from previous session")
 
                 if let message = appState.pendingChatMessage {
-                    print("🟢 Pending Message: \(message)")
-                }
-
-                if let context = appState.pendingHomeworkContext {
-                    print("🟢 ✅ HOMEWORK CONTEXT FOUND IN APPSTATE ON VIEW APPEAR!")
-                    print("   - Question: \(context.questionText)")
-                    print("   - Raw Question: \(context.rawQuestionText ?? "nil")")
-                    print("   - Student Answer: \(context.studentAnswer ?? "nil")")
-                    print("   - Correct Answer: \(context.correctAnswer ?? "nil")")
-                    print("   - Current Grade: \(context.currentGrade ?? "nil")")
-                    print("   - Original Feedback: \(context.originalFeedback ?? "nil")")
-                    print("   - Points: \(context.pointsEarned ?? 0)/\(context.pointsPossible ?? 0)")
-                    print("   - Subject: \(context.subject ?? "nil")")
-                    print("   - Question Number: \(context.questionNumber ?? 0)")
-                } else {
-                    print("🟢 ℹ️ No homework context found in appState")
-                }
-                print("🟢 ============================================")
-
-                if let pendingMessage = appState.pendingChatMessage {
-                    print("🟢 ✅ Pending message detected, storing locally...")
-                    viewModel.pendingHomeworkQuestion = pendingMessage
+                    viewModel.pendingHomeworkQuestion = message
                     viewModel.pendingHomeworkSubject = appState.pendingChatSubject ?? "General"
 
-                    print("🟢 Stored viewModel.pendingHomeworkQuestion: \(viewModel.pendingHomeworkQuestion)")
-                    print("🟢 Stored viewModel.pendingHomeworkSubject: \(viewModel.pendingHomeworkSubject)")
-
                     if !networkService.conversationHistory.isEmpty {
-                        print("🟢 ⚠️ Current session has \(networkService.conversationHistory.count) messages - showing alert")
                         showingExistingSessionAlert = true
                     } else {
-                        print("🟢 ✅ Current session is empty - proceeding with homework question")
                         viewModel.proceedWithHomeworkQuestion()
                     }
                 } else {
-                    print("🟢 ℹ️ No pending message - checking if need to create new session")
                     if networkService.currentSessionId == nil {
-                        print("🟢 Creating initial session...")
                         viewModel.startNewSession()
-                    } else {
-                        print("🟢 Session already exists: \(networkService.currentSessionId!)")
                     }
                 }
-                print("🟢 ============================================")
-                print("🟢 === SESSIONCHATVIEW: VIEW APPEAR COMPLETE ===")
-                print("🟢 ============================================")
             }
             .onDisappear {
                 ttsQueueService.stopAllTTS()
@@ -364,7 +323,6 @@ struct SessionChatView: View {
             .onChange(of: scenePhase) { _, newPhase in
                 switch newPhase {
                 case .background, .inactive:
-                    print("🎙️ App backgrounded - stopping audio")
                     ttsQueueService.stopAllTTS()
                 case .active:
                     break
@@ -374,14 +332,24 @@ struct SessionChatView: View {
             }
             .onReceive(voiceService.$interactionState) { state in
                 if state == .idle && ttsQueueService.isPlayingTTS {
-                    print("🎵 TTS finished, playing next chunk in queue")
                     ttsQueueService.playNextTTSChunk()
                 }
             }
             .onChange(of: viewModel.messageText) { oldValue, newValue in
                 if oldValue.isEmpty && !newValue.isEmpty {
-                    print("🎵 User started typing - stopping TTS")
                     ttsQueueService.stopAllTTS()
+                }
+            }
+            .onChange(of: viewModel.showTypingIndicator) { _, isTyping in
+                // Update avatar to show waiting state when AI is thinking (typing indicator)
+                if isTyping {
+                    topAvatarState = .waiting  // Blinking + shrinking pulse
+                }
+            }
+            .onChange(of: viewModel.isActivelyStreaming) { _, isStreaming in
+                // Update avatar to show processing state when streaming text
+                if isStreaming {
+                    topAvatarState = .processing  // Fast animation, no effects
                 }
             }
     }
@@ -418,9 +386,63 @@ struct SessionChatView: View {
                     ttsQueueService.stopAllTTS()
                 }
         }
+        // ✅ FIX: Add avatar as overlay - won't be clipped and maintains original appearance
+        .overlay(alignment: .topLeading) {
+            // Floating AI Avatar at top left (after first message)
+            if hasConversationStarted {
+                ZStack(alignment: .center) {
+                    // Tap area - large invisible circle
+                    Circle()
+                        .fill(Color.clear)
+                        .frame(width: 140, height: 140)
+                        .contentShape(Circle())
+                        .onTapGesture {
+                            toggleTopAvatarTTS()
+                        }
+
+                    // Visual avatar - positioned to align with tap area
+                    AIAvatarAnimation(
+                        state: topAvatarState,
+                        voiceType: latestAIMessage.isEmpty ? voiceService.voiceSettings.voiceType : latestAIVoiceType
+                    )
+                    .frame(width: 30, height: 30)
+                    .offset(x: 0, y: 20)  // Move avatar UP 30 pixels within the tap circle
+                    .allowsHitTesting(false)  // Avatar doesn't intercept taps - let circle handle it
+                }
+                .offset(x: 5, y: -110)  // Position the whole group at top-left corner (moved up by 30 more pixels)
+                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AIMessageAppeared"))) { notification in
+                    handleAIMessageAppeared(notification)
+                }
+                .onReceive(voiceService.$currentSpeakingMessageId) { messageId in
+                    updateTopAvatarState()
+                }
+                .onReceive(voiceService.$interactionState) { state in
+                    // Update avatar state when TTS actually starts/stops speaking
+                    print("🎭 [Avatar] VoiceService state changed: \(state)")
+                    print("🎭 [Avatar] Current speaking message: \(voiceService.currentSpeakingMessageId ?? "nil")")
+                    print("🎭 [Avatar] Latest AI message: \(latestAIMessageId ?? "nil")")
+
+                    switch state {
+                    case .speaking:
+                        // Audio is actively playing - update to speaking state
+                        print("🎭 [Avatar] Setting to .speaking state")
+                        topAvatarState = .speaking
+                    case .idle:
+                        // Audio stopped - return to idle
+                        if topAvatarState == .speaking {
+                            print("🎭 [Avatar] Setting to .idle state (was speaking)")
+                            topAvatarState = .idle
+                        }
+                    default:
+                        break
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .leading)))
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             // Modern iOS 26+ safe area handling for input area
-            Color.clear.frame(height: 8)
+            Color.clear.frame(height: 0)
         }
     }
 
@@ -434,7 +456,7 @@ struct SessionChatView: View {
     private var lightChatMessagesView: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 24) {  // Increased spacing for modern look
+                VStack(spacing: 24) {  // ✅ Changed from LazyVStack to VStack to prevent re-rendering during scroll
                     // Homework context indicator banner
                     if let homeworkContext = appState.pendingHomeworkContext {
                         VStack(alignment: .leading, spacing: 8) {
@@ -522,7 +544,7 @@ struct SessionChatView: View {
                             ModernAIMessageView(
                                 message: viewModel.activeStreamingMessage,
                                 voiceType: voiceService.voiceSettings.voiceType,
-                                isStreaming: false, // Not speaking during streaming
+                                isStreaming: true, // ✅ CRITICAL: Must be true to show raw text without processing
                                 messageId: "streaming-message"
                             )
                             .id("streaming-message")
@@ -547,6 +569,13 @@ struct SessionChatView: View {
                 // ✅ PERFORMANCE FIX: Removed refreshTrigger - no longer needed with targeted streaming updates
             }
             .onChange(of: networkService.conversationHistory.count) { _, newCount in
+                // Mark conversation as started when first message appears
+                if newCount > 0 && !hasConversationStarted {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        hasConversationStarted = true
+                    }
+                }
+
                 // Auto-scroll to bottom when new messages arrive
                 let lastIndex = networkService.conversationHistory.count - 1
                 if lastIndex >= 0 {
@@ -592,72 +621,65 @@ struct SessionChatView: View {
                     isCameraDisabled: networkService.currentSessionId == nil || viewModel.isSubmitting || viewModel.isProcessingImage
                 )
             } else {
-                // Regular text input interface
+                // ChatGPT-style input interface
                 HStack(spacing: 12) {
-                    // Camera button
+                    // Camera button (like ChatGPT's "+" button)
                     Button(action: openCamera) {
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 20, weight: .medium))
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(.primary.opacity(0.7))
                             .frame(width: 44, height: 44)
-                            .background(Color.primary.opacity(0.1))
+                            .background(Color.primary.opacity(0.08))
                             .clipShape(Circle())
                     }
                     .disabled(networkService.currentSessionId == nil || viewModel.isSubmitting || viewModel.isProcessingImage)
 
-                    // Voice mode button
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            isVoiceMode = true
-                            isMessageInputFocused = false
-                        }
-                    }) {
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.primary.opacity(0.7))
-                            .frame(width: 44, height: 44)
-                            .background(Color.primary.opacity(0.1))
-                            .clipShape(Circle())
-                    }
-
-                    // Text input field
-                    HStack {
+                    // Wide text input field with microphone/send button inside
+                    HStack(spacing: 8) {
+                        // Text input
                         TextField(NSLocalizedString("chat.input.placeholder", comment: ""), text: $viewModel.messageText, axis: .vertical)
                             .font(.system(size: 16))
                             .foregroundColor(.primary)
                             .focused($isMessageInputFocused)
                             .lineLimit(1...4)
+                            .padding(.leading, 16)
+                            .padding(.vertical, 12)
 
-                        if !viewModel.messageText.isEmpty {
-                            Button(action: viewModel.sendMessage) {
-                                Image(systemName: "arrow.up.circle.fill")
-                                    .font(.system(size: 24))
-                                    .foregroundColor(.blue)
+                        // Microphone/Send button (inside input box, right side)
+                        Button(action: {
+                            if viewModel.messageText.isEmpty {
+                                // Microphone action: toggle to voice mode
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    isVoiceMode = true
+                                    isMessageInputFocused = false
+                                }
+                            } else {
+                                // Send action
+                                viewModel.sendMessage()
                             }
-                            .disabled(viewModel.isSubmitting)
+                        }) {
+                            Image(systemName: viewModel.messageText.isEmpty ? "mic.fill" : "arrow.up.circle.fill")
+                                .font(.system(size: viewModel.messageText.isEmpty ? 22 : 28))
+                                .foregroundColor(viewModel.messageText.isEmpty ? .primary.opacity(0.6) : .blue)
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
+                        .disabled(viewModel.isSubmitting && !viewModel.messageText.isEmpty)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.messageText.isEmpty)
+                        .padding(.trailing, 4)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color.primary.opacity(0.1))
+                    .background(Color.primary.opacity(0.08))
                     .cornerRadius(25)
                     .overlay(
                         RoundedRectangle(cornerRadius: 25)
-                            .stroke(Color.primary.opacity(0.2), lineWidth: 1)
+                            .stroke(Color.primary.opacity(0.15), lineWidth: 1)
                     )
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
             }
         }
-        .background(
-            // Subtle gradient for input area
-            LinearGradient(
-                colors: [Color.clear, Color.black.opacity(0.2)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
+        .background(Color.clear)  // Remove dark gradient
         .animation(.easeInOut(duration: 0.3), value: isVoiceMode)
     }
     
@@ -666,30 +688,15 @@ struct SessionChatView: View {
 
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                // ✨ PRIORITY: Display AI-generated suggestions if available AND language matches
-                // ✅ FIX: Check if backend suggestions match the response language
+                // ✨ PRIORITY: Display AI-generated suggestions if available AND language matches AND streaming is complete
+                // ✅ FIX: Only show suggestions after streaming completes to prevent position switching
                 let responseIsChinese = detectChinese(in: lastMessage)
                 let suggestionsMatchLanguage = !viewModel.aiGeneratedSuggestions.isEmpty &&
                     (viewModel.aiGeneratedSuggestions.allSatisfy { responseIsChinese == detectChinese(in: $0.key) })
 
-                if !viewModel.aiGeneratedSuggestions.isEmpty && suggestionsMatchLanguage {
+                if viewModel.isStreamingComplete && !viewModel.aiGeneratedSuggestions.isEmpty && suggestionsMatchLanguage {
                     ForEach(viewModel.aiGeneratedSuggestions, id: \.id) { suggestion in
                         Button(suggestion.key) {
-                            print("🔵 ============================================")
-                            print("🔵 === SUGGESTION BUTTON TAPPED ===")
-                            print("🔵 ============================================")
-                            print("🔵 Timestamp: \(Date())")
-                            print("🔵 Thread: \(Thread.current)")
-                            print("🔵 Button Label (key): \(suggestion.key)")
-                            print("🔵 Full Prompt (value): \(suggestion.value)")
-                            print("🔵 Current viewModel.aiGeneratedSuggestions count: \(viewModel.aiGeneratedSuggestions.count)")
-                            print("🔵 All suggestions:")
-                            for (index, sug) in viewModel.aiGeneratedSuggestions.enumerated() {
-                                print("🔵   [\(index)]: \(sug.key) -> \(sug.value)")
-                            }
-                            print("🔵 Call Stack: \(Thread.callStackSymbols[0...min(5, Thread.callStackSymbols.count-1)])")
-                            print("🔵 ============================================")
-
                             // Use the full prompt from AI suggestions
                             viewModel.messageText = suggestion.value
                             viewModel.sendMessage()
@@ -710,6 +717,10 @@ struct SessionChatView: View {
             }
             .padding(.horizontal, 20)
         }
+        // ✅ FIX: Stabilize position to prevent shifting when TextField height changes
+        .frame(height: 44)  // Fixed height for stable positioning
+        .fixedSize(horizontal: false, vertical: true)  // Prevent vertical compression
+        .layoutPriority(1)  // Higher priority than TextField to prevent being pushed around
     }
     
     // Generate context-aware buttons based on AI response
@@ -1384,6 +1395,132 @@ struct SessionChatView: View {
             return displayFormatter.string(from: date)
         }
         return dateString
+    }
+
+    // MARK: - Floating AI Avatar Control
+
+    /// Handle when an AI message appears on screen
+    private func handleAIMessageAppeared(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let messageId = userInfo["messageId"] as? String,
+              let message = userInfo["message"] as? String,
+              let voiceTypeRaw = userInfo["voiceType"] as? String,
+              let voiceType = VoiceType(rawValue: voiceTypeRaw) else {
+            print("⚠️ [Avatar] handleAIMessageAppeared: Missing notification data")
+            return
+        }
+
+        print("📢 [Avatar] AI message appeared: messageId=\(messageId), length=\(message.count)")
+
+        // Update latest message info
+        latestAIMessageId = messageId
+        latestAIMessage = message
+        latestAIVoiceType = voiceType
+
+        // DON'T auto-play here - let the streaming TTS queue handle it
+        // The avatar should only play when user taps it
+        print("ℹ️ [Avatar] Not auto-playing - letting TTS queue handle playback")
+
+        // Set to idle initially - will change to .speaking when TTS actually plays
+        topAvatarState = .idle
+    }
+
+    /// Toggle TTS playback when avatar is tapped
+    private func toggleTopAvatarTTS() {
+        print("🔵🔵🔵 [Avatar] toggleTopAvatarTTS CALLED - Button was tapped!")
+
+        guard !latestAIMessage.isEmpty else {
+            print("⚠️ [Avatar] toggleTopAvatarTTS: No message to play - latestAIMessage is empty")
+            print("⚠️ [Avatar] hasConversationStarted: \(hasConversationStarted)")
+            print("⚠️ [Avatar] conversationHistory count: \(networkService.conversationHistory.count)")
+
+            // Still provide haptic feedback so user knows tap was detected
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+            return
+        }
+
+        // Haptic feedback when avatar is tapped
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+
+        print("👆 [Avatar] Avatar tapped - message available")
+        print("👆 [Avatar] VoiceService state: \(voiceService.interactionState)")
+        print("👆 [Avatar] Latest message length: \(latestAIMessage.count)")
+
+        // If any audio is currently playing, stop it
+        if voiceService.interactionState == .speaking {
+            print("🛑 [Avatar] Stopping current audio")
+
+            // Stronger haptic feedback for stopping
+            let notificationFeedback = UINotificationFeedbackGenerator()
+            notificationFeedback.notificationOccurred(.warning)
+
+            voiceService.stopSpeech()
+            ttsQueueService.stopAllTTS()  // Stop any queued TTS as well
+            topAvatarState = .idle
+        } else {
+            // No audio playing - start playing the latest message
+            print("▶️ [Avatar] Starting playback of latest message")
+
+            // Success haptic feedback for starting playback
+            let notificationFeedback = UINotificationFeedbackGenerator()
+            notificationFeedback.notificationOccurred(.success)
+
+            playLatestMessage()
+        }
+    }
+
+    /// Play the latest AI message
+    private func playLatestMessage() {
+        guard !latestAIMessage.isEmpty else {
+            print("⚠️ [Avatar] playLatestMessage: No message to play")
+            return
+        }
+
+        print("🎬 [Avatar] playLatestMessage called")
+        print("🎬 [Avatar] Message ID: \(latestAIMessageId ?? "nil")")
+        print("🎬 [Avatar] Message length: \(latestAIMessage.count)")
+
+        // Stop any currently playing audio first
+        print("🎬 [Avatar] Stopping any existing TTS")
+        ttsQueueService.stopAllTTS()
+
+        // Set this message as the current speaking message
+        print("🎬 [Avatar] Setting current speaking message")
+        voiceService.setCurrentSpeakingMessage(latestAIMessageId ?? "")
+
+        // Start TTS - state will update to .speaking via onReceive when audio actually starts
+        print("🎬 [Avatar] Calling speakText with autoSpeak=false")
+        voiceService.speakText(latestAIMessage, autoSpeak: false)
+
+        // Temporarily show processing state (will switch to speaking when audio starts)
+        print("🎬 [Avatar] Setting state to .processing")
+        topAvatarState = .processing
+    }
+
+    /// Update avatar state based on current speaking state
+    private func updateTopAvatarState() {
+        print("🔄 [Avatar] updateTopAvatarState called")
+        print("🔄 [Avatar] VoiceService state: \(voiceService.interactionState)")
+        print("🔄 [Avatar] Current speaking ID: \(voiceService.currentSpeakingMessageId ?? "nil")")
+        print("🔄 [Avatar] Latest AI message ID: \(latestAIMessageId ?? "nil")")
+        print("🔄 [Avatar] Current avatar state: \(topAvatarState)")
+
+        // Check if audio is actually playing (not just queued)
+        if voiceService.interactionState == .speaking &&
+           voiceService.currentSpeakingMessageId == latestAIMessageId {
+            print("🔄 [Avatar] Conditions met: Setting to .speaking")
+            topAvatarState = .speaking
+        } else if voiceService.interactionState == .speaking {
+            // Audio is playing but not the latest message
+            print("🔄 [Avatar] Audio playing but not latest message")
+            topAvatarState = .idle  // Or keep current state
+        } else {
+            // No audio playing
+            print("🔄 [Avatar] No audio playing: Setting to .idle")
+            topAvatarState = .idle
+        }
     }
 }
 

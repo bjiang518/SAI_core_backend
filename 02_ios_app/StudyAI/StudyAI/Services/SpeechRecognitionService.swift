@@ -91,12 +91,9 @@ class SpeechRecognitionService: NSObject, ObservableObject {
         return await withCheckedContinuation { continuation in
             if #available(iOS 17.0, *) {
                 AVAudioApplication.requestRecordPermission { granted in
-                    // Use the new iOS 17+ API properly
-                    if granted {
-                        continuation.resume(returning: AVAudioSession.sharedInstance().recordPermission)
-                    } else {
-                        continuation.resume(returning: AVAudioSession.sharedInstance().recordPermission)
-                    }
+                    // ✅ Use the granted parameter directly (same pattern as iOS < 17)
+                    let status: AVAudioSession.RecordPermission = granted ? .granted : .denied
+                    continuation.resume(returning: status)
                 }
             } else {
                 AVAudioSession.sharedInstance().requestRecordPermission { granted in

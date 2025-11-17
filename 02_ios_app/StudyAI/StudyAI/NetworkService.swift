@@ -2017,6 +2017,202 @@ class NetworkService: ObservableObject {
             return (false, error.localizedDescription)
         }
     }
+
+    // MARK: - Progressive Homework Grading (New System)
+
+    /// Parse homework questions with normalized image coordinates (Phase 1)
+    /// Returns parsed questions with image region coordinates [0-1]
+    func parseHomeworkQuestions(base64Image: String, parsingMode: String = "standard") async throws -> ParseHomeworkQuestionsResponse {
+        print("📝 === PHASE 1: PARSING HOMEWORK QUESTIONS ===")
+        print("🔧 Mode: \(parsingMode)")
+        print("📄 Image size: \(base64Image.count) characters")
+
+        guard let url = URL(string: "\(baseURL)/api/ai/parse-homework-questions") else {
+            throw NetworkError.invalidURL
+        }
+
+        // Build request
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120.0  // 2 minutes for parsing
+
+        // Add auth token if available
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let requestData: [String: Any] = [
+            "base64_image": base64Image,
+            "parsing_mode": parsingMode
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+
+        print("📡 Sending to backend for question parsing...")
+        let startTime = Date()
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        let duration = Date().timeIntervalSince(startTime)
+        print("⏱️ Parsing completed in \(String(format: "%.1f", duration))s")
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+
+        print("📊 Response status: \(httpResponse.statusCode)")
+
+        // Track rate limits
+        RateLimitManager.shared.updateFromHeaders(httpResponse, endpoint: .homeworkImage)
+
+        guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 429 {
+                throw NetworkError.rateLimited
+            }
+            throw NetworkError.serverError(httpResponse.statusCode)
+        }
+
+        // ========================================
+        // 🔍 RAW RESPONSE LOGGING - PHASE 1
+        // ========================================
+        print("\n" + String(repeating: "=", count: 80))
+        print("🔍 === RAW AI ENGINE RESPONSE - PHASE 1 (PARSING) ===")
+        print(String(repeating: "=", count: 80))
+
+        // Log raw JSON response
+        if let rawJSON = String(data: data, encoding: .utf8) {
+            print("\n📄 RAW JSON RESPONSE:")
+            print(String(repeating: "-", count: 80))
+
+            // Try to pretty-print JSON
+            if let jsonObject = try? JSONSerialization.jsonObject(with: data),
+               let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys]),
+               let prettyJSON = String(data: prettyData, encoding: .utf8) {
+                print(prettyJSON)
+            } else {
+                // Fallback to raw JSON if pretty-print fails
+                print(rawJSON)
+            }
+            print(String(repeating: "-", count: 80))
+
+            // Log data size
+            let jsonSizeKB = Double(data.count) / 1024.0
+            print("\n📊 Response Size: \(String(format: "%.2f", jsonSizeKB)) KB")
+            print("⏱️ Processing Time: \(String(format: "%.1f", duration))s")
+        } else {
+            print("⚠️ WARNING: Unable to decode raw response as UTF-8 string")
+            print("Data size: \(data.count) bytes")
+        }
+
+        print(String(repeating: "=", count: 80) + "\n")
+        // ========================================
+
+        // Decode response
+        let decoder = JSONDecoder()
+        let parseResponse = try decoder.decode(ParseHomeworkQuestionsResponse.self, from: data)
+
+        print("✅ === PHASE 1 COMPLETE ===")
+        print("📚 Subject: \(parseResponse.subject) (confidence: \(parseResponse.subjectConfidence))")
+        print("📊 Questions found: \(parseResponse.totalQuestions)")
+        print("🖼️ Questions with images: \(parseResponse.questions.filter { $0.hasImage }.count)")
+
+        return parseResponse
+    }
+
+    /// Grade a single question (Phase 2)
+    /// Uses gpt-4o-mini for fast, low-cost grading
+    func gradeSingleQuestion(
+        questionText: String,
+        studentAnswer: String,
+        subject: String?,
+        contextImageBase64: String? = nil
+    ) async throws -> GradeSingleQuestionResponse {
+
+        guard let url = URL(string: "\(baseURL)/api/ai/grade-question") else {
+            throw NetworkError.invalidURL
+        }
+
+        // Build request
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0  // 30 seconds per question
+
+        // Add auth token if available
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        // Build request data (exclude nil values)
+        var requestData: [String: Any] = [
+            "question_text": questionText,
+            "student_answer": studentAnswer
+        ]
+
+        if let subject = subject {
+            requestData["subject"] = subject
+        }
+
+        if let contextImage = contextImageBase64 {
+            requestData["context_image_base64"] = contextImage
+        }
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 429 {
+                throw NetworkError.rateLimited
+            }
+            throw NetworkError.serverError(httpResponse.statusCode)
+        }
+
+        // ========================================
+        // 🔍 RAW RESPONSE LOGGING - PHASE 2
+        // ========================================
+        print("\n" + String(repeating: "=", count: 80))
+        print("🔍 === RAW AI ENGINE RESPONSE - PHASE 2 (GRADING) ===")
+        print(String(repeating: "=", count: 80))
+
+        // Log raw JSON response
+        if let rawJSON = String(data: data, encoding: .utf8) {
+            print("\n📄 RAW JSON RESPONSE:")
+            print(String(repeating: "-", count: 80))
+
+            // Try to pretty-print JSON
+            if let jsonObject = try? JSONSerialization.jsonObject(with: data),
+               let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys]),
+               let prettyJSON = String(data: prettyData, encoding: .utf8) {
+                print(prettyJSON)
+            } else {
+                // Fallback to raw JSON if pretty-print fails
+                print(rawJSON)
+            }
+            print(String(repeating: "-", count: 80))
+
+            // Log data size
+            let jsonSizeKB = Double(data.count) / 1024.0
+            print("\n📊 Response Size: \(String(format: "%.2f", jsonSizeKB)) KB")
+        } else {
+            print("⚠️ WARNING: Unable to decode raw response as UTF-8 string")
+            print("Data size: \(data.count) bytes")
+        }
+
+        print(String(repeating: "=", count: 80) + "\n")
+        // ========================================
+
+        // Decode response
+        let decoder = JSONDecoder()
+        let gradeResponse = try decoder.decode(GradeSingleQuestionResponse.self, from: data)
+
+        return gradeResponse
+    }
     
     // MARK: - Registration
     func register(name: String, email: String, password: String) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {

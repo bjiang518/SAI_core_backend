@@ -58,27 +58,35 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
 
             case .waiting:
-                // Waiting state - Siri Animation (fast, small, blinking)
+                // Waiting state - Siri Animation (fast, shrinking pulse, blinking)
                 LottieView(
                     animationName: "Siri Animation",
                     loopMode: .loop,
                     animationSpeed: 2.5  // Fast when waiting
                 )
                 .frame(width: 60, height: 60)
-                .scaleEffect(0.12)  // Small size
+                .scaleEffect(0.12 * pulseScale)  // Shrinking pulse effect
                 .opacity(blinkingOpacity)  // Blinking effect
                 .transition(.opacity)
                 .onAppear {
+                    // Start shrinking pulse animation
+                    withAnimationIfNotPowerSaving(
+                        Animation.easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                    ) {
+                        pulseScale = 0.7  // Shrink to 70%
+                    }
                     // Start blinking animation
                     withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {
-                        blinkingOpacity = 0.7  // More solid (was 0.3)
+                        blinkingOpacity = 0.6  // Dim for loading
                     }
                 }
                 .onDisappear {
-                    // Reset opacity when waiting finishes
+                    // Reset animations when waiting finishes
+                    pulseScale = 1.0
                     blinkingOpacity = 1.0
                 }
 
@@ -145,27 +153,35 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
 
             case .waiting:
-                // Waiting state - AI Spiral Loading (fast, small, blinking)
+                // Waiting state - AI Spiral Loading (fast, shrinking pulse, blinking)
                 LottieView(
                     animationName: "AI Spiral Loading",
                     loopMode: .loop,
                     animationSpeed: 2.5  // Fast when waiting
                 )
                 .frame(width: 60, height: 60)
-                .scaleEffect(0.12)  // Small size
+                .scaleEffect(0.12 * pulseScale)  // Shrinking pulse effect
                 .opacity(blinkingOpacity)  // Blinking effect
                 .transition(.opacity)
                 .onAppear {
+                    // Start shrinking pulse animation
+                    withAnimationIfNotPowerSaving(
+                        Animation.easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                    ) {
+                        pulseScale = 0.7  // Shrink to 70%
+                    }
                     // Start blinking animation
                     withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {
-                        blinkingOpacity = 0.7  // More solid (was 0.3)
+                        blinkingOpacity = 0.6  // Dim for loading
                     }
                 }
                 .onDisappear {
-                    // Reset opacity when waiting finishes
+                    // Reset animations when waiting finishes
+                    pulseScale = 1.0
                     blinkingOpacity = 1.0
                 }
 
@@ -181,15 +197,28 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
 
             case .speaking:
-                // Speaking state - Wave Animation (fast, same small size)
+                // Speaking state - Wave Animation (fast, zoom in/out)
                 LottieView(
                     animationName: "Wave Animation",
                     loopMode: .loop,
                     animationSpeed: 2.5  // Fast wave animation
                 )
                 .frame(width: 60, height: 60)
-                .scaleEffect(0.12)  // Same small size as other states
+                .scaleEffect(0.12 * pulseScale)  // Zoom in/out effect
                 .transition(.opacity)
+                .onAppear {
+                    // Start zoom in/out animation
+                    withAnimationIfNotPowerSaving(
+                        Animation.easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                    ) {
+                        pulseScale = 1.3  // Zoom in by 30%
+                    }
+                }
+                .onDisappear {
+                    // Reset animation when speaking finishes
+                    pulseScale = 1.0
+                }
             }
         }
     }
@@ -211,27 +240,35 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
 
             case .waiting:
-                // Waiting state - Fire Animation (fast, slightly reduced size, blinking)
+                // Waiting state - Fire Animation (fast, shrinking pulse, blinking)
                 LottieView(
                     animationName: "Fire",
                     loopMode: .loop,
                     animationSpeed: 2.5  // Fast when waiting
                 )
                 .frame(width: 60, height: 60)
-                .scaleEffect(0.10)  // Slightly smaller size
+                .scaleEffect(0.10 * pulseScale)  // Shrinking pulse effect
                 .opacity(blinkingOpacity)  // Blinking effect
                 .transition(.opacity)
                 .onAppear {
+                    // Start shrinking pulse animation
+                    withAnimationIfNotPowerSaving(
+                        Animation.easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                    ) {
+                        pulseScale = 0.7  // Shrink to 70%
+                    }
                     // Start blinking animation
                     withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {
-                        blinkingOpacity = 0.7  // More solid (was 0.3)
+                        blinkingOpacity = 0.6  // Dim for loading
                     }
                 }
                 .onDisappear {
-                    // Reset opacity when waiting finishes
+                    // Reset animations when waiting finishes
+                    pulseScale = 1.0
                     blinkingOpacity = 1.0
                 }
 
@@ -247,17 +284,29 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
 
             case .speaking:
-                // Speaking state - Fire_moving Animation (slightly reduced size, moved up)
+                // Speaking state - Fire_moving Animation (zoom in/out, faster motion)
                 LottieView(
                     animationName: "Fire_moving",
                     loopMode: .loop,
                     animationSpeed: 3.0  // Faster motion for fire effect
                 )
                 .frame(width: 60, height: 60)
-                .scaleEffect(0.15)  // Slightly reduced size
+                .scaleEffect(0.15 * pulseScale)  // Zoom in/out effect
                 .offset(y: -1)  // Move up slightly
-                .opacity(1.0)  // Keep full opacity
                 .transition(.opacity)
+                .onAppear {
+                    // Start zoom in/out animation
+                    withAnimationIfNotPowerSaving(
+                        Animation.easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                    ) {
+                        pulseScale = 1.3  // Zoom in by 30%
+                    }
+                }
+                .onDisappear {
+                    // Reset animation when speaking finishes
+                    pulseScale = 1.0
+                }
             }
         }
     }
@@ -279,27 +328,35 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
 
             case .waiting:
-                // Waiting state - Foriday Animation (fast, small, blinking)
+                // Waiting state - Foriday Animation (fast, shrinking pulse, blinking)
                 LottieView(
                     animationName: "Foriday",
                     loopMode: .loop,
                     animationSpeed: 2.5  // Fast when waiting
                 )
                 .frame(width: 60, height: 60)
-                .scaleEffect(0.12)  // Small size
+                .scaleEffect(0.12 * pulseScale)  // Shrinking pulse effect
                 .opacity(blinkingOpacity)  // Blinking effect
                 .transition(.opacity)
                 .onAppear {
+                    // Start shrinking pulse animation
+                    withAnimationIfNotPowerSaving(
+                        Animation.easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                    ) {
+                        pulseScale = 0.7  // Shrink to 70%
+                    }
                     // Start blinking animation
                     withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
                     ) {
-                        blinkingOpacity = 0.7  // More solid (was 0.3)
+                        blinkingOpacity = 0.6  // Dim for loading
                     }
                 }
                 .onDisappear {
-                    // Reset opacity when waiting finishes
+                    // Reset animations when waiting finishes
+                    pulseScale = 1.0
                     blinkingOpacity = 1.0
                 }
 
@@ -315,15 +372,28 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
 
             case .speaking:
-                // Speaking state - Wave Animation (switches to wave like Eva)
+                // Speaking state - Wave Animation (fast, zoom in/out)
                 LottieView(
                     animationName: "Wave Animation",
                     loopMode: .loop,
                     animationSpeed: 2.5  // Fast wave animation
                 )
                 .frame(width: 60, height: 60)
-                .scaleEffect(0.12)  // Same small size as other states
+                .scaleEffect(0.12 * pulseScale)  // Zoom in/out effect
                 .transition(.opacity)
+                .onAppear {
+                    // Start zoom in/out animation
+                    withAnimationIfNotPowerSaving(
+                        Animation.easeInOut(duration: 0.6)
+                            .repeatForever(autoreverses: true)
+                    ) {
+                        pulseScale = 1.3  // Zoom in by 30%
+                    }
+                }
+                .onDisappear {
+                    // Reset animation when speaking finishes
+                    pulseScale = 1.0
+                }
             }
         }
     }

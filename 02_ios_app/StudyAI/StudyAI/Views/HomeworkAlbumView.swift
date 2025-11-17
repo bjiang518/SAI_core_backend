@@ -22,7 +22,7 @@ struct HomeworkAlbumView: View {
     @State private var selectedImages: Set<String> = []
 
     // Detail view state
-    @State private var selectedRecord: HomeworkImageRecord?
+    @State private var selectedIndex: Int = 0
     @State private var showingDetailView = false
 
     // Delete confirmation
@@ -50,7 +50,7 @@ struct HomeworkAlbumView: View {
                 } else {
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 16) {
-                            ForEach(filteredImages) { record in
+                            ForEach(Array(filteredImages.enumerated()), id: \.element.id) { index, record in
                                 HomeworkThumbnailCard(
                                     record: record,
                                     isSelected: selectedImages.contains(record.id),
@@ -59,7 +59,7 @@ struct HomeworkAlbumView: View {
                                     if editMode == .active {
                                         toggleSelection(record.id)
                                     } else {
-                                        selectedRecord = record
+                                        selectedIndex = index
                                         showingDetailView = true
                                     }
                                 }
@@ -105,9 +105,10 @@ struct HomeworkAlbumView: View {
             }
             .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background
             .sheet(isPresented: $showingDetailView) {
-                if let record = selectedRecord {
-                    HomeworkImageDetailView(record: record)
-                }
+                HomeworkImageDetailView(
+                    records: filteredImages,
+                    initialIndex: selectedIndex
+                )
             }
             .sheet(isPresented: $showingFilterMenu) {
                 FilterMenuView(
@@ -202,24 +203,89 @@ struct HomeworkThumbnailCard: View {
 
     @State private var thumbnail: UIImage?
 
+    // Calculate image aspect ratio category
+    private var imageAspectInfo: (ratio: CGFloat, isExtreme: Bool, category: String) {
+        guard let image = thumbnail else {
+            return (1.0, false, "normal")
+        }
+
+        let ratio = image.size.width / image.size.height
+
+        if ratio < 0.4 {
+            // Very tall image (e.g., long screenshot)
+            return (ratio, true, "tall")
+        } else if ratio > 2.5 {
+            // Very wide image (e.g., panorama)
+            return (ratio, true, "wide")
+        } else {
+            // Normal aspect ratio
+            return (ratio, false, "normal")
+        }
+    }
+
     var body: some View {
         Button(action: onTap) {
             ZStack(alignment: .topTrailing) {
                 VStack(spacing: 0) {
-                    // Thumbnail Image
+                    // Thumbnail Image with adaptive sizing
                     ZStack {
                         if let image = thumbnail {
-                            Image(uiImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(height: 180)
-                                .clipped()
+                            let info = imageAspectInfo
+
+                            if info.isExtreme {
+                                // Extreme aspect ratio - use fit mode with constraints
+                                if info.category == "tall" {
+                                    // Tall image: limit width, let height adapt
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(maxWidth: .infinity, maxHeight: 240)
+                                        .frame(minHeight: 120)
+                                        .clipped()
+                                } else {
+                                    // Wide image: limit height to smaller value
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 100)
+                                        .clipped()
+                                }
+                            } else {
+                                // Normal aspect ratio - standard display
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(height: 180)
+                                    .clipped()
+                            }
                         } else {
                             Rectangle()
                                 .fill(Color.gray.opacity(0.2))
                                 .frame(height: 180)
 
                             ProgressView()
+                        }
+                    }
+                    .frame(maxWidth: .infinity)  // Ensure full width
+                    .background(Color.gray.opacity(0.05))  // Subtle background for extreme ratios
+                    .overlay(alignment: .topLeading) {
+                        // Badge for extreme aspect ratio images
+                        if imageAspectInfo.isExtreme {
+                            HStack(spacing: 3) {
+                                Image(systemName: imageAspectInfo.category == "tall" ? "arrow.up.and.down" : "arrow.left.and.right")
+                                    .font(.system(size: 10))
+                                Text(imageAspectInfo.category == "tall" ? "Long" : "Wide")
+                                    .font(.system(size: 9, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(
+                                Capsule()
+                                    .fill(Color.black.opacity(0.6))
+                            )
+                            .padding(8)
                         }
                     }
 

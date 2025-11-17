@@ -13,15 +13,18 @@ struct LottieView: UIViewRepresentable {
     let animationName: String
     let loopMode: LottieLoopMode
     let animationSpeed: CGFloat
+    let powerSavingProgress: CGFloat  // Custom progress for power saving mode
 
     init(
         animationName: String,
         loopMode: LottieLoopMode = .loop,
-        animationSpeed: CGFloat = 1.0
+        animationSpeed: CGFloat = 1.0,
+        powerSavingProgress: CGFloat = 0.8  // Default to 80% (hero pose)
     ) {
         self.animationName = animationName
         self.loopMode = loopMode
         self.animationSpeed = animationSpeed
+        self.powerSavingProgress = powerSavingProgress
     }
 
     func makeUIView(context: Context) -> LottieAnimationView {
@@ -40,6 +43,7 @@ struct LottieView: UIViewRepresentable {
 
             // Store reference in coordinator for updates
             context.coordinator.animationView = animationView
+            context.coordinator.powerSavingProgress = powerSavingProgress  // Store custom progress
 
             // Subscribe to Power Saving Mode changes BEFORE playing
             context.coordinator.setupPowerSavingObserver()
@@ -49,9 +53,9 @@ struct LottieView: UIViewRepresentable {
                 animationView.play()
                 print("▶️ Started playing animation")
             } else {
-                // In power saving mode, show first frame only
-                animationView.currentProgress = 0
-                print("🔋 Animation stopped (Power Saving Mode enabled)")
+                // In power saving mode, show at custom progress (hero pose)
+                animationView.currentProgress = powerSavingProgress
+                print("🔋 Animation stopped at \(Int(powerSavingProgress * 100))% (Power Saving Mode enabled)")
             }
         } else {
             print("❌ Failed to load Lottie animation: '\(animationName)'")
@@ -80,8 +84,8 @@ struct LottieView: UIViewRepresentable {
             // IMPORTANT: Immediately stop animation in power saving mode
             if uiView.isAnimationPlaying {
                 uiView.stop()
-                uiView.currentProgress = 0  // Reset to first frame
-                print("🔋 [PowerSaving] Stopped Lottie animation: '\(animationName)'")
+                uiView.currentProgress = powerSavingProgress  // Stop at custom progress (hero pose)
+                print("🔋 [PowerSaving] Stopped Lottie animation at \(Int(powerSavingProgress * 100))%: '\(animationName)'")
             }
         } else {
             // Resume animation if not in power saving mode
@@ -98,6 +102,7 @@ struct LottieView: UIViewRepresentable {
 
     class Coordinator {
         var animationView: LottieAnimationView?
+        var powerSavingProgress: CGFloat = 0.8  // Store the custom progress
         private var cancellable: AnyCancellable?
 
         func setupPowerSavingObserver() {
@@ -110,8 +115,9 @@ struct LottieView: UIViewRepresentable {
                             // IMPORTANT: Immediately stop animation in power saving mode
                             if animationView.isAnimationPlaying {
                                 animationView.stop()
-                                animationView.currentProgress = 0  // Reset to first frame
-                                print("🔋 [PowerSaving] Observer stopped Lottie animation")
+                                let progress = self?.powerSavingProgress ?? 0.8
+                                animationView.currentProgress = progress  // Stop at custom progress (hero pose)
+                                print("🔋 [PowerSaving] Observer stopped Lottie animation at \(Int(progress * 100))%")
                             }
                         } else {
                             // Resume animation if not in power saving mode

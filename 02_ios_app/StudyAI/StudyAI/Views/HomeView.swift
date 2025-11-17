@@ -74,7 +74,8 @@ struct HomeView: View {
                 LottieView(
                     animationName: "Holographic gradient",
                     loopMode: .loop,
-                    animationSpeed: 1.5
+                    animationSpeed: 1.5,
+                    powerSavingProgress: 0.8  // Background animation pauses at 80%
                 )
                 .scaleEffect(1.5)
                 .opacity(colorScheme == .dark ? 0.25 : 0.8)  // Much dimmer in dark mode
@@ -594,13 +595,13 @@ struct QuickActionCard_New: View {
             generator.impactOccurred()
 
             // Trigger press animation
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            withAnimationIfNotPowerSaving(.spring(response: 0.3, dampingFraction: 0.6)) {
                 isPressed = true
             }
 
             // Reset after delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                withAnimationIfNotPowerSaving(.spring(response: 0.3, dampingFraction: 0.6)) {
                     isPressed = false
                 }
                 action()
@@ -637,7 +638,7 @@ struct QuickActionCard_New: View {
                     // Only apply animations to SF Symbols, not Lottie animations
                     if lottieAnimation == nil {
                         // Gentle floating animation
-                        withAnimation(
+                        withAnimationIfNotPowerSaving(
                             Animation.easeInOut(duration: 2.0)
                                 .repeatForever(autoreverses: true)
                         ) {
@@ -645,7 +646,7 @@ struct QuickActionCard_New: View {
                         }
 
                         // Slight rotation animation for some visual interest
-                        withAnimation(
+                        withAnimationIfNotPowerSaving(
                             Animation.easeInOut(duration: 3.0)
                                 .repeatForever(autoreverses: true)
                         ) {
@@ -728,7 +729,7 @@ struct ScaleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
+            .animationIfNotPowerSaving(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 
@@ -751,13 +752,13 @@ struct HorizontalActionButton: View {
             generator.impactOccurred()
 
             // Trigger press animation
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            withAnimationIfNotPowerSaving(.spring(response: 0.3, dampingFraction: 0.6)) {
                 isPressed = true
             }
 
             // Reset after delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                withAnimationIfNotPowerSaving(.spring(response: 0.3, dampingFraction: 0.6)) {
                     isPressed = false
                 }
                 action()
@@ -779,7 +780,7 @@ struct HorizontalActionButton: View {
                 }
                 .onAppear {
                     // Gentle pulse animation
-                    withAnimation(
+                    withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 2.5)
                             .repeatForever(autoreverses: true)
                     ) {
@@ -787,7 +788,7 @@ struct HorizontalActionButton: View {
                     }
 
                     // Slight rotation animation
-                    withAnimation(
+                    withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 3.5)
                             .repeatForever(autoreverses: true)
                     ) {

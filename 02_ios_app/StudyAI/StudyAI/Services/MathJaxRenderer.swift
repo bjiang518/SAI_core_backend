@@ -123,12 +123,7 @@ class FullLaTeXRenderer: ObservableObject {
 
         let strategy: MathRenderStrategy = hasLaTeX && mathjaxAvailable ? .mathjax : .simplified
 
-        #if DEBUG
-        // Only log in debug builds
-        if hasLaTeX {
-            print("📐 [MathJax] ✅ LaTeX detected (length: \(content.count)) → Strategy: \(strategy)")
-        }
-        #endif
+        // Debug logs removed to prevent spam during streaming
 
         return strategy
     }
@@ -139,23 +134,19 @@ class FullLaTeXRenderer: ObservableObject {
         fontSize: CGFloat = 16,
         colorScheme: ColorScheme = .light
     ) -> String {
-        #if DEBUG
-        // Only log in debug builds, and only minimal info
-        print("📐 [MathJax] Generating HTML (length: \(content.count), size: \(fontSize))")
-        #endif
+        // Debug logs removed to prevent spam during streaming
 
         // Force white text in dark mode, black in light mode
         let textColor = colorScheme == .dark ? "#FFFFFF" : "#000000"
 
-        // Preserve line breaks by converting \n to <br>
-        // Escape HTML but preserve LaTeX delimiters and line breaks
-        var escapedContent = content
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
+        // CRITICAL: Trim content to remove leading/trailing whitespace that causes gaps
+        let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // ✅ Convert markdown to HTML (preserving LaTeX, producing safe HTML)
+        let processedContent = convertMarkdownToHTML(trimmedContent)
 
         // Convert newlines to <br> for proper line breaks
-        escapedContent = escapedContent.replacingOccurrences(of: "\n", with: "<br>")
+        let finalContent = processedContent.replacingOccurrences(of: "\n", with: "<br>")
 
         return """
         <!DOCTYPE html>
@@ -204,14 +195,13 @@ class FullLaTeXRenderer: ObservableObject {
                 body {
                     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
                     font-size: \(fontSize)px;
-                    line-height: 1.4;
+                    line-height: 1.5;
                     color: \(textColor) !important;
-                    padding: 0;
-                    margin: 0;
+                    padding: 0 !important;
+                    margin: 0 !important;
                     -webkit-text-size-adjust: none;
                     -webkit-user-select: text;
                     user-select: text;
-                    white-space: pre-wrap;
                     word-wrap: break-word;
                 }
                 .math-content {
@@ -220,24 +210,47 @@ class FullLaTeXRenderer: ObservableObject {
                     -webkit-overflow-scrolling: touch;
                     color: \(textColor) !important;
                     background-color: transparent !important;
-                    padding: 0;
-                    margin: 0;
+                    padding: 0 !important;
+                    margin: 0 !important;
                 }
+                /* Markdown heading styles */
+                h1, h2, h3, h4, h5, h6 {
+                    color: \(textColor) !important;
+                    font-weight: bold;
+                    margin: 0.5em 0 0.3em 0;
+                    line-height: 1.3;
+                }
+                h1 { font-size: 1.8em; }
+                h2 { font-size: 1.5em; }
+                h3 { font-size: 1.3em; }
+                h4 { font-size: 1.1em; }
+                h5 { font-size: 1.05em; }
+                h6 { font-size: 1em; }
+                /* Markdown text styles */
+                strong {
+                    font-weight: bold;
+                    color: \(textColor) !important;
+                }
+                em {
+                    font-style: italic;
+                    color: \(textColor) !important;
+                }
+                /* MathJax container styles */
                 mjx-container {
                     overflow-x: auto;
                     overflow-y: hidden;
                     display: inline-block !important;
                     max-width: 100%;
                     color: \(textColor) !important;
-                    margin: 0.1em 0;
+                    margin: 0 !important;
                     vertical-align: middle;
                 }
                 mjx-container[display="true"] {
                     display: block !important;
                     text-align: center;
-                    margin: 0.2em 0;
+                    margin: 0.5em 0 !important;
                 }
-                /* Force text color in all elements */
+                /* Force text color in all MathJax elements */
                 mjx-math, mjx-mtext, mjx-mi, mjx-mn, mjx-mo {
                     color: \(textColor) !important;
                 }
@@ -253,7 +266,7 @@ class FullLaTeXRenderer: ObservableObject {
         </head>
         <body>
             <div class="math-content">
-                \(escapedContent)
+                \(finalContent)
             </div>
             <script>
                 // Auto-resize when content changes
@@ -277,6 +290,103 @@ class FullLaTeXRenderer: ObservableObject {
         </body>
         </html>
         """
+    }
+
+    /// Convert markdown formatting to HTML while preserving LaTeX
+    private func convertMarkdownToHTML(_ text: String) -> String {
+        var result = text
+
+        // Protect LaTeX blocks from markdown processing
+        var latexBlocks: [String] = []
+        let latexPlaceholder = "___LATEX_BLOCK_"
+
+        // Extract and protect display math: $$...$$ and \[...\]
+        let displayMathPatterns = [
+            ("\\$\\$", "\\$\\$"),
+            ("\\\\\\[", "\\\\\\]")
+        ]
+
+        for (start, end) in displayMathPatterns {
+            let pattern = "\(start)(.*?)\(end)"
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .dotMatchesLineSeparators) {
+                let range = NSRange(location: 0, length: result.utf16.count)
+                let matches = regex.matches(in: result, options: [], range: range).reversed()
+
+                for match in matches {
+                    if let matchRange = Range(match.range, in: result) {
+                        let latex = String(result[matchRange])
+                        latexBlocks.append(latex)
+                        result.replaceSubrange(matchRange, with: "\(latexPlaceholder)\(latexBlocks.count - 1)___")
+                    }
+                }
+            }
+        }
+
+        // Extract and protect inline math: $...$ and \(...\)
+        let inlineMathPatterns = [
+            ("\\\\\\(", "\\\\\\)"),
+            ("\\$(?!\\$)", "(?<!\\$)\\$")  // Single $ not preceded/followed by another $
+        ]
+
+        for (start, end) in inlineMathPatterns {
+            let pattern = "\(start)(.*?)\(end)"
+            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+                let range = NSRange(location: 0, length: result.utf16.count)
+                let matches = regex.matches(in: result, options: [], range: range).reversed()
+
+                for match in matches {
+                    if let matchRange = Range(match.range, in: result) {
+                        let latex = String(result[matchRange])
+                        latexBlocks.append(latex)
+                        result.replaceSubrange(matchRange, with: "\(latexPlaceholder)\(latexBlocks.count - 1)___")
+                    }
+                }
+            }
+        }
+
+        // Now process markdown (LaTeX is protected)
+        // Note: We generate safe HTML tags directly, no escaping needed
+
+        // Headers: ## → <h2>, ### → <h3>, etc.
+        for level in (1...6).reversed() {
+            let hashes = String(repeating: "#", count: level)
+            let pattern = "^\(hashes)\\s+(.+)$"
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .anchorsMatchLines) {
+                result = regex.stringByReplacingMatches(
+                    in: result,
+                    options: [],
+                    range: NSRange(location: 0, length: result.utf16.count),
+                    withTemplate: "<h\(level)>$1</h\(level)>"
+                )
+            }
+        }
+
+        // Bold: **text** → <strong>text</strong>
+        if let boldRegex = try? NSRegularExpression(pattern: "\\*\\*(.+?)\\*\\*", options: []) {
+            result = boldRegex.stringByReplacingMatches(
+                in: result,
+                options: [],
+                range: NSRange(location: 0, length: result.utf16.count),
+                withTemplate: "<strong>$1</strong>"
+            )
+        }
+
+        // Italic: *text* (but not ** or ***)
+        if let italicRegex = try? NSRegularExpression(pattern: "(?<!\\*)\\*(?!\\*)(.+?)(?<!\\*)\\*(?!\\*)", options: []) {
+            result = italicRegex.stringByReplacingMatches(
+                in: result,
+                options: [],
+                range: NSRange(location: 0, length: result.utf16.count),
+                withTemplate: "<em>$1</em>"
+            )
+        }
+
+        // Restore LaTeX blocks
+        for (index, latex) in latexBlocks.enumerated() {
+            result = result.replacingOccurrences(of: "\(latexPlaceholder)\(index)___", with: latex)
+        }
+
+        return result
     }
 }
 
@@ -310,9 +420,7 @@ struct MathJaxWebView: UIViewRepresentable {
                     }
                 }
             } else if message.name == "mathJaxReady" {
-                #if DEBUG
-                print("📐 [MathJax] ✅ Ready")
-                #endif
+                // MathJax ready - no logging to avoid spam during streaming
                 DispatchQueue.main.async {
                     self.parent.isLoading = false
                     self.parent.onReady?()
@@ -421,19 +529,17 @@ struct SmartLaTeXView: View {
     }
 
     private var mathjaxView: some View {
-        VStack {
+        ZStack {
+            // LAYER 1: Simplified text (visible while loading)
             if isLoading {
-                HStack {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Rendering math...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .frame(height: 40)
+                Text(SimpleMathRenderer.renderMathText(content))
+                    .font(.system(size: fontSize))
+                    .foregroundColor(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            // Generate HTML once (not during streaming since we removed onChange)
+            // LAYER 2: MathJax WebView (hidden until ready, then fades in)
             let generatedHTML = renderer.generateMathJaxHTML(
                 content: content,
                 fontSize: fontSize,
@@ -446,15 +552,16 @@ struct SmartLaTeXView: View {
                 isLoading: $isLoading,
                 error: $renderError,
                 onReady: {
-                    // Successfully rendered
+                    // Successfully rendered - fade in MathJax
                 }
             )
-            .frame(height: max(webViewHeight, 40))
-            .opacity(isLoading ? 0 : 1)
+            .frame(height: max(webViewHeight, 20))
+            .opacity(isLoading ? 0 : 1)  // Hidden while loading, visible when ready
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             // Set timeout for MathJax rendering
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
                 if isLoading {
                     // Timeout - fallback to simplified
                     usesFallback = true
@@ -538,6 +645,18 @@ struct FullLaTeXText: View {
                 simplifiedViewWithFinalCheck
             }
         }
+        .onChange(of: isStreaming) { oldValue, newValue in
+            // When streaming completes (true → false), detect LaTeX
+            if oldValue && !newValue {
+                detectLatexInContent()
+            }
+        }
+        .onChange(of: content) { oldValue, newValue in
+            // Only detect during non-streaming updates
+            if !isStreaming && newValue != lastCheckedContent {
+                detectLatexInContent()
+            }
+        }
     }
 
     @ViewBuilder
@@ -546,15 +665,6 @@ struct FullLaTeXText: View {
             .font(.system(size: fontSize))
             .foregroundColor(.primary)
             .fixedSize(horizontal: false, vertical: true)
-            .onAppear {
-                detectLatexInContent()
-            }
-            .onChange(of: content) { oldValue, newValue in
-                // Optimization: only check if content actually changed
-                if newValue != lastCheckedContent {
-                    detectLatexInContent()
-                }
-            }
     }
 
     @ViewBuilder
@@ -738,47 +848,14 @@ struct MarkdownLaTeXText: View {
 
     @ViewBuilder
     private var streamingView: some View {
-        // During streaming: use simple text with SimpleMathRenderer
-        // NO MathJax, NO AttributedString markdown (which can fail on LaTeX delimiters)
-        // Parse markdown manually for headers and lists
-        let components = parseMarkdownComponents(content)
-
-        ForEach(Array(components.enumerated()), id: \.offset) { index, component in
-            renderStreamingComponent(component)
-        }
-    }
-
-    @ViewBuilder
-    private func renderStreamingComponent(_ component: MarkdownComponent) -> some View {
-        switch component {
-        case .header(let text, let level):
-            renderHeader(text, level: level)
-        case .text(let text):
-            // Use SimpleMathRenderer for basic math rendering during streaming
-            Text(SimpleMathRenderer.renderMathText(text))
-                .font(.system(size: fontSize))
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        case .list(let items):
-            renderStreamingList(items)
-        }
-    }
-
-    @ViewBuilder
-    private func renderStreamingList(_ items: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                HStack(alignment: .top, spacing: 8) {
-                    Text("•")
-                        .font(.system(size: fontSize))
-                    Text(SimpleMathRenderer.renderMathText(item))
-                        .font(.system(size: fontSize))
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-        .padding(.leading, 8)
+        // During streaming: show RAW text without any processing
+        // NO SimpleMathRenderer (causes symbol flickering)
+        // NO markdown processing (causes instability)
+        // JUST plain text - process after streaming completes
+        Text(content)
+            .font(.system(size: fontSize))
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: - Markdown-Only View (No LaTeX Detected)

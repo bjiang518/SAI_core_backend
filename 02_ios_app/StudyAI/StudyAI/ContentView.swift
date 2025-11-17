@@ -443,8 +443,13 @@ struct ModernProfileView: View {
                     .buttonStyle(.plain)
 
                     // Power Saving Mode Toggle
-                    HStack {
-                        SettingsRow(icon: "battery.100", title: NSLocalizedString("settings.powerSavingMode", comment: ""), color: .green)
+                    HStack(spacing: 12) {
+                        Image(systemName: "battery.100")
+                            .foregroundColor(.green)
+                            .frame(width: 20)
+
+                        Text(NSLocalizedString("settings.powerSavingMode", comment: ""))
+                            .font(.body)
 
                         Spacer()
 
@@ -456,12 +461,13 @@ struct ModernProfileView: View {
                 // SECURITY SECTION
                 Section(NSLocalizedString("settings.security", comment: "")) {
                     if authService.getBiometricType() != "None" {
-                        HStack {
-                            SettingsRow(
-                                icon: authService.getBiometricType() == "Face ID" ? "faceid" : "touchid",
-                                title: "\(authService.getBiometricType()) \(NSLocalizedString("profile.biometricLogin", comment: ""))",
-                                color: .green
-                            )
+                        HStack(spacing: 12) {
+                            Image(systemName: authService.getBiometricType() == "Face ID" ? "faceid" : "touchid")
+                                .foregroundColor(.green)
+                                .frame(width: 20)
+
+                            Text("\(authService.getBiometricType()) Login")
+                                .font(.body)
 
                             Spacer()
 

@@ -2,23 +2,52 @@
 //  HomeworkImageDetailView.swift
 //  StudyAI
 //
-//  Created by Claude Code on 10/23/25.
+//  Refactored to use native UIKit photo viewer with iOS Photos app behavior
+//  - Native edge bounce and zoom
+//  - Left/right swipe to switch images
+//  - Single tap to hide/show toolbar
+//  - All existing features preserved
 //
 
 import SwiftUI
 
 struct HomeworkImageDetailView: View {
-    let record: HomeworkImageRecord
+    // MARK: - Properties
 
-    @State private var fullImage: UIImage?
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
-    @State private var offset: CGSize = .zero
-    @State private var lastOffset: CGSize = .zero
+    let records: [HomeworkImageRecord]
+    let initialIndex: Int
+
+    @State private var currentIndex: Int
+    @State private var isToolbarVisible = true
     @State private var showingDeleteConfirmation = false
     @State private var showingShareSheet = false
     @State private var showingQuestionsPDF = false
     @Environment(\.dismiss) private var dismiss
+
+    // MARK: - Initialization
+
+    init(records: [HomeworkImageRecord], initialIndex: Int = 0) {
+        self.records = records
+        self.initialIndex = initialIndex
+        self._currentIndex = State(initialValue: initialIndex)
+    }
+
+    // Convenience initializer for single record (backward compatibility)
+    init(record: HomeworkImageRecord) {
+        self.init(records: [record], initialIndex: 0)
+    }
+
+    // MARK: - Computed Properties
+
+    private var currentRecord: HomeworkImageRecord {
+        records[currentIndex]
+    }
+
+    private var hasMultipleImages: Bool {
+        records.count > 1
+    }
+
+    // MARK: - Body
 
     var body: some View {
         NavigationView {
@@ -27,132 +56,138 @@ struct HomeworkImageDetailView: View {
                 Color.black
                     .ignoresSafeArea()
 
-                // Zoomable Image
-                if let image = fullImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .scaleEffect(scale)
-                        .offset(offset)
-                        .gesture(
-                            SimultaneousGesture(
-                                MagnificationGesture()
-                                    .onChanged { value in
-                                        let delta = value / lastScale
-                                        lastScale = value
-                                        scale = min(max(scale * delta, 0.5), 10.0)
-                                    }
-                                    .onEnded { _ in
-                                        lastScale = 1.0
-                                    },
-                                DragGesture()
-                                    .onChanged { value in
-                                        let newOffset = CGSize(
-                                            width: lastOffset.width + value.translation.width,
-                                            height: lastOffset.height + value.translation.height
-                                        )
-                                        offset = newOffset
-                                    }
-                                    .onEnded { _ in
-                                        lastOffset = offset
-                                    }
-                            )
-                        )
-                        .onTapGesture(count: 2) {
-                            withAnimation(.spring()) {
-                                if scale > 1.0 {
-                                    scale = 1.0
-                                    offset = .zero
-                                    lastOffset = .zero
-                                } else {
-                                    scale = 3.0
-                                }
-                            }
+                // Native Photo Viewer with paging
+                NativePhotoPageViewer(
+                    records: records,
+                    initialIndex: initialIndex,
+                    currentIndex: $currentIndex,
+                    onSingleTap: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            isToolbarVisible.toggle()
                         }
-                } else {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(1.5)
-                }
+                    }
+                )
+                .ignoresSafeArea()
 
-                // Metadata Overlay
+                // Metadata Overlay (bottom)
                 VStack {
                     Spacer()
 
-                    metadataOverlay
-                        .padding()
-                        .background(
-                            LinearGradient(
-                                colors: [Color.black.opacity(0.7), Color.clear],
-                                startPoint: .bottom,
-                                endPoint: .top
+                    if isToolbarVisible {
+                        metadataOverlay
+                            .padding()
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.black.opacity(0.7), Color.clear],
+                                    startPoint: .bottom,
+                                    endPoint: .top
+                                )
                             )
-                        )
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
                 .ignoresSafeArea(edges: .bottom)
+
+                // Page Indicator (top center) - only show if multiple images
+                if hasMultipleImages && isToolbarVisible {
+                    VStack {
+                        pageIndicator
+                            .padding(.top, 8)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+
+                        Spacer()
+                    }
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    HStack(spacing: 16) {
-                        // Share Button
-                        Button(action: {
-                            showingShareSheet = true
-                        }) {
-                            Image(systemName: "square.and.arrow.up")
-                                .foregroundColor(.white)
-                        }
-
-                        // PDF Questions Button (only show if rawQuestions exist)
-                        if let rawQuestions = record.rawQuestions, !rawQuestions.isEmpty {
+                if isToolbarVisible {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        HStack(spacing: 16) {
+                            // Share Button
                             Button(action: {
-                                showingQuestionsPDF = true
+                                showingShareSheet = true
                             }) {
-                                Image(systemName: "doc.text.fill")
+                                Image(systemName: "square.and.arrow.up")
                                     .foregroundColor(.white)
                             }
-                        }
 
-                        // Delete Button
-                        Button(action: {
-                            showingDeleteConfirmation = true
-                        }) {
-                            Image(systemName: "trash")
-                                .foregroundColor(.red)
-                        }
-                    }
-                }
+                            // PDF Questions Button (only show if rawQuestions exist)
+                            if let rawQuestions = currentRecord.rawQuestions, !rawQuestions.isEmpty {
+                                Button(action: {
+                                    showingQuestionsPDF = true
+                                }) {
+                                    Image(systemName: "doc.text.fill")
+                                        .foregroundColor(.white)
+                                }
+                            }
 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("common.done", value: "Done", comment: "")) {
-                        dismiss()
+                            // Delete Button
+                            Button(action: {
+                                showingDeleteConfirmation = true
+                            }) {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
+                        }
+                        .transition(.opacity)
                     }
-                    .foregroundColor(.white)
+
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(NSLocalizedString("common.done", value: "Done", comment: "")) {
+                            dismiss()
+                        }
+                        .foregroundColor(.white)
+                        .transition(.opacity)
+                    }
                 }
             }
-            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(isToolbarVisible ? .visible : .hidden, for: .navigationBar)
             .toolbarBackground(Color.black.opacity(0.8), for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
-            .onAppear {
-                loadFullImage()
-            }
+            .statusBar(hidden: !isToolbarVisible)  // Hide status bar when toolbar hidden
             .alert("Delete Homework Image?", isPresented: $showingDeleteConfirmation) {
                 Button("Cancel", role: .cancel) { }
                 Button("Delete", role: .destructive) {
-                    deleteImage()
+                    deleteCurrentImage()
                 }
             } message: {
                 Text("This action cannot be undone.")
             }
             .sheet(isPresented: $showingShareSheet) {
-                if let image = fullImage {
+                if let image = HomeworkImageStorageService.shared.loadHomeworkImage(record: currentRecord) {
                     HomeworkShareSheet(items: [image])
                 }
             }
             .sheet(isPresented: $showingQuestionsPDF) {
-                HomeworkQuestionsPDFPreviewView(homeworkRecord: record)
+                HomeworkQuestionsPDFPreviewView(homeworkRecord: currentRecord)
             }
         }
+    }
+
+    // MARK: - Page Indicator
+
+    private var pageIndicator: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "photo.on.rectangle")
+                .font(.caption2)
+                .foregroundColor(.white.opacity(0.8))
+
+            Text("\(currentIndex + 1) / \(records.count)")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.white)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(Color.black.opacity(0.6))
+        )
+        .overlay(
+            Capsule()
+                .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.5)
+        )
     }
 
     // MARK: - Metadata Overlay
@@ -161,7 +196,7 @@ struct HomeworkImageDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Subject and Accuracy
             HStack {
-                Text(record.subject)
+                Text(currentRecord.subject)
                     .font(.title3)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
@@ -170,16 +205,16 @@ struct HomeworkImageDetailView: View {
 
                 // Accuracy Badge
                 HStack(spacing: 4) {
-                    Image(systemName: record.accuracy >= 0.9 ? "star.fill" : record.accuracy >= 0.7 ? "star.leadinghalf.filled" : "exclamationmark.triangle.fill")
+                    Image(systemName: currentRecord.accuracy >= 0.9 ? "star.fill" : currentRecord.accuracy >= 0.7 ? "star.leadinghalf.filled" : "exclamationmark.triangle.fill")
                         .font(.caption)
-                    Text(record.accuracyPercentage)
+                    Text(currentRecord.accuracyPercentage)
                         .font(.title3)
                         .fontWeight(.bold)
                 }
                 .foregroundColor(.white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(record.accuracyColor)
+                .background(currentRecord.accuracyColor)
                 .cornerRadius(12)
             }
 
@@ -188,10 +223,10 @@ struct HomeworkImageDetailView: View {
                 HomeworkStatItem(
                     icon: "questionmark.circle.fill",
                     label: "Questions",
-                    value: "\(record.questionCount)"
+                    value: "\(currentRecord.questionCount)"
                 )
 
-                if let correctCount = record.correctCount {
+                if let correctCount = currentRecord.correctCount {
                     HomeworkStatItem(
                         icon: "checkmark.circle.fill",
                         label: "Correct",
@@ -200,7 +235,7 @@ struct HomeworkImageDetailView: View {
                     )
                 }
 
-                if let scoreText = record.scoreText {
+                if let scoreText = currentRecord.scoreText {
                     HomeworkStatItem(
                         icon: "chart.bar.fill",
                         label: "Score",
@@ -213,13 +248,13 @@ struct HomeworkImageDetailView: View {
             HStack(spacing: 8) {
                 Image(systemName: "calendar")
                     .foregroundColor(.white.opacity(0.7))
-                Text(record.submittedDate, style: .date)
+                Text(currentRecord.submittedDate, style: .date)
                     .foregroundColor(.white.opacity(0.9))
 
                 Text("•")
                     .foregroundColor(.white.opacity(0.5))
 
-                Text(record.submittedDate, style: .time)
+                Text(currentRecord.submittedDate, style: .time)
                     .foregroundColor(.white.opacity(0.9))
             }
             .font(.subheadline)
@@ -228,19 +263,27 @@ struct HomeworkImageDetailView: View {
 
     // MARK: - Helper Methods
 
-    private func loadFullImage() {
-        DispatchQueue.global(qos: .userInitiated).async {
-            if let image = HomeworkImageStorageService.shared.loadHomeworkImage(record: record) {
-                DispatchQueue.main.async {
-                    self.fullImage = image
-                }
-            }
-        }
-    }
+    private func deleteCurrentImage() {
+        let recordToDelete = currentRecord
 
-    private func deleteImage() {
-        HomeworkImageStorageService.shared.deleteHomeworkImage(record: record)
-        dismiss()
+        // If there are multiple images, adjust index
+        if records.count > 1 {
+            // Delete from storage
+            HomeworkImageStorageService.shared.deleteHomeworkImage(record: recordToDelete)
+
+            // If this is the last image in the list, we need to dismiss
+            // Otherwise, the page controller will automatically show the next/previous image
+            if currentIndex == records.count - 1 {
+                // Last image - dismiss or go back
+                dismiss()
+            }
+            // Note: The records array in this view won't update automatically
+            // The parent view (HomeworkAlbumView) will refresh when we dismiss
+        } else {
+            // Only one image - delete and dismiss
+            HomeworkImageStorageService.shared.deleteHomeworkImage(record: recordToDelete)
+            dismiss()
+        }
     }
 }
 
@@ -285,19 +328,36 @@ struct HomeworkShareSheet: UIViewControllerRepresentable {
 
 #Preview {
     HomeworkImageDetailView(
-        record: HomeworkImageRecord(
-            id: "preview",
-            imageFileName: "preview.jpg",
-            thumbnailFileName: "preview_thumb.jpg",
-            submittedDate: Date(),
-            subject: "Mathematics",
-            accuracy: 0.85,
-            questionCount: 10,
-            correctCount: 8,
-            incorrectCount: 2,
-            totalPoints: 85,
-            maxPoints: 100,
-            rawQuestions: nil
-        )
+        records: [
+            HomeworkImageRecord(
+                id: "preview1",
+                imageFileName: "preview1.jpg",
+                thumbnailFileName: "preview1_thumb.jpg",
+                submittedDate: Date(),
+                subject: "Mathematics",
+                accuracy: 0.85,
+                questionCount: 10,
+                correctCount: 8,
+                incorrectCount: 2,
+                totalPoints: 85,
+                maxPoints: 100,
+                rawQuestions: ["Question 1", "Question 2"]
+            ),
+            HomeworkImageRecord(
+                id: "preview2",
+                imageFileName: "preview2.jpg",
+                thumbnailFileName: "preview2_thumb.jpg",
+                submittedDate: Date().addingTimeInterval(-86400),
+                subject: "Physics",
+                accuracy: 0.92,
+                questionCount: 8,
+                correctCount: 7,
+                incorrectCount: 1,
+                totalPoints: 92,
+                maxPoints: 100,
+                rawQuestions: nil
+            )
+        ],
+        initialIndex: 0
     )
 }

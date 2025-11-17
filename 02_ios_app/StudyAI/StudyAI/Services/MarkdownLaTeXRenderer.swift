@@ -53,25 +53,25 @@ struct MarkdownLaTeXText: View {
                 detectLaTeX()
             }
         }
+        .onChange(of: isStreaming) { oldValue, newValue in
+            // When streaming completes (true → false), detect LaTeX in final content
+            if oldValue && !newValue {
+                detectLaTeX()
+            }
+        }
     }
 
     // MARK: - Streaming View (Simple + Fast)
 
     @ViewBuilder
     private var streamingView: some View {
-        // During streaming: simple text with basic markdown
-        // This is fast and doesn't trigger heavy LaTeX detection
-        if let attributedString = try? AttributedString(markdown: content, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-            Text(attributedString)
-                .font(.system(size: fontSize))
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } else {
-            Text(content)
-                .font(.system(size: fontSize))
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        // During streaming: show RAW text without any processing
+        // NO markdown processing (can cause LaTeX symbol instability)
+        // JUST plain text - process after streaming completes
+        Text(content)
+            .font(.system(size: fontSize))
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: - Markdown-Only View (No LaTeX Detected)

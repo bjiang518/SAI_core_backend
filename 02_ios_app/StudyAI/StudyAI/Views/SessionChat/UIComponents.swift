@@ -84,44 +84,37 @@ struct TypingIndicatorView: View {
     }
 }
 
-// MARK: - Modern Typing Indicator (ChatGPT Style with Lottie Animation)
+// MARK: - Modern Typing Indicator (ChatGPT Style - Dots Only)
 
 struct ModernTypingIndicatorView: View {
-    @State private var bounceIndex = 0
-    @StateObject private var voiceService = VoiceInteractionService.shared
+    @State private var currentDot = 0
+    @State private var timer: Timer?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // AI Avatar Animation (Lottie) - 使用waiting状态（快速闪烁）
-            AIAvatarAnimation(
-                state: .waiting,
-                voiceType: voiceService.voiceSettings.voiceType
-            )
-            .frame(width: 24, height: 24)
-
-            // Typing dots
-            HStack(spacing: 4) {
-                ForEach(0..<3, id: \.self) { index in
-                    Circle()
-                        .fill(Color.gray.opacity(0.6))
-                        .frame(width: 6, height: 6)
-                        .scaleEffect(bounceIndex == index ? 1.3 : 1.0)
-                        .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: false), value: bounceIndex)
-                }
+        HStack(spacing: 4) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(Color.gray)
+                    .opacity(currentDot == index ? 1.0 : 0.3)  // Bright when active, dim otherwise
+                    .frame(width: 6, height: 6)
+                    .animation(.easeInOut(duration: 0.2), value: currentDot)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(Color(.systemGray6))
-            .cornerRadius(18)
-
-            Spacer()
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color(.systemGray6))
+        .cornerRadius(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-                withAnimation {
-                    bounceIndex = (bounceIndex + 1) % 3
+            timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    currentDot = (currentDot + 1) % 3
                 }
             }
+        }
+        .onDisappear {
+            timer?.invalidate()
+            timer = nil
         }
     }
 }

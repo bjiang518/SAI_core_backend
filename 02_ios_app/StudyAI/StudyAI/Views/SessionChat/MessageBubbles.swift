@@ -121,97 +121,34 @@ struct ModernAIMessageView: View {
     @State private var hasAutoSpoken = false
 
     var body: some View {
-        // Avatar and name at top-left, message box below
-        VStack(alignment: .leading, spacing: 8) {
-            // Avatar and name at the top
-            HStack(spacing: 6) {
-                // AI Avatar - clickable to toggle speech
-                Button(action: toggleSpeech) {
-                    AIAvatarAnimation(state: animationState, voiceType: voiceType)
-                        .frame(width: 28, height: 28)
-                }
-                .buttonStyle(PlainButtonStyle())
-                .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                // Character name
-                Text(voiceType.displayName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary.opacity(0.8))
-            }
-            .padding(.leading, 2)
-
-            // Message content box - compact layout
-            VStack(alignment: .leading, spacing: 0) {
-                // 流式音频播放器
-                if isStreaming {
-                    ChatGPTStyleAudioPlayer()
-                        .padding(.bottom, 4)
-                }
-
-                // 消息内容 - more compact
-                MarkdownLaTeXText(message, fontSize: 17, isStreaming: isStreaming)
-                    .foregroundColor(.primary.opacity(0.95))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .id("\(messageId)-\(message.count)-\(isStreaming)") // Stable identity to preserve state
-            }
-            .padding(.horizontal, 10)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(characterBackgroundColor)
-            .cornerRadius(16)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(characterBorderColor, lineWidth: 0.5)
-            )
+        // Message content only (no avatar - moved to top)
+        VStack(alignment: .leading, spacing: 0) {
+            // 消息内容 - full screen (no audio player UI during streaming)
+            MarkdownLaTeXText(message, fontSize: 17, isStreaming: isStreaming)
+                .foregroundColor(.primary.opacity(0.95))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .id("\(messageId)-\(message.count)") // ✅ Stable ID without isStreaming to prevent re-render during scroll/audio changes
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 0)
         .fixedSize(horizontal: false, vertical: true)
         .onAppear {
-            animationState = .processing
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                if voiceService.currentSpeakingMessageId != messageId {
-                    animationState = .idle
-                }
-            }
-
-            // 自动播放
-            if voiceService.isVoiceEnabled &&
-               !hasAutoSpoken &&
-               (voiceType == .eva || voiceService.voiceSettings.autoSpeakResponses) &&
-               !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                hasAutoSpoken = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    startSpeaking()
-                }
-            }
-        }
-        .onChange(of: message) { oldValue, newValue in
-            if !newValue.isEmpty && animationState != .speaking {
-                animationState = .processing
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                    if voiceService.currentSpeakingMessageId != messageId {
-                        animationState = .idle
-                    }
-                }
-            }
+            // Notify that this message appeared (for auto-play detection)
+            NotificationCenter.default.post(
+                name: NSNotification.Name("AIMessageAppeared"),
+                object: nil,
+                userInfo: ["messageId": messageId, "message": message, "voiceType": voiceType.rawValue]
+            )
         }
         .onReceive(voiceService.$currentSpeakingMessageId) { currentMessageId in
+            // Update state based on whether this message is playing
             withAnimation(.easeInOut(duration: 0.2)) {
                 isCurrentlyPlaying = (currentMessageId == messageId)
             }
-            if currentMessageId == messageId {
-                animationState = .speaking
-            } else if currentMessageId == nil {
-                animationState = .idle
-            }
         }
         .onReceive(voiceService.$interactionState) { state in
-            if state == .speaking && voiceService.currentSpeakingMessageId == messageId {
-                animationState = .speaking
-            } else if state == .idle {
-                animationState = .idle
+            if state == .idle {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isCurrentlyPlaying = false
                 }

@@ -341,7 +341,7 @@ LANGUAGE: ${languageInstruction}`;
 
       const result = await this.aiClient.proxyRequest(
         'POST',
-        '/api/v1/process-question',
+        `/api/v1/sessions/${sessionId}/message`,
         aiRequestPayload,
         { 'Content-Type': 'application/json' }
       );
@@ -355,7 +355,7 @@ LANGUAGE: ${languageInstruction}`;
           authenticatedUserId,
           message,
           {
-            response: result.data.response,
+            response: result.data.ai_response,  // AI Engine returns 'ai_response'
             tokensUsed: result.data.tokens_used,
             service: 'ai-engine',
             compressed: result.data.compressed
@@ -440,7 +440,7 @@ LANGUAGE: ${languageInstruction}`;
 
       // Make streaming request to AI Engine
       const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:5001';
-      const streamUrl = `${AI_ENGINE_URL}/api/v1/process-question-stream`;
+      const streamUrl = `${AI_ENGINE_URL}/api/v1/sessions/${sessionId}/message/stream`;
 
       const response = await fetch(streamUrl, {
         method: 'POST',

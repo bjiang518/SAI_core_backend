@@ -518,7 +518,11 @@ struct ReportGenerationOverlay: View {
                         // ANIMATION SPEED: Playback speed multiplier
                         // 1.0 = normal speed, 2.0 = twice as fast, 0.5 = half speed
                         // Range: 0.1 to 10.0 (recommended: 0.5 to 2.0 for smooth playback)
-                        animationSpeed: 1.0
+                        animationSpeed: 1.0,
+
+                        // POWER SAVING PROGRESS: Where animation pauses in power saving mode
+                        // 0.0 = start, 1.0 = end. This loading animation pauses at 70%
+                        powerSavingProgress: 0.7
                     )
                     // FRAME SIZE: Dynamic sizing based on screen width
                     // - Uses minimum of (screen width - padding) or max size

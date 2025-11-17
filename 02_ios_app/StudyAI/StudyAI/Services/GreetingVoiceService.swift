@@ -132,24 +132,27 @@ class GreetingVoiceService: ObservableObject {
     private func observeSpeakingState() {
         // Monitor the TTS service speaking state
         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
-            guard let self = self else {
-                timer.invalidate()
-                return
-            }
-
-            // When TTS service stops speaking, update our state immediately
-            if !self.ttsService.isSpeaking && self.isSpeaking {
-                DispatchQueue.main.async {
-                    self.isSpeaking = false
+            Task { @MainActor in
+                guard let self = self else {
+                    timer.invalidate()
+                    return
                 }
-                timer.invalidate()
+
+                // When TTS service stops speaking, update our state immediately
+                if !self.ttsService.isSpeaking && self.isSpeaking {
+                    self.isSpeaking = false
+                    timer.invalidate()
+                }
             }
         }
 
         // Safety timeout - assume finished after 20 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
-            if self?.isSpeaking == true {
-                self?.isSpeaking = false
+        Task {
+            try? await Task.sleep(nanoseconds: 20_000_000_000) // 20 seconds
+            await MainActor.run {
+                if self.isSpeaking {
+                    self.isSpeaking = false
+                }
             }
         }
     }

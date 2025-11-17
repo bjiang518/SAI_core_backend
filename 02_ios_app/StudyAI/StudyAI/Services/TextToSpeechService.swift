@@ -160,11 +160,12 @@ class TextToSpeechService: NSObject, ObservableObject {
         print("🔊 TextToSpeechService: Setting up audio session for playback")
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            
-            // Temporarily switch to playAndRecord to allow both voice and TTS
-            try audioSession.setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker, .allowBluetoothA2DP])
+
+            // ✅ FIX: Use .playback category (not .playAndRecord) to ensure speaker output
+            // .playback always routes to speaker, not earpiece
+            try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
             try audioSession.setActive(true)
-            print("🔊 TextToSpeechService: Audio session configured for playback")
+            print("🔊 TextToSpeechService: Audio session configured for playback (speaker routing)")
         } catch {
             print("🔊 TextToSpeechService: Failed to setup playback audio session: \(error)")
         }

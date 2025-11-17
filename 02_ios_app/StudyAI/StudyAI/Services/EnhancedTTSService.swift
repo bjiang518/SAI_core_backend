@@ -94,11 +94,17 @@ class EnhancedTTSService: NSObject, ObservableObject {
         do {
             let audioSession = AVAudioSession.sharedInstance()
 
-            // Use a more compatible audio session configuration
-            try audioSession.setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker, .allowBluetoothA2DP, .duckOthers])
+            // ✅ FIX: Use .playback category (not .playAndRecord) to ensure speaker output
+            // .playback category always routes to speaker, not earpiece
+            // .defaultToSpeaker ensures audio plays from speaker, not receiver
+            try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
 
-            // Don't activate immediately - let the system handle it
+            // ✅ FIX: Activate immediately to ensure proper routing
+            try audioSession.setActive(true, options: [])
+
+            print("🔊 Audio session configured: category=.playback, mode=.spokenAudio")
         } catch {
+            print("⚠️ Failed to setup audio session: \(error)")
             // Continue anyway - the system will use default settings
         }
     }
@@ -448,15 +454,14 @@ class EnhancedTTSService: NSObject, ObservableObject {
     
     private func startProgressTracking() {
         progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            guard let self = self,
-                  let player = self.audioPlayer,
-                  player.isPlaying,
-                  player.duration > 0 else { return }
-
-            // ✅ Calculate progress on background, update UI on main thread
-            let progress = Float(player.currentTime / player.duration)
-
             Task { @MainActor in
+                guard let self = self,
+                      let player = self.audioPlayer,
+                      player.isPlaying,
+                      player.duration > 0 else { return }
+
+                // ✅ Calculate progress and update UI on main thread
+                let progress = Float(player.currentTime / player.duration)
                 self.speechProgress = progress
             }
         }

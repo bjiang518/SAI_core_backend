@@ -44,7 +44,7 @@ class SessionChatViewModel: ObservableObject {
     @Published var isActivelyStreaming = false
 
     // Subject management
-    @Published var selectedSubject = "Mathematics"
+    @Published var selectedSubject = "General"
 
     // Submission state
     @Published var isSubmitting = false

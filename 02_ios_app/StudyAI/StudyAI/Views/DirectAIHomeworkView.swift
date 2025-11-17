@@ -174,6 +174,9 @@ struct DirectAIHomeworkView: View {
     // Animation state for entry animation
     @State private var animationCompleted = false
 
+    // Progressive grading view state
+    @State private var showProgressiveGrading = false
+
     // Subject selection for AI grading
     @State private var selectedSubject: String = "Language"
     private let availableSubjects = [
@@ -193,11 +196,14 @@ struct DirectAIHomeworkView: View {
     @State private var showModeInfo: Bool = false
 
     enum ParsingMode: String, CaseIterable {
+        case progressive = "Pro"
         case hierarchical = "Detail"
         case baseline = "Fast"
 
         var description: String {
             switch self {
+            case .progressive:
+                return "Progressive grading: See questions instantly, grades appear one by one. 8x faster! Perfect for 10+ questions."
             case .hierarchical:
                 return "More accurate parsing with sections, parent-child questions, and detailed structure. Best for complex homework."
             case .baseline:
@@ -207,6 +213,8 @@ struct DirectAIHomeworkView: View {
 
         var icon: String {
             switch self {
+            case .progressive:
+                return "bolt.badge.clock.fill"
             case .hierarchical:
                 return "list.bullet.indent"
             case .baseline:
@@ -216,6 +224,8 @@ struct DirectAIHomeworkView: View {
 
         var apiValue: String {
             switch self {
+            case .progressive:
+                return "progressive"
             case .hierarchical:
                 return "hierarchical"
             case .baseline:
@@ -291,6 +301,17 @@ struct DirectAIHomeworkView: View {
                     originalImageUrl: stateManager.originalImageUrl,
                     submittedImage: stateManager.capturedImages.first  // Pass the first captured image
                 )
+            }
+        }
+        .sheet(isPresented: $showProgressiveGrading) {
+            // Progressive grading view - prepare image and base64 encoding
+            if let firstImage = stateManager.capturedImages.first {
+                NavigationView {
+                    ProgressiveHomeworkView(
+                        originalImage: firstImage,
+                        base64Image: prepareBase64Image(firstImage)
+                    )
+                }
             }
         }
         .alert(NSLocalizedString("aiHomework.processingError", comment: ""), isPresented: $showingErrorAlert) {
@@ -875,10 +896,16 @@ struct DirectAIHomeworkView: View {
         ) {
             // Process selected images
             if !self.stateManager.selectedImageIndices.isEmpty {
-                // NEW: Batch process all selected images
-                let selectedIndices = self.stateManager.selectedImageIndices.sorted()
-                let selectedImages = selectedIndices.map { self.stateManager.capturedImages[$0] }
-                self.processMultipleImages(selectedImages)
+                // Check if Progressive mode is selected
+                if self.parsingMode == .progressive {
+                    // Use new progressive grading system
+                    self.showProgressiveGrading = true
+                } else {
+                    // Use existing batch processing
+                    let selectedIndices = self.stateManager.selectedImageIndices.sorted()
+                    let selectedImages = selectedIndices.map { self.stateManager.capturedImages[$0] }
+                    self.processMultipleImages(selectedImages)
+                }
             }
         }
         .disabled(isProcessing || stateManager.selectedImageIndices.isEmpty)
@@ -1513,6 +1540,19 @@ struct DirectAIHomeworkView: View {
         default:
             return "doc.text"
         }
+    }
+
+    private func prepareBase64Image(_ image: UIImage) -> String {
+        // Compress image using the same logic as batch processing
+        guard let compressedData = compressPreprocessedImage(image) else {
+            print("⚠️ Failed to compress image for progressive grading, using fallback")
+            // Fallback: basic JPEG compression
+            if let fallbackData = image.jpegData(compressionQuality: 0.7) {
+                return fallbackData.base64EncodedString()
+            }
+            return ""
+        }
+        return compressedData.base64EncodedString()
     }
 
     private func accuracyColor(_ accuracy: Float) -> Color {
@@ -2386,13 +2426,18 @@ struct RandomLottieAnimation: View {
                     Spacer()
 
                     // Lottie animation - adaptive sizing
-                    if !selectedAnimation.isEmpty {
+                    // Hide animation completely in power saving mode
+                    if !selectedAnimation.isEmpty && !AppState.shared.isPowerSavingMode {
                         LottieView(animationName: selectedAnimation, loopMode: .loop)
                             .frame(
-                                width: min(geometry.size.width * 0.6, 300),
-                                height: min(geometry.size.width * 0.6, 300)
+                                width: geometry.size.width,  // Full screen width
+                                height: geometry.size.width  // Square aspect ratio
                             )
-                            .scaleEffect(0.9)
+                    } else if AppState.shared.isPowerSavingMode {
+                        // Show simple progress indicator in power saving mode
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .tint(.purple)
                     } else {
                         ProgressView()
                             .scaleEffect(1.5)

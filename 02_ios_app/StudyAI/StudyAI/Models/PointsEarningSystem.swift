@@ -362,7 +362,7 @@ class PointsEarningManager: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             // Check if we need to perform daily reset when app comes to foreground
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.checkDailyResetOnForeground()
             }
         }
@@ -389,7 +389,7 @@ class PointsEarningManager: ObservableObject {
 
         // Create timer for midnight
         midnightTimer = Timer.scheduledTimer(withTimeInterval: timeUntilMidnight, repeats: false) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.performMidnightReset()
             }
         }
@@ -408,7 +408,7 @@ class PointsEarningManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.performMidnightReset()
             }
         }

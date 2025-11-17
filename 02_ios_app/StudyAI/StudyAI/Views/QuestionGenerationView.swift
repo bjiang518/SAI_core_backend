@@ -404,7 +404,11 @@ struct QuestionGenerationView: View {
                     // ANIMATION SPEED: Playback speed multiplier
                     // 1.0 = normal speed, 2.0 = twice as fast, 0.5 = half speed
                     // Range: 0.1 to 10.0 (recommended: 0.5 to 2.0 for smooth playback)
-                    animationSpeed: 1.0
+                    animationSpeed: 1.0,
+
+                    // POWER SAVING PROGRESS: Where animation pauses in power saving mode
+                    // 0.0 = start, 1.0 = end. This animation pauses at 70% (good hero pose)
+                    powerSavingProgress: 0.7
                 )
                 // FRAME SIZE: Dynamic sizing based on screen width
                 // - Uses minimum of (screen width - padding) or max size
@@ -424,9 +428,9 @@ struct QuestionGenerationView: View {
                 // ============================================
                 // ADDITIONAL MODIFIERS YOU CAN ADD:
                 // ============================================
-                .scaleEffect(1)                    // Scale up/down (1.0 = original size)
+                .scaleEffect(1.3)                    // Scale up/down (1.0 = original size)
                 .offset(y: -100)                   // Move animation up to overlap with button
-                .frame(height: 200)                // Tell layout system it only takes 200 points of vertical space
+                .frame(height: 300)                // Tell layout system it only takes 200 points of vertical space
                 // .opacity(0.8)                         // Transparency (0.0 = invisible, 1.0 = opaque)
                 // .rotationEffect(.degrees(45))         // Rotate animation
                 // .background(Color.blue.opacity(0.1))  // Add background color
