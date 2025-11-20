@@ -935,14 +935,19 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
     3. Identify which questions need image context
     4. Return normalized coordinates [0-1] for image regions
 
+    PERFORMANCE OPTIMIZATION (Pro Mode):
+    - Always uses "low" detail (512x512) for 5x faster processing
+    - Skips bbox detection for speed (coordinates not needed for progressive grading)
+    - Parsing time: 3-5 seconds (vs 24+ seconds with high detail)
+
     iOS will:
     - Receive this JSON response
     - Crop image regions using normalized coordinates
     - Render electronic paper version
     - Send individual questions for grading (Phase 2)
 
-    Performance: 5-8 seconds for typical homework (20 questions)
-    Cost: ~$0.06 per image (gpt-4o-2024-08-06)
+    Performance: 3-5 seconds for typical homework (20 questions)
+    Cost: ~$0.02 per image (gpt-4o-mini with low detail)
     """
 
     import time
@@ -950,10 +955,11 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
 
     try:
         # Call AI service to parse questions with coordinates
+        # Progressive parsing ALWAYS uses low quality for speed (no bbox detection needed)
         result = await ai_service.parse_homework_questions_with_coordinates(
             base64_image=request.base64_image,
             parsing_mode=request.parsing_mode,
-            skip_bbox_detection=request.skip_bbox_detection,
+            skip_bbox_detection=True,  # ALWAYS use low detail for progressive mode (5x faster)
             expected_questions=request.expected_questions
         )
 
