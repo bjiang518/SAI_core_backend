@@ -2884,6 +2884,11 @@ Focus on being helpful and educational while maintaining a conversational tone."
             # Prepare image message
             image_url = f"data:image/jpeg;base64,{base64_image}"
 
+            # Pro Mode: Use "low" detail for speed (no coordinates needed)
+            # Auto Mode: Use "high" detail for accurate bbox detection
+            image_detail = "low" if skip_bbox_detection else "high"
+            print(f"🖼️ Image detail mode: {image_detail} ({'Pro Mode - text only' if skip_bbox_detection else 'Auto Mode - with coordinates'})")
+
             print(f"🚀 Calling OpenAI Vision API...")
             start_time = time.time()
 
@@ -2903,7 +2908,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                                 "type": "image_url",
                                 "image_url": {
                                     "url": image_url,
-                                    "detail": "high"  # High detail for accurate coordinate detection
+                                    "detail": image_detail  # Pro Mode: "low" (fast), Auto Mode: "high" (accurate bbox)
                                 }
                             }
                         ]
@@ -2911,7 +2916,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.2,
-                max_tokens=6000  # Enough for 20+ questions with coordinates
+                max_tokens=4000 if skip_bbox_detection else 6000  # Pro Mode: less tokens (no bbox), Auto Mode: more tokens (with bbox)
             )
 
             api_duration = time.time() - start_time
