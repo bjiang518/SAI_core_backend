@@ -2022,10 +2022,18 @@ class NetworkService: ObservableObject {
 
     /// Parse homework questions with normalized image coordinates (Phase 1)
     /// Returns parsed questions with image region coordinates [0-1]
-    func parseHomeworkQuestions(base64Image: String, parsingMode: String = "standard") async throws -> ParseHomeworkQuestionsResponse {
+    func parseHomeworkQuestions(
+        base64Image: String,
+        parsingMode: String = "standard",
+        skipBboxDetection: Bool = false,
+        expectedQuestions: [Int]? = nil
+    ) async throws -> ParseHomeworkQuestionsResponse {
         print("📝 === PHASE 1: PARSING HOMEWORK QUESTIONS ===")
         print("🔧 Mode: \(parsingMode)")
         print("📄 Image size: \(base64Image.count) characters")
+        if skipBboxDetection {
+            print("🎨 Pro Mode: Skip bbox detection, expected questions: \(expectedQuestions?.count ?? 0)")
+        }
 
         guard let url = URL(string: "\(baseURL)/api/ai/parse-homework-questions") else {
             throw NetworkError.invalidURL
@@ -2035,17 +2043,25 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 120.0  // 2 minutes for parsing
+        request.timeoutInterval = 180.0  // 3 minutes for parsing ALL questions (Pro Mode)
 
         // Add auth token if available
         if let token = AuthenticationService.shared.getAuthToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        let requestData: [String: Any] = [
+        var requestData: [String: Any] = [
             "base64_image": base64Image,
             "parsing_mode": parsingMode
         ]
+
+        // Add Pro Mode parameters if provided
+        if skipBboxDetection {
+            requestData["skip_bbox_detection"] = true
+        }
+        if let questions = expectedQuestions {
+            requestData["expected_questions"] = questions
+        }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
 
