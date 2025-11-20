@@ -100,25 +100,25 @@ class ProgressiveHomeworkViewModel: ObservableObject {
         await MainActor.run {
             self.state.subject = parseResponse.subject
             self.state.subjectConfidence = parseResponse.subjectConfidence
+            self.totalQuestions = parseResponse.totalQuestions
         }
 
-        // Convert parsed questions to progressive questions
-        let progressiveQuestions = parseResponse.questions.map { question in
-            ProgressiveQuestion(
-                id: question.id,
-                questionText: question.questionText ?? "",
-                studentAnswer: question.studentAnswer ?? "",
-                hasImage: question.hasImage ?? false,
-                questionNumber: question.questionNumber ?? "\(question.id)",
-                croppedImage: nil  // Will be set by Pro Mode if available
-            )
-        }
-
+        // Convert to ProgressiveQuestionWithGrade (parseResponse.questions are already ProgressiveQuestion type)
         await MainActor.run {
-            self.state.questions = progressiveQuestions
-            self.state.totalQuestions = parseResponse.totalQuestions
-            print("✅ Loaded \(progressiveQuestions.count) pre-parsed questions")
+            self.state.questions = parseResponse.questions.map { question in
+                ProgressiveQuestionWithGrade(
+                    id: question.id,
+                    question: question,
+                    grade: nil,
+                    isGrading: false,
+                    gradingError: nil
+                )
+            }
+            print("✅ Loaded \(self.state.questions.count) pre-parsed questions")
         }
+
+        // Phase 1.5: Crop images (if needed)
+        await cropImages(originalImage: originalImage, questions: parseResponse.questions)
     }
 
     // MARK: - Phase 1: Parse Questions
