@@ -145,7 +145,7 @@ class HomeworkProcessingRoutes {
     // Progressive grading - Phase 1: Parse questions with coordinates
     this.fastify.post('/api/ai/parse-homework-questions', {
       schema: {
-        description: 'Parse homework image into questions with normalized coordinates (Progressive Phase 1)',
+        description: 'Parse homework image into questions (Progressive Phase 1) - ALWAYS uses low detail for 5x speed',
         tags: ['AI', 'Homework', 'Progressive'],
         body: {
           type: 'object',
@@ -153,7 +153,7 @@ class HomeworkProcessingRoutes {
           properties: {
             base64_image: { type: 'string' },
             parsing_mode: { type: 'string', enum: ['standard', 'detailed'], default: 'standard' },
-            skip_bbox_detection: { type: 'boolean', default: false },
+            skip_bbox_detection: { type: 'boolean', default: false },  // Kept for backward compatibility, but AI Engine ignores this (always uses low detail)
             expected_questions: { type: 'array', items: { type: 'integer' } }
           }
         }
