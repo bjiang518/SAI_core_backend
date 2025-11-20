@@ -675,16 +675,19 @@ class ImageRegion(BaseModel):
 class ParsedQuestion(BaseModel):
     """Individual question parsed from homework image"""
     id: int
-    question_text: str  # Full question text
-    student_answer: str  # What student wrote
+    question_text: Optional[str] = ""  # Full question text (may be empty in Pro Mode before grading)
+    student_answer: Optional[str] = ""  # What student wrote (may be empty in Pro Mode before grading)
     has_image: bool  # Whether this question needs an image
     image_region: Optional[ImageRegion] = None  # Normalized coordinates if has_image=true
     question_type: Optional[str] = "unknown"  # multiple_choice, calculation, short_answer, etc.
+    question_number: Optional[str] = None  # NEW: Question number from user annotation (e.g., "5", "3.a")
 
 class ParseHomeworkQuestionsRequest(BaseModel):
     """Request to parse homework into individual questions"""
     base64_image: str
     parsing_mode: Optional[str] = "standard"  # "standard" or "detailed"
+    skip_bbox_detection: Optional[bool] = False  # Pro Mode: skip AI bbox generation
+    expected_questions: Optional[List[int]] = None  # Pro Mode: user-provided question numbers
 
 class ParseHomeworkQuestionsResponse(BaseModel):
     """Response with parsed questions and image regions"""
@@ -949,7 +952,9 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
         # Call AI service to parse questions with coordinates
         result = await ai_service.parse_homework_questions_with_coordinates(
             base64_image=request.base64_image,
-            parsing_mode=request.parsing_mode
+            parsing_mode=request.parsing_mode,
+            skip_bbox_detection=request.skip_bbox_detection,
+            expected_questions=request.expected_questions
         )
 
         if not result["success"]:

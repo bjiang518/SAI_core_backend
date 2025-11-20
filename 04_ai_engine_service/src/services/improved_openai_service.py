@@ -2840,7 +2840,9 @@ Focus on being helpful and educational while maintaining a conversational tone."
     async def parse_homework_questions_with_coordinates(
         self,
         base64_image: str,
-        parsing_mode: str = "standard"
+        parsing_mode: str = "standard",
+        skip_bbox_detection: bool = False,
+        expected_questions: Optional[List[int]] = None
     ) -> Dict[str, Any]:
         """
         Parse homework image and extract questions with normalized image coordinates.
@@ -2854,6 +2856,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
         Args:
             base64_image: Base64 encoded homework image
             parsing_mode: "standard" (faster) or "detailed" (more accurate)
+            skip_bbox_detection: Pro Mode flag - skip AI bbox generation if True
+            expected_questions: Pro Mode - list of question numbers user annotated
 
         Returns:
             Dict with:
@@ -2866,10 +2870,16 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
         print(f"📝 === PARSING HOMEWORK WITH COORDINATES ===")
         print(f"🔧 Mode: {parsing_mode}")
+        if skip_bbox_detection:
+            print(f"🎨 Pro Mode: Skip bbox detection, expected questions: {len(expected_questions) if expected_questions else 0}")
 
         try:
             # Build prompt for parsing with coordinates
-            system_prompt = self._build_parse_with_coordinates_prompt(parsing_mode)
+            system_prompt = self._build_parse_with_coordinates_prompt(
+                parsing_mode,
+                skip_bbox_detection=skip_bbox_detection,
+                expected_questions=expected_questions
+            )
 
             # Prepare image message
             image_url = f"data:image/jpeg;base64,{base64_image}"
@@ -2961,10 +2971,14 @@ Focus on being helpful and educational while maintaining a conversational tone."
         context_image: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Grade a single question using gpt-4o-mini for fast, low-cost grading.
+        Grade a single question with smart model selection.
 
         This is Phase 2 of progressive grading.
         iOS calls this endpoint for each question with concurrency limit = 5.
+
+        SMART MODEL SELECTION:
+        - Text-only questions: gpt-4o-mini (fast & cheap ~$0.0009)
+        - Questions with images: gpt-4o (better vision understanding ~$0.015)
 
         Args:
             question_text: The question to grade
@@ -2979,7 +2993,11 @@ Focus on being helpful and educational while maintaining a conversational tone."
             - grade: Dict with score, is_correct, feedback, confidence
         """
 
+        # Smart model selection based on image context
+        selected_model = "gpt-4o" if context_image else "gpt-4o-mini"
+
         print(f"📝 === GRADING SINGLE QUESTION ===")
+        print(f"🤖 Model: {selected_model} ({'with image' if context_image else 'text-only'})")
         print(f"📚 Subject: {subject or 'General'}")
         print(f"❓ Question: {question_text[:50]}...")
         print(f"✍️ Student Answer: {student_answer[:50]}...")
@@ -3025,12 +3043,12 @@ Grade this answer. Return JSON with:
             else:
                 messages.append({"role": "user", "content": user_text})
 
-            print(f"🚀 Calling gpt-4o-mini...")
+            print(f"🚀 Calling {selected_model}...")
             start_time = time.time()
 
-            # Call gpt-4o-mini (fast & cheap)
+            # Call selected model (smart selection: 4o-mini for text, 4o for images)
             response = await self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=selected_model,
                 messages=messages,
                 response_format={"type": "json_object"},
                 temperature=0.2,
@@ -3068,12 +3086,64 @@ Grade this answer. Return JSON with:
             }
 
 
-    def _build_parse_with_coordinates_prompt(self, parsing_mode: str) -> str:
+    def _build_parse_with_coordinates_prompt(
+        self,
+        parsing_mode: str,
+        skip_bbox_detection: bool = False,
+        expected_questions: Optional[List[int]] = None
+    ) -> str:
         """Build prompt for parsing homework with normalized coordinates.
 
         HIERARCHICAL SUPPORT: Recognizes parent questions with subquestions (e.g., 1.a, 1.b, 2.a, 2.b)
         ACCURATE COORDINATES: Improved guidance for precise image region detection
+        PRO MODE: If skip_bbox_detection=True, only extract content without bbox coordinates
         """
+
+        # Pro Mode: Skip bbox detection, only extract question content
+        if skip_bbox_detection:
+            return f"""You are a homework parsing AI. Extract ALL question content WITHOUT image coordinates.
+
+PRO MODE - CONTENT ONLY (NO BBOX):
+The user has manually annotated SOME question regions for cropping. Your task is to extract ALL visible questions from the image, not just the annotated ones.
+
+OUTPUT JSON FORMAT:
+{{
+  "subject": "Mathematics|Physics|Chemistry|Biology|English|History|Geography|Computer Science|Other",
+  "subject_confidence": 0.95,
+  "total_questions": 6,
+  "questions": [
+    {{
+      "id": 1,
+      "question_number": "1",
+      "question_text": "Write the complete question text here",
+      "student_answer": "Student's written answer (empty string if not answered)",
+      "has_image": false,
+      "question_type": "short_answer"
+    }},
+    {{
+      "id": 2,
+      "question_number": "2",
+      "question_text": "Next question...",
+      "student_answer": "",
+      "has_image": false,
+      "question_type": "multiple_choice"
+    }}
+    // ... continue for ALL visible questions
+  ]
+}}
+
+CRITICAL RULES:
+1. Extract ALL visible questions from the image (Q1, Q2, Q3, Q4, Q5, Q6, etc.)
+2. DO NOT limit to user-annotated questions - parse the entire homework
+3. DO NOT include image_region - user will provide cropped images separately
+4. Set "has_image": false for all questions (bounding boxes come from user)
+5. Extract student answers accurately - use empty string "" if question is not answered
+6. Assign sequential IDs starting from 1
+
+{parsing_mode.upper()} MODE: {"Detailed extraction with all context" if parsing_mode == "detailed" else "Fast extraction of key content"}
+"""
+
+        # Auto Mode: Full bbox detection with coordinates
 
         return f"""You are a homework parsing AI. Extract questions with hierarchical structure and normalized coordinates.
 
@@ -3093,6 +3163,8 @@ OUTPUT JSON FORMAT (HIERARCHICAL):
       "image_region": {{
         "top_left": [0.1, 0.12],
         "bottom_right": [0.9, 0.22],
+        "margin_ratio": 0.06,
+        "confidence": 0.92,
         "description": "Number line 10-19"
       }},
       "subquestions": [
@@ -3120,6 +3192,8 @@ OUTPUT JSON FORMAT (HIERARCHICAL):
       "image_region": {{
         "top_left": [0.78, 0.48],
         "bottom_right": [0.98, 0.56],
+        "margin_ratio": 0.05,
+        "confidence": 0.88,
         "description": "Blocks representing 41"
       }},
       "question_type": "calculation"
@@ -3148,17 +3222,44 @@ COORDINATE RULES (CRITICAL FOR ACCURACY):
    - Blocks/tallies: Usually in margins or corners (small regions ~0.1x0.1)
    - Diagrams/graphs: Usually embedded in question text (varies)
 
-3. COORDINATE PRECISION:
+3. COORDINATE PRECISION (⭐ ENHANCED FOR MARGIN OPTIMIZATION):
    - Look at the ACTUAL position of the visual element in the image
    - For number lines: y-coordinate should match where you SEE the line (top=0.0, middle=0.5, bottom=1.0)
    - For blocks in top-right: x should be ~0.75-0.95, y should be ~0.0-0.3 (NOT 0.8-0.9!)
    - For blocks in bottom-right: x should be ~0.75-0.95, y should be ~0.7-1.0
-   - Add 5-10% padding around the actual visual element
 
-4. VALIDATION:
+   **CRITICAL BBOX RULES (ALWAYS FOLLOW):**
+   - ✅ ALWAYS err on the side of LARGER regions (include extra whitespace rather than cutting content)
+   - ✅ NEVER tightly hug the visual boundaries - GPT Vision has 1-3% coordinate error (~20-60 pixels)
+   - ✅ Use margin_ratio field to indicate uncertainty:
+     * margin_ratio: 0.03-0.05 = confident, clear boundaries (simple diagrams)
+     * margin_ratio: 0.06-0.08 = moderate uncertainty (complex diagrams, small text)
+     * margin_ratio: 0.09-0.12 = high uncertainty (irregular shapes, dense layout)
+   - ✅ For questions with small text or diagrams < 10% of page: increase margin_ratio to 0.08+
+   - ✅ If uncertain about exact boundaries, give a CONSERVATIVE bbox + larger margin_ratio
+   - ❌ NEVER cut off any visible text or graphics - missing content breaks grading
+   - ❌ NEVER use margin_ratio < 0.03 (minimum safety buffer required)
+
+4. MARGIN_RATIO FIELD (NEW):
+   - Definition: Extra padding beyond the visual bbox as a ratio of bbox size
+   - Range: 0.03 to 0.15 (recommend 0.05-0.08 for most cases)
+   - Purpose: Compensate for Vision API coordinate uncertainty
+   - Formula: final_bbox = bbox ± (margin_ratio × max(bbox.width, bbox.height))
+   - Example: bbox width=0.4, margin_ratio=0.06 → add 0.024 (~2.4% of image) padding
+
+5. CONFIDENCE FIELD (NEW):
+   - Float 0.0-1.0 indicating bbox accuracy confidence
+   - confidence >= 0.9: Very confident, clear visual boundaries
+   - confidence 0.75-0.89: Moderate confidence, some uncertainty
+   - confidence < 0.75: Low confidence, suggest iOS use fallback strategy
+   - Correlates with margin_ratio: lower confidence = higher margin recommended
+
+6. VALIDATION:
    - ONLY set has_image=true if diagram/graph is ESSENTIAL for solving
    - description should be brief and specific (max 15 words)
    - Double-check coordinates make sense (blocks in corner shouldn't be [0.8, 0.8] - that's center-bottom!)
+   - Verify margin_ratio is between 0.03-0.15
+   - Verify confidence is between 0.0-1.0
 
 QUESTION EXTRACTION RULES:
 1. HIERARCHICAL STRUCTURE:
