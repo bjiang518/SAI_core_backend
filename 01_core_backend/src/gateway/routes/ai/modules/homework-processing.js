@@ -152,7 +152,9 @@ class HomeworkProcessingRoutes {
           required: ['base64_image'],
           properties: {
             base64_image: { type: 'string' },
-            parsing_mode: { type: 'string', enum: ['standard', 'detailed'], default: 'standard' }
+            parsing_mode: { type: 'string', enum: ['standard', 'detailed'], default: 'standard' },
+            skip_bbox_detection: { type: 'boolean', default: false },
+            expected_questions: { type: 'array', items: { type: 'integer' } }
           }
         }
       },
