@@ -204,6 +204,7 @@ struct DirectAIHomeworkView: View {
     @State private var selectedAnnotationId: UUID? = nil  // Currently selected annotation
     @State private var editingQuestionNumber: String = ""  // Input field for question number
     @State private var proCroppedImages: [Int: Data] = [:]  // Pre-cropped images for Pro Mode
+    @State private var proModeParsedQuestions: ParseHomeworkQuestionsResponse? = nil  // Pre-parsed questions from Pro Mode
     @FocusState private var isQuestionNumberFieldFocused: Bool  // Control keyboard visibility
 
     enum ParsingMode: String, CaseIterable {
@@ -316,11 +317,13 @@ struct DirectAIHomeworkView: View {
         }
         .sheet(isPresented: $showProgressiveGrading) {
             // Progressive grading view - prepare image and base64 encoding
+            // Pro Mode: Pass pre-parsed questions to skip Phase 1 parsing
             if let firstImage = stateManager.capturedImages.first {
                 NavigationView {
                     ProgressiveHomeworkView(
                         originalImage: firstImage,
-                        base64Image: prepareBase64Image(firstImage)
+                        base64Image: prepareBase64Image(firstImage),
+                        preParsedQuestions: proModeParsedQuestions  // NEW: Pass parsed questions from Pro Mode
                     )
                 }
             }
@@ -2053,13 +2056,14 @@ struct DirectAIHomeworkView: View {
 
             print("✅ AI parsed \(parseResponse.totalQuestions) questions")
 
-            // Navigate to Progressive Homework View with pre-cropped images
+            // Navigate to Progressive Homework View with pre-cropped images AND pre-parsed questions
             await MainActor.run {
                 self.stateManager.processingStatus = "准备进入详细结果页面"
                 self.isProcessing = false
 
-                // Store cropped images and show progressive grading
+                // Store cropped images and parsed questions for Pro Mode
                 self.proCroppedImages = croppedImages
+                self.proModeParsedQuestions = parseResponse  // NEW: Store parsed questions to skip re-parsing
                 self.showProgressiveGrading = true
             }
 

@@ -15,14 +15,16 @@ struct ProgressiveHomeworkView: View {
     @StateObject private var viewModel: ProgressiveHomeworkViewModel
     let originalImage: UIImage
     let base64Image: String
+    let preParsedQuestions: ParseHomeworkQuestionsResponse?  // NEW: Optional pre-parsed questions
 
     @Environment(\.dismiss) private var dismiss
 
     // MARK: - Initialization
 
-    init(originalImage: UIImage, base64Image: String) {
+    init(originalImage: UIImage, base64Image: String, preParsedQuestions: ParseHomeworkQuestionsResponse? = nil) {
         self.originalImage = originalImage
         self.base64Image = base64Image
+        self.preParsedQuestions = preParsedQuestions
         self._viewModel = StateObject(wrappedValue: ProgressiveHomeworkViewModel())
     }
 
@@ -83,9 +85,11 @@ struct ProgressiveHomeworkView: View {
         }
         .task {
             // Start processing when view appears
+            // If Pro Mode provided pre-parsed questions, use them (skip Phase 1)
             await viewModel.processHomework(
                 originalImage: originalImage,
-                base64Image: base64Image
+                base64Image: base64Image,
+                preParsedQuestions: preParsedQuestions
             )
         }
     }

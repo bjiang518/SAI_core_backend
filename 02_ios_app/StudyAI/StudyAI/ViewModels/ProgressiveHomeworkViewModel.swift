@@ -50,12 +50,19 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     /// - Parameters:
     ///   - originalImage: Original UIImage captured from camera
     ///   - base64Image: Base64 encoded JPEG string
-    func processHomework(originalImage: UIImage, base64Image: String) async {
+    ///   - preParsedQuestions: Optional pre-parsed questions from Pro Mode (skips Phase 1 if provided)
+    func processHomework(originalImage: UIImage, base64Image: String, preParsedQuestions: ParseHomeworkQuestionsResponse? = nil) async {
         print("🚀 === STARTING PROGRESSIVE HOMEWORK GRADING ===")
 
         do {
-            // Phase 1: Parse questions
-            try await parseQuestions(originalImage: originalImage, base64Image: base64Image)
+            // Phase 1: Parse questions (skip if Pro Mode already parsed)
+            if let preParsed = preParsedQuestions {
+                print("⚡ PRO MODE: Using pre-parsed questions, skipping Phase 1")
+                await usePreParsedQuestions(preParsed, originalImage: originalImage)
+            } else {
+                print("📝 AUTO MODE: Parsing questions from scratch")
+                try await parseQuestions(originalImage: originalImage, base64Image: base64Image)
+            }
 
             // Phase 2: Grade all questions in parallel
             await gradeAllQuestions()
@@ -76,6 +83,41 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                 self.isLoading = false
                 print("❌ Grading failed: \(error.localizedDescription)")
             }
+        }
+    }
+
+    // MARK: - Use Pre-Parsed Questions (Pro Mode)
+
+    private func usePreParsedQuestions(_ parseResponse: ParseHomeworkQuestionsResponse, originalImage: UIImage) async {
+        print("📊 Using \(parseResponse.totalQuestions) pre-parsed questions from Pro Mode")
+
+        await MainActor.run {
+            self.currentPhase = .parsing
+            self.isLoading = false  // Not loading since we already have data
+        }
+
+        // Store subject
+        await MainActor.run {
+            self.state.subject = parseResponse.subject
+            self.state.subjectConfidence = parseResponse.subjectConfidence
+        }
+
+        // Convert parsed questions to progressive questions
+        let progressiveQuestions = parseResponse.questions.map { question in
+            ProgressiveQuestion(
+                id: question.id,
+                questionText: question.questionText ?? "",
+                studentAnswer: question.studentAnswer ?? "",
+                hasImage: question.hasImage ?? false,
+                questionNumber: question.questionNumber ?? "\(question.id)",
+                croppedImage: nil  // Will be set by Pro Mode if available
+            )
+        }
+
+        await MainActor.run {
+            self.state.questions = progressiveQuestions
+            self.state.totalQuestions = parseResponse.totalQuestions
+            print("✅ Loaded \(progressiveQuestions.count) pre-parsed questions")
         }
     }
 
@@ -249,6 +291,8 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                 questionId: question.id,
                 topLeft: imageRegion.topLeft,
                 bottomRight: imageRegion.bottomRight,
+                marginRatio: imageRegion.marginRatio,  // Pass margin from backend
+                confidence: imageRegion.confidence,    // Pass confidence from backend
                 description: imageRegion.description ?? "Diagram"
             )
         }
