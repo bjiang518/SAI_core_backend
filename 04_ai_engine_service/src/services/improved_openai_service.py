@@ -490,7 +490,7 @@ class OptimizedEducationalAIService:
             base64_image: Base64 encoded image data
             custom_prompt: Optional additional context
             student_context: Optional student learning context
-            parsing_mode: "hierarchical" (high detail) or "baseline" (auto detail, faster)
+            parsing_mode: "hierarchical" or "baseline" (deprecated, both use same prompt now)
 
         Returns:
             Structured response with guaranteed consistent formatting
@@ -2884,10 +2884,9 @@ Focus on being helpful and educational while maintaining a conversational tone."
             # Prepare image message
             image_url = f"data:image/jpeg;base64,{base64_image}"
 
-            # Pro Mode: Use "low" detail for speed (no coordinates needed)
-            # Auto Mode: Use "high" detail for accurate bbox detection
+            # Use "low" detail for speed (Pro Mode doesn't need high-res coordinates)
             image_detail = "low" if skip_bbox_detection else "high"
-            print(f"🖼️ Image detail mode: {image_detail} ({'Pro Mode - text only' if skip_bbox_detection else 'Auto Mode - with coordinates'})")
+            print(f"🖼️ Image detail mode: {image_detail}")
 
             print(f"🚀 Calling OpenAI Vision API...")
             start_time = time.time()
@@ -2908,7 +2907,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                                 "type": "image_url",
                                 "image_url": {
                                     "url": image_url,
-                                    "detail": image_detail  # Pro Mode: "low" (fast), Auto Mode: "high" (accurate bbox)
+                                    "detail": image_detail
                                 }
                             }
                         ]
@@ -2916,7 +2915,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.2,
-                max_tokens=4000 if skip_bbox_detection else 6000  # Pro Mode: less tokens (no bbox), Auto Mode: more tokens (with bbox)
+                max_tokens=4000 if skip_bbox_detection else 6000
             )
 
             api_duration = time.time() - start_time
@@ -3093,20 +3092,16 @@ Grade this answer. Return JSON with:
 
     def _build_parse_with_coordinates_prompt(
         self,
-        parsing_mode: str,
-        skip_bbox_detection: bool = False,
+        parsing_mode: str = "standard",
+        skip_bbox_detection: bool = True,
         expected_questions: Optional[List[int]] = None
     ) -> str:
-        """Build prompt for parsing homework with normalized coordinates.
+        """Build prompt for parsing homework questions.
 
         HIERARCHICAL SUPPORT: Recognizes parent questions with subquestions (e.g., 1.a, 1.b, 2.a, 2.b)
-        ACCURATE COORDINATES: Improved guidance for precise image region detection
-        PRO MODE: If skip_bbox_detection=True, only extract content without bbox coordinates
         """
 
-        # Pro Mode: Skip bbox detection, only extract question content
-        if skip_bbox_detection:
-            return f"""Extract all questions from the homework image. Return JSON only.
+        return f"""Extract all questions from the homework image. Return JSON only.
 
 OUTPUT FORMAT:
 {{
@@ -3132,62 +3127,48 @@ OUTPUT FORMAT:
     {{
       "id": 3,
       "question_number": "3",
+      "question_text": "Is water H2O?",
+      "student_answer": "True",
+      "question_type": "true_false",
+      "options": ["True", "False"]
+    }},
+    {{
+      "id": 4,
+      "question_number": "4",
       "question_text": "The capital of France is ___.",
       "student_answer": "Paris",
       "question_type": "fill_blank"
+    }},
+    {{
+      "id": 5,
+      "question_number": "5",
+      "question_text": "Calculate 15 × 3",
+      "student_answer": "45",
+      "question_type": "calculation"
     }}
   ]
 }}
 
 RULES:
 1. Extract ALL questions - don't skip any
-2. Parent-child questions: ONE parent with subquestions array, each subquestion separate
+2. Parent-child: ONE parent with subquestions array, each subquestion separate
 3. Each subquestion has its own student_answer - NEVER combine with "|"
 4. Extract answers from anywhere on page (under question, margins, etc.)
-5. Question types: short_answer, multiple_choice, fill_blank, true_false
-"""
+5. Question types: short_answer, multiple_choice, true_false, fill_blank, calculation, long_answer, matching
+6. For multiple_choice: include options array like ["A) text", "B) text", ...]
+7. For true_false: include options ["True", "False"]
 
-        # Auto Mode: Full bbox detection with coordinates
-
-        return f"""Extract all questions with image coordinates. Return JSON only.
-
-OUTPUT FORMAT:
-{{
-  "questions": [
-    {{
-      "id": 1,
-      "question_number": "1",
-      "is_parent": true,
-      "parent_content": "Answer the following",
-      "has_image": true,
-      "image_region": {{
-        "top_left": [0.1, 0.2],
-        "bottom_right": [0.9, 0.3]
-      }},
-      "subquestions": [
-        {{"id": "1a", "question_text": "2 + 3 = ?", "student_answer": "5", "question_type": "short_answer"}},
-        {{"id": "1b", "question_text": "5 - 1 = ?", "student_answer": "4", "question_type": "short_answer"}}
-      ]
-    }},
-    {{
-      "id": 2,
-      "question_number": "2",
-      "question_text": "What is 10 + 5?",
-      "student_answer": "B",
-      "has_image": false,
-      "question_type": "multiple_choice",
-      "options": ["A) 10", "B) 15", "C) 20"]
-    }}
-  ]
-}}
-
-RULES:
-1. Extract ALL questions
-2. Parent-child: ONE parent with subquestions array, each separate
-3. Each subquestion has its own student_answer - NEVER combine with "|"
-4. Coordinates: normalized [0-1], top_left = [x1, y1], bottom_right = [x2, y2]
-5. Only set has_image=true if diagram is ESSENTIAL for solving
-6. Extract answers from anywhere on page
+MATH FORMATTING (CRITICAL):
+- Use LaTeX for ALL math expressions (iOS has MathJax rendering)
+- Inline math: Wrap in \\(...\\) (e.g., "\\(x^2 + 3x + 2\\)")
+- Display math: Wrap in \\[...\\] for standalone equations
+- Examples:
+  * Simple: "\\(\\frac{{{{1}}}}{{{{2}}}}\\)" for ½
+  * Equation: "\\(2x + 3 = 7\\)"
+  * Complex: "\\(\\int_0^\\infty e^{{{{-x^2}}}} dx\\)"
+  * Fraction: "\\(\\frac{{{{a+b}}}}{{{{c}}}}\\)"
+  * Display: "\\[\\sum_{{{{i=1}}}}^n i = \\frac{{{{n(n+1)}}}}{{{{2}}}}\\]"
+- Use double braces in Python f-string: {{{{}}}} renders as {{{{}}}}
 """
 
 
@@ -3234,6 +3215,7 @@ RULES:
 2. Feedback must be encouraging and educational (<30 words)
 3. Explain WHERE error occurred and HOW to fix
 4. Be lenient with minor notation differences
+5. Use LaTeX for math in feedback: wrap in \\(...\\) (e.g., "\\(\\frac{{{{1}}}}{{{{2}}}}\\)")
 
 OUTPUT: JSON only, no extra text
 """
