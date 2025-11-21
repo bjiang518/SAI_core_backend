@@ -48,13 +48,14 @@ class GeminiEducationalAIService:
                 genai.configure(api_key=api_key)
 
                 # Initialize model
-                # Using gemini-2.5-flash (LATEST as of 2025)
-                # Older alternatives: gemini-2.0-flash-exp, gemini-1.5-flash-latest
-                self.model_name = "gemini-2.5-flash"
+                # Using gemini-3-pro-preview (LATEST Gemini 3.0 - Most Intelligent)
+                # Fast alternative: gemini-2.5-flash (for speed/cost optimization)
+                # Older: gemini-2.0-flash-exp, gemini-1.5-flash-latest
+                self.model_name = "gemini-3-pro-preview"
                 self.client = genai.GenerativeModel(self.model_name)
 
-                print(f"✅ Gemini model initialized: {self.model_name} (LATEST 2.5)")
-                print(f"📊 Features: Fastest multimodal, structured output, cost-effective")
+                print(f"✅ Gemini model initialized: {self.model_name} (LATEST 3.0)")
+                print(f"📊 Features: Advanced reasoning, 1M context, multimodal vision")
             else:
                 print("❌ google-generativeai module not available")
                 self.client = None
@@ -113,14 +114,18 @@ class GeminiEducationalAIService:
             start_time = time.time()
 
             # Call Gemini with image and prompt
+            # Gemini 3 optimizations:
+            # - temperature=1.0 (recommended default for Gemini 3)
+            # - thinking_level="low" (fast parsing, complex reasoning not needed)
             response = self.client.generate_content(
                 [
                     system_prompt,
                     image
                 ],
                 generation_config={
-                    "temperature": 0.2,
+                    "temperature": 1.0,  # Gemini 3 recommendation
                     "max_output_tokens": 3000,
+                    "thinking_level": "low"  # Fast mode for simple OCR/parsing
                 }
             )
 
@@ -224,11 +229,15 @@ class GeminiEducationalAIService:
                 content.append(image)
 
             # Call Gemini
+            # Gemini 3 optimizations for grading:
+            # - temperature=1.0 (Gemini 3 default)
+            # - thinking_level="low" (fast grading, simple comparison task)
             response = self.client.generate_content(
                 content,
                 generation_config={
-                    "temperature": 0.2,
+                    "temperature": 1.0,  # Gemini 3 recommendation
                     "max_output_tokens": 300,
+                    "thinking_level": "low"  # Fast mode for grading
                 }
             )
 
