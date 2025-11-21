@@ -2026,10 +2026,12 @@ class NetworkService: ObservableObject {
         base64Image: String,
         parsingMode: String = "standard",
         skipBboxDetection: Bool = false,
-        expectedQuestions: [Int]? = nil
+        expectedQuestions: [Int]? = nil,
+        modelProvider: String = "openai"  // NEW: AI model selection (openai/gemini)
     ) async throws -> ParseHomeworkQuestionsResponse {
         print("📝 === PHASE 1: PARSING HOMEWORK QUESTIONS ===")
         print("🔧 Mode: \(parsingMode)")
+        print("🤖 AI Model: \(modelProvider)")
         print("📄 Image size: \(base64Image.count) characters")
         if skipBboxDetection {
             print("🎨 Pro Mode: Skip bbox detection, expected questions: \(expectedQuestions?.count ?? 0)")
@@ -2052,7 +2054,8 @@ class NetworkService: ObservableObject {
 
         var requestData: [String: Any] = [
             "base64_image": base64Image,
-            "parsing_mode": parsingMode
+            "parsing_mode": parsingMode,
+            "model_provider": modelProvider  // NEW: Pass selected AI model
         ]
 
         // Add Pro Mode parameters if provided

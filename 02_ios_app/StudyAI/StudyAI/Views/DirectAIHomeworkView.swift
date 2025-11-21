@@ -199,6 +199,10 @@ struct DirectAIHomeworkView: View {
     @State private var parsingMode: ParsingMode = .hierarchical // Default to hierarchical
     @State private var showModeInfo: Bool = false
 
+    // AI Model selection (OpenAI vs Gemini)
+    @AppStorage("selectedAIModel") private var selectedAIModel: String = "openai"
+    @State private var showModelInfo: Bool = false
+
     // Pro Mode states (NEW FLOW)
     @State private var showProModeSummary = false  // Show summary view after parsing
     @State private var proModeParsedQuestions: ParseHomeworkQuestionsResponse? = nil  // Parsed questions
@@ -238,6 +242,38 @@ struct DirectAIHomeworkView: View {
                 return "hierarchical"
             case .baseline:
                 return "baseline"
+            }
+        }
+    }
+
+    enum AIModel: String, CaseIterable {
+        case openai = "openai"
+        case gemini = "gemini"
+
+        var displayName: String {
+            switch self {
+            case .openai:
+                return "OpenAI"
+            case .gemini:
+                return "Gemini"
+            }
+        }
+
+        var description: String {
+            switch self {
+            case .openai:
+                return "GPT-4o-mini: Proven accuracy, detailed analysis"
+            case .gemini:
+                return "Gemini 3.0 Pro: Latest AI, advanced reasoning"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .openai:
+                return "brain.head.profile"
+            case .gemini:
+                return "sparkles"
             }
         }
     }
@@ -324,16 +360,15 @@ struct DirectAIHomeworkView: View {
                 }
             }
         }
-        .sheet(isPresented: $showProModeSummary) {
+        .navigationDestination(isPresented: $showProModeSummary) {
             // Pro Mode: Show summary view after AI parsing (NEW FLOW)
+            // Pushed onto navigation stack (NOT sheet) for full navigation bar
             if let parseResults = proModeParsedQuestions,
                let firstImage = stateManager.capturedImages.first {
-                NavigationStack {
-                    HomeworkSummaryView(
-                        parseResults: parseResults,
-                        originalImage: firstImage
-                    )
-                }
+                HomeworkSummaryView(
+                    parseResults: parseResults,
+                    originalImage: firstImage
+                )
             }
         }
         .alert(NSLocalizedString("aiHomework.processingError", comment: ""), isPresented: $showingErrorAlert) {
@@ -671,20 +706,18 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Initial Image Preview
     private var initialImagePreview: some View {
-        VStack(spacing: 12) {  // REDUCED from 16 to 12 for more compact layout
+        VStack(spacing: 12) {
             // Show enlarged single image or grid for multiple images
             imageDisplaySection
-
-            // Pro Mode instruction banner (only shown when Pro mode selected)
-            if parsingMode == .progressive {
-                proModeInstructionBanner
-            }
 
             // Subject Selection Dropdown
             subjectSelectionSection
 
             // Parsing Mode Selection
             parsingModeSection
+
+            // AI Model Selection (OpenAI vs Gemini)
+            aiModelSelectionSection
 
             // Primary Action - Ask AI Button (Most Prominent)
             analyzeButton
@@ -916,6 +949,109 @@ struct DirectAIHomeworkView: View {
         .transition(.opacity.combined(with: .scale))
     }
 
+    // MARK: - AI Model Selection Section
+    private var aiModelSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("AI Model")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+
+                Button(action: {
+                    showModelInfo.toggle()
+                }) {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                        .foregroundColor(.purple)
+                }
+            }
+
+            aiModelButtons
+
+            if showModelInfo {
+                aiModelInfo
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    // MARK: - AI Model Buttons
+    private var aiModelButtons: some View {
+        HStack(spacing: 12) {
+            ForEach(AIModel.allCases, id: \.self) { model in
+                aiModelButton(for: model)
+            }
+        }
+    }
+
+    // MARK: - Single AI Model Button
+    private func aiModelButton(for model: AIModel) -> some View {
+        let isSelected = selectedAIModel == model.rawValue
+        let buttonColor: Color = model == .gemini ? Color.purple : Color.blue
+
+        return Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                selectedAIModel = model.rawValue
+
+                // Haptic feedback
+                let generator = UIImpactFeedbackGenerator(style: .light)
+                generator.impactOccurred()
+            }
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: model.icon)
+                    .font(.title3)
+                    .frame(width: 24, height: 24)
+                Text(model.displayName)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(isSelected ? buttonColor : .secondary)
+            .frame(maxWidth: .infinity)
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? buttonColor.opacity(0.1) : Color.gray.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? buttonColor.opacity(0.4) : Color.gray.opacity(0.2), lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    // MARK: - AI Model Info
+    private var aiModelInfo: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(AIModel.allCases, id: \.self) { model in
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: model.icon)
+                        .foregroundColor(model == .gemini ? .purple : .blue)
+                        .font(.caption)
+                        .frame(width: 20)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(model.displayName)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                        Text(model.description)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .padding()
+        .background(Color.purple.opacity(0.05))
+        .cornerRadius(12)
+        .transition(.opacity.combined(with: .scale))
+    }
+
     // MARK: - Analyze Button
     private var analyzeButton: some View {
         AnimatedGradientButton(
@@ -966,40 +1102,6 @@ struct DirectAIHomeworkView: View {
             .foregroundColor(.red.opacity(0.8))
         }
         .padding(.top, 8)  // REDUCED from 12 to 8 for more compact layout
-    }
-
-    // MARK: - Pro Mode Instruction Banner
-
-    private var proModeInstructionBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "hand.tap.fill")
-                .font(.title3)
-                .foregroundColor(.blue)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Pro Mode标注指南")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-
-                Text("点击图片创建框选区域，拖动调整位置，拖拽圆点缩放大小")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.blue.opacity(0.1))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-        )
-        .padding(.horizontal)
-        .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     // MARK: - Single Image Enlarged View
@@ -1854,12 +1956,14 @@ struct DirectAIHomeworkView: View {
         do {
             // NEW FLOW: Call AI Parse with Detail Mode (hierarchical parsing)
             print("🤖 Calling AI Engine with Detail Mode (hierarchical parsing)...")
+            print("🤖 Using AI Model: \(selectedAIModel)")
 
             let parseResponse = try await NetworkService.shared.parseHomeworkQuestions(
                 base64Image: base64Image,
                 parsingMode: "standard",  // Use standard mode for Pro
                 skipBboxDetection: true,   // No bbox needed
-                expectedQuestions: nil
+                expectedQuestions: nil,
+                modelProvider: selectedAIModel  // Pass selected AI model
             )
 
             guard parseResponse.success else {
