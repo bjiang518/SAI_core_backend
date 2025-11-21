@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 
 # Import our advanced AI services
 from src.services.improved_openai_service import EducationalAIService  # Now uses improved parsing
+from src.services.gemini_service import GeminiEducationalAIService  # Gemini alternative
 from src.services.prompt_service import AdvancedPromptService
 from src.services.session_service import SessionService
 from src.services.ai_analytics_service import AIAnalyticsService
@@ -122,6 +123,7 @@ app.middleware("http")(service_auth_middleware)
 
 # Initialize AI services
 ai_service = EducationalAIService()
+gemini_service = GeminiEducationalAIService()
 
 prompt_service = AdvancedPromptService()
 
@@ -672,15 +674,37 @@ class ImageRegion(BaseModel):
     bottom_right: List[float]  # [x, y] normalized coordinates
     description: Optional[str] = None  # Brief description of the image content
 
+class ProgressiveSubquestion(BaseModel):
+    """Subquestion within a parent question"""
+    id: str  # e.g., "1a", "1b", "2a"
+    question_text: str
+    student_answer: str
+    question_type: Optional[str] = "short_answer"
+
 class ParsedQuestion(BaseModel):
-    """Individual question parsed from homework image"""
+    """Individual question parsed from homework image
+
+    Two types of questions:
+    1. Regular: has question_text, student_answer
+    2. Parent: has is_parent=true, parent_content, subquestions array
+    """
     id: int
-    question_text: Optional[str] = ""  # Full question text (may be empty in Pro Mode before grading)
-    student_answer: Optional[str] = ""  # What student wrote (may be empty in Pro Mode before grading)
-    has_image: Optional[bool] = False  # Whether this question needs an image (optional for simplified responses)
-    image_region: Optional[ImageRegion] = None  # Normalized coordinates if has_image=true
-    question_type: Optional[str] = "unknown"  # multiple_choice, calculation, short_answer, etc.
-    question_number: Optional[str] = None  # NEW: Question number from user annotation (e.g., "5", "3.a")
+    question_number: Optional[str] = None
+
+    # Hierarchical support (ONLY for parent questions)
+    is_parent: Optional[bool] = None
+    has_subquestions: Optional[bool] = None
+    parent_content: Optional[str] = None
+    subquestions: Optional[List['ProgressiveSubquestion']] = None
+
+    # Regular question fields (ONLY for non-parent questions)
+    question_text: Optional[str] = None
+    student_answer: Optional[str] = None
+    question_type: Optional[str] = None
+
+    class Config:
+        # Remove null fields from JSON output to reduce response size
+        exclude_none = True
 
 class ParseHomeworkQuestionsRequest(BaseModel):
     """Request to parse homework into individual questions"""
@@ -688,6 +712,7 @@ class ParseHomeworkQuestionsRequest(BaseModel):
     parsing_mode: Optional[str] = "standard"  # "standard" or "detailed"
     skip_bbox_detection: Optional[bool] = False  # Pro Mode: skip AI bbox generation
     expected_questions: Optional[List[int]] = None  # Pro Mode: user-provided question numbers
+    model_provider: Optional[str] = "openai"  # "openai" or "gemini"
 
 class ParseHomeworkQuestionsResponse(BaseModel):
     """Response with parsed questions and image regions"""
@@ -706,6 +731,7 @@ class GradeSingleQuestionRequest(BaseModel):
     correct_answer: Optional[str] = None  # Optional - AI will determine if not provided
     subject: Optional[str] = None  # For subject-specific grading rules
     context_image_base64: Optional[str] = None  # Optional image if question needs visual context
+    model_provider: Optional[str] = "openai"  # "openai" or "gemini"
 
 class GradeResult(BaseModel):
     """Result of grading a single question"""
@@ -954,9 +980,14 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
     start_time = time.time()
 
     try:
-        # Call AI service to parse questions with coordinates
-        # Progressive parsing ALWAYS uses low quality for speed (no bbox detection needed)
-        result = await ai_service.parse_homework_questions_with_coordinates(
+        # Select AI service based on model provider
+        selected_service = gemini_service if request.model_provider == "gemini" else ai_service
+        provider_name = request.model_provider.upper() if request.model_provider else "OPENAI"
+
+        print(f"🤖 === USING {provider_name} FOR HOMEWORK PARSING ===")
+
+        # Call selected AI service to parse questions with coordinates
+        result = await selected_service.parse_homework_questions_with_coordinates(
             base64_image=request.base64_image,
             parsing_mode=request.parsing_mode,
             skip_bbox_detection=True,  # ALWAYS use low detail for progressive mode (5x faster)
@@ -1038,8 +1069,14 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
     start_time = time.time()
 
     try:
-        # Call AI service for single question grading
-        result = await ai_service.grade_single_question(
+        # Select AI service based on model provider
+        selected_service = gemini_service if request.model_provider == "gemini" else ai_service
+        provider_name = request.model_provider.upper() if request.model_provider else "OPENAI"
+
+        print(f"🤖 === USING {provider_name} FOR QUESTION GRADING ===")
+
+        # Call selected AI service for single question grading
+        result = await selected_service.grade_single_question(
             question_text=request.question_text,
             student_answer=request.student_answer,
             correct_answer=request.correct_answer,
