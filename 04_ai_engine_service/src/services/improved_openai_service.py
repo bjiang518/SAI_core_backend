@@ -2884,8 +2884,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
             # Prepare image message
             image_url = f"data:image/jpeg;base64,{base64_image}"
 
-            # Use "low" detail for speed (Pro Mode doesn't need high-res coordinates)
-            image_detail = "low" if skip_bbox_detection else "high"
+            # ALWAYS use "high" detail for text extraction (even in Pro Mode)
+            # Low resolution makes it impossible to read question text and student answers
+            # Pro Mode skips bbox coordinates, but still needs to READ the text content
+            image_detail = "high"
             print(f"🖼️ Image detail mode: {image_detail}")
 
             print(f"🚀 Calling OpenAI Vision API...")
