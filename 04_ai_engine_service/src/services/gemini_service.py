@@ -114,20 +114,16 @@ class GeminiEducationalAIService:
             start_time = time.time()
 
             # Call Gemini with image and prompt
-            # Gemini 3 optimizations for homework OCR/parsing:
-            # - temperature=1.0 (recommended default for Gemini 3)
-            # - thinking_level="low" (fast parsing, complex reasoning not needed)
-            # - media_resolution="media_resolution_high" (best for text recognition/OCR)
+            # Gemini 3.0 Pro configuration (SDK 0.3.2 compatible)
+            # Only valid fields: temperature, top_p, top_k, max_output_tokens, candidate_count
             response = self.client.generate_content(
                 [
                     image,  # Image FIRST (best practice per docs)
                     system_prompt  # Text prompt AFTER image
                 ],
                 generation_config={
-                    "temperature": 1.0,  # Gemini 3 recommendation
-                    "max_output_tokens": 3000,
-                    "thinking_level": "low",  # Fast mode for simple OCR/parsing
-                    "media_resolution": "media_resolution_high"  # 1120 tokens, best OCR quality
+                    "temperature": 1.0,  # Gemini 3 default recommendation
+                    "max_output_tokens": 3000
                 }
             )
 
@@ -231,15 +227,12 @@ class GeminiEducationalAIService:
                 content.append(image)
 
             # Call Gemini
-            # Gemini 3 optimizations for grading:
-            # - temperature=1.0 (Gemini 3 default)
-            # - thinking_level="low" (fast grading, simple comparison task)
+            # Gemini 3.0 Pro configuration (SDK 0.3.2 compatible)
             response = self.client.generate_content(
                 content,
                 generation_config={
-                    "temperature": 1.0,  # Gemini 3 recommendation
-                    "max_output_tokens": 300,
-                    "thinking_level": "low"  # Fast mode for grading
+                    "temperature": 1.0,  # Gemini 3 default recommendation
+                    "max_output_tokens": 300
                 }
             )
 
