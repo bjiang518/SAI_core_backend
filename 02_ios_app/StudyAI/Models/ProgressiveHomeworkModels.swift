@@ -41,8 +41,8 @@ struct ProgressiveQuestion: Codable, Identifiable {
     let questionText: String?
     let studentAnswer: String?
 
-    // Image region (optional)
-    let hasImage: Bool
+    // Image region (optional) - Made optional for compatibility with simplified AI response
+    let hasImage: Bool?
     let imageRegion: ImageRegion?
     let questionType: String?
 

@@ -199,13 +199,9 @@ struct DirectAIHomeworkView: View {
     @State private var parsingMode: ParsingMode = .hierarchical // Default to hierarchical
     @State private var showModeInfo: Bool = false
 
-    // Pro Mode annotation states
-    @State private var userAnnotations: [BBoxAnnotation] = []  // User-drawn bounding boxes
-    @State private var selectedAnnotationId: UUID? = nil  // Currently selected annotation
-    @State private var editingQuestionNumber: String = ""  // Input field for question number
-    @State private var proCroppedImages: [Int: Data] = [:]  // Pre-cropped images for Pro Mode
-    @State private var proModeParsedQuestions: ParseHomeworkQuestionsResponse? = nil  // Pre-parsed questions from Pro Mode
-    @FocusState private var isQuestionNumberFieldFocused: Bool  // Control keyboard visibility
+    // Pro Mode states (NEW FLOW)
+    @State private var showProModeSummary = false  // Show summary view after parsing
+    @State private var proModeParsedQuestions: ParseHomeworkQuestionsResponse? = nil  // Parsed questions
 
     enum ParsingMode: String, CaseIterable {
         case progressive = "Pro"
@@ -324,6 +320,18 @@ struct DirectAIHomeworkView: View {
                         originalImage: firstImage,
                         base64Image: prepareBase64Image(firstImage),
                         preParsedQuestions: proModeParsedQuestions  // NEW: Pass parsed questions from Pro Mode
+                    )
+                }
+            }
+        }
+        .sheet(isPresented: $showProModeSummary) {
+            // Pro Mode: Show summary view after AI parsing (NEW FLOW)
+            if let parseResults = proModeParsedQuestions,
+               let firstImage = stateManager.capturedImages.first {
+                NavigationStack {
+                    HomeworkSummaryView(
+                        parseResults: parseResults,
+                        originalImage: firstImage
                     )
                 }
             }
@@ -659,10 +667,6 @@ struct DirectAIHomeworkView: View {
             }
             .padding()
         }
-        .onTapGesture {
-            // Dismiss keyboard when tapping outside TextField
-            isQuestionNumberFieldFocused = false
-        }
     }
 
     // MARK: - Initial Image Preview
@@ -681,11 +685,6 @@ struct DirectAIHomeworkView: View {
 
             // Parsing Mode Selection
             parsingModeSection
-
-            // Pro Mode annotation control panel (only shown when annotation selected)
-            if parsingMode == .progressive, selectedAnnotationId != nil {
-                proModeControlPanel
-            }
 
             // Primary Action - Ask AI Button (Most Prominent)
             analyzeButton
@@ -1003,124 +1002,6 @@ struct DirectAIHomeworkView: View {
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 
-    // MARK: - Pro Mode Control Panel
-
-    private var proModeControlPanel: some View {
-        guard let selectedId = selectedAnnotationId,
-              let selectedIndex = userAnnotations.firstIndex(where: { $0.id == selectedId }),
-              selectedIndex < userAnnotations.count else {
-            return AnyView(EmptyView())
-        }
-
-        let annotationColors: [Color] = [
-            .blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint
-        ]
-        let color = annotationColors[selectedIndex % annotationColors.count]
-
-        return AnyView(
-            VStack(spacing: 12) {
-                HStack(spacing: 16) {
-                    // Color indicator
-                    Circle()
-                        .fill(color)
-                        .frame(width: 40, height: 40)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white, lineWidth: 3)
-                        )
-                        .shadow(color: color.opacity(0.4), radius: 4, x: 0, y: 2)
-
-                    // Question number input - FIXED: Dynamic binding that always reads from array
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("题号")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        TextField("输入题号", text: Binding(
-                            get: {
-                                // FIXED: Always read from the current array position
-                                guard let currentIndex = userAnnotations.firstIndex(where: { $0.id == selectedId }),
-                                      currentIndex < userAnnotations.count else {
-                                    return ""
-                                }
-                                let currentAnnotation = userAnnotations[currentIndex]
-                                return currentAnnotation.questionNumber > 0 ? "\(currentAnnotation.questionNumber)" : ""
-                            },
-                            set: { newValue in
-                                // FIXED: Always write to the current array position
-                                guard let currentIndex = userAnnotations.firstIndex(where: { $0.id == selectedId }),
-                                      currentIndex < userAnnotations.count else {
-                                    print("⚠️ [TextField] Cannot find annotation with id \(selectedId)")
-                                    return
-                                }
-
-                                print("📝 [TextField] Before update: annotations count = \(userAnnotations.count), question numbers = \(userAnnotations.map { $0.questionNumber })")
-
-                                if let questionNum = Int(newValue), questionNum > 0 {
-                                    userAnnotations[currentIndex].questionNumber = questionNum
-                                    print("✅ [TextField] Updated Q\(currentIndex+1) → Q\(questionNum)")
-                                } else if newValue.isEmpty {
-                                    userAnnotations[currentIndex].questionNumber = 0
-                                    print("📝 [TextField] Cleared question number for annotation \(currentIndex)")
-                                }
-
-                                print("📝 [TextField] After update: question numbers = \(userAnnotations.map { $0.questionNumber })")
-                            }
-                        ))
-                        .keyboardType(.numberPad)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(width: 100)
-                        .focused($isQuestionNumberFieldFocused)  // Bind to FocusState
-                        .toolbar {
-                            ToolbarItemGroup(placement: .keyboard) {
-                                Spacer()
-                                Button("完成") {
-                                    isQuestionNumberFieldFocused = false  // Dismiss keyboard
-                                }
-                                .fontWeight(.semibold)
-                            }
-                        }
-                        .id(selectedId)  // FIXED: Force TextField to re-render when selection changes
-                    }
-
-                    Spacer()
-
-                    // Delete button
-                    Button(action: {
-                        withAnimation(.spring()) {
-                            userAnnotations.removeAll { $0.id == selectedId }
-                            selectedAnnotationId = nil
-                        }
-
-                        let generator = UINotificationFeedbackGenerator()
-                        generator.notificationOccurred(.warning)
-                    }) {
-                        Image(systemName: "trash.fill")
-                            .font(.title3)
-                            .foregroundColor(.red)
-                            .padding(12)
-                            .background(
-                                Circle()
-                                    .fill(Color.red.opacity(0.1))
-                            )
-                    }
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(.secondarySystemGroupedBackground))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(color.opacity(0.5), lineWidth: 2)
-                )
-            }
-            .padding(.horizontal)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-            .id(selectedId)  // FIXED: Force entire panel to re-render when selection changes
-        )
-    }
-
     // MARK: - Single Image Enlarged View
     private var singleImageEnlargedView: some View {
         VStack(spacing: 0) {
@@ -1131,26 +1012,13 @@ struct DirectAIHomeworkView: View {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(maxHeight: UIScreen.main.bounds.height * 0.6)  // INCREASED from 0.55 to 0.6 for larger preview
+                        .frame(maxHeight: UIScreen.main.bounds.height * 0.6)
                         .background(Color.gray.opacity(0.05))
                         .cornerRadius(16)
                         .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
                         .overlay(
                             RoundedRectangle(cornerRadius: 16)
                                 .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                        )
-                        .overlay(
-                            // Pro Mode annotation overlay - ON TOP to receive touch events
-                            GeometryReader { geometry in
-                                if parsingMode == .progressive {
-                                    ProModeAnnotationOverlay(
-                                        annotations: $userAnnotations,
-                                        selectedAnnotationId: $selectedAnnotationId,
-                                        imageSize: geometry.size,
-                                        originalImageSize: image.size
-                                    )
-                                }
-                            }
                         )
                         .id(image) // Force refresh when image reference changes
                         .padding(.horizontal, 16)
@@ -1948,12 +1816,16 @@ struct DirectAIHomeworkView: View {
 
     /// Process homework using Pro Mode with user-drawn annotations
     /// Shows phased status updates: "正在图像分割" → "AI正在分析原题"
+    /// Pro Mode: Direct AI Parse (Detail Mode) → Summary → Digital Homework
     private func processWithProMode() async {
-        print("🎨 === STARTING PRO MODE PROCESSING ===")
+        print("🎨 === STARTING PRO MODE PROCESSING (NEW FLOW) ===")
+        print("📋 Flow: AI Parse (Detail) → Summary View → Digital Homework View")
 
         await MainActor.run {
             isProcessing = true
             stateManager.parsingError = nil
+            stateManager.processingStatus = "AI 正在分析作业..."
+            stateManager.currentStage = .analyzing
         }
 
         let selectedIndices = stateManager.selectedImageIndices.sorted()
@@ -1968,60 +1840,7 @@ struct DirectAIHomeworkView: View {
 
         let originalImage = stateManager.capturedImages[firstIndex]
 
-        // Phase 1: Image cropping (if user provided annotations)
-        var croppedImages: [Int: Data] = [:]  // questionId -> JPEG data
-
-        if !userAnnotations.isEmpty {
-            await MainActor.run {
-                stateManager.processingStatus = "正在图像分割"
-                stateManager.currentStage = .cropping
-            }
-
-            print("✂️ Phase 1: Cropping \(userAnnotations.count) user-annotated regions...")
-
-            // Build ImageCropper regions from user annotations
-            let regions = userAnnotations.compactMap { annotation -> ImageCropper.ImageRegion? in
-                guard annotation.questionNumber > 0 else {
-                    print("⚠️ Skipping annotation without question number")
-                    return nil
-                }
-
-                return ImageCropper.ImageRegion(
-                    questionId: annotation.questionNumber,
-                    topLeft: annotation.topLeft,
-                    bottomRight: annotation.bottomRight,
-                    marginRatio: nil,  // User already defined exact region
-                    confidence: 1.0,   // User annotation is 100% confident
-                    description: "User annotation Q\(annotation.questionNumber)"
-                )
-            }
-
-            // Batch crop all regions
-            let croppedUIImages = ImageCropper.batchCrop(
-                image: originalImage,
-                regions: regions
-            )
-
-            // Convert to JPEG data
-            for (questionId, uiImage) in croppedUIImages {
-                if let jpegData = uiImage.jpegData(compressionQuality: 0.85) {
-                    croppedImages[questionId] = jpegData
-                    print("✅ Cropped Q\(questionId): \(jpegData.count / 1024)KB")
-                }
-            }
-
-            print("📸 Cropped \(croppedImages.count)/\(regions.count) regions successfully")
-        }
-
-        // Phase 2: AI content parsing (parse ALL questions, not just annotated ones)
-        await MainActor.run {
-            stateManager.processingStatus = "AI正在分析原题"
-            stateManager.currentStage = .analyzing
-        }
-
-        print("🤖 Phase 2: AI parsing ALL homework questions (user annotations are for cropping only)...")
-
-        // Compress and encode full image for AI parsing
+        // Compress and encode image
         guard let imageData = compressPreprocessedImage(originalImage) else {
             await MainActor.run {
                 stateManager.parsingError = "Failed to compress image"
@@ -2032,22 +1851,15 @@ struct DirectAIHomeworkView: View {
 
         let base64Image = imageData.base64EncodedString()
 
-        // Extract user-annotated question numbers (for reference only, NOT to limit parsing)
-        let annotatedQuestions = userAnnotations
-            .filter { $0.questionNumber > 0 }
-            .map { $0.questionNumber }
-            .sorted()
-
-        print("📝 User annotated questions: \(annotatedQuestions)")
-        print("🔍 AI will parse ALL questions from the full image")
-
         do {
-            // Call parse API - parse ALL questions, skip bbox detection
+            // NEW FLOW: Call AI Parse with Detail Mode (hierarchical parsing)
+            print("🤖 Calling AI Engine with Detail Mode (hierarchical parsing)...")
+
             let parseResponse = try await NetworkService.shared.parseHomeworkQuestions(
                 base64Image: base64Image,
-                parsingMode: "standard",
-                skipBboxDetection: true,
-                expectedQuestions: nil  // FIXED: Don't limit - parse ALL questions
+                parsingMode: "standard",  // Use standard mode for Pro
+                skipBboxDetection: true,   // No bbox needed
+                expectedQuestions: nil
             )
 
             guard parseResponse.success else {
@@ -2055,19 +1867,19 @@ struct DirectAIHomeworkView: View {
             }
 
             print("✅ AI parsed \(parseResponse.totalQuestions) questions")
+            print("📚 Subject: \(parseResponse.subject)")
 
-            // Navigate to Progressive Homework View with pre-cropped images AND pre-parsed questions
+            // Navigate to Summary View
             await MainActor.run {
-                self.stateManager.processingStatus = "准备进入详细结果页面"
+                self.stateManager.processingStatus = "分析完成"
                 self.isProcessing = false
 
-                // Store cropped images and parsed questions for Pro Mode
-                self.proCroppedImages = croppedImages
-                self.proModeParsedQuestions = parseResponse  // NEW: Store parsed questions to skip re-parsing
-                self.showProgressiveGrading = true
+                // Store parse results for Summary View
+                self.proModeParsedQuestions = parseResponse
+                self.showProModeSummary = true  // NEW: Show summary instead of direct grading
             }
 
-            print("✅ Pro Mode processing complete, entering results view")
+            print("✅ Pro Mode parsing complete, showing summary view")
 
         } catch {
             await MainActor.run {
@@ -3114,335 +2926,6 @@ struct ConfidenceBadge: View {
     }
 }
 
-// MARK: - Pro Mode Annotation Overlay Component
-
-struct ProModeAnnotationOverlay: View {
-    @Binding var annotations: [BBoxAnnotation]
-    @Binding var selectedAnnotationId: UUID?
-    let imageSize: CGSize
-    let originalImageSize: CGSize
-
-    // Color palette for different annotations
-    private let annotationColors: [Color] = [
-        .blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint
-    ]
-
-    var body: some View {
-        ZStack {
-            // Tap to create new annotation
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture { location in
-                    createAnnotation(at: location)
-                }
-
-            // Render existing annotations
-            ForEach(Array(annotations.enumerated()), id: \.element.id) { index, annotation in
-                AnnotationBox(
-                    annotation: annotations[index],  // FIXED: Read directly from binding instead of local copy
-                    isSelected: selectedAnnotationId == annotation.id,
-                    imageSize: imageSize,
-                    originalImageSize: originalImageSize,
-                    color: annotationColors[index % annotationColors.count],
-                    onSelect: {
-                        withAnimation(.spring()) {
-                            selectedAnnotationId = annotation.id
-                        }
-                    },
-                    onMove: { delta in
-                        moveAnnotation(id: annotation.id, delta: delta)
-                    },
-                    onResize: { corner, delta in
-                        resizeAnnotation(id: annotation.id, corner: corner, delta: delta)
-                    }
-                )
-                // Removed .id() to prevent unnecessary rebuilds that lose state
-            }
-        }
-    }
-
-    // MARK: - Create Annotation
-
-    private func createAnnotation(at location: CGPoint) {
-        print("📝 [CreateAnnotation] Current annotations count: \(annotations.count)")
-        print("📝 [CreateAnnotation] Existing question numbers: \(annotations.map { $0.questionNumber })")
-
-        // Calculate square size: 3x larger (3/20 = 0.15 of image width)
-        let squareSize = (imageSize.width / 20.0) * 3.0  // INCREASED 3x
-
-        // Calculate top-left corner (center the square at tap location)
-        let topLeftX = max(0, min(imageSize.width - squareSize, location.x - squareSize / 2))
-        let topLeftY = max(0, min(imageSize.height - squareSize, location.y - squareSize / 2))
-
-        // Convert to normalized coordinates [0-1]
-        let topLeft = [
-            Double(topLeftX / imageSize.width),
-            Double(topLeftY / imageSize.height)
-        ]
-
-        let bottomRight = [
-            Double((topLeftX + squareSize) / imageSize.width),
-            Double((topLeftY + squareSize) / imageSize.height)
-        ]
-
-        // Create new annotation WITHOUT auto question number (user must input manually)
-        let newAnnotation = BBoxAnnotation(
-            questionNumber: 0,  // Default to 0 (shows "?" icon), user must input question number
-            topLeft: topLeft,
-            bottomRight: bottomRight,
-            type: .fullQuestion
-        )
-
-        withAnimation(.spring()) {
-            annotations.append(newAnnotation)
-            selectedAnnotationId = newAnnotation.id
-        }
-
-        // Haptic feedback
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
-
-        print("✅ Created annotation with color at (\(Int(location.x)), \(Int(location.y))), size: \(Int(squareSize))px - awaiting user input")
-        print("📝 [CreateAnnotation] After creation, annotations count: \(annotations.count)")
-    }
-
-    // MARK: - Move Annotation
-
-    private func moveAnnotation(id: UUID, delta: CGSize) {
-        guard let index = annotations.firstIndex(where: { $0.id == id }) else { return }
-
-        var annotation = annotations[index]
-
-        // Convert delta to normalized coordinates
-        let deltaX = Double(delta.width / imageSize.width)
-        let deltaY = Double(delta.height / imageSize.height)
-
-        // Calculate new position
-        var newTopLeft = [
-            annotation.topLeft[0] + deltaX,
-            annotation.topLeft[1] + deltaY
-        ]
-
-        var newBottomRight = [
-            annotation.bottomRight[0] + deltaX,
-            annotation.bottomRight[1] + deltaY
-        ]
-
-        // Clamp to [0, 1] bounds
-        let width = newBottomRight[0] - newTopLeft[0]
-        let height = newBottomRight[1] - newTopLeft[1]
-
-        if newTopLeft[0] < 0 {
-            newTopLeft[0] = 0
-            newBottomRight[0] = width
-        }
-        if newTopLeft[1] < 0 {
-            newTopLeft[1] = 0
-            newBottomRight[1] = height
-        }
-        if newBottomRight[0] > 1 {
-            newBottomRight[0] = 1
-            newTopLeft[0] = 1 - width
-        }
-        if newBottomRight[1] > 1 {
-            newBottomRight[1] = 1
-            newTopLeft[1] = 1 - height
-        }
-
-        annotation.topLeft = newTopLeft
-        annotation.bottomRight = newBottomRight
-
-        annotations[index] = annotation
-    }
-
-    // MARK: - Resize Annotation
-
-    private func resizeAnnotation(id: UUID, corner: AnnotationCorner, delta: CGSize) {
-        guard let index = annotations.firstIndex(where: { $0.id == id }) else { return }
-
-        var annotation = annotations[index]
-
-        // Convert delta to normalized coordinates
-        let deltaX = Double(delta.width / imageSize.width)
-        let deltaY = Double(delta.height / imageSize.height)
-
-        // Adjust coordinates based on corner
-        switch corner {
-        case .topLeft:
-            annotation.topLeft[0] = max(0, min(annotation.bottomRight[0] - 0.05, annotation.topLeft[0] + deltaX))
-            annotation.topLeft[1] = max(0, min(annotation.bottomRight[1] - 0.05, annotation.topLeft[1] + deltaY))
-
-        case .topRight:
-            annotation.bottomRight[0] = max(annotation.topLeft[0] + 0.05, min(1, annotation.bottomRight[0] + deltaX))
-            annotation.topLeft[1] = max(0, min(annotation.bottomRight[1] - 0.05, annotation.topLeft[1] + deltaY))
-
-        case .bottomLeft:
-            annotation.topLeft[0] = max(0, min(annotation.bottomRight[0] - 0.05, annotation.topLeft[0] + deltaX))
-            annotation.bottomRight[1] = max(annotation.topLeft[1] + 0.05, min(1, annotation.bottomRight[1] + deltaY))
-
-        case .bottomRight:
-            annotation.bottomRight[0] = max(annotation.topLeft[0] + 0.05, min(1, annotation.bottomRight[0] + deltaX))
-            annotation.bottomRight[1] = max(annotation.topLeft[1] + 0.05, min(1, annotation.bottomRight[1] + deltaY))
-        }
-
-        annotations[index] = annotation
-    }
-}
-
-// MARK: - Annotation Corner Enum
-
-enum AnnotationCorner {
-    case topLeft, topRight, bottomLeft, bottomRight
-}
-
-// MARK: - Annotation Box Component
-
-struct AnnotationBox: View {
-    let annotation: BBoxAnnotation
-    let isSelected: Bool
-    let imageSize: CGSize
-    let originalImageSize: CGSize
-    let color: Color
-    let onSelect: () -> Void
-    let onMove: (CGSize) -> Void
-    let onResize: (AnnotationCorner, CGSize) -> Void
-
-    // OPTIMIZED: Use @GestureState for better performance
-    @GestureState private var dragOffset: CGSize = .zero
-    @State private var isDragging: Bool = false
-
-    var body: some View {
-        let topLeft = CGPoint(
-            x: CGFloat(annotation.topLeft[0]) * imageSize.width,
-            y: CGFloat(annotation.topLeft[1]) * imageSize.height
-        )
-
-        let bottomRight = CGPoint(
-            x: CGFloat(annotation.bottomRight[0]) * imageSize.width,
-            y: CGFloat(annotation.bottomRight[1]) * imageSize.height
-        )
-
-        let rect = CGRect(
-            x: topLeft.x,
-            y: topLeft.y,
-            width: bottomRight.x - topLeft.x,
-            height: bottomRight.y - topLeft.y
-        )
-
-        return ZStack {
-            // Bounding box rectangle with optimized drag gesture
-            Rectangle()
-                .stroke(color, lineWidth: isSelected ? 4 : 2)
-                .background(
-                    Rectangle()
-                        .fill(color.opacity(isSelected ? 0.15 : 0.05))
-                )
-                .frame(width: rect.width, height: rect.height)
-                .position(x: rect.midX + dragOffset.width, y: rect.midY + dragOffset.height)
-                .gesture(
-                    // OPTIMIZED: Simplified drag gesture with @GestureState
-                    DragGesture(minimumDistance: 0)
-                        .updating($dragOffset) { value, state, _ in
-                            // Only update visual offset, don't trigger re-renders
-                            state = value.translation
-                        }
-                        .onChanged { _ in
-                            // Select on first touch without triggering updates
-                            if !isDragging {
-                                onSelect()
-                                isDragging = true
-                            }
-                        }
-                        .onEnded { value in
-                            // Only update final position
-                            onMove(value.translation)
-                            isDragging = false
-                        }
-                )
-
-            // Question number label
-            if annotation.questionNumber > 0 {
-                Text("Q\(annotation.questionNumber)")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(color)
-                    )
-                    .position(x: topLeft.x + 30 + dragOffset.width, y: topLeft.y - 10 + dragOffset.height)
-            } else {
-                Text("?")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(
-                        Circle()
-                            .fill(color.opacity(0.8))
-                    )
-                    .position(x: rect.midX + dragOffset.width, y: rect.midY + dragOffset.height)
-            }
-
-            // Corner resize handles (only shown when selected)
-            if isSelected {
-                ResizeHandle(corner: .topLeft, color: color)
-                    .position(x: topLeft.x + dragOffset.width, y: topLeft.y + dragOffset.height)
-                    .gesture(cornerDragGesture(corner: .topLeft))
-
-                ResizeHandle(corner: .topRight, color: color)
-                    .position(x: bottomRight.x + dragOffset.width, y: topLeft.y + dragOffset.height)
-                    .gesture(cornerDragGesture(corner: .topRight))
-
-                ResizeHandle(corner: .bottomLeft, color: color)
-                    .position(x: topLeft.x + dragOffset.width, y: bottomRight.y + dragOffset.height)
-                    .gesture(cornerDragGesture(corner: .bottomLeft))
-
-                ResizeHandle(corner: .bottomRight, color: color)
-                    .position(x: bottomRight.x + dragOffset.width, y: bottomRight.y + dragOffset.height)
-                    .gesture(cornerDragGesture(corner: .bottomRight))
-            }
-        }
-    }
-
-    // MARK: - Corner Drag Gesture (Optimized)
-
-    private func cornerDragGesture(corner: AnnotationCorner) -> some Gesture {
-        DragGesture(minimumDistance: 0)
-            .onChanged { _ in
-                // Select immediately without extra updates
-                if !isDragging {
-                    onSelect()
-                }
-            }
-            .onEnded { value in
-                // Only update on gesture end
-                onResize(corner, value.translation)
-            }
-    }
-}
-
-// MARK: - Resize Handle Component
-
-struct ResizeHandle: View {
-    let corner: AnnotationCorner
-    let color: Color
-
-    var body: some View {
-        Circle()
-            .fill(color)
-            .frame(width: 20, height: 20)
-            .overlay(
-                Circle()
-                    .stroke(Color.white, lineWidth: 2)
-            )
-            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-    }
-}
-
 // MARK: - Animated Gradient Button Component
 struct AnimatedGradientButton: View {
     let title: String
@@ -3494,42 +2977,6 @@ struct AnimatedGradientButton: View {
         .scaleEffect(buttonScale)
         .disabled(isProcessing)
         .opacity(isProcessing ? 0.5 : 1.0)
-    }
-}
-
-// MARK: - BBoxAnnotation Model (Pro Mode)
-
-/// User-drawn bounding box annotation for Pro Mode
-struct BBoxAnnotation: Identifiable {
-    let id = UUID()
-    var questionNumber: Int
-    var topLeft: [Double]       // Normalized [0-1] coordinates
-    var bottomRight: [Double]   // Normalized [0-1] coordinates
-    var type: AnnotationType
-
-    enum AnnotationType: String, CaseIterable {
-        case fullQuestion = "Full Question"
-        case diagramOnly = "Diagram Only"
-
-        var icon: String {
-            switch self {
-            case .fullQuestion: return "text.alignleft"
-            case .diagramOnly: return "photo"
-            }
-        }
-    }
-
-    /// Validate that coordinates are in valid range [0-1]
-    var isValid: Bool {
-        guard topLeft.count == 2, bottomRight.count == 2 else { return false }
-
-        let allInRange = topLeft.allSatisfy { $0 >= 0 && $0 <= 1 } &&
-                        bottomRight.allSatisfy { $0 >= 0 && $0 <= 1 }
-
-        let properOrder = topLeft[0] < bottomRight[0] &&  // x1 < x2
-                         topLeft[1] < bottomRight[1]      // y1 < y2
-
-        return allInRange && properOrder
     }
 }
 

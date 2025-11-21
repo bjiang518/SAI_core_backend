@@ -157,7 +157,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
         // Overall statistics
         print("\n📈 STATISTICS:")
         print("   Total Questions: \(parseResponse.totalQuestions)")
-        let questionsWithImages = parseResponse.questions.filter { $0.hasImage }
+        let questionsWithImages = parseResponse.questions.filter { $0.hasImage == true }
         print("   Questions with Images: \(questionsWithImages.count)")
         print("   Questions without Images: \(parseResponse.totalQuestions - questionsWithImages.count)")
 
@@ -177,7 +177,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
             print("\n📌 Question \(index + 1) / \(parseResponse.totalQuestions)")
             print("   ID: \(question.id)")
             print("   Type: \(question.questionType ?? "Unknown")")
-            print("   Has Image: \(question.hasImage ? "YES ✅" : "NO")")
+            print("   Has Image: \(question.hasImage == true ? "YES ✅" : "NO")")
 
             // Question text (truncated if too long)
             let questionText = question.questionText ?? ""
@@ -275,7 +275,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
         }
 
         // Filter questions that need images
-        let questionsWithImages = questions.filter { $0.hasImage && $0.imageRegion != nil }
+        let questionsWithImages = questions.filter { $0.hasImage == true && $0.imageRegion != nil }
         print("📊 Questions needing image context: \(questionsWithImages.count)")
 
         guard !questionsWithImages.isEmpty else {
@@ -291,8 +291,6 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                 questionId: question.id,
                 topLeft: imageRegion.topLeft,
                 bottomRight: imageRegion.bottomRight,
-                marginRatio: imageRegion.marginRatio,  // Pass margin from backend
-                confidence: imageRegion.confidence,    // Pass confidence from backend
                 description: imageRegion.description ?? "Diagram"
             )
         }

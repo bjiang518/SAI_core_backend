@@ -2131,7 +2131,7 @@ class NetworkService: ObservableObject {
         print("✅ === PHASE 1 COMPLETE ===")
         print("📚 Subject: \(parseResponse.subject) (confidence: \(parseResponse.subjectConfidence))")
         print("📊 Questions found: \(parseResponse.totalQuestions)")
-        print("🖼️ Questions with images: \(parseResponse.questions.filter { $0.hasImage }.count)")
+        print("🖼️ Questions with images: \(parseResponse.questions.filter { $0.hasImage == true }.count)")
 
         return parseResponse
     }
