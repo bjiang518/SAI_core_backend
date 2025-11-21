@@ -2905,6 +2905,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
             # - 2-3x faster than gpt-4o (30s → 10-15s)
             # - 17x cheaper ($0.15 vs $2.50 per 1M tokens)
             # - Phase 1 only extracts text, doesn't need full reasoning power
+            #
+            # OCR OPTIMIZATION: temperature=0.0 for deterministic text extraction
+            # - OCR must be stable and reproducible (same input → same output)
+            # - Prevents hallucination and inconsistent parsing
             response = await self.client.chat.completions.create(
                 model=self.model_mini,  # gpt-4o-mini for speed (was gpt-4o-2024-08-06)
                 messages=[
@@ -2927,7 +2931,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     }
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.2,
+                temperature=0.0,  # OCR must be 0 for deterministic stability (was 0.2)
                 max_tokens=3000  # Reduced from 4000-6000 (typical response ~1000-1500 tokens)
             )
 
@@ -3070,11 +3074,14 @@ Grade this answer. Return JSON with:
             start_time = time.time()
 
             # Call selected model (smart selection: 4o-mini for text, 4o for images)
+            # GRADING OPTIMIZATION: temperature=0.3 for consistent reasoning
+            # - Slightly higher than OCR (0.0) since grading needs some reasoning
+            # - Low enough to prevent hallucination and ensure fair grading
             response = await self.client.chat.completions.create(
                 model=selected_model,
                 messages=messages,
                 response_format={"type": "json_object"},
-                temperature=0.2,
+                temperature=0.3,  # Low but non-zero for reasoning (was 0.2)
                 max_tokens=300  # Short response needed
             )
 
