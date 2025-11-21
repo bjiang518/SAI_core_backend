@@ -3109,62 +3109,95 @@ OUTPUT FORMAT:
 {{
   "subject": "Mathematics|Physics|Chemistry|Biology|English|History|Geography|Computer Science|Other",
   "subject_confidence": 0.95,
-  "total_questions": 5,
+  "total_questions": 3,
   "questions": [
     {{
       "id": 1,
       "question_number": "1",
       "is_parent": true,
-      "parent_content": "Answer the following",
+      "has_subquestions": true,
+      "parent_content": "Label the number line from 10-19 by counting by ones.",
+      "question_text": null,
+      "student_answer": null,
+      "has_image": true,
+      "image_region": null,
+      "question_type": "parent",
       "subquestions": [
-        {{"id": "1a", "question_text": "2 + 3 = ?", "student_answer": "5", "question_type": "short_answer"}},
-        {{"id": "1b", "question_text": "5 - 1 = ?", "student_answer": "4", "question_type": "short_answer"}}
+        {{
+          "id": "1a",
+          "question_text": "What number is one more than 14?",
+          "student_answer": "15",
+          "question_type": "short_answer"
+        }},
+        {{
+          "id": "1b",
+          "question_text": "What number is one less than 17?",
+          "student_answer": "16",
+          "question_type": "short_answer"
+        }},
+        {{
+          "id": "1c",
+          "question_text": "What number is one more than 11?",
+          "student_answer": "12",
+          "question_type": "short_answer"
+        }},
+        {{
+          "id": "1d",
+          "question_text": "What number is one less than 18?",
+          "student_answer": "17",
+          "question_type": "short_answer"
+        }}
       ]
     }},
     {{
       "id": 2,
       "question_number": "2",
       "question_text": "What is 10 + 5?",
-      "student_answer": "B",
-      "question_type": "multiple_choice",
-      "options": ["A) 10", "B) 15", "C) 20"]
+      "student_answer": "15",
+      "has_image": false,
+      "question_type": "short_answer"
     }},
     {{
       "id": 3,
       "question_number": "3",
-      "question_text": "Is water H2O?",
-      "student_answer": "True",
-      "question_type": "true_false",
-      "options": ["True", "False"]
-    }},
-    {{
-      "id": 4,
-      "question_number": "4",
       "question_text": "The capital of France is ___.",
       "student_answer": "Paris",
+      "has_image": false,
       "question_type": "fill_blank"
-    }},
-    {{
-      "id": 5,
-      "question_number": "5",
-      "question_text": "Calculate 15 × 3",
-      "student_answer": "45",
-      "question_type": "calculation"
     }}
   ]
 }}
 
-RULES:
-1. Extract ALL questions - don't skip any
-2. Parent-child: ONE parent with subquestions array, each subquestion separate
-3. Each subquestion has its own student_answer - NEVER combine with "|"
-4. Extract answers from anywhere on page (under question, margins, etc.)
-5. Question types: short_answer, multiple_choice, true_false, fill_blank, calculation, long_answer, matching
-6. For multiple_choice: include options array like ["A) text", "B) text", ...]
-7. For true_false: include options ["True", "False"]
-8. "subject": Identify the academic subject based on question content (required field)
-9. "subject_confidence": 0.0-1.0 based on how clear the subject is (required field)
-10. "total_questions": Count top-level questions only (parents=1, not subquestions) (required field)
+CRITICAL RULES FOR PARENT-CHILD QUESTIONS:
+1. **HOW TO RECOGNIZE PARENT QUESTIONS:**
+   - Question has lettered sub-parts (a., b., c., d., etc.)
+   - Question has numbered sub-parts (i., ii., iii., (1), (2), etc.)
+   - Main instruction applies to multiple parts below
+
+2. **PARENT QUESTION STRUCTURE:**
+   - Set "is_parent": true
+   - Set "has_subquestions": true
+   - Put main instruction in "parent_content" (NOT "question_text")
+   - Set "question_text": null and "student_answer": null at parent level
+   - Set "question_type": "parent"
+   - Create "subquestions" array with ALL lettered/numbered parts
+
+3. **SUBQUESTION STRUCTURE:**
+   - Each subquestion gets unique "id" like "1a", "1b", "2a", "2b"
+   - Each has own "question_text" and "student_answer"
+   - Each has own "question_type" (short_answer, calculation, etc.)
+
+4. **REGULAR (NON-PARENT) QUESTIONS:**
+   - No lettered/numbered sub-parts
+   - Direct "question_text" and "student_answer"
+   - NO "is_parent", "has_subquestions", "parent_content", or "subquestions" fields
+
+GENERAL RULES:
+5. Extract ALL questions - don't skip any
+6. Each subquestion MUST have its own student_answer - NEVER combine with "|"
+7. Extract answers from anywhere on page (under question, margins, etc.)
+8. Question types: short_answer, multiple_choice, true_false, fill_blank, calculation, parent
+9. "total_questions": Count top-level questions only (parents count as 1, not their subquestions)
 
 MATH FORMATTING (CRITICAL):
 - Use LaTeX for ALL math expressions (iOS has MathJax rendering)
