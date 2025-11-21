@@ -3106,221 +3106,88 @@ Grade this answer. Return JSON with:
 
         # Pro Mode: Skip bbox detection, only extract question content
         if skip_bbox_detection:
-            return f"""You are a homework parsing AI. Extract ALL question content WITHOUT image coordinates.
+            return f"""Extract all questions from the homework image. Return JSON only.
 
-PRO MODE - CONTENT ONLY (NO BBOX):
-The user has manually annotated SOME question regions for cropping. Your task is to extract ALL visible questions from the image, not just the annotated ones.
-
-OUTPUT JSON FORMAT:
+OUTPUT FORMAT:
 {{
-  "subject": "Mathematics|Physics|Chemistry|Biology|English|History|Geography|Computer Science|Other",
-  "subject_confidence": 0.95,
-  "total_questions": 6,
-  "questions": [
-    {{
-      "id": 1,
-      "question_number": "1",
-      "question_text": "Write the complete question text here",
-      "student_answer": "Student's written answer (empty string if not answered)",
-      "has_image": false,
-      "question_type": "short_answer"
-    }},
-    {{
-      "id": 2,
-      "question_number": "2",
-      "question_text": "Next question...",
-      "student_answer": "",
-      "has_image": false,
-      "question_type": "multiple_choice"
-    }}
-    // ... continue for ALL visible questions
-  ]
-}}
-
-CRITICAL RULES:
-1. Extract ALL visible questions from the image (Q1, Q2, Q3, Q4, Q5, Q6, etc.)
-2. DO NOT limit to user-annotated questions - parse the entire homework
-3. DO NOT include image_region - user will provide cropped images separately
-4. Set "has_image": false for all questions (bounding boxes come from user)
-5. Extract student answers from ALL possible locations:
-   - Look for answers directly under questions
-   - Look for answers in margins, blank spaces, or separate areas
-   - If multiple answers exist (crossed-out + final), prefer the uncrossed version
-   - If multiple valid answers, combine with " | " separator (e.g., "15 | fifteen")
-6. For parent questions with subquestions (e.g., "1. Main instruction" with "a.", "b.", "c."):
-   - Create ONE parent question with "is_parent": true
-   - Include FULL parent instruction in "question_text"
-   - Add all subquestions in "subquestions" array
-7. Assign sequential IDs starting from 1
-
-{parsing_mode.upper()} MODE: {"Detailed extraction with all context" if parsing_mode == "detailed" else "Fast extraction of key content"}
-"""
-
-        # Auto Mode: Full bbox detection with coordinates
-
-        return f"""You are a homework parsing AI. Extract questions with hierarchical structure and normalized coordinates.
-
-OUTPUT JSON FORMAT (HIERARCHICAL):
-{{
-  "subject": "Mathematics|Physics|Chemistry|Biology|English|History|Geography|Computer Science|Other",
-  "subject_confidence": 0.95,
-  "total_questions": 3,  // Count PARENT questions only (e.g., Q1, Q2, Q3), NOT subquestions
   "questions": [
     {{
       "id": 1,
       "question_number": "1",
       "is_parent": true,
-      "has_subquestions": true,
-      "parent_content": "Label the number line from 10-19 by counting by ones.",
-      "has_image": true,
-      "image_region": {{
-        "top_left": [0.1, 0.12],
-        "bottom_right": [0.9, 0.22],
-        "margin_ratio": 0.06,
-        "confidence": 0.92,
-        "description": "Number line 10-19"
-      }},
+      "parent_content": "Answer the following",
       "subquestions": [
-        {{
-          "id": "1a",
-          "question_text": "What number is one more than 14?",
-          "student_answer": "15",
-          "question_type": "short_answer"
-        }},
-        {{
-          "id": "1b",
-          "question_text": "What number is one less than 17?",
-          "student_answer": "16",
-          "question_type": "short_answer"
-        }}
+        {{"id": "1a", "question_text": "2 + 3 = ?", "student_answer": "5", "question_type": "short_answer"}},
+        {{"id": "1b", "question_text": "5 - 1 = ?", "student_answer": "4", "question_type": "short_answer"}}
       ]
     }},
     {{
       "id": 2,
       "question_number": "2",
-      "is_parent": false,
-      "question_text": "Write the number represented by the picture.",
-      "student_answer": "41",
-      "has_image": true,
-      "image_region": {{
-        "top_left": [0.78, 0.48],
-        "bottom_right": [0.98, 0.56],
-        "margin_ratio": 0.05,
-        "confidence": 0.88,
-        "description": "Blocks representing 41"
-      }},
-      "question_type": "calculation"
+      "question_text": "What is 10 + 5?",
+      "student_answer": "B",
+      "question_type": "multiple_choice",
+      "options": ["A) 10", "B) 15", "C) 20"]
+    }},
+    {{
+      "id": 3,
+      "question_number": "3",
+      "question_text": "The capital of France is ___.",
+      "student_answer": "Paris",
+      "question_type": "fill_blank"
     }}
   ]
 }}
 
-CRITICAL RULES FOR QUESTION NUMBERING:
-1. PARENT QUESTIONS: Main questions like "1.", "2.", "3." with potential subquestions
-2. SUBQUESTIONS: Questions like "a.", "b.", "c.", "d." under a parent question
-3. "total_questions" = COUNT PARENT QUESTIONS ONLY (e.g., if you have Q1 with a,b,c,d and Q2 with a,b,c, total=2)
-4. "is_parent": true means this question has subquestions (a, b, c, d)
-5. "is_parent": false means this is a standalone question
-6. For parent questions with subquestions:
-   - "parent_content" = the main question instruction
-   - "subquestions" array contains all sub-parts (a, b, c, d)
-   - Parent question's image (if any) applies to ALL subquestions
+RULES:
+1. Extract ALL questions - don't skip any
+2. Parent-child questions: ONE parent with subquestions array, each subquestion separate
+3. Each subquestion has its own student_answer - NEVER combine with "|"
+4. Extract answers from anywhere on page (under question, margins, etc.)
+5. Question types: short_answer, multiple_choice, fill_blank, true_false
+"""
 
-COORDINATE RULES (CRITICAL FOR ACCURACY):
-1. Normalize ALL coordinates to [0-1] range:
-   - top_left = [x1, y1] where x1=0 is left edge, y1=0 is top edge
-   - bottom_right = [x2, y2] where x2=1 is right edge, y2=1 is bottom edge
+        # Auto Mode: Full bbox detection with coordinates
 
-2. IMAGE POSITIONING GUIDE:
-   - Number lines: Usually horizontal across page (width: 0.1-0.9, height: narrow ~0.1)
-   - Blocks/tallies: Usually in margins or corners (small regions ~0.1x0.1)
-   - Diagrams/graphs: Usually embedded in question text (varies)
+        return f"""Extract all questions with image coordinates. Return JSON only.
 
-3. COORDINATE PRECISION (⭐ ENHANCED FOR MARGIN OPTIMIZATION):
-   - Look at the ACTUAL position of the visual element in the image
-   - For number lines: y-coordinate should match where you SEE the line (top=0.0, middle=0.5, bottom=1.0)
-   - For blocks in top-right: x should be ~0.75-0.95, y should be ~0.0-0.3 (NOT 0.8-0.9!)
-   - For blocks in bottom-right: x should be ~0.75-0.95, y should be ~0.7-1.0
+OUTPUT FORMAT:
+{{
+  "questions": [
+    {{
+      "id": 1,
+      "question_number": "1",
+      "is_parent": true,
+      "parent_content": "Answer the following",
+      "has_image": true,
+      "image_region": {{
+        "top_left": [0.1, 0.2],
+        "bottom_right": [0.9, 0.3]
+      }},
+      "subquestions": [
+        {{"id": "1a", "question_text": "2 + 3 = ?", "student_answer": "5", "question_type": "short_answer"}},
+        {{"id": "1b", "question_text": "5 - 1 = ?", "student_answer": "4", "question_type": "short_answer"}}
+      ]
+    }},
+    {{
+      "id": 2,
+      "question_number": "2",
+      "question_text": "What is 10 + 5?",
+      "student_answer": "B",
+      "has_image": false,
+      "question_type": "multiple_choice",
+      "options": ["A) 10", "B) 15", "C) 20"]
+    }}
+  ]
+}}
 
-   **CRITICAL BBOX RULES (ALWAYS FOLLOW):**
-   - ✅ ALWAYS err on the side of LARGER regions (include extra whitespace rather than cutting content)
-   - ✅ NEVER tightly hug the visual boundaries - GPT Vision has 1-3% coordinate error (~20-60 pixels)
-   - ✅ Use margin_ratio field to indicate uncertainty:
-     * margin_ratio: 0.03-0.05 = confident, clear boundaries (simple diagrams)
-     * margin_ratio: 0.06-0.08 = moderate uncertainty (complex diagrams, small text)
-     * margin_ratio: 0.09-0.12 = high uncertainty (irregular shapes, dense layout)
-   - ✅ For questions with small text or diagrams < 10% of page: increase margin_ratio to 0.08+
-   - ✅ If uncertain about exact boundaries, give a CONSERVATIVE bbox + larger margin_ratio
-   - ❌ NEVER cut off any visible text or graphics - missing content breaks grading
-   - ❌ NEVER use margin_ratio < 0.03 (minimum safety buffer required)
-
-4. MARGIN_RATIO FIELD (NEW):
-   - Definition: Extra padding beyond the visual bbox as a ratio of bbox size
-   - Range: 0.03 to 0.15 (recommend 0.05-0.08 for most cases)
-   - Purpose: Compensate for Vision API coordinate uncertainty
-   - Formula: final_bbox = bbox ± (margin_ratio × max(bbox.width, bbox.height))
-   - Example: bbox width=0.4, margin_ratio=0.06 → add 0.024 (~2.4% of image) padding
-
-5. CONFIDENCE FIELD (NEW):
-   - Float 0.0-1.0 indicating bbox accuracy confidence
-   - confidence >= 0.9: Very confident, clear visual boundaries
-   - confidence 0.75-0.89: Moderate confidence, some uncertainty
-   - confidence < 0.75: Low confidence, suggest iOS use fallback strategy
-   - Correlates with margin_ratio: lower confidence = higher margin recommended
-
-6. VALIDATION:
-   - ONLY set has_image=true if diagram/graph is ESSENTIAL for solving
-   - description should be brief and specific (max 15 words)
-   - Double-check coordinates make sense (blocks in corner shouldn't be [0.8, 0.8] - that's center-bottom!)
-   - Verify margin_ratio is between 0.03-0.15
-   - Verify confidence is between 0.0-1.0
-
-QUESTION EXTRACTION RULES:
-1. HIERARCHICAL STRUCTURE:
-   - If you see "1. Main instruction" followed by "a. Sub-question", "b. Sub-question":
-     → Create ONE parent question (id=1, is_parent=true) with subquestions array
-   - If you see standalone "1. Question" with no subparts:
-     → Create regular question (id=1, is_parent=false)
-
-2. COMPLETE TEXT EXTRACTION (⭐ ENHANCED FOR PARENT QUESTIONS):
-   - Extract COMPLETE question text including ALL instructions
-   - For parent questions: extract the FULL parent instruction/stem in "parent_content"
-     * **CRITICAL**: parent_content should contain the COMPLETE main question text
-     * Example: "1. Label the number line from 10-19 by counting by ones." ← This is parent_content
-     * DO NOT leave parent_content empty - always include the main question instruction
-     * If there's additional context (like "Use the diagram below"), include it
-   - For subquestions: extract each sub-part completely in "question_text"
-   - Never truncate question text - extract the COMPLETE wording
-
-3. STUDENT ANSWER EXTRACTION (⭐ ENHANCED FOR MULTIPLE LOCATIONS):
-   - **CRITICAL**: Look for student answers in ALL possible locations on the page:
-     * Answer written directly under/next to the question
-     * Answer written in margins, blank spaces, or separate areas
-     * Answer written on continuation lines (e.g., "Continued on next line...")
-     * Multiple attempts (crossed-out answers + final answer)
-   - **MULTIPLE ANSWERS**: If student wrote answer in multiple places:
-     * If one is crossed out/erased: use the UNCROSSED answer only
-     * If multiple valid answers: combine them all with " | " separator (e.g., "15 | fifteen")
-     * If unclear which is final: include ALL versions separated by " | "
-   - **HANDWRITING VARIATIONS**: Students may write answers in different formats:
-     * Numbers: "15", "fifteen", "15 ones"
-     * Equations: "5 + 3 = 8" or just "8"
-     * For tens/ones: extract FULL answer like "65 = 6 tens 5 ones" (not just "65")
-   - Extract EXACTLY what student wrote (even if wrong/empty)
-   - For number line questions: check if student filled in numbers ON the line itself
-   - For empty answers: use empty string ""
-
-4. QUESTION NUMBERING:
-   - Preserve EXACT numbering from image (1, 2, 3, NOT 1, 2, 3, 4, 5... for subquestions)
-   - Question "1" with parts a,b,c,d → ONE question (id=1) with 4 subquestions
-   - Question "2" with parts a,b,c → ONE question (id=2) with 3 subquestions
-
-MODE: {parsing_mode}
-{"- Use high accuracy, check all details" if parsing_mode == "detailed" else "- Balance speed and accuracy"}
-
-EXAMPLE (from your image):
-- "1. Label the number line..." with "a. What number is...", "b. What number is..."
-  → ONE parent question (id=1) with subquestions ["a", "b", "c", "d"]
-  → total_questions = 1 (not 5!)
+RULES:
+1. Extract ALL questions
+2. Parent-child: ONE parent with subquestions array, each separate
+3. Each subquestion has its own student_answer - NEVER combine with "|"
+4. Coordinates: normalized [0-1], top_left = [x1, y1], bottom_right = [x2, y2]
+5. Only set has_image=true if diagram is ESSENTIAL for solving
+6. Extract answers from anywhere on page
 """
 
 
