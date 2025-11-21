@@ -3105,6 +3105,9 @@ Grade this answer. Return JSON with:
 
 OUTPUT FORMAT:
 {{
+  "subject": "Mathematics|Physics|Chemistry|Biology|English|History|Geography|Computer Science|Other",
+  "subject_confidence": 0.95,
+  "total_questions": 5,
   "questions": [
     {{
       "id": 1,
@@ -3157,6 +3160,9 @@ RULES:
 5. Question types: short_answer, multiple_choice, true_false, fill_blank, calculation, long_answer, matching
 6. For multiple_choice: include options array like ["A) text", "B) text", ...]
 7. For true_false: include options ["True", "False"]
+8. "subject": Identify the academic subject based on question content (required field)
+9. "subject_confidence": 0.0-1.0 based on how clear the subject is (required field)
+10. "total_questions": Count top-level questions only (parents=1, not subquestions) (required field)
 
 MATH FORMATTING (CRITICAL):
 - Use LaTeX for ALL math expressions (iOS has MathJax rendering)
