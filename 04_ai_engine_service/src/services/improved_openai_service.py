@@ -3142,8 +3142,16 @@ CRITICAL RULES:
 2. DO NOT limit to user-annotated questions - parse the entire homework
 3. DO NOT include image_region - user will provide cropped images separately
 4. Set "has_image": false for all questions (bounding boxes come from user)
-5. Extract student answers accurately - use empty string "" if question is not answered
-6. Assign sequential IDs starting from 1
+5. Extract student answers from ALL possible locations:
+   - Look for answers directly under questions
+   - Look for answers in margins, blank spaces, or separate areas
+   - If multiple answers exist (crossed-out + final), prefer the uncrossed version
+   - If multiple valid answers, combine with " | " separator (e.g., "15 | fifteen")
+6. For parent questions with subquestions (e.g., "1. Main instruction" with "a.", "b.", "c."):
+   - Create ONE parent question with "is_parent": true
+   - Include FULL parent instruction in "question_text"
+   - Add all subquestions in "subquestions" array
+7. Assign sequential IDs starting from 1
 
 {parsing_mode.upper()} MODE: {"Detailed extraction with all context" if parsing_mode == "detailed" else "Fast extraction of key content"}
 """
@@ -3273,15 +3281,32 @@ QUESTION EXTRACTION RULES:
    - If you see standalone "1. Question" with no subparts:
      → Create regular question (id=1, is_parent=false)
 
-2. COMPLETE TEXT EXTRACTION:
+2. COMPLETE TEXT EXTRACTION (⭐ ENHANCED FOR PARENT QUESTIONS):
    - Extract COMPLETE question text including ALL instructions
-   - For parent questions: extract the main instruction in "parent_content"
+   - For parent questions: extract the FULL parent instruction/stem in "parent_content"
+     * **CRITICAL**: parent_content should contain the COMPLETE main question text
+     * Example: "1. Label the number line from 10-19 by counting by ones." ← This is parent_content
+     * DO NOT leave parent_content empty - always include the main question instruction
+     * If there's additional context (like "Use the diagram below"), include it
    - For subquestions: extract each sub-part completely in "question_text"
+   - Never truncate question text - extract the COMPLETE wording
 
-3. STUDENT ANSWER EXTRACTION:
+3. STUDENT ANSWER EXTRACTION (⭐ ENHANCED FOR MULTIPLE LOCATIONS):
+   - **CRITICAL**: Look for student answers in ALL possible locations on the page:
+     * Answer written directly under/next to the question
+     * Answer written in margins, blank spaces, or separate areas
+     * Answer written on continuation lines (e.g., "Continued on next line...")
+     * Multiple attempts (crossed-out answers + final answer)
+   - **MULTIPLE ANSWERS**: If student wrote answer in multiple places:
+     * If one is crossed out/erased: use the UNCROSSED answer only
+     * If multiple valid answers: combine them all with " | " separator (e.g., "15 | fifteen")
+     * If unclear which is final: include ALL versions separated by " | "
+   - **HANDWRITING VARIATIONS**: Students may write answers in different formats:
+     * Numbers: "15", "fifteen", "15 ones"
+     * Equations: "5 + 3 = 8" or just "8"
+     * For tens/ones: extract FULL answer like "65 = 6 tens 5 ones" (not just "65")
    - Extract EXACTLY what student wrote (even if wrong/empty)
-   - For number line questions: check if student filled in numbers on the line
-   - For tens/ones questions: extract full answer like "65 = 6 tens 5 ones" (not just "65")
+   - For number line questions: check if student filled in numbers ON the line itself
    - For empty answers: use empty string ""
 
 4. QUESTION NUMBERING:
