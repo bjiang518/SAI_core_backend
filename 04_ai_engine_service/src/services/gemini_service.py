@@ -147,8 +147,8 @@ class GeminiEducationalAIService:
             api_duration = time.time() - start_time
             print(f"✅ Gemini API completed in {api_duration:.2f}s")
 
-            # Extract JSON from response
-            raw_response = response.text
+            # Extract JSON from response (safely handle complex responses)
+            raw_response = self._extract_response_text(response)
 
             print(f"📄 === RAW GEMINI RESPONSE (first 1000 chars) ===")
             print(raw_response[:1000])
@@ -265,8 +265,8 @@ class GeminiEducationalAIService:
             api_duration = time.time() - start_time
             print(f"✅ Grading completed in {api_duration:.2f}s")
 
-            # Parse JSON response
-            raw_response = response.text
+            # Parse JSON response (safely handle complex responses)
+            raw_response = self._extract_response_text(response)
             grade_data = self._extract_json_from_response(raw_response)
 
             print(f"📊 Score: {grade_data.get('score', 0.0)}")
@@ -285,6 +285,36 @@ class GeminiEducationalAIService:
                 "success": False,
                 "error": f"Gemini grading failed: {str(e)}"
             }
+
+    def _extract_response_text(self, response) -> str:
+        """
+        Safely extract text from Gemini response.
+
+        Handles both simple and complex response formats:
+        - Simple: response.text (single Part)
+        - Complex: response.candidates[0].content.parts[0].text (multi-Part)
+        """
+        try:
+            # Try simple accessor first
+            return response.text
+        except ValueError as e:
+            # If simple accessor fails, use complex accessor
+            print(f"⚠️ Complex response detected, using parts accessor")
+            if response.candidates and len(response.candidates) > 0:
+                candidate = response.candidates[0]
+                if candidate.content and candidate.content.parts and len(candidate.content.parts) > 0:
+                    # Concatenate all parts
+                    text_parts = []
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'text'):
+                            text_parts.append(part.text)
+
+                    full_text = ''.join(text_parts)
+                    print(f"✅ Extracted {len(full_text)} chars from {len(text_parts)} parts")
+                    return full_text
+
+            # If all else fails, raise the original error
+            raise e
 
     def _build_parse_prompt(self) -> str:
         """Build homework parsing prompt (same as OpenAI for consistency)."""
