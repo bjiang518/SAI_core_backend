@@ -8,8 +8,9 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware  # PHASE 2.2: Compression
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Dict, List, Optional, Any
+from contextlib import asynccontextmanager
 import uvicorn
 import os
 import base64
@@ -75,11 +76,26 @@ async def keep_alive_task():
             print(f"⚠️ Keep-alive task error: {e}")
             await asyncio.sleep(60)  # Wait 1 minute before retrying
 
+# Lifespan context manager to replace deprecated on_event
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize and cleanup application lifecycle"""
+    # Startup: Initialize background tasks
+    if os.getenv('RAILWAY_KEEP_ALIVE') == 'true':
+        asyncio.create_task(keep_alive_task())
+
+    yield  # Application runs here
+
+    # Shutdown: Cleanup
+    if redis_client:
+        await redis_client.close()
+
 # Initialize FastAPI app with increased body size limit
 app = FastAPI(
     title="StudyAI AI Engine",
     description="Advanced AI processing for educational content and reasoning",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan
 )
 
 # Add middleware to handle large request bodies
@@ -131,20 +147,6 @@ session_service = SessionService(ai_service, redis_client)
 
 ai_analytics_service = AIAnalyticsService()
 
-# Startup event to initialize keep-alive mechanism
-@app.on_event("startup")
-async def startup_event():
-    """Initialize background tasks on startup"""
-    if os.getenv('RAILWAY_KEEP_ALIVE') == 'true':
-        asyncio.create_task(keep_alive_task())
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    # Close Redis connection if exists
-    if redis_client:
-        await redis_client.close()
-
 # Request/Response Models
 class QuestionRequest(BaseModel):
     student_id: str
@@ -169,6 +171,8 @@ class LearningAnalysis(BaseModel):
     subject_mastery_level: str
 
 class AIEngineResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())  # Allow model_ fields
+
     response: AdvancedReasoningResponse
     learning_analysis: LearningAnalysis
     processing_time_ms: int
@@ -708,6 +712,8 @@ class ParsedQuestion(BaseModel):
 
 class ParseHomeworkQuestionsRequest(BaseModel):
     """Request to parse homework into individual questions"""
+    model_config = ConfigDict(protected_namespaces=())  # Allow model_ fields
+
     base64_image: str
     parsing_mode: Optional[str] = "standard"  # "standard" or "detailed"
     skip_bbox_detection: Optional[bool] = False  # Pro Mode: skip AI bbox generation
@@ -726,6 +732,8 @@ class ParseHomeworkQuestionsResponse(BaseModel):
 
 class GradeSingleQuestionRequest(BaseModel):
     """Request to grade a single question"""
+    model_config = ConfigDict(protected_namespaces=())  # Allow model_ fields
+
     question_text: str
     student_answer: str
     correct_answer: Optional[str] = None  # Optional - AI will determine if not provided
