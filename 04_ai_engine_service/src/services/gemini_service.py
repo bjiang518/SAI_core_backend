@@ -24,11 +24,16 @@ class GeminiEducationalAIService:
     """
     Gemini-powered AI service for educational content processing.
 
-    Uses Gemini 1.5 Flash for:
-    - Fast homework image parsing (2-3x faster than OpenAI)
+    Uses Gemini 3.0 Pro for:
+    - Fast homework image parsing with optimized OCR (temperature=0)
     - Multimodal understanding (native image + text)
-    - Cost-effective processing (~60% cheaper than GPT-4)
+    - Cost-effective processing
     - Structured JSON output
+
+    Configuration optimized for:
+    - OCR accuracy: temperature=0.0, top_k=32
+    - Large homework: max_output_tokens=4096
+    - Grading reasoning: temperature=0.3
     """
 
     def __init__(self):
@@ -74,10 +79,15 @@ class GeminiEducationalAIService:
         Parse homework image using Gemini Vision API.
 
         Gemini advantages:
-        - 2-3x faster than OpenAI for image processing
+        - Optimized OCR with temperature=0.0 for maximum accuracy
         - Native multimodal (no detail level needed)
         - Better at hierarchical structure recognition
-        - Lower cost (~60% cheaper)
+        - Cost-effective processing
+
+        Configuration:
+        - temperature=0.0: OCR must be deterministic
+        - max_output_tokens=4096: Handle homework with many questions
+        - top_k=32, top_p=0.8: Limit randomness for accurate parsing
 
         Args:
             base64_image: Base64 encoded homework image
@@ -114,16 +124,23 @@ class GeminiEducationalAIService:
             start_time = time.time()
 
             # Call Gemini with image and prompt
-            # Gemini 3.0 Pro configuration (SDK 0.3.2 compatible)
-            # Only valid fields: temperature, top_p, top_k, max_output_tokens, candidate_count
+            # Gemini 3.0 Pro configuration optimized for OCR + layout parsing
+            # Recommendations from GPT-4 based on visual task requirements:
+            # - temperature=0.0: OCR must be stable and deterministic
+            # - max_output_tokens=4096: Need more tokens for homework with many questions
+            # - top_k=32: Limit randomness for accurate text extraction
+            # - top_p=0.8: Control randomness while maintaining quality
             response = self.client.generate_content(
                 [
                     image,  # Image FIRST (best practice per docs)
                     system_prompt  # Text prompt AFTER image
                 ],
                 generation_config={
-                    "temperature": 1.0,  # Gemini 3 default recommendation
-                    "max_output_tokens": 3000
+                    "temperature": 0.0,              # OCR must be 0 for stability
+                    "top_p": 0.8,
+                    "top_k": 32,
+                    "max_output_tokens": 4096,      # Layout needs more tokens
+                    "candidate_count": 1
                 }
             )
 
@@ -184,6 +201,11 @@ class GeminiEducationalAIService:
         - Good at understanding student work
         - Cost-effective
 
+        Configuration:
+        - temperature=0.3: Low but non-zero for reasoning
+        - max_output_tokens=500: Sufficient for detailed feedback
+        - top_k=32, top_p=0.8: Controlled randomness
+
         Args:
             question_text: The question to grade
             student_answer: Student's written answer
@@ -227,12 +249,16 @@ class GeminiEducationalAIService:
                 content.append(image)
 
             # Call Gemini
-            # Gemini 3.0 Pro configuration (SDK 0.3.2 compatible)
+            # Gemini 3.0 Pro configuration for grading (comparison task)
+            # Slightly higher temperature than OCR since grading needs reasoning
             response = self.client.generate_content(
                 content,
                 generation_config={
-                    "temperature": 1.0,  # Gemini 3 default recommendation
-                    "max_output_tokens": 300
+                    "temperature": 0.3,              # Low but non-zero for reasoning
+                    "top_p": 0.8,
+                    "top_k": 32,
+                    "max_output_tokens": 500,       # Enough for feedback
+                    "candidate_count": 1
                 }
             )
 
