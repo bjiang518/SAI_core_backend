@@ -1758,6 +1758,7 @@ class EducationalAIService:
         )
         self.prompt_service = AdvancedPromptService()
         self.model = "gpt-4o-mini"
+        self.model_mini = "gpt-4o-mini"  # Alias for compatibility with parse_homework_questions_with_coordinates
         self.vision_model = "gpt-4o"  # Full model for vision tasks
         self.structured_output_model = "gpt-4o-2024-08-06"  # For structured outputs (progressive grading)
 
@@ -2884,18 +2885,28 @@ Focus on being helpful and educational while maintaining a conversational tone."
             # Prepare image message
             image_url = f"data:image/jpeg;base64,{base64_image}"
 
-            # ALWAYS use "high" detail for text extraction (even in Pro Mode)
-            # Low resolution makes it impossible to read question text and student answers
-            # Pro Mode skips bbox coordinates, but still needs to READ the text content
-            image_detail = "high"
-            print(f"🖼️ Image detail mode: {image_detail}")
+            # SPEED OPTIMIZATION: Use "auto" detail for smart resolution selection
+            # "auto" - OpenAI decides based on image size (faster than "high", more accurate than "low")
+            # "low" - 512x512 resolution (fastest, but may miss text)
+            # "high" - Full resolution (slowest, most accurate)
+            image_detail = "auto"
+            print(f"🖼️ Image detail mode: {image_detail} (smart resolution)")
+
+            # DEBUG: Log the system prompt being used
+            print(f"📋 === SYSTEM PROMPT (first 500 chars) ===")
+            print(system_prompt[:500])
+            print(f"... (total {len(system_prompt)} chars)")
 
             print(f"🚀 Calling OpenAI Vision API...")
+            print(f"🤖 Model: {self.model_mini} (gpt-4o-mini for 2-3x speed)")
             start_time = time.time()
 
-            # Call OpenAI with JSON response format
+            # SPEED OPTIMIZATION: Use gpt-4o-mini for Phase 1 parsing
+            # - 2-3x faster than gpt-4o (30s → 10-15s)
+            # - 17x cheaper ($0.15 vs $2.50 per 1M tokens)
+            # - Phase 1 only extracts text, doesn't need full reasoning power
             response = await self.client.chat.completions.create(
-                model=self.structured_output_model,  # gpt-4o-2024-08-06 for structured outputs
+                model=self.model_mini,  # gpt-4o-mini for speed (was gpt-4o-2024-08-06)
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {
@@ -2903,7 +2914,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                         "content": [
                             {
                                 "type": "text",
-                                "text": "Parse this homework image. Extract all questions with student answers and normalized image coordinates."
+                                "text": "Parse this homework image. Extract all questions with student answers."
                             },
                             {
                                 "type": "image_url",
@@ -2917,7 +2928,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.2,
-                max_tokens=4000 if skip_bbox_detection else 6000
+                max_tokens=3000  # Reduced from 4000-6000 (typical response ~1000-1500 tokens)
             )
 
             api_duration = time.time() - start_time
@@ -2925,6 +2936,12 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
             # Parse JSON response
             raw_response = response.choices[0].message.content
+
+            # DEBUG: Log raw AI response
+            print(f"📄 === RAW AI RESPONSE (first 1000 chars) ===")
+            print(raw_response[:1000])
+            print(f"... (total {len(raw_response)} chars)")
+
             result = json.loads(raw_response)
 
             print(f"📊 Parsed {result.get('total_questions', 0)} questions")
@@ -3117,36 +3134,11 @@ OUTPUT FORMAT:
       "is_parent": true,
       "has_subquestions": true,
       "parent_content": "Label the number line from 10-19 by counting by ones.",
-      "question_text": null,
-      "student_answer": null,
-      "has_image": true,
-      "image_region": null,
-      "question_type": "parent",
       "subquestions": [
-        {{
-          "id": "1a",
-          "question_text": "What number is one more than 14?",
-          "student_answer": "15",
-          "question_type": "short_answer"
-        }},
-        {{
-          "id": "1b",
-          "question_text": "What number is one less than 17?",
-          "student_answer": "16",
-          "question_type": "short_answer"
-        }},
-        {{
-          "id": "1c",
-          "question_text": "What number is one more than 11?",
-          "student_answer": "12",
-          "question_type": "short_answer"
-        }},
-        {{
-          "id": "1d",
-          "question_text": "What number is one less than 18?",
-          "student_answer": "17",
-          "question_type": "short_answer"
-        }}
+        {{"id": "1a", "question_text": "What number is one more than 14?", "student_answer": "15", "question_type": "short_answer"}},
+        {{"id": "1b", "question_text": "What number is one less than 17?", "student_answer": "16", "question_type": "short_answer"}},
+        {{"id": "1c", "question_text": "What number is one more than 11?", "student_answer": "12", "question_type": "short_answer"}},
+        {{"id": "1d", "question_text": "What number is one less than 18?", "student_answer": "17", "question_type": "short_answer"}}
       ]
     }},
     {{
@@ -3154,7 +3146,6 @@ OUTPUT FORMAT:
       "question_number": "2",
       "question_text": "What is 10 + 5?",
       "student_answer": "15",
-      "has_image": false,
       "question_type": "short_answer"
     }},
     {{
@@ -3162,54 +3153,52 @@ OUTPUT FORMAT:
       "question_number": "3",
       "question_text": "The capital of France is ___.",
       "student_answer": "Paris",
-      "has_image": false,
       "question_type": "fill_blank"
     }}
   ]
 }}
 
-CRITICAL RULES FOR PARENT-CHILD QUESTIONS:
-1. **HOW TO RECOGNIZE PARENT QUESTIONS:**
-   - Question has lettered sub-parts (a., b., c., d., etc.)
-   - Question has numbered sub-parts (i., ii., iii., (1), (2), etc.)
-   - Main instruction applies to multiple parts below
+CRITICAL RECOGNITION RULES:
+🚨 IF you see "1. a) b) c) d)" or "1. i) ii) iii)" → THIS IS A PARENT QUESTION
+🚨 IF you see "Question 1: [instruction]" THEN "a. [question] b. [question]" → PARENT QUESTION
+🚨 IF multiple lettered/numbered parts share ONE instruction → PARENT QUESTION
 
-2. **PARENT QUESTION STRUCTURE:**
-   - Set "is_parent": true
-   - Set "has_subquestions": true
-   - Put main instruction in "parent_content" (NOT "question_text")
-   - Set "question_text": null and "student_answer": null at parent level
-   - Set "question_type": "parent"
-   - Create "subquestions" array with ALL lettered/numbered parts
+EXAMPLES OF PARENT QUESTIONS:
+❌ WRONG (treating as 4 separate questions):
+{{"id": 1, "question_number": "1a", "question_text": "What is 1+1?"}}
+{{"id": 2, "question_number": "1b", "question_text": "What is 2+2?"}}
 
-3. **SUBQUESTION STRUCTURE:**
-   - Each subquestion gets unique "id" like "1a", "1b", "2a", "2b"
-   - Each has own "question_text" and "student_answer"
-   - Each has own "question_type" (short_answer, calculation, etc.)
+✅ CORRECT (ONE parent question with 2 subquestions):
+{{
+  "id": 1,
+  "question_number": "1",
+  "is_parent": true,
+  "has_subquestions": true,
+  "parent_content": "Solve the following addition problems:",
+  "subquestions": [
+    {{"id": "1a", "question_text": "What is 1+1?", "student_answer": "2", "question_type": "calculation"}},
+    {{"id": "1b", "question_text": "What is 2+2?", "student_answer": "4", "question_type": "calculation"}}
+  ]
+}}
 
-4. **REGULAR (NON-PARENT) QUESTIONS:**
-   - No lettered/numbered sub-parts
-   - Direct "question_text" and "student_answer"
-   - NO "is_parent", "has_subquestions", "parent_content", or "subquestions" fields
+PARENT QUESTION STRUCTURE (MANDATORY):
+- "is_parent": true
+- "has_subquestions": true
+- "parent_content": "The main instruction/context"
+- "subquestions": [{{"id": "1a", ...}}, {{"id": "1b", ...}}]
+- DO NOT include "question_text" or "student_answer" at parent level
 
-GENERAL RULES:
-5. Extract ALL questions - don't skip any
-6. Each subquestion MUST have its own student_answer - NEVER combine with "|"
-7. Extract answers from anywhere on page (under question, margins, etc.)
-8. Question types: short_answer, multiple_choice, true_false, fill_blank, calculation, parent
-9. "total_questions": Count top-level questions only (parents count as 1, not their subquestions)
+REGULAR QUESTION STRUCTURE:
+- "question_text": "The question"
+- "student_answer": "Student's answer"
+- "question_type": "short_answer|multiple_choice|calculation|etc"
+- DO NOT include "is_parent", "has_subquestions", "parent_content", or "subquestions"
 
-MATH FORMATTING (CRITICAL):
-- Use LaTeX for ALL math expressions (iOS has MathJax rendering)
-- Inline math: Wrap in \\(...\\) (e.g., "\\(x^2 + 3x + 2\\)")
-- Display math: Wrap in \\[...\\] for standalone equations
-- Examples:
-  * Simple: "\\(\\frac{{{{1}}}}{{{{2}}}}\\)" for ½
-  * Equation: "\\(2x + 3 = 7\\)"
-  * Complex: "\\(\\int_0^\\infty e^{{{{-x^2}}}} dx\\)"
-  * Fraction: "\\(\\frac{{{{a+b}}}}{{{{c}}}}\\)"
-  * Display: "\\[\\sum_{{{{i=1}}}}^n i = \\frac{{{{n(n+1)}}}}{{{{2}}}}\\]"
-- Use double braces in Python f-string: {{{{}}}} renders as {{{{}}}}
+RULES:
+1. Count top-level only: Parent (1a,1b,1c,1d) = 1 question, NOT 4
+2. Question numbers: Keep original (don't renumber)
+3. Extract ALL student answers exactly as written
+4. Use LaTeX for math: \\(...\\) for inline, \\[...\\] for display
 """
 
 

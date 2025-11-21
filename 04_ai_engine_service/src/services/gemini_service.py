@@ -114,18 +114,20 @@ class GeminiEducationalAIService:
             start_time = time.time()
 
             # Call Gemini with image and prompt
-            # Gemini 3 optimizations:
+            # Gemini 3 optimizations for homework OCR/parsing:
             # - temperature=1.0 (recommended default for Gemini 3)
             # - thinking_level="low" (fast parsing, complex reasoning not needed)
+            # - media_resolution="media_resolution_high" (best for text recognition/OCR)
             response = self.client.generate_content(
                 [
-                    system_prompt,
-                    image
+                    image,  # Image FIRST (best practice per docs)
+                    system_prompt  # Text prompt AFTER image
                 ],
                 generation_config={
                     "temperature": 1.0,  # Gemini 3 recommendation
                     "max_output_tokens": 3000,
-                    "thinking_level": "low"  # Fast mode for simple OCR/parsing
+                    "thinking_level": "low",  # Fast mode for simple OCR/parsing
+                    "media_resolution": "media_resolution_high"  # 1120 tokens, best OCR quality
                 }
             )
 
