@@ -677,7 +677,7 @@ class ParsedQuestion(BaseModel):
     id: int
     question_text: Optional[str] = ""  # Full question text (may be empty in Pro Mode before grading)
     student_answer: Optional[str] = ""  # What student wrote (may be empty in Pro Mode before grading)
-    has_image: bool  # Whether this question needs an image
+    has_image: Optional[bool] = False  # Whether this question needs an image (optional for simplified responses)
     image_region: Optional[ImageRegion] = None  # Normalized coordinates if has_image=true
     question_type: Optional[str] = "unknown"  # multiple_choice, calculation, short_answer, etc.
     question_number: Optional[str] = None  # NEW: Question number from user annotation (e.g., "5", "3.a")
