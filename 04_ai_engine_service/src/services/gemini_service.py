@@ -300,20 +300,50 @@ class GeminiEducationalAIService:
         except ValueError as e:
             # If simple accessor fails, use complex accessor
             print(f"⚠️ Complex response detected, using parts accessor")
-            if response.candidates and len(response.candidates) > 0:
+            print(f"🔍 DEBUG: response type = {type(response)}")
+            print(f"🔍 DEBUG: response.candidates = {response.candidates if hasattr(response, 'candidates') else 'NO CANDIDATES'}")
+
+            if hasattr(response, 'candidates') and response.candidates and len(response.candidates) > 0:
                 candidate = response.candidates[0]
-                if candidate.content and candidate.content.parts and len(candidate.content.parts) > 0:
-                    # Concatenate all parts
-                    text_parts = []
-                    for part in candidate.content.parts:
-                        if hasattr(part, 'text'):
-                            text_parts.append(part.text)
+                print(f"🔍 DEBUG: candidate type = {type(candidate)}")
+                print(f"🔍 DEBUG: candidate.content = {candidate.content if hasattr(candidate, 'content') else 'NO CONTENT'}")
 
-                    full_text = ''.join(text_parts)
-                    print(f"✅ Extracted {len(full_text)} chars from {len(text_parts)} parts")
-                    return full_text
+                if hasattr(candidate, 'content') and candidate.content:
+                    content = candidate.content
+                    print(f"🔍 DEBUG: content.parts = {content.parts if hasattr(content, 'parts') else 'NO PARTS'}")
 
-            # If all else fails, raise the original error
+                    if hasattr(content, 'parts') and content.parts and len(content.parts) > 0:
+                        print(f"🔍 DEBUG: Number of parts = {len(content.parts)}")
+
+                        # Concatenate all parts
+                        text_parts = []
+                        for i, part in enumerate(content.parts):
+                            print(f"🔍 DEBUG: Part {i} type = {type(part)}")
+                            print(f"🔍 DEBUG: Part {i} attributes = {dir(part)}")
+
+                            if hasattr(part, 'text'):
+                                part_text = part.text
+                                print(f"🔍 DEBUG: Part {i} text length = {len(part_text) if part_text else 0}")
+                                if part_text:
+                                    text_parts.append(part_text)
+                            else:
+                                print(f"⚠️ Part {i} has no 'text' attribute")
+
+                        if text_parts:
+                            full_text = ''.join(text_parts)
+                            print(f"✅ Extracted {len(full_text)} chars from {len(text_parts)} parts")
+                            return full_text
+                        else:
+                            print(f"❌ No text found in any parts")
+                    else:
+                        print(f"❌ content.parts is empty or missing")
+                else:
+                    print(f"❌ candidate.content is missing")
+            else:
+                print(f"❌ response.candidates is empty or missing")
+
+            # If all else fails, raise the original error with debug info
+            print(f"❌ Failed to extract text, raising original error")
             raise e
 
     def _build_parse_prompt(self) -> str:
