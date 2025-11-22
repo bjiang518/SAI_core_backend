@@ -127,7 +127,7 @@ class GeminiEducationalAIService:
             # Gemini 3.0 Pro configuration optimized for OCR + layout parsing
             # Recommendations from GPT-4 based on visual task requirements:
             # - temperature=0.0: OCR must be stable and deterministic
-            # - max_output_tokens=4096: Need more tokens for homework with many questions
+            # - max_output_tokens=8192: INCREASED for large homework (was 4096, hit MAX_TOKENS)
             # - top_k=32: Limit randomness for accurate text extraction
             # - top_p=0.8: Control randomness while maintaining quality
             response = self.client.generate_content(
@@ -139,13 +139,27 @@ class GeminiEducationalAIService:
                     "temperature": 0.0,              # OCR must be 0 for stability
                     "top_p": 0.8,
                     "top_k": 32,
-                    "max_output_tokens": 4096,      # Layout needs more tokens
+                    "max_output_tokens": 8192,      # INCREASED: 4096 → 8192 (hit MAX_TOKENS)
                     "candidate_count": 1
                 }
             )
 
             api_duration = time.time() - start_time
             print(f"✅ Gemini API completed in {api_duration:.2f}s")
+
+            # Check finish_reason for token limit issues
+            if response.candidates and len(response.candidates) > 0:
+                finish_reason = response.candidates[0].finish_reason
+                print(f"🔍 Finish reason: {finish_reason}")
+
+                if finish_reason == 3:  # MAX_TOKENS = 3 in FinishReason enum
+                    print(f"⚠️ WARNING: Response hit MAX_TOKENS limit!")
+                    print(f"   Consider: 1) Increase max_output_tokens")
+                    print(f"            2) Simplify prompt to reduce output")
+                    return {
+                        "success": False,
+                        "error": "Gemini response exceeded token limit. Try uploading a smaller homework image or contact support."
+                    }
 
             # Extract JSON from response (safely handle complex responses)
             raw_response = self._extract_response_text(response)
