@@ -403,6 +403,7 @@ CRITICAL RECOGNITION RULES:
 🚨 IF you see "1. a) b) c) d)" or "1. i) ii) iii)" → THIS IS A PARENT QUESTION
 🚨 IF you see "Question 1: [instruction]" THEN "a. [question] b. [question]" → PARENT QUESTION
 🚨 IF multiple lettered/numbered parts share ONE instruction → PARENT QUESTION
+🚨 IF parent_content mentions "in a-b" or "in parts a and b" → THERE ARE SUBQUESTIONS a AND b
 
 PARENT QUESTION STRUCTURE (MANDATORY):
 - "is_parent": true
@@ -410,6 +411,13 @@ PARENT QUESTION STRUCTURE (MANDATORY):
 - "parent_content": "The main instruction/context"
 - "subquestions": [{"id": "1a", ...}, {"id": "1b", ...}]
 - DO NOT include "question_text" or "student_answer" at parent level
+
+⚠️ SUBQUESTION EXTRACTION (CRITICAL):
+1. Look VERY CAREFULLY for all lettered parts (a, b, c, d, etc.)
+2. Even if student answer is blank/unclear, STILL extract the subquestion
+3. If answer is missing: use empty string "" for student_answer
+4. If question text is unclear: write your best interpretation
+5. NEVER return empty subquestions array if parent_content mentions parts!
 
 REGULAR QUESTION STRUCTURE:
 - "question_text": "The question"
@@ -420,8 +428,9 @@ REGULAR QUESTION STRUCTURE:
 RULES:
 1. Count top-level only: Parent (1a,1b,1c,1d) = 1 question, NOT 4
 2. Question numbers: Keep original (don't renumber)
-3. Extract ALL student answers exactly as written
-4. Return ONLY valid JSON, no markdown or extra text"""
+3. Extract ALL student answers exactly as written (or "" if blank)
+4. MUST extract ALL subquestions even if answers are unclear
+5. Return ONLY valid JSON, no markdown or extra text"""
 
     def _build_grading_prompt(
         self,
