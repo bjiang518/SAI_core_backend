@@ -24,7 +24,7 @@ class GeminiEducationalAIService:
     """
     Gemini-powered AI service for educational content processing.
 
-    Uses Gemini 2.0 Flash (gemini-2.0-flash-exp) for:
+    Uses Gemini 2.0 Flash (gemini-2.0-flash) for:
     - Fast homework image parsing with optimized OCR (5-10s vs 30-60s for Pro)
     - Multimodal understanding (native image + text)
     - Cost-effective processing
@@ -35,7 +35,7 @@ class GeminiEducationalAIService:
     - Large homework: max_output_tokens=8192
     - Grading reasoning: temperature=0.3
 
-    Model: gemini-2.0-flash-exp (FAST, avoids timeout issues)
+    Model: gemini-2.0-flash (FAST, avoids timeout issues)
     """
 
     def __init__(self):
@@ -55,11 +55,11 @@ class GeminiEducationalAIService:
                 genai.configure(api_key=api_key)
 
                 # Initialize model
-                # SPEED FIX: gemini-2.0-flash-exp is MUCH faster than 3-pro-preview
+                # SPEED FIX: gemini-2.0-flash is MUCH faster than 3-pro-preview
                 # - gemini-3-pro-preview: 30-60s (TIMEOUT issues) ❌
-                # - gemini-2.0-flash-exp: 5-10s (FAST, stable) ✅
+                # - gemini-2.0-flash: 5-10s (FAST, stable) ✅
                 # - Still excellent for OCR and homework parsing
-                self.model_name = "gemini-2.0-flash-exp"
+                self.model_name = "gemini-2.0-flash"
                 self.client = genai.GenerativeModel(self.model_name)
 
                 print(f"✅ Gemini model initialized: {self.model_name} (Flash - Fast & Stable)")
@@ -128,8 +128,8 @@ class GeminiEducationalAIService:
 
             # Call Gemini with image and prompt
             # Gemini 2.0 Flash configuration optimized for OCR + layout parsing
-            # SPEED FIX: Using gemini-2.0-flash-exp instead of gemini-3-pro-preview
-            # - gemini-2.0-flash-exp: 5-10s (FAST, no timeout) ✅
+            # SPEED FIX: Using gemini-2.0-flash instead of gemini-3-pro-preview
+            # - gemini-2.0-flash: 5-10s (FAST, no timeout) ✅
             # - gemini-3-pro-preview: 30-60s (SLOW, timeout issues) ❌
             #
             # Configuration from GPT-4 recommendations:
