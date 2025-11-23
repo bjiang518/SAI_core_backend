@@ -24,16 +24,18 @@ class GeminiEducationalAIService:
     """
     Gemini-powered AI service for educational content processing.
 
-    Uses Gemini 3.0 Pro for:
-    - Fast homework image parsing with optimized OCR (temperature=0)
+    Uses Gemini 2.0 Flash (gemini-2.0-flash-exp) for:
+    - Fast homework image parsing with optimized OCR (5-10s vs 30-60s for Pro)
     - Multimodal understanding (native image + text)
     - Cost-effective processing
     - Structured JSON output
 
     Configuration optimized for:
     - OCR accuracy: temperature=0.0, top_k=32
-    - Large homework: max_output_tokens=4096
+    - Large homework: max_output_tokens=8192
     - Grading reasoning: temperature=0.3
+
+    Model: gemini-2.0-flash-exp (FAST, avoids timeout issues)
     """
 
     def __init__(self):
@@ -53,14 +55,15 @@ class GeminiEducationalAIService:
                 genai.configure(api_key=api_key)
 
                 # Initialize model
-                # Using gemini-3-pro-preview (LATEST Gemini 3.0 - Most Intelligent)
-                # Fast alternative: gemini-2.5-flash (for speed/cost optimization)
-                # Older: gemini-2.0-flash-exp, gemini-1.5-flash-latest
-                self.model_name = "gemini-3-pro-preview"
+                # SPEED FIX: gemini-2.0-flash-exp is MUCH faster than 3-pro-preview
+                # - gemini-3-pro-preview: 30-60s (TIMEOUT issues) ❌
+                # - gemini-2.0-flash-exp: 5-10s (FAST, stable) ✅
+                # - Still excellent for OCR and homework parsing
+                self.model_name = "gemini-2.0-flash-exp"
                 self.client = genai.GenerativeModel(self.model_name)
 
-                print(f"✅ Gemini model initialized: {self.model_name} (LATEST 3.0)")
-                print(f"📊 Features: Advanced reasoning, 1M context, multimodal vision")
+                print(f"✅ Gemini model initialized: {self.model_name} (Flash - Fast & Stable)")
+                print(f"📊 Features: Fast processing, multimodal vision, excellent OCR")
             else:
                 print("❌ google-generativeai module not available")
                 self.client = None
@@ -124,10 +127,14 @@ class GeminiEducationalAIService:
             start_time = time.time()
 
             # Call Gemini with image and prompt
-            # Gemini 3.0 Pro configuration optimized for OCR + layout parsing
-            # Recommendations from GPT-4 based on visual task requirements:
+            # Gemini 2.0 Flash configuration optimized for OCR + layout parsing
+            # SPEED FIX: Using gemini-2.0-flash-exp instead of gemini-3-pro-preview
+            # - gemini-2.0-flash-exp: 5-10s (FAST, no timeout) ✅
+            # - gemini-3-pro-preview: 30-60s (SLOW, timeout issues) ❌
+            #
+            # Configuration from GPT-4 recommendations:
             # - temperature=0.0: OCR must be stable and deterministic
-            # - max_output_tokens=8192: INCREASED for large homework (was 4096, hit MAX_TOKENS)
+            # - max_output_tokens=8192: INCREASED for large homework (prevents MAX_TOKENS)
             # - top_k=32: Limit randomness for accurate text extraction
             # - top_p=0.8: Control randomness while maintaining quality
             response = self.client.generate_content(
