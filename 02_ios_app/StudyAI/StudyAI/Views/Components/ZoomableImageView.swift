@@ -156,12 +156,19 @@ struct AnnotationOverlay: View {
 
     var body: some View {
         GeometryReader { geometry in
+            // Calculate actual image display size (matching AnnotatableImageView)
+            let actualImageSize = calculateActualImageSize(
+                imageSize: originalImageSize,
+                containerSize: geometry.size
+            )
+
             ZStack {
-                // Tap to create new annotation
+                // Tap to create new annotation (only on actual image area)
                 Color.clear
                     .contentShape(Rectangle())
+                    .frame(width: actualImageSize.width, height: actualImageSize.height)
                     .onTapGesture { location in
-                        createAnnotation(at: location, imageSize: geometry.size)
+                        createAnnotation(at: location, imageSize: actualImageSize)
                     }
 
                 // Render interactive annotations
@@ -169,21 +176,44 @@ struct AnnotationOverlay: View {
                     InteractiveAnnotationBox(
                         annotation: $annotations[index],
                         isSelected: selectedAnnotationId == annotation.id,
-                        imageSize: geometry.size,
+                        imageSize: actualImageSize,
                         onSelect: {
                             withAnimation(.spring()) {
                                 selectedAnnotationId = annotation.id
                             }
                         },
                         onMove: { delta in
-                            moveAnnotation(id: annotation.id, delta: delta, imageSize: geometry.size)
+                            moveAnnotation(id: annotation.id, delta: delta, imageSize: actualImageSize)
                         },
                         onResize: { corner, delta in
-                            resizeAnnotation(id: annotation.id, corner: corner, delta: delta, imageSize: geometry.size)
+                            resizeAnnotation(id: annotation.id, corner: corner, delta: delta, imageSize: actualImageSize)
                         }
                     )
                 }
             }
+            .frame(width: actualImageSize.width, height: actualImageSize.height)
+            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+        }
+    }
+
+    // MARK: - Calculate Actual Image Size
+
+    /// Calculate the actual display size of the image with .aspectRatio(contentMode: .fit)
+    /// This matches the logic in AnnotatableImageView
+    private func calculateActualImageSize(imageSize: CGSize, containerSize: CGSize) -> CGSize {
+        let imageAspect = imageSize.width / imageSize.height
+        let containerAspect = containerSize.width / containerSize.height
+
+        if imageAspect > containerAspect {
+            // Image is wider, fit to width
+            let width = containerSize.width
+            let height = width / imageAspect
+            return CGSize(width: width, height: height)
+        } else {
+            // Image is taller, fit to height
+            let height = containerSize.height
+            let width = height * imageAspect
+            return CGSize(width: width, height: height)
         }
     }
 
@@ -324,17 +354,46 @@ struct InteractiveAnnotationBox: View {
     let onResize: (ResizeCorner, CGSize) -> Void
 
     @GestureState private var dragOffset: CGSize = .zero
+    @GestureState private var resizeOffset: CGSize = .zero
     @State private var isDragging: Bool = false
+    @State private var activeResizeCorner: ResizeCorner? = nil
 
     var body: some View {
+        // Calculate real-time resize adjustment
+        var adjustedTopLeft = annotation.topLeft
+        var adjustedBottomRight = annotation.bottomRight
+
+        if let corner = activeResizeCorner {
+            let deltaX = Double(resizeOffset.width / imageSize.width)
+            let deltaY = Double(resizeOffset.height / imageSize.height)
+
+            switch corner {
+            case .topLeft:
+                adjustedTopLeft[0] = max(0, min(annotation.bottomRight[0] - 0.05, annotation.topLeft[0] + deltaX))
+                adjustedTopLeft[1] = max(0, min(annotation.bottomRight[1] - 0.05, annotation.topLeft[1] + deltaY))
+
+            case .topRight:
+                adjustedBottomRight[0] = max(annotation.topLeft[0] + 0.05, min(1, annotation.bottomRight[0] + deltaX))
+                adjustedTopLeft[1] = max(0, min(annotation.bottomRight[1] - 0.05, annotation.topLeft[1] + deltaY))
+
+            case .bottomLeft:
+                adjustedTopLeft[0] = max(0, min(annotation.bottomRight[0] - 0.05, annotation.topLeft[0] + deltaX))
+                adjustedBottomRight[1] = max(annotation.topLeft[1] + 0.05, min(1, annotation.bottomRight[1] + deltaY))
+
+            case .bottomRight:
+                adjustedBottomRight[0] = max(annotation.topLeft[0] + 0.05, min(1, annotation.bottomRight[0] + deltaX))
+                adjustedBottomRight[1] = max(annotation.topLeft[1] + 0.05, min(1, annotation.bottomRight[1] + deltaY))
+            }
+        }
+
         let topLeft = CGPoint(
-            x: CGFloat(annotation.topLeft[0]) * imageSize.width,
-            y: CGFloat(annotation.topLeft[1]) * imageSize.height
+            x: CGFloat(adjustedTopLeft[0]) * imageSize.width,
+            y: CGFloat(adjustedTopLeft[1]) * imageSize.height
         )
 
         let bottomRight = CGPoint(
-            x: CGFloat(annotation.bottomRight[0]) * imageSize.width,
-            y: CGFloat(annotation.bottomRight[1]) * imageSize.height
+            x: CGFloat(adjustedBottomRight[0]) * imageSize.width,
+            y: CGFloat(adjustedBottomRight[1]) * imageSize.height
         )
 
         let rect = CGRect(
@@ -407,13 +466,20 @@ struct InteractiveAnnotationBox: View {
 
     private func cornerDragGesture(corner: ResizeCorner) -> some Gesture {
         DragGesture(minimumDistance: 0)
+            .updating($resizeOffset) { value, state, _ in
+                state = value.translation
+            }
             .onChanged { _ in
                 if !isDragging {
                     onSelect()
+                    isDragging = true
                 }
+                activeResizeCorner = corner
             }
             .onEnded { value in
                 onResize(corner, value.translation)
+                isDragging = false
+                activeResizeCorner = nil
             }
     }
 }

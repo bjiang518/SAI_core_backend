@@ -368,245 +368,108 @@ class GeminiEducationalAIService:
             raise e
 
     def _build_parse_prompt(self) -> str:
-        """Build homework parsing prompt with ENHANCED accuracy rules."""
+        """Build homework parsing prompt - Optimized for Flash model stability."""
 
-        return """Extract ALL questions from homework image with 100% accuracy. Return ONLY valid JSON.
+        return """Extract all questions and student answers from homework image.
+Return ONE JSON object only. No markdown. No explanation.
+First character MUST be "{". Last character MUST be "}".
 
 ================================================================================
-OUTPUT FORMAT
+JSON SCHEMA
 ================================================================================
 {
-  "subject": "Mathematics|Physics|Chemistry|Biology|English|...",
+  "subject": "Mathematics|Physics|Chemistry|...",
   "subject_confidence": 0.95,
-  "total_questions": 3,
+  "total_questions": 2,
   "questions": [
     {
-      "id": 1,
+      "id": "1",
       "question_number": "1",
       "is_parent": true,
       "has_subquestions": true,
-      "parent_content": "Solve the following problems.",
+      "parent_content": "Solve the following.",
       "subquestions": [
-        {"id": "1a", "question_text": "Calculate X + Y", "student_answer": "25", "question_type": "calculation"},
-        {"id": "1b", "question_text": "Find the value of Z", "student_answer": "10", "question_type": "calculation"}
+        {"id": "1a", "question_text": "...", "student_answer": "...", "question_type": "calculation"}
       ]
     },
     {
-      "id": 2,
+      "id": "2",
       "question_number": "2",
-      "question_text": "Solve: A × B = ?",
-      "student_answer": "42",
-      "question_type": "calculation"
+      "question_text": "What is 2+2?",
+      "student_answer": "4",
+      "question_type": "short_answer"
     }
   ]
 }
 
-================================================================================
-SCANNING RULES
-================================================================================
-
-1. SCAN ENTIRE PAGE: TOP-LEFT → BOTTOM-RIGHT, line by line
-   - Do NOT skip dividers ("Complete the review", "Extra Credit", etc.)
-   - Check margins and corners
-
-2. QUESTION NUMBER FORMATS:
-   "1." "1)" "Q1:" "Question 1:" "Problem 1" "#1" "I." "II."
-
-3. PARENT vs REGULAR QUESTIONS:
-
-   PARENT (has subquestions):
-   - "1. a) b) c)" or "1. i) ii) iii)"
-   - "Question 1: [instruction]" THEN "a. ... b. ..."
-   - Multiple lettered/numbered parts under ONE instruction
-
-   REGULAR (standalone):
-   - Single question with one answer
-
-4. MULTIPLE QUESTIONS UNDER ONE NUMBER (CRITICAL):
-
-   ⚠️ DECISION RULE - Check for number marker BETWEEN questions:
-
-   STEP 1: See two questions after one number (e.g., "3. Question A? Question B?")
-   STEP 2: Look for NEXT number marker (e.g., "4.") BETWEEN the two questions
-   STEP 3: Decide:
-   - If NO marker found → Both belong to SAME number → COMBINE
-   - If YES marker found → Separate numbers → SPLIT
-
-   CRITICAL EXAMPLE (This is Q3 in your test):
-
-   Image shows:
-   "3. In the word forty, which letter is to the immediate right of the o?
-       Which letter is to the immediate left of the t?"
-
-   CHECK: Is there "4." between the two questions? → NO
-
-   ✅ CORRECT (combine as ONE question):
-   {
-     "question_number": "3",
-     "question_text": "In the word forty, which letter is to the immediate right of the o? Which letter is to the immediate left of the t?",
-     "student_answer": "r (right of o), r (left of t)"
-   }
-
-   ❌ WRONG (splitting):
-   {
-     "id": 3,
-     "question_number": "3",
-     "question_text": "which letter is to the immediate right of the o?",
-     "student_answer": "r"
-   },
-   {
-     "id": 4,
-     "question_number": "Which letter is to the immediate left of the t?",  // ← WRONG! This should be part of Q3
-     "student_answer": "r"
-   }
-
-   COUNTER-EXAMPLE (separate numbers):
-   "3. Question A?
-    4. Question B?"
-   ("4." found between them)
-
-   ✅ CORRECT: Two separate questions (Q3 and Q4)
-
-   RULE: Look for TWO question marks (?) under ONE number → Check if new number appears → If NO → Combine
+FIELD RULES:
+- id: ALWAYS string ("1", "2", "1a", "1b")
+- Regular questions: MUST have question_text, student_answer, question_type
+- Parent questions: MUST have is_parent, has_subquestions, parent_content, subquestions
+- Omit fields that don't apply (DO NOT use null)
+- questions array ONLY contains top-level questions
+- total_questions = questions.length
 
 ================================================================================
-SUBQUESTION EXTRACTION (MOST CRITICAL)
+EXTRACTION RULES
 ================================================================================
 
-⚠️ MANY AI MODELS GET THIS WRONG - READ CAREFULLY ⚠️
+RULE 1 - SCAN ENTIRE PAGE:
+- Top→bottom, left→right
+- Include content near margins, dividers, corners
 
-IF parent question detected:
+RULE 2 - QUESTION NUMBER FORMATS:
+Accept: "1", "1.", "1)", "Q1", "Q1:", "Problem 1", "#1", "I.", "II."
 
-1. Find FIRST subquestion: "a", "i", or "(1)"
+RULE 3 - PARENT QUESTION DETECTION:
+IF printed question has lettered/numbered sub-items (a,b,c... or i,ii,iii...)
+THEN classify as parent question.
 
-2. Scan for NEXT sequential: a→b→c→d→e→f→g...
+RULE 4 - SUBQUESTION EXTRACTION (CRITICAL):
+IF parent question exists:
+  1. Find first subquestion marker (a / i / 1)
+  2. Extract ALL sequential markers (a→b→c→d...)
+  3. STOP ONLY when encountering:
+     - Next top-level number (e.g., "3.", "4.")
+     - Section divider
+     - End of page
+  4. DO NOT stop based on parent text ("in a-b" does NOT mean stop at b)
 
-3. DO NOT STOP based on what parent_content says:
-   - Parent says "in a-b" → STILL scan for c, d, e, f...
-   - Parent says "solve the following" → Check for ALL letters
-   - Ignore any mention of range in parent text
+Example that causes errors:
+  Parent says: "Solve in a-b"
+  Image shows: a. ... b. ... c. ... d. ...
+  ✅ CORRECT: Extract a, b, c, d (ALL four)
+  ❌ WRONG: Extract only a, b (stopping at parent text limit)
 
-4. ONLY STOP when you see:
-   - Next top-level number (e.g., "3." after "2f")
-   - Major section divider ("Part II")
-   - End of page
-
-5. Extract ALL subquestions, even if student_answer is blank (use "")
-
-CRITICAL EXAMPLE (This pattern appears frequently):
-
-Image shows:
-  "2. Find one more or one less. Identify the digit in a-b.
-   a. What number is one more than 64? ___
-   b. What number is one less than 40? ___
-   c. Alex counted 34 ducks. One less duckling. How many ducklings?
-   d. Sally has 19 stickers. Gia has one more. How many stickers?"
-
-Parent says: "in a-b"
-BUT image shows: a, b, c, d (FOUR parts, not two)
-
-❌ WRONG (stops at b):
-{
-  "subquestions": [{"id": "2a", ...}, {"id": "2b", ...}]
-}
-
-✅ CORRECT (extracts ALL):
-{
-  "subquestions": [
-    {"id": "2a", ...},
-    {"id": "2b", ...},
-    {"id": "2c", ...},  // ← Must extract even though parent only said "a-b"
-    {"id": "2d", ...}   // ← Must extract
-  ]
-}
-
-RULE: Scan until next question number, NOT until parent_content limit
-
-================================================================================
-ANSWER EXTRACTION
-================================================================================
-
-student_answer = What STUDENT WROTE (handwriting/filled blanks)
-question_text = PRINTED text (pre-printed questions)
-
-VISUAL CLUES: Handwriting, filled blanks, circled choices, drawings
-
-RULES:
-1. Extract EXACTLY as written (even if wrong/misspelled)
-2. Do NOT auto-calculate or correct
-3. Blank answer → use ""
-
-MULTI-BLANK QUESTIONS:
-Question: "___ = ___ tens ___ ones"
-Student wrote: "65", "6", "5"
-✅ CORRECT: "65 = 6 tens 5 ones" (preserve structure)
-❌ WRONG: "65" (incomplete)
-
-MULTIPLE ANSWERS FOR ONE QUESTION:
-If question has TWO+ parts with separate answers:
+RULE 5 - COMBINE RULE (TWO QUESTIONS UNDER ONE NUMBER):
+IF multiple question sentences under SAME printed number
+AND no new printed number between them
+THEN combine into ONE question.
 
 Example:
-"Which letter is right of o? Which letter is left of t?"
-Student wrote: "r" (for first), "r" (for second)
+  "3. Which letter is right of o? Which letter is left of t?"
+  (No "4." between them)
+  ✅ CORRECT: ONE question with combined text
+  ❌ WRONG: Split into two separate questions
 
-✅ CORRECT: "r (right of o), r (left of t)" (label each answer)
-❌ WRONG: "r" (missing second answer)
-
-================================================================================
-JSON STRUCTURE
-================================================================================
-
-PARENT QUESTION:
-{
-  "is_parent": true,
-  "has_subquestions": true,
-  "parent_content": "Instruction text",
-  "subquestions": [...],
-  "question_text": null,
-  "student_answer": null,
-  "question_type": null
-}
-
-REGULAR QUESTION:
-{
-  "question_text": "Question text",
-  "student_answer": "Student answer or \"\"",
-  "question_type": "short_answer|multiple_choice|calculation|fill_blank",
-  "is_parent": null,
-  "has_subquestions": null,
-  "parent_content": null,
-  "subquestions": null
-}
+RULE 6 - ANSWER EXTRACTION:
+- student_answer = EXACT handwriting (even if wrong)
+- Never calculate, infer, or correct
+- If unclear or cut off → set ""
+- If multiple blanks → extract ALL and combine:
+    "65 = 6 tens 5 ones" (not just "65")
+- If two-part question → label each answer:
+    "r (right of o), r (left of t)" (not just "r")
 
 ================================================================================
-VERIFICATION CHECKLIST
+OUTPUT CHECKLIST
 ================================================================================
-
-Before returning JSON:
-
-1. ✓ Scanned entire page (top to bottom)?
-2. ✓ Checked after dividers?
-3. ✓ Extracted ALL lettered parts (a, b, c, d...)?
-4. ✓ Ignored parent_content limits (e.g., "in a-b")?
-5. ✓ total_questions = questions.length?
-6. ✓ Multi-blank answers complete?
-7. ✓ For TWO questions under ONE number: Did I check for next number marker?
-   → If NO marker found → Combined as ONE question
-   → If YES marker found → Kept as separate questions
-8. ✓ All student_answer filled (or "")?
-9. ✓ Extracted what student WROTE (not corrected)?
-
-IF ANY ✗ → FIX BEFORE RETURNING
-
-================================================================================
-FINAL NOTES
-================================================================================
-
-- Count top-level only: Parent with 4 subs = 1 question
-- Keep original question numbers (don't renumber)
-- Accuracy > Speed
-- When in doubt: Include it
-- Return ONLY JSON (no markdown/extra text)
+1. Scanned entire page?
+2. Extracted ALL lettered parts (not limited by parent text)?
+3. Combined multi-question under same number?
+4. Extracted ALL blanks for multi-blank answers?
+5. total_questions = top-level questions only?
+6. Response is valid JSON with no markdown?
 """
 
     def _build_grading_prompt(

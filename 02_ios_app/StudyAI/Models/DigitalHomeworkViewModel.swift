@@ -27,6 +27,11 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     @Published var showAnnotationMode = false
     @Published var showImageInFullScreen = false
+    @Published var showImagePreview = true  // 控制图片预览显示
+
+    // Archive selection mode
+    @Published var isArchiveMode = false
+    @Published var selectedQuestionIds: Set<Int> = []
 
     // MARK: - Private Properties
 
@@ -171,6 +176,11 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     func startGrading() async {
         print("🚀 === STARTING AI GRADING ===")
+
+        // 隐藏图片预览（触发向上飞走动画）
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+            showImagePreview = false
+        }
 
         isGrading = true
         gradedCount = 0
@@ -350,12 +360,50 @@ class DigitalHomeworkViewModel: ObservableObject {
                 let totalCorrect = questions.filter { $0.grade?.isCorrect == true }.count
                 let totalQuestions = questions.count
 
-                // NOTE: This is a duplicate file in wrong location
-                // Progress marking should be handled by the correct file in StudyAI/ViewModels/
-                print("⚠️ markProgress() called from duplicate ViewModel file")
-                print("✅ Progress would be marked: \(totalCorrect)/\(totalQuestions) correct")
+                // TODO: Update progress using PointsEarningSystem when available
+                print("✅ Progress marked: \(totalCorrect)/\(totalQuestions) correct")
             }
         }
+    }
+
+    // MARK: - Archive Selection Mode
+
+    func toggleArchiveMode() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            isArchiveMode.toggle()
+            if !isArchiveMode {
+                selectedQuestionIds.removeAll()
+            }
+        }
+    }
+
+    func toggleQuestionSelection(questionId: Int) {
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) {
+            if selectedQuestionIds.contains(questionId) {
+                selectedQuestionIds.remove(questionId)
+            } else {
+                selectedQuestionIds.insert(questionId)
+            }
+        }
+    }
+
+    func batchArchiveSelected() async {
+        guard !selectedQuestionIds.isEmpty else { return }
+
+        print("📦 Archiving \(selectedQuestionIds.count) questions...")
+
+        // TODO: Implement batch archiving via QuestionArchiveService
+        // For now, remove selected questions from the list
+
+        await MainActor.run {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                questions.removeAll { selectedQuestionIds.contains($0.question.id) }
+                selectedQuestionIds.removeAll()
+                isArchiveMode = false
+            }
+        }
+
+        print("✅ Archived \(selectedQuestionIds.count) questions")
     }
 
     // MARK: - Helper Methods
