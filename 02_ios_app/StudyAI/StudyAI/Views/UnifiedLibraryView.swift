@@ -697,6 +697,7 @@ struct InteractiveStatPill: View {
 
 struct LibraryItemRow: View {
     let item: LibraryItem
+    @State private var proModeImage: UIImage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -716,6 +717,22 @@ struct LibraryItemRow: View {
                             .foregroundColor(.accentColor)
                             .clipShape(Capsule())
 
+                        // Pro Mode badge
+                        if isProModeQuestion {
+                            HStack(spacing: 4) {
+                                Image(systemName: "wand.and.stars")
+                                    .font(.caption2)
+                                Text("Pro")
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.purple)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.purple.opacity(0.15))
+                            .clipShape(Capsule())
+                        }
+
                         Spacer()
 
                         Text(item.date, style: .date)
@@ -725,6 +742,16 @@ struct LibraryItemRow: View {
                 }
 
                 Spacer()
+            }
+
+            // Pro Mode cropped image (if available)
+            if let image = proModeImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxHeight: 120)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
             }
 
             // Enhanced preview content
@@ -759,6 +786,35 @@ struct LibraryItemRow: View {
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         .padding(.horizontal)
         .padding(.vertical, 4)
+        .onAppear {
+            loadProModeImageIfNeeded()
+        }
+    }
+
+    // MARK: - Pro Mode Support
+
+    private var isProModeQuestion: Bool {
+        if let questionSummary = item as? QuestionSummary {
+            return questionSummary.proMode == true
+        }
+        return false
+    }
+
+    private func loadProModeImageIfNeeded() {
+        guard let questionSummary = item as? QuestionSummary,
+              questionSummary.proMode == true,
+              let imagePath = questionSummary.questionImageUrl,
+              !imagePath.isEmpty else {
+            return
+        }
+
+        // Load image from file system
+        if let loadedImage = ProModeImageStorage.shared.loadImage(from: imagePath) {
+            proModeImage = loadedImage
+            print("✅ [Library] Loaded Pro Mode image for question: \(questionSummary.id)")
+        } else {
+            print("⚠️ [Library] Failed to load Pro Mode image at: \(imagePath)")
+        }
     }
     
     private func iconForItem(_ item: LibraryItem) -> String {

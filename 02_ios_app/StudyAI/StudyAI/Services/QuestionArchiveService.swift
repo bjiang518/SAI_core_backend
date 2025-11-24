@@ -327,6 +327,10 @@ class QuestionArchiveService: ObservableObject {
         let questionType = data["questionType"] as? String
         let options = data["options"] as? [String]
 
+        // Pro Mode fields
+        let questionImageUrl = data["questionImageUrl"] as? String
+        let proMode = data["proMode"] as? Bool
+
         return QuestionSummary(
             id: id,
             subject: subject,
@@ -343,7 +347,9 @@ class QuestionArchiveService: ObservableObject {
             maxPoints: maxPoints,
             isGraded: isGraded,
             questionType: questionType,
-            options: options
+            options: options,
+            questionImageUrl: questionImageUrl,
+            proMode: proMode
         )
     }
     
