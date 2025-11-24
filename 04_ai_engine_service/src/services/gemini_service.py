@@ -424,31 +424,50 @@ SCANNING RULES
 
 4. MULTIPLE QUESTIONS UNDER ONE NUMBER (CRITICAL):
 
-   HOW TO IDENTIFY:
-   - Look ahead: Is there a NEXT number marker (e.g., "4." after "3.")?
-   - If YES → Questions belong to SAME number
-   - If NO → Separate questions
+   ⚠️ DECISION RULE - Check for number marker BETWEEN questions:
 
-   Example 1 (SAME number):
-   "3. Question A?
-       Question B?"
-   (NO "4." found before Question B)
+   STEP 1: See two questions after one number (e.g., "3. Question A? Question B?")
+   STEP 2: Look for NEXT number marker (e.g., "4.") BETWEEN the two questions
+   STEP 3: Decide:
+   - If NO marker found → Both belong to SAME number → COMBINE
+   - If YES marker found → Separate numbers → SPLIT
 
-   ✅ CORRECT: Combine as ONE question
+   CRITICAL EXAMPLE (This is Q3 in your test):
+
+   Image shows:
+   "3. In the word forty, which letter is to the immediate right of the o?
+       Which letter is to the immediate left of the t?"
+
+   CHECK: Is there "4." between the two questions? → NO
+
+   ✅ CORRECT (combine as ONE question):
    {
      "question_number": "3",
-     "question_text": "Question A? Question B?",
-     "student_answer": "Answer A, Answer B"
+     "question_text": "In the word forty, which letter is to the immediate right of the o? Which letter is to the immediate left of the t?",
+     "student_answer": "r (right of o), r (left of t)"
    }
 
-   ❌ WRONG: Split into Q3 and Q4
+   ❌ WRONG (splitting):
+   {
+     "id": 3,
+     "question_number": "3",
+     "question_text": "which letter is to the immediate right of the o?",
+     "student_answer": "r"
+   },
+   {
+     "id": 4,
+     "question_number": "Which letter is to the immediate left of the t?",  // ← WRONG! This should be part of Q3
+     "student_answer": "r"
+   }
 
-   Example 2 (SEPARATE numbers):
+   COUNTER-EXAMPLE (separate numbers):
    "3. Question A?
     4. Question B?"
-   ("4." found before Question B)
+   ("4." found between them)
 
-   ✅ CORRECT: Two separate questions
+   ✅ CORRECT: Two separate questions (Q3 and Q4)
+
+   RULE: Look for TWO question marks (?) under ONE number → Check if new number appears → If NO → Combine
 
 ================================================================================
 SUBQUESTION EXTRACTION (MOST CRITICAL)
@@ -571,7 +590,9 @@ Before returning JSON:
 4. ✓ Ignored parent_content limits (e.g., "in a-b")?
 5. ✓ total_questions = questions.length?
 6. ✓ Multi-blank answers complete?
-7. ✓ Multiple questions under one number combined?
+7. ✓ For TWO questions under ONE number: Did I check for next number marker?
+   → If NO marker found → Combined as ONE question
+   → If YES marker found → Kept as separate questions
 8. ✓ All student_answer filled (or "")?
 9. ✓ Extracted what student WROTE (not corrected)?
 
