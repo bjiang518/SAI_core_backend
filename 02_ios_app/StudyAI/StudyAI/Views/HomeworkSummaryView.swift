@@ -16,26 +16,31 @@ struct HomeworkSummaryView: View {
     @State private var showDigitalHomework = false
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Header Section
-                headerSection
+        ZStack(alignment: .bottom) {
+            // Main content
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Compact header with subject info
+                    compactHeaderSection
+                        .padding(.top, 8)
 
-                // Summary Cards
-                summaryCardsSection
+                    // Questions Preview
+                    questionsPreviewSection
 
-                // Questions Preview
-                questionsPreviewSection
-
-                // Primary Action Button
-                viewDigitalHomeworkButton
-
-                Spacer(minLength: 40)
+                    // Bottom spacer for button
+                    Spacer()
+                        .frame(height: 100)
+                }
+                .padding()
             }
-            .padding()
+
+            // Fixed bottom button
+            fixedBottomButton
+                .padding(.horizontal)
+                .padding(.bottom, 16)
         }
         .navigationTitle("作业分析完成")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $showDigitalHomework) {
             DigitalHomeworkView(
                 parseResults: parseResults,
@@ -44,106 +49,90 @@ struct HomeworkSummaryView: View {
         }
     }
 
-    // MARK: - Header Section
+    // MARK: - Compact Header Section
 
-    private var headerSection: some View {
-        VStack(spacing: 12) {
-            // Success Icon
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.green)
-
-            Text("AI 已完成作业分析")
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(.primary)
-
-            Text("智能识别题目结构，准备批改")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .padding(.top, 20)
-    }
-
-    // MARK: - Summary Cards Section
-
-    private var summaryCardsSection: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 16) {
-                // Subject Card
-                HomeworkSummaryCard(
-                    icon: "book.fill",
-                    title: "科目",
-                    value: parseResults.subject,
-                    subtitle: String(format: "%.0f%% 置信度", parseResults.subjectConfidence * 100),
-                    color: .blue
-                )
-
-                // Questions Count Card
-                HomeworkSummaryCard(
-                    icon: "list.number",
-                    title: "题目数量",
-                    value: "\(parseResults.totalQuestions)",
-                    subtitle: "道题",
-                    color: .green
-                )
-            }
-
-            // Hierarchical Structure Card (if applicable)
-            if hasHierarchicalStructure {
-                HStack {
-                    Image(systemName: "chart.tree")
+    private var compactHeaderSection: some View {
+        HStack(spacing: 16) {
+            // Subject icon and name
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Image(systemName: "book.fill")
                         .font(.title2)
-                        .foregroundColor(.purple)
+                        .foregroundColor(.blue)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("层次化结构")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                        Text("包含父题和子题结构")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Spacer()
+                    Text(parseResults.subject)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
                 }
-                .padding()
-                .background(Color.purple.opacity(0.1))
-                .cornerRadius(12)
+
+                Text("\(parseResults.totalQuestions) 道题目")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            // Hierarchical structure badge (if applicable)
+            if hasHierarchicalStructure {
+                HStack(spacing: 6) {
+                    Image(systemName: "chart.tree")
+                        .font(.caption)
+                    Text("层次题")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .foregroundColor(.purple)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.purple.opacity(0.15))
+                .cornerRadius(20)
             }
         }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(16)
     }
 
     // MARK: - Questions Preview Section
 
     private var questionsPreviewSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("题目预览")
-                .font(.headline)
+                .font(.title3)
+                .fontWeight(.semibold)
                 .foregroundColor(.primary)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 ForEach(parseResults.questions.prefix(3)) { question in
                     QuestionPreviewRow(question: question)
                 }
 
                 if parseResults.questions.count > 3 {
-                    HStack {
-                        Spacer()
-                        Text("还有 \(parseResults.questions.count - 3) 道题...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
+                    Button(action: {
+                        // User can tap to see all in digital homework view
+                        showDigitalHomework = true
+                    }) {
+                        HStack {
+                            Spacer()
+                            Text("还有 \(parseResults.questions.count - 3) 道题")
+                                .font(.subheadline)
+                                .foregroundColor(.blue)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                            Spacer()
+                        }
+                        .padding(.vertical, 12)
                     }
-                    .padding(.vertical, 8)
                 }
             }
         }
     }
 
-    // MARK: - View Digital Homework Button
+    // MARK: - Fixed Bottom Button
 
-    private var viewDigitalHomeworkButton: some View {
+    private var fixedBottomButton: some View {
         Button(action: {
             // Haptic feedback
             let generator = UIImpactFeedbackGenerator(style: .medium)
@@ -151,30 +140,20 @@ struct HomeworkSummaryView: View {
 
             showDigitalHomework = true
         }) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Image(systemName: "doc.text.fill")
-                    .font(.title3)
+                    .font(.body)
                 Text("查看数字版作业")
-                    .font(.headline)
-                    .fontWeight(.bold)
+                    .font(.body)
+                    .fontWeight(.semibold)
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
-            .background(
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.4, green: 0.6, blue: 1.0),  // Light blue
-                        Color(red: 0.5, green: 0.4, blue: 1.0)   // Light purple
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .cornerRadius(16)
-            .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+            .padding(.vertical, 16)
+            .background(Color.blue)
+            .cornerRadius(14)
         }
-        .padding(.top, 8)
+        .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
     }
 
     // MARK: - Computed Properties
@@ -228,35 +207,43 @@ struct QuestionPreviewRow: View {
         HStack(alignment: .top, spacing: 12) {
             // Question Number Badge
             Text(question.questionNumber ?? "?")
-                .font(.caption)
+                .font(.body)
                 .fontWeight(.semibold)
                 .foregroundColor(.white)
-                .frame(width: 32, height: 32)
+                .frame(width: 36, height: 36)
                 .background(Circle().fill(Color.blue))
 
             // Question Content
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 if question.isParentQuestion {
                     // Parent question
                     Text(question.parentContent ?? "")
-                        .font(.subheadline)
+                        .font(.body)
                         .foregroundColor(.primary)
                         .lineLimit(2)
 
                     if let subquestions = question.subquestions {
-                        Text("\(subquestions.count) 个子题")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        HStack(spacing: 4) {
+                            Image(systemName: "chart.tree")
+                                .font(.caption2)
+                            Text("\(subquestions.count) 个子题")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.purple)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.purple.opacity(0.1))
+                        .cornerRadius(8)
                     }
                 } else {
                     // Regular question
                     Text(question.questionText ?? "")
-                        .font(.subheadline)
+                        .font(.body)
                         .foregroundColor(.primary)
                         .lineLimit(2)
 
                     if let answer = question.studentAnswer, !answer.isEmpty {
-                        Text("学生答案: \(answer)")
+                        Text("答案: \(answer)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
@@ -267,15 +254,19 @@ struct QuestionPreviewRow: View {
             Spacer()
 
             // Type Indicator
-            if question.isParentQuestion {
-                Image(systemName: "chevron.right.2")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(12)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(.tertiarySystemGroupedBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color(.separator).opacity(0.3), lineWidth: 0.5)
+        )
     }
 }
 

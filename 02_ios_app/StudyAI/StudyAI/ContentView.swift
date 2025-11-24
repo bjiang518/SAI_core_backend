@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import Combine
 
 // MARK: - Main Tab Enum
 enum MainTab: Int, CaseIterable {
@@ -15,7 +16,7 @@ enum MainTab: Int, CaseIterable {
     case chat = 2
     case progress = 3
     case library = 4
-    
+
     var title: String {
         switch self {
         case .home: return NSLocalizedString("tab.home", comment: "")
@@ -249,7 +250,6 @@ struct MainTabView: View {
 
             // Progress Tab
             NavigationStack {
-
                 LearningProgressView()
                     .onAppear {
                         sessionManager.updateActivity()
@@ -647,18 +647,18 @@ struct SettingsRow: View {
     let icon: String
     let title: String
     let color: Color
-    
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .foregroundColor(color)
                 .frame(width: 20)
-            
+
             Text(title)
                 .font(.body)
-            
+
             Spacer()
-            
+
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundColor(.secondary)

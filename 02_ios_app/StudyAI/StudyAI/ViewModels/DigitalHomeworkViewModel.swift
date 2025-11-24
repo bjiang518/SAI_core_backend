@@ -27,6 +27,11 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     @Published var showAnnotationMode = false
     @Published var showImageInFullScreen = false
+    @Published var showImagePreview = true  // 控制图片预览显示
+
+    // Archive selection mode
+    @Published var isArchiveMode = false
+    @Published var selectedQuestionIds: Set<Int> = []
 
     // MARK: - Private Properties
 
@@ -116,6 +121,20 @@ class DigitalHomeworkViewModel: ObservableObject {
     }
 
     func deleteAnnotation(id: UUID) {
+        // Find the annotation before deleting
+        guard let annotation = annotations.first(where: { $0.id == id }) else { return }
+
+        // If this annotation has a question number assigned, remove the cropped image
+        if let questionNumber = annotation.questionNumber,
+           let questionId = parseResults?.questions.first(where: { $0.questionNumber == questionNumber })?.id {
+            // Force update by creating a new dictionary
+            var updatedImages = croppedImages
+            updatedImages.removeValue(forKey: questionId)
+            croppedImages = updatedImages
+            print("🗑️ Removed cropped image for Q\(questionNumber) (id: \(questionId))")
+        }
+
+        // Remove the annotation
         annotations.removeAll { $0.id == id }
         if selectedAnnotationId == id {
             selectedAnnotationId = nil
@@ -167,10 +186,46 @@ class DigitalHomeworkViewModel: ObservableObject {
         return croppedImages[questionId]
     }
 
+    // MARK: - Sync Cropped Images
+
+    /// Removes cropped images for questions that no longer have annotations
+    func syncCroppedImages() {
+        // Get all question numbers that have annotations
+        let annotatedQuestionNumbers = Set(annotations.compactMap { $0.questionNumber })
+
+        // Get all question IDs that should have images
+        var validQuestionIds = Set<Int>()
+        for questionNumber in annotatedQuestionNumbers {
+            if let questionId = parseResults?.questions.first(where: { $0.questionNumber == questionNumber })?.id {
+                validQuestionIds.insert(questionId)
+            }
+        }
+
+        // Remove images for questions that no longer have annotations
+        var updatedImages = croppedImages
+        for questionId in croppedImages.keys {
+            if !validQuestionIds.contains(questionId) {
+                updatedImages.removeValue(forKey: questionId)
+                print("🔄 Removed orphaned image for question ID \(questionId)")
+            }
+        }
+
+        // Trigger update if images changed
+        if updatedImages.count != croppedImages.count {
+            croppedImages = updatedImages
+            print("🔄 Synced cropped images: \(croppedImages.count) images remain")
+        }
+    }
+
     // MARK: - AI Grading
 
     func startGrading() async {
         print("🚀 === STARTING AI GRADING ===")
+
+        // 隐藏图片预览（触发向上飞走动画）
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+            showImagePreview = false
+        }
 
         isGrading = true
         gradedCount = 0
@@ -362,6 +417,46 @@ class DigitalHomeworkViewModel: ObservableObject {
                 print("✅ Progress marked: \(totalCorrect)/\(totalQuestions) correct")
             }
         }
+    }
+
+    // MARK: - Archive Selection Mode
+
+    func toggleArchiveMode() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            isArchiveMode.toggle()
+            if !isArchiveMode {
+                selectedQuestionIds.removeAll()
+            }
+        }
+    }
+
+    func toggleQuestionSelection(questionId: Int) {
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) {
+            if selectedQuestionIds.contains(questionId) {
+                selectedQuestionIds.remove(questionId)
+            } else {
+                selectedQuestionIds.insert(questionId)
+            }
+        }
+    }
+
+    func batchArchiveSelected() async {
+        guard !selectedQuestionIds.isEmpty else { return }
+
+        print("📦 Archiving \(selectedQuestionIds.count) questions...")
+
+        // TODO: Implement batch archiving via QuestionArchiveService
+        // For now, remove selected questions from the list
+
+        await MainActor.run {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                questions.removeAll { selectedQuestionIds.contains($0.question.id) }
+                selectedQuestionIds.removeAll()
+                isArchiveMode = false
+            }
+        }
+
+        print("✅ Archived \(selectedQuestionIds.count) questions")
     }
 
     // MARK: - Helper Methods
