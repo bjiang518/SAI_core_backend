@@ -368,7 +368,7 @@ class GeminiEducationalAIService:
             raise e
 
     def _build_parse_prompt(self) -> str:
-        """Build homework parsing prompt - Optimized for Flash model stability."""
+        """Build homework parsing prompt - Vision-first extraction with type-specific rules."""
 
         return """Extract all questions and student answers from homework image.
 Return ONE JSON object only. No markdown. No explanation.
@@ -411,6 +411,18 @@ FIELD RULES:
 - total_questions = questions.length
 
 ================================================================================
+CORE PRINCIPLE: VISION FIRST
+================================================================================
+⚠️ CRITICAL: What you SEE in the image > What the question text says
+
+When extracting subquestions:
+- If IMAGE shows: a. b. c. d. (4 items)
+- But PARENT TEXT says: "in a-b" (mentions only 2)
+- YOU MUST: Extract ALL 4 items (a, b, c, d)
+
+Rule: Question text is NOT an extraction instruction. Always trust visual markers.
+
+================================================================================
 EXTRACTION RULES
 ================================================================================
 
@@ -425,51 +437,84 @@ RULE 3 - PARENT QUESTION DETECTION:
 IF printed question has lettered/numbered sub-items (a,b,c... or i,ii,iii...)
 THEN classify as parent question.
 
-RULE 4 - SUBQUESTION EXTRACTION (CRITICAL):
+RULE 4 - SUBQUESTION EXTRACTION (VISION-FIRST):
 IF parent question exists:
-  1. Find first subquestion marker (a / i / 1)
-  2. Extract ALL sequential markers (a→b→c→d...)
-  3. STOP ONLY when encountering:
-     - Next top-level number (e.g., "3.", "4.")
+  1. LOOK at the IMAGE for visual markers (a. b. c. d...)
+  2. Extract EVERY marker you SEE visually
+  3. IGNORE what parent text says ("in a-b", "solve these", etc.)
+  4. STOP ONLY when:
+     - Next top-level number appears (e.g., "3.", "4.")
      - Section divider
      - End of page
-  4. DO NOT stop based on parent text ("in a-b" does NOT mean stop at b)
-
-Example that causes errors:
-  Parent says: "Solve in a-b"
-  Image shows: a. ... b. ... c. ... d. ...
-  ✅ CORRECT: Extract a, b, c, d (ALL four)
-  ❌ WRONG: Extract only a, b (stopping at parent text limit)
 
 RULE 5 - COMBINE RULE (TWO QUESTIONS UNDER ONE NUMBER):
 IF multiple question sentences under SAME printed number
 AND no new printed number between them
 THEN combine into ONE question.
 
-Example:
-  "3. Which letter is right of o? Which letter is left of t?"
-  (No "4." between them)
-  ✅ CORRECT: ONE question with combined text
-  ❌ WRONG: Split into two separate questions
+================================================================================
+QUESTION TYPE DETECTION & PARSING
+================================================================================
 
-RULE 6 - ANSWER EXTRACTION:
+TYPE 1 - MULTIPLE CHOICE (question_type: "multiple_choice"):
+- Has lettered options: A) ... B) ... C) ... D) ...
+- Student circles or marks one option
+- Extract: question_text (include all options), student_answer (circled letter)
+
+TYPE 2 - TRUE/FALSE (question_type: "true_false"):
+- Question with True/False choices
+- Student circles one
+- Extract: question_text, student_answer ("True" or "False")
+
+TYPE 3 - FILL IN BLANK (question_type: "fill_blank"):
+⚠️ SPECIAL HANDLING for multiple blanks:
+
+Example: "The boy _____ at _____ with his _____."
+Student wrote: "is playing" "home" "dad" (in 3 blanks)
+
+CORRECT format:
+- question_text: "The boy _____ at _____ with his _____."
+- student_answer: "is playing | home | dad" (use | separator)
+
+IF multiple blanks:
+- Keep question_text with _____ markers
+- Combine ALL answers with " | " separator in ORDER
+
+TYPE 4 - SHORT ANSWER (question_type: "short_answer"):
+- Brief written response (1-3 sentences)
+- Extract exactly as written
+
+TYPE 5 - LONG ANSWER (question_type: "long_answer"):
+- Extended response (paragraph+)
+- Extract full text
+
+TYPE 6 - CALCULATION (question_type: "calculation"):
+- Math problem with numerical answer
+- Include all work shown: "65 = 6 tens 5 ones" (not just "65")
+
+TYPE 7 - MATCHING (question_type: "matching"):
+- Connect items between columns
+- Extract: pairs or connections student made
+
+================================================================================
+ANSWER EXTRACTION (CRITICAL)
+================================================================================
 - student_answer = EXACT handwriting (even if wrong)
 - Never calculate, infer, or correct
 - If unclear or cut off → set ""
-- If multiple blanks → extract ALL and combine:
-    "65 = 6 tens 5 ones" (not just "65")
-- If two-part question → label each answer:
-    "r (right of o), r (left of t)" (not just "r")
+- For multi-blank: use " | " to separate (see TYPE 3 above)
+- For two-part question: label each answer with context
 
 ================================================================================
 OUTPUT CHECKLIST
 ================================================================================
-1. Scanned entire page?
-2. Extracted ALL lettered parts (not limited by parent text)?
-3. Combined multi-question under same number?
-4. Extracted ALL blanks for multi-blank answers?
-5. total_questions = top-level questions only?
-6. Response is valid JSON with no markdown?
+1. ✓ Scanned entire page?
+2. ✓ Used VISION FIRST (not limited by question text)?
+3. ✓ Extracted ALL visual markers (a, b, c, d...)?
+4. ✓ Correct question_type for each question?
+5. ✓ Multi-blank answers use " | " separator?
+6. ✓ total_questions = top-level questions only?
+7. ✓ Valid JSON with no markdown?
 """
 
     def _build_grading_prompt(
