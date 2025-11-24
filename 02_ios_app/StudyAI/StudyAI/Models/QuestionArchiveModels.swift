@@ -265,6 +265,10 @@ struct QuestionSummary: Codable, Identifiable {
     let questionType: String?
     let options: [String]?
 
+    // Pro Mode fields
+    let questionImageUrl: String?  // File path to cropped image (for Pro Mode)
+    let proMode: Bool?  // Indicates if this is from Pro Mode
+
     // Computed property for display
     var shortQuestionText: String {
         if questionText.count > 100 {
@@ -272,7 +276,7 @@ struct QuestionSummary: Codable, Identifiable {
         }
         return questionText
     }
-    
+
     var confidenceLevel: String {
         guard let confidence = confidence else { return "Unknown" }
         switch confidence {
@@ -281,7 +285,7 @@ struct QuestionSummary: Codable, Identifiable {
         default: return "Low"
         }
     }
-    
+
     var gradeDisplayText: String {
         guard isGraded, let grade = grade else { return "Not Graded" }
         if let points = points, let maxPoints = maxPoints {
@@ -289,7 +293,7 @@ struct QuestionSummary: Codable, Identifiable {
         }
         return grade.displayName
     }
-    
+
     var scorePercentage: Float? {
         guard let points = points, let maxPoints = maxPoints, maxPoints > 0 else { return nil }
         return (points / maxPoints) * 100

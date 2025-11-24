@@ -17,6 +17,9 @@ except ImportError:
     print("⚠️ google-generativeai not installed. Run: pip install google-generativeai")
     genai = None
 
+# Import subject-specific prompt generator
+from .subject_prompts import get_subject_specific_rules
+
 load_dotenv()
 
 
@@ -76,10 +79,11 @@ class GeminiEducationalAIService:
         base64_image: str,
         parsing_mode: str = "standard",
         skip_bbox_detection: bool = True,
-        expected_questions: Optional[List[int]] = None
+        expected_questions: Optional[List[int]] = None,
+        subject: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Parse homework image using Gemini Vision API.
+        Parse homework image using Gemini Vision API with subject-specific rules.
 
         Gemini advantages:
         - Optimized OCR with temperature=0.0 for maximum accuracy
@@ -89,7 +93,7 @@ class GeminiEducationalAIService:
 
         Configuration:
         - temperature=0.0: OCR must be deterministic
-        - max_output_tokens=4096: Handle homework with many questions
+        - max_output_tokens=8192: Handle large homework
         - top_k=32, top_p=0.8: Limit randomness for accurate parsing
 
         Args:
@@ -97,6 +101,9 @@ class GeminiEducationalAIService:
             parsing_mode: "standard" or "detailed"
             skip_bbox_detection: Always True for Pro Mode
             expected_questions: User-annotated question numbers
+            subject: Subject name for specialized parsing rules
+                    (e.g., "Math", "Physics", "English", etc.)
+                    If None, uses general rules for all subjects
 
         Returns:
             Same format as OpenAI service for compatibility
@@ -107,11 +114,12 @@ class GeminiEducationalAIService:
 
         print(f"📝 === PARSING HOMEWORK WITH GEMINI ===")
         print(f"🔧 Mode: {parsing_mode}")
+        print(f"📚 Subject: {subject or 'General (No specific rules)'}")
         print(f"🤖 Model: {self.model_name}")
 
         try:
-            # Build prompt (same as OpenAI for consistency)
-            system_prompt = self._build_parse_prompt()
+            # Build prompt with subject-specific rules
+            system_prompt = self._build_parse_prompt(subject=subject)
 
             # Decode base64 image
             import io
@@ -367,10 +375,23 @@ class GeminiEducationalAIService:
             print(f"❌ Failed to extract text, raising original error")
             raise e
 
-    def _build_parse_prompt(self) -> str:
-        """Build homework parsing prompt - Vision-first extraction with type-specific rules."""
+    def _build_parse_prompt(self, subject: Optional[str] = None) -> str:
+        """
+        Build homework parsing prompt with optional subject-specific rules.
 
-        return """Extract all questions and student answers from homework image.
+        Args:
+            subject: Subject name (e.g., "Math", "Physics", "English")
+                    If None or "General", uses universal rules only
+
+        Returns:
+            Complete parsing prompt combining base rules + subject rules
+        """
+
+        # Get subject-specific rules (empty string if General/unknown)
+        subject_rules = get_subject_specific_rules(subject or "General")
+
+        # Base prompt (universal for all subjects)
+        base_prompt = """Extract all questions and student answers from homework image.
 Return ONE JSON object only. No markdown. No explanation.
 First character MUST be "{". Last character MUST be "}".
 
@@ -505,6 +526,8 @@ ANSWER EXTRACTION (CRITICAL)
 - For multi-blank: use " | " to separate (see TYPE 3 above)
 - For two-part question: label each answer with context
 
+{subject_rules}
+
 ================================================================================
 OUTPUT CHECKLIST
 ================================================================================
@@ -516,6 +539,10 @@ OUTPUT CHECKLIST
 6. ✓ total_questions = top-level questions only?
 7. ✓ Valid JSON with no markdown?
 """
+
+        # Combine base prompt with subject-specific rules
+        # If subject_rules is empty (General/unknown), it won't add anything
+        return base_prompt.format(subject_rules=subject_rules)
 
     def _build_grading_prompt(
         self,

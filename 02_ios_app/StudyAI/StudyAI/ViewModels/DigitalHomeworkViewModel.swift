@@ -391,11 +391,108 @@ class DigitalHomeworkViewModel: ObservableObject {
     }
 
     func archiveQuestion(questionId: Int) {
-        // TODO: Implement individual question archiving
-        // This will require mapping ProgressiveQuestion to ParsedQuestion format
-        // and using QuestionArchiveService.archiveQuestions()
-        print("⚠️ Archive question feature not yet implemented for Q\(questionId)")
-        print("💡 For now, questions are preserved in the session and can be archived as a whole")
+        Task {
+            await archiveQuestions([questionId])
+        }
+    }
+
+    /// Archive questions by their IDs
+    private func archiveQuestions(_ questionIds: [Int]) async {
+        guard let userId = AuthenticationService.shared.currentUser?.id else {
+            print("❌ [Archive] User not authenticated")
+            return
+        }
+
+        print("📦 [Archive] Archiving \(questionIds.count) Pro Mode questions...")
+
+        let imageStorage = ProModeImageStorage.shared
+        var questionsToArchive: [[String: Any]] = []
+
+        for questionId in questionIds {
+            guard let questionWithGrade = questions.first(where: { $0.question.id == questionId }) else {
+                continue
+            }
+
+            let question = questionWithGrade.question
+
+            // Save cropped image to file system if available
+            var imagePath: String?
+            if let image = croppedImages[questionId] {
+                imagePath = imageStorage.saveImage(image)
+                if imagePath != nil {
+                    print("   ✅ [Archive] Saved image for Q\(questionId)")
+                }
+            }
+
+            // Determine grade and isCorrect
+            let (gradeString, isCorrect) = determineGradeAndCorrectness(for: questionWithGrade)
+
+            // Build archived question data
+            let questionData: [String: Any] = [
+                "id": UUID().uuidString,
+                "userId": userId,
+                "subject": subject,
+                "questionText": question.displayText,
+                "rawQuestionText": question.displayText,  // Use same as questionText for Pro Mode
+                "answerText": question.displayStudentAnswer,
+                "confidence": 0.95,  // High confidence for Pro Mode
+                "hasVisualElements": imagePath != nil,
+                "questionImageUrl": imagePath ?? "",  // File path to cropped image
+                "archivedAt": ISO8601DateFormatter().string(from: Date()),
+                "reviewCount": 0,
+                "tags": [],
+                "notes": "",
+                "studentAnswer": question.displayStudentAnswer,
+                "grade": gradeString,
+                "points": questionWithGrade.grade?.score ?? 0.0,
+                "maxPoints": 1.0,
+                "feedback": questionWithGrade.grade?.feedback ?? "",
+                "isGraded": questionWithGrade.grade != nil,
+                "isCorrect": isCorrect,
+                "questionType": question.questionType ?? "short_answer",
+                "options": [],
+                "proMode": true  // Mark as Pro Mode question
+            ]
+
+            questionsToArchive.append(questionData)
+            print("   📝 [Archive] Prepared Q\(questionId): \(question.displayText.prefix(50))...")
+        }
+
+        // Save to local storage
+        QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
+
+        print("✅ [Archive] Successfully archived \(questionsToArchive.count) Pro Mode questions")
+    }
+
+    /// Determine grade string and isCorrect status for a question
+    private func determineGradeAndCorrectness(for questionWithGrade: ProgressiveQuestionWithGrade) -> (gradeString: String, isCorrect: Bool) {
+        // For parent questions with subquestions
+        if questionWithGrade.isParentQuestion {
+            let totalSubquestions = questionWithGrade.totalSubquestionsCount
+            let correctSubquestions = questionWithGrade.subquestionGrades.values.filter { $0.isCorrect }.count
+
+            if correctSubquestions == totalSubquestions {
+                return ("CORRECT", true)
+            } else if correctSubquestions == 0 {
+                return ("INCORRECT", false)
+            } else {
+                return ("PARTIAL_CREDIT", false)
+            }
+        }
+
+        // For regular questions
+        if let grade = questionWithGrade.grade {
+            if grade.isCorrect {
+                return ("CORRECT", true)
+            } else if grade.score == 0 {
+                return ("INCORRECT", false)
+            } else {
+                return ("PARTIAL_CREDIT", false)
+            }
+        }
+
+        // Not graded
+        return ("", false)
     }
 
     func markProgress() {
@@ -443,11 +540,12 @@ class DigitalHomeworkViewModel: ObservableObject {
     func batchArchiveSelected() async {
         guard !selectedQuestionIds.isEmpty else { return }
 
-        print("📦 Archiving \(selectedQuestionIds.count) questions...")
+        print("📦 [Archive] Batch archiving \(selectedQuestionIds.count) Pro Mode questions...")
 
-        // TODO: Implement batch archiving via QuestionArchiveService
-        // For now, remove selected questions from the list
+        // Archive all selected questions
+        await archiveQuestions(Array(selectedQuestionIds))
 
+        // Remove archived questions from the list
         await MainActor.run {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 questions.removeAll { selectedQuestionIds.contains($0.question.id) }
@@ -456,7 +554,7 @@ class DigitalHomeworkViewModel: ObservableObject {
             }
         }
 
-        print("✅ Archived \(selectedQuestionIds.count) questions")
+        print("✅ [Archive] Batch archive completed")
     }
 
     // MARK: - Helper Methods

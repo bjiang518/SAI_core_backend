@@ -1409,6 +1409,10 @@ class QuestionLocalStorage {
         // Extract rawQuestionText from storage
         let rawQuestionText = data["rawQuestionText"] as? String
 
+        // Pro Mode fields
+        let questionImageUrl = data["questionImageUrl"] as? String
+        let proMode = data["proMode"] as? Bool
+
         return QuestionSummary(
             id: id,
             subject: subject,
@@ -1425,7 +1429,9 @@ class QuestionLocalStorage {
             maxPoints: maxPoints,
             isGraded: isGraded,
             questionType: questionType,
-            options: options
+            options: options,
+            questionImageUrl: questionImageUrl,
+            proMode: proMode
         )
     }
 }
