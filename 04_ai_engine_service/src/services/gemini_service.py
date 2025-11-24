@@ -454,7 +454,7 @@ SCANNING RULES
 SUBQUESTION EXTRACTION (MOST CRITICAL)
 ================================================================================
 
-⚠️ MANY AI MODELS GET THIS WRONG ⚠️
+⚠️ MANY AI MODELS GET THIS WRONG - READ CAREFULLY ⚠️
 
 IF parent question detected:
 
@@ -462,22 +462,46 @@ IF parent question detected:
 
 2. Scan for NEXT sequential: a→b→c→d→e→f→g...
 
-3. DO NOT STOP based on parent_content:
-   Parent says "in a-b" → STILL scan for c, d, e, f...
+3. DO NOT STOP based on what parent_content says:
+   - Parent says "in a-b" → STILL scan for c, d, e, f...
+   - Parent says "solve the following" → Check for ALL letters
+   - Ignore any mention of range in parent text
 
 4. ONLY STOP when you see:
    - Next top-level number (e.g., "3." after "2f")
    - Major section divider ("Part II")
    - End of page
 
-5. Extract ALL, even if student_answer is blank (use "")
+5. Extract ALL subquestions, even if student_answer is blank (use "")
 
-EXAMPLE:
-Parent: "Solve problems in a-b."
-Image shows: a) ... b) ... c) ... d) ...
+CRITICAL EXAMPLE (This pattern appears frequently):
 
-✅ Extract: a, b, c, d (ignore "in a-b" limit)
-❌ Wrong: Only a, b
+Image shows:
+  "2. Find one more or one less. Identify the digit in a-b.
+   a. What number is one more than 64? ___
+   b. What number is one less than 40? ___
+   c. Alex counted 34 ducks. One less duckling. How many ducklings?
+   d. Sally has 19 stickers. Gia has one more. How many stickers?"
+
+Parent says: "in a-b"
+BUT image shows: a, b, c, d (FOUR parts, not two)
+
+❌ WRONG (stops at b):
+{
+  "subquestions": [{"id": "2a", ...}, {"id": "2b", ...}]
+}
+
+✅ CORRECT (extracts ALL):
+{
+  "subquestions": [
+    {"id": "2a", ...},
+    {"id": "2b", ...},
+    {"id": "2c", ...},  // ← Must extract even though parent only said "a-b"
+    {"id": "2d", ...}   // ← Must extract
+  ]
+}
+
+RULE: Scan until next question number, NOT until parent_content limit
 
 ================================================================================
 ANSWER EXTRACTION
@@ -498,6 +522,16 @@ Question: "___ = ___ tens ___ ones"
 Student wrote: "65", "6", "5"
 ✅ CORRECT: "65 = 6 tens 5 ones" (preserve structure)
 ❌ WRONG: "65" (incomplete)
+
+MULTIPLE ANSWERS FOR ONE QUESTION:
+If question has TWO+ parts with separate answers:
+
+Example:
+"Which letter is right of o? Which letter is left of t?"
+Student wrote: "r" (for first), "r" (for second)
+
+✅ CORRECT: "r (right of o), r (left of t)" (label each answer)
+❌ WRONG: "r" (missing second answer)
 
 ================================================================================
 JSON STRUCTURE
