@@ -1842,7 +1842,7 @@ class NetworkService: ObservableObject {
     // MARK: - Batch Homework Processing
 
     /// Process multiple homework images with batch API
-    func processHomeworkImagesBatch(base64Images: [String], prompt: String = "", subject: String? = nil, parsingMode: String = "hierarchical") async -> (success: Bool, responses: [[String: Any]]?, totalImages: Int, successCount: Int) {
+    func processHomeworkImagesBatch(base64Images: [String], prompt: String = "", subject: String? = nil, parsingMode: String = "hierarchical", modelProvider: String = "openai") async -> (success: Bool, responses: [[String: Any]]?, totalImages: Int, successCount: Int) {
         guard let url = URL(string: "\(baseURL)/api/ai/process-homework-images-batch") else {
             return (false, nil, base64Images.count, 0)
         }
@@ -1885,7 +1885,8 @@ class NetworkService: ObservableObject {
             "prompt": enhancedPrompt,
             "student_id": "ios_user",
             "include_subject_detection": true,
-            "parsing_mode": parsingMode  // Pass parsing mode to backend
+            "parsing_mode": parsingMode,  // Pass parsing mode to backend
+            "model_provider": modelProvider  // NEW: Pass AI model selection (OpenAI/Gemini)
         ]
 
         // Add subject if provided by user
