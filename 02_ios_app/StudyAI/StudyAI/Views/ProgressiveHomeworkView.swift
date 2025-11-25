@@ -18,6 +18,11 @@ struct ProgressiveHomeworkView: View {
     let preParsedQuestions: ParseHomeworkQuestionsResponse?  // NEW: Optional pre-parsed questions
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme  // For icon selection
+
+    // AI Model selection (OpenAI vs Gemini)
+    @AppStorage("selectedAIModel") private var selectedAIModel: String = "openai"
+    @State private var showModelSelection = true  // Show model selection before processing
 
     // MARK: - Initialization
 
@@ -36,7 +41,10 @@ struct ProgressiveHomeworkView: View {
             Color(.systemGroupedBackground)
                 .ignoresSafeArea()
 
-            if viewModel.isLoading && viewModel.state.questions.isEmpty {
+            if showModelSelection {
+                // Model selection screen
+                modelSelectionView
+            } else if viewModel.isLoading && viewModel.state.questions.isEmpty {
                 // Loading state - Phase 1 parsing
                 loadingView
             } else {
@@ -83,15 +91,6 @@ struct ProgressiveHomeworkView: View {
                 }
             }
         }
-        .task {
-            // Start processing when view appears
-            // If Pro Mode provided pre-parsed questions, use them (skip Phase 1)
-            await viewModel.processHomework(
-                originalImage: originalImage,
-                base64Image: base64Image,
-                preParsedQuestions: preParsedQuestions
-            )
-        }
     }
 
     // MARK: - Loading View
@@ -110,6 +109,145 @@ struct ProgressiveHomeworkView: View {
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Model Selection View
+
+    private var modelSelectionView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            // Title
+            VStack(spacing: 8) {
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 50))
+                    .foregroundColor(.blue)
+
+                Text("Select AI Model")
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text("Choose the AI model for grading")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            // Model selection card
+            VStack(alignment: .leading, spacing: 16) {
+                Text("AI Model")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+
+                // iOS Native Segmented Control Style
+                HStack(spacing: 4) {
+                    // OpenAI Option
+                    aiModelSegmentButton(
+                        model: "openai",
+                        icon: colorScheme == .dark ? "openai-dark" : "openai-light",
+                        label: "OpenAI",
+                        description: "GPT-4o-mini: Proven accuracy"
+                    )
+
+                    // Gemini Option
+                    aiModelSegmentButton(
+                        model: "gemini",
+                        icon: "gemini-icon",
+                        label: "Gemini",
+                        description: "Gemini 2.5: Advanced reasoning"
+                    )
+                }
+                .padding(4)
+                .background(Color(UIColor.secondarySystemGroupedBackground))
+                .cornerRadius(12)
+            }
+            .padding(20)
+            .background(Color(UIColor.systemGroupedBackground))
+            .cornerRadius(16)
+            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+            .padding(.horizontal)
+
+            // Start grading button
+            Button {
+                withAnimation {
+                    showModelSelection = false
+                }
+                // Start processing
+                Task {
+                    await viewModel.processHomework(
+                        originalImage: originalImage,
+                        base64Image: base64Image,
+                        preParsedQuestions: preParsedQuestions,
+                        modelProvider: selectedAIModel
+                    )
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.headline)
+
+                    Text("Start Grading")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(12)
+                .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
+            }
+            .padding(.horizontal)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - AI Model Segment Button
+
+    private func aiModelSegmentButton(model: String, icon: String, label: String, description: String) -> some View {
+        let isSelected = selectedAIModel == model
+
+        return Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                selectedAIModel = model
+                let generator = UIImpactFeedbackGenerator(style: .light)
+                generator.impactOccurred()
+            }
+        }) {
+            VStack(spacing: 8) {
+                Image(icon)
+                    .resizable()
+                    .renderingMode(.original)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 32, height: 32)
+
+                Text(label)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+
+                Text(description)
+                    .font(.caption2)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+            .foregroundColor(isSelected ? .primary : .secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .padding(.horizontal, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isSelected ? Color(UIColor.systemBackground) : Color.clear)
+                    .shadow(color: isSelected ? Color.black.opacity(0.1) : Color.clear, radius: 3, x: 0, y: 2)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 
     // MARK: - Header Section
