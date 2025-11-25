@@ -425,24 +425,57 @@ class GeminiEducationalAIService:
                 }
                 timeout = 45
 
-            # Call Gemini API (NEW or LEGACY)
-            if GEMINI_NEW_API:
-                # NEW API: client.models.generate_content(model="...", contents=...)
-                response = selected_client.models.generate_content(
-                    model=model_name,
-                    contents=content,
-                    config=generation_config
-                )
-            else:
-                # LEGACY API: client.generate_content(content, generation_config=...)
-                response = selected_client.generate_content(
-                    content,
-                    generation_config=generation_config,
-                    request_options={"timeout": timeout}
-                )
+            # Call Gemini API (NEW or LEGACY) with fallback on 503 errors
+            response = None
+            fallback_attempted = False
+
+            try:
+                if GEMINI_NEW_API:
+                    # NEW API: client.models.generate_content(model="...", contents=...)
+                    response = selected_client.models.generate_content(
+                        model=model_name,
+                        contents=content,
+                        config=generation_config
+                    )
+                else:
+                    # LEGACY API: client.generate_content(content, generation_config=...)
+                    response = selected_client.generate_content(
+                        content,
+                        generation_config=generation_config,
+                        request_options={"timeout": timeout}
+                    )
+            except Exception as e:
+                # Check if it's a 503 error (model overloaded/unavailable)
+                if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
+                    print(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
+                    fallback_attempted = True
+
+                    # Fallback to gemini-2.5-flash (proven to work)
+                    fallback_model = "gemini-2.5-flash"
+
+                    if GEMINI_NEW_API:
+                        response = selected_client.models.generate_content(
+                            model=fallback_model,
+                            contents=content,
+                            config=generation_config
+                        )
+                    else:
+                        # For LEGACY API, use the standard client
+                        response = self.client.generate_content(
+                            content,
+                            generation_config=generation_config,
+                            request_options={"timeout": timeout}
+                        )
+                    print(f"✅ Fallback to {fallback_model} successful")
+                else:
+                    # Re-raise other errors
+                    raise
 
             api_duration = time.time() - start_time
-            print(f"✅ Grading completed in {api_duration:.2f}s")
+            if fallback_attempted:
+                print(f"✅ Grading completed with fallback in {api_duration:.2f}s")
+            else:
+                print(f"✅ Grading completed in {api_duration:.2f}s")
 
             # Parse JSON response (safely handle complex responses)
             raw_response = self._extract_response_text(response)
