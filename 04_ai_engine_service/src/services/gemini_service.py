@@ -74,22 +74,21 @@ class GeminiEducationalAIService:
                     self.gemini_client = genai.Client(api_key=api_key)
 
                     # Model names (NEW API uses different naming)
-                    # - gemini-2.5-flash: Fast lightweight grading (standard mode)
+                    # - gemini-2.5-flash: Parsing & Grading (faster + stronger than 2.0)
                     # - gemini-3-pro-preview: Advanced reasoning (deep thinking mode)
-                    # - gemini-2.0-flash: Legacy fast parsing
-                    self.model_name = "gemini-2.0-flash"
-                    self.thinking_model_name = "gemini-3-pro-preview"  # NEW: Deep thinking
-                    self.grading_model_name = "gemini-2.5-flash"  # NEW: Lightweight grading
+                    self.model_name = "gemini-2.5-flash"  # UPGRADED: 2.0 → 2.5 for better parsing
+                    self.thinking_model_name = "gemini-3-pro-preview"  # Deep thinking
+                    self.grading_model_name = "gemini-2.5-flash"  # Lightweight grading
 
                     # Set client references (for compatibility)
                     self.client = self.gemini_client
                     self.thinking_client = self.gemini_client
                     self.grading_client = self.gemini_client
 
-                    print(f"✅ Gemini standard model: {self.model_name} (Flash - Fast & Stable)")
+                    print(f"✅ Gemini parsing model: {self.model_name} (Flash 2.5 - Enhanced)")
                     print(f"✅ Gemini grading model: {self.grading_model_name} (Flash 2.5 - Lightweight)")
                     print(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 3.0 Pro - Deep Reasoning)")
-                    print(f"📊 Features: Fast processing, multimodal vision, excellent OCR, deep reasoning")
+                    print(f"📊 Features: Enhanced parsing, fast grading, multimodal vision, deep reasoning")
 
                 # LEGACY API (backward compatibility)
                 else:
