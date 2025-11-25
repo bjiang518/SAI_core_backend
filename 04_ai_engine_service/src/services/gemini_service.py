@@ -447,11 +447,11 @@ class GeminiEducationalAIService:
             except Exception as e:
                 # Check if it's a 503 error (model overloaded/unavailable)
                 if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
-                    print(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
+                    print(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-pro...")
                     fallback_attempted = True
 
-                    # Fallback to gemini-2.5-flash (proven to work)
-                    fallback_model = "gemini-2.5-flash"
+                    # Fallback to gemini-2.5-pro (stronger reasoning for grading)
+                    fallback_model = "gemini-2.5-pro"
 
                     if GEMINI_NEW_API:
                         response = selected_client.models.generate_content(
