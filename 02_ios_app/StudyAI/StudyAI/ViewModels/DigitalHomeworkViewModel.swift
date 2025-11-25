@@ -33,6 +33,9 @@ class DigitalHomeworkViewModel: ObservableObject {
     @Published var isArchiveMode = false
     @Published var selectedQuestionIds: Set<Int> = []
 
+    // Deep reasoning mode (深度批改模式)
+    @Published var useDeepReasoning = false
+
     // MARK: - Private Properties
 
     private var parseResults: ParseHomeworkQuestionsResponse?
@@ -317,12 +320,13 @@ class DigitalHomeworkViewModel: ObservableObject {
                 // Get context image if available
                 let contextImage = getCroppedImageBase64(for: question.id)
 
-                // Call grading endpoint
+                // Call grading endpoint with deep reasoning flag
                 let response = try await networkService.gradeSingleQuestion(
                     questionText: question.displayText,
                     studentAnswer: question.displayStudentAnswer,
                     subject: subject,
-                    contextImageBase64: contextImage
+                    contextImageBase64: contextImage,
+                    useDeepReasoning: useDeepReasoning  // Pass deep reasoning mode
                 )
 
                 if response.success, let grade = response.grade {
@@ -351,12 +355,13 @@ class DigitalHomeworkViewModel: ObservableObject {
             // Get context image from parent question if available
             let contextImage = getCroppedImageBase64(for: parentQuestionId)
 
-            // Call grading endpoint
+            // Call grading endpoint with deep reasoning flag
             let response = try await networkService.gradeSingleQuestion(
                 questionText: subquestion.questionText,
                 studentAnswer: subquestion.studentAnswer,
                 subject: subject,
-                contextImageBase64: contextImage
+                contextImageBase64: contextImage,
+                useDeepReasoning: useDeepReasoning  // Pass deep reasoning mode
             )
 
             if response.success, let grade = response.grade {

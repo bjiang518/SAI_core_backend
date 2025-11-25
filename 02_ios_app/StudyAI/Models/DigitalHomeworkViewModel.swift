@@ -33,6 +33,9 @@ class DigitalHomeworkViewModel: ObservableObject {
     @Published var isArchiveMode = false
     @Published var selectedQuestionIds: Set<Int> = []
 
+    // Deep reasoning mode (深度批改模式)
+    @Published var useDeepReasoning = false
+
     // MARK: - Private Properties
 
     private var parseResults: ParseHomeworkQuestionsResponse?
@@ -82,7 +85,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     // MARK: - Annotation Management
 
     func addAnnotation(at point: CGPoint, imageSize: CGSize) {
-        guard let originalImage = originalImage else { return }
+        guard originalImage != nil else { return }
 
         // Calculate normalized coordinates
         let normalizedTopLeft = [
@@ -121,6 +124,16 @@ class DigitalHomeworkViewModel: ObservableObject {
     }
 
     func deleteAnnotation(id: UUID) {
+        // Find the annotation to get its question number
+        if let annotation = annotations.first(where: { $0.id == id }),
+           let questionNumber = annotation.questionNumber,
+           let questionId = parseResults?.questions.first(where: { $0.questionNumber == questionNumber })?.id {
+            // Remove the cropped image for this question
+            croppedImages.removeValue(forKey: questionId)
+            print("🗑️ Removed cropped image for question \(questionNumber) (id: \(questionId))")
+        }
+
+        // Remove the annotation
         annotations.removeAll { $0.id == id }
         if selectedAnnotationId == id {
             selectedAnnotationId = nil
@@ -272,12 +285,13 @@ class DigitalHomeworkViewModel: ObservableObject {
                 // Get context image if available
                 let contextImage = getCroppedImageBase64(for: question.id)
 
-                // Call grading endpoint
+                // Call grading endpoint with deep reasoning flag
                 let response = try await networkService.gradeSingleQuestion(
                     questionText: question.displayText,
                     studentAnswer: question.displayStudentAnswer,
                     subject: subject,
-                    contextImageBase64: contextImage
+                    contextImageBase64: contextImage,
+                    useDeepReasoning: useDeepReasoning  // Pass deep reasoning mode
                 )
 
                 if response.success, let grade = response.grade {
@@ -306,12 +320,13 @@ class DigitalHomeworkViewModel: ObservableObject {
             // Get context image from parent question if available
             let contextImage = getCroppedImageBase64(for: parentQuestionId)
 
-            // Call grading endpoint
+            // Call grading endpoint with deep reasoning flag
             let response = try await networkService.gradeSingleQuestion(
                 questionText: subquestion.questionText,
                 studentAnswer: subquestion.studentAnswer,
                 subject: subject,
-                contextImageBase64: contextImage
+                contextImageBase64: contextImage,
+                useDeepReasoning: useDeepReasoning  // Pass deep reasoning mode
             )
 
             if response.success, let grade = response.grade {

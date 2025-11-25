@@ -188,9 +188,9 @@ struct DigitalHomeworkView: View {
                                 .frame(height: 100)
                         }
                     }
-                    .onChange(of: viewModel.selectedAnnotationId) { selectedId in
+                    .onChange(of: viewModel.selectedAnnotationId) { oldValue, newValue in
                         // Auto-scroll to corresponding question when annotation is selected
-                        if let annotation = viewModel.annotations.first(where: { $0.id == selectedId }),
+                        if let annotation = viewModel.annotations.first(where: { $0.id == newValue }),
                            let questionNumber = annotation.questionNumber,
                            let question = viewModel.questions.first(where: { $0.question.questionNumber == questionNumber }) {
                             withAnimation {
@@ -637,6 +637,41 @@ struct DigitalHomeworkView: View {
                 }
             }
 
+            // Deep reasoning mode toggle (省督批改开关)
+            if !viewModel.isGrading {
+                HStack {
+                    Toggle(isOn: $viewModel.useDeepReasoning) {
+                        HStack(spacing: 8) {
+                            Image(systemName: viewModel.useDeepReasoning ? "brain.head.profile.fill" : "brain.head.profile")
+                                .font(.body)
+                                .foregroundColor(viewModel.useDeepReasoning ? .purple : .secondary)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("深度批改模式")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.primary)
+
+                                Text(viewModel.useDeepReasoning ? "AI将深度推理分析 (较慢但更准确)" : "标准批改速度 (快速但可能不够深入)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .toggleStyle(SwitchToggleStyle(tint: .purple))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(viewModel.useDeepReasoning ? Color.purple.opacity(0.1) : Color(.systemGray6))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(viewModel.useDeepReasoning ? Color.purple.opacity(0.3) : Color.clear, lineWidth: 1)
+                )
+            }
+
             // Grade button
             Button(action: {
                 Task {
@@ -644,9 +679,9 @@ struct DigitalHomeworkView: View {
                 }
             }) {
                 HStack(spacing: 12) {
-                    Image(systemName: "checkmark.seal.fill")
+                    Image(systemName: viewModel.useDeepReasoning ? "brain.head.profile.fill" : "checkmark.seal.fill")
                         .font(.title3)
-                    Text("AI 批改作业")
+                    Text(viewModel.useDeepReasoning ? "深度批改作业" : "AI 批改作业")
                         .font(.headline)
                         .fontWeight(.bold)
                 }
@@ -655,13 +690,13 @@ struct DigitalHomeworkView: View {
                 .padding(.vertical, 16)
                 .background(
                     LinearGradient(
-                        colors: [Color.green, Color.green.opacity(0.8)],
+                        colors: viewModel.useDeepReasoning ? [Color.purple, Color.purple.opacity(0.8)] : [Color.green, Color.green.opacity(0.8)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
                 .cornerRadius(16)
-                .shadow(color: Color.green.opacity(0.3), radius: 8, x: 0, y: 4)
+                .shadow(color: (viewModel.useDeepReasoning ? Color.purple : Color.green).opacity(0.3), radius: 8, x: 0, y: 4)
             }
             .disabled(viewModel.isGrading)
             .opacity(viewModel.isGrading ? 0.6 : 1.0)
@@ -842,7 +877,7 @@ struct AnnotationQuestionPreviewCard: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.blue)
 
-                if let image = croppedImage {
+                if croppedImage != nil {
                     Image(systemName: "photo.fill")
                         .font(.caption2)
                         .foregroundColor(.green)

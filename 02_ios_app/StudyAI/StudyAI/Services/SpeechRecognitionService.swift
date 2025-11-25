@@ -88,22 +88,45 @@ class SpeechRecognitionService: NSObject, ObservableObject {
     }
     
     private func requestMicrophonePermission() async -> AVAudioSession.RecordPermission {
-        return await withCheckedContinuation { continuation in
-            if #available(iOS 17.0, *) {
-                AVAudioApplication.requestRecordPermission { granted in
-                    // ✅ Use the granted parameter directly (same pattern as iOS < 17)
-                    let status: AVAudioSession.RecordPermission = granted ? .granted : .denied
-                    continuation.resume(returning: status)
+        // iOS 17+ uses AVAudioApplication.recordPermission, but we need to return AVAudioSession.RecordPermission
+        // The enum cases .granted/.denied are deprecated but we suppress warnings since this is a compatibility bridge
+        #if compiler(>=6.0)
+        #warning("TODO: Refactor to use AVAudioApplication.recordPermission directly when minimum deployment target is iOS 17+")
+        #endif
+
+        if #available(iOS 17.0, *) {
+            // Use new iOS 17+ API
+            let permission = AVAudioApplication.shared.recordPermission
+
+            // Bridge to legacy enum - comparing enum values directly
+            // Note: These comparisons use the new iOS 17 API which returns the same enum type
+            switch permission {
+            case .granted:
+                return .granted
+            case .denied:
+                return .denied
+            case .undetermined:
+                // Permission is undetermined, request it
+                let granted = await withCheckedContinuation { continuation in
+                    AVAudioApplication.requestRecordPermission { granted in
+                        continuation.resume(returning: granted)
+                    }
                 }
-            } else {
+                return granted ? .granted : .denied
+            @unknown default:
+                return .undetermined
+            }
+        } else {
+            // iOS 16 and earlier
+            let granted = await withCheckedContinuation { continuation in
                 AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                    let status: AVAudioSession.RecordPermission = granted ? .granted : .denied
-                    continuation.resume(returning: status)
+                    continuation.resume(returning: granted)
                 }
             }
+            return granted ? .granted : .denied
         }
     }
-    
+
     @MainActor
     private func updatePermissionStatus(speechStatus: SFSpeechRecognizerAuthorizationStatus, microphoneStatus: AVAudioSession.RecordPermission) {
         switch (speechStatus, microphoneStatus) {
