@@ -206,6 +206,9 @@ struct DirectAIHomeworkView: View {
     @AppStorage("selectedAIModel") private var selectedAIModel: String = "openai"
     @State private var showModelInfo: Bool = false
 
+    // Namespace for matched geometry effect (liquid glass animation)
+    @Namespace private var animationNamespace
+
     // Pro Mode states (NEW FLOW)
     @State private var showProModeSummary = false  // Show summary view after parsing
     @State private var proModeParsedQuestions: ParseHomeworkQuestionsResponse? = nil  // Parsed questions
@@ -709,15 +712,21 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Initial Image Preview
     private var initialImagePreview: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {  // Increased spacing for breathing room
             // Show enlarged single image or grid for multiple images
             imageDisplaySection
 
-            // Subject & AI Model Selection (Combined in one row)
-            subjectSelectionSection
+            // Configuration Cards Section
+            VStack(spacing: 8) {  // Reduced from 12 to 8 for more compact layout
+                // Subject Selection Card
+                subjectSelectionCard
 
-            // Parsing Mode Selection
-            parsingModeSection
+                // AI Model Selection Card
+                aiModelSelectionCard
+
+                // Parsing Mode Selection Card
+                parsingModeCard
+            }
 
             // Primary Action - Ask AI Button (Most Prominent)
             analyzeButton
@@ -737,7 +746,6 @@ struct DirectAIHomeworkView: View {
                         .transition(.scale.combined(with: .opacity))
 
                     editImageButton
-                    editImageInfoButton
                 }
             } else if !stateManager.capturedImages.isEmpty {
                 imageGridView
@@ -751,268 +759,292 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Edit Image Button
     private var editImageButton: some View {
-        Button(action: {
-            // Haptic feedback
-            let generator = UIImpactFeedbackGenerator(style: .medium)
-            generator.impactOccurred()
+        ZStack(alignment: .topTrailing) {
+            // Main button
+            Button(action: {
+                // Haptic feedback
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
 
-            // Edit the image
-            if let selectedIndex = stateManager.selectedImageIndices.first {
-                stateManager.selectedImageIndex = selectedIndex
-                stateManager.originalImage = stateManager.capturedImages[selectedIndex]
-                showingImageEditor = true
-            } else {
-                // Default to first image
-                stateManager.selectedImageIndex = 0
-                stateManager.originalImage = stateManager.capturedImages[0]
-                showingImageEditor = true
+                // Edit the image
+                if let selectedIndex = stateManager.selectedImageIndices.first {
+                    stateManager.selectedImageIndex = selectedIndex
+                    stateManager.originalImage = stateManager.capturedImages[selectedIndex]
+                    showingImageEditor = true
+                } else {
+                    // Default to first image
+                    stateManager.selectedImageIndex = 0
+                    stateManager.originalImage = stateManager.capturedImages[0]
+                    showingImageEditor = true
+                }
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "pencil.circle")
+                        .font(.title3)
+                    Text(NSLocalizedString("aiHomework.editImage", comment: ""))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+                .foregroundColor(.orange)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(Color.orange.opacity(0.08))
+                .cornerRadius(12)
             }
-        }) {
-            HStack(spacing: 8) {
-                Image(systemName: "pencil.circle")
-                    .font(.title3)
-                Text(NSLocalizedString("aiHomework.editImage", comment: ""))
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
-            .foregroundColor(.orange)  // CHANGED from .blue to .orange (yellow)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(Color.orange.opacity(0.08))  // CHANGED from .blue to .orange
-            .cornerRadius(12)
-        }
-        .padding(.horizontal)
-        .padding(.top, 4)  // REDUCED from 8 to 4 for more compact layout
-    }
 
-    // MARK: - Edit Image Info Button
-    private var editImageInfoButton: some View {
-        Button(action: {
-            showingEditImageInfo = true
-        }) {
-            HStack(spacing: 4) {
+            // Info button on top-right
+            Button(action: {
+                showingEditImageInfo = true
+            }) {
                 Image(systemName: "info.circle")
                     .font(.caption)
-                Text("Image editing tips")
-                    .font(.caption2)
+                    .foregroundColor(.orange)
+                    .padding(8)
+                    .background(Circle().fill(Color.white))
             }
-            .foregroundColor(.secondary)
+            .offset(x: -8, y: 4)  // Position at top-right corner
         }
         .padding(.horizontal)
-        .padding(.top, 2)
+        .padding(.top, 4)
     }
 
-    // MARK: - Subject Selection & AI Model Section (Combined in one row)
-    private var subjectSelectionSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Subject & AI Model")
+    // MARK: - Subject Selection Card
+    private var subjectSelectionCard: some View {
+        HStack(spacing: 12) {
+            // Label on left
+            Text("Subject")
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundColor(.secondary)
+                .frame(width: 70, alignment: .leading)
 
-            HStack(spacing: 12) {
-                // Subject dropdown (shorter width)
-                Menu {
-                    ForEach(availableSubjects, id: \.self) { subject in
-                        Button(action: {
-                            selectedSubject = subject
-                        }) {
-                            HStack {
-                                Text(subject)
-                                if selectedSubject == subject {
-                                    Image(systemName: "checkmark")
-                                }
+            // Dropdown on right
+            Menu {
+                ForEach(availableSubjects, id: \.self) { subject in
+                    Button(action: {
+                        selectedSubject = subject
+                    }) {
+                        HStack {
+                            Text(subject)
+                            if selectedSubject == subject {
+                                Image(systemName: "checkmark")
                             }
                         }
                     }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: getSubjectIcon(selectedSubject))
-                            .foregroundColor(.purple)
-                            .font(.body)
-                        Text(selectedSubject)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                        Image(systemName: "chevron.down")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Color.purple.opacity(0.1))
-                    .cornerRadius(10)
                 }
-                .buttonStyle(PlainButtonStyle())
-                .frame(maxWidth: 160)  // Limit subject dropdown width
-
-                // AI Model icons (glassmorphism buttons)
-                aiModelGlassIconButtons
+            } label: {
+                HStack {
+                    Image(systemName: getSubjectIcon(selectedSubject))
+                        .foregroundColor(.blue)
+                        .font(.body)
+                    Text(selectedSubject)
+                        .font(.body)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Color(UIColor.secondarySystemGroupedBackground))
+                .cornerRadius(8)
             }
+            .buttonStyle(PlainButtonStyle())
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(UIColor.systemGroupedBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         .padding(.horizontal)
-        .padding(.top, 8)
     }
 
-    // MARK: - AI Model Glass Icon Buttons
-    private var aiModelGlassIconButtons: some View {
+    // MARK: - AI Model Selection Card
+    private var aiModelSelectionCard: some View {
         HStack(spacing: 12) {
-            // OpenAI Button (auto-adapts to Light/Dark mode)
-            aiModelGlassButton(
-                model: .openai,
-                lightModeImage: "openai-light",   // Light mode icon
-                darkModeImage: "openai-dark"      // Dark mode icon
-            )
+            // Label on left
+            Text("Model")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+                .frame(width: 70, alignment: .leading)
 
-            // Gemini Button (single icon works for both modes)
-            aiModelGlassButton(
-                model: .gemini,
-                lightModeImage: "gemini-icon",
-                darkModeImage: "gemini-icon"
-            )
+            // Liquid Glass Segmented Control
+            ZStack(alignment: .leading) {
+                // Background track
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(UIColor.secondarySystemGroupedBackground))
+                    .frame(height: 40)
+
+                // Animated liquid glass indicator
+                GeometryReader { geometry in
+                    let selectedIndex = AIModel.allCases.firstIndex(where: { $0.rawValue == selectedAIModel }) ?? 0
+                    let segmentWidth = geometry.size.width / CGFloat(AIModel.allCases.count)
+
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color(UIColor.systemBackground))
+                        .frame(width: segmentWidth - 8, height: 32)
+                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        .offset(x: CGFloat(selectedIndex) * segmentWidth + 4, y: 4)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selectedAIModel)
+                        .matchedGeometryEffect(id: "aiModelSelector", in: animationNamespace)
+                }
+                .frame(height: 40)
+
+                // Option buttons
+                HStack(spacing: 0) {
+                    ForEach(AIModel.allCases, id: \.self) { model in
+                        aiModelLiquidButton(model: model)
+                    }
+                }
+            }
+            .padding(4)
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(UIColor.systemGroupedBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .padding(.horizontal)
     }
 
-    // MARK: - Single AI Model Glass Button
-    private func aiModelGlassButton(model: AIModel, lightModeImage: String, darkModeImage: String) -> some View {
+    // MARK: - AI Model Liquid Button
+    private func aiModelLiquidButton(model: AIModel) -> some View {
         let isSelected = selectedAIModel == model.rawValue
+        let icon = model == .openai ?
+            (colorScheme == .dark ? "openai-dark" : "openai-light") :
+            "gemini-icon"
 
         return Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                 selectedAIModel = model.rawValue
 
-                // Haptic feedback
+                // Haptic feedback - light tap for smooth experience
                 let generator = UIImpactFeedbackGenerator(style: .light)
                 generator.impactOccurred()
             }
         }) {
-            ZStack {
-                // Glassmorphism background
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(
-                        LinearGradient(
-                            colors: isSelected ?
-                                [Color.white.opacity(0.4), Color.white.opacity(0.2)] :
-                                [Color.white.opacity(0.2), Color.white.opacity(0.1)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.05))
-                            .blur(radius: 10)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                LinearGradient(
-                                    colors: isSelected ?
-                                        [Color.white.opacity(0.6), Color.white.opacity(0.3)] :
-                                        [Color.white.opacity(0.3), Color.white.opacity(0.1)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: isSelected ? 2 : 1
-                            )
-                    )
-                    .shadow(color: isSelected ? Color.blue.opacity(0.3) : Color.clear, radius: 8, x: 0, y: 4)
-
-                // Model icon (adapts to Light/Dark mode)
-                Image(colorScheme == .dark ? darkModeImage : lightModeImage)
+            HStack(spacing: 6) {
+                Image(icon)
                     .resizable()
-                    .renderingMode(.template)
+                    .renderingMode(.original)
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 32, height: 32)
-                    .foregroundColor(isSelected ? .blue : .gray.opacity(0.6))
+                    .frame(width: 18, height: 18)
+
+                Text(model.displayName)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
             }
-            .frame(width: 56, height: 56)
+            .foregroundColor(isSelected ? .primary : .secondary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 40)
+            .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
     }
 
-    // MARK: - Parsing Mode Section
-    private var parsingModeSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(NSLocalizedString("aiHomework.parsingMode.title", comment: ""))
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
+    // MARK: - Parsing Mode Card
+    private var parsingModeCard: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                // Label on left
+                HStack(spacing: 4) {
+                    Text("Mode")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
 
-                Button(action: {
-                    showModeInfo.toggle()
-                }) {
-                    Image(systemName: "info.circle")
-                        .font(.caption)
-                        .foregroundColor(.blue)
+                    Button(action: {
+                        showModeInfo.toggle()
+                    }) {
+                        Image(systemName: "info.circle")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
                 }
-            }
+                .frame(width: 70, alignment: .leading)
 
-            parsingModeButtons
+                // Liquid Glass Segmented Control for Parsing Modes
+                ZStack(alignment: .leading) {
+                    // Background track
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(UIColor.secondarySystemGroupedBackground))
+                        .frame(height: 40)
+
+                    // Animated liquid glass indicator
+                    GeometryReader { geometry in
+                        let selectedIndex = ParsingMode.allCases.firstIndex(of: parsingMode) ?? 0
+                        let segmentWidth = geometry.size.width / CGFloat(ParsingMode.allCases.count)
+
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(UIColor.systemBackground))
+                            .frame(width: segmentWidth - 8, height: 32)
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                            .offset(x: CGFloat(selectedIndex) * segmentWidth + 4, y: 4)
+                            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: parsingMode)
+                            .matchedGeometryEffect(id: "parsingModeSelector", in: animationNamespace)
+                    }
+                    .frame(height: 40)
+
+                    // Option buttons
+                    HStack(spacing: 0) {
+                        ForEach(ParsingMode.allCases, id: \.self) { mode in
+                            parsingModeLiquidButton(for: mode)
+                        }
+                    }
+                }
+                .padding(4)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
 
             if showModeInfo {
-                parsingModeInfo
+                parsingModeInfoContent
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
             }
         }
+        .background(Color(UIColor.systemGroupedBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         .padding(.horizontal)
-        .padding(.top, 8)  // REDUCED from 12 to 8 for more compact layout
     }
 
-    // MARK: - Parsing Mode Buttons
-    private var parsingModeButtons: some View {
-        HStack(spacing: 12) {
-            ForEach(ParsingMode.allCases, id: \.self) { mode in
-                parsingModeButton(for: mode)
-            }
-        }
-    }
-
-    // MARK: - Single Parsing Mode Button
-    private func parsingModeButton(for mode: ParsingMode) -> some View {
+    // MARK: - Parsing Mode Liquid Button
+    private func parsingModeLiquidButton(for mode: ParsingMode) -> some View {
         let isSelected = parsingMode == mode
-        let buttonColor = mode == .baseline ? Color.green : Color.blue
 
         return Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                 parsingMode = mode
-
-                // Haptic feedback
                 let generator = UIImpactFeedbackGenerator(style: .light)
                 generator.impactOccurred()
             }
         }) {
-            HStack(spacing: 8) {
+            VStack(spacing: 4) {
                 Image(systemName: mode.icon)
-                    .font(.title3)
-                    .frame(width: 24, height: 24)
+                    .font(.body)
                 Text(mode.rawValue)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.caption)
+                    .fontWeight(.medium)
             }
-            .foregroundColor(isSelected ? buttonColor : .secondary)
+            .foregroundColor(isSelected ? .primary : .secondary)
             .frame(maxWidth: .infinity)
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? buttonColor.opacity(0.1) : Color.gray.opacity(0.05))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? buttonColor.opacity(0.4) : Color.gray.opacity(0.2), lineWidth: 1.5)
-            )
+            .frame(height: 40)
+            .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
     }
 
-    // MARK: - Parsing Mode Info
-    private var parsingModeInfo: some View {
+    // MARK: - Parsing Mode Info Content
+    private var parsingModeInfoContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(ParsingMode.allCases, id: \.self) { mode in
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: mode.icon)
-                        .foregroundColor(mode == .baseline ? .orange : .blue)
+                        .foregroundColor(.blue)
                         .font(.caption)
                         .frame(width: 20)
 
@@ -1029,13 +1061,12 @@ struct DirectAIHomeworkView: View {
                 .padding(.vertical, 4)
             }
         }
-        .padding()
+        .padding(12)
         .background(Color.blue.opacity(0.05))
-        .cornerRadius(12)
+        .cornerRadius(8)
         .transition(.opacity.combined(with: .scale))
     }
 
-    // MARK: - AI Model Selection Section
     // MARK: - Analyze Button
     private var analyzeButton: some View {
         AnimatedGradientButton(
@@ -1867,7 +1898,8 @@ struct DirectAIHomeworkView: View {
             base64Images: base64Images,
             prompt: "",
             subject: selectedSubject,  // Pass user-selected subject
-            parsingMode: parsingMode.apiValue  // Pass parsing mode
+            parsingMode: parsingMode.apiValue,  // Pass parsing mode
+            modelProvider: selectedAIModel  // NEW: Pass AI model selection (OpenAI/Gemini)
         )
 
         let processingTime = Date().timeIntervalSince(startTime)
