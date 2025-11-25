@@ -99,22 +99,21 @@ class GeminiEducationalAIService:
                     self.gemini_client = genai.Client(api_key=api_key)
 
                     # Model names (NEW API uses different naming)
-                    # - gemini-2.5-flash: Fast parsing only
-                    # - gemini-2.5-pro: Grading with advanced reasoning
-                    # - gemini-3-pro-preview: Deep thinking mode (experimental)
+                    # - gemini-2.5-flash: Fast parsing AND grading (optimized for speed)
+                    # - gemini-3-pro-preview: Deep thinking mode (experimental, not used in Pro Mode)
                     self.model_name = "gemini-2.5-flash"  # UPGRADED: 2.0 → 2.5 for better parsing
                     self.thinking_model_name = "gemini-3-pro-preview"  # Deep thinking
-                    self.grading_model_name = "gemini-2.5-pro"  # UPGRADED: flash → pro for grading
+                    self.grading_model_name = "gemini-2.5-flash"  # Fast grading (1.5-3s per question)
 
                     # Set client references (for compatibility)
                     self.client = self.gemini_client
                     self.thinking_client = self.gemini_client
                     self.grading_client = self.gemini_client
 
-                    print(f"✅ Gemini parsing model: {self.model_name} (Flash 2.5 - Enhanced)")
-                    print(f"✅ Gemini grading model: {self.grading_model_name} (Flash 2.5 - Lightweight)")
-                    print(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 3.0 Pro - Deep Reasoning)")
-                    print(f"📊 Features: Enhanced parsing, fast grading, multimodal vision, deep reasoning")
+                    print(f"✅ Gemini parsing model: {self.model_name} (Flash 2.5 - Fast parsing)")
+                    print(f"✅ Gemini grading model: {self.grading_model_name} (Flash 2.5 - Fast grading)")
+                    print(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 3.0 Pro - Deep Reasoning, not used)")
+                    print(f"📊 Pro Mode optimized: Fast parsing + Fast grading with timeout protection")
 
                 # LEGACY API (backward compatibility)
                 else:
@@ -460,11 +459,11 @@ class GeminiEducationalAIService:
             except Exception as e:
                 # Check if it's a 503 error (model overloaded/unavailable)
                 if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
-                    print(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-pro...")
+                    print(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
                     fallback_attempted = True
 
-                    # Fallback to gemini-2.5-pro (stronger reasoning for grading)
-                    fallback_model = "gemini-2.5-pro"
+                    # Fallback to gemini-2.5-flash (fast and reliable)
+                    fallback_model = "gemini-2.5-flash"
 
                     if GEMINI_NEW_API:
                         # NEW API with timeout wrapper
