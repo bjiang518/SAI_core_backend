@@ -52,6 +52,7 @@ class GeminiEducationalAIService:
             print("   Add GEMINI_API_KEY to Railway environment variables")
             self.client = None
             self.thinking_client = None
+            self.grading_client = None
         else:
             print(f"✅ Gemini API key found: {api_key[:10]}..." if len(api_key) > 10 else "✅ Gemini API key found")
 
@@ -73,6 +74,20 @@ class GeminiEducationalAIService:
                 # - Slower but more accurate for difficult questions
                 self.thinking_model_name = "gemini-2.0-flash-thinking-exp"
                 self.thinking_client = genai.GenerativeModel(self.thinking_model_name)
+
+                # Initialize Gemini 3.0 Pro for grading (NEW)
+                # - gemini-exp-1206: Latest experimental Gemini 3.0 model (Dec 2024)
+                # - Advanced reasoning and grading capabilities
+                # - May be slower but more accurate than Flash for complex grading
+                # - Fallback to gemini-2.0-flash if exp-1206 not available
+                self.grading_model_name = "gemini-exp-1206"
+                try:
+                    self.grading_client = genai.GenerativeModel(self.grading_model_name)
+                    print(f"✅ Gemini grading model: {self.grading_model_name} (Gemini 3.0 Experimental)")
+                except Exception as e:
+                    print(f"⚠️ Gemini exp-1206 not available, falling back to gemini-2.0-flash for grading")
+                    self.grading_model_name = "gemini-2.0-flash"
+                    self.grading_client = self.client
 
                 print(f"✅ Gemini standard model: {self.model_name} (Flash - Fast & Stable)")
                 print(f"✅ Gemini thinking model: {self.thinking_model_name} (Deep Reasoning)")
@@ -238,20 +253,22 @@ class GeminiEducationalAIService:
         Grade a single question using Gemini.
 
         Gemini advantages for grading:
-        - Fast response (1-2s per question) with Flash model
-        - Deep reasoning (5-10s per question) with Thinking model
+        - Gemini 3.0 (exp-1206): Advanced reasoning, better accuracy
+        - Deep reasoning (Thinking): Extended thinking process
         - Good at understanding student work
-        - Cost-effective
+        - Multimodal support (text + image)
 
         Configuration:
-        - Standard mode (Flash):
-          - temperature=0.3: Low but non-zero for reasoning
-          - max_output_tokens=500: Sufficient for detailed feedback
-          - top_k=32, top_p=0.8: Controlled randomness
+        - Gemini 3.0 mode (standard):
+          - temperature=0.4: Balanced for reasoning + consistency
+          - max_output_tokens=1024: Detailed feedback
+          - top_k=40, top_p=0.9: More exploration for accuracy
+          - timeout=45s: Handle longer processing
         - Deep reasoning mode (Thinking):
           - temperature=0.7: Higher for creative problem-solving
           - max_output_tokens=2048: Extended reasoning explanation
           - top_k=40, top_p=0.95: More exploration for complex problems
+          - timeout=60s: Extended timeout for deep thinking
 
         Args:
             question_text: The question to grade
@@ -273,11 +290,12 @@ class GeminiEducationalAIService:
             model_name = self.thinking_model_name
             mode_label = "DEEP REASONING"
         else:
-            if not self.client:
-                raise Exception("Gemini client not initialized. Check GEMINI_API_KEY in environment.")
-            selected_client = self.client
-            model_name = self.model_name
-            mode_label = "STANDARD"
+            # Use Gemini 3.0 grading client for standard grading (NEW)
+            if not self.grading_client:
+                raise Exception("Gemini Grading client not initialized. Check GEMINI_API_KEY in environment.")
+            selected_client = self.grading_client
+            model_name = self.grading_model_name
+            mode_label = "GEMINI 3.0 GRADING"
 
         print(f"📝 === GRADING WITH GEMINI ({mode_label}) ===")
         print(f"🤖 Model: {model_name}")
@@ -321,19 +339,24 @@ class GeminiEducationalAIService:
                         "top_k": 40,
                         "max_output_tokens": 2048,      # Extended reasoning explanation
                         "candidate_count": 1
-                    }
+                    },
+                    request_options={"timeout": 60}  # 60s timeout for deep reasoning
                 )
             else:
-                # Standard mode: Low temperature, concise feedback
+                # Gemini 3.0 grading mode: Optimized for accuracy (NEW)
+                # - temperature=0.4: Slightly higher than parsing for reasoning flexibility
+                # - max_output_tokens=1024: Double from 500 to allow detailed feedback
+                # - top_k=40, top_p=0.9: More exploration for better grading accuracy
                 response = selected_client.generate_content(
                     content,
                     generation_config={
-                        "temperature": 0.3,              # Low but non-zero for reasoning
-                        "top_p": 0.8,
-                        "top_k": 32,
-                        "max_output_tokens": 500,       # Enough for feedback
+                        "temperature": 0.4,              # Balanced for reasoning + consistency
+                        "top_p": 0.9,
+                        "top_k": 40,
+                        "max_output_tokens": 1024,      # INCREASED: 500 → 1024 for detailed feedback
                         "candidate_count": 1
-                    }
+                    },
+                    request_options={"timeout": 45}  # 45s timeout for Gemini 3.0
                 )
 
             api_duration = time.time() - start_time
