@@ -64,7 +64,8 @@ class HomeworkProcessingRoutes {
           properties: {
             base64_image: { type: 'string' },
             prompt: { type: 'string' },
-            student_id: { type: 'string' }
+            student_id: { type: 'string' },
+            subject: { type: 'string' }  // NEW: Subject-specific parsing rules (Math, Physics, English, etc.)
           }
         }
       },
@@ -155,7 +156,8 @@ class HomeworkProcessingRoutes {
             parsing_mode: { type: 'string', enum: ['standard', 'detailed'], default: 'standard' },
             skip_bbox_detection: { type: 'boolean', default: false },  // Kept for backward compatibility, but AI Engine ignores this (always uses low detail)
             expected_questions: { type: 'array', items: { type: 'integer' } },
-            model_provider: { type: 'string', enum: ['openai', 'gemini'], default: 'openai' }  // NEW: AI model selection
+            model_provider: { type: 'string', enum: ['openai', 'gemini'], default: 'openai' },  // NEW: AI model selection
+            subject: { type: 'string' }  // NEW: Subject-specific parsing rules (Math, Physics, English, etc.)
           }
         }
       },
