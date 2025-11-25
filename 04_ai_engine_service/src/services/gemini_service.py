@@ -438,35 +438,35 @@ class GeminiEducationalAIService:
         # Base prompt (universal for all subjects)
         base_prompt = """Extract all questions and student answers from homework image.
 Return ONE JSON object only. No markdown. No explanation.
-First character MUST be "{". Last character MUST be "}".
+First character MUST be "{{". Last character MUST be "}}".
 
 ================================================================================
 JSON SCHEMA
 ================================================================================
-{
+{{
   "subject": "Mathematics|Physics|Chemistry|...",
   "subject_confidence": 0.95,
   "total_questions": 2,
   "questions": [
-    {
+    {{
       "id": "1",
       "question_number": "1",
       "is_parent": true,
       "has_subquestions": true,
       "parent_content": "Solve the following.",
       "subquestions": [
-        {"id": "1a", "question_text": "...", "student_answer": "...", "question_type": "calculation"}
+        {{"id": "1a", "question_text": "...", "student_answer": "...", "question_type": "calculation"}}
       ]
-    },
-    {
+    }},
+    {{
       "id": "2",
       "question_number": "2",
       "question_text": "What is 2+2?",
       "student_answer": "4",
       "question_type": "short_answer"
-    }
+    }}
   ]
-}
+}}
 
 FIELD RULES:
 - id: ALWAYS string ("1", "2", "1a", "1b")
