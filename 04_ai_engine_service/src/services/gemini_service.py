@@ -13,10 +13,20 @@ from typing import Dict, List, Optional, Any
 from dotenv import load_dotenv
 
 try:
-    import google.generativeai as genai
+    # NEW GEMINI API (Dec 2024)
+    # from google.generativeai → from google import genai
+    from google import genai
+    GEMINI_NEW_API = True
 except ImportError:
-    print("⚠️ google-generativeai not installed. Run: pip install google-generativeai")
-    genai = None
+    try:
+        # LEGACY API (fallback for compatibility)
+        import google.generativeai as genai
+        GEMINI_NEW_API = False
+        print("⚠️ Using legacy Gemini API. Consider upgrading to 'from google import genai'")
+    except ImportError:
+        print("⚠️ google-generativeai not installed. Run: pip install google-generativeai")
+        genai = None
+        GEMINI_NEW_API = False
 
 # Import subject-specific prompt generator
 from .subject_prompts import get_subject_specific_rules
@@ -57,45 +67,69 @@ class GeminiEducationalAIService:
             print(f"✅ Gemini API key found: {api_key[:10]}..." if len(api_key) > 10 else "✅ Gemini API key found")
 
             if genai:
-                # Configure Gemini
-                genai.configure(api_key=api_key)
+                # NEW API (Dec 2024)
+                if GEMINI_NEW_API:
+                    print("📱 Using NEW Gemini API: from google import genai")
+                    # Initialize client
+                    self.gemini_client = genai.Client(api_key=api_key)
 
-                # Initialize standard model (Flash - Fast)
-                # SPEED FIX: gemini-2.0-flash is MUCH faster than 3-pro-preview
-                # - gemini-3-pro-preview: 30-60s (TIMEOUT issues) ❌
-                # - gemini-2.0-flash: 5-10s (FAST, stable) ✅
-                # - Still excellent for OCR and homework parsing
-                self.model_name = "gemini-2.0-flash"
-                self.client = genai.GenerativeModel(self.model_name)
+                    # Model names (NEW API uses different naming)
+                    # - gemini-2.5-flash: Fast lightweight grading (standard mode)
+                    # - gemini-3-pro-preview: Advanced reasoning (deep thinking mode)
+                    # - gemini-2.0-flash: Legacy fast parsing
+                    self.model_name = "gemini-2.0-flash"
+                    self.thinking_model_name = "gemini-3-pro-preview"  # NEW: Deep thinking
+                    self.grading_model_name = "gemini-2.5-flash"  # NEW: Lightweight grading
 
-                # Initialize thinking model (Flash Thinking - Deep Reasoning)
-                # - gemini-2.0-flash-thinking-exp: Advanced reasoning mode
-                # - Uses extended thinking process for complex problems
-                # - Slower but more accurate for difficult questions
-                self.thinking_model_name = "gemini-2.0-flash-thinking-exp"
-                self.thinking_client = genai.GenerativeModel(self.thinking_model_name)
+                    # Set client references (for compatibility)
+                    self.client = self.gemini_client
+                    self.thinking_client = self.gemini_client
+                    self.grading_client = self.gemini_client
 
-                # Initialize Gemini 3.0 Pro for grading (NEW)
-                # - gemini-exp-1206: Latest experimental Gemini 3.0 model (Dec 2024)
-                # - Advanced reasoning and grading capabilities
-                # - May be slower but more accurate than Flash for complex grading
-                # - Fallback to gemini-2.0-flash if exp-1206 not available
-                self.grading_model_name = "gemini-exp-1206"
-                try:
-                    self.grading_client = genai.GenerativeModel(self.grading_model_name)
-                    print(f"✅ Gemini grading model: {self.grading_model_name} (Gemini 3.0 Experimental)")
-                except Exception as e:
-                    print(f"⚠️ Gemini exp-1206 not available, falling back to gemini-2.0-flash for grading")
-                    self.grading_model_name = "gemini-2.0-flash"
-                    self.grading_client = self.client
+                    print(f"✅ Gemini standard model: {self.model_name} (Flash - Fast & Stable)")
+                    print(f"✅ Gemini grading model: {self.grading_model_name} (Flash 2.5 - Lightweight)")
+                    print(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 3.0 Pro - Deep Reasoning)")
+                    print(f"📊 Features: Fast processing, multimodal vision, excellent OCR, deep reasoning")
 
-                print(f"✅ Gemini standard model: {self.model_name} (Flash - Fast & Stable)")
-                print(f"✅ Gemini thinking model: {self.thinking_model_name} (Deep Reasoning)")
-                print(f"📊 Features: Fast processing, multimodal vision, excellent OCR, deep reasoning")
+                # LEGACY API (backward compatibility)
+                else:
+                    print("📱 Using LEGACY Gemini API: import google.generativeai")
+                    # Configure Gemini
+                    genai.configure(api_key=api_key)
+
+                    # Initialize standard model (Flash - Fast)
+                    # SPEED FIX: gemini-2.0-flash is MUCH faster than 3-pro-preview
+                    # - gemini-3-pro-preview: 30-60s (TIMEOUT issues) ❌
+                    # - gemini-2.0-flash: 5-10s (FAST, stable) ✅
+                    # - Still excellent for OCR and homework parsing
+                    self.model_name = "gemini-2.0-flash"
+                    self.client = genai.GenerativeModel(self.model_name)
+
+                    # Initialize thinking model (Flash Thinking - Deep Reasoning)
+                    # - gemini-2.0-flash-thinking-exp: Advanced reasoning mode
+                    # - Uses extended thinking process for complex problems
+                    # - Slower but more accurate for difficult questions
+                    self.thinking_model_name = "gemini-2.0-flash-thinking-exp"
+                    self.thinking_client = genai.GenerativeModel(self.thinking_model_name)
+
+                    # Initialize Gemini 3.0 Pro for grading (LEGACY API)
+                    self.grading_model_name = "gemini-exp-1206"
+                    try:
+                        self.grading_client = genai.GenerativeModel(self.grading_model_name)
+                        print(f"✅ Gemini grading model: {self.grading_model_name} (Gemini 3.0 Experimental)")
+                    except Exception as e:
+                        print(f"⚠️ Gemini exp-1206 not available, falling back to gemini-2.0-flash for grading")
+                        self.grading_model_name = "gemini-2.0-flash"
+                        self.grading_client = self.client
+
+                    print(f"✅ Gemini standard model: {self.model_name} (Flash - Fast & Stable)")
+                    print(f"✅ Gemini thinking model: {self.thinking_model_name} (Deep Reasoning)")
+                    print(f"📊 Features: Fast processing, multimodal vision, excellent OCR, deep reasoning")
             else:
                 print("❌ google-generativeai module not available")
                 self.client = None
                 self.thinking_client = None
+                self.grading_client = None
 
         print("✅ Gemini AI Service initialization complete")
         print("=" * 50)
@@ -171,19 +205,33 @@ class GeminiEducationalAIService:
             # - max_output_tokens=8192: INCREASED for large homework (prevents MAX_TOKENS)
             # - top_k=32: Limit randomness for accurate text extraction
             # - top_p=0.8: Control randomness while maintaining quality
-            response = self.client.generate_content(
-                [
-                    image,  # Image FIRST (best practice per docs)
-                    system_prompt  # Text prompt AFTER image
-                ],
-                generation_config={
-                    "temperature": 0.0,              # OCR must be 0 for stability
-                    "top_p": 0.8,
-                    "top_k": 32,
-                    "max_output_tokens": 8192,      # INCREASED: 4096 → 8192 (hit MAX_TOKENS)
-                    "candidate_count": 1
-                }
-            )
+
+            # Prepare generation config
+            generation_config = {
+                "temperature": 0.0,              # OCR must be 0 for stability
+                "top_p": 0.8,
+                "top_k": 32,
+                "max_output_tokens": 8192,      # INCREASED: 4096 → 8192 (hit MAX_TOKENS)
+                "candidate_count": 1
+            }
+
+            # Call Gemini API (NEW or LEGACY)
+            if GEMINI_NEW_API:
+                # NEW API: client.models.generate_content(model="...", contents=...)
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=[image, system_prompt],  # Image FIRST, then prompt
+                    config=generation_config
+                )
+            else:
+                # LEGACY API: client.generate_content(content, generation_config=...)
+                response = self.client.generate_content(
+                    [
+                        image,  # Image FIRST (best practice per docs)
+                        system_prompt  # Text prompt AFTER image
+                    ],
+                    generation_config=generation_config
+                )
 
             api_duration = time.time() - start_time
             print(f"✅ Gemini API completed in {api_duration:.2f}s")
@@ -329,34 +377,44 @@ class GeminiEducationalAIService:
                 content.append(image)
 
             # Call Gemini with mode-specific configuration
+            generation_config = {}
+            timeout = 45
+
             if use_deep_reasoning:
                 # Deep reasoning mode: Higher temperature, more tokens
-                response = selected_client.generate_content(
-                    content,
-                    generation_config={
-                        "temperature": 0.7,              # Higher for creative problem-solving
-                        "top_p": 0.95,
-                        "top_k": 40,
-                        "max_output_tokens": 2048,      # Extended reasoning explanation
-                        "candidate_count": 1
-                    },
-                    request_options={"timeout": 60}  # 60s timeout for deep reasoning
+                generation_config = {
+                    "temperature": 0.7,
+                    "top_p": 0.95,
+                    "top_k": 40,
+                    "max_output_tokens": 2048,
+                    "candidate_count": 1
+                }
+                timeout = 60
+            else:
+                # Gemini grading mode: Optimized for accuracy
+                generation_config = {
+                    "temperature": 0.4,
+                    "top_p": 0.9,
+                    "top_k": 40,
+                    "max_output_tokens": 1024,
+                    "candidate_count": 1
+                }
+                timeout = 45
+
+            # Call Gemini API (NEW or LEGACY)
+            if GEMINI_NEW_API:
+                # NEW API: client.models.generate_content(model="...", contents=...)
+                response = selected_client.models.generate_content(
+                    model=model_name,
+                    contents=content,
+                    config=generation_config
                 )
             else:
-                # Gemini 3.0 grading mode: Optimized for accuracy (NEW)
-                # - temperature=0.4: Slightly higher than parsing for reasoning flexibility
-                # - max_output_tokens=1024: Double from 500 to allow detailed feedback
-                # - top_k=40, top_p=0.9: More exploration for better grading accuracy
+                # LEGACY API: client.generate_content(content, generation_config=...)
                 response = selected_client.generate_content(
                     content,
-                    generation_config={
-                        "temperature": 0.4,              # Balanced for reasoning + consistency
-                        "top_p": 0.9,
-                        "top_k": 40,
-                        "max_output_tokens": 1024,      # INCREASED: 500 → 1024 for detailed feedback
-                        "candidate_count": 1
-                    },
-                    request_options={"timeout": 45}  # 45s timeout for Gemini 3.0
+                    generation_config=generation_config,
+                    request_options={"timeout": timeout}
                 )
 
             api_duration = time.time() - start_time
