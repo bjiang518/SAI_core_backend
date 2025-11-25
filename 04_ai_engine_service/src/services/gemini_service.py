@@ -12,21 +12,46 @@ import time
 from typing import Dict, List, Optional, Any
 from dotenv import load_dotenv
 
+# DEBUG: Print package version info
+print("🔍 === DEBUG: GEMINI API IMPORT ATTEMPT ===")
+try:
+    import google.generativeai as temp_genai
+    print(f"✅ google.generativeai installed at: {temp_genai.__file__}")
+    if hasattr(temp_genai, '__version__'):
+        print(f"📦 Version: {temp_genai.__version__}")
+    else:
+        print("⚠️ Version attribute not found (possibly old package)")
+except ImportError as e:
+    print(f"❌ google.generativeai not found: {e}")
+
+# Try importing new API
 try:
     # NEW GEMINI API (Dec 2024)
     # from google.generativeai → from google import genai
+    print("🔄 Attempting NEW API import: from google import genai")
     from google import genai
     GEMINI_NEW_API = True
-except ImportError:
+    print(f"✅ NEW API imported successfully!")
+    print(f"   genai module: {genai}")
+    print(f"   genai.__file__: {genai.__file__ if hasattr(genai, '__file__') else 'N/A'}")
+except ImportError as e:
+    print(f"❌ NEW API import failed: {e}")
+    print(f"   Error type: {type(e).__name__}")
+    print(f"   Error details: {str(e)}")
     try:
         # LEGACY API (fallback for compatibility)
+        print("🔄 Falling back to LEGACY API: import google.generativeai as genai")
         import google.generativeai as genai
         GEMINI_NEW_API = False
         print("⚠️ Using legacy Gemini API. Consider upgrading to 'from google import genai'")
-    except ImportError:
+        print(f"   Legacy API version: {genai.__version__ if hasattr(genai, '__version__') else 'Unknown'}")
+    except ImportError as e2:
+        print(f"❌ LEGACY API import also failed: {e2}")
         print("⚠️ google-generativeai not installed. Run: pip install google-generativeai")
         genai = None
         GEMINI_NEW_API = False
+
+print("=" * 50)
 
 # Import subject-specific prompt generator
 from .subject_prompts import get_subject_specific_rules
