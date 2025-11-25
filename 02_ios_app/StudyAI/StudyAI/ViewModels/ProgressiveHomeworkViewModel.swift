@@ -51,8 +51,10 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     ///   - originalImage: Original UIImage captured from camera
     ///   - base64Image: Base64 encoded JPEG string
     ///   - preParsedQuestions: Optional pre-parsed questions from Pro Mode (skips Phase 1 if provided)
-    func processHomework(originalImage: UIImage, base64Image: String, preParsedQuestions: ParseHomeworkQuestionsResponse? = nil) async {
+    ///   - modelProvider: AI model to use for grading ("openai" or "gemini")
+    func processHomework(originalImage: UIImage, base64Image: String, preParsedQuestions: ParseHomeworkQuestionsResponse? = nil, modelProvider: String = "openai") async {
         print("🚀 === STARTING PROGRESSIVE HOMEWORK GRADING ===")
+        print("🤖 AI Model: \(modelProvider)")
 
         do {
             // Phase 1: Parse questions (skip if Pro Mode already parsed)
@@ -61,7 +63,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                 await usePreParsedQuestions(preParsed, originalImage: originalImage)
             } else {
                 print("📝 AUTO MODE: Parsing questions from scratch")
-                try await parseQuestions(originalImage: originalImage, base64Image: base64Image)
+                try await parseQuestions(originalImage: originalImage, base64Image: base64Image, modelProvider: modelProvider)
             }
 
             // Phase 2: Grade all questions in parallel
@@ -123,8 +125,9 @@ class ProgressiveHomeworkViewModel: ObservableObject {
 
     // MARK: - Phase 1: Parse Questions
 
-    private func parseQuestions(originalImage: UIImage, base64Image: String) async throws {
+    private func parseQuestions(originalImage: UIImage, base64Image: String, modelProvider: String = "openai") async throws {
         print("📝 === PHASE 1: PARSING QUESTIONS ===")
+        print("🤖 Using \(modelProvider) for parsing")
 
         await MainActor.run {
             self.currentPhase = .parsing
@@ -132,10 +135,11 @@ class ProgressiveHomeworkViewModel: ObservableObject {
             self.loadingMessage = "Analyzing homework..."
         }
 
-        // Call backend to parse questions
+        // Call backend to parse questions with selected AI model
         let parseResponse = try await networkService.parseHomeworkQuestions(
             base64Image: base64Image,
-            parsingMode: "standard"
+            parsingMode: "standard",
+            modelProvider: modelProvider
         )
 
         guard parseResponse.success else {
