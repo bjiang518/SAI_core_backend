@@ -8,6 +8,7 @@ Alternative to OpenAI for homework parsing and grading.
 import os
 import json
 import base64
+import time
 from typing import Dict, List, Optional, Any
 from dotenv import load_dotenv
 
@@ -50,6 +51,7 @@ class GeminiEducationalAIService:
             print("❌ WARNING: GEMINI_API_KEY not found in environment")
             print("   Add GEMINI_API_KEY to Railway environment variables")
             self.client = None
+            self.thinking_client = None
         else:
             print(f"✅ Gemini API key found: {api_key[:10]}..." if len(api_key) > 10 else "✅ Gemini API key found")
 
@@ -57,7 +59,7 @@ class GeminiEducationalAIService:
                 # Configure Gemini
                 genai.configure(api_key=api_key)
 
-                # Initialize model
+                # Initialize standard model (Flash - Fast)
                 # SPEED FIX: gemini-2.0-flash is MUCH faster than 3-pro-preview
                 # - gemini-3-pro-preview: 30-60s (TIMEOUT issues) ❌
                 # - gemini-2.0-flash: 5-10s (FAST, stable) ✅
@@ -65,11 +67,20 @@ class GeminiEducationalAIService:
                 self.model_name = "gemini-2.0-flash"
                 self.client = genai.GenerativeModel(self.model_name)
 
-                print(f"✅ Gemini model initialized: {self.model_name} (Flash - Fast & Stable)")
-                print(f"📊 Features: Fast processing, multimodal vision, excellent OCR")
+                # Initialize thinking model (Flash Thinking - Deep Reasoning)
+                # - gemini-2.0-flash-thinking-exp: Advanced reasoning mode
+                # - Uses extended thinking process for complex problems
+                # - Slower but more accurate for difficult questions
+                self.thinking_model_name = "gemini-2.0-flash-thinking-exp"
+                self.thinking_client = genai.GenerativeModel(self.thinking_model_name)
+
+                print(f"✅ Gemini standard model: {self.model_name} (Flash - Fast & Stable)")
+                print(f"✅ Gemini thinking model: {self.thinking_model_name} (Deep Reasoning)")
+                print(f"📊 Features: Fast processing, multimodal vision, excellent OCR, deep reasoning")
             else:
                 print("❌ google-generativeai module not available")
                 self.client = None
+                self.thinking_client = None
 
         print("✅ Gemini AI Service initialization complete")
         print("=" * 50)
@@ -220,20 +231,27 @@ class GeminiEducationalAIService:
         student_answer: str,
         correct_answer: Optional[str] = None,
         subject: Optional[str] = None,
-        context_image: Optional[str] = None
+        context_image: Optional[str] = None,
+        use_deep_reasoning: bool = False
     ) -> Dict[str, Any]:
         """
         Grade a single question using Gemini.
 
         Gemini advantages for grading:
-        - Fast response (1-2s per question)
+        - Fast response (1-2s per question) with Flash model
+        - Deep reasoning (5-10s per question) with Thinking model
         - Good at understanding student work
         - Cost-effective
 
         Configuration:
-        - temperature=0.3: Low but non-zero for reasoning
-        - max_output_tokens=500: Sufficient for detailed feedback
-        - top_k=32, top_p=0.8: Controlled randomness
+        - Standard mode (Flash):
+          - temperature=0.3: Low but non-zero for reasoning
+          - max_output_tokens=500: Sufficient for detailed feedback
+          - top_k=32, top_p=0.8: Controlled randomness
+        - Deep reasoning mode (Thinking):
+          - temperature=0.7: Higher for creative problem-solving
+          - max_output_tokens=2048: Extended reasoning explanation
+          - top_k=40, top_p=0.95: More exploration for complex problems
 
         Args:
             question_text: The question to grade
@@ -241,28 +259,43 @@ class GeminiEducationalAIService:
             correct_answer: Expected answer (optional)
             subject: Subject for grading rules
             context_image: Optional base64 image
+            use_deep_reasoning: Enable Gemini Thinking mode for complex questions
 
         Returns:
             Same format as OpenAI service
         """
 
-        if not self.client:
-            raise Exception("Gemini client not initialized. Check GEMINI_API_KEY in environment.")
+        # Select model based on reasoning mode
+        if use_deep_reasoning:
+            if not self.thinking_client:
+                raise Exception("Gemini Thinking client not initialized. Check GEMINI_API_KEY in environment.")
+            selected_client = self.thinking_client
+            model_name = self.thinking_model_name
+            mode_label = "DEEP REASONING"
+        else:
+            if not self.client:
+                raise Exception("Gemini client not initialized. Check GEMINI_API_KEY in environment.")
+            selected_client = self.client
+            model_name = self.model_name
+            mode_label = "STANDARD"
 
-        print(f"📝 === GRADING WITH GEMINI ===")
+        print(f"📝 === GRADING WITH GEMINI ({mode_label}) ===")
+        print(f"🤖 Model: {model_name}")
         print(f"📚 Subject: {subject or 'General'}")
         print(f"❓ Question: {question_text[:50]}...")
 
         try:
-            # Build grading prompt
+            # Build grading prompt (different for deep reasoning)
             grading_prompt = self._build_grading_prompt(
                 question_text=question_text,
                 student_answer=student_answer,
                 correct_answer=correct_answer,
-                subject=subject
+                subject=subject,
+                use_deep_reasoning=use_deep_reasoning
             )
 
             print(f"🚀 Calling Gemini for grading...")
+            import time
             start_time = time.time()
 
             # Prepare content (text only or text + image)
@@ -277,19 +310,31 @@ class GeminiEducationalAIService:
                 image = Image.open(io.BytesIO(image_data))
                 content.append(image)
 
-            # Call Gemini
-            # Gemini 3.0 Pro configuration for grading (comparison task)
-            # Slightly higher temperature than OCR since grading needs reasoning
-            response = self.client.generate_content(
-                content,
-                generation_config={
-                    "temperature": 0.3,              # Low but non-zero for reasoning
-                    "top_p": 0.8,
-                    "top_k": 32,
-                    "max_output_tokens": 500,       # Enough for feedback
-                    "candidate_count": 1
-                }
-            )
+            # Call Gemini with mode-specific configuration
+            if use_deep_reasoning:
+                # Deep reasoning mode: Higher temperature, more tokens
+                response = selected_client.generate_content(
+                    content,
+                    generation_config={
+                        "temperature": 0.7,              # Higher for creative problem-solving
+                        "top_p": 0.95,
+                        "top_k": 40,
+                        "max_output_tokens": 2048,      # Extended reasoning explanation
+                        "candidate_count": 1
+                    }
+                )
+            else:
+                # Standard mode: Low temperature, concise feedback
+                response = selected_client.generate_content(
+                    content,
+                    generation_config={
+                        "temperature": 0.3,              # Low but non-zero for reasoning
+                        "top_p": 0.8,
+                        "top_k": 32,
+                        "max_output_tokens": 500,       # Enough for feedback
+                        "candidate_count": 1
+                    }
+                )
 
             api_duration = time.time() - start_time
             print(f"✅ Grading completed in {api_duration:.2f}s")
@@ -549,11 +594,78 @@ OUTPUT CHECKLIST
         question_text: str,
         student_answer: str,
         correct_answer: Optional[str],
-        subject: Optional[str]
+        subject: Optional[str],
+        use_deep_reasoning: bool = False
     ) -> str:
-        """Build grading prompt."""
+        """Build grading prompt with optional deep reasoning mode."""
 
-        return f"""Grade this student answer. Return JSON only.
+        if use_deep_reasoning:
+            # Deep reasoning mode: Guide the model to think step-by-step
+            return f"""You are an expert educational grading assistant with deep reasoning capabilities.
+
+Question: {question_text}
+
+Student's Answer: {student_answer}
+
+{f'Expected Answer: {correct_answer}' if correct_answer else ''}
+
+Subject: {subject or 'General'}
+
+DEEP REASONING INSTRUCTIONS:
+Think deeply about this question before grading. Follow these steps:
+
+1. UNDERSTAND THE QUESTION:
+   - What concept is being tested?
+   - What knowledge/skills are required?
+   - Are there multiple valid approaches?
+
+2. ANALYZE STUDENT'S ANSWER:
+   - What approach did the student take?
+   - What is correct about their reasoning?
+   - Where (if anywhere) did they make mistakes?
+   - Is the mistake conceptual or computational?
+
+3. COMPARE WITH EXPECTED ANSWER (if provided):
+   - Does the student's answer match the key concept?
+   - Are there alternative valid solutions?
+   - How significant are any differences?
+
+4. ASSIGN SCORE:
+   - Consider partial credit for correct methodology
+   - Weigh conceptual understanding vs. execution
+   - Be fair and educational
+
+5. PROVIDE DETAILED FEEDBACK:
+   - Explain what the student did well
+   - Point out specific errors
+   - Suggest how to improve
+   - Encourage learning
+
+Return JSON in this exact format:
+{{
+  "score": 0.95,
+  "is_correct": true,
+  "feedback": "Your reasoning is excellent. You correctly identified X and applied method Y. The calculation is accurate. Well done!",
+  "confidence": 0.95,
+  "reasoning_steps": "Student used the correct formula F=ma. They identified mass=10kg and acceleration=5m/s². Calculation: F=10×5=50N. Answer is completely correct with proper units."
+}}
+
+GRADING SCALE:
+- score = 1.0: Completely correct (concept + execution)
+- score = 0.8-0.9: Minor errors (missing units, small arithmetic mistake)
+- score = 0.6-0.7: Correct concept but execution errors
+- score = 0.3-0.5: Partial understanding, significant conceptual gaps
+- score = 0.0-0.3: Incorrect or missing critical understanding
+
+RULES:
+1. is_correct = (score >= 0.9)
+2. Feedback must be detailed and educational (50-100 words)
+3. Explain reasoning steps clearly
+4. Return ONLY valid JSON, no markdown or extra text"""
+
+        else:
+            # Standard mode: Quick concise grading
+            return f"""Grade this student answer. Return JSON only.
 
 Question: {question_text}
 

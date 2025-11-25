@@ -740,6 +740,7 @@ class GradeSingleQuestionRequest(BaseModel):
     subject: Optional[str] = None  # For subject-specific grading rules
     context_image_base64: Optional[str] = None  # Optional image if question needs visual context
     model_provider: Optional[str] = "openai"  # "openai" or "gemini"
+    use_deep_reasoning: bool = False  # Enable Gemini Thinking mode for complex questions
 
 class GradeResult(BaseModel):
     """Result of grading a single question"""
@@ -1089,7 +1090,8 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
             student_answer=request.student_answer,
             correct_answer=request.correct_answer,
             subject=request.subject,
-            context_image=request.context_image_base64
+            context_image=request.context_image_base64,
+            use_deep_reasoning=request.use_deep_reasoning  # Pass deep reasoning flag
         )
 
         if not result["success"]:
