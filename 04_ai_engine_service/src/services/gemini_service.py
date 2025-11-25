@@ -99,11 +99,12 @@ class GeminiEducationalAIService:
                     self.gemini_client = genai.Client(api_key=api_key)
 
                     # Model names (NEW API uses different naming)
-                    # - gemini-2.5-flash: Parsing & Grading (faster + stronger than 2.0)
-                    # - gemini-3-pro-preview: Advanced reasoning (deep thinking mode)
+                    # - gemini-2.5-flash: Fast parsing only
+                    # - gemini-2.5-pro: Grading with advanced reasoning
+                    # - gemini-3-pro-preview: Deep thinking mode (experimental)
                     self.model_name = "gemini-2.5-flash"  # UPGRADED: 2.0 → 2.5 for better parsing
                     self.thinking_model_name = "gemini-3-pro-preview"  # Deep thinking
-                    self.grading_model_name = "gemini-2.5-flash"  # Lightweight grading
+                    self.grading_model_name = "gemini-2.5-pro"  # UPGRADED: flash → pro for grading
 
                     # Set client references (for compatibility)
                     self.client = self.gemini_client
@@ -432,11 +433,23 @@ class GeminiEducationalAIService:
             try:
                 if GEMINI_NEW_API:
                     # NEW API: client.models.generate_content(model="...", contents=...)
-                    response = selected_client.models.generate_content(
-                        model=model_name,
-                        contents=content,
-                        config=generation_config
-                    )
+                    # Note: NEW API doesn't support timeout in config, use concurrent.futures for timeout control
+                    import concurrent.futures
+
+                    def _call_gemini():
+                        return selected_client.models.generate_content(
+                            model=model_name,
+                            contents=content,
+                            config=generation_config
+                        )
+
+                    # Execute with timeout using ThreadPoolExecutor
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                        future = executor.submit(_call_gemini)
+                        try:
+                            response = future.result(timeout=timeout)
+                        except concurrent.futures.TimeoutError:
+                            raise Exception(f"Gemini API timeout after {timeout}s. Try reducing homework size or using a different model.")
                 else:
                     # LEGACY API: client.generate_content(content, generation_config=...)
                     response = selected_client.generate_content(
@@ -454,11 +467,22 @@ class GeminiEducationalAIService:
                     fallback_model = "gemini-2.5-pro"
 
                     if GEMINI_NEW_API:
-                        response = selected_client.models.generate_content(
-                            model=fallback_model,
-                            contents=content,
-                            config=generation_config
-                        )
+                        # NEW API with timeout wrapper
+                        import concurrent.futures
+
+                        def _call_gemini_fallback():
+                            return selected_client.models.generate_content(
+                                model=fallback_model,
+                                contents=content,
+                                config=generation_config
+                            )
+
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                            future = executor.submit(_call_gemini_fallback)
+                            try:
+                                response = future.result(timeout=timeout)
+                            except concurrent.futures.TimeoutError:
+                                raise Exception(f"Gemini fallback API timeout after {timeout}s")
                     else:
                         # For LEGACY API, use the standard client
                         response = self.client.generate_content(
