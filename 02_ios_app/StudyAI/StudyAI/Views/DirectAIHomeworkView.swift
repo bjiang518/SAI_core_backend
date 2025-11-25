@@ -155,6 +155,9 @@ struct DirectAIHomeworkView: View {
     @State private var showingErrorAlert = false
     @State private var currentError: UserFacingError?
 
+    // Detect Light/Dark mode for icon selection
+    @Environment(\.colorScheme) var colorScheme
+
     // Image source selection states
     @State private var showingCameraPicker = false
     @State private var showingDocumentScanner = false
@@ -710,14 +713,11 @@ struct DirectAIHomeworkView: View {
             // Show enlarged single image or grid for multiple images
             imageDisplaySection
 
-            // Subject Selection Dropdown
+            // Subject & AI Model Selection (Combined in one row)
             subjectSelectionSection
 
             // Parsing Mode Selection
             parsingModeSection
-
-            // AI Model Selection (OpenAI vs Gemini)
-            aiModelSelectionSection
 
             // Primary Action - Ask AI Button (Most Prominent)
             analyzeButton
@@ -802,48 +802,134 @@ struct DirectAIHomeworkView: View {
         .padding(.top, 2)
     }
 
-    // MARK: - Subject Selection Section
+    // MARK: - Subject Selection & AI Model Section (Combined in one row)
     private var subjectSelectionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(NSLocalizedString("aiHomework.selectSubject", comment: ""))
+            Text("Subject & AI Model")
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundColor(.secondary)
 
-            Menu {
-                ForEach(availableSubjects, id: \.self) { subject in
-                    Button(action: {
-                        selectedSubject = subject
-                    }) {
-                        HStack {
-                            Text(subject)
-                            if selectedSubject == subject {
-                                Image(systemName: "checkmark")
+            HStack(spacing: 12) {
+                // Subject dropdown (shorter width)
+                Menu {
+                    ForEach(availableSubjects, id: \.self) { subject in
+                        Button(action: {
+                            selectedSubject = subject
+                        }) {
+                            HStack {
+                                Text(subject)
+                                if selectedSubject == subject {
+                                    Image(systemName: "checkmark")
+                                }
                             }
                         }
                     }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: getSubjectIcon(selectedSubject))
+                            .foregroundColor(.purple)
+                            .font(.body)
+                        Text(selectedSubject)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.down")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color.purple.opacity(0.1))
+                    .cornerRadius(10)
                 }
-            } label: {
-                HStack {
-                    Image(systemName: getSubjectIcon(selectedSubject))
-                        .foregroundColor(.purple)  // CHANGED from .blue to .purple
-                    Text(selectedSubject)
-                        .font(.body)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
-                    Spacer()
-                    Image(systemName: "chevron.down")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                .background(Color.purple.opacity(0.1))  // CHANGED from .blue to .purple
-                .cornerRadius(12)
+                .buttonStyle(PlainButtonStyle())
+                .frame(maxWidth: 160)  // Limit subject dropdown width
+
+                // AI Model icons (glassmorphism buttons)
+                aiModelGlassIconButtons
             }
-            .buttonStyle(PlainButtonStyle())
         }
         .padding(.horizontal)
-        .padding(.top, 8)  // REDUCED from 16 to 8 for more compact layout
+        .padding(.top, 8)
+    }
+
+    // MARK: - AI Model Glass Icon Buttons
+    private var aiModelGlassIconButtons: some View {
+        HStack(spacing: 12) {
+            // OpenAI Button (auto-adapts to Light/Dark mode)
+            aiModelGlassButton(
+                model: .openai,
+                lightModeImage: "openai-light",   // Light mode icon
+                darkModeImage: "openai-dark"      // Dark mode icon
+            )
+
+            // Gemini Button (single icon works for both modes)
+            aiModelGlassButton(
+                model: .gemini,
+                lightModeImage: "gemini-icon",
+                darkModeImage: "gemini-icon"
+            )
+        }
+    }
+
+    // MARK: - Single AI Model Glass Button
+    private func aiModelGlassButton(model: AIModel, lightModeImage: String, darkModeImage: String) -> some View {
+        let isSelected = selectedAIModel == model.rawValue
+
+        return Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                selectedAIModel = model.rawValue
+
+                // Haptic feedback
+                let generator = UIImpactFeedbackGenerator(style: .light)
+                generator.impactOccurred()
+            }
+        }) {
+            ZStack {
+                // Glassmorphism background
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        LinearGradient(
+                            colors: isSelected ?
+                                [Color.white.opacity(0.4), Color.white.opacity(0.2)] :
+                                [Color.white.opacity(0.2), Color.white.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.05))
+                            .blur(radius: 10)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(
+                                LinearGradient(
+                                    colors: isSelected ?
+                                        [Color.white.opacity(0.6), Color.white.opacity(0.3)] :
+                                        [Color.white.opacity(0.3), Color.white.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: isSelected ? 2 : 1
+                            )
+                    )
+                    .shadow(color: isSelected ? Color.blue.opacity(0.3) : Color.clear, radius: 8, x: 0, y: 4)
+
+                // Model icon (adapts to Light/Dark mode)
+                Image(colorScheme == .dark ? darkModeImage : lightModeImage)
+                    .resizable()
+                    .renderingMode(.template)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 32, height: 32)
+                    .foregroundColor(isSelected ? .blue : .gray.opacity(0.6))
+            }
+            .frame(width: 56, height: 56)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 
     // MARK: - Parsing Mode Section
@@ -950,108 +1036,6 @@ struct DirectAIHomeworkView: View {
     }
 
     // MARK: - AI Model Selection Section
-    private var aiModelSelectionSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("AI Model")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-
-                Button(action: {
-                    showModelInfo.toggle()
-                }) {
-                    Image(systemName: "info.circle")
-                        .font(.caption)
-                        .foregroundColor(.purple)
-                }
-            }
-
-            aiModelButtons
-
-            if showModelInfo {
-                aiModelInfo
-            }
-        }
-        .padding(.horizontal)
-        .padding(.top, 8)
-    }
-
-    // MARK: - AI Model Buttons
-    private var aiModelButtons: some View {
-        HStack(spacing: 12) {
-            ForEach(AIModel.allCases, id: \.self) { model in
-                aiModelButton(for: model)
-            }
-        }
-    }
-
-    // MARK: - Single AI Model Button
-    private func aiModelButton(for model: AIModel) -> some View {
-        let isSelected = selectedAIModel == model.rawValue
-        let buttonColor: Color = model == .gemini ? Color.purple : Color.blue
-
-        return Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                selectedAIModel = model.rawValue
-
-                // Haptic feedback
-                let generator = UIImpactFeedbackGenerator(style: .light)
-                generator.impactOccurred()
-            }
-        }) {
-            HStack(spacing: 8) {
-                Image(systemName: model.icon)
-                    .font(.title3)
-                    .frame(width: 24, height: 24)
-                Text(model.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-            }
-            .foregroundColor(isSelected ? buttonColor : .secondary)
-            .frame(maxWidth: .infinity)
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? buttonColor.opacity(0.1) : Color.gray.opacity(0.05))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? buttonColor.opacity(0.4) : Color.gray.opacity(0.2), lineWidth: 1.5)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-
-    // MARK: - AI Model Info
-    private var aiModelInfo: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(AIModel.allCases, id: \.self) { model in
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: model.icon)
-                        .foregroundColor(model == .gemini ? .purple : .blue)
-                        .font(.caption)
-                        .frame(width: 20)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(model.displayName)
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                        Text(model.description)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-        }
-        .padding()
-        .background(Color.purple.opacity(0.05))
-        .cornerRadius(12)
-        .transition(.opacity.combined(with: .scale))
-    }
-
     // MARK: - Analyze Button
     private var analyzeButton: some View {
         AnimatedGradientButton(
@@ -1957,13 +1941,15 @@ struct DirectAIHomeworkView: View {
             // NEW FLOW: Call AI Parse with Detail Mode (hierarchical parsing)
             print("🤖 Calling AI Engine with Detail Mode (hierarchical parsing)...")
             print("🤖 Using AI Model: \(selectedAIModel)")
+            print("📚 Selected Subject: \(selectedSubject)")
 
             let parseResponse = try await NetworkService.shared.parseHomeworkQuestions(
                 base64Image: base64Image,
                 parsingMode: "standard",  // Use standard mode for Pro
                 skipBboxDetection: true,   // No bbox needed
                 expectedQuestions: nil,
-                modelProvider: selectedAIModel  // Pass selected AI model
+                modelProvider: selectedAIModel,  // Pass selected AI model
+                subject: selectedSubject  // NEW: Pass selected subject
             )
 
             guard parseResponse.success else {

@@ -2027,11 +2027,15 @@ class NetworkService: ObservableObject {
         parsingMode: String = "standard",
         skipBboxDetection: Bool = false,
         expectedQuestions: [Int]? = nil,
-        modelProvider: String = "openai"  // NEW: AI model selection (openai/gemini)
+        modelProvider: String = "openai",  // NEW: AI model selection (openai/gemini)
+        subject: String? = nil  // NEW: Subject-specific parsing rules (Math, Physics, etc.)
     ) async throws -> ParseHomeworkQuestionsResponse {
         print("📝 === PHASE 1: PARSING HOMEWORK QUESTIONS ===")
         print("🔧 Mode: \(parsingMode)")
         print("🤖 AI Model: \(modelProvider)")
+        if let subj = subject {
+            print("📚 Subject: \(subj)")
+        }
         print("📄 Image size: \(base64Image.count) characters")
         if skipBboxDetection {
             print("🎨 Pro Mode: Skip bbox detection, expected questions: \(expectedQuestions?.count ?? 0)")
@@ -2064,6 +2068,11 @@ class NetworkService: ObservableObject {
         }
         if let questions = expectedQuestions {
             requestData["expected_questions"] = questions
+        }
+
+        // Add subject if provided
+        if let subj = subject {
+            requestData["subject"] = subj
         }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
