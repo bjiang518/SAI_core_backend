@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		254AD1FAD46A435CADC4B72B /* ProModeImageStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7432D8F68917426DB11C0528 /* ProModeImageStorage.swift */; };
 		04A8227E20B44E2A9BB27336 /* QuestionArchiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4624BD01A8D5462385D269DE /* QuestionArchiveView.swift */; };
 		0B6A2DF7A9ED4CCEBEABDB0A /* EnhancedTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC15A890FCE4881A878DD17 /* EnhancedTTSService.swift */; };
 		0E9E4F564C054706AD843040 /* BackgroundMusicTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39653A2DCFE745B5BE54613C /* BackgroundMusicTrack.swift */; };
@@ -383,6 +384,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		7432D8F68917426DB11C0528 /* ProModeImageStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/ProModeImageStorage.swift; sourceTree = SOURCE_ROOT; };
 		0011C726DB944E1CBD5D9102 /* SimpleMathRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SimpleMathRenderer.swift; path = StudyAI/Services/SimpleMathRenderer.swift; sourceTree = SOURCE_ROOT; };
 		00A4CD27FF4B4F649B2639C9 /* meditation-amp-focus.mp3 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = audio.mp3; name = "meditation-amp-focus.mp3"; path = "StudyAI/Resources/Music/meditation-amp-focus.mp3"; sourceTree = "<group>"; };
 		0249FA9FD2F44875BC72D12B /* StudyAI/Services/MusicLibraryService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift.swift; path = StudyAI/Services/MusicLibraryService.swift; sourceTree = SOURCE_ROOT; };
@@ -797,7 +799,8 @@
 				6C137BECD88E403C95DB4167 /* ReportGenerator.swift */,
 				E959644C73C1476381FE6AF4 /* ReportFetcher.swift */,
 				C8017F3BA66B46E9818A1867 /* LocalReportStorage.swift */,
-			);
+							7432D8F68917426DB11C0528 /* ProModeImageStorage.swift */,
+);
 			path = Services;
 			sourceTree = "<group>";
 		};
@@ -1315,7 +1318,8 @@
 				C4624B96D56541839FEF01C2 /* PhysicsTomatoGardenView.swift in Sources */,
 				BF2551E0CEA34F648B10EBD6 /* TomatoPokedexView.swift in Sources */,
 				774ED04D9804457AADCBC4B1 /* TomatoExchangeView.swift in Sources */,
-			);
+							254AD1FAD46A435CADC4B72B /* ProModeImageStorage.swift in Sources */,
+);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		7B9EC4762E61663E005E4BFB /* Sources */ = {

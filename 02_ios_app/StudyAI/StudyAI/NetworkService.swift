@@ -2140,12 +2140,13 @@ class NetworkService: ObservableObject {
     }
 
     /// Grade a single question (Phase 2)
-    /// Uses gpt-4o-mini for fast, low-cost grading
+    /// Uses gpt-4o-mini for fast, low-cost grading or Gemini Thinking for deep reasoning
     func gradeSingleQuestion(
         questionText: String,
         studentAnswer: String,
         subject: String?,
-        contextImageBase64: String? = nil
+        contextImageBase64: String? = nil,
+        useDeepReasoning: Bool = false
     ) async throws -> GradeSingleQuestionResponse {
 
         guard let url = URL(string: "\(baseURL)/api/ai/grade-question") else {
@@ -2156,7 +2157,9 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30.0  // 30 seconds per question
+
+        // Increase timeout for deep reasoning mode (may take longer)
+        request.timeoutInterval = useDeepReasoning ? 60.0 : 30.0
 
         // Add auth token if available
         if let token = AuthenticationService.shared.getAuthToken() {
@@ -2166,7 +2169,9 @@ class NetworkService: ObservableObject {
         // Build request data (exclude nil values)
         var requestData: [String: Any] = [
             "question_text": questionText,
-            "student_answer": studentAnswer
+            "student_answer": studentAnswer,
+            "model_provider": "gemini",  // Always use Gemini for now
+            "use_deep_reasoning": useDeepReasoning  // Pass deep reasoning flag
         ]
 
         if let subject = subject {
