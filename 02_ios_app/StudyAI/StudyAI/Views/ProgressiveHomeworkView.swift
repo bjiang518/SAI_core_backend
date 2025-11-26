@@ -623,6 +623,30 @@ struct QuestionGradeCard: View {
             if showSubquestions, let subquestions = questionWithGrade.question.subquestions {
                 VStack(spacing: 12) {
                     ForEach(subquestions) { subquestion in
+                        let _ = {
+                            // 🔍 DEBUG: Log dictionary retrieval
+                            print("")
+                            print("   " + String(repeating: "=", count: 70))
+                            print("   🔍 === RETRIEVING GRADE FROM DICTIONARY (View Rendering) ===")
+                            print("   " + String(repeating: "=", count: 70))
+                            print("   🔑 Dictionary Key (subquestion.id): '\(subquestion.id)'")
+                            print("   📚 Available keys in dictionary: \(questionWithGrade.subquestionGrades.keys.sorted())")
+
+                            if let retrievedGrade = questionWithGrade.subquestionGrades[subquestion.id] {
+                                print("   ✅ Grade FOUND in dictionary")
+                                print("   📊 Score: \(retrievedGrade.score)")
+                                print("   ✓ Is Correct: \(retrievedGrade.isCorrect)")
+                                print("   💬 Feedback: '\(retrievedGrade.feedback)'")
+                                print("   🔍 Feedback length: \(retrievedGrade.feedback.count) chars")
+                                print("   🔍 Feedback is empty: \(retrievedGrade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+                            } else {
+                                print("   ❌ Grade NOT FOUND in dictionary for key: '\(subquestion.id)'")
+                                print("   ⚠️ This will cause the ProgressiveSubquestionCard to receive nil grade!")
+                            }
+                            print("   " + String(repeating: "=", count: 70))
+                            print("")
+                        }()
+
                         ProgressiveSubquestionCard(
                             subquestion: subquestion,
                             grade: questionWithGrade.subquestionGrades[subquestion.id],
@@ -800,6 +824,49 @@ struct ProgressiveSubquestionCard: View {
     @State private var isExpanded = true  // ✅ Changed: Show feedback by default
 
     var body: some View {
+        let _ = {
+            // 🔍 DEBUG: Log what the Card component receives
+            print("")
+            print("   " + String(repeating: "=", count: 70))
+            print("   🎴 === PROGRESSIVE SUBQUESTION CARD RENDERING ===")
+            print("   " + String(repeating: "=", count: 70))
+            print("   🆔 Subquestion ID: '\(subquestion.id)'")
+            print("   📝 Question Text: '\(subquestion.questionText.prefix(50))...'")
+            print("   📝 Student Answer: '\(subquestion.studentAnswer)'")
+
+            if let grade = grade {
+                print("   ✅ Grade parameter: NOT NIL")
+                print("   📊 Score: \(grade.score)")
+                print("   ✓ Is Correct: \(grade.isCorrect)")
+                print("   💬 Feedback: '\(grade.feedback)'")
+                print("   🔍 Feedback length: \(grade.feedback.count) chars")
+                print("   🔍 Feedback is empty: \(grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+                print("   🔍 isExpanded state: \(isExpanded)")
+
+                // Check if feedback will be displayed
+                if isExpanded && !grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    print("   ✅ FEEDBACK SHOULD BE VISIBLE IN UI")
+                } else if !isExpanded {
+                    print("   ⚠️ FEEDBACK HIDDEN because isExpanded = false")
+                } else if grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    print("   ⚠️ FEEDBACK HIDDEN because feedback is empty")
+                }
+            } else {
+                print("   ❌ Grade parameter: NIL (Card will only show question, no grade/feedback)")
+            }
+
+            if isGrading {
+                print("   🔄 isGrading: true (showing progress spinner)")
+            }
+
+            if let error = error {
+                print("   ❌ Error: '\(error)'")
+            }
+
+            print("   " + String(repeating: "=", count: 70))
+            print("")
+        }()
+
         VStack(alignment: .leading, spacing: 8) {
 
             // Subquestion header
