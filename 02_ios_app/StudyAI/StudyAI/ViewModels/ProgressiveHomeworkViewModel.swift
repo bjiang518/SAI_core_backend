@@ -471,7 +471,29 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                     await MainActor.run {
                         if let index = self.state.questions.firstIndex(where: { $0.id == question.id }) {
                             if let grade = grade {
+                                // 🔍 DEBUG: Log dictionary storage
+                                print("")
+                                print("   " + String(repeating: "=", count: 70))
+                                print("   🗄️ === STORING GRADE IN DICTIONARY ===")
+                                print("   " + String(repeating: "=", count: 70))
+                                print("   🔑 Dictionary Key (subId): '\(subId)'")
+                                print("   📊 Score: \(grade.score)")
+                                print("   ✓ Is Correct: \(grade.isCorrect)")
+                                print("   💬 Feedback: '\(grade.feedback)'")
+                                print("   🔍 Feedback length: \(grade.feedback.count) chars")
+                                print("   🔍 Feedback is empty: \(grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+                                print("   🗄️ Storing to: state.questions[\(index)].subquestionGrades[\"\(subId)\"]")
+                                print("   " + String(repeating: "=", count: 70))
+                                print("")
+
                                 self.state.questions[index].subquestionGrades[subId] = grade
+
+                                // 🔍 DEBUG: Verify storage immediately
+                                if let storedGrade = self.state.questions[index].subquestionGrades[subId] {
+                                    print("   ✅ VERIFICATION: Grade successfully stored with feedback: '\(storedGrade.feedback)' (length: \(storedGrade.feedback.count))")
+                                } else {
+                                    print("   ❌ VERIFICATION FAILED: Could not retrieve stored grade!")
+                                }
                             }
                             if let error = error {
                                 self.state.questions[index].subquestionErrors[subId] = error
