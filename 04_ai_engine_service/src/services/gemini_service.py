@@ -402,7 +402,7 @@ class GeminiEducationalAIService:
 
             # Call Gemini with mode-specific configuration
             generation_config = {}
-            timeout = 45
+            timeout = 60  # Default timeout for standard grading
 
             if use_deep_reasoning:
                 # Deep reasoning mode: Higher temperature, more tokens
@@ -413,17 +413,18 @@ class GeminiEducationalAIService:
                     "max_output_tokens": 2048,
                     "candidate_count": 1
                 }
-                timeout = 60
+                timeout = 90  # INCREASED: 60 → 90 for deep reasoning
             else:
-                # Gemini grading mode: Optimized for accuracy
+                # Gemini standard grading mode: Optimized for speed + accuracy
+                # TIMEOUT FIX: 45s → 60s to handle API load spikes during concurrent grading
                 generation_config = {
                     "temperature": 0.4,
                     "top_p": 0.9,
                     "top_k": 40,
-                    "max_output_tokens": 2048,  # INCREASED: 1024 → 2048 to prevent JSON truncation
+                    "max_output_tokens": 512,  # REDUCED: 2048 → 512 for concise feedback (<15 words)
                     "candidate_count": 1
                 }
-                timeout = 45
+                timeout = 60  # INCREASED: 45s → 60s for concurrent grading stability
 
             # Call Gemini API (NEW or LEGACY) with fallback on 503 errors
             response = None
@@ -516,7 +517,31 @@ class GeminiEducationalAIService:
 
             # Parse JSON response (safely handle complex responses)
             raw_response = self._extract_response_text(response)
+
+            # 🔍 DEBUG: Log raw Gemini response
+            print(f"\n{'=' * 80}")
+            print(f"🔍 === RAW GEMINI GRADING RESPONSE (Phase 2) ===")
+            print(f"{'=' * 80}")
+            print(f"📄 Raw response length: {len(raw_response)} chars")
+            print(f"📝 Raw response preview (first 500 chars):")
+            print(f"{raw_response[:500]}")
+            if len(raw_response) > 500:
+                print(f"... (truncated, showing first 500 of {len(raw_response)} chars)")
+            print(f"{'=' * 80}\n")
+
             grade_data = self._extract_json_from_response(raw_response)
+
+            # 🔍 DEBUG: Log parsed grade data in detail
+            print(f"\n{'=' * 80}")
+            print(f"🔍 === PARSED GRADE DATA (Phase 2) ===")
+            print(f"{'=' * 80}")
+            print(f"📊 Score: {grade_data.get('score', 'MISSING')}")
+            print(f"✓ Is Correct: {grade_data.get('is_correct', 'MISSING')}")
+            print(f"💬 Feedback: '{grade_data.get('feedback', 'MISSING')}'")
+            print(f"📈 Confidence: {grade_data.get('confidence', 'MISSING')}")
+            print(f"🔍 Feedback length: {len(grade_data.get('feedback', ''))} chars")
+            print(f"🔍 Feedback is empty: {not grade_data.get('feedback', '').strip()}")
+            print(f"{'=' * 80}\n")
 
             print(f"📊 Score: {grade_data.get('score', 0.0)}")
             print(f"✓ Correct: {grade_data.get('is_correct', False)}")
@@ -839,7 +864,8 @@ RULES:
 4. Return ONLY valid JSON, no markdown or extra text"""
 
         else:
-            # Standard mode: Quick concise grading
+            # Standard mode: Quick concise grading with minimal feedback
+            # OPTIMIZATION: Reduced feedback from <30 words to <15 words for faster response
             return f"""Grade this student answer. Return JSON only.
 
 Question: {question_text}
@@ -854,7 +880,7 @@ Return JSON in this exact format:
 {{
   "score": 0.95,
   "is_correct": true,
-  "feedback": "Excellent! Correct method and calculation.",
+  "feedback": "Correct! Good work.",
   "confidence": 0.95
 }}
 
@@ -866,8 +892,8 @@ GRADING SCALE:
 
 RULES:
 1. is_correct = (score >= 0.9)
-2. Feedback must be encouraging and educational (<30 words)
-3. Explain WHERE error occurred and HOW to fix
+2. Feedback must be VERY brief (<15 words, ideally 5-10 words)
+3. If incorrect, state ONE key error only
 4. Return ONLY valid JSON, no markdown or extra text"""
 
     def _extract_json_from_response(self, response_text: str) -> Dict[str, Any]:

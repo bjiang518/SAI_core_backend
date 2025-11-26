@@ -2247,6 +2247,27 @@ class NetworkService: ObservableObject {
         let decoder = JSONDecoder()
         let gradeResponse = try decoder.decode(GradeSingleQuestionResponse.self, from: data)
 
+        // 🔍 DEBUG: Log decoded grade response structure
+        print("\n" + String(repeating: "=", count: 80))
+        print("🔍 === DECODED GRADE RESPONSE (NetworkService) ===")
+        print(String(repeating: "=", count: 80))
+        print("📊 Success: \(gradeResponse.success)")
+        if let grade = gradeResponse.grade {
+            print("✅ Grade Object Present:")
+            print("   - score: \(grade.score)")
+            print("   - isCorrect: \(grade.isCorrect)")
+            print("   - feedback: '\(grade.feedback)'")
+            print("   - confidence: \(grade.confidence)")
+            print("   - feedback length: \(grade.feedback.count) chars")
+            print("   - feedback empty: \(grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+        } else {
+            print("❌ Grade Object is NIL")
+        }
+        if let error = gradeResponse.error {
+            print("⚠️ Error: \(error)")
+        }
+        print(String(repeating: "=", count: 80) + "\n")
+
         return gradeResponse
     }
     
