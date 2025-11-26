@@ -148,8 +148,30 @@ class DigitalHomeworkStateManager: ObservableObject {
     // MARK: - Helpers
 
     private func generateSessionId(from parseResults: ParseHomeworkQuestionsResponse) -> String {
-        // Use subject + total questions + first question ID as session identifier
-        let identifier = "\(parseResults.subject)_\(parseResults.totalQuestions)_\(parseResults.questions.first?.id ?? 0)"
+        // Generate unique session ID using content hash
+        // This ensures each homework generates a unique ID, even if subject/question count are the same
+        var hasher = Hasher()
+
+        // Hash subject and total questions
+        hasher.combine(parseResults.subject)
+        hasher.combine(parseResults.totalQuestions)
+
+        // Hash all question content to ensure uniqueness
+        for question in parseResults.questions {
+            hasher.combine(question.id)
+            hasher.combine(question.questionText ?? "")
+            hasher.combine(question.studentAnswer ?? "")
+            hasher.combine(question.questionNumber ?? "")
+        }
+
+        // Add timestamp to ensure absolute uniqueness
+        let timestamp = Int(Date().timeIntervalSince1970)
+        hasher.combine(timestamp)
+
+        let hashValue = abs(hasher.finalize())
+        let identifier = "\(parseResults.subject)_\(parseResults.totalQuestions)_\(hashValue)"
+
+        print("🔑 Generated session ID: \(identifier)")
         return identifier.replacingOccurrences(of: " ", with: "_")
     }
 }
@@ -206,8 +228,9 @@ struct DigitalHomeworkSession: Codable, Identifiable {
             dict["questionsData"] = questionsData
         }
 
-        // Store metadata
+        // Store metadata (including sessionId for proper restoration)
         if let metadata = try? JSONEncoder().encode([
+            "sessionId": sessionId,
             "subject": subject,
             "createdAt": createdAt.timeIntervalSince1970,
             "lastModified": lastModified.timeIntervalSince1970
@@ -234,8 +257,24 @@ struct DigitalHomeworkSession: Codable, Identifiable {
             return nil
         }
 
-        // Generate session ID from parse results
-        let sessionId = "\(parseResults.subject)_\(parseResults.totalQuestions)_\(parseResults.questions.first?.id ?? 0)".replacingOccurrences(of: " ", with: "_")
+        // Restore session ID from metadata (for sessions saved with new format)
+        // Or generate new one if loading old format session
+        let sessionId: String
+        if let savedSessionId = metadata["sessionId"] as? String {
+            sessionId = savedSessionId
+            print("✅ Restored session ID from metadata: \(sessionId)")
+        } else {
+            // Legacy format: generate new hash-based ID
+            var hasher = Hasher()
+            hasher.combine(parseResults.subject)
+            hasher.combine(parseResults.totalQuestions)
+            for question in parseResults.questions {
+                hasher.combine(question.id)
+            }
+            let hashValue = abs(hasher.finalize())
+            sessionId = "\(parseResults.subject)_\(parseResults.totalQuestions)_\(hashValue)".replacingOccurrences(of: " ", with: "_")
+            print("⚠️ Legacy session, generated new ID: \(sessionId)")
+        }
 
         var session = DigitalHomeworkSession(
             sessionId: sessionId,
