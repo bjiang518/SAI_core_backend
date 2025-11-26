@@ -651,7 +651,15 @@ struct QuestionGradeCard: View {
                             subquestion: subquestion,
                             grade: questionWithGrade.subquestionGrades[subquestion.id],
                             isGrading: questionWithGrade.subquestionGradingStatus[subquestion.id] ?? false,
-                            error: questionWithGrade.subquestionErrors[subquestion.id]
+                            error: questionWithGrade.subquestionErrors[subquestion.id],
+                            onAskAI: {
+                                // TODO: Navigate to SessionChatView with subquestion context
+                                print("💬 Ask AI for help with subquestion \(subquestion.id)")
+                            },
+                            onArchive: {
+                                // TODO: Archive this specific subquestion
+                                print("⭐ Archive subquestion \(subquestion.id)")
+                            }
                         )
                     }
                 }
@@ -820,6 +828,8 @@ struct ProgressiveSubquestionCard: View {
     let grade: ProgressiveGradeResult?
     let isGrading: Bool
     let error: String?
+    let onAskAI: () -> Void
+    let onArchive: () -> Void
 
     @State private var isExpanded = true  // ✅ Changed: Show feedback by default
 
@@ -960,13 +970,66 @@ struct ProgressiveSubquestionCard: View {
 
                     // Expanded feedback
                     if isExpanded {
-                        Text(grade.feedback)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .padding(6)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(4)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(grade.feedback)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .padding(6)
+                                .background(Color.blue.opacity(0.1))
+                                .cornerRadius(4)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+
+                            // Action buttons (Ask AI + Archive)
+                            HStack(spacing: 8) {
+                                // Ask AI button
+                                Button {
+                                    onAskAI()
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "lightbulb.fill")
+                                            .font(.caption2)
+                                        Text("Ask AI")
+                                            .font(.caption2)
+                                            .fontWeight(.medium)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        LinearGradient(
+                                            colors: [.blue, .purple],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .cornerRadius(4)
+                                }
+
+                                // Archive button
+                                Button {
+                                    onArchive()
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "star.fill")
+                                            .font(.caption2)
+                                        Text("Archive")
+                                            .font(.caption2)
+                                            .fontWeight(.medium)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        LinearGradient(
+                                            colors: [.orange, .red],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .cornerRadius(4)
+                                }
+                            }
+                        }
                     }
                 }
             }

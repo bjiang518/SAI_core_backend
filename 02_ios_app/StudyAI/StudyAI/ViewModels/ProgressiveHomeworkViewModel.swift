@@ -468,14 +468,44 @@ class ProgressiveHomeworkViewModel: ObservableObject {
 
                 // Collect all subquestion grades
                 for await (subId, grade, error) in group {
+                    // 🔍 DEBUG: Log what TaskGroup received
+                    print("")
+                    print("   " + String(repeating: "=", count: 70))
+                    print("   🔍 === TASKGROUP RECEIVED RESULT (Subquestion '\(subId)') ===")
+                    print("   " + String(repeating: "=", count: 70))
+                    print("   🔑 Subquestion ID: '\(subId)'")
+                    if let grade = grade {
+                        print("   ✅ Grade: NOT NIL")
+                        print("   📊 Score: \(grade.score)")
+                        print("   ✓ Is Correct: \(grade.isCorrect)")
+                        print("   💬 Feedback: '\(grade.feedback)'")
+                        print("   🔍 Feedback length: \(grade.feedback.count) chars")
+                        print("   🔍 Feedback empty: \(grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+                    } else {
+                        print("   ❌ Grade: NIL")
+                    }
+                    if let error = error {
+                        print("   ⚠️ Error: '\(error)'")
+                    }
+                    print("   🔄 About to run MainActor block to store in dictionary...")
+                    print("   " + String(repeating: "=", count: 70))
+                    print("")
+
                     await MainActor.run {
+                        print("")
+                        print("   " + String(repeating: "=", count: 70))
+                        print("   🔍 === INSIDE MainActor.run (Storing Grade for '\(subId)') ===")
+                        print("   " + String(repeating: "=", count: 70))
+
                         if let index = self.state.questions.firstIndex(where: { $0.id == question.id }) {
+                            print("   ✅ Found parent question at index \(index)")
+
                             if let grade = grade {
                                 // 🔍 DEBUG: Log dictionary storage
                                 print("")
-                                print("   " + String(repeating: "=", count: 70))
+                                print("   " + String(repeating: "-", count: 70))
                                 print("   🗄️ === STORING GRADE IN DICTIONARY ===")
-                                print("   " + String(repeating: "=", count: 70))
+                                print("   " + String(repeating: "-", count: 70))
                                 print("   🔑 Dictionary Key (subId): '\(subId)'")
                                 print("   📊 Score: \(grade.score)")
                                 print("   ✓ Is Correct: \(grade.isCorrect)")
@@ -483,23 +513,44 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                                 print("   🔍 Feedback length: \(grade.feedback.count) chars")
                                 print("   🔍 Feedback is empty: \(grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
                                 print("   🗄️ Storing to: state.questions[\(index)].subquestionGrades[\"\(subId)\"]")
-                                print("   " + String(repeating: "=", count: 70))
-                                print("")
+                                print("   " + String(repeating: "-", count: 70))
 
+                                // ACTUAL STORAGE
                                 self.state.questions[index].subquestionGrades[subId] = grade
 
                                 // 🔍 DEBUG: Verify storage immediately
+                                print("")
+                                print("   🔍 === IMMEDIATE VERIFICATION AFTER STORAGE ===")
                                 if let storedGrade = self.state.questions[index].subquestionGrades[subId] {
-                                    print("   ✅ VERIFICATION: Grade successfully stored with feedback: '\(storedGrade.feedback)' (length: \(storedGrade.feedback.count))")
+                                    print("   ✅ SUCCESS: Grade retrieved from dictionary")
+                                    print("   📊 Retrieved score: \(storedGrade.score)")
+                                    print("   💬 Retrieved feedback: '\(storedGrade.feedback)' (length: \(storedGrade.feedback.count))")
+                                    print("   🔍 Feedback matches: \(storedGrade.feedback == grade.feedback)")
                                 } else {
-                                    print("   ❌ VERIFICATION FAILED: Could not retrieve stored grade!")
+                                    print("   ❌ FAILURE: Could not retrieve stored grade!")
                                 }
+
+                                // 🔍 DEBUG: Show all keys in dictionary
+                                print("\n   📚 All keys in subquestionGrades dictionary:")
+                                print("   Keys: \(self.state.questions[index].subquestionGrades.keys.sorted())")
+                                print("")
+                            } else {
+                                print("   ⚠️ Grade is NIL, not storing")
                             }
+
                             if let error = error {
+                                print("   ⚠️ Storing error: '\(error)'")
                                 self.state.questions[index].subquestionErrors[subId] = error
                             }
+
+                            print("   🔄 Setting subquestionGradingStatus[\"\(subId)\"] = false")
                             self.state.questions[index].subquestionGradingStatus[subId] = false
+                        } else {
+                            print("   ❌ CRITICAL ERROR: Parent question not found in state.questions!")
                         }
+
+                        print("   " + String(repeating: "=", count: 70))
+                        print("")
                     }
                 }
             }
@@ -548,6 +599,19 @@ class ProgressiveHomeworkViewModel: ObservableObject {
             // Get context image from parent question if available
             let contextImage = await getContextImageBase64(for: parentQuestionId)
 
+            // 🔍 DEBUG: Log request parameters
+            print("")
+            print("   " + String(repeating: "=", count: 70))
+            print("   🔍 === CALLING gradeSingleQuestion API (Subquestion \(subquestion.id)) ===")
+            print("   " + String(repeating: "=", count: 70))
+            print("   🆔 Subquestion ID: '\(subquestion.id)'")
+            print("   📝 Question Text: '\(subquestion.questionText.prefix(50))...'")
+            print("   📝 Student Answer: '\(subquestion.studentAnswer)'")
+            print("   📚 Subject: '\(await state.subject ?? "nil")'")
+            print("   🖼️ Context Image: \(contextImage != nil ? "YES (has parent image)" : "NO")")
+            print("   " + String(repeating: "=", count: 70))
+            print("")
+
             // Call grading endpoint
             let response = try await networkService.gradeSingleQuestion(
                 questionText: subquestion.questionText,
@@ -555,6 +619,18 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                 subject: await state.subject,
                 contextImageBase64: contextImage
             )
+
+            // 🔍 DEBUG: Log raw response object
+            print("")
+            print("   " + String(repeating: "=", count: 70))
+            print("   🔍 === gradeSingleQuestion API RESPONSE (Subquestion \(subquestion.id)) ===")
+            print("   " + String(repeating: "=", count: 70))
+            print("   ✅ Response Success: \(response.success)")
+            if let error = response.error {
+                print("   ⚠️ Response Error: '\(error)'")
+            }
+            print("   " + String(repeating: "=", count: 70))
+            print("")
 
             if response.success, let grade = response.grade {
                 // 🔍 DEBUG: Log complete grade object received from API
@@ -568,10 +644,34 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                 print("   📈 Confidence: \(grade.confidence)")
                 print("   🔍 Feedback length: \(grade.feedback.count) chars")
                 print("   🔍 Feedback is empty: \(grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+
+                // 🔍 DEBUG: Inspect grade object structure
+                print("\n   🔬 Grade Object Inspection:")
+                print("   - Type: \(type(of: grade))")
+                print("   - Feedback type: \(type(of: grade.feedback))")
+                print("   - Feedback bytes: \(grade.feedback.utf8.count) bytes")
+                print("   - Feedback characters: \(grade.feedback.count) chars")
+
+                // Check if feedback has any non-whitespace content
+                let trimmedFeedback = grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines)
+                print("   - Trimmed feedback length: \(trimmedFeedback.count)")
+                print("   - Has content: \(!trimmedFeedback.isEmpty)")
+
                 print("   " + String(repeating: "=", count: 70))
                 print("")
 
-                print("   ✅ Subquestion \(subquestion.id): score \(grade.score)")
+                print("   ✅ Subquestion \(subquestion.id): score \(grade.score), returning grade object to TaskGroup")
+
+                // 🔍 DEBUG: Log what we're returning
+                print("")
+                print("   " + String(repeating: "=", count: 70))
+                print("   🔍 === RETURNING FROM gradeSubquestion (Subquestion \(subquestion.id)) ===")
+                print("   " + String(repeating: "=", count: 70))
+                print("   🔑 Returning tuple: (id: '\(subquestion.id)', grade: NOT NIL, error: nil)")
+                print("   📊 Grade being returned has feedback: '\(grade.feedback)'")
+                print("   " + String(repeating: "=", count: 70))
+                print("")
+
                 return (subquestion.id, grade, nil)
             } else {
                 let error = response.error ?? "Grading failed"
