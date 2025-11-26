@@ -223,6 +223,7 @@ struct MainTabView: View {
             // Grader Tab
             NavigationStack {
                 DirectAIHomeworkView()
+                    .environmentObject(appState)  // ✅ FIX: Inject AppState environment object
                     .onAppear {
                         sessionManager.updateActivity()
                     }

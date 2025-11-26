@@ -36,16 +36,30 @@ struct ImageCropper {
 
     // MARK: - Single Image Cropping
 
-    /// Crop image using normalized coordinates
+    /// Crop image using normalized coordinates with backend image scaling support
+    ///
+    /// CRITICAL: Handles coordinate mismatch between backend and iOS
+    /// - Backend receives RESIZED image (e.g., 2048px) for bandwidth efficiency
+    /// - iOS crops from ORIGINAL full-resolution image (e.g., 4000px) for quality
+    /// - This function scales normalized coordinates to account for size difference
+    ///
     /// - Parameters:
-    ///   - image: Original UIImage to crop
-    ///   - topLeft: Top-left corner [x, y] in range [0-1]
-    ///   - bottomRight: Bottom-right corner [x, y] in range [0-1]
+    ///   - image: Original full-resolution UIImage to crop
+    ///   - topLeft: Normalized coordinates [x, y] in range [0-1] from backend
+    ///   - bottomRight: Normalized coordinates [x, y] in range [0-1] from backend
+    ///   - backendImageWidth: Width of the resized image that backend processed (optional)
+    ///   - backendImageHeight: Height of the resized image that backend processed (optional)
     /// - Returns: Cropped UIImage, or nil if cropping fails
+    ///
+    /// Example: Backend processed 2048x1536, but originalImage is 4000x3000:
+    /// - Backend returns coords based on 2048x1536
+    /// - We scale coords to apply correctly to 4000x3000
     static func crop(
         image: UIImage,
         topLeft: [Double],
-        bottomRight: [Double]
+        bottomRight: [Double],
+        backendImageWidth: Int? = nil,
+        backendImageHeight: Int? = nil
     ) -> UIImage? {
 
         // Validate input
@@ -59,15 +73,32 @@ struct ImageCropper {
             return nil
         }
 
-        // Get image dimensions
-        let imageWidth = CGFloat(cgImage.width)
-        let imageHeight = CGFloat(cgImage.height)
+        // Get original image dimensions (full resolution)
+        let originalWidth = CGFloat(cgImage.width)
+        let originalHeight = CGFloat(cgImage.height)
+
+        // Calculate scale factors if backend dimensions provided
+        var scaleX: CGFloat = 1.0
+        var scaleY: CGFloat = 1.0
+
+        if let backendWidth = backendImageWidth, let backendHeight = backendImageHeight {
+            // Backend processed a resized image, calculate scale ratio
+            scaleX = originalWidth / CGFloat(backendWidth)
+            scaleY = originalHeight / CGFloat(backendHeight)
+
+            print("🔧 ImageCropper: Coordinate scaling enabled")
+            print("   Backend image: \(backendWidth)x\(backendHeight)")
+            print("   Original image: \(Int(originalWidth))x\(Int(originalHeight))")
+            print("   Scale factors: x=\(String(format: "%.2f", scaleX)), y=\(String(format: "%.2f", scaleY))")
+        }
 
         // Convert normalized coordinates to pixel coordinates
-        let x1 = CGFloat(topLeft[0]) * imageWidth
-        let y1 = CGFloat(topLeft[1]) * imageHeight
-        let x2 = CGFloat(bottomRight[0]) * imageWidth
-        let y2 = CGFloat(bottomRight[1]) * imageHeight
+        // Step 1: Apply normalized coords to backend image dimensions (implicit via [0-1] range)
+        // Step 2: Scale to original image dimensions
+        let x1 = CGFloat(topLeft[0]) * originalWidth
+        let y1 = CGFloat(topLeft[1]) * originalHeight
+        let x2 = CGFloat(bottomRight[0]) * originalWidth
+        let y2 = CGFloat(bottomRight[1]) * originalHeight
 
         // Calculate crop dimensions
         let cropWidth = x2 - x1
@@ -109,14 +140,18 @@ struct ImageCropper {
 
     // MARK: - Batch Cropping
 
-    /// Crop multiple regions from the same image
+    /// Crop multiple regions from the same image with backend dimension support
     /// - Parameters:
     ///   - image: Original UIImage
     ///   - regions: Array of ImageRegion objects
+    ///   - backendImageWidth: Width of image processed by backend (optional)
+    ///   - backendImageHeight: Height of image processed by backend (optional)
     /// - Returns: Dictionary mapping questionId to cropped UIImage
     static func batchCrop(
         image: UIImage,
-        regions: [ImageRegion]
+        regions: [ImageRegion],
+        backendImageWidth: Int? = nil,
+        backendImageHeight: Int? = nil
     ) -> [Int: UIImage] {
 
         var croppedImages: [Int: UIImage] = [:]
@@ -130,11 +165,13 @@ struct ImageCropper {
                 continue
             }
 
-            // Crop region
+            // Crop region with backend dimensions
             if let cropped = crop(
                 image: image,
                 topLeft: region.topLeft,
-                bottomRight: region.bottomRight
+                bottomRight: region.bottomRight,
+                backendImageWidth: backendImageWidth,
+                backendImageHeight: backendImageHeight
             ) {
                 croppedImages[region.questionId] = cropped
                 print("✅ Q\(region.questionId): \(region.description)")
