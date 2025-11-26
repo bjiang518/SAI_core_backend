@@ -420,7 +420,7 @@ class GeminiEducationalAIService:
                     "temperature": 0.4,
                     "top_p": 0.9,
                     "top_k": 40,
-                    "max_output_tokens": 1024,
+                    "max_output_tokens": 2048,  # INCREASED: 1024 → 2048 to prevent JSON truncation
                     "candidate_count": 1
                 }
                 timeout = 45
@@ -499,6 +499,20 @@ class GeminiEducationalAIService:
                 print(f"✅ Grading completed with fallback in {api_duration:.2f}s")
             else:
                 print(f"✅ Grading completed in {api_duration:.2f}s")
+
+            # Check finish_reason for token limit issues
+            if response.candidates and len(response.candidates) > 0:
+                finish_reason = response.candidates[0].finish_reason
+                print(f"🔍 Grading finish reason: {finish_reason}")
+
+                if finish_reason == 3:  # MAX_TOKENS = 3 in FinishReason enum
+                    print(f"⚠️ WARNING: Grading response hit MAX_TOKENS limit!")
+                    print(f"   Consider: 1) Increase max_output_tokens")
+                    print(f"            2) Simplify grading prompt")
+                    return {
+                        "success": False,
+                        "error": "Grading response exceeded token limit. Try simpler questions or contact support."
+                    }
 
             # Parse JSON response (safely handle complex responses)
             raw_response = self._extract_response_text(response)
