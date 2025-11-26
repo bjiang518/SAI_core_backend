@@ -505,6 +505,20 @@ class ProgressiveHomeworkViewModel: ObservableObject {
             )
 
             if response.success, let grade = response.grade {
+                // 🔍 DEBUG: Log complete grade object received from API
+                print("")
+                print("   " + String(repeating: "=", count: 70))
+                print("   🔍 === iOS RECEIVED GRADE OBJECT (Subquestion \(subquestion.id)) ===")
+                print("   " + String(repeating: "=", count: 70))
+                print("   📊 Score: \(grade.score)")
+                print("   ✓ Is Correct: \(grade.isCorrect)")
+                print("   💬 Feedback: '\(grade.feedback)'")
+                print("   📈 Confidence: \(grade.confidence)")
+                print("   🔍 Feedback length: \(grade.feedback.count) chars")
+                print("   🔍 Feedback is empty: \(grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+                print("   " + String(repeating: "=", count: 70))
+                print("")
+
                 print("   ✅ Subquestion \(subquestion.id): score \(grade.score)")
                 return (subquestion.id, grade, nil)
             } else {
