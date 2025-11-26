@@ -41,12 +41,34 @@ class DigitalHomeworkStateManager: ObservableObject {
         // Generate session ID from parse results (use hash of questions for uniqueness)
         let sessionId = generateSessionId(from: parseResults)
 
+        // 🔍 DEBUG: Log what we're looking for
+        print("")
+        print("   " + String(repeating: "=", count: 80))
+        print("   🔍 === getOrCreateSession CALLED ===" )
+        print("   " + String(repeating: "=", count: 80))
+        print("   🔑 Generated Session ID: '\(sessionId)'")
+        print("   📚 Subject: '\(subject)'")
+        print("   📝 Total Questions: \(parseResults.totalQuestions)")
+        print("   🗄️ Existing sessions in memory: \(savedSessions.count)")
+        print("   📋 Existing session IDs: \(savedSessions.keys.sorted())")
+
         // Check if session already exists
         if let existingSession = savedSessions[sessionId] {
-            print("✅ Restored existing Digital Homework session: \(sessionId)")
+            print("   ⚠️ FOUND EXISTING SESSION - RETURNING OLD DATA")
+            print("   🕐 Session created: \(existingSession.createdAt)")
+            print("   🕑 Session modified: \(existingSession.lastModified)")
+            print("   ✅ Has graded questions: \(existingSession.questions.contains { $0.grade != nil })")
+            print("   📊 Graded count: \(existingSession.questions.filter { $0.grade != nil }.count)")
+            print("   " + String(repeating: "=", count: 80))
+            print("")
+
             currentSessionId = sessionId
             return existingSession
         }
+
+        print("   ✅ NO EXISTING SESSION FOUND - CREATING NEW")
+        print("   " + String(repeating: "=", count: 80))
+        print("")
 
         // Create new session
         let newSession = DigitalHomeworkSession(
@@ -132,17 +154,35 @@ class DigitalHomeworkStateManager: ObservableObject {
     private func loadSavedSessions() {
         guard let data = UserDefaults.standard.data(forKey: sessionsKey),
               let decoded = try? JSONDecoder().decode([String: [String: Data]].self, from: data) else {
+            print("⚠️ No saved sessions found in UserDefaults")
             return
         }
 
+        print("")
+        print("   " + String(repeating: "=", count: 80))
+        print("   🗄️ === LOADING SAVED SESSIONS FROM USERDEFAULTS ===" )
+        print("   " + String(repeating: "=", count: 80))
+        print("   📦 Found \(decoded.count) sessions to restore")
+
         // Reconstruct sessions from saved data
-        for (sessionId, sessionDict) in decoded {
+        for (oldSessionId, sessionDict) in decoded {
+            print("   🔄 Restoring session with old ID: '\(oldSessionId)'")
             if let session = DigitalHomeworkSession.fromDictionary(sessionDict) {
-                savedSessions[sessionId] = session
+                print("      ✅ Restored as ID: '\(session.sessionId)'")
+                print("      🕐 Created: \(session.createdAt)")
+                print("      📝 Questions: \(session.questions.count)")
+                print("      ✅ Graded: \(session.questions.filter { $0.grade != nil }.count)")
+                savedSessions[session.sessionId] = session
+            } else {
+                print("      ❌ Failed to restore session")
             }
         }
 
-        print("✅ Loaded \(savedSessions.count) Digital Homework sessions")
+        print("   " + String(repeating: "=", count: 80))
+        print("   ✅ Loaded \(savedSessions.count) Digital Homework sessions")
+        print("   📋 Session IDs in memory: \(savedSessions.keys.sorted())")
+        print("   " + String(repeating: "=", count: 80))
+        print("")
     }
 
     // MARK: - Helpers
@@ -150,6 +190,14 @@ class DigitalHomeworkStateManager: ObservableObject {
     private func generateSessionId(from parseResults: ParseHomeworkQuestionsResponse) -> String {
         // Generate unique session ID using content hash
         // This ensures each homework generates a unique ID, even if subject/question count are the same
+
+        print("")
+        print("   " + String(repeating: "=", count: 80))
+        print("   🔑 === GENERATING SESSION ID ===" )
+        print("   " + String(repeating: "=", count: 80))
+        print("   📚 Subject: '\(parseResults.subject)'")
+        print("   📝 Total Questions: \(parseResults.totalQuestions)")
+
         var hasher = Hasher()
 
         // Hash subject and total questions
@@ -157,7 +205,12 @@ class DigitalHomeworkStateManager: ObservableObject {
         hasher.combine(parseResults.totalQuestions)
 
         // Hash all question content to ensure uniqueness
-        for question in parseResults.questions {
+        print("   📋 Hashing question content:")
+        for (index, question) in parseResults.questions.enumerated() {
+            let questionTextPreview = (question.questionText ?? "").prefix(30)
+            let answerPreview = (question.studentAnswer ?? "").prefix(20)
+            print("      Q\(index + 1): id=\(question.id), text='\(questionTextPreview)...', answer='\(answerPreview)...'")
+
             hasher.combine(question.id)
             hasher.combine(question.questionText ?? "")
             hasher.combine(question.studentAnswer ?? "")
@@ -166,12 +219,16 @@ class DigitalHomeworkStateManager: ObservableObject {
 
         // Add timestamp to ensure absolute uniqueness
         let timestamp = Int(Date().timeIntervalSince1970)
+        print("   🕐 Timestamp: \(timestamp)")
         hasher.combine(timestamp)
 
         let hashValue = abs(hasher.finalize())
         let identifier = "\(parseResults.subject)_\(parseResults.totalQuestions)_\(hashValue)"
 
-        print("🔑 Generated session ID: \(identifier)")
+        print("   🔑 FINAL Session ID: '\(identifier)'")
+        print("   " + String(repeating: "=", count: 80))
+        print("")
+
         return identifier.replacingOccurrences(of: " ", with: "_")
     }
 }
