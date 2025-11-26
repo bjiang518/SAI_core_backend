@@ -797,7 +797,7 @@ struct ProgressiveSubquestionCard: View {
     let isGrading: Bool
     let error: String?
 
-    @State private var isExpanded = false
+    @State private var isExpanded = true  // ✅ Changed: Show feedback by default
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -875,6 +875,13 @@ struct ProgressiveSubquestionCard: View {
                             Text("Feedback")
                                 .font(.caption2)
                                 .fontWeight(.medium)
+
+                            // ✅ NEW: Show badge if feedback exists
+                            if !grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                Circle()
+                                    .fill(Color.blue)
+                                    .frame(width: 6, height: 6)
+                            }
 
                             Spacer()
 
