@@ -421,7 +421,7 @@ class GeminiEducationalAIService:
                     "temperature": 0.4,
                     "top_p": 0.9,
                     "top_k": 40,
-                    "max_output_tokens": 512,  # REDUCED: 2048 → 512 for concise feedback (<15 words)
+                    "max_output_tokens": 4096,  # INCREASED: 512 → 4096 to prevent feedback truncation
                     "candidate_count": 1
                 }
                 timeout = 60  # INCREASED: 45s → 60s for concurrent grading stability
@@ -501,14 +501,18 @@ class GeminiEducationalAIService:
             else:
                 print(f"✅ Grading completed in {api_duration:.2f}s")
 
-            # Check finish_reason for token limit issues
+            # Check finish_reason for token limit issues BEFORE extracting text
             if response.candidates and len(response.candidates) > 0:
                 finish_reason = response.candidates[0].finish_reason
                 print(f"🔍 Grading finish reason: {finish_reason}")
 
-                if finish_reason == 3:  # MAX_TOKENS = 3 in FinishReason enum
+                # Check for MAX_TOKENS error (NEW API uses enum, not int)
+                # Possible values: STOP, MAX_TOKENS, SAFETY, RECITATION, OTHER
+                finish_reason_str = str(finish_reason)
+                if "MAX_TOKENS" in finish_reason_str or finish_reason == 3:
                     print(f"⚠️ WARNING: Grading response hit MAX_TOKENS limit!")
-                    print(f"   Consider: 1) Increase max_output_tokens")
+                    print(f"   Current max_output_tokens: {generation_config.get('max_output_tokens', 'unknown')}")
+                    print(f"   Consider: 1) Increase max_output_tokens (currently {generation_config.get('max_output_tokens', 'N/A')})")
                     print(f"            2) Simplify grading prompt")
                     return {
                         "success": False,
