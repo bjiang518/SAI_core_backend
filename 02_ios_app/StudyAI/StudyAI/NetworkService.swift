@@ -2168,8 +2168,10 @@ class NetworkService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        // Increase timeout for deep reasoning mode (may take longer)
-        request.timeoutInterval = useDeepReasoning ? 60.0 : 30.0
+        // Increase timeout for grading - Pro Mode needs sufficient time
+        // Standard: 90s (gemini-2.5-flash: 1.5-3s/question + network latency)
+        // Deep reasoning: 120s (extended thinking mode)
+        request.timeoutInterval = useDeepReasoning ? 120.0 : 90.0
 
         // Add auth token if available
         if let token = AuthenticationService.shared.getAuthToken() {
