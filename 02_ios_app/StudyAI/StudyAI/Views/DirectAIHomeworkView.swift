@@ -150,6 +150,7 @@ class AIHomeworkStateManager: ObservableObject {
 struct DirectAIHomeworkView: View {
     @StateObject private var stateManager = AIHomeworkStateManager.shared
     @StateObject private var rateLimitManager = RateLimitManager.shared
+    @EnvironmentObject private var appState: AppState
     @State private var showingResults = false
     @State private var isProcessing = false
     @State private var showingErrorAlert = false
@@ -375,6 +376,7 @@ struct DirectAIHomeworkView: View {
                     parseResults: parseResults,
                     originalImage: firstImage
                 )
+                .environmentObject(appState)
             }
         }
         .alert(NSLocalizedString("aiHomework.processingError", comment: ""), isPresented: $showingErrorAlert) {

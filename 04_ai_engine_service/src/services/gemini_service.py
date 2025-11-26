@@ -100,9 +100,9 @@ class GeminiEducationalAIService:
 
                     # Model names (NEW API uses different naming)
                     # - gemini-2.5-flash: Fast parsing AND grading (optimized for speed)
-                    # - gemini-3-pro-preview: Deep thinking mode (experimental, not used in Pro Mode)
+                    # - gemini-2.5-pro: Deep reasoning mode (slower but more accurate)
                     self.model_name = "gemini-2.5-flash"  # UPGRADED: 2.0 → 2.5 for better parsing
-                    self.thinking_model_name = "gemini-3-pro-preview"  # Deep thinking
+                    self.thinking_model_name = "gemini-2.5-pro"  # UPDATED: Deep reasoning with Pro model
                     self.grading_model_name = "gemini-2.5-flash"  # Fast grading (1.5-3s per question)
 
                     # Set client references (for compatibility)
@@ -112,7 +112,7 @@ class GeminiEducationalAIService:
 
                     print(f"✅ Gemini parsing model: {self.model_name} (Flash 2.5 - Fast parsing)")
                     print(f"✅ Gemini grading model: {self.grading_model_name} (Flash 2.5 - Fast grading)")
-                    print(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 3.0 Pro - Deep Reasoning, not used)")
+                    print(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 2.5 Pro - Deep Reasoning)")
                     print(f"📊 Pro Mode optimized: Fast parsing + Fast grading with timeout protection")
 
                 # LEGACY API (backward compatibility)
@@ -212,7 +212,9 @@ class GeminiEducationalAIService:
             image_data = base64.b64decode(base64_image)
             image = Image.open(io.BytesIO(image_data))
 
-            print(f"🖼️ Image loaded: {image.size}")
+            # Store image dimensions for iOS coordinate scaling
+            image_width, image_height = image.size
+            print(f"🖼️ Image loaded: {image.size} (width={image_width}, height={image_height})")
             print(f"🚀 Calling Gemini Vision API...")
 
             import time
@@ -300,7 +302,11 @@ class GeminiEducationalAIService:
                 "subject": result.get("subject", "Unknown"),
                 "subject_confidence": result.get("subject_confidence", 0.5),
                 "total_questions": result.get("total_questions", 0),
-                "questions": questions_array
+                "questions": questions_array,
+                "processed_image_dimensions": {
+                    "width": image_width,
+                    "height": image_height
+                }
             }
 
         except Exception as e:

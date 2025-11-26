@@ -13,6 +13,7 @@ struct HomeworkSummaryView: View {
     let originalImage: UIImage
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appState: AppState
     @State private var showDigitalHomework = false
 
     var body: some View {
@@ -46,6 +47,7 @@ struct HomeworkSummaryView: View {
                 parseResults: parseResults,
                 originalImage: originalImage
             )
+            .environmentObject(appState)
         }
     }
 
@@ -314,7 +316,8 @@ struct QuestionPreviewRow: View {
                     )
                 ],
                 processingTimeMs: 1200,
-                error: nil
+                error: nil,
+                processedImageDimensions: nil
             ),
             originalImage: UIImage(systemName: "photo")!
         )

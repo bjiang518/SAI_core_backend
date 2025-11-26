@@ -2995,7 +2995,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
         student_answer: str,
         correct_answer: Optional[str] = None,
         subject: Optional[str] = None,
-        context_image: Optional[str] = None
+        context_image: Optional[str] = None,
+        use_deep_reasoning: bool = False
     ) -> Dict[str, Any]:
         """
         Grade a single question with smart model selection.
@@ -3004,8 +3005,9 @@ Focus on being helpful and educational while maintaining a conversational tone."
         iOS calls this endpoint for each question with concurrency limit = 5.
 
         SMART MODEL SELECTION:
-        - Text-only questions: gpt-4o-mini (fast & cheap ~$0.0009)
-        - Questions with images: gpt-4o (better vision understanding ~$0.015)
+        - Standard mode (text-only): gpt-4o-mini (fast & cheap ~$0.0009)
+        - Standard mode (with image): gpt-4o (better vision understanding ~$0.015)
+        - Deep reasoning mode: gpt-4o (always, for best accuracy)
 
         Args:
             question_text: The question to grade
@@ -3013,6 +3015,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
             correct_answer: Optional expected answer (AI will determine if not provided)
             subject: Optional subject for subject-specific grading rules
             context_image: Optional base64 image if question needs visual context
+            use_deep_reasoning: Enable deep reasoning mode (always uses gpt-4o)
 
         Returns:
             Dict with:
@@ -3020,11 +3023,16 @@ Focus on being helpful and educational while maintaining a conversational tone."
             - grade: Dict with score, is_correct, feedback, confidence
         """
 
-        # Smart model selection based on image context
-        selected_model = "gpt-4o" if context_image else "gpt-4o-mini"
+        # Smart model selection based on deep reasoning flag and image context
+        if use_deep_reasoning:
+            selected_model = "gpt-4o"  # Always use gpt-4o for deep reasoning
+            mode_label = "DEEP REASONING"
+        else:
+            selected_model = "gpt-4o" if context_image else "gpt-4o-mini"
+            mode_label = "STANDARD"
 
-        print(f"📝 === GRADING SINGLE QUESTION ===")
-        print(f"🤖 Model: {selected_model} ({'with image' if context_image else 'text-only'})")
+        print(f"📝 === GRADING SINGLE QUESTION (OPENAI) ===")
+        print(f"🤖 Model: {selected_model} (mode={mode_label}, deep_reasoning={use_deep_reasoning}, image={context_image is not None})")
         print(f"📚 Subject: {subject or 'General'}")
         print(f"❓ Question: {question_text[:50]}...")
         print(f"✍️ Student Answer: {student_answer[:50]}...")
@@ -3033,8 +3041,35 @@ Focus on being helpful and educational while maintaining a conversational tone."
             # Build grading prompt
             system_prompt = self._build_grading_prompt(subject)
 
-            # Prepare user message
-            user_text = f"""
+            # Prepare user message (different for deep reasoning vs standard)
+            if use_deep_reasoning:
+                # Deep reasoning: Detailed feedback, step-by-step analysis
+                user_text = f"""
+Question: {question_text}
+
+Student's Answer: {student_answer}
+
+{f'Expected Answer: {correct_answer}' if correct_answer else ''}
+
+DEEP REASONING INSTRUCTIONS:
+Think deeply about this question before grading. Consider:
+1. What concept is being tested?
+2. What approach did the student take?
+3. Where (if anywhere) did they make mistakes?
+4. How significant are the errors?
+
+Grade this answer with detailed analysis. Return JSON with:
+{{
+  "score": 0.95,  // 0.0-1.0
+  "is_correct": true,  // score >= 0.9
+  "feedback": "Your reasoning is excellent. You correctly identified X and applied method Y...",  // 50-100 words with detailed explanation
+  "confidence": 0.95,  // 0.0-1.0
+  "reasoning_steps": "Student used correct formula. Calculation steps were accurate..."  // Optional reasoning trace
+}}
+"""
+            else:
+                # Standard mode: Brief concise feedback
+                user_text = f"""
 Question: {question_text}
 
 Student's Answer: {student_answer}
@@ -3045,7 +3080,7 @@ Grade this answer. Return JSON with:
 {{
   "score": 0.95,  // 0.0-1.0
   "is_correct": true,  // score >= 0.9
-  "feedback": "Excellent! Correct method and calculation.",  // max 30 words
+  "feedback": "Correct! Good work.",  // VERY brief, <15 words
   "confidence": 0.95  // 0.0-1.0
 }}
 """
@@ -3073,17 +3108,25 @@ Grade this answer. Return JSON with:
             print(f"🚀 Calling {selected_model}...")
             start_time = time.time()
 
-            # Call selected model (smart selection: 4o-mini for text, 4o for images)
-            # GRADING OPTIMIZATION: temperature=0.3 for consistent reasoning
-            # - Slightly higher than OCR (0.0) since grading needs some reasoning
-            # - Low enough to prevent hallucination and ensure fair grading
-            response = await self.client.chat.completions.create(
-                model=selected_model,
-                messages=messages,
-                response_format={"type": "json_object"},
-                temperature=0.3,  # Low but non-zero for reasoning (was 0.2)
-                max_tokens=300  # Short response needed
-            )
+            # Call selected model with mode-specific configuration
+            # Deep reasoning: Higher temperature (0.7), more tokens (1024)
+            # Standard: Lower temperature (0.3), fewer tokens (300)
+            if use_deep_reasoning:
+                response = await self.client.chat.completions.create(
+                    model=selected_model,
+                    messages=messages,
+                    response_format={"type": "json_object"},
+                    temperature=0.7,  # Higher for creative reasoning
+                    max_tokens=1024  # More tokens for detailed feedback
+                )
+            else:
+                response = await self.client.chat.completions.create(
+                    model=selected_model,
+                    messages=messages,
+                    response_format={"type": "json_object"},
+                    temperature=0.3,  # Low but non-zero for reasoning
+                    max_tokens=300  # Short response needed
+                )
 
             api_duration = time.time() - start_time
             print(f"✅ Grading completed in {api_duration:.2f}s")
@@ -3091,6 +3134,31 @@ Grade this answer. Return JSON with:
             # Parse result
             raw_response = response.choices[0].message.content
             grade_data = json.loads(raw_response)
+
+            # 🔍 DEBUG: Log raw OpenAI response (Phase 2 - Grading)
+            print(f"\n{'=' * 80}")
+            print(f"🔍 === RAW OPENAI GRADING RESPONSE (Phase 2) ===")
+            print(f"{'=' * 80}")
+            print(f"📄 Raw response length: {len(raw_response)} chars")
+            print(f"📝 Raw response preview (first 500 chars):")
+            print(f"{raw_response[:500]}")
+            if len(raw_response) > 500:
+                print(f"... (truncated, showing first 500 of {len(raw_response)} chars)")
+            print(f"{'=' * 80}\n")
+
+            # 🔍 DEBUG: Log parsed grade data in detail
+            print(f"\n{'=' * 80}")
+            print(f"🔍 === PARSED GRADE DATA (Phase 2) ===")
+            print(f"{'=' * 80}")
+            print(f"📊 Score: {grade_data.get('score', 'MISSING')}")
+            print(f"✓ Is Correct: {grade_data.get('is_correct', 'MISSING')}")
+            print(f"💬 Feedback: '{grade_data.get('feedback', 'MISSING')}'")
+            print(f"📈 Confidence: {grade_data.get('confidence', 'MISSING')}")
+            print(f"🔍 Feedback length: {len(grade_data.get('feedback', ''))} chars")
+            print(f"🔍 Feedback is empty: {not grade_data.get('feedback', '').strip()}")
+            if 'reasoning_steps' in grade_data:
+                print(f"🧠 Reasoning Steps: '{grade_data.get('reasoning_steps', 'N/A')}'")
+            print(f"{'=' * 80}\n")
 
             print(f"📊 Score: {grade_data.get('score', 0.0)}")
             print(f"✓ Correct: {grade_data.get('is_correct', False)}")

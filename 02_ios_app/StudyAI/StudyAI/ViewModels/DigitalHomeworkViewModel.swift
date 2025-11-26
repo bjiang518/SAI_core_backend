@@ -36,6 +36,9 @@ class DigitalHomeworkViewModel: ObservableObject {
     // Deep reasoning mode (深度批改模式)
     @Published var useDeepReasoning = false
 
+    // AI model selection (NEW: OpenAI vs Gemini)
+    @Published var selectedAIModel: String = "gemini"  // "openai" or "gemini"
+
     // MARK: - Private Properties
 
     private var parseResults: ParseHomeworkQuestionsResponse?
@@ -224,6 +227,9 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     func startGrading() async {
         print("🚀 === STARTING AI GRADING ===")
+        print("🤖 AI Model: \(selectedAIModel)")
+        print("🧠 Deep Reasoning: \(useDeepReasoning ? "YES" : "NO")")
+        print("📊 Total Questions: \(questions.count)")
 
         // 隐藏图片预览（触发向上飞走动画）
         withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
@@ -326,10 +332,12 @@ class DigitalHomeworkViewModel: ObservableObject {
                     studentAnswer: question.displayStudentAnswer,
                     subject: subject,
                     contextImageBase64: contextImage,
-                    useDeepReasoning: useDeepReasoning  // Pass deep reasoning mode
+                    useDeepReasoning: useDeepReasoning,  // Pass deep reasoning mode
+                    modelProvider: selectedAIModel  // NEW: Pass AI model selection
                 )
 
                 if response.success, let grade = response.grade {
+                    print("✅ Q\(question.id) graded: score=\(grade.score), correct=\(grade.isCorrect)")
                     return (question.id, grade, nil)
                 } else {
                     let error = response.error ?? "Grading failed"
@@ -361,7 +369,8 @@ class DigitalHomeworkViewModel: ObservableObject {
                 studentAnswer: subquestion.studentAnswer,
                 subject: subject,
                 contextImageBase64: contextImage,
-                useDeepReasoning: useDeepReasoning  // Pass deep reasoning mode
+                useDeepReasoning: useDeepReasoning,  // Pass deep reasoning mode
+                modelProvider: selectedAIModel  // NEW: Pass AI model selection
             )
 
             if response.success, let grade = response.grade {

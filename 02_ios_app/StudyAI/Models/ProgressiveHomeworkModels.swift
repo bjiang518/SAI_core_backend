@@ -80,6 +80,12 @@ struct ProgressiveQuestion: Codable, Identifiable {
     }
 }
 
+/// Dimensions of the image processed by backend
+struct ProcessedImageDimensions: Codable {
+    let width: Int
+    let height: Int
+}
+
 /// Response from parse-homework-questions endpoint (Phase 1)
 struct ParseHomeworkQuestionsResponse: Codable {
     let success: Bool
@@ -89,6 +95,7 @@ struct ParseHomeworkQuestionsResponse: Codable {
     let questions: [ProgressiveQuestion]
     let processingTimeMs: Int?
     let error: String?
+    let processedImageDimensions: ProcessedImageDimensions?  // NEW: Backend image dimensions for coordinate scaling
 
     enum CodingKeys: String, CodingKey {
         case success
@@ -98,6 +105,7 @@ struct ParseHomeworkQuestionsResponse: Codable {
         case questions
         case processingTimeMs = "processing_time_ms"
         case error
+        case processedImageDimensions = "processed_image_dimensions"
     }
 }
 

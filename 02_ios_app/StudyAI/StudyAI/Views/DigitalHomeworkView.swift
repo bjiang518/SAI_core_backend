@@ -19,6 +19,7 @@ struct DigitalHomeworkView: View {
     let originalImage: UIImage
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = DigitalHomeworkViewModel()
     @Namespace private var animationNamespace
 
@@ -146,7 +147,16 @@ struct DigitalHomeworkView: View {
                                         isArchiveMode: viewModel.isArchiveMode,
                                         isSelected: viewModel.selectedQuestionIds.contains(questionWithGrade.question.id),
                                         onAskAI: {
-                                            viewModel.askAIForHelp(questionId: questionWithGrade.question.id)
+                                            // Dismiss current view first
+                                            dismiss()
+
+                                            // Small delay to ensure view is dismissed
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                viewModel.askAIForHelp(
+                                                    questionId: questionWithGrade.question.id,
+                                                    appState: appState
+                                                )
+                                            }
                                         },
                                         onArchive: {
                                             viewModel.archiveQuestion(questionId: questionWithGrade.question.id)
@@ -637,6 +647,11 @@ struct DigitalHomeworkView: View {
                 }
             }
 
+            // AI Model Selector (NEW: OpenAI vs Gemini) - Only show before grading
+            if !viewModel.isGrading {
+                aiModelSelectorCard
+            }
+
             // Deep reasoning mode toggle (省督批改开关)
             if !viewModel.isGrading {
                 HStack {
@@ -712,6 +727,79 @@ struct DigitalHomeworkView: View {
                 }
             }
         }
+    }
+
+    // MARK: - AI Model Selector Card (NEW)
+
+    private var aiModelSelectorCard: some View {
+        let currentModel = viewModel.selectedAIModel  // Capture value outside GeometryReader
+
+        return HStack(spacing: 16) {
+            // Liquid Glass Segmented Control for AI Model
+            ZStack(alignment: .leading) {
+                // Background track
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(UIColor.secondarySystemGroupedBackground))
+                    .frame(height: 40)
+
+                // Animated liquid glass indicator
+                GeometryReader { geometry in
+                    let selectedIndex = currentModel == "openai" ? 0 : 1
+                    let segmentWidth = geometry.size.width / 2.0
+
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color(UIColor.systemBackground))
+                        .frame(width: segmentWidth - 8, height: 32)
+                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        .offset(x: CGFloat(selectedIndex) * segmentWidth + 4, y: 4)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: currentModel)
+                }
+                .frame(height: 40)
+
+                // Option buttons
+                HStack(spacing: 0) {
+                    aiModelButton(model: "openai", label: "OpenAI", icon: "brain.head.profile")
+                    aiModelButton(model: "gemini", label: "Gemini", icon: "sparkles")
+                }
+            }
+            .padding(4)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color(UIColor.systemGroupedBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+
+    private func aiModelButton(model: String, label: String, icon: String) -> some View {
+        let currentModel = viewModel.selectedAIModel  // Capture value
+        let isSelected = currentModel == model
+
+        return Button(action: {
+            // Capture viewModel before animation closure
+            let vm = self.viewModel
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                vm.selectedAIModel = model
+
+                // Haptic feedback
+                let generator = UIImpactFeedbackGenerator(style: .light)
+                generator.impactOccurred()
+            }
+        }) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.subheadline)
+
+                Text(label)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(isSelected ? .primary : .secondary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 40)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 
 }
@@ -1008,7 +1096,8 @@ struct HomeworkGradeBadge: View {
                     )
                 ],
                 processingTimeMs: 1200,
-                error: nil
+                error: nil,
+                processedImageDimensions: nil
             ),
             originalImage: UIImage(systemName: "photo")!
         )
