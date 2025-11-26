@@ -233,7 +233,7 @@ struct DirectAIHomeworkView: View {
         var icon: String {
             switch self {
             case .progressive:
-                return "bolt.badge.clock.fill"
+                return "wand.and.stars"  // Pro Mode: Magic wand with stars (智能分析)
             case .hierarchical:
                 return "list.bullet.indent"
             case .baseline:
@@ -1071,10 +1071,20 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Analyze Button
     private var analyzeButton: some View {
-        AnimatedGradientButton(
-            title: stateManager.selectedImageIndices.count > 1 ?
+        // Determine button title based on parsing mode and image count
+        let buttonTitle: String
+        if parsingMode == .progressive {
+            // Pro Mode: "AI Digital Homework"
+            buttonTitle = "AI Digital Homework"
+        } else {
+            // Detail/Fast Mode: "Ask AI for analysis" or "Analyze N images"
+            buttonTitle = stateManager.selectedImageIndices.count > 1 ?
                 String(format: NSLocalizedString("aiHomework.analyzeMultipleImages", comment: ""), stateManager.selectedImageIndices.count) :
-                NSLocalizedString("aiHomework.analyzeWithAI", comment: ""),
+                NSLocalizedString("aiHomework.analyzeWithAI", comment: "")
+        }
+
+        return AnimatedGradientButton(
+            title: buttonTitle,
             isProcessing: isProcessing
         ) {
             // Process selected images

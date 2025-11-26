@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		254AD1FAD46A435CADC4B72B /* ProModeImageStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7432D8F68917426DB11C0528 /* ProModeImageStorage.swift */; };
 		04A8227E20B44E2A9BB27336 /* QuestionArchiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4624BD01A8D5462385D269DE /* QuestionArchiveView.swift */; };
 		0B6A2DF7A9ED4CCEBEABDB0A /* EnhancedTTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC15A890FCE4881A878DD17 /* EnhancedTTSService.swift */; };
 		0E9E4F564C054706AD843040 /* BackgroundMusicTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39653A2DCFE745B5BE54613C /* BackgroundMusicTrack.swift */; };
@@ -23,6 +22,7 @@
 		21C64949788648B5AB0D6515 /* SubjectBreakdownModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFAA0352B2D3E17EF96B1B49 /* SubjectBreakdownModels.swift */; };
 		22E5A1F68771449B967D7FD6 /* nature.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = B2BADF97FAD74B47A0470133 /* nature.mp3 */; };
 		23456789012345678901BCDE /* LibraryDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCDE234567890123FGHI4567 /* LibraryDataService.swift */; };
+		254AD1FAD46A435CADC4B72B /* StudyAI/Services/ProModeImageStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7432D8F68917426DB11C0528 /* StudyAI/Services/ProModeImageStorage.swift */; };
 		25FC77CE76E748A797D68F8C /* ViewModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F627B68C4AF54BCBB1043EED /* ViewModifiers.swift */; };
 		2889F08A3B034FE5AC00739C /* DirectAIHomeworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122549B3F87E417292C7874C /* DirectAIHomeworkView.swift */; };
 		2F704A14D92440C2A18F02EC /* ZoomedRegionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2575218B86324529B227C931 /* ZoomedRegionView.swift */; };
@@ -95,6 +95,9 @@
 		7B1ED8452E829DBE00E5E57D /* ReportDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8442E829DBE00E5E57D /* ReportDetailView.swift */; };
 		7B1ED8472E829DE900E5E57D /* ReportExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8462E829DE900E5E57D /* ReportExportView.swift */; };
 		7B1ED8492E829E5B00E5E57D /* ReportExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8482E829E5B00E5E57D /* ReportExportService.swift */; };
+		7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
+		7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
+		7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B74A2052EB18078002DBE2B /* Fire.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B74A2032EB18078002DBE2B /* Fire.json */; };
 		7B74A2062EB18078002DBE2B /* Foriday.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B74A2042EB18078002DBE2B /* Foriday.json */; };
 		7B74A2072EB18078002DBE2B /* Fire.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B74A2032EB18078002DBE2B /* Fire.json */; };
@@ -179,9 +182,6 @@
 		7BC00E6E2E714D67002DF625 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7BC00E6D2E714D67002DF625 /* GoogleService-Info.plist */; };
 		7BC00E6F2E714D67002DF625 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7BC00E6D2E714D67002DF625 /* GoogleService-Info.plist */; };
 		7BC00E702E714D67002DF625 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7BC00E6D2E714D67002DF625 /* GoogleService-Info.plist */; };
-		7BD664C22ECA8AC900E09E55 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD664C12ECA8AC900E09E55 /* ImageCropper.swift */; };
-		7BD664C32ECA8AC900E09E55 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD664C12ECA8AC900E09E55 /* ImageCropper.swift */; };
-		7BD664C42ECA8AC900E09E55 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD664C12ECA8AC900E09E55 /* ImageCropper.swift */; };
 		7BD664CA2ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD664C92ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift */; };
 		7BD664CB2ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD664C92ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift */; };
 		7BD664CC2ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD664C92ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift */; };
@@ -206,9 +206,9 @@
 		7BD6687C2ED05FD400E09E55 /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD6687B2ED05FD400E09E55 /* ZoomableImageView.swift */; };
 		7BD6687D2ED05FD400E09E55 /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD6687B2ED05FD400E09E55 /* ZoomableImageView.swift */; };
 		7BD6687E2ED05FD400E09E55 /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD6687B2ED05FD400E09E55 /* ZoomableImageView.swift */; };
-		7BD668802ED05FFD00E09E55 /* DigitalHomeworkViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD6687F2ED05FFD00E09E55 /* DigitalHomeworkViewModel.swift */; };
-		7BD668812ED05FFD00E09E55 /* DigitalHomeworkViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD6687F2ED05FFD00E09E55 /* DigitalHomeworkViewModel.swift */; };
-		7BD668822ED05FFD00E09E55 /* DigitalHomeworkViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD6687F2ED05FFD00E09E55 /* DigitalHomeworkViewModel.swift */; };
+		7BD668A22ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */; };
+		7BD668A32ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */; };
+		7BD668A42ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */; };
 		7BDE565E2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
 		7BDE565F2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
 		7BDE56602EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
@@ -384,7 +384,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		7432D8F68917426DB11C0528 /* ProModeImageStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/ProModeImageStorage.swift; sourceTree = SOURCE_ROOT; };
 		0011C726DB944E1CBD5D9102 /* SimpleMathRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SimpleMathRenderer.swift; path = StudyAI/Services/SimpleMathRenderer.swift; sourceTree = SOURCE_ROOT; };
 		00A4CD27FF4B4F649B2639C9 /* meditation-amp-focus.mp3 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = audio.mp3; name = "meditation-amp-focus.mp3"; path = "StudyAI/Resources/Music/meditation-amp-focus.mp3"; sourceTree = "<group>"; };
 		0249FA9FD2F44875BC72D12B /* StudyAI/Services/MusicLibraryService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift.swift; path = StudyAI/Services/MusicLibraryService.swift; sourceTree = SOURCE_ROOT; };
@@ -423,6 +422,7 @@
 		6C25B8960EFF470BBE31F73A /* SessionChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionChatView.swift; path = StudyAI/Views/SessionChatView.swift; sourceTree = SOURCE_ROOT; };
 		7328FFA07B1244DE /* PlaylistEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaylistEditorView.swift; path = StudyAI/Views/PlaylistEditorView.swift; sourceTree = SOURCE_ROOT; };
 		740D132F82A14ABAA94D79CC /* VoiceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceModels.swift; path = StudyAI/Models/VoiceModels.swift; sourceTree = SOURCE_ROOT; };
+		7432D8F68917426DB11C0528 /* StudyAI/Services/ProModeImageStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/ProModeImageStorage.swift; sourceTree = SOURCE_ROOT; };
 		7B1961992E9285F20024317A /* Customised_report.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Customised_report.json; sourceTree = "<group>"; };
 		7B19619A2E9285F20024317A /* Sandy_Loading.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Sandy_Loading.json; sourceTree = "<group>"; };
 		7B1961A72E93AD240024317A /* Wave Animation.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Wave Animation.json"; sourceTree = "<group>"; };
@@ -443,6 +443,7 @@
 		7B1ED8442E829DBE00E5E57D /* ReportDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportDetailView.swift; path = StudyAI/Views/ReportDetailView.swift; sourceTree = SOURCE_ROOT; };
 		7B1ED8462E829DE900E5E57D /* ReportExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportExportView.swift; path = StudyAI/Views/ReportExportView.swift; sourceTree = SOURCE_ROOT; };
 		7B1ED8482E829E5B00E5E57D /* ReportExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportExportService.swift; path = StudyAI/Services/ReportExportService.swift; sourceTree = SOURCE_ROOT; };
+		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCropper.swift; sourceTree = "<group>"; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
 		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
 		7B74A2E32EB6BBDD002DBE2B /* Bubbles x2.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Bubbles x2.json"; sourceTree = "<group>"; };
@@ -478,7 +479,6 @@
 		7B9EC47A2E61663E005E4BFB /* StudyAITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StudyAITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B9EC4842E61663E005E4BFB /* StudyAIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StudyAIUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7BC00E6D2E714D67002DF625 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
-		7BD664C12ECA8AC900E09E55 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCropper.swift; sourceTree = "<group>"; };
 		7BD664C92ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProgressiveHomeworkViewModel.swift; path = StudyAI/ViewModels/ProgressiveHomeworkViewModel.swift; sourceTree = SOURCE_ROOT; };
 		7BD664CD2ECA8B2E00E09E55 /* ProgressiveHomeworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProgressiveHomeworkView.swift; path = StudyAI/Views/ProgressiveHomeworkView.swift; sourceTree = SOURCE_ROOT; };
 		7BD664D12ECA908300E09E55 /* ProgressiveHomeworkModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressiveHomeworkModels.swift; sourceTree = "<group>"; };
@@ -487,7 +487,7 @@
 		7BD668732ED05FAE00E09E55 /* DigitalHomeworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkView.swift; path = StudyAI/Views/DigitalHomeworkView.swift; sourceTree = SOURCE_ROOT; };
 		7BD668742ED05FAE00E09E55 /* HomeworkSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkSummaryView.swift; path = StudyAI/Views/HomeworkSummaryView.swift; sourceTree = SOURCE_ROOT; };
 		7BD6687B2ED05FD400E09E55 /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ZoomableImageView.swift; path = StudyAI/Views/Components/ZoomableImageView.swift; sourceTree = SOURCE_ROOT; };
-		7BD6687F2ED05FFD00E09E55 /* DigitalHomeworkViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigitalHomeworkViewModel.swift; sourceTree = "<group>"; };
+		7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigitalHomeworkStateManager.swift; sourceTree = "<group>"; };
 		7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MathJaxRenderer.swift; path = StudyAI/Services/MathJaxRenderer.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56612EC1C617004A8629 /* PomodoroDeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PomodoroDeepLinkHandler.swift; path = StudyAI/Services/PomodoroDeepLinkHandler.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56652EC1C64D004A8629 /* StreamingMessageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StreamingMessageService.swift; path = StudyAI/Services/StreamingMessageService.swift; sourceTree = SOURCE_ROOT; };
@@ -671,7 +671,7 @@
 		7B8353322EA6F0DA00199AC3 /* utils */ = {
 			isa = PBXGroup;
 			children = (
-				7BD664C12ECA8AC900E09E55 /* ImageCropper.swift */,
+				7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */,
 				7B8353332EA6F11400199AC3 /* AppLogger.swift */,
 				7B8353342EA6F11400199AC3 /* ErrorBoundary.swift */,
 				7B8353352EA6F11400199AC3 /* RateLimitManager.swift */,
@@ -723,7 +723,7 @@
 		7BEDA5F72E7EB8C500D57B15 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				7BD6687F2ED05FFD00E09E55 /* DigitalHomeworkViewModel.swift */,
+				7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */,
 				7BD664D92ECAB9D200E09E55 /* ProgressiveSubquestionModel.swift */,
 				7BD664D12ECA908300E09E55 /* ProgressiveHomeworkModels.swift */,
 				7BDE56DF2EC31A7A004A8629 /* EssayGradingModels.swift */,
@@ -799,8 +799,8 @@
 				6C137BECD88E403C95DB4167 /* ReportGenerator.swift */,
 				E959644C73C1476381FE6AF4 /* ReportFetcher.swift */,
 				C8017F3BA66B46E9818A1867 /* LocalReportStorage.swift */,
-							7432D8F68917426DB11C0528 /* ProModeImageStorage.swift */,
-);
+				7432D8F68917426DB11C0528 /* StudyAI/Services/ProModeImageStorage.swift */,
+			);
 			path = Services;
 			sourceTree = "<group>";
 		};
@@ -1158,7 +1158,6 @@
 				0F7BA87F97974F7A8A918A3B /* StudyAI/Services/MusicLibraryService.swift in Sources */,
 				7BDE56F22EC31AD7004A8629 /* EssayResultsView.swift in Sources */,
 				9F1B2C579AB0463A90EF1624 /* StudyAI/Services/MusicDownloadService.swift in Sources */,
-				7BD668802ED05FFD00E09E55 /* DigitalHomeworkViewModel.swift in Sources */,
 				809124D3E9CF44C6A623DE31 /* ContentView.swift in Sources */,
 				47661FA6102F43AE9462714A /* HomeworkModels.swift in Sources */,
 				9435f120dda645beb1b73507 /* NotificationModels.swift in Sources */,
@@ -1205,7 +1204,6 @@
 				7BDE56EC2EC31AC7004A8629 /* HTMLRendererView.swift in Sources */,
 				7BDE569B2EC1CA4D004A8629 /* VoiceComponents.swift in Sources */,
 				7BDE569C2EC1CA4D004A8629 /* ImageComponents.swift in Sources */,
-				7BD664C32ECA8AC900E09E55 /* ImageCropper.swift in Sources */,
 				DB5CF3C197754361B71BF918 /* QuestionSegmenter.swift in Sources */,
 				7BDE56E42EC31A8B004A8629 /* LaTeXToHTMLConverter.swift in Sources */,
 				7BEDA6272E80B8C500D57B15 /* QuestionGenerationService.swift in Sources */,
@@ -1225,6 +1223,7 @@
 				23456789012345678901BCDE /* LibraryDataService.swift in Sources */,
 				PRFS678901234567CDEF9012 /* ProfileService.swift in Sources */,
 				17B3328E16B94A21AFE789F7 /* StudyAIApp.swift in Sources */,
+				7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */,
 				A823C26E80984911960B4AA1 /* ArchivedQuestionsView.swift in Sources */,
 				CBC9A72B2BBE4D5DB9556A4C /* CameraView.swift in Sources */,
 				2889F08A3B034FE5AC00739C /* DirectAIHomeworkView.swift in Sources */,
@@ -1260,6 +1259,7 @@
 				PRVSTGS901234567890ABCD /* PrivacySettingsView.swift in Sources */,
 				PRVPLCY901234567890ABCD /* PrivacyPolicyView.swift in Sources */,
 				TRMSRVC901234567890ABCD /* TermsOfServiceView.swift in Sources */,
+				7BD668A42ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */,
 				LRNP36652115E4F419FE4EEEA /* LearningProgressView.swift in Sources */,
 				04A8227E20B44E2A9BB27336 /* QuestionArchiveView.swift in Sources */,
 				7BDE566B2EC1C64D004A8629 /* StreamingMessageService.swift in Sources */,
@@ -1318,8 +1318,8 @@
 				C4624B96D56541839FEF01C2 /* PhysicsTomatoGardenView.swift in Sources */,
 				BF2551E0CEA34F648B10EBD6 /* TomatoPokedexView.swift in Sources */,
 				774ED04D9804457AADCBC4B1 /* TomatoExchangeView.swift in Sources */,
-							254AD1FAD46A435CADC4B72B /* ProModeImageStorage.swift in Sources */,
-);
+				254AD1FAD46A435CADC4B72B /* StudyAI/Services/ProModeImageStorage.swift in Sources */,
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		7B9EC4762E61663E005E4BFB /* Sources */ = {
@@ -1349,18 +1349,18 @@
 				25FC77CE76E748A797D68F8C /* ViewModifiers.swift in Sources */,
 				7B8E9EA12EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */,
 				7B83533F2EA6F11400199AC3 /* AppLogger.swift in Sources */,
-				7BD664C42ECA8AC900E09E55 /* ImageCropper.swift in Sources */,
 				7BDE56822EC1C718004A8629 /* PomodoroCalendarEvent.swift in Sources */,
 				7BD664CF2ECA8B2E00E09E55 /* ProgressiveHomeworkView.swift in Sources */,
 				7BDE567B2EC1C6C4004A8629 /* PomodoroCalendarView.swift in Sources */,
 				7BDE56762EC1C6A3004A8629 /* PomodoroNotificationService.swift in Sources */,
 				7BFC71312EC5A91D00DB95A7 /* AssistantLogger.swift in Sources */,
+				7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */,
 				7BFC71322EC5A91D00DB95A7 /* NetworkService+PracticeGenerator.swift in Sources */,
+				7BD668A22ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */,
 				7B8353402EA6F11400199AC3 /* SecureLogger.swift in Sources */,
 				7BDE56E22EC31A7A004A8629 /* EssayGradingModels.swift in Sources */,
 				7B8353412EA6F11400199AC3 /* ErrorBoundary.swift in Sources */,
 				7BDE56672EC1C64D004A8629 /* StreamingMessageService.swift in Sources */,
-				7BD668822ED05FFD00E09E55 /* DigitalHomeworkViewModel.swift in Sources */,
 				7BDE567E2EC1C6E5004A8629 /* PomodoroCalendarService.swift in Sources */,
 				7BDE56682EC1C64D004A8629 /* TTSQueueService.swift in Sources */,
 				7BD6687E2ED05FD400E09E55 /* ZoomableImageView.swift in Sources */,
@@ -1391,7 +1391,6 @@
 				7BDE56912EC1CA4D004A8629 /* UIComponents.swift in Sources */,
 				7BDE56922EC1CA4D004A8629 /* MessageBubbles.swift in Sources */,
 				7BDE56932EC1CA4D004A8629 /* VoiceComponents.swift in Sources */,
-				7BD668812ED05FFD00E09E55 /* DigitalHomeworkViewModel.swift in Sources */,
 				7BDE56942EC1CA4D004A8629 /* ImageComponents.swift in Sources */,
 				7B1961ED2E94E2740024317A /* PasswordManagementView.swift in Sources */,
 				7BDE56772EC1C6A3004A8629 /* PomodoroNotificationService.swift in Sources */,
@@ -1403,6 +1402,7 @@
 				7BEEB6132E8E3A3200957748 /* DesignTokens.swift in Sources */,
 				7BFC71332EC5A91D00DB95A7 /* AssistantLogger.swift in Sources */,
 				7BFC71342EC5A91D00DB95A7 /* NetworkService+PracticeGenerator.swift in Sources */,
+				7BD668A32ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */,
 				BF24FA3DE51E44C29A78596C /* ViewModifiers.swift in Sources */,
 				7BEEB6222E8E419600957748 /* LottieView.swift in Sources */,
 				7BDE56632EC1C617004A8629 /* PomodoroDeepLinkHandler.swift in Sources */,
@@ -1416,12 +1416,12 @@
 				7B8353442EA6F4F400199AC3 /* LocalReportDataAggregator.swift in Sources */,
 				7B1961B22E949DD10024317A /* NotificationService.swift in Sources */,
 				7BD664CB2ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift in Sources */,
+				7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */,
 				7B1961AE2E949DAD0024317A /* NotificationSettingsView.swift in Sources */,
 				7B1961CD2E94B32C0024317A /* LanguageSettingsView.swift in Sources */,
 				7B8353492EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */,
 				7BDE56692EC1C64D004A8629 /* StreamingMessageService.swift in Sources */,
 				7BDE566A2EC1C64D004A8629 /* TTSQueueService.swift in Sources */,
-				7BD664C22ECA8AC900E09E55 /* ImageCropper.swift in Sources */,
 				7B8E9EB12EAF38D000E83DA8 /* SessionManager.swift in Sources */,
 				7B8E9E922EAB50F400E83DA8 /* HomeworkAlbumView.swift in Sources */,
 				7BDE56832EC1C718004A8629 /* PomodoroCalendarEvent.swift in Sources */,

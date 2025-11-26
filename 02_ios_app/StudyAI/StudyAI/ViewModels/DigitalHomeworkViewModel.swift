@@ -45,6 +45,10 @@ class DigitalHomeworkViewModel: ObservableObject {
     private var originalImage: UIImage?
     private var subject: String = ""
 
+    // State persistence
+    private let stateManager = DigitalHomeworkStateManager.shared
+    private var currentSessionId: String?
+
     private let networkService = NetworkService.shared
     private let concurrentLimit = 5
 
@@ -63,6 +67,53 @@ class DigitalHomeworkViewModel: ObservableObject {
         return results.questions.compactMap { $0.questionNumber }
     }
 
+    // MARK: - Accuracy Statistics (正确率统计)
+
+    /// Calculate correct/partial/incorrect counts using improved logic
+    var accuracyStats: (correct: Int, partial: Int, incorrect: Int, total: Int, accuracy: Double) {
+        var correctCount = 0
+        var partialCount = 0
+        var incorrectCount = 0
+        var totalCount = 0
+
+        for questionWithGrade in questions {
+            // Handle parent questions (questions with subquestions)
+            if questionWithGrade.isParentQuestion {
+                let subquestionGrades = Array(questionWithGrade.subquestionGrades.values)
+                totalCount += subquestionGrades.count
+
+                for subGrade in subquestionGrades {
+                    if subGrade.isCorrect {
+                        correctCount += 1
+                    } else if subGrade.score >= 0.5 {
+                        partialCount += 1
+                    } else {
+                        incorrectCount += 1
+                    }
+                }
+            } else {
+                // Handle regular questions
+                totalCount += 1
+
+                if let grade = questionWithGrade.grade {
+                    if grade.isCorrect {
+                        correctCount += 1
+                    } else if grade.score >= 0.5 {
+                        partialCount += 1
+                    } else {
+                        incorrectCount += 1
+                    }
+                } else {
+                    // Ungraded: conservatively count as incorrect
+                    incorrectCount += 1
+                }
+            }
+        }
+
+        let accuracy = totalCount > 0 ? Double(correctCount) / Double(totalCount) * 100 : 0
+        return (correctCount, partialCount, incorrectCount, totalCount, accuracy)
+    }
+
     // MARK: - Setup
 
     func setup(parseResults: ParseHomeworkQuestionsResponse, originalImage: UIImage) {
@@ -71,18 +122,24 @@ class DigitalHomeworkViewModel: ObservableObject {
         self.subject = parseResults.subject
         self.totalQuestions = parseResults.totalQuestions
 
-        // Convert parsed questions to ProgressiveQuestionWithGrade
-        self.questions = parseResults.questions.map { question in
-            ProgressiveQuestionWithGrade(
-                id: question.id,
-                question: question,
-                grade: nil,
-                isGrading: false,
-                gradingError: nil
-            )
-        }
+        // Get or create session (may restore existing graded homework)
+        let session = stateManager.getOrCreateSession(
+            parseResults: parseResults,
+            originalImage: originalImage,
+            subject: parseResults.subject
+        )
 
-        print("✅ DigitalHomeworkView setup: \(totalQuestions) questions")
+        currentSessionId = session.sessionId
+
+        // Use session's questions (may have grades if restored from previous session)
+        self.questions = session.questions
+        self.croppedImages = session.croppedImages
+
+        print("✅ DigitalHomeworkView setup: \(totalQuestions) questions (session: \(session.sessionId))")
+
+        if session.questions.contains(where: { $0.grade != nil }) {
+            print("📋 Restored graded homework with \(session.questions.filter { $0.grade != nil }.count) graded questions")
+        }
     }
 
     // MARK: - Annotation Management
@@ -277,12 +334,31 @@ class DigitalHomeworkViewModel: ObservableObject {
                     gradedCount += 1
 
                     print("✅ Q\(questionId) graded (\(gradedCount)/\(totalQuestions))")
+
+                    // Save state after each question is graded
+                    if let sessionId = currentSessionId {
+                        stateManager.updateSession(
+                            sessionId: sessionId,
+                            questions: questions,
+                            croppedImages: croppedImages
+                        )
+                    }
                 }
             }
         }
 
         isGrading = false
         print("✅ === ALL QUESTIONS GRADED ===")
+
+        // Final state save
+        if let sessionId = currentSessionId {
+            stateManager.updateSession(
+                sessionId: sessionId,
+                questions: questions,
+                croppedImages: croppedImages
+            )
+            print("💾 Saved grading state for session: \(sessionId)")
+        }
     }
 
     private func gradeQuestion(_ questionWithGrade: ProgressiveQuestionWithGrade) async -> (Int, ProgressiveGradeResult?, String?) {
@@ -512,9 +588,52 @@ class DigitalHomeworkViewModel: ObservableObject {
     func markProgress() {
         Task {
             do {
-                // Calculate statistics
-                let totalCorrect = questions.filter { $0.grade?.isCorrect == true }.count
-                let totalQuestions = questions.count
+                // ✅ IMPROVED: Calculate statistics correctly for Pro Mode
+                // Handle parent questions with subquestions, partial credit, and ungraded questions
+
+                var correctCount = 0
+                var totalCount = 0
+
+                print("📊 [Progress] Calculating accuracy for \(questions.count) questions...")
+
+                for (index, questionWithGrade) in questions.enumerated() {
+                    // Handle parent questions (questions with subquestions)
+                    if questionWithGrade.isParentQuestion {
+                        let subquestionGrades = Array(questionWithGrade.subquestionGrades.values)
+                        totalCount += subquestionGrades.count
+                        let subCorrect = subquestionGrades.filter { $0.isCorrect }.count
+                        correctCount += subCorrect
+
+                        print("   Q\(index+1) (Parent): \(subCorrect)/\(subquestionGrades.count) subquestions correct")
+
+                    } else {
+                        // Handle regular questions
+                        totalCount += 1
+
+                        if let grade = questionWithGrade.grade {
+                            // Question has been graded
+                            if grade.isCorrect {
+                                correctCount += 1
+                                print("   Q\(index+1): ✅ Correct (score: \(grade.score))")
+                            } else if grade.score >= 0.5 {
+                                // Partial credit: score >= 50%
+                                // Conservative approach: don't count as correct (consistent with Detail/Fast mode)
+                                print("   Q\(index+1): ⚡ Partial (score: \(grade.score)) - counted as incorrect")
+                            } else {
+                                print("   Q\(index+1): ❌ Incorrect (score: \(grade.score))")
+                            }
+                        } else {
+                            // Ungraded question: conservatively count as incorrect
+                            print("   Q\(index+1): 📝 Ungraded - counted as incorrect")
+                        }
+                    }
+                }
+
+                let totalQuestions = totalCount
+                let totalCorrect = correctCount
+                let accuracy = totalCount > 0 ? Float(correctCount) / Float(totalCount) : 0.0
+
+                print("📊 [Progress] Final stats: \(totalCorrect)/\(totalQuestions) correct (\(String(format: "%.1f%%", accuracy * 100)))")
 
                 // Update progress using PointsEarningSystem
                 await MainActor.run {
@@ -525,7 +644,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                     )
                 }
 
-                print("✅ Progress marked: \(totalCorrect)/\(totalQuestions) correct")
+                print("✅ Progress marked: \(totalCorrect)/\(totalQuestions) correct (\(String(format: "%.1f%%", accuracy * 100)))")
             }
         }
     }
