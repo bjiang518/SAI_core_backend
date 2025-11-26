@@ -36,6 +36,9 @@ class DigitalHomeworkViewModel: ObservableObject {
     // Deep reasoning mode (深度批改模式)
     @Published var useDeepReasoning = false
 
+    // AI model selection (NEW: OpenAI vs Gemini)
+    @Published var selectedAIModel: String = "gemini"  // "openai" or "gemini"
+
     // MARK: - Private Properties
 
     private var parseResults: ParseHomeworkQuestionsResponse?
@@ -354,10 +357,51 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     // MARK: - User Actions
 
-    func askAIForHelp(questionId: Int) {
+    func askAIForHelp(questionId: Int, appState: AppState) {
         print("💬 Opening AI chat for Q\(questionId)")
-        // TODO: Navigate to SessionChatView with question context
-        // This will be implemented when integrating with SessionChatView
+
+        // Find the question
+        guard let questionWithGrade = questions.first(where: { $0.question.id == questionId }) else {
+            print("❌ Question not found: Q\(questionId)")
+            return
+        }
+
+        let question = questionWithGrade.question
+
+        // Construct user message for AI
+        let userMessage: String
+        if let grade = questionWithGrade.grade {
+            // Question has been graded
+            userMessage = """
+I need help understanding this question from my homework:
+
+Question: \(question.displayText)
+
+My answer was: \(question.displayStudentAnswer)
+
+The AI graded it as: \(grade.isCorrect ? "Correct" : "Incorrect") (Score: \(Int(grade.score * 100))%)
+
+Feedback: \(grade.feedback)
+
+Can you help me understand this better and explain why my answer was \(grade.isCorrect ? "correct" : "incorrect or partially correct")?
+"""
+        } else {
+            // Question not graded yet
+            userMessage = """
+I need help understanding this question from my homework:
+
+Question: \(question.displayText)
+
+My answer: \(question.displayStudentAnswer)
+
+Can you help me understand this better and explain the solution?
+"""
+        }
+
+        // Navigate to chat with question context
+        appState.navigateToChatWithMessage(userMessage, subject: subject)
+
+        print("✅ Navigated to chat with question context")
     }
 
     func archiveQuestion(questionId: Int) {

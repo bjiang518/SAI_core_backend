@@ -2156,7 +2156,8 @@ class NetworkService: ObservableObject {
         studentAnswer: String,
         subject: String?,
         contextImageBase64: String? = nil,
-        useDeepReasoning: Bool = false
+        useDeepReasoning: Bool = false,
+        modelProvider: String = "gemini"  // NEW: "openai" or "gemini"
     ) async throws -> GradeSingleQuestionResponse {
 
         guard let url = URL(string: "\(baseURL)/api/ai/grade-question") else {
@@ -2182,7 +2183,7 @@ class NetworkService: ObservableObject {
         var requestData: [String: Any] = [
             "question_text": questionText,
             "student_answer": studentAnswer,
-            "model_provider": "gemini",  // Always use Gemini for now
+            "model_provider": modelProvider,  // NEW: Pass AI model selection (openai/gemini)
             "use_deep_reasoning": useDeepReasoning  // Pass deep reasoning flag
         ]
 

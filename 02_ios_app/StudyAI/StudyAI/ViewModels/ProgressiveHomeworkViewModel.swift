@@ -120,7 +120,13 @@ class ProgressiveHomeworkViewModel: ObservableObject {
         }
 
         // Phase 1.5: Crop images (if needed)
-        await cropImages(originalImage: originalImage, questions: parseResponse.questions)
+        let backendDimensions = parseResponse.processedImageDimensions
+        await cropImages(
+            originalImage: originalImage,
+            questions: parseResponse.questions,
+            backendImageWidth: backendDimensions?.width,
+            backendImageHeight: backendDimensions?.height
+        )
     }
 
     // MARK: - Phase 1: Parse Questions
@@ -264,14 +270,36 @@ class ProgressiveHomeworkViewModel: ObservableObject {
             }
         }
 
-        // Phase 1.5: Crop images
-        await cropImages(originalImage: originalImage, questions: parseResponse.questions)
+        // Phase 1.5: Crop images with backend dimensions for accurate scaling
+        let backendDimensions = parseResponse.processedImageDimensions
+        if let dims = backendDimensions {
+            print("📏 Backend processed image dimensions: \(dims.width)x\(dims.height)")
+        } else {
+            print("⚠️  Backend did not return processed_image_dimensions (using legacy mode)")
+        }
+        await cropImages(
+            originalImage: originalImage,
+            questions: parseResponse.questions,
+            backendImageWidth: backendDimensions?.width,
+            backendImageHeight: backendDimensions?.height
+        )
     }
 
     // MARK: - Image Cropping
 
-    private func cropImages(originalImage: UIImage, questions: [ProgressiveQuestion]) async {
+    private func cropImages(
+        originalImage: UIImage,
+        questions: [ProgressiveQuestion],
+        backendImageWidth: Int? = nil,
+        backendImageHeight: Int? = nil
+    ) async {
         print("\n✂️  === CROPPING IMAGE REGIONS ===")
+
+        if let w = backendImageWidth, let h = backendImageHeight {
+            print("🔧 Using backend image dimensions for coordinate scaling: \(w)x\(h)")
+        } else {
+            print("⚠️  Backend dimensions not available - cropping without scaling")
+        }
 
         await MainActor.run {
             self.currentPhase = .cropping
@@ -301,10 +329,12 @@ class ProgressiveHomeworkViewModel: ObservableObject {
 
         print("\n🔧 Starting batch crop operation for \(regions.count) regions...")
 
-        // Batch crop
+        // Batch crop with backend dimensions for accurate coordinate scaling
         let croppedUIImages = ImageCropper.batchCrop(
             image: originalImage,
-            regions: regions
+            regions: regions,
+            backendImageWidth: backendImageWidth,
+            backendImageHeight: backendImageHeight
         )
 
         print("\n📸 CROPPING RESULTS:")
