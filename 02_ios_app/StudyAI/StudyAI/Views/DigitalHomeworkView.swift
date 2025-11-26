@@ -263,21 +263,13 @@ struct DigitalHomeworkView: View {
     // MARK: - Accuracy Stat Card (正确率统计卡片)
 
     private var accuracyStatCard: some View {
-        let correctCount = viewModel.questions.filter { $0.grade?.isCorrect == true }.count
-        let partialCount = viewModel.questions.filter {
-            if let grade = $0.grade {
-                return !grade.isCorrect && grade.score > 0
-            }
-            return false
-        }.count
-        let incorrectCount = viewModel.questions.filter {
-            if let grade = $0.grade {
-                return grade.score == 0
-            }
-            return false
-        }.count
-        let totalCount = viewModel.totalQuestions
-        let accuracy = totalCount > 0 ? Double(correctCount) / Double(totalCount) * 100 : 0
+        // ✅ Use improved accuracy calculation from ViewModel
+        let stats = viewModel.accuracyStats
+        let correctCount = stats.correct
+        let partialCount = stats.partial
+        let incorrectCount = stats.incorrect
+        let totalCount = stats.total
+        let accuracy = stats.accuracy
 
         return VStack(spacing: 12) {
             // 正确率
@@ -310,7 +302,7 @@ struct DigitalHomeworkView: View {
                 if partialCount > 0 {
                     VStack(spacing: 4) {
                         HStack(spacing: 4) {
-                            Image(systemName: "circle")
+                            Image(systemName: "circle.lefthalf.filled")
                                 .foregroundColor(.orange)
                             Text("\(partialCount)")
                                 .font(.title3)
