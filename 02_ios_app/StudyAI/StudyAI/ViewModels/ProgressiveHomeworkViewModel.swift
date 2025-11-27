@@ -2,6 +2,12 @@
 //  ProgressiveHomeworkViewModel.swift
 //  StudyAI
 //
+//  ⚠️ NOTE: This ViewModel is used by ProgressiveHomeworkView (alternative grading flow)
+//  🔴 NOT USED in main homework flow (DirectAIHomeworkView → HomeworkSummaryView → DigitalHomeworkView)
+//
+//  Main flow uses: DigitalHomeworkViewModel + DigitalHomeworkView
+//  This file exists for: Direct progressive grading sheet (showProgressiveGrading)
+//
 //  ViewModel for progressive homework grading system
 //  Handles two-phase grading: Parse → Grade (parallel)
 //
@@ -451,6 +457,11 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     private func gradeQuestion(_ questionWithGrade: ProgressiveQuestionWithGrade) async -> (Int, ProgressiveGradeResult?, String?) {
         let question = questionWithGrade.question
 
+        print("🔥🔥🔥 === gradeQuestion() CALLED for Q\(question.id) ===")
+        print("🔥 Has subquestions: \(question.subquestions != nil)")
+        print("🔥 Subquestion count: \(question.subquestions?.count ?? 0)")
+        print("🔥 isParent flag: \(question.isParent ?? false)")
+
         // Check if this question has subquestions (regardless of isParent flag)
         // Fix: AI may return subquestions without setting isParent=true
         if let subquestions = question.subquestions, !subquestions.isEmpty {
@@ -519,6 +530,11 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                                 // ACTUAL STORAGE
                                 self.state.questions[index].subquestionGrades[subId] = grade
 
+                                // ✅ FIX: Manually trigger SwiftUI update for nested dictionary mutation
+                                // SwiftUI doesn't auto-detect changes to nested dictionaries in structs
+                                self.objectWillChange.send()
+                                print("   🔔 objectWillChange.send() called to trigger UI update")
+
                                 // 🔍 DEBUG: Verify storage immediately
                                 print("")
                                 print("   🔍 === IMMEDIATE VERIFICATION AFTER STORAGE ===")
@@ -542,10 +558,12 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                             if let error = error {
                                 print("   ⚠️ Storing error: '\(error)'")
                                 self.state.questions[index].subquestionErrors[subId] = error
+                                self.objectWillChange.send()  // ✅ Trigger UI update
                             }
 
                             print("   🔄 Setting subquestionGradingStatus[\"\(subId)\"] = false")
                             self.state.questions[index].subquestionGradingStatus[subId] = false
+                            self.objectWillChange.send()  // ✅ Trigger UI update
                         } else {
                             print("   ❌ CRITICAL ERROR: Parent question not found in state.questions!")
                         }

@@ -81,7 +81,7 @@ struct AnnotatableImageView: View {
         let imageSize = calculateImageSize(containerSize: geometry.size)
 
         return ZStack {
-            ForEach(Array(annotations.enumerated()), id: \.element.id) { index, annotation in
+            ForEach(Array(annotations.enumerated()), id: \.offset) { index, annotation in
                 let topLeft = CGPoint(
                     x: CGFloat(annotation.topLeft[0]) * imageSize.width,
                     y: CGFloat(annotation.topLeft[1]) * imageSize.height
@@ -320,23 +320,29 @@ struct AnnotationOverlay: View {
         let deltaX = Double(delta.width / imageSize.width)
         let deltaY = Double(delta.height / imageSize.height)
 
-        // Adjust coordinates based on corner
+        // ✅ OPTIMIZATION 3: Calculate adaptive minimum size
+        // Use absolute 60pt minimum or 5% of image, whichever is larger
+        let minScreenSize: CGFloat = 60 // minimum 60 points (readable on all devices)
+        let minNormalizedWidth = max(0.05, Double(minScreenSize / imageSize.width))
+        let minNormalizedHeight = max(0.05, Double(minScreenSize / imageSize.height))
+
+        // Adjust coordinates based on corner with adaptive minimum
         switch corner {
         case .topLeft:
-            annotation.topLeft[0] = max(0, min(annotation.bottomRight[0] - 0.05, annotation.topLeft[0] + deltaX))
-            annotation.topLeft[1] = max(0, min(annotation.bottomRight[1] - 0.05, annotation.topLeft[1] + deltaY))
+            annotation.topLeft[0] = max(0, min(annotation.bottomRight[0] - minNormalizedWidth, annotation.topLeft[0] + deltaX))
+            annotation.topLeft[1] = max(0, min(annotation.bottomRight[1] - minNormalizedHeight, annotation.topLeft[1] + deltaY))
 
         case .topRight:
-            annotation.bottomRight[0] = max(annotation.topLeft[0] + 0.05, min(1, annotation.bottomRight[0] + deltaX))
-            annotation.topLeft[1] = max(0, min(annotation.bottomRight[1] - 0.05, annotation.topLeft[1] + deltaY))
+            annotation.bottomRight[0] = max(annotation.topLeft[0] + minNormalizedWidth, min(1, annotation.bottomRight[0] + deltaX))
+            annotation.topLeft[1] = max(0, min(annotation.bottomRight[1] - minNormalizedHeight, annotation.topLeft[1] + deltaY))
 
         case .bottomLeft:
-            annotation.topLeft[0] = max(0, min(annotation.bottomRight[0] - 0.05, annotation.topLeft[0] + deltaX))
-            annotation.bottomRight[1] = max(annotation.topLeft[1] + 0.05, min(1, annotation.bottomRight[1] + deltaY))
+            annotation.topLeft[0] = max(0, min(annotation.bottomRight[0] - minNormalizedWidth, annotation.topLeft[0] + deltaX))
+            annotation.bottomRight[1] = max(annotation.topLeft[1] + minNormalizedHeight, min(1, annotation.bottomRight[1] + deltaY))
 
         case .bottomRight:
-            annotation.bottomRight[0] = max(annotation.topLeft[0] + 0.05, min(1, annotation.bottomRight[0] + deltaX))
-            annotation.bottomRight[1] = max(annotation.topLeft[1] + 0.05, min(1, annotation.bottomRight[1] + deltaY))
+            annotation.bottomRight[0] = max(annotation.topLeft[0] + minNormalizedWidth, min(1, annotation.bottomRight[0] + deltaX))
+            annotation.bottomRight[1] = max(annotation.topLeft[1] + minNormalizedHeight, min(1, annotation.bottomRight[1] + deltaY))
         }
 
         annotations[index] = annotation
@@ -359,6 +365,11 @@ struct InteractiveAnnotationBox: View {
     @State private var activeResizeCorner: ResizeCorner? = nil
 
     var body: some View {
+        // ✅ OPTIMIZATION 3: Calculate adaptive minimum size (same as resizeAnnotation)
+        let minScreenSize: CGFloat = 60
+        let minNormalizedWidth = max(0.05, Double(minScreenSize / imageSize.width))
+        let minNormalizedHeight = max(0.05, Double(minScreenSize / imageSize.height))
+
         // Calculate real-time resize adjustment
         var adjustedTopLeft = annotation.topLeft
         var adjustedBottomRight = annotation.bottomRight
@@ -369,20 +380,20 @@ struct InteractiveAnnotationBox: View {
 
             switch corner {
             case .topLeft:
-                adjustedTopLeft[0] = max(0, min(annotation.bottomRight[0] - 0.05, annotation.topLeft[0] + deltaX))
-                adjustedTopLeft[1] = max(0, min(annotation.bottomRight[1] - 0.05, annotation.topLeft[1] + deltaY))
+                adjustedTopLeft[0] = max(0, min(annotation.bottomRight[0] - minNormalizedWidth, annotation.topLeft[0] + deltaX))
+                adjustedTopLeft[1] = max(0, min(annotation.bottomRight[1] - minNormalizedHeight, annotation.topLeft[1] + deltaY))
 
             case .topRight:
-                adjustedBottomRight[0] = max(annotation.topLeft[0] + 0.05, min(1, annotation.bottomRight[0] + deltaX))
-                adjustedTopLeft[1] = max(0, min(annotation.bottomRight[1] - 0.05, annotation.topLeft[1] + deltaY))
+                adjustedBottomRight[0] = max(annotation.topLeft[0] + minNormalizedWidth, min(1, annotation.bottomRight[0] + deltaX))
+                adjustedTopLeft[1] = max(0, min(annotation.bottomRight[1] - minNormalizedHeight, annotation.topLeft[1] + deltaY))
 
             case .bottomLeft:
-                adjustedTopLeft[0] = max(0, min(annotation.bottomRight[0] - 0.05, annotation.topLeft[0] + deltaX))
-                adjustedBottomRight[1] = max(annotation.topLeft[1] + 0.05, min(1, annotation.bottomRight[1] + deltaY))
+                adjustedTopLeft[0] = max(0, min(annotation.bottomRight[0] - minNormalizedWidth, annotation.topLeft[0] + deltaX))
+                adjustedBottomRight[1] = max(annotation.topLeft[1] + minNormalizedHeight, min(1, annotation.bottomRight[1] + deltaY))
 
             case .bottomRight:
-                adjustedBottomRight[0] = max(annotation.topLeft[0] + 0.05, min(1, annotation.bottomRight[0] + deltaX))
-                adjustedBottomRight[1] = max(annotation.topLeft[1] + 0.05, min(1, annotation.bottomRight[1] + deltaY))
+                adjustedBottomRight[0] = max(annotation.topLeft[0] + minNormalizedWidth, min(1, annotation.bottomRight[0] + deltaX))
+                adjustedBottomRight[1] = max(annotation.topLeft[1] + minNormalizedHeight, min(1, annotation.bottomRight[1] + deltaY))
             }
         }
 
@@ -473,11 +484,14 @@ struct InteractiveAnnotationBox: View {
                 if !isDragging {
                     onSelect()
                     isDragging = true
+                    activeResizeCorner = corner
                 }
-                activeResizeCorner = corner
             }
             .onEnded { value in
+                // Update parent with absolute position
                 onResize(corner, value.translation)
+
+                // Clean up state
                 isDragging = false
                 activeResizeCorner = nil
             }

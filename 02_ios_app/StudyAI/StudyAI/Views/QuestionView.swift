@@ -48,6 +48,8 @@ struct QuestionView: View {
     
     // New states for enhanced UI
     @State private var showingEditQuestion = false
+    @State private var showShareSheet = false
+    @State private var shareText = ""
     @State private var selectedPrompt: String = "Analyze this image and solve any mathematical problems step by step"
     @State private var editableQuestionText = ""
     @State private var showingPromptSelection = false
@@ -1110,7 +1112,9 @@ struct AIResponseView: View {
     @StateObject private var networkService = NetworkService.shared
     @State private var showingConvertToSession = false
     @State private var isConverting = false
-    
+    @State private var showShareSheet = false
+    @State private var shareText = ""
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -1294,19 +1298,9 @@ struct AIResponseView: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        // Share functionality
-                        let shareText = "Question: \(question)\n\nAnswer: \(response)"
-                        let activityVC = UIActivityViewController(
-                            activityItems: [shareText],
-                            applicationActivities: nil
-                        )
-                        
-                        Task { @MainActor in
-                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                               let window = windowScene.windows.first {
-                                window.rootViewController?.present(activityVC, animated: true)
-                            }
-                        }
+                        // Prepare share text and show sheet
+                        shareText = "Question: \(question)\n\nAnswer: \(response)"
+                        showShareSheet = true
                     }) {
                         Image(systemName: "square.and.arrow.up")
                     }
@@ -1320,6 +1314,9 @@ struct AIResponseView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This will create a new chat session and add this conversation to it. You can then continue asking follow-up questions.")
+        }
+        .sheet(isPresented: $showShareSheet) {
+            ActivityViewController(activityItems: [shareText])
         }
     }
     

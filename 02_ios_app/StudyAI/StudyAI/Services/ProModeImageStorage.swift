@@ -46,9 +46,10 @@ class ProModeImageStorage {
 
     // MARK: - Save Image
 
-    /// Save image to file system and return the file path
+    /// Save image to file system and return the RELATIVE file path (filename only)
     /// - Parameter image: UIImage to save
-    /// - Returns: File path string, or nil if save failed
+    /// - Returns: Relative file path string (just filename), or nil if save failed
+    /// - Note: Returns relative path to avoid issues with changing Documents directory paths on iOS
     func saveImage(_ image: UIImage) -> String? {
         guard let directoryURL = imageDirectoryURL else {
             print("❌ [ProModeImageStorage] Image directory not available")
@@ -68,8 +69,10 @@ class ProModeImageStorage {
         // Write to file
         do {
             try imageData.write(to: fileURL)
-            print("✅ [ProModeImageStorage] Saved image to: \(filename)")
-            return fileURL.path
+            print("✅ [ProModeImageStorage] Saved image: \(filename)")
+            print("   📂 Full path: \(fileURL.path)")
+            // ✅ CRITICAL FIX: Return only the filename, not the full path
+            return filename
         } catch {
             print("❌ [ProModeImageStorage] Failed to write image: \(error)")
             return nil
@@ -78,39 +81,71 @@ class ProModeImageStorage {
 
     // MARK: - Load Image
 
-    /// Load image from file path
-    /// - Parameter path: File path string
+    /// Load image from file path (supports both relative filename and absolute path for backward compatibility)
+    /// - Parameter path: File path string (can be relative filename or absolute path)
     /// - Returns: UIImage if found, nil otherwise
     func loadImage(from path: String) -> UIImage? {
-        guard fileManager.fileExists(atPath: path) else {
-            print("⚠️ [ProModeImageStorage] Image file not found at: \(path)")
+        // ✅ CRITICAL FIX: Handle both relative paths (filename only) and absolute paths
+        var fullPath: String
+
+        if path.hasPrefix("/") {
+            // Absolute path - use as is (backward compatibility with old stored paths)
+            fullPath = path
+            print("⚠️ [ProModeImageStorage] Using absolute path (legacy): \(path)")
+        } else {
+            // Relative path (filename only) - construct full path dynamically
+            guard let directoryURL = imageDirectoryURL else {
+                print("❌ [ProModeImageStorage] Image directory not available")
+                return nil
+            }
+            fullPath = directoryURL.appendingPathComponent(path).path
+            print("🔍 [ProModeImageStorage] Loading from relative path: \(path)")
+            print("   📂 Full path: \(fullPath)")
+        }
+
+        guard fileManager.fileExists(atPath: fullPath) else {
+            print("⚠️ [ProModeImageStorage] Image file not found at: \(fullPath)")
             return nil
         }
 
-        guard let imageData = fileManager.contents(atPath: path),
+        guard let imageData = fileManager.contents(atPath: fullPath),
               let image = UIImage(data: imageData) else {
-            print("❌ [ProModeImageStorage] Failed to load image from: \(path)")
+            print("❌ [ProModeImageStorage] Failed to load image from: \(fullPath)")
             return nil
         }
 
+        print("✅ [ProModeImageStorage] Successfully loaded image (size: \(image.size))")
         return image
     }
 
     // MARK: - Delete Image
 
-    /// Delete image at the specified path
-    /// - Parameter path: File path string
+    /// Delete image at the specified path (supports both relative filename and absolute path)
+    /// - Parameter path: File path string (can be relative filename or absolute path)
     /// - Returns: True if deleted successfully, false otherwise
     @discardableResult
     func deleteImage(at path: String) -> Bool {
-        guard fileManager.fileExists(atPath: path) else {
-            print("⚠️ [ProModeImageStorage] Image file not found at: \(path)")
+        // ✅ Handle both relative and absolute paths
+        var fullPath: String
+
+        if path.hasPrefix("/") {
+            fullPath = path
+        } else {
+            guard let directoryURL = imageDirectoryURL else {
+                print("❌ [ProModeImageStorage] Image directory not available")
+                return false
+            }
+            fullPath = directoryURL.appendingPathComponent(path).path
+        }
+
+        guard fileManager.fileExists(atPath: fullPath) else {
+            print("⚠️ [ProModeImageStorage] Image file not found at: \(fullPath)")
             return false
         }
 
         do {
-            try fileManager.removeItem(atPath: path)
-            print("✅ [ProModeImageStorage] Deleted image at: \(path)")
+            try fileManager.removeItem(atPath: fullPath)
+            print("✅ [ProModeImageStorage] Deleted image at: \(fullPath)")
             return true
         } catch {
             print("❌ [ProModeImageStorage] Failed to delete image: \(error)")

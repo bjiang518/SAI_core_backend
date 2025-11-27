@@ -2940,16 +2940,9 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
             # Parse JSON response
             raw_response = response.choices[0].message.content
-
-            # DEBUG: Log raw AI response
-            print(f"📄 === RAW AI RESPONSE (first 1000 chars) ===")
-            print(raw_response[:1000])
-            print(f"... (total {len(raw_response)} chars)")
-
             result = json.loads(raw_response)
 
-            print(f"📊 Parsed {result.get('total_questions', 0)} questions")
-            print(f"📚 Subject: {result.get('subject', 'Unknown')}")
+            print(f"✅ OpenAI parse: {result.get('total_questions', 0)} questions, Subject: {result.get('subject', 'Unknown')}")
 
             # VALIDATION: Fix total_questions counting bug
             questions_array = result.get("questions", [])
@@ -2996,6 +2989,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
         correct_answer: Optional[str] = None,
         subject: Optional[str] = None,
         context_image: Optional[str] = None,
+        parent_content: Optional[str] = None,  # NEW: Parent question context
         use_deep_reasoning: bool = False
     ) -> Dict[str, Any]:
         """
@@ -3044,13 +3038,24 @@ Focus on being helpful and educational while maintaining a conversational tone."
             # Prepare user message (different for deep reasoning vs standard)
             if use_deep_reasoning:
                 # Deep reasoning: Detailed feedback, step-by-step analysis
+                parent_context = ""
+                if parent_content:
+                    parent_context = f"""
+
+PARENT QUESTION CONTEXT:
+This is a subquestion that belongs to a larger multi-part question.
+Parent Question: {parent_content}
+
+Consider the parent question's context when grading this subquestion.
+"""
+
                 user_text = f"""
 Question: {question_text}
 
 Student's Answer: {student_answer}
 
 {f'Expected Answer: {correct_answer}' if correct_answer else ''}
-
+{parent_context}
 DEEP REASONING INSTRUCTIONS:
 Think deeply about this question before grading. Consider:
 1. What concept is being tested?
@@ -3064,24 +3069,35 @@ Grade this answer with detailed analysis. Return JSON with:
   "is_correct": true,  // score >= 0.9
   "feedback": "Your reasoning is excellent. You correctly identified X and applied method Y...",  // 50-100 words with detailed explanation
   "confidence": 0.95,  // 0.0-1.0
-  "reasoning_steps": "Student used correct formula. Calculation steps were accurate..."  // Optional reasoning trace
+  "reasoning_steps": "Student used correct formula. Calculation steps were accurate...",  // Optional reasoning trace
+  "correct_answer": "The expected/correct answer for this question"  // The correct answer
 }}
 """
             else:
                 # Standard mode: Brief concise feedback
+                parent_context = ""
+                if parent_content:
+                    parent_context = f"""
+
+PARENT QUESTION CONTEXT:
+This is a subquestion that belongs to a larger multi-part question.
+Parent Question: {parent_content}
+"""
+
                 user_text = f"""
 Question: {question_text}
 
 Student's Answer: {student_answer}
 
 {f'Expected Answer: {correct_answer}' if correct_answer else ''}
-
+{parent_context}
 Grade this answer. Return JSON with:
 {{
   "score": 0.95,  // 0.0-1.0
   "is_correct": true,  // score >= 0.9
   "feedback": "Correct! Good work.",  // VERY brief, <15 words
-  "confidence": 0.95  // 0.0-1.0
+  "confidence": 0.95,  // 0.0-1.0
+  "correct_answer": "The expected/correct answer for this question"  // The correct answer
 }}
 """
 
@@ -3135,33 +3151,7 @@ Grade this answer. Return JSON with:
             raw_response = response.choices[0].message.content
             grade_data = json.loads(raw_response)
 
-            # 🔍 DEBUG: Log raw OpenAI response (Phase 2 - Grading)
-            print(f"\n{'=' * 80}")
-            print(f"🔍 === RAW OPENAI GRADING RESPONSE (Phase 2) ===")
-            print(f"{'=' * 80}")
-            print(f"📄 Raw response length: {len(raw_response)} chars")
-            print(f"📝 Raw response preview (first 500 chars):")
-            print(f"{raw_response[:500]}")
-            if len(raw_response) > 500:
-                print(f"... (truncated, showing first 500 of {len(raw_response)} chars)")
-            print(f"{'=' * 80}\n")
-
-            # 🔍 DEBUG: Log parsed grade data in detail
-            print(f"\n{'=' * 80}")
-            print(f"🔍 === PARSED GRADE DATA (Phase 2) ===")
-            print(f"{'=' * 80}")
-            print(f"📊 Score: {grade_data.get('score', 'MISSING')}")
-            print(f"✓ Is Correct: {grade_data.get('is_correct', 'MISSING')}")
-            print(f"💬 Feedback: '{grade_data.get('feedback', 'MISSING')}'")
-            print(f"📈 Confidence: {grade_data.get('confidence', 'MISSING')}")
-            print(f"🔍 Feedback length: {len(grade_data.get('feedback', ''))} chars")
-            print(f"🔍 Feedback is empty: {not grade_data.get('feedback', '').strip()}")
-            if 'reasoning_steps' in grade_data:
-                print(f"🧠 Reasoning Steps: '{grade_data.get('reasoning_steps', 'N/A')}'")
-            print(f"{'=' * 80}\n")
-
-            print(f"📊 Score: {grade_data.get('score', 0.0)}")
-            print(f"✓ Correct: {grade_data.get('is_correct', False)}")
+            print(f"✅ Grade: score={grade_data.get('score', 0.0)}, correct={grade_data.get('is_correct', False)}, feedback={len(grade_data.get('feedback', ''))} chars")
 
             return {
                 "success": True,

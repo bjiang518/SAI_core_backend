@@ -185,8 +185,32 @@ class SessionChatViewModel: ObservableObject {
         if let sessionId = networkService.currentSessionId {
             print("🟢 ➡️ Routing to EXISTING SESSION path")
             print("🟢 Session ID: \(sessionId)")
-            // For existing session: Add user message immediately
-            persistMessage(role: "user", content: message)
+
+            // ✅ FIX: Check if homework context has image and persist it
+            let homeworkContext = appState.pendingHomeworkContext
+            if let questionImage = homeworkContext?.questionImage {
+                // Generate message ID and store image
+                let messageId = UUID().uuidString
+                // Convert UIImage to Data for storage
+                if let imageData = questionImage.jpegData(compressionQuality: 0.8) {
+                    imageMessages[messageId] = imageData
+                    print("🖼️ Stored homework question image with messageId: \(messageId)")
+                } else {
+                    print("⚠️ Failed to convert homework question image to Data")
+                }
+
+                // Add message with image marker
+                networkService.conversationHistory.append([
+                    "role": "user",
+                    "content": message,
+                    "hasImage": "true",
+                    "messageId": messageId
+                ])
+                print("✅ Added user message to history WITH image marker")
+            } else {
+                // For existing session: Add user message immediately (no image)
+                persistMessage(role: "user", content: message)
+            }
 
             // Show typing indicator
             showTypingIndicator = true
@@ -636,10 +660,37 @@ class SessionChatViewModel: ObservableObject {
             let sessionResult = await networkService.startNewSession(subject: selectedSubject.lowercased())
 
             if sessionResult.success, let sessionId = networkService.currentSessionId {
-                // Save user message
-                persistMessage(role: "user", content: message, addToHistory: false)
-
+                // ✅ FIX: Check if homework context has image and persist it
                 let homeworkContext = appState.pendingHomeworkContext
+                var messageId: String? = nil
+
+                if let questionImage = homeworkContext?.questionImage {
+                    // Generate message ID and store image
+                    messageId = UUID().uuidString
+                    // Convert UIImage to Data for storage
+                    if let imageData = questionImage.jpegData(compressionQuality: 0.8) {
+                        imageMessages[messageId!] = imageData
+                        print("🖼️ Stored homework question image with messageId: \(messageId!)")
+                    } else {
+                        print("⚠️ Failed to convert homework question image to Data")
+                        messageId = nil
+                    }
+                }
+
+                // Save user message with image flag
+                if let msgId = messageId {
+                    // Add message with image marker
+                    networkService.conversationHistory.append([
+                        "role": "user",
+                        "content": message,
+                        "hasImage": "true",
+                        "messageId": msgId
+                    ])
+                    print("✅ Added user message to history WITH image marker")
+                } else {
+                    // Regular message without image
+                    persistMessage(role: "user", content: message, addToHistory: false)
+                }
 
                 if useStreaming {
                     // Use streaming (same logic as sendMessageToExistingSession)

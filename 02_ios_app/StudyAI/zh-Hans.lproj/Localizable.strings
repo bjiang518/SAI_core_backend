@@ -154,6 +154,7 @@
 "aiHomework.startAnalysis" = "开始作业分析";
 "aiHomework.selectImage" = "选择图片以分析作业";
 "aiHomework.optimizing" = "优化图片中...";
+"aiHomework.cropping" = "正在图像分割...";
 "aiHomework.uploading" = "上传到AI中...";
 "aiHomework.analyzing" = "AI正在阅读作业...";
 "aiHomework.grading" = "评分中...";
@@ -1310,4 +1311,55 @@
 "pomodoro.deepFocusReady" = "深度专注模式已准备就绪";
 "pomodoro.deepFocusActive" = "深度专注模式已启用";
 "pomodoro.deepFocusStatus" = "已优化专注环境 · 全面保护中";
+
+// Pro Mode - Digital Homework
+"proMode.title" = "数字作业本";
+"proMode.cancel" = "取消";
+"proMode.selectAll" = "全选";
+"proMode.deselectAll" = "取消全选";
+"proMode.viewOriginalImage" = "查看原图";
+"proMode.resetAnnotations" = "重置标注";
+"proMode.batchArchive" = "一键归档";
+"proMode.batchArchiveCount" = "一键归档 (%d)";
+"proMode.accuracy" = "正确率";
+"proMode.correct" = "正确";
+"proMode.partialCorrect" = "部分正确";
+"proMode.incorrect" = "错误";
+"proMode.markProgress" = "标记学习进度";
+"proMode.questionPreview" = "题目预览";
+"proMode.tapToAnnotate" = "点击图片创建标注框";
+"proMode.done" = "完成";
+"proMode.selectQuestionNumber" = "选择题号";
+"proMode.questionNumber" = "题 %@";
+"proMode.studentAnswer" = "学生答案";
+"proMode.grading" = "正在批改 %d/%d";
+"proMode.deepGradingMode" = "深度批改模式";
+"proMode.deepGradingDescription" = "AI将深度推理分析 (较慢但更准确)";
+"proMode.standardGradingDescription" = "标准批改速度 (快速但可能不够深入)";
+"proMode.gradeHomework" = "AI 批改作业";
+"proMode.deepGradeHomework" = "深度批改作业";
+"proMode.annotationHint" = "提示: 添加标注可为题目添加图片上下文";
+"proMode.studentAnswerLabel" = "学生答案: %@";
+"proMode.askAI" = "求助 AI";
+"proMode.archive" = "归档";
+"proMode.archived" = "已归档";
+"proMode.subquestionAnswer" = "答: %@";
+"proMode.addAnnotation" = "添加标注";
+"proMode.editAnnotations" = "编辑标注 (%d)";
+"proMode.selectAIModel" = "选择AI模型";
+"proMode.revertGrading" = "撤销批改";
+"proMode.revertGradingAlert.title" = "撤销批改？";
+"proMode.revertGradingAlert.revert" = "撤销";
+"proMode.revertGradingAlert.message" = "这将清除所有批改结果并返回到原始状态。此操作无法撤销。";
+
+
+// Homework Summary View
+"homeworkSummary.title" = "作业分析完成";
+"homeworkSummary.questionCount" = "%d 道题目";
+"homeworkSummary.hierarchicalQuestions" = "层次题";
+"homeworkSummary.questionsPreview" = "题目预览";
+"homeworkSummary.moreQuestions" = "还有 %d 道题";
+"homeworkSummary.viewDigitalHomework" = "查看数字版作业";
+"homeworkSummary.subquestionCount" = "%d 个子题";
+"homeworkSummary.answer" = "答案: %@";
 

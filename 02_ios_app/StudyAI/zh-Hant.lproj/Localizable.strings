@@ -154,6 +154,7 @@
 "aiHomework.startAnalysis" = "開始作業分析";
 "aiHomework.selectImage" = "選擇圖片以分析作業";
 "aiHomework.optimizing" = "優化圖片中...";
+"aiHomework.cropping" = "正在圖像分割...";
 "aiHomework.uploading" = "上傳到AI中...";
 "aiHomework.analyzing" = "AI正在閱讀作業...";
 "aiHomework.grading" = "評分中...";
@@ -1261,4 +1262,56 @@
 "pomodoro.deepFocusReady" = "深度專注模式已準備就緒";
 "pomodoro.deepFocusActive" = "深度專注模式已啟用";
 "pomodoro.deepFocusStatus" = "已優化專注環境 · 全面保護中";
+
+
+// Pro Mode - Digital Homework
+"proMode.title" = "數位作業本";
+"proMode.cancel" = "取消";
+"proMode.selectAll" = "全選";
+"proMode.deselectAll" = "取消全選";
+"proMode.viewOriginalImage" = "查看原圖";
+"proMode.resetAnnotations" = "重置標註";
+"proMode.batchArchive" = "一鍵歸檔";
+"proMode.batchArchiveCount" = "一鍵歸檔 (%d)";
+"proMode.accuracy" = "正確率";
+"proMode.correct" = "正確";
+"proMode.partialCorrect" = "部分正確";
+"proMode.incorrect" = "錯誤";
+"proMode.markProgress" = "標記學習進度";
+"proMode.questionPreview" = "題目預覽";
+"proMode.tapToAnnotate" = "點擊圖片創建標註框";
+"proMode.done" = "完成";
+"proMode.selectQuestionNumber" = "選擇題號";
+"proMode.questionNumber" = "題 %@";
+"proMode.studentAnswer" = "學生答案";
+"proMode.grading" = "正在批改 %d/%d";
+"proMode.deepGradingMode" = "深度批改模式";
+"proMode.deepGradingDescription" = "AI將深度推理分析 (較慢但更準確)";
+"proMode.standardGradingDescription" = "標準批改速度 (快速但可能不夠深入)";
+"proMode.gradeHomework" = "AI 批改作業";
+"proMode.deepGradeHomework" = "深度批改作業";
+"proMode.annotationHint" = "提示: 添加標註可為題目添加圖片上下文";
+"proMode.studentAnswerLabel" = "學生答案: %@";
+"proMode.askAI" = "求助 AI";
+"proMode.archive" = "歸檔";
+"proMode.archived" = "已歸檔";
+"proMode.subquestionAnswer" = "答: %@";
+"proMode.addAnnotation" = "添加標註";
+"proMode.editAnnotations" = "編輯標註 (%d)";
+"proMode.selectAIModel" = "選擇AI模型";
+"proMode.revertGrading" = "撤銷批改";
+"proMode.revertGradingAlert.title" = "撤銷批改？";
+"proMode.revertGradingAlert.revert" = "撤銷";
+"proMode.revertGradingAlert.message" = "這將清除所有批改結果並返回到原始狀態。此操作無法撤銷。";
+
+
+// Homework Summary View
+"homeworkSummary.title" = "作業分析完成";
+"homeworkSummary.questionCount" = "%d 道題目";
+"homeworkSummary.hierarchicalQuestions" = "層次題";
+"homeworkSummary.questionsPreview" = "題目預覽";
+"homeworkSummary.moreQuestions" = "還有 %d 道題";
+"homeworkSummary.viewDigitalHomework" = "查看數位版作業";
+"homeworkSummary.subquestionCount" = "%d 個子題";
+"homeworkSummary.answer" = "答案: %@";
 

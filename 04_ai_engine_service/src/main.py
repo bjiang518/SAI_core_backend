@@ -739,6 +739,7 @@ class GradeSingleQuestionRequest(BaseModel):
     correct_answer: Optional[str] = None  # Optional - AI will determine if not provided
     subject: Optional[str] = None  # For subject-specific grading rules
     context_image_base64: Optional[str] = None  # Optional image if question needs visual context
+    parent_question_content: Optional[str] = None  # NEW: Parent question context for subquestions
     model_provider: Optional[str] = "openai"  # "openai" or "gemini"
     use_deep_reasoning: bool = False  # Enable Gemini Thinking mode for complex questions
 
@@ -748,6 +749,7 @@ class GradeResult(BaseModel):
     is_correct: bool  # True if score >= 0.9
     feedback: str  # Max 30 words
     confidence: float  # 0.0-1.0
+    correct_answer: Optional[str] = None  # The correct/expected answer
 
 class GradeSingleQuestionResponse(BaseModel):
     """Response for single question grading"""
@@ -1091,6 +1093,7 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
             correct_answer=request.correct_answer,
             subject=request.subject,
             context_image=request.context_image_base64,
+            parent_content=request.parent_question_content,  # NEW: Pass parent question context
             use_deep_reasoning=request.use_deep_reasoning  # Pass deep reasoning flag
         )
 
@@ -1109,7 +1112,8 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
                 score=grade_data.get("score", 0.0),
                 is_correct=grade_data.get("is_correct", False),
                 feedback=grade_data.get("feedback", ""),
-                confidence=grade_data.get("confidence", 0.5)
+                confidence=grade_data.get("confidence", 0.5),
+                correct_answer=grade_data.get("correct_answer")
             ),
             processing_time_ms=processing_time,
             error=None
@@ -1705,12 +1709,44 @@ async def send_session_message_stream(
         # Get conversation context for API
         context_messages = session.get_context_for_api(system_prompt)
 
+        # ✅ CRITICAL: Add image to context if provided (homework question with image)
+        if request.image_data:
+            print(f"🖼️ === IMAGE DETECTED IN REQUEST ===")
+            print(f"🖼️ Image data length: {len(request.image_data)} chars")
+            print(f"🖼️ Adding image to latest user message in context")
+
+            # Find the last user message in context_messages and add image
+            for i in range(len(context_messages) - 1, -1, -1):
+                if context_messages[i].get("role") == "user":
+                    # Convert text-only message to multimodal message with image
+                    original_content = context_messages[i]["content"]
+                    context_messages[i]["content"] = [
+                        {
+                            "type": "text",
+                            "text": original_content
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{request.image_data}"
+                            }
+                        }
+                    ]
+                    print(f"✅ Successfully added image to user message at index {i}")
+                    break
+
         # 🚀 INTELLIGENT MODEL ROUTING: Select optimal model
-        selected_model, max_tokens = select_chat_model(
-            message=request.message,
-            subject=session.subject,
-            conversation_length=len(session.messages)
-        )
+        # ✅ CRITICAL: Use Vision model (gpt-4o-mini) if image is present
+        if request.image_data:
+            selected_model = "gpt-4o-mini"  # Vision-capable model
+            max_tokens = 4096
+            print(f"🖼️ Image detected - forcing gpt-4o-mini (vision-capable)")
+        else:
+            selected_model, max_tokens = select_chat_model(
+                message=request.message,
+                subject=session.subject,
+                conversation_length=len(session.messages)
+            )
 
         print(f"🤖 Calling OpenAI with STREAMING enabled and {len(context_messages)} context messages...")
         print(f"🚀 Selected model: {selected_model} (max_tokens: {max_tokens})")

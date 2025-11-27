@@ -848,7 +848,8 @@ struct QuestionAnswerCard: View {
                                     pointsEarned: question.pointsEarned,
                                     pointsPossible: question.pointsPossible,
                                     questionNumber: question.questionNumber,
-                                    subject: detectedSubject
+                                    subject: detectedSubject,
+                                    questionImage: nil  // QuestionAnswerCard doesn't have access to the homework image
                                 )
 
                                 // Construct user message for AI with explicit context

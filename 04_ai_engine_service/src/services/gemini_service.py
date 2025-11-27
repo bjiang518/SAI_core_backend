@@ -279,15 +279,10 @@ class GeminiEducationalAIService:
             # Extract JSON from response (safely handle complex responses)
             raw_response = self._extract_response_text(response)
 
-            print(f"📄 === RAW GEMINI RESPONSE (first 1000 chars) ===")
-            print(raw_response[:1000])
-            print(f"... (total {len(raw_response)} chars)")
-
             # Parse JSON
             result = self._extract_json_from_response(raw_response)
 
-            print(f"📊 Parsed {result.get('total_questions', 0)} questions")
-            print(f"📚 Subject: {result.get('subject', 'Unknown')}")
+            print(f"✅ Gemini parse: {result.get('total_questions', 0)} questions, Subject: {result.get('subject', 'Unknown')}")
 
             # Validate and fix total_questions count
             questions_array = result.get("questions", [])
@@ -325,6 +320,7 @@ class GeminiEducationalAIService:
         correct_answer: Optional[str] = None,
         subject: Optional[str] = None,
         context_image: Optional[str] = None,
+        parent_content: Optional[str] = None,  # NEW: Parent question context
         use_deep_reasoning: bool = False
     ) -> Dict[str, Any]:
         """
@@ -387,7 +383,9 @@ class GeminiEducationalAIService:
                 student_answer=student_answer,
                 correct_answer=correct_answer,
                 subject=subject,
-                use_deep_reasoning=use_deep_reasoning
+                parent_content=parent_content,  # NEW: Pass parent context
+                use_deep_reasoning=use_deep_reasoning,
+                has_context_image=bool(context_image)
             )
 
             print(f"🚀 Calling Gemini for grading...")
@@ -527,34 +525,9 @@ class GeminiEducationalAIService:
 
             # Parse JSON response (safely handle complex responses)
             raw_response = self._extract_response_text(response)
-
-            # 🔍 DEBUG: Log raw Gemini response
-            print(f"\n{'=' * 80}")
-            print(f"🔍 === RAW GEMINI GRADING RESPONSE (Phase 2) ===")
-            print(f"{'=' * 80}")
-            print(f"📄 Raw response length: {len(raw_response)} chars")
-            print(f"📝 Raw response preview (first 500 chars):")
-            print(f"{raw_response[:500]}")
-            if len(raw_response) > 500:
-                print(f"... (truncated, showing first 500 of {len(raw_response)} chars)")
-            print(f"{'=' * 80}\n")
-
             grade_data = self._extract_json_from_response(raw_response)
 
-            # 🔍 DEBUG: Log parsed grade data in detail
-            print(f"\n{'=' * 80}")
-            print(f"🔍 === PARSED GRADE DATA (Phase 2) ===")
-            print(f"{'=' * 80}")
-            print(f"📊 Score: {grade_data.get('score', 'MISSING')}")
-            print(f"✓ Is Correct: {grade_data.get('is_correct', 'MISSING')}")
-            print(f"💬 Feedback: '{grade_data.get('feedback', 'MISSING')}'")
-            print(f"📈 Confidence: {grade_data.get('confidence', 'MISSING')}")
-            print(f"🔍 Feedback length: {len(grade_data.get('feedback', ''))} chars")
-            print(f"🔍 Feedback is empty: {not grade_data.get('feedback', '').strip()}")
-            print(f"{'=' * 80}\n")
-
-            print(f"📊 Score: {grade_data.get('score', 0.0)}")
-            print(f"✓ Correct: {grade_data.get('is_correct', False)}")
+            print(f"✅ Grade: score={grade_data.get('score', 0.0)}, correct={grade_data.get('is_correct', False)}, feedback={len(grade_data.get('feedback', ''))} chars")
 
             return {
                 "success": True,
@@ -805,9 +778,49 @@ OUTPUT CHECKLIST
         student_answer: str,
         correct_answer: Optional[str],
         subject: Optional[str],
-        use_deep_reasoning: bool = False
+        parent_content: Optional[str],  # NEW: Parent question context
+        use_deep_reasoning: bool = False,
+        has_context_image: bool = False
     ) -> str:
-        """Build grading prompt with optional deep reasoning mode."""
+        """Build grading prompt with optional parent question context, deep reasoning mode, and image context awareness."""
+
+        # Image-aware instructions to add when context image is provided
+        image_instructions = ""
+        if has_context_image:
+            image_instructions = """
+
+IMPORTANT - IMAGE CONTEXT PROVIDED:
+An image of the student's work is attached. This image may contain:
+- Handwritten calculations and work shown
+- Student edits, corrections, or annotations
+- Diagrams, graphs, or visual solutions
+- Additional work not captured in the text above
+
+YOU MUST:
+1. Carefully examine the image for student handwriting and edits
+2. Give priority to handwritten work visible in the image
+3. The student's handwritten answer may differ from the typed text
+4. Grade based on what you see in the image AND the text combined
+5. If there's a discrepancy, trust the visual evidence in the image
+"""
+
+        # Parent question context instructions (for subquestions)
+        parent_instructions = ""
+        if parent_content:
+            parent_instructions = f"""
+
+IMPORTANT - PARENT QUESTION CONTEXT PROVIDED:
+This is a subquestion that belongs to a larger multi-part question.
+
+Parent Question:
+{parent_content}
+
+The subquestion you are grading is part of this larger question. Consider:
+1. The parent question provides important context, setup, or definitions
+2. The student may refer to concepts introduced in the parent question
+3. Grade the subquestion within the context of the parent question
+4. The parent question's instructions apply to this subquestion
+"""
 
         if use_deep_reasoning:
             # Deep reasoning mode: Guide the model to think step-by-step
@@ -820,7 +833,8 @@ Student's Answer: {student_answer}
 {f'Expected Answer: {correct_answer}' if correct_answer else ''}
 
 Subject: {subject or 'General'}
-
+{parent_instructions}
+{image_instructions}
 DEEP REASONING INSTRUCTIONS:
 Think deeply about this question before grading. Follow these steps:
 
@@ -857,7 +871,8 @@ Return JSON in this exact format:
   "is_correct": true,
   "feedback": "Your reasoning is excellent. You correctly identified X and applied method Y. The calculation is accurate. Well done!",
   "confidence": 0.95,
-  "reasoning_steps": "Student used the correct formula F=ma. They identified mass=10kg and acceleration=5m/s². Calculation: F=10×5=50N. Answer is completely correct with proper units."
+  "reasoning_steps": "Student used the correct formula F=ma. They identified mass=10kg and acceleration=5m/s². Calculation: F=10×5=50N. Answer is completely correct with proper units.",
+  "correct_answer": "50N (or 50 Newtons)"
 }}
 
 GRADING SCALE:
@@ -871,7 +886,8 @@ RULES:
 1. is_correct = (score >= 0.9)
 2. Feedback must be detailed and educational (50-100 words)
 3. Explain reasoning steps clearly
-4. Return ONLY valid JSON, no markdown or extra text"""
+4. correct_answer must be the expected/correct answer for this question
+5. Return ONLY valid JSON, no markdown or extra text"""
 
         else:
             # Standard mode: Quick concise grading with minimal feedback
@@ -885,13 +901,15 @@ Student's Answer: {student_answer}
 {f'Expected Answer: {correct_answer}' if correct_answer else ''}
 
 Subject: {subject or 'General'}
-
+{parent_instructions}
+{image_instructions}
 Return JSON in this exact format:
 {{
   "score": 0.95,
   "is_correct": true,
   "feedback": "Correct! Good work.",
-  "confidence": 0.95
+  "confidence": 0.95,
+  "correct_answer": "The expected answer (brief)"
 }}
 
 GRADING SCALE:
@@ -904,7 +922,8 @@ RULES:
 1. is_correct = (score >= 0.9)
 2. Feedback must be VERY brief (<15 words, ideally 5-10 words)
 3. If incorrect, state ONE key error only
-4. Return ONLY valid JSON, no markdown or extra text"""
+4. correct_answer must be the expected/correct answer for this question
+5. Return ONLY valid JSON, no markdown or extra text"""
 
     def _extract_json_from_response(self, response_text: str) -> Dict[str, Any]:
         """Extract JSON from Gemini response (may include markdown)."""
