@@ -770,11 +770,13 @@ struct DigitalHomeworkView: View {
                         .scaleEffect(viewModel.gradingAnimation == .thinking ? 1.1 : 1.0)
                         .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: viewModel.gradingAnimation)
 
-                    Image(systemName: gradingAnimationIcon)
-                        .font(.title2)
+                    // Use model-specific icon (gemini-icon or openai-light)
+                    Image(viewModel.selectedAIModel == "gemini" ? "gemini-icon" : "openai-light")
+                        .resizable()
+                        .renderingMode(.template)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 24, height: 24)
                         .foregroundColor(.white)
-                        .rotationEffect(.degrees(viewModel.gradingAnimation == .analyzing ? 360 : 0))
-                        .animation(viewModel.gradingAnimation == .analyzing ? .linear(duration: 2.0).repeatForever(autoreverses: false) : .default, value: viewModel.gradingAnimation)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
