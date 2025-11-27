@@ -154,6 +154,7 @@
 "aiHomework.startAnalysis" = "Start Homework Analysis";
 "aiHomework.selectImage" = "Select an image to analyze homework";
 "aiHomework.optimizing" = "Optimizing image...";
+"aiHomework.cropping" = "Image cropping...";
 "aiHomework.uploading" = "Uploading to AI...";
 "aiHomework.analyzing" = "AI reading homework...";
 "aiHomework.grading" = "Grading answers...";
@@ -1289,3 +1290,55 @@
 "subject.english" = "English";
 "subject.history" = "History";
 "subject.other" = "Other";
+
+// Pro Mode - Digital Homework
+"proMode.title" = "Digital Homework";
+"proMode.cancel" = "Cancel";
+"proMode.selectAll" = "Select All";
+"proMode.deselectAll" = "Deselect All";
+"proMode.viewOriginalImage" = "View Original Image";
+"proMode.resetAnnotations" = "Reset Annotations";
+"proMode.batchArchive" = "Batch Archive";
+"proMode.batchArchiveCount" = "Batch Archive (%d)";
+"proMode.accuracy" = "Accuracy";
+"proMode.correct" = "Correct";
+"proMode.partialCorrect" = "Partially Correct";
+"proMode.incorrect" = "Incorrect";
+"proMode.markProgress" = "Mark Learning Progress";
+"proMode.questionPreview" = "Question Preview";
+"proMode.tapToAnnotate" = "Tap to create annotation box";
+"proMode.done" = "Done";
+"proMode.selectQuestionNumber" = "Select Question Number";
+"proMode.questionNumber" = "Q %@";
+"proMode.studentAnswer" = "Student Answer";
+"proMode.grading" = "Grading %d/%d";
+"proMode.deepGradingMode" = "Deep Grading Mode";
+"proMode.deepGradingDescription" = "AI will analyze deeply (slower but more accurate)";
+"proMode.standardGradingDescription" = "Standard grading speed (fast but may lack depth)";
+"proMode.gradeHomework" = "Grade Homework with AI";
+"proMode.deepGradeHomework" = "Deep Grade Homework";
+"proMode.annotationHint" = "Tip: Add annotations to provide image context for questions";
+"proMode.studentAnswerLabel" = "Student Answer: %@";
+"proMode.askAI" = "Ask AI for Help";
+"proMode.archive" = "Archive";
+"proMode.archived" = "Archived";
+"proMode.subquestionAnswer" = "Answer: %@";
+"proMode.addAnnotation" = "Add Annotation";
+"proMode.editAnnotations" = "Edit Annotations (%d)";
+"proMode.selectAIModel" = "Select AI Model";
+"proMode.revertGrading" = "Revert Grading";
+"proMode.revertGradingAlert.title" = "Revert Grading?";
+"proMode.revertGradingAlert.revert" = "Revert";
+"proMode.revertGradingAlert.message" = "This will clear all grading results and return to the original state. This action cannot be undone.";
+
+
+// Homework Summary View
+"homeworkSummary.title" = "Homework Analysis Complete";
+"homeworkSummary.questionCount" = "%d questions";
+"homeworkSummary.hierarchicalQuestions" = "Hierarchical";
+"homeworkSummary.questionsPreview" = "Questions Preview";
+"homeworkSummary.moreQuestions" = "%d more questions";
+"homeworkSummary.viewDigitalHomework" = "View Digital Homework";
+"homeworkSummary.subquestionCount" = "%d subquestions";
+"homeworkSummary.answer" = "Answer: %@";
+

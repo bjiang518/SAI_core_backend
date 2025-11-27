@@ -389,7 +389,7 @@ LANGUAGE: ${languageInstruction}`;
   async sendSessionMessageStreaming(request, reply) {
     const startTime = Date.now();
     const { sessionId } = request.params;
-    const { message, context, language } = request.body;
+    const { message, context, language, question_context } = request.body;  // ✅ Extract question_context
     const fetch = require('node-fetch');
 
     try {
@@ -398,6 +398,15 @@ LANGUAGE: ${languageInstruction}`;
       if (!authenticatedUserId) return;
 
       this.fastify.log.info(`💬 Processing streaming session message: ${sessionId.substring(0, 8)}...`);
+
+      // ✅ Log homework question context (if provided)
+      if (question_context) {
+        this.fastify.log.info(`📋 Homework Question Context Detected:`);
+        this.fastify.log.info(`   - Has image: ${!!question_context.question_image_base64}`);
+        this.fastify.log.info(`   - Question text: ${question_context.questionText || 'N/A'}`);
+        this.fastify.log.info(`   - Student answer: ${question_context.studentAnswer || 'N/A'}`);
+        this.fastify.log.info(`   - Grade: ${question_context.currentGrade || 'N/A'}`);
+      }
 
       // Get and verify session (same as non-streaming)
       const { db } = require('../../../../utils/railway-database');
@@ -442,6 +451,33 @@ LANGUAGE: ${languageInstruction}`;
       const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:5001';
       const streamUrl = `${AI_ENGINE_URL}/api/v1/sessions/${sessionId}/message/stream`;
 
+      // ✅ Build request payload with question_context if provided
+      const requestPayload = {
+        message: userMessage,
+        system_prompt: systemPrompt,
+        subject: sessionInfo.subject || 'general',
+        student_id: authenticatedUserId,
+        language: userLanguage,
+        context: {
+          session_id: sessionId,
+          session_type: 'conversation',
+          ...context
+        }
+      };
+
+      // ✅ Add question_context if homework question with image
+      if (question_context) {
+        requestPayload.question_context = question_context;
+
+        // ✅ CRITICAL: Extract image from question_context and add as image_data
+        if (question_context.question_image_base64) {
+          requestPayload.image_data = question_context.question_image_base64;
+          this.fastify.log.info(`✅ Added image_data to AI Engine request (${question_context.question_image_base64.length} chars)`);
+        }
+
+        this.fastify.log.info(`✅ Added question_context to AI Engine request (has_image: ${!!question_context.question_image_base64})`);
+      }
+
       const response = await fetch(streamUrl, {
         method: 'POST',
         headers: {
@@ -451,18 +487,7 @@ LANGUAGE: ${languageInstruction}`;
             'X-Service-Auth': process.env.SERVICE_AUTH_SECRET
           } : {})
         },
-        body: JSON.stringify({
-          message: userMessage,
-          system_prompt: systemPrompt,
-          subject: sessionInfo.subject || 'general',
-          student_id: authenticatedUserId,
-          language: userLanguage,
-          context: {
-            session_id: sessionId,
-            session_type: 'conversation',
-            ...context
-          }
-        })
+        body: JSON.stringify(requestPayload)
       });
 
       if (!response.ok) {

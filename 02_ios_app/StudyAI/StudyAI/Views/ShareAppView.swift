@@ -9,6 +9,21 @@ import SwiftUI
 
 struct ShareAppView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var showShareSheet = false
+
+    private let appURL = "https://apps.apple.com/app/id6504105201"
+    private var shareText: String {
+        """
+        \(NSLocalizedString("shareApp.messagePreview", comment: ""))
+
+        \(NSLocalizedString("shareApp.feature1", comment: ""))
+        \(NSLocalizedString("shareApp.feature2", comment: ""))
+        \(NSLocalizedString("shareApp.feature3", comment: ""))
+        \(NSLocalizedString("shareApp.feature4", comment: ""))
+
+        \(NSLocalizedString("shareApp.downloadNow", comment: "")) \(appURL)
+        """
+    }
 
     var body: some View {
         NavigationView {
@@ -169,36 +184,13 @@ struct ShareAppView: View {
                 }
             }
         }
+        .sheet(isPresented: $showShareSheet) {
+            ActivityViewController(activityItems: [shareText])
+        }
     }
 
     private func shareApp() {
-        let appURL = "https://apps.apple.com/app/id6504105201"
-        let shareText = """
-        \(NSLocalizedString("shareApp.messagePreview", comment: ""))
-
-        \(NSLocalizedString("shareApp.feature1", comment: ""))
-        \(NSLocalizedString("shareApp.feature2", comment: ""))
-        \(NSLocalizedString("shareApp.feature3", comment: ""))
-        \(NSLocalizedString("shareApp.feature4", comment: ""))
-
-        \(NSLocalizedString("shareApp.downloadNow", comment: "")) \(appURL)
-        """
-
-        let activityVC = UIActivityViewController(
-            activityItems: [shareText],
-            applicationActivities: nil
-        )
-
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = windowScene.windows.first?.rootViewController {
-            // For iPad - present as popover
-            if let popover = activityVC.popoverPresentationController {
-                popover.sourceView = rootVC.view
-                popover.sourceRect = CGRect(x: rootVC.view.bounds.midX, y: rootVC.view.bounds.midY, width: 0, height: 0)
-                popover.permittedArrowDirections = []
-            }
-            rootVC.present(activityVC, animated: true)
-        }
+        showShareSheet = true
     }
 
     private func copyLink() {

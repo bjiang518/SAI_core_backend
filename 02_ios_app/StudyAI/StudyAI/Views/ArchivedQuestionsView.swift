@@ -256,6 +256,7 @@ struct QuestionDetailView: View {
     @State private var question: ArchivedQuestion?
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var proModeImage: UIImage?  // ✅ NEW: For Pro Mode cropped images
 
     var body: some View {
         ScrollView {
@@ -323,6 +324,33 @@ struct QuestionDetailView: View {
             // Header with subject and grade
             questionHeader(for: question)
 
+            // ✅ NEW: Pro Mode Image Display
+            if let image = proModeImage {
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "photo.fill")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        Text("Question Image")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        Spacer()
+                    }
+
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
+                }
+                .padding()
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(12)
+            }
+
             // Convert ArchivedQuestion to ParsedQuestion for renderer
             let parsedQuestion = ParsedQuestion(
                 questionNumber: nil,
@@ -368,6 +396,33 @@ struct QuestionDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             // Header with subject and grade (shared component)
             questionHeader(for: question)
+
+            // ✅ NEW: Pro Mode Image Display (same as type-specific renderer)
+            if let image = proModeImage {
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "photo.fill")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        Text("Question Image")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        Spacer()
+                    }
+
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
+                }
+                .padding()
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(12)
+            }
 
             // Question (Full original text from image)
             VStack(alignment: .leading, spacing: 8) {
@@ -594,6 +649,20 @@ struct QuestionDetailView: View {
                         print("📋 [QuestionDetail] ❌ rawQuestionText is NIL in loaded question")
                     }
                     print("📋 [QuestionDetail] questionText value: \(fetchedQuestion.questionText)")
+
+                    // ✅ NEW: Load Pro Mode image if available
+                    if let imagePath = fetchedQuestion.questionImageUrl, !imagePath.isEmpty {
+                        print("🖼️ [QuestionDetail] Found questionImageUrl: \(imagePath)")
+                        if let loadedImage = ProModeImageStorage.shared.loadImage(from: imagePath) {
+                            print("✅ [QuestionDetail] Successfully loaded Pro Mode image")
+                            self.proModeImage = loadedImage
+                        } else {
+                            print("⚠️ [QuestionDetail] Failed to load Pro Mode image from path")
+                        }
+                    } else {
+                        print("📋 [QuestionDetail] No Pro Mode image path found")
+                    }
+
                     self.question = fetchedQuestion
                     self.isLoading = false
                     self.errorMessage = nil

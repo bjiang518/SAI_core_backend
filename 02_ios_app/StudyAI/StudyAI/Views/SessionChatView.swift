@@ -469,6 +469,20 @@ struct SessionChatView: View {
                                 Spacer()
                             }
 
+                            // ✅ NEW: Display cropped question image if available
+                            if let questionImage = homeworkContext.questionImage {
+                                Image(uiImage: questionImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxHeight: 150)
+                                    .background(Color.gray.opacity(0.1))
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                    )
+                            }
+
                             VStack(alignment: .leading, spacing: 4) {
                                 if let questionNum = homeworkContext.questionNumber {
                                     Text("Question #\(questionNum)")

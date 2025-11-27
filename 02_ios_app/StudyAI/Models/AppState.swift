@@ -20,6 +20,7 @@ struct HomeworkQuestionContext {
     let pointsPossible: Float?
     let questionNumber: Int?
     let subject: String?
+    let questionImage: UIImage?  // ✅ NEW: Pro Mode cropped image
 
     /// Convert to dictionary for network request
     func toDictionary() -> [String: Any] {
@@ -53,6 +54,11 @@ struct HomeworkQuestionContext {
         }
         if let subj = subject {
             dict["subject"] = subj
+        }
+        // ✅ NEW: Add image as base64 if available
+        if let image = questionImage,
+           let jpegData = image.jpegData(compressionQuality: 0.85) {
+            dict["question_image_base64"] = jpegData.base64EncodedString()
         }
 
         return dict

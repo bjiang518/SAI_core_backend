@@ -35,7 +35,7 @@ enum ProcessingStage {
         case .uploading:
             return "📤 " + NSLocalizedString("aiHomework.uploading", comment: "")
         case .cropping:
-            return "✂️ 正在图像分割"
+            return "✂️ " + NSLocalizedString("aiHomework.cropping", comment: "Image cropping")
         case .analyzing:
             return "🔍 " + NSLocalizedString("aiHomework.analyzing", comment: "")
         case .grading:
@@ -1954,7 +1954,7 @@ struct DirectAIHomeworkView: View {
         await MainActor.run {
             isProcessing = true
             stateManager.parsingError = nil
-            stateManager.processingStatus = "AI 正在分析作业..."
+            stateManager.processingStatus = NSLocalizedString("aiHomework.analyzing", comment: "AI analyzing homework")
             stateManager.currentStage = .analyzing
         }
 

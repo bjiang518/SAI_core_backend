@@ -1172,6 +1172,17 @@ class QuestionLocalStorage {
             existingQuestions.insert(question, at: 0)
             addedCount += 1
             print("   ✅ Added new question: \(String(describing: question["questionText"] as? String ?? "").prefix(50))...")
+
+            // 🔍 DEBUG: Log Pro Mode image info
+            if let proMode = question["proMode"] as? Bool, proMode == true {
+                print("   🌟 Pro Mode question detected")
+                if let imagePath = question["questionImageUrl"] as? String {
+                    print("   🖼️ questionImageUrl: \(imagePath)")
+                    print("   🖼️ File exists: \(FileManager.default.fileExists(atPath: imagePath))")
+                } else {
+                    print("   ⚠️ No questionImageUrl found in question data")
+                }
+            }
         }
 
         // Keep only the most recent questions

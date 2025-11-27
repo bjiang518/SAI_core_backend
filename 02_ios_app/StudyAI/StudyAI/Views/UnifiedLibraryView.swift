@@ -801,22 +801,36 @@ struct LibraryItemRow: View {
     }
 
     private func loadProModeImageIfNeeded() {
-        guard let questionSummary = item as? QuestionSummary,
-              questionSummary.proMode == true,
-              let imagePath = questionSummary.questionImageUrl,
-              !imagePath.isEmpty else {
+        guard let questionSummary = item as? QuestionSummary else {
             return
         }
+
+        print("🔍 [Library] Checking Pro Mode image for question: \(questionSummary.id)")
+        print("   proMode: \(questionSummary.proMode ?? false)")
+
+        guard questionSummary.proMode == true else {
+            print("   ⏭️ Not a Pro Mode question, skipping")
+            return
+        }
+
+        guard let imagePath = questionSummary.questionImageUrl, !imagePath.isEmpty else {
+            print("   ⚠️ Pro Mode question but no questionImageUrl")
+            print("   questionImageUrl value: \(String(describing: questionSummary.questionImageUrl))")
+            return
+        }
+
+        print("   📂 Image path: \(imagePath)")
+        print("   📂 File exists at path: \(FileManager.default.fileExists(atPath: imagePath))")
 
         // Load image from file system
         if let loadedImage = ProModeImageStorage.shared.loadImage(from: imagePath) {
             proModeImage = loadedImage
-            print("✅ [Library] Loaded Pro Mode image for question: \(questionSummary.id)")
+            print("   ✅ Successfully loaded Pro Mode image (size: \(loadedImage.size))")
         } else {
-            print("⚠️ [Library] Failed to load Pro Mode image at: \(imagePath)")
+            print("   ❌ Failed to load Pro Mode image from path")
         }
     }
-    
+
     private func iconForItem(_ item: LibraryItem) -> String {
         switch item.itemType {
         case .question:

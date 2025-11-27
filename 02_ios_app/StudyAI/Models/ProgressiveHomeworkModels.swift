@@ -117,12 +117,14 @@ struct ProgressiveGradeResult: Codable {
     let isCorrect: Bool           // score >= 0.9
     let feedback: String          // Max 30 words
     let confidence: Float         // 0.0-1.0
+    let correctAnswer: String?    // The expected/correct answer
 
     enum CodingKeys: String, CodingKey {
         case score
         case isCorrect = "is_correct"
         case feedback
         case confidence
+        case correctAnswer = "correct_answer"
     }
 
     /// Color for UI display
@@ -171,6 +173,9 @@ struct ProgressiveQuestionWithGrade: Identifiable {
     var subquestionGrades: [String: ProgressiveGradeResult] = [:]  // key = subquestion id
     var subquestionGradingStatus: [String: Bool] = [:]  // key = subquestion id, value = isGrading
     var subquestionErrors: [String: String] = [:]  // key = subquestion id
+
+    // ✅ NEW: Archive status (questions remain visible after archiving)
+    var isArchived: Bool = false
 
     /// Check if this question is a parent with subquestions
     var isParentQuestion: Bool {

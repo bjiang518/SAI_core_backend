@@ -209,6 +209,9 @@
 		7BD668A22ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */; };
 		7BD668A32ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */; };
 		7BD668A42ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */; };
+		7BD668A62ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668A52ED6F36300E09E55 /* DigitalHomeworkViewModel.swift */; };
+		7BD668A72ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668A52ED6F36300E09E55 /* DigitalHomeworkViewModel.swift */; };
+		7BD668A82ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668A52ED6F36300E09E55 /* DigitalHomeworkViewModel.swift */; };
 		7BDE565E2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
 		7BDE565F2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
 		7BDE56602EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
@@ -487,7 +490,8 @@
 		7BD668732ED05FAE00E09E55 /* DigitalHomeworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkView.swift; path = StudyAI/Views/DigitalHomeworkView.swift; sourceTree = SOURCE_ROOT; };
 		7BD668742ED05FAE00E09E55 /* HomeworkSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkSummaryView.swift; path = StudyAI/Views/HomeworkSummaryView.swift; sourceTree = SOURCE_ROOT; };
 		7BD6687B2ED05FD400E09E55 /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ZoomableImageView.swift; path = StudyAI/Views/Components/ZoomableImageView.swift; sourceTree = SOURCE_ROOT; };
-		7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigitalHomeworkStateManager.swift; sourceTree = "<group>"; };
+		7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkStateManager.swift; path = StudyAI/Models/DigitalHomeworkStateManager.swift; sourceTree = SOURCE_ROOT; };
+		7BD668A52ED6F36300E09E55 /* DigitalHomeworkViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkViewModel.swift; path = StudyAI/ViewModels/DigitalHomeworkViewModel.swift; sourceTree = SOURCE_ROOT; };
 		7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MathJaxRenderer.swift; path = StudyAI/Services/MathJaxRenderer.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56612EC1C617004A8629 /* PomodoroDeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PomodoroDeepLinkHandler.swift; path = StudyAI/Services/PomodoroDeepLinkHandler.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56652EC1C64D004A8629 /* StreamingMessageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StreamingMessageService.swift; path = StudyAI/Services/StreamingMessageService.swift; sourceTree = SOURCE_ROOT; };
@@ -723,6 +727,7 @@
 		7BEDA5F72E7EB8C500D57B15 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				7BD668A52ED6F36300E09E55 /* DigitalHomeworkViewModel.swift */,
 				7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */,
 				7BD664D92ECAB9D200E09E55 /* ProgressiveSubquestionModel.swift */,
 				7BD664D12ECA908300E09E55 /* ProgressiveHomeworkModels.swift */,
@@ -1213,6 +1218,7 @@
 				7B8E9EB32EAF38D000E83DA8 /* SessionManager.swift in Sources */,
 				BBC5F8E4CA694EABAD6955A2 /* SimpleMathRenderer.swift in Sources */,
 				D3FB6347F13948AB873BE1F8 /* SpeechRecognitionService.swift in Sources */,
+				7BD668A62ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */,
 				7B1ED83E2E829B1700E5E57D /* ReportDateRangeSelector.swift in Sources */,
 				7B1ED83F2E829B1700E5E57D /* ReportDetailComponents.swift in Sources */,
 				7B1961AD2E949DAD0024317A /* NotificationSettingsView.swift in Sources */,
@@ -1331,6 +1337,7 @@
 				7BDE56EE2EC31AC7004A8629 /* HTMLRendererView.swift in Sources */,
 				7BD664D22ECA908300E09E55 /* ProgressiveHomeworkModels.swift in Sources */,
 				7B1961AC2E949DAD0024317A /* NotificationSettingsView.swift in Sources */,
+				7BD668A82ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */,
 				7BD664D62ECAB29F00E09E55 /* NativePhotoViewer.swift in Sources */,
 				7B83534A2EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */,
 				7B1961EB2E94E2740024317A /* PasswordManagementView.swift in Sources */,
@@ -1401,6 +1408,7 @@
 				7BDE56802EC1C6E5004A8629 /* PomodoroCalendarService.swift in Sources */,
 				7BEEB6132E8E3A3200957748 /* DesignTokens.swift in Sources */,
 				7BFC71332EC5A91D00DB95A7 /* AssistantLogger.swift in Sources */,
+				7BD668A72ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */,
 				7BFC71342EC5A91D00DB95A7 /* NetworkService+PracticeGenerator.swift in Sources */,
 				7BD668A32ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */,
 				BF24FA3DE51E44C29A78596C /* ViewModifiers.swift in Sources */,

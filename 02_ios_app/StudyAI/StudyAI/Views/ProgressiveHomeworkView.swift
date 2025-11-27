@@ -2,8 +2,11 @@
 //  ProgressiveHomeworkView.swift
 //  StudyAI
 //
-//  Main view for progressive homework grading
-//  Shows electronic paper with animated grading results
+//  ⚠️ NOTE: Alternative progressive grading view (NOT main flow)
+//  🔴 Main homework flow uses: DigitalHomeworkView (with DigitalHomeworkViewModel)
+//
+//  This view is shown via: DirectAIHomeworkView.showProgressiveGrading sheet
+//  Main flow: DirectAIHomeworkView → HomeworkSummaryView → DigitalHomeworkView
 //
 
 import SwiftUI
@@ -623,6 +626,7 @@ struct QuestionGradeCard: View {
             if showSubquestions, let subquestions = questionWithGrade.question.subquestions {
                 VStack(spacing: 12) {
                     ForEach(subquestions) { subquestion in
+                        let retrievedGrade = questionWithGrade.subquestionGrades[subquestion.id]
                         let _ = {
                             // 🔍 DEBUG: Log dictionary retrieval
                             print("")
@@ -632,13 +636,14 @@ struct QuestionGradeCard: View {
                             print("   🔑 Dictionary Key (subquestion.id): '\(subquestion.id)'")
                             print("   📚 Available keys in dictionary: \(questionWithGrade.subquestionGrades.keys.sorted())")
 
-                            if let retrievedGrade = questionWithGrade.subquestionGrades[subquestion.id] {
+                            if let retrievedGrade = retrievedGrade {
                                 print("   ✅ Grade FOUND in dictionary")
                                 print("   📊 Score: \(retrievedGrade.score)")
                                 print("   ✓ Is Correct: \(retrievedGrade.isCorrect)")
                                 print("   💬 Feedback: '\(retrievedGrade.feedback)'")
                                 print("   🔍 Feedback length: \(retrievedGrade.feedback.count) chars")
                                 print("   🔍 Feedback is empty: \(retrievedGrade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+                                print("   ✅ WILL PASS TO ProgressiveSubquestionCard")
                             } else {
                                 print("   ❌ Grade NOT FOUND in dictionary for key: '\(subquestion.id)'")
                                 print("   ⚠️ This will cause the ProgressiveSubquestionCard to receive nil grade!")
@@ -649,7 +654,7 @@ struct QuestionGradeCard: View {
 
                         ProgressiveSubquestionCard(
                             subquestion: subquestion,
-                            grade: questionWithGrade.subquestionGrades[subquestion.id],
+                            grade: retrievedGrade,
                             isGrading: questionWithGrade.subquestionGradingStatus[subquestion.id] ?? false,
                             error: questionWithGrade.subquestionErrors[subquestion.id],
                             onAskAI: {

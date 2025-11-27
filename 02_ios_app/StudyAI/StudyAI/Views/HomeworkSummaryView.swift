@@ -16,6 +16,12 @@ struct HomeworkSummaryView: View {
     @EnvironmentObject private var appState: AppState
     @State private var showDigitalHomework = false
 
+    // ✅ NEW: Reference to global state manager
+    @ObservedObject private var stateManager = DigitalHomeworkStateManager.shared
+
+    // ✅ NEW: Resume prompt state
+    @State private var showResumePrompt = false
+
     var body: some View {
         ZStack(alignment: .bottom) {
             // Main content
@@ -40,7 +46,7 @@ struct HomeworkSummaryView: View {
                 .padding(.horizontal)
                 .padding(.bottom, 16)
         }
-        .navigationTitle("作业分析完成")
+        .navigationTitle(NSLocalizedString("homeworkSummary.title", comment: "Homework Analysis Complete"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $showDigitalHomework) {
             DigitalHomeworkView(
@@ -48,6 +54,59 @@ struct HomeworkSummaryView: View {
                 originalImage: originalImage
             )
             .environmentObject(appState)
+        }
+        // ✅ IMPROVED: Smart detection of new homework vs navigation back
+        .onAppear {
+            print("📋 [HomeworkSummary] onAppear - Current state: \(stateManager.currentState)")
+
+            // Check if we already have homework in memory
+            if stateManager.currentState != .nothing && stateManager.currentHomework != nil {
+                print("   Found existing homework in state: \(stateManager.currentState)")
+
+                // ✅ KEY: Compare incoming image with stored homework to detect if it's NEW
+                // Generate hash for incoming image
+                let incomingImageData = originalImage.jpegData(compressionQuality: 0.1)
+                let incomingHash = "\(incomingImageData?.hashValue ?? 0)"
+                let existingHash = stateManager.currentHomework?.homeworkHash ?? ""
+
+                print("   Incoming image hash: \(incomingHash)")
+                print("   Existing homework hash: \(existingHash)")
+
+                if incomingHash == existingHash {
+                    // Same homework - user is navigating back from DigitalHomeworkView
+                    print("   ✅ SAME homework (hashes match) - skipping parseHomework()")
+                    print("   Reason: User navigated back from DigitalHomeworkView")
+                    print("   Preserving state: \(stateManager.currentState)")
+                    return
+                } else {
+                    // Different homework - user triggered new parse from camera
+                    print("   🆕 NEW homework detected (hashes differ)")
+                    print("   Reason: User parsed a different image from camera")
+                    print("   Calling parseHomework() to reset and parse new homework")
+                    stateManager.parseHomework(parseResults: parseResults, image: originalImage)
+                    return
+                }
+            }
+
+            // No existing homework - this is first parse
+            print("   No existing homework found")
+            print("   Calling parseHomework() for initial homework")
+            stateManager.parseHomework(parseResults: parseResults, image: originalImage)
+            print("   ✅ State initialized: \(stateManager.currentState)")
+        }
+        // ✅ NEW: Resume prompt alert
+        .alert(NSLocalizedString("homeworkSummary.resumePrompt.title", comment: "Resume Homework?"), isPresented: $showResumePrompt) {
+            Button(NSLocalizedString("homeworkSummary.resumePrompt.resume", comment: "Resume")) {
+                stateManager.resumeHomework()
+                showDigitalHomework = true
+            }
+            Button(NSLocalizedString("homeworkSummary.resumePrompt.startFresh", comment: "Start Fresh"), role: .destructive) {
+                stateManager.startFresh()
+                stateManager.parseHomework(parseResults: parseResults, image: originalImage)
+                showDigitalHomework = true
+            }
+        } message: {
+            Text(NSLocalizedString("homeworkSummary.resumePrompt.message", comment: "You have an unfinished homework. Would you like to resume or start fresh?"))
         }
     }
 
@@ -68,7 +127,7 @@ struct HomeworkSummaryView: View {
                         .foregroundColor(.primary)
                 }
 
-                Text("\(parseResults.totalQuestions) 道题目")
+                Text(String(format: NSLocalizedString("homeworkSummary.questionCount", comment: "X questions"), parseResults.totalQuestions))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -80,7 +139,7 @@ struct HomeworkSummaryView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "chart.tree")
                         .font(.caption)
-                    Text("层次题")
+                    Text(NSLocalizedString("homeworkSummary.hierarchicalQuestions", comment: "Hierarchical"))
                         .font(.caption)
                         .fontWeight(.medium)
                 }
@@ -100,7 +159,7 @@ struct HomeworkSummaryView: View {
 
     private var questionsPreviewSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("题目预览")
+            Text(NSLocalizedString("homeworkSummary.questionsPreview", comment: "Questions Preview"))
                 .font(.title3)
                 .fontWeight(.semibold)
                 .foregroundColor(.primary)
@@ -117,7 +176,7 @@ struct HomeworkSummaryView: View {
                     }) {
                         HStack {
                             Spacer()
-                            Text("还有 \(parseResults.questions.count - 3) 道题")
+                            Text(String(format: NSLocalizedString("homeworkSummary.moreQuestions", comment: "X more questions"), parseResults.questions.count - 3))
                                 .font(.subheadline)
                                 .foregroundColor(.blue)
                             Image(systemName: "chevron.right")
@@ -145,7 +204,7 @@ struct HomeworkSummaryView: View {
             HStack(spacing: 10) {
                 Image(systemName: "doc.text.fill")
                     .font(.body)
-                Text("查看数字版作业")
+                Text(NSLocalizedString("homeworkSummary.viewDigitalHomework", comment: "View Digital Homework"))
                     .font(.body)
                     .fontWeight(.semibold)
             }
@@ -228,7 +287,7 @@ struct QuestionPreviewRow: View {
                         HStack(spacing: 4) {
                             Image(systemName: "chart.tree")
                                 .font(.caption2)
-                            Text("\(subquestions.count) 个子题")
+                            Text(String(format: NSLocalizedString("homeworkSummary.subquestionCount", comment: "X subquestions"), subquestions.count))
                                 .font(.caption)
                         }
                         .foregroundColor(.purple)
@@ -245,7 +304,7 @@ struct QuestionPreviewRow: View {
                         .lineLimit(2)
 
                     if let answer = question.studentAnswer, !answer.isEmpty {
-                        Text("答案: \(answer)")
+                        Text(String(format: NSLocalizedString("homeworkSummary.answer", comment: "Answer: X"), answer))
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .lineLimit(1)

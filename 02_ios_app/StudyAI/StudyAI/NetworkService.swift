@@ -2156,6 +2156,7 @@ class NetworkService: ObservableObject {
         studentAnswer: String,
         subject: String?,
         contextImageBase64: String? = nil,
+        parentQuestionContent: String? = nil,  // NEW: Parent question context for subquestions
         useDeepReasoning: Bool = false,
         modelProvider: String = "gemini"  // NEW: "openai" or "gemini"
     ) async throws -> GradeSingleQuestionResponse {
@@ -2193,6 +2194,10 @@ class NetworkService: ObservableObject {
 
         if let contextImage = contextImageBase64 {
             requestData["context_image_base64"] = contextImage
+        }
+
+        if let parentContent = parentQuestionContent {
+            requestData["parent_question_content"] = parentContent
         }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
