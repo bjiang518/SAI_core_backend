@@ -567,6 +567,7 @@ struct DigitalHomeworkView: View {
                     .background(Color(.secondarySystemGroupedBackground))
                     .cornerRadius(10)
                 }
+                .id("\(annotation.id)-\(annotation.questionNumber ?? "none")")
 
                 // Delete button
                 Button(action: {
@@ -1420,13 +1421,11 @@ struct GradingLoadingIndicator: View {
                 .frame(width: 36, height: 36)
                 .shadow(color: glowColor.opacity(0.3), radius: 4, x: 0, y: 2)
 
-            // Model icon
+            // Model icon (static, no rotation to prevent disappearing)
             Image(modelIconName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 20, height: 20)
-                .rotationEffect(.degrees(isAnimating ? 360 : 0))
-                .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
         }
         .onAppear {
             isAnimating = true
