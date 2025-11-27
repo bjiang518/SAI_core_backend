@@ -451,9 +451,10 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     private func gradeQuestion(_ questionWithGrade: ProgressiveQuestionWithGrade) async -> (Int, ProgressiveGradeResult?, String?) {
         let question = questionWithGrade.question
 
-        // Check if this is a parent question with subquestions
-        if question.isParentQuestion, let subquestions = question.subquestions {
-            print("📋 Q\(question.id) is parent question with \(subquestions.count) subquestions")
+        // Check if this question has subquestions (regardless of isParent flag)
+        // Fix: AI may return subquestions without setting isParent=true
+        if let subquestions = question.subquestions, !subquestions.isEmpty {
+            print("📋 Q\(question.id) has \(subquestions.count) subquestions (isParent=\(question.isParent ?? false))")
 
             // Grade all subquestions in parallel
             await withTaskGroup(of: (String, ProgressiveGradeResult?, String?).self) { group in
