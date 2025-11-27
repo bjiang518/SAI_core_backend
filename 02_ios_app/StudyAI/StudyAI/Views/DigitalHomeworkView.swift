@@ -23,6 +23,9 @@ struct DigitalHomeworkView: View {
     @StateObject private var viewModel = DigitalHomeworkViewModel()
     @Namespace private var animationNamespace
 
+    // ✅ NEW: Revert confirmation alert
+    @State private var showRevertConfirmation = false
+
     // MARK: - Body
 
     var body: some View {
@@ -35,13 +38,25 @@ struct DigitalHomeworkView: View {
             } else {
                 // 预览模式: 缩略图 + 题目列表可滚动
                 previewScrollMode
-                    .navigationTitle("数字作业本")
+                    .navigationTitle(NSLocalizedString("proMode.title", comment: "Digital Homework"))
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
+                        // ✅ NEW: Select All button (left side, only in archive mode)
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            if viewModel.isArchiveMode {
+                                Button(action: {
+                                    viewModel.toggleSelectAll()
+                                }) {
+                                    Text(viewModel.isAllSelected ? NSLocalizedString("proMode.deselectAll", comment: "Deselect All") : NSLocalizedString("proMode.selectAll", comment: "Select All"))
+                                        .font(.subheadline)
+                                }
+                            }
+                        }
+
                         ToolbarItem(placement: .navigationBarTrailing) {
                             if viewModel.isArchiveMode {
                                 // Archive mode: show cancel button
-                                Button("取消") {
+                                Button(NSLocalizedString("proMode.cancel", comment: "Cancel")) {
                                     viewModel.toggleArchiveMode()
                                 }
                                 .foregroundColor(.red)
@@ -50,7 +65,7 @@ struct DigitalHomeworkView: View {
                                 Button(action: {
                                     viewModel.toggleArchiveMode()
                                 }) {
-                                    Image(systemName: "archivebox")
+                                    Image(systemName: "books.vertical.fill")
                                         .foregroundColor(.blue)
                                 }
                             } else {
@@ -59,13 +74,13 @@ struct DigitalHomeworkView: View {
                                     Button(action: {
                                         viewModel.showImageInFullScreen = true
                                     }) {
-                                        Label("查看原图", systemImage: "photo")
+                                        Label(NSLocalizedString("proMode.viewOriginalImage", comment: "View Original Image"), systemImage: "photo")
                                     }
 
                                     Button(action: {
                                         viewModel.resetAnnotations()
                                     }) {
-                                        Label("重置标注", systemImage: "arrow.counterclockwise")
+                                        Label(NSLocalizedString("proMode.resetAnnotations", comment: "Reset Annotations"), systemImage: "arrow.counterclockwise")
                                     }
                                 } label: {
                                     Image(systemName: "ellipsis.circle")
@@ -80,34 +95,29 @@ struct DigitalHomeworkView: View {
         .onChange(of: viewModel.showAnnotationMode) { oldValue, newValue in
             // When exiting annotation mode, sync cropped images
             if oldValue == true && newValue == false {
-                // Remove orphaned cropped images
-                let annotatedQuestionNumbers = Set(viewModel.annotations.compactMap { $0.questionNumber })
-                var validQuestionIds = Set<Int>()
-                for questionNumber in annotatedQuestionNumbers {
-                    if let question = viewModel.questions.first(where: { $0.question.questionNumber == questionNumber }) {
-                        validQuestionIds.insert(question.question.id)
-                    }
-                }
-                var updatedImages = viewModel.croppedImages
-                for questionId in viewModel.croppedImages.keys {
-                    if !validQuestionIds.contains(questionId) {
-                        updatedImages.removeValue(forKey: questionId)
-                    }
-                }
-                if updatedImages.count != viewModel.croppedImages.count {
-                    viewModel.croppedImages = updatedImages
-                }
+                viewModel.syncCroppedImages()
             }
         }
-        .onAppear {
-            viewModel.setup(parseResults: parseResults, originalImage: originalImage)
-        }
+        // ✅ REMOVED: .onAppear setup - state already exists from global StateManager
+        // State is managed globally and persists across navigation
         .fullScreenCover(isPresented: $viewModel.showImageInFullScreen) {
             ImageZoomView(
                 image: originalImage,
-                title: "作业原图",
+                title: NSLocalizedString("proMode.viewOriginalImage", comment: "View Original Image"),
                 isPresented: $viewModel.showImageInFullScreen
             )
+        }
+        .alert(NSLocalizedString("proMode.revertGradingAlert.title", comment: "Revert Grading?"), isPresented: $showRevertConfirmation) {
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
+            Button(NSLocalizedString("proMode.revertGradingAlert.revert", comment: "Revert"), role: .destructive) {
+                viewModel.revertGrading()
+
+                // Haptic feedback
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.warning)
+            }
+        } message: {
+            Text(NSLocalizedString("proMode.revertGradingAlert.message", comment: "Warning message"))
         }
     }
 
@@ -146,17 +156,13 @@ struct DigitalHomeworkView: View {
                                         croppedImage: viewModel.getCroppedImage(for: questionWithGrade.question.id),
                                         isArchiveMode: viewModel.isArchiveMode,
                                         isSelected: viewModel.selectedQuestionIds.contains(questionWithGrade.question.id),
-                                        onAskAI: {
-                                            // Dismiss current view first
-                                            dismiss()
-
-                                            // Small delay to ensure view is dismissed
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                                viewModel.askAIForHelp(
-                                                    questionId: questionWithGrade.question.id,
-                                                    appState: appState
-                                                )
-                                            }
+                                        modelType: viewModel.selectedAIModel,
+                                        onAskAI: { subquestion in  // ✅ UPDATED: Accept optional subquestion
+                                            viewModel.askAIForHelp(
+                                                questionId: questionWithGrade.question.id,
+                                                appState: appState,
+                                                subquestion: subquestion
+                                            )
                                         },
                                         onArchive: {
                                             viewModel.archiveQuestion(questionId: questionWithGrade.question.id)
@@ -217,14 +223,19 @@ struct DigitalHomeworkView: View {
     // MARK: - Grading Completed Section (批改完成区域 - Scrollable)
 
     private var gradingCompletedScrollableSection: some View {
-        HStack(spacing: 12) {
-            // 左边：正确率统计卡片
-            accuracyStatCard
-                .frame(maxWidth: .infinity)
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                // 左边：正确率统计卡片
+                accuracyStatCard
+                    .frame(maxWidth: .infinity)
 
-            // 右边：标记学习进度按钮
-            markProgressButton
-                .frame(maxWidth: .infinity)
+                // 右边：标记学习进度按钮
+                markProgressButton
+                    .frame(maxWidth: .infinity)
+            }
+
+            // ✅ NEW: Revert button (appears only after grading)
+            revertButton
         }
     }
 
@@ -239,7 +250,7 @@ struct DigitalHomeworkView: View {
             HStack(spacing: 12) {
                 Image(systemName: "archivebox.fill")
                     .font(.title3)
-                Text("一键归档 (\(viewModel.selectedQuestionIds.count))")
+                Text(String(format: NSLocalizedString("proMode.batchArchiveCount", comment: "Batch Archive (count)"), viewModel.selectedQuestionIds.count))
                     .font(.headline)
                     .fontWeight(.bold)
             }
@@ -277,7 +288,7 @@ struct DigitalHomeworkView: View {
                 Text(String(format: "%.0f%%", accuracy))
                     .font(.system(size: 36, weight: .bold))
                     .foregroundColor(.green)
-                Text("正确率")
+                Text(NSLocalizedString("proMode.accuracy", comment: "Accuracy"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -294,9 +305,6 @@ struct DigitalHomeworkView: View {
                             .font(.title3)
                             .fontWeight(.semibold)
                     }
-                    Text("正确")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
                 }
 
                 if partialCount > 0 {
@@ -308,9 +316,6 @@ struct DigitalHomeworkView: View {
                                 .font(.title3)
                                 .fontWeight(.semibold)
                         }
-                        Text("部分正确")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
                     }
                 }
 
@@ -322,9 +327,6 @@ struct DigitalHomeworkView: View {
                             .font(.title3)
                             .fontWeight(.semibold)
                     }
-                    Text("错误")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
                 }
             }
         }
@@ -337,6 +339,14 @@ struct DigitalHomeworkView: View {
 
     private var markProgressButton: some View {
         Button(action: {
+            // Only allow marking progress once
+            guard !viewModel.hasMarkedProgress else {
+                // Show feedback that button is disabled
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.warning)
+                return
+            }
+
             viewModel.markProgress()
 
             // Haptic feedback
@@ -344,11 +354,11 @@ struct DigitalHomeworkView: View {
             generator.notificationOccurred(.success)
         }) {
             VStack(spacing: 12) {
-                Image(systemName: "chart.line.uptrend.xyaxis")
+                Image(systemName: viewModel.hasMarkedProgress ? "checkmark.circle.fill" : "chart.line.uptrend.xyaxis")
                     .font(.system(size: 32))
                     .foregroundColor(.white)
 
-                Text("标记学习进度")
+                Text(viewModel.hasMarkedProgress ? NSLocalizedString("proMode.progressMarked", comment: "Progress Already Marked") : NSLocalizedString("proMode.markProgress", comment: "Mark Learning Progress"))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
@@ -356,13 +366,43 @@ struct DigitalHomeworkView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 LinearGradient(
-                    colors: [Color.purple, Color.purple.opacity(0.8)],
+                    colors: viewModel.hasMarkedProgress ? [Color.gray, Color.gray.opacity(0.8)] : [Color.purple, Color.purple.opacity(0.8)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             )
             .cornerRadius(16)
-            .shadow(color: Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
+            .shadow(color: viewModel.hasMarkedProgress ? Color.gray.opacity(0.3) : Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
+        }
+        .disabled(viewModel.hasMarkedProgress)
+        .opacity(viewModel.hasMarkedProgress ? 0.6 : 1.0)
+    }
+
+    // MARK: - Revert Button (撤销批改按钮)
+
+    private var revertButton: some View {
+        Button(action: {
+            showRevertConfirmation = true
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.counterclockwise.circle.fill")
+                    .font(.headline)
+                Text(NSLocalizedString("proMode.revertGrading", comment: "Revert Grading"))
+                    .font(.headline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                LinearGradient(
+                    colors: [Color.orange, Color.red.opacity(0.8)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(12)
+            .shadow(color: Color.orange.opacity(0.3), radius: 6, x: 0, y: 3)
         }
     }
 
@@ -389,7 +429,7 @@ struct DigitalHomeworkView: View {
             }) {
                 HStack(spacing: 8) {
                     Image(systemName: "pencil.circle.fill")
-                    Text(viewModel.annotations.isEmpty ? "添加标注" : "编辑标注 (\(viewModel.annotations.count))")
+                    Text(viewModel.annotations.isEmpty ? NSLocalizedString("proMode.addAnnotation", comment: "Add Annotation") : String(format: NSLocalizedString("proMode.editAnnotations", comment: "Edit Annotations (count)"), viewModel.annotations.count))
                 }
                 .font(.subheadline)
                 .fontWeight(.medium)
@@ -426,7 +466,7 @@ struct DigitalHomeworkView: View {
                     .matchedGeometryEffect(id: "homeworkImage", in: animationNamespace)
                     .overlay(
                         AnnotationOverlay(
-                            annotations: $viewModel.annotations,
+                            annotations: viewModel.annotationsBinding,
                             selectedAnnotationId: $viewModel.selectedAnnotationId,
                             availableQuestionNumbers: viewModel.availableQuestionNumbers,
                             originalImageSize: originalImage.size
@@ -448,7 +488,7 @@ struct DigitalHomeworkView: View {
                        let questionWithGrade = viewModel.questions.first(where: { $0.question.questionNumber == questionNumber }) {
 
                         VStack(spacing: 12) {
-                            Text("题目预览")
+                            Text(NSLocalizedString("proMode.questionPreview", comment: "Question Preview"))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -463,7 +503,7 @@ struct DigitalHomeworkView: View {
                                 .font(.system(size: 40))
                                 .foregroundColor(.blue.opacity(0.5))
 
-                            Text("点击图片创建标注框")
+                            Text(NSLocalizedString("proMode.tapToAnnotate", comment: "Tap to create annotation"))
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -515,7 +555,7 @@ struct DigitalHomeworkView: View {
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Text(annotation.questionNumber ?? "选择题号")
+                        Text(annotation.questionNumber ?? NSLocalizedString("proMode.selectQuestionNumber", comment: "Select Question Number"))
                             .foregroundColor(annotation.questionNumber == nil ? .secondary : .primary)
                             .fontWeight(.medium)
                         Image(systemName: "chevron.down")
@@ -552,7 +592,7 @@ struct DigitalHomeworkView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill")
-                    Text("完成")
+                    Text(NSLocalizedString("proMode.done", comment: "Done"))
                 }
                 .font(.subheadline)
                 .fontWeight(.semibold)
@@ -606,7 +646,7 @@ struct DigitalHomeworkView: View {
             // Student answer (if available)
             if !studentAnswer.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("学生答案")
+                    Text(NSLocalizedString("proMode.studentAnswer", comment: "Student Answer"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Text(studentAnswer)
@@ -628,15 +668,10 @@ struct DigitalHomeworkView: View {
 
     private var gradeButtonSection: some View {
         VStack(spacing: 12) {
-            // Progress indicator (if grading)
+            // ✅ NEW: Enhanced animated progress card (if grading)
             if viewModel.isGrading {
-                HStack {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("正在批改 \(viewModel.gradedCount)/\(viewModel.totalQuestions)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                gradingProgressCard
+                    .transition(.scale.combined(with: .opacity))
             }
 
             // AI Model Selector (NEW: OpenAI vs Gemini) - Only show before grading
@@ -654,12 +689,12 @@ struct DigitalHomeworkView: View {
                                 .foregroundColor(viewModel.useDeepReasoning ? .purple : .secondary)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("深度批改模式")
+                                Text(NSLocalizedString("proMode.deepGradingMode", comment: "Deep Grading Mode"))
                                     .font(.subheadline)
                                     .fontWeight(.medium)
                                     .foregroundColor(.primary)
 
-                                Text(viewModel.useDeepReasoning ? "AI将深度推理分析 (较慢但更准确)" : "标准批改速度 (快速但可能不够深入)")
+                                Text(viewModel.useDeepReasoning ? NSLocalizedString("proMode.deepGradingDescription", comment: "AI will analyze deeply") : NSLocalizedString("proMode.standardGradingDescription", comment: "Standard grading speed"))
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
                             }
@@ -688,7 +723,7 @@ struct DigitalHomeworkView: View {
                 HStack(spacing: 12) {
                     Image(systemName: viewModel.useDeepReasoning ? "brain.head.profile.fill" : "checkmark.seal.fill")
                         .font(.title3)
-                    Text(viewModel.useDeepReasoning ? "深度批改作业" : "AI 批改作业")
+                    Text(viewModel.useDeepReasoning ? NSLocalizedString("proMode.deepGradeHomework", comment: "Deep Grade Homework") : NSLocalizedString("proMode.gradeHomework", comment: "Grade Homework with AI"))
                         .font(.headline)
                         .fontWeight(.bold)
                 }
@@ -713,12 +748,144 @@ struct DigitalHomeworkView: View {
                 HStack {
                     Image(systemName: "info.circle.fill")
                         .foregroundColor(.blue)
-                    Text("提示: 添加标注可为题目添加图片上下文")
+                    Text(NSLocalizedString("proMode.annotationHint", comment: "Hint about annotations"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
         }
+    }
+
+    // ✅ NEW: Enhanced animated grading progress card
+    private var gradingProgressCard: some View {
+        VStack(spacing: 16) {
+            // Top section: Animated icon + status message
+            HStack(spacing: 12) {
+                // Animated icon based on grading state
+                ZStack {
+                    Circle()
+                        .fill(gradingAnimationColor)
+                        .frame(width: 50, height: 50)
+                        .scaleEffect(viewModel.gradingAnimation == .thinking ? 1.1 : 1.0)
+                        .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: viewModel.gradingAnimation)
+
+                    Image(systemName: gradingAnimationIcon)
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .rotationEffect(.degrees(viewModel.gradingAnimation == .analyzing ? 360 : 0))
+                        .animation(viewModel.gradingAnimation == .analyzing ? .linear(duration: 2.0).repeatForever(autoreverses: false) : .default, value: viewModel.gradingAnimation)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    // Status message
+                    Text(viewModel.currentGradingStatus)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .animation(.easeInOut(duration: 0.2), value: viewModel.currentGradingStatus)
+
+                    // Model info
+                    Text(modelDisplayName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+            }
+
+            // Progress bar
+            VStack(spacing: 8) {
+                HStack {
+                    Text("\(viewModel.gradedCount) / \(viewModel.totalQuestions)")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+
+                    Spacer()
+
+                    Text(String(format: "%.0f%%", (Float(viewModel.gradedCount) / Float(viewModel.totalQuestions)) * 100))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.blue)
+                }
+
+                // Animated progress bar
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        // Background
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(.systemGray5))
+                            .frame(height: 8)
+
+                        // Progress fill with gradient
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(
+                                LinearGradient(
+                                    colors: viewModel.useDeepReasoning ? [.purple, .blue] : [.green, .blue],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: geometry.size.width * CGFloat(viewModel.gradedCount) / CGFloat(viewModel.totalQuestions), height: 8)
+                            .animation(.spring(response: 0.5, dampingFraction: 0.7), value: viewModel.gradedCount)
+
+                        // Shimmer effect overlay
+                        if viewModel.gradingAnimation != .complete {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.white.opacity(0), Color.white.opacity(0.3), Color.white.opacity(0)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: 50, height: 8)
+                                .offset(x: shimmerOffset(geometryWidth: geometry.size.width))
+                                .animation(.linear(duration: 1.5).repeatForever(autoreverses: false), value: viewModel.gradedCount)
+                        }
+                    }
+                }
+                .frame(height: 8)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .shadow(color: gradingAnimationColor.opacity(0.2), radius: 8, x: 0, y: 4)
+        )
+    }
+
+    // Helper computed properties for grading animation
+    private var gradingAnimationColor: Color {
+        switch viewModel.gradingAnimation {
+        case .idle: return .gray
+        case .analyzing: return .blue
+        case .thinking: return .purple
+        case .grading: return .green
+        case .complete: return .green
+        }
+    }
+
+    private var gradingAnimationIcon: String {
+        switch viewModel.gradingAnimation {
+        case .idle: return "circle"
+        case .analyzing: return "doc.text.magnifyingglass"
+        case .thinking: return "brain.head.profile.fill"
+        case .grading: return "checkmark.seal.fill"
+        case .complete: return "checkmark.circle.fill"
+        }
+    }
+
+    private var modelDisplayName: String {
+        let model = viewModel.selectedAIModel == "gemini" ? "Gemini 2.0" : "GPT-4o-mini"
+        let mode = viewModel.useDeepReasoning ? " · 深度批改" : ""
+        return model + mode
+    }
+
+    private func shimmerOffset(geometryWidth: CGFloat) -> CGFloat {
+        let progress = CGFloat(viewModel.gradedCount) / CGFloat(viewModel.totalQuestions)
+        let barWidth = geometryWidth * progress
+        return (barWidth - 50) * 0.5
     }
 
     // MARK: - AI Model Selector Card (NEW)
@@ -803,7 +970,8 @@ struct QuestionCard: View {
     let croppedImage: UIImage?
     let isArchiveMode: Bool
     let isSelected: Bool
-    let onAskAI: () -> Void
+    let modelType: String  // ✅ NEW: Track AI model for loading indicator
+    let onAskAI: (ProgressiveSubquestion?) -> Void  // ✅ UPDATED: Accept optional subquestion
     let onArchive: () -> Void
     let onToggleSelection: () -> Void
     let onRemoveImage: () -> Void  // NEW: callback to remove image
@@ -829,14 +997,29 @@ struct QuestionCard: View {
                         .font(.headline)
                         .foregroundColor(.primary)
 
+                    // ✅ NEW: Archived badge (if archived)
+                    if questionWithGrade.isArchived {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                            Text(NSLocalizedString("proMode.archived", comment: "Archived"))
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.green)
+                        .cornerRadius(8)
+                    }
+
                     Spacer()
 
-                    // Grade badge (if graded)
+                    // Grade badge (if graded) or loading indicator (if grading)
                     if let grade = questionWithGrade.grade {
                         HomeworkGradeBadge(grade: grade)
                     } else if questionWithGrade.isGrading {
-                        ProgressView()
-                            .scaleEffect(0.7)
+                        GradingLoadingIndicator(modelType: modelType)
                     }
                 }
 
@@ -876,7 +1059,19 @@ struct QuestionCard: View {
                         ForEach(subquestions) { subquestion in
                             SubquestionRow(
                                 subquestion: subquestion,
-                                grade: questionWithGrade.subquestionGrades[subquestion.id]
+                                grade: questionWithGrade.subquestionGrades[subquestion.id],
+                                isGrading: questionWithGrade.subquestionGradingStatus[subquestion.id] ?? false,
+                                modelType: modelType,
+                                onAskAI: {
+                                    // ✅ FIXED: Pass subquestion to parent callback
+                                    print("💬 Ask AI for subquestion \(subquestion.id)")
+                                    onAskAI(subquestion)
+                                },
+                                onArchive: {
+                                    // TODO: Archive specific subquestion
+                                    print("⭐ Archive subquestion \(subquestion.id)")
+                                    onArchive()  // For now, use parent question's callback
+                                }
                             )
                         }
                     }
@@ -888,17 +1083,32 @@ struct QuestionCard: View {
                             .foregroundColor(.primary)
 
                         if let answer = questionWithGrade.question.studentAnswer, !answer.isEmpty {
-                            Text("学生答案: \(answer)")
+                            Text(String(format: NSLocalizedString("proMode.studentAnswerLabel", comment: "Student Answer: X"), answer))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
                 }
 
-                // Feedback (if graded)
+                // Correct Answer (if graded and available) - shown BEFORE feedback
+                if let grade = questionWithGrade.grade, let correctAnswer = grade.correctAnswer, !correctAnswer.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(NSLocalizedString("homeworkResults.correctAnswer", comment: "Correct Answer:"))
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.green)
+
+                        FullLaTeXText(correctAnswer, fontSize: 13)
+                            .foregroundColor(.primary)
+                    }
+                    .padding(8)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(8)
+                }
+
+                // Feedback (if graded) - with MathJax rendering support
                 if let grade = questionWithGrade.grade {
-                    Text(grade.feedback)
-                        .font(.caption)
+                    FullLaTeXText(grade.feedback, fontSize: 13)
                         .foregroundColor(.secondary)
                         .padding(8)
                         .background(Color(.secondarySystemGroupedBackground))
@@ -908,29 +1118,32 @@ struct QuestionCard: View {
                 // Action buttons (if graded and not in archive mode)
                 if questionWithGrade.grade != nil && !isArchiveMode {
                     HStack(spacing: 12) {
-                        Button(action: onAskAI) {
-                            Label("求助 AI", systemImage: "questionmark.bubble")
+                        Button(action: { onAskAI(nil) }) {  // ✅ FIXED: Pass nil for regular questions
+                            Label(NSLocalizedString("proMode.askAI", comment: "Ask AI for Help"), systemImage: "questionmark.bubble")
                                 .font(.caption)
                         }
                         .buttonStyle(.bordered)
+                        .disabled(questionWithGrade.isArchived)  // ✅ NEW: Disable for archived questions
 
                         Button(action: onArchive) {
-                            Label("归档", systemImage: "archivebox")
+                            Label(questionWithGrade.isArchived ? NSLocalizedString("proMode.archived", comment: "Archived") : NSLocalizedString("proMode.archive", comment: "Archive"), systemImage: questionWithGrade.isArchived ? "checkmark.circle" : "archivebox")
                                 .font(.caption)
                         }
                         .buttonStyle(.bordered)
+                        .disabled(questionWithGrade.isArchived)  // ✅ NEW: Disable for archived questions
                     }
                 }
             }
             .padding()
             .frame(maxWidth: .infinity)
+            .opacity(questionWithGrade.isArchived ? 0.7 : 1.0)  // ✅ NEW: Slightly transparent for archived questions
         }
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
+                .fill(questionWithGrade.isArchived ? Color(.secondarySystemBackground) : Color(.systemBackground))  // ✅ NEW: Different background for archived
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+                        .stroke(isSelected ? Color.blue : (questionWithGrade.isArchived ? Color.green.opacity(0.3) : Color.clear), lineWidth: 2)  // ✅ NEW: Green border for archived
                 )
         )
         .shadow(color: .black.opacity(isSelected ? 0.1 : 0.05), radius: 4, x: 0, y: 2)
@@ -991,32 +1204,144 @@ struct AnnotationQuestionPreviewCard: View {
 struct SubquestionRow: View {
     let subquestion: ProgressiveSubquestion
     let grade: ProgressiveGradeResult?
+    let isGrading: Bool  // ✅ NEW: Track grading status
+    let modelType: String  // ✅ NEW: Track AI model for loading indicator
+    let onAskAI: () -> Void
+    let onArchive: () -> Void
+
+    @State private var showFeedback = false  // ✅ CHANGED: Collapsed by default
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Text("(\(subquestion.id))")
-                .font(.caption)
-                .foregroundColor(.secondary)
+        let _ = {
+            // 🔍 DEBUG: Log what SubquestionRow receives
+            print("")
+            print("   " + String(repeating: "=", count: 70))
+            print("   🎴 === SUBQUESTION ROW RENDERING ===")
+            print("   " + String(repeating: "=", count: 70))
+            print("   🆔 Subquestion ID: '\(subquestion.id)'")
+            print("   📝 Question Text: '\(subquestion.questionText.prefix(50))...'")
+            print("   📝 Student Answer: '\(subquestion.studentAnswer)'")
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(subquestion.questionText)
+            if let grade = grade {
+                print("   ✅ Grade: NOT NIL")
+                print("   📊 Score: \(grade.score)")
+                print("   ✓ Is Correct: \(grade.isCorrect)")
+                print("   💬 Feedback: '\(grade.feedback)'")
+                print("   🔍 Feedback length: \(grade.feedback.count) chars")
+                print("   🔍 Feedback is empty: \(grade.feedback.isEmpty)")
+
+                if !grade.feedback.isEmpty {
+                    print("   ✅ FEEDBACK WILL BE DISPLAYED (showFeedback=\(showFeedback))")
+                } else {
+                    print("   ⚠️ FEEDBACK IS EMPTY - won't show feedback section")
+                }
+            } else {
+                print("   ❌ Grade: NIL - no score or feedback will display")
+            }
+            print("   " + String(repeating: "=", count: 70))
+            print("")
+        }()
+
+        VStack(alignment: .leading, spacing: 8) {
+            // Header row with ID, question, and score
+            HStack(alignment: .top, spacing: 8) {
+                Text("(\(subquestion.id))")
                     .font(.caption)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.secondary)
 
-                if !subquestion.studentAnswer.isEmpty {
-                    Text("答: \(subquestion.studentAnswer)")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(subquestion.questionText)
+                        .font(.caption)
+                        .foregroundColor(.primary)
+
+                    if !subquestion.studentAnswer.isEmpty {
+                        Text(String(format: NSLocalizedString("proMode.subquestionAnswer", comment: "Answer: X"), subquestion.studentAnswer))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                // ✅ UPDATED: Show loading indicator or score
+                if isGrading {
+                    GradingLoadingIndicator(modelType: modelType)
+                        .scaleEffect(0.6)
+                } else if let grade = grade {
+                    Text(String(format: "%.0f%%", grade.score * 100))
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .fontWeight(.semibold)
+                        .foregroundColor(grade.isCorrect ? .green : .orange)
                 }
             }
 
-            Spacer()
+            // Correct Answer (if graded and available) - shown BEFORE feedback
+            if let grade = grade, let correctAnswer = grade.correctAnswer, !correctAnswer.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(NSLocalizedString("homeworkResults.correctAnswer", comment: "Correct Answer:"))
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.green)
 
-            if let grade = grade {
-                Text(String(format: "%.0f%%", grade.score * 100))
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(grade.isCorrect ? .green : .orange)
+                    FullLaTeXText(correctAnswer, fontSize: 12)
+                        .foregroundColor(.primary)
+                }
+                .padding(6)
+                .background(Color.green.opacity(0.1))
+                .cornerRadius(6)
+                .padding(.leading, 24)  // Indent under subquestion
+            }
+
+            // Feedback section (if graded)
+            if let grade = grade, !grade.feedback.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Button {
+                        withAnimation(.spring()) {
+                            showFeedback.toggle()
+                        }
+                    } label: {
+                        HStack {
+                            Text("Feedback")
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .foregroundColor(.blue)
+
+                            Image(systemName: showFeedback ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                        }
+                    }
+
+                    if showFeedback {
+                        VStack(alignment: .leading, spacing: 8) {
+                            // Feedback text
+                            FullLaTeXText(grade.feedback, fontSize: 12)
+                                .foregroundColor(.secondary)
+                                .padding(8)
+                                .background(Color(.tertiarySystemGroupedBackground))
+                                .cornerRadius(6)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+
+                            // Action buttons (Ask AI + Archive)
+                            HStack(spacing: 12) {
+                                // Ask AI button
+                                Button(action: onAskAI) {
+                                    Label(NSLocalizedString("proMode.askAI", comment: "Ask AI for Help"), systemImage: "questionmark.bubble")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.bordered)
+
+                                // Archive button
+                                Button(action: onArchive) {
+                                    Label(NSLocalizedString("proMode.archive", comment: "Archive"), systemImage: "archivebox")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                    }
+                }
+                .padding(.leading, 24)  // Indent feedback under subquestion
             }
         }
         .padding(.leading, 16)
@@ -1059,6 +1384,79 @@ struct HomeworkGradeBadge: View {
                     Color.orange.opacity(0.15)
                 )
         )
+    }
+}
+
+// MARK: - Grading Loading Indicator Component
+
+struct GradingLoadingIndicator: View {
+    let modelType: String  // "gemini" or "openai"
+    @State private var isAnimating = false
+
+    var body: some View {
+        ZStack {
+            // Pulsing glow circle
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            glowColor.opacity(0.4),
+                            glowColor.opacity(0.2),
+                            glowColor.opacity(0.0)
+                        ],
+                        center: .center,
+                        startRadius: 10,
+                        endRadius: 25
+                    )
+                )
+                .frame(width: 50, height: 50)
+                .scaleEffect(isAnimating ? 1.2 : 1.0)
+                .opacity(isAnimating ? 0.6 : 1.0)
+                .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isAnimating)
+
+            // Inner circle with model icon
+            Circle()
+                .fill(backgroundColor)
+                .frame(width: 36, height: 36)
+                .shadow(color: glowColor.opacity(0.3), radius: 4, x: 0, y: 2)
+
+            // Model icon
+            Image(modelIconName)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 20, height: 20)
+                .rotationEffect(.degrees(isAnimating ? 360 : 0))
+                .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
+        }
+        .onAppear {
+            isAnimating = true
+        }
+    }
+
+    private var glowColor: Color {
+        switch modelType {
+        case "gemini":
+            return Color.blue
+        case "openai":
+            return Color.green
+        default:
+            return Color.blue
+        }
+    }
+
+    private var backgroundColor: Color {
+        Color(.systemBackground)
+    }
+
+    private var modelIconName: String {
+        switch modelType {
+        case "gemini":
+            return "gemini-icon"
+        case "openai":
+            return "openai-light"  // Always use openai-light (works in both themes)
+        default:
+            return "gemini-icon"
+        }
     }
 }
 
