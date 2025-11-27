@@ -918,8 +918,8 @@ struct DigitalHomeworkView: View {
 
                 // Option buttons
                 HStack(spacing: 0) {
-                    aiModelButton(model: "openai", label: "OpenAI", icon: "brain.head.profile")
-                    aiModelButton(model: "gemini", label: "Gemini", icon: "sparkles")
+                    aiModelButton(model: "openai", label: "OpenAI", icon: "openai-light")
+                    aiModelButton(model: "gemini", label: "Gemini", icon: "gemini-icon")
                 }
             }
             .padding(4)
@@ -947,8 +947,10 @@ struct DigitalHomeworkView: View {
             }
         }) {
             HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.subheadline)
+                Image(icon)  // Use asset image instead of SF Symbol
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
 
                 Text(label)
                     .font(.subheadline)
@@ -1430,10 +1432,13 @@ struct GradingLoadingIndicator: View {
             // Model icon (static, no rotation to prevent disappearing)
             Image(modelIconName)
                 .resizable()
+                .renderingMode(.template)  // Use template mode to apply foreground color
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 20, height: 20)
+                .foregroundColor(glowColor)  // Apply model-specific color
                 .onAppear {
                     print("🖼️ Image APPEARED for icon: '\(modelIconName)'")
+                    print("   🎨 Applying template rendering with color: \(glowColor)")
                 }
         }
         .onAppear {
