@@ -1395,7 +1395,13 @@ struct GradingLoadingIndicator: View {
     @State private var isAnimating = false
 
     var body: some View {
-        ZStack {
+        let _ = print("🔍🔍🔍 === GradingLoadingIndicator RENDERING ===")
+        let _ = print("🔍 Model Type: '\(modelType)'")
+        let _ = print("🔍 Computed Icon Name: '\(modelIconName)'")
+        let _ = print("🔍 Glow Color: \(glowColor)")
+        let _ = print("🔍 Background Color: \(backgroundColor)")
+
+        return ZStack {
             // Pulsing glow circle
             Circle()
                 .fill(
@@ -1426,8 +1432,13 @@ struct GradingLoadingIndicator: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 20, height: 20)
+                .onAppear {
+                    print("🖼️ Image APPEARED for icon: '\(modelIconName)'")
+                }
         }
         .onAppear {
+            print("✅ GradingLoadingIndicator.onAppear() called")
+            print("   Starting animation for modelType: '\(modelType)'")
             isAnimating = true
         }
     }
