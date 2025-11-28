@@ -1206,8 +1206,16 @@ class DigitalHomeworkViewModel: ObservableObject {
                 // Deselect all
                 selectedQuestionIds.removeAll()
             } else {
-                // Select all graded questions (only graded questions can be archived)
-                let gradedQuestionIds = questions.filter { $0.grade != nil }.map { $0.question.id }
+                // Select all graded questions (including parent questions with graded subquestions)
+                let gradedQuestionIds = questions.filter { questionWithGrade in
+                    if questionWithGrade.question.isParentQuestion {
+                        // Parent question: select if ANY subquestion is graded
+                        return !questionWithGrade.subquestionGrades.isEmpty
+                    } else {
+                        // Regular question: select if graded
+                        return questionWithGrade.grade != nil
+                    }
+                }.map { $0.question.id }
                 selectedQuestionIds = Set(gradedQuestionIds)
             }
         }
