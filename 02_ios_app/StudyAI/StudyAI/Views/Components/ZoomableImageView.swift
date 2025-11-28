@@ -79,7 +79,8 @@ struct AnnotatableImageView: View {
                                     annotations: binding,
                                     selectedAnnotationId: $selectedAnnotationId,
                                     availableQuestionNumbers: questionNumbers,
-                                    fittedImageSize: fittedSize
+                                    fittedImageSize: fittedSize,
+                                    scale: scale  // ✅ NEW: Pass current zoom scale
                                 )
                             } else if !isInteractive && !annotations.isEmpty {
                                 // Non-interactive mode: read-only visualization
@@ -169,6 +170,7 @@ struct AnnotationOverlay: View {
     @Binding var selectedAnnotationId: UUID?
     let availableQuestionNumbers: [String]
     let fittedImageSize: CGSize  // ✅ Accept fitted size from parent (no calculation)
+    let scale: CGFloat  // ✅ NEW: Current zoom scale
 
     var body: some View {
         ZStack {
@@ -186,16 +188,14 @@ struct AnnotationOverlay: View {
                     annotation: $annotations[index],
                     isSelected: selectedAnnotationId == annotation.id,
                     imageSize: fittedImageSize,
+                    scale: scale,
                     onSelect: {
                         withAnimation(.spring()) {
                             selectedAnnotationId = annotation.id
                         }
                     },
-                    onMove: { delta in
-                        moveAnnotation(id: annotation.id, delta: delta, imageSize: fittedImageSize)
-                    },
-                    onResize: { finalRect in
-                        // ✅ CHANGED: Receive final rect instead of corner + delta
+                    onUpdateRect: { finalRect in
+                        // ✅ UNIFIED: Both move and resize use same callback
                         resizeAnnotation(id: annotation.id, to: finalRect, imageSize: fittedImageSize)
                     }
                 )
@@ -245,80 +245,46 @@ struct AnnotationOverlay: View {
         generator.impactOccurred()
     }
 
-    // MARK: - Move Annotation
+    // MARK: - Update Annotation (Unified for both move and resize)
 
-    private func moveAnnotation(id: UUID, delta: CGSize, imageSize: CGSize) {
+    /// ✅ UNIFIED: Handles both move and resize operations with boundary clamping
+    /// Receives final rect and updates annotation coordinates
+    private func resizeAnnotation(id: UUID, to rect: CGRect, imageSize: CGSize) {
         guard let index = annotations.firstIndex(where: { $0.id == id }) else { return }
 
-        var annotation = annotations[index]
+        var clampedRect = rect
 
-        // Convert delta to normalized coordinates
-        let deltaX = Double(delta.width / imageSize.width)
-        let deltaY = Double(delta.height / imageSize.height)
-
-        // Calculate new position
-        var newTopLeft = [
-            annotation.topLeft[0] + deltaX,
-            annotation.topLeft[1] + deltaY
-        ]
-
-        var newBottomRight = [
-            annotation.bottomRight[0] + deltaX,
-            annotation.bottomRight[1] + deltaY
-        ]
-
-        // Clamp to [0, 1] bounds
-        let width = newBottomRight[0] - newTopLeft[0]
-        let height = newBottomRight[1] - newTopLeft[1]
-
-        if newTopLeft[0] < 0 {
-            newTopLeft[0] = 0
-            newBottomRight[0] = width
+        // ✅ CRITICAL: Clamp to image bounds
+        if clampedRect.minX < 0 { clampedRect.origin.x = 0 }
+        if clampedRect.minY < 0 { clampedRect.origin.y = 0 }
+        if clampedRect.maxX > imageSize.width {
+            clampedRect.size.width = imageSize.width - clampedRect.minX
         }
-        if newTopLeft[1] < 0 {
-            newTopLeft[1] = 0
-            newBottomRight[1] = height
-        }
-        if newBottomRight[0] > 1 {
-            newBottomRight[0] = 1
-            newTopLeft[0] = 1 - width
-        }
-        if newBottomRight[1] > 1 {
-            newBottomRight[1] = 1
-            newTopLeft[1] = 1 - height
+        if clampedRect.maxY > imageSize.height {
+            clampedRect.size.height = imageSize.height - clampedRect.minY
         }
 
-        annotation.topLeft = newTopLeft
-        annotation.bottomRight = newBottomRight
+        // ✅ CRITICAL: Enforce minimum size (60x60 on screen)
+        let minSize: CGFloat = 60
+        if clampedRect.width < minSize {
+            clampedRect.size.width = minSize
+        }
+        if clampedRect.height < minSize {
+            clampedRect.size.height = minSize
+        }
 
-        // ✅ FIX: Immediately update array to prevent snap-back
-        annotations[index] = annotation
-    }
-
-    // MARK: - Resize Annotation
-
-    /// ✅ CHANGED: Accept final rect instead of corner + delta
-    /// This ensures preview rect (with clamp) = final rect (no jump)
-    private func resizeAnnotation(id: UUID, to finalRect: CGRect, imageSize: CGSize) {
-        guard let index = annotations.firstIndex(where: { $0.id == id }) else { return }
-
-        var annotation = annotations[index]
-
-        // ✅ Convert final rect to normalized coordinates [0-1]
+        // ✅ Convert clamped rect to normalized coordinates [0-1]
         let newTopLeft = [
-            Double(finalRect.minX / imageSize.width),
-            Double(finalRect.minY / imageSize.height)
+            Double(clampedRect.minX / imageSize.width),
+            Double(clampedRect.minY / imageSize.height)
         ]
         let newBottomRight = [
-            Double(finalRect.maxX / imageSize.width),
-            Double(finalRect.maxY / imageSize.height)
+            Double(clampedRect.maxX / imageSize.width),
+            Double(clampedRect.maxY / imageSize.height)
         ]
 
-        annotation.topLeft = newTopLeft
-        annotation.bottomRight = newBottomRight
-
-        // ✅ Update array immediately
-        annotations[index] = annotation
+        annotations[index].topLeft = newTopLeft
+        annotations[index].bottomRight = newBottomRight
     }
 }
 
@@ -328,13 +294,15 @@ struct InteractiveAnnotationBox: View {
     @Binding var annotation: QuestionAnnotation
     let isSelected: Bool
     let imageSize: CGSize
+    let scale: CGFloat
     let onSelect: () -> Void
-    let onMove: (CGSize) -> Void
-    let onResize: (CGRect) -> Void
 
-    // ✅ NEW SOLUTION: Track which corner is being dragged (for resize only)
-    @State private var activeResizeCorner: ResizeCorner? = nil
-    @State private var lastDragLocation: CGPoint = .zero
+    /// ✅ UNIFIED: Single callback for both move and resize - receives final CGRect
+    let onUpdateRect: (CGRect) -> Void
+
+    @State private var gestureStartTopLeft: CGPoint = .zero
+    @State private var gestureStartBottomRight: CGPoint = .zero
+    @State private var gestureActive: Bool = false  // ✅ RENAMED: More semantic than .idle/.dragging
 
     var body: some View {
         let minScreenSize: CGFloat = 60
@@ -403,103 +371,119 @@ struct InteractiveAnnotationBox: View {
         }
     }
 
-    // MARK: - Move Gesture (Real-time data updates)
+    // MARK: - Move Gesture (Translation-based with gestureActive tracking)
 
     private func moveGesture() -> some Gesture {
-        DragGesture(minimumDistance: 0)
+        DragGesture(minimumDistance: 5)
             .onChanged { value in
                 onSelect()
 
-                // ✅ Calculate incremental delta from last position
-                let dx = value.location.x - lastDragLocation.x
-                let dy = value.location.y - lastDragLocation.y
-
-                // Update last position
-                lastDragLocation = value.location
-
-                // ✅ CRITICAL: Update annotation data in real-time (not on .onEnded)
-                if dx != 0 || dy != 0 {
-                    onMove(CGSize(width: dx, height: dy))
-                }
-            }
-            .onEnded { _ in
-                // Reset tracking
-                lastDragLocation = .zero
-            }
-    }
-
-    // MARK: - Resize Gesture (Real-time data updates)
-
-    private func resizeGesture(corner: ResizeCorner, minNormalizedWidth: Double, minNormalizedHeight: Double) -> some Gesture {
-        DragGesture(minimumDistance: 0)
-            .onChanged { value in
-                onSelect()
-
-                if activeResizeCorner == nil {
-                    activeResizeCorner = corner
-                    lastDragLocation = value.startLocation
-                }
-
-                // ✅ Calculate incremental delta from last position
-                let dx = value.location.x - lastDragLocation.x
-                let dy = value.location.y - lastDragLocation.y
-
-                // Update last position
-                lastDragLocation = value.location
-
-                // ✅ CRITICAL: Update annotation data in real-time
-                if dx != 0 || dy != 0 {
-                    // Calculate new rect with delta applied
-                    let topLeft = CGPoint(
+                if !gestureActive {
+                    gestureActive = true
+                    gestureStartTopLeft = CGPoint(
                         x: CGFloat(annotation.topLeft[0]) * imageSize.width,
                         y: CGFloat(annotation.topLeft[1]) * imageSize.height
                     )
-                    let bottomRight = CGPoint(
+                    gestureStartBottomRight = CGPoint(
                         x: CGFloat(annotation.bottomRight[0]) * imageSize.width,
                         y: CGFloat(annotation.bottomRight[1]) * imageSize.height
                     )
-
-                    var newTopLeft = topLeft
-                    var newBottomRight = bottomRight
-
-                    let minWidth = CGFloat(minNormalizedWidth * Double(imageSize.width))
-                    let minHeight = CGFloat(minNormalizedHeight * Double(imageSize.height))
-
-                    // Apply delta to appropriate corner with clamping
-                    switch corner {
-                    case .topLeft:
-                        newTopLeft.x = max(0, min(bottomRight.x - minWidth, topLeft.x + dx))
-                        newTopLeft.y = max(0, min(bottomRight.y - minHeight, topLeft.y + dy))
-
-                    case .topRight:
-                        newBottomRight.x = max(topLeft.x + minWidth, min(imageSize.width, bottomRight.x + dx))
-                        newTopLeft.y = max(0, min(bottomRight.y - minHeight, topLeft.y + dy))
-
-                    case .bottomLeft:
-                        newTopLeft.x = max(0, min(bottomRight.x - minWidth, topLeft.x + dx))
-                        newBottomRight.y = max(topLeft.y + minHeight, min(imageSize.height, bottomRight.y + dy))
-
-                    case .bottomRight:
-                        newBottomRight.x = max(topLeft.x + minWidth, min(imageSize.width, bottomRight.x + dx))
-                        newBottomRight.y = max(topLeft.y + minHeight, min(imageSize.height, bottomRight.y + dy))
-                    }
-
-                    let finalRect = CGRect(
-                        x: newTopLeft.x,
-                        y: newTopLeft.y,
-                        width: newBottomRight.x - newTopLeft.x,
-                        height: newBottomRight.y - newTopLeft.y
-                    )
-
-                    // Submit rect immediately
-                    onResize(finalRect)
                 }
+
+                // Translate from start position
+                let dx = value.translation.width / scale
+                let dy = value.translation.height / scale
+
+                let newTopLeft = CGPoint(
+                    x: gestureStartTopLeft.x + dx,
+                    y: gestureStartTopLeft.y + dy
+                )
+                let newBottomRight = CGPoint(
+                    x: gestureStartBottomRight.x + dx,
+                    y: gestureStartBottomRight.y + dy
+                )
+
+                let finalRect = CGRect(
+                    x: newTopLeft.x,
+                    y: newTopLeft.y,
+                    width: newBottomRight.x - newTopLeft.x,
+                    height: newBottomRight.y - newTopLeft.y
+                )
+
+                onUpdateRect(finalRect)
             }
             .onEnded { _ in
-                // Reset tracking
-                activeResizeCorner = nil
-                lastDragLocation = .zero
+                gestureActive = false
             }
+    }
+
+    // MARK: - Resize Gesture (Translation-based with gestureActive tracking)
+
+    private func resizeGesture(corner: ResizeCorner, minNormalizedWidth: Double, minNormalizedHeight: Double) -> some Gesture {
+        DragGesture(minimumDistance: 5)
+            .onChanged { value in
+                onSelect()
+
+                if !gestureActive {
+                    gestureActive = true
+                    gestureStartTopLeft = CGPoint(
+                        x: CGFloat(annotation.topLeft[0]) * imageSize.width,
+                        y: CGFloat(annotation.topLeft[1]) * imageSize.height
+                    )
+                    gestureStartBottomRight = CGPoint(
+                        x: CGFloat(annotation.bottomRight[0]) * imageSize.width,
+                        y: CGFloat(annotation.bottomRight[1]) * imageSize.height
+                    )
+                }
+
+                let dx = value.translation.width / scale
+                let dy = value.translation.height / scale
+
+                applyResizeTranslation(dx: dx, dy: dy, corner: corner,
+                                      minNormalizedWidth: minNormalizedWidth,
+                                      minNormalizedHeight: minNormalizedHeight)
+            }
+            .onEnded { _ in
+                gestureActive = false
+            }
+    }
+
+    // MARK: - Apply Resize Translation
+
+    private func applyResizeTranslation(dx: CGFloat, dy: CGFloat, corner: ResizeCorner,
+                                       minNormalizedWidth: Double, minNormalizedHeight: Double) {
+        var newTopLeft = gestureStartTopLeft
+        var newBottomRight = gestureStartBottomRight
+
+        let minWidth = CGFloat(minNormalizedWidth * Double(imageSize.width))
+        let minHeight = CGFloat(minNormalizedHeight * Double(imageSize.height))
+
+        switch corner {
+        case .topLeft:
+            newTopLeft.x = max(0, min(gestureStartBottomRight.x - minWidth, gestureStartTopLeft.x + dx))
+            newTopLeft.y = max(0, min(gestureStartBottomRight.y - minHeight, gestureStartTopLeft.y + dy))
+
+        case .topRight:
+            newBottomRight.x = max(gestureStartTopLeft.x + minWidth, min(imageSize.width, gestureStartBottomRight.x + dx))
+            newTopLeft.y = max(0, min(gestureStartBottomRight.y - minHeight, gestureStartTopLeft.y + dy))
+
+        case .bottomLeft:
+            newTopLeft.x = max(0, min(gestureStartBottomRight.x - minWidth, gestureStartTopLeft.x + dx))
+            newBottomRight.y = max(gestureStartTopLeft.y + minHeight, min(imageSize.height, gestureStartBottomRight.y + dy))
+
+        case .bottomRight:
+            newBottomRight.x = max(gestureStartTopLeft.x + minWidth, min(imageSize.width, gestureStartBottomRight.x + dx))
+            newBottomRight.y = max(gestureStartTopLeft.y + minHeight, min(imageSize.height, gestureStartBottomRight.y + dy))
+        }
+
+        let finalRect = CGRect(
+            x: newTopLeft.x,
+            y: newTopLeft.y,
+            width: newBottomRight.x - newTopLeft.x,
+            height: newBottomRight.y - newTopLeft.y
+        )
+
+        onUpdateRect(finalRect)
     }
 }
 
