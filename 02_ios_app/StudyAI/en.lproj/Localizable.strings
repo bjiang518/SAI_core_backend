@@ -1342,3 +1342,7 @@
 "homeworkSummary.subquestionCount" = "%d subquestions";
 "homeworkSummary.answer" = "Answer: %@";
 
+"proMode.slideToMarkProgress" = "Slide to Mark Progress";
+"proMode.correct" = "Correct";
+"proMode.partial" = "Partial";
+"proMode.incorrect" = "Incorrect";

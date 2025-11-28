@@ -224,15 +224,8 @@ struct DigitalHomeworkView: View {
 
     private var gradingCompletedScrollableSection: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                // 左边：正确率统计卡片
-                accuracyStatCard
-                    .frame(maxWidth: .infinity)
-
-                // 右边：标记学习进度按钮
-                markProgressButton
-                    .frame(maxWidth: .infinity)
-            }
+            // Expanded accuracy card with slide-to-mark progress
+            accuracyCardWithSlideToMark
 
             // ✅ NEW: Revert button (appears only after grading)
             revertButton
@@ -333,6 +326,217 @@ struct DigitalHomeworkView: View {
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(16)
+    }
+
+    // MARK: - Accuracy Card with Slide to Mark Progress (扩大版正确率卡片 + 滑动解锁)
+
+    @State private var slideOffset: CGFloat = 0
+    @State private var isSliding = false
+
+    private var accuracyCardWithSlideToMark: some View {
+        let stats = viewModel.accuracyStats
+        let correctCount = stats.correct
+        let partialCount = stats.partial
+        let incorrectCount = stats.incorrect
+        let totalCount = stats.total
+        let accuracy = stats.accuracy
+
+        return VStack(spacing: 20) {
+            // Top section: Accuracy stats (bigger)
+            VStack(spacing: 16) {
+                // Big accuracy percentage
+                Text(String(format: "%.0f%%", accuracy))
+                    .font(.system(size: 56, weight: .bold))
+                    .foregroundColor(.green)
+
+                Text(NSLocalizedString("proMode.accuracy", comment: "Accuracy"))
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+
+                Divider()
+                    .padding(.vertical, 8)
+
+                // Detailed stats (horizontal)
+                HStack(spacing: 24) {
+                    VStack(spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.green)
+                            Text("\(correctCount)")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                        }
+                        Text(NSLocalizedString("proMode.correct", comment: "Correct"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    if partialCount > 0 {
+                        VStack(spacing: 6) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "circle.lefthalf.filled")
+                                    .font(.title2)
+                                    .foregroundColor(.orange)
+                                Text("\(partialCount)")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                            }
+                            Text(NSLocalizedString("proMode.partial", comment: "Partial"))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    VStack(spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.red)
+                            Text("\(incorrectCount)")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                        }
+                        Text(NSLocalizedString("proMode.incorrect", comment: "Incorrect"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding(.top, 20)
+
+            // Bottom section: Slide to mark progress
+            if !viewModel.hasMarkedProgress {
+                slideToMarkProgressTrack
+                    .padding(.bottom, 20)
+            } else {
+                // Progress already marked indicator
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.green)
+                    Text(NSLocalizedString("proMode.progressMarked", comment: "Progress Already Marked"))
+                        .font(.headline)
+                        .foregroundColor(.green)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color.green.opacity(0.1))
+                .cornerRadius(12)
+                .padding(.bottom, 20)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(20)
+        .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 6)
+    }
+
+    // Slide to mark progress track
+    private var slideToMarkProgressTrack: some View {
+        GeometryReader { geometry in
+            let trackWidth = geometry.size.width
+            let sliderWidth: CGFloat = 60
+            let maxOffset = trackWidth - sliderWidth - 8  // 8 is padding
+
+            ZStack(alignment: .leading) {
+                // Background track
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.purple.opacity(0.2), Color.purple.opacity(0.3)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 60)
+
+                // Progress fill (grows as user slides)
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.purple, Color.purple.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: slideOffset + sliderWidth + 4, height: 60)
+                    .opacity(slideOffset > 0 ? 1.0 : 0.0)
+
+                // Instruction text (fades as slider moves)
+                HStack {
+                    Spacer()
+                    Text(NSLocalizedString("proMode.slideToMarkProgress", comment: "Slide to Mark Progress"))
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.purple.opacity(0.6))
+                        .opacity(1.0 - (slideOffset / maxOffset))
+                    Spacer()
+                }
+                .frame(height: 60)
+
+                // Sliding button
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.right")
+                        .font(.title3)
+                        .foregroundColor(.white)
+                    Image(systemName: "chevron.right")
+                        .font(.title3)
+                        .foregroundColor(.white)
+                        .opacity(0.7)
+                    Image(systemName: "chevron.right")
+                        .font(.title3)
+                        .foregroundColor(.white)
+                        .opacity(0.4)
+                }
+                .frame(width: sliderWidth, height: 52)
+                .background(
+                    LinearGradient(
+                        colors: [Color.purple, Color.purple.opacity(0.9)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(26)
+                .shadow(color: Color.purple.opacity(0.4), radius: 8, x: 0, y: 4)
+                .offset(x: slideOffset + 4)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            // Update offset, clamped to valid range
+                            let newOffset = max(0, min(value.translation.width, maxOffset))
+                            withAnimation(.interactiveSpring()) {
+                                slideOffset = newOffset
+                                isSliding = true
+                            }
+
+                            // Check if reached the end
+                            if newOffset >= maxOffset * 0.95 {
+                                // Trigger mark progress
+                                viewModel.markProgress()
+
+                                // Haptic feedback
+                                let generator = UINotificationFeedbackGenerator()
+                                generator.notificationOccurred(.success)
+
+                                // Reset slider with animation
+                                withAnimation(.spring()) {
+                                    slideOffset = 0
+                                    isSliding = false
+                                }
+                            }
+                        }
+                        .onEnded { _ in
+                            // If not completed, spring back to start
+                            withAnimation(.spring()) {
+                                slideOffset = 0
+                                isSliding = false
+                            }
+                        }
+                )
+            }
+        }
+        .frame(height: 60)
     }
 
     // MARK: - Mark Progress Button (标记学习进度按钮)
