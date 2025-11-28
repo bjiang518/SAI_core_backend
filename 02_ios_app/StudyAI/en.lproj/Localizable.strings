@@ -1343,6 +1343,7 @@
 "homeworkSummary.answer" = "Answer: %@";
 
 "proMode.slideToMarkProgress" = "Slide to Mark Progress";
+"proMode.progressMarked" = "Progress Already Marked";
 "proMode.correct" = "Correct";
 "proMode.partial" = "Partial";
 "proMode.incorrect" = "Incorrect";
