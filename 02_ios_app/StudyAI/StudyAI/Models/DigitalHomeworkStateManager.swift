@@ -184,7 +184,11 @@ class DigitalHomeworkStateManager: ObservableObject {
         }
 
         if let croppedImages = croppedImages {
-            // Convert UIImages to Data
+            // ✅ FIX: Replace entire croppedImages dictionary (not just update entries)
+            // This ensures deleted images are actually removed from the dictionary
+            homework.croppedImages.removeAll()
+
+            // Convert UIImages to Data and set all images
             for (questionId, image) in croppedImages {
                 homework.setCroppedImage(image, for: questionId)
             }
