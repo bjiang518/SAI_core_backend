@@ -186,8 +186,9 @@ struct DirectAIHomeworkView: View {
     @State private var showProgressiveGrading = false
 
     // Subject selection for AI grading
-    @State private var selectedSubject: String = "Language"
+    @State private var selectedSubject: String = "General"
     private let availableSubjects = [
+        "General",
         "Mathematics",
         "Physics",
         "Chemistry",
@@ -200,11 +201,11 @@ struct DirectAIHomeworkView: View {
     ]
 
     // Parsing mode selection
-    @State private var parsingMode: ParsingMode = .hierarchical // Default to hierarchical
+    @State private var parsingMode: ParsingMode = .progressive // Default to Pro mode
     @State private var showModeInfo: Bool = false
 
     // AI Model selection (OpenAI vs Gemini)
-    @AppStorage("selectedAIModel") private var selectedAIModel: String = "openai"
+    @AppStorage("selectedAIModel") private var selectedAIModel: String = "gemini"
     @State private var showModelInfo: Bool = false
 
     // Namespace for matched geometry effect (liquid glass animation)
@@ -222,7 +223,7 @@ struct DirectAIHomeworkView: View {
         var description: String {
             switch self {
             case .progressive:
-                return "Progressive grading: See questions instantly, grades appear one by one. 8x faster! Perfect for 10+ questions."
+                return "Generate digital homework first, grade according to your need"
             case .hierarchical:
                 return "More accurate parsing with sections, parent-child questions, and detailed structure. Best for complex homework."
             case .baseline:
@@ -1028,6 +1029,7 @@ struct DirectAIHomeworkView: View {
             VStack(spacing: 4) {
                 Image(systemName: mode.icon)
                     .font(.body)
+                    .frame(height: 20)  // Fixed height for consistent text alignment
                 Text(mode.rawValue)
                     .font(.caption)
                     .fontWeight(.medium)
