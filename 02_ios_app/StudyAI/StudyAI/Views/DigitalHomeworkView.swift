@@ -1264,6 +1264,7 @@ struct QuestionCard: View {
                         ForEach(subquestions) { subquestion in
                             SubquestionRow(
                                 subquestion: subquestion,
+                                parentQuestionId: questionWithGrade.question.id,
                                 grade: questionWithGrade.subquestionGrades[subquestion.id],
                                 isGrading: questionWithGrade.subquestionGradingStatus[subquestion.id] ?? false,
                                 modelType: modelType,
@@ -1273,9 +1274,9 @@ struct QuestionCard: View {
                                     onAskAI(subquestion)
                                 },
                                 onArchive: {
-                                    // TODO: Archive specific subquestion
-                                    print("⭐ Archive subquestion \(subquestion.id)")
-                                    onArchive()  // For now, use parent question's callback
+                                    // ✅ NEW: Archive whole parent question by default
+                                    print("⭐ Archive from subquestion \(subquestion.id) -> archiving parent Q\(questionWithGrade.question.id)")
+                                    onArchive()
                                 }
                             )
                         }
@@ -1408,13 +1409,15 @@ struct AnnotationQuestionPreviewCard: View {
 
 struct SubquestionRow: View {
     let subquestion: ProgressiveSubquestion
+    let parentQuestionId: Int  // ✅ NEW: Parent question ID
     let grade: ProgressiveGradeResult?
     let isGrading: Bool  // ✅ NEW: Track grading status
     let modelType: String  // ✅ NEW: Track AI model for loading indicator
     let onAskAI: () -> Void
-    let onArchive: () -> Void
+    let onArchive: () -> Void  // This archives the parent question
 
     @State private var showFeedback = false  // ✅ CHANGED: Collapsed by default
+    @State private var showArchiveOptions = false  // ✅ NEW: Show action sheet for archive options
 
     var body: some View {
         let _ = {
@@ -1536,8 +1539,10 @@ struct SubquestionRow: View {
                                 }
                                 .buttonStyle(.bordered)
 
-                                // Archive button
-                                Button(action: onArchive) {
+                                // ✅ NEW: Archive button with action sheet
+                                Button(action: {
+                                    showArchiveOptions = true
+                                }) {
                                     Label(NSLocalizedString("proMode.archive", comment: "Archive"), systemImage: "archivebox")
                                         .font(.caption)
                                 }
@@ -1550,8 +1555,25 @@ struct SubquestionRow: View {
             }
         }
         .padding(.leading, 16)
-    }
-}
+        .confirmationDialog(
+            "Archive Options",
+            isPresented: $showArchiveOptions,
+            titleVisibility: .visible
+        ) {
+            Button("Archive Whole Question") {
+                // Archive the entire parent question (default)
+                onArchive()
+            }
+
+            Button("Archive This Subquestion Only") {
+                // TODO: Implement subquestion-only archiving
+                print("⭐ Archive only subquestion \(subquestion.id) (not implemented yet)")
+            }
+
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Choose what to archive:")
+        }
 
 // MARK: - Homework Grade Badge Component
 
