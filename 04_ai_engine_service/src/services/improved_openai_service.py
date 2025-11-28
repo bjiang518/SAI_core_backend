@@ -3136,12 +3136,15 @@ Grade this answer. Return JSON with:
                     max_tokens=1024  # More tokens for detailed feedback
                 )
             else:
+                # OPTIMIZED: Improved accuracy for simple math problems
+                # - temperature: 0.3 → 0.2 (more deterministic for math)
+                # - max_tokens: 300 → 500 (prevent truncation during reasoning)
                 response = await self.client.chat.completions.create(
                     model=selected_model,
                     messages=messages,
                     response_format={"type": "json_object"},
-                    temperature=0.3,  # Low but non-zero for reasoning
-                    max_tokens=300  # Short response needed
+                    temperature=0.2,  # More deterministic for math grading (was 0.3)
+                    max_tokens=500    # Increased for complete reasoning (was 300)
                 )
 
             api_duration = time.time() - start_time
@@ -3307,8 +3310,8 @@ GRADING SCALE:
 
 RULES:
 1. is_correct = (score >= 0.9)
-2. Feedback must be encouraging and educational (<30 words)
-3. Explain WHERE error occurred and HOW to fix
+2. Feedback must be VERY brief (<15 words, ideally 5-10 words)
+3. If incorrect, state ONE key error only
 4. Be lenient with minor notation differences
 5. Use LaTeX for math in feedback: wrap in \\(...\\) (e.g., "\\(\\frac{{{{1}}}}{{{{2}}}}\\)")
 

@@ -160,7 +160,7 @@ struct GradeSingleQuestionResponse: Codable {
 
 /// Question with its grade result
 /// Supports both flat questions and hierarchical parent questions
-struct ProgressiveQuestionWithGrade: Identifiable {
+struct ProgressiveQuestionWithGrade: Identifiable, Codable {
     let id: Int
     let question: ProgressiveQuestion
 

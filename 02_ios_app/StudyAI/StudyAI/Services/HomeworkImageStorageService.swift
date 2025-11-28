@@ -69,7 +69,8 @@ final class HomeworkImageStorageService: ObservableObject {
         incorrectCount: Int? = nil,
         totalPoints: Float? = nil,
         maxPoints: Float? = nil,
-        rawQuestions: [String]? = nil
+        rawQuestions: [String]? = nil,
+        proModeData: Data? = nil  // ✅ NEW: Pro Mode digital homework data
     ) -> HomeworkImageRecord? {
         // Generate hash for deduplication
         guard let imageHash = generateImageHash(image) else {
@@ -139,7 +140,8 @@ final class HomeworkImageStorageService: ObservableObject {
             incorrectCount: incorrectCount,
             totalPoints: totalPoints,
             maxPoints: maxPoints,
-            rawQuestions: rawQuestions
+            rawQuestions: rawQuestions,
+            proModeData: proModeData  // ✅ NEW: Store Pro Mode data
         )
 
         // Add to array and save metadata
