@@ -1341,6 +1341,13 @@
 "proMode.annotationHint" = "提示: 添加标注可为题目添加图片上下文";
 "proMode.studentAnswerLabel" = "学生答案: %@";
 "proMode.askAI" = "求助 AI";
+"proMode.askAIPrompt" = "请帮我理解这道题";
+"proMode.askAIPromptWithSubquestion" = "请帮我理解这道题（小题 %@）";
+"proMode.parentQuestionContext" = "【母题背景】";
+"proMode.subquestion" = "【小题】";
+"proMode.myAnswer" = "【我的答案】";
+"proMode.teacherFeedback" = "【老师反馈】";
+"proMode.noFeedback" = "无反馈";
 "proMode.archive" = "归档";
 "proMode.archived" = "已归档";
 "proMode.subquestionAnswer" = "答: %@";
