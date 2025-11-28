@@ -286,6 +286,9 @@ class DigitalHomeworkViewModel: ObservableObject {
             selectedAnnotationId = nil
         }
 
+        // ✅ FIX: Explicitly notify observers before updating (ensures UI sees the change immediately)
+        objectWillChange.send()
+
         // Update global state
         stateManager.updateHomework(annotations: updatedAnnotations, croppedImages: updatedImages)
 
