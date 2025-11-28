@@ -33,6 +33,9 @@ struct DigitalHomeworkData {
     let createdAt: Date
     var lastModified: Date
 
+    // Progress tracking
+    var hasMarkedProgress: Bool = false
+
     var originalImage: UIImage? {
         return UIImage(data: originalImageData)
     }
@@ -207,6 +210,9 @@ class DigitalHomeworkStateManager: ObservableObject {
         }
 
         homework.lastModified = Date()
+
+        // ✅ FIX: Explicitly notify SwiftUI of changes before updating
+        objectWillChange.send()
         currentHomework = homework
 
         print("🔄 [StateManager] Homework data updated")
