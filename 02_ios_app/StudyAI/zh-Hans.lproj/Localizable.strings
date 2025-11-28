@@ -327,6 +327,13 @@
 "homeworkAlbum.chooseHomework" = "选择作业";
 "homeworkAlbum.selectionHint" = "点击任意作业以选择它进行AI重新分析";
 
+// Homework Image Detail
+"homeworkImageDetail.deleteTitle" = "删除作业图片？";
+"homeworkImageDetail.deleteMessage" = "此操作无法撤销。";
+"homeworkImageDetail.questions" = "题目";
+"homeworkImageDetail.correct" = "正确";
+"homeworkImageDetail.score" = "得分";
+
 // Question Generation
 "questionGeneration.title" = "生成题目";
 "questionGeneration.aiQuestionGenerator" = "AI题目生成器";
