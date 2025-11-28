@@ -432,7 +432,7 @@ struct DigitalHomeworkView: View {
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 6)
     }
 
-    // Slide to mark progress track
+    // Slide to mark progress track (Liquid Glass Style)
     private var slideToMarkProgressTrack: some View {
         GeometryReader { geometry in
             let trackWidth = geometry.size.width
@@ -440,26 +440,18 @@ struct DigitalHomeworkView: View {
             let maxOffset = trackWidth - sliderWidth - 8  // 8 is padding
 
             ZStack(alignment: .leading) {
-                // Background track
+                // Background track - Liquid Glass Effect
                 RoundedRectangle(cornerRadius: 30)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.purple.opacity(0.2), Color.purple.opacity(0.3)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+                    .fill(.ultraThinMaterial)  // iOS 15+ glass effect
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 30)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
                     )
                     .frame(height: 60)
 
-                // Progress fill (grows as user slides)
+                // Progress fill (grows as user slides) - Subtle glass glow
                 RoundedRectangle(cornerRadius: 30)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.purple, Color.purple.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .fill(Color.blue.opacity(0.1))
                     .frame(width: slideOffset + sliderWidth + 4, height: 60)
                     .opacity(slideOffset > 0 ? 1.0 : 0.0)
 
@@ -469,37 +461,38 @@ struct DigitalHomeworkView: View {
                     Text(NSLocalizedString("proMode.slideToMarkProgress", comment: "Slide to Mark Progress"))
                         .font(.headline)
                         .fontWeight(.semibold)
-                        .foregroundColor(.purple.opacity(0.6))
+                        .foregroundColor(.primary.opacity(0.6))
                         .opacity(1.0 - (slideOffset / maxOffset))
                     Spacer()
                 }
                 .frame(height: 60)
 
-                // Sliding button
-                HStack(spacing: 8) {
-                    Image(systemName: "chevron.right")
-                        .font(.title3)
-                        .foregroundColor(.white)
-                    Image(systemName: "chevron.right")
-                        .font(.title3)
-                        .foregroundColor(.white)
-                        .opacity(0.7)
-                    Image(systemName: "chevron.right")
-                        .font(.title3)
-                        .foregroundColor(.white)
-                        .opacity(0.4)
+                // Sliding button - Magnifying Glass Effect
+                ZStack {
+                    // Backdrop blur circle (magnifying glass effect)
+                    Circle()
+                        .fill(.regularMaterial)  // Frosted glass
+                        .frame(width: sliderWidth, height: sliderWidth)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
+                        )
+                        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+
+                    // Chevron icons
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary)
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary.opacity(0.6))
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary.opacity(0.3))
+                    }
                 }
-                .frame(width: sliderWidth, height: 52)
-                .background(
-                    LinearGradient(
-                        colors: [Color.purple, Color.purple.opacity(0.9)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(26)
-                .shadow(color: Color.purple.opacity(0.4), radius: 8, x: 0, y: 4)
-                .offset(x: slideOffset + 4)
+                .offset(x: slideOffset + 4, y: 0)
                 .gesture(
                     DragGesture()
                         .onChanged { value in
@@ -586,6 +579,10 @@ struct DigitalHomeworkView: View {
 
     private var revertButton: some View {
         Button(action: {
+            // Haptic feedback on tap
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.warning)
+
             showRevertConfirmation = true
         }) {
             HStack(spacing: 8) {
@@ -595,18 +592,9 @@ struct DigitalHomeworkView: View {
                     .font(.headline)
                     .fontWeight(.semibold)
             }
-            .foregroundColor(.white)
+            .foregroundColor(.red)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(
-                LinearGradient(
-                    colors: [Color.orange, Color.red.opacity(0.8)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .cornerRadius(12)
-            .shadow(color: Color.orange.opacity(0.3), radius: 6, x: 0, y: 3)
         }
     }
 
