@@ -342,16 +342,18 @@ class GeminiEducationalAIService:
                 }
                 timeout = 90  # INCREASED: 60 → 90 for deep reasoning
             else:
-                # Gemini standard grading mode: Optimized for speed + accuracy
-                # TIMEOUT FIX: 45s → 60s to handle API load spikes during concurrent grading
+                # OPTIMIZED: Match OpenAI's accuracy-focused configuration
+                # - temperature: 0.4 → 0.2 (match OpenAI for deterministic math grading)
+                # - max_output_tokens: 4096 → 800 (reduce generation time, still 2x safety margin vs 400 needed)
+                # - timeout: 60s → 30s (fail faster, improve UX)
                 generation_config = {
-                    "temperature": 0.4,
+                    "temperature": 0.2,     # OPTIMIZED: Match OpenAI (was 0.4)
                     "top_p": 0.9,
                     "top_k": 40,
-                    "max_output_tokens": 4096,  # INCREASED: 512 → 4096 to prevent feedback truncation
+                    "max_output_tokens": 800,  # OPTIMIZED: Reduce for speed (was 4096)
                     "candidate_count": 1
                 }
-                timeout = 60  # INCREASED: 45s → 60s for concurrent grading stability
+                timeout = 30  # OPTIMIZED: Fail faster for better UX (was 60)
 
             # Call Gemini API (NEW API only) with fallback on 503 errors
             response = None
