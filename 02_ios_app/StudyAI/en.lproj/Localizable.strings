@@ -1320,6 +1320,13 @@
 "proMode.annotationHint" = "Tip: Add annotations to provide image context for questions";
 "proMode.studentAnswerLabel" = "Student Answer: %@";
 "proMode.askAI" = "Ask AI for Help";
+"proMode.askAIPrompt" = "Please help me understand this question";
+"proMode.askAIPromptWithSubquestion" = "Please help me understand this question (Sub-question %@)";
+"proMode.parentQuestionContext" = "[Parent Question Context]";
+"proMode.subquestion" = "[Sub-question]";
+"proMode.myAnswer" = "[My Answer]";
+"proMode.teacherFeedback" = "[Teacher Feedback]";
+"proMode.noFeedback" = "No feedback";
 "proMode.archive" = "Archive";
 "proMode.archived" = "Archived";
 "proMode.subquestionAnswer" = "Answer: %@";

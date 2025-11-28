@@ -661,21 +661,17 @@ struct DigitalHomeworkView: View {
             VStack(spacing: 0) {
                 // 上方 70%: 图片 + 标注层
                 ZStack {
+                    // ✅ CRITICAL FIX: AnnotatableImageView now handles BOTH image AND interactive overlay
+                    // with unified coordinate system (scale/offset applied to both)
                     AnnotatableImageView(
                         image: originalImage,
                         annotations: viewModel.annotations,
                         selectedAnnotationId: $viewModel.selectedAnnotationId,
-                        isInteractive: true
+                        isInteractive: true,  // ✅ Enable interactive mode
+                        annotationsBinding: viewModel.annotationsBinding,  // ✅ Pass binding for editing
+                        availableQuestionNumbers: viewModel.availableQuestionNumbers  // ✅ Pass question numbers
                     )
                     .matchedGeometryEffect(id: "homeworkImage", in: animationNamespace)
-                    .overlay(
-                        AnnotationOverlay(
-                            annotations: viewModel.annotationsBinding,
-                            selectedAnnotationId: $viewModel.selectedAnnotationId,
-                            availableQuestionNumbers: viewModel.availableQuestionNumbers,
-                            originalImageSize: originalImage.size
-                        )
-                    )
                     .background(Color.black)
                 }
                 .frame(height: geometry.size.height * 0.70)
@@ -925,25 +921,21 @@ struct DigitalHomeworkView: View {
                     await viewModel.startGrading()
                 }
             }) {
-                HStack(spacing: 12) {
-                    Image(systemName: viewModel.useDeepReasoning ? "brain.head.profile.fill" : "checkmark.seal.fill")
-                        .font(.title3)
-                    Text(viewModel.useDeepReasoning ? NSLocalizedString("proMode.deepGradeHomework", comment: "Deep Grade Homework") : NSLocalizedString("proMode.gradeHomework", comment: "Grade Homework with AI"))
-                        .font(.headline)
-                        .fontWeight(.bold)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    LinearGradient(
-                        colors: viewModel.useDeepReasoning ? [Color.purple, Color.purple.opacity(0.8)] : [Color.green, Color.green.opacity(0.8)],
-                        startPoint: .leading,
-                        endPoint: .trailing
+                Text(viewModel.useDeepReasoning ? NSLocalizedString("proMode.deepGradeHomework", comment: "Deep Grade Homework") : NSLocalizedString("proMode.gradeHomework", comment: "Grade Homework with AI"))
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: viewModel.useDeepReasoning ? [Color.purple, Color.purple.opacity(0.8)] : [Color.green, Color.green.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
-                )
-                .cornerRadius(16)
-                .shadow(color: (viewModel.useDeepReasoning ? Color.purple : Color.green).opacity(0.3), radius: 8, x: 0, y: 4)
+                    .cornerRadius(16)
+                    .shadow(color: (viewModel.useDeepReasoning ? Color.purple : Color.green).opacity(0.3), radius: 8, x: 0, y: 4)
             }
             .disabled(viewModel.isGrading)
             .opacity(viewModel.isGrading ? 0.6 : 1.0)
@@ -1168,6 +1160,22 @@ struct DigitalHomeworkView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
+    }
+
+    // ✅ Helper function for fitted image size (unified calculation)
+    private func fittedImageSize(_ imageSize: CGSize, _ containerSize: CGSize) -> CGSize {
+        let imageAspect = imageSize.width / imageSize.height
+        let containerAspect = containerSize.width / containerSize.height
+
+        if imageAspect > containerAspect {
+            let width = containerSize.width
+            let height = width / imageAspect
+            return CGSize(width: width, height: height)
+        } else {
+            let height = containerSize.height
+            let width = height * imageAspect
+            return CGSize(width: width, height: height)
+        }
     }
 
 }

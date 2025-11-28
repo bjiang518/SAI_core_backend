@@ -1293,6 +1293,13 @@
 "proMode.annotationHint" = "提示: 添加標註可為題目添加圖片上下文";
 "proMode.studentAnswerLabel" = "學生答案: %@";
 "proMode.askAI" = "求助 AI";
+"proMode.askAIPrompt" = "請幫我理解這道題";
+"proMode.askAIPromptWithSubquestion" = "請幫我理解這道題（小題 %@）";
+"proMode.parentQuestionContext" = "【母題背景】";
+"proMode.subquestion" = "【小題】";
+"proMode.myAnswer" = "【我的答案】";
+"proMode.teacherFeedback" = "【老師反饋】";
+"proMode.noFeedback" = "無反饋";
 "proMode.archive" = "歸檔";
 "proMode.archived" = "已歸檔";
 "proMode.subquestionAnswer" = "答: %@";
