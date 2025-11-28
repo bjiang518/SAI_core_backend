@@ -40,9 +40,6 @@ class DigitalHomeworkViewModel: ObservableObject {
     // AI model selection (NEW: OpenAI vs Gemini)
     @Published var selectedAIModel: String = "gemini"  // "openai" or "gemini"
 
-    // ✅ NEW: Track if progress has been marked (prevent duplicate marking)
-    @Published var hasMarkedProgress = false
-
     // ✅ NEW: Enhanced grading animations
     @Published var currentGradingStatus = ""  // Dynamic status message during grading
     @Published var gradingAnimation: GradingAnimation = .idle
@@ -115,6 +112,12 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     var totalQuestions: Int {
         return stateManager.currentHomework?.parseResults.totalQuestions ?? 0
+    }
+
+    // ✅ Track if progress has been marked (prevent duplicate marking)
+    // Read from StateManager to persist across navigation
+    var hasMarkedProgress: Bool {
+        return stateManager.currentHomework?.hasMarkedProgress ?? false
     }
 
     var allQuestionsGraded: Bool {
@@ -247,6 +250,9 @@ class DigitalHomeworkViewModel: ObservableObject {
         var updatedAnnotations = annotations
         guard let index = updatedAnnotations.firstIndex(where: { $0.id == annotationId }) else { return }
         updatedAnnotations[index].questionNumber = questionNumber
+
+        // ✅ FIX: Explicitly notify observers before updating
+        objectWillChange.send()
 
         // Update global state
         stateManager.updateHomework(annotations: updatedAnnotations)
@@ -883,20 +889,22 @@ class DigitalHomeworkViewModel: ObservableObject {
             // Navigate to chat with subquestion context
             // Include parent question content for context
             let parentContext = question.parentContent ?? ""
-            let message = """
-            请帮我理解这道题（小题 \(subquestion.id)）：
+            let message = String(
+                format: NSLocalizedString("proMode.askAIPromptWithSubquestion", comment: ""),
+                subquestion.id
+            ) + """
 
-            【母题背景】
+            \(NSLocalizedString("proMode.parentQuestionContext", comment: ""))
             \(parentContext)
 
-            【小题】
+            \(NSLocalizedString("proMode.subquestion", comment: ""))
             \(subquestion.questionText)
 
-            【我的答案】
+            \(NSLocalizedString("proMode.myAnswer", comment: ""))
             \(subquestion.studentAnswer)
 
-            【老师反馈】
-            \(subGrade?.feedback ?? "无反馈")
+            \(NSLocalizedString("proMode.teacherFeedback", comment: ""))
+            \(subGrade?.feedback ?? NSLocalizedString("proMode.noFeedback", comment: ""))
             """
 
             appState.navigateToChatWithHomeworkQuestion(message: message, context: context)
@@ -935,8 +943,10 @@ class DigitalHomeworkViewModel: ObservableObject {
             )
 
             // Navigate to chat with context
+            let message = "\(NSLocalizedString("proMode.askAIPrompt", comment: "")):\n\n\(question.displayText)\n\n\(NSLocalizedString("proMode.myAnswer", comment: "")):\(question.displayStudentAnswer)\n\n\(NSLocalizedString("proMode.teacherFeedback", comment: "")):\(grade?.feedback ?? NSLocalizedString("proMode.noFeedback", comment: ""))"
+
             appState.navigateToChatWithHomeworkQuestion(
-                message: "请帮我理解这道题：\n\n\(question.displayText)\n\n我的答案：\(question.displayStudentAnswer)\n\n老师反馈：\(grade?.feedback ?? "无反馈")",
+                message: message,
                 context: context
             )
 
@@ -952,8 +962,14 @@ class DigitalHomeworkViewModel: ObservableObject {
             await MainActor.run {
                 var updatedQuestions = questions
                 if let index = updatedQuestions.firstIndex(where: { $0.question.id == questionId }) {
-                    updatedQuestions[index].isArchived = true
-                    stateManager.updateHomework(questions: updatedQuestions)
+                    // ✅ FIX: Explicitly notify observers before updating (ensures UI sees the change)
+                    objectWillChange.send()
+
+                    // ✅ FIX: Wrap in animation for smooth green border appearance
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        updatedQuestions[index].isArchived = true
+                        stateManager.updateHomework(questions: updatedQuestions)
+                    }
                     print("📦 [Archive] Marked Q\(questionId) as archived (remains visible)")
                 }
             }
@@ -1139,12 +1155,12 @@ class DigitalHomeworkViewModel: ObservableObject {
                         numberOfCorrectQuestions: totalCorrect
                     )
 
-                    // ✅ CRITICAL: Set flag to prevent duplicate marking (persists even after revert)
-                    hasMarkedProgress = true
+                    // ✅ CRITICAL: Set flag in BOTH ViewModel and StateManager to persist across navigation
+                    stateManager.currentHomework?.hasMarkedProgress = true
                 }
 
                 print("✅ Progress marked: \(totalCorrect)/\(totalQuestions) correct (\(String(format: "%.1f%%", accuracy * 100)))")
-                print("🔒 [Progress] hasMarkedProgress flag set to true - button will be disabled")
+                print("🔒 [Progress] hasMarkedProgress flag set to true in StateManager - persists across navigation")
             }
         }
     }
