@@ -12,46 +12,14 @@ import time
 from typing import Dict, List, Optional, Any
 from dotenv import load_dotenv
 
-# DEBUG: Print package version info
-print("🔍 === DEBUG: GEMINI API IMPORT ATTEMPT ===")
+# Import NEW Gemini API (google-ai-generativelanguage >= 0.6.0)
 try:
-    import google.generativeai as temp_genai
-    print(f"✅ google.generativeai installed at: {temp_genai.__file__}")
-    if hasattr(temp_genai, '__version__'):
-        print(f"📦 Version: {temp_genai.__version__}")
-    else:
-        print("⚠️ Version attribute not found (possibly old package)")
-except ImportError as e:
-    print(f"❌ google.generativeai not found: {e}")
-
-# Try importing new API
-try:
-    # NEW GEMINI API (Dec 2024)
-    # from google.generativeai → from google import genai
-    print("🔄 Attempting NEW API import: from google import genai")
     from google import genai
-    GEMINI_NEW_API = True
-    print(f"✅ NEW API imported successfully!")
-    print(f"   genai module: {genai}")
-    print(f"   genai.__file__: {genai.__file__ if hasattr(genai, '__file__') else 'N/A'}")
+    print(f"✅ NEW Gemini API imported successfully")
 except ImportError as e:
-    print(f"❌ NEW API import failed: {e}")
-    print(f"   Error type: {type(e).__name__}")
-    print(f"   Error details: {str(e)}")
-    try:
-        # LEGACY API (fallback for compatibility)
-        print("🔄 Falling back to LEGACY API: import google.generativeai as genai")
-        import google.generativeai as genai
-        GEMINI_NEW_API = False
-        print("⚠️ Using legacy Gemini API. Consider upgrading to 'from google import genai'")
-        print(f"   Legacy API version: {genai.__version__ if hasattr(genai, '__version__') else 'Unknown'}")
-    except ImportError as e2:
-        print(f"❌ LEGACY API import also failed: {e2}")
-        print("⚠️ google-generativeai not installed. Run: pip install google-generativeai")
-        genai = None
-        GEMINI_NEW_API = False
-
-print("=" * 50)
+    print(f"❌ NEW Gemini API import failed: {e}")
+    print("⚠️ Please install: pip install --upgrade google-generativeai")
+    genai = None
 
 # Import subject-specific prompt generator
 from .subject_prompts import get_subject_specific_rules
@@ -63,7 +31,11 @@ class GeminiEducationalAIService:
     """
     Gemini-powered AI service for educational content processing.
 
-    Uses Gemini 2.0 Flash (gemini-2.0-flash) for:
+    Uses NEW Gemini API (google-ai-generativelanguage >= 0.6.0):
+    - gemini-2.5-flash: Fast parsing AND grading (optimized for speed, 1.5-3s per question)
+    - gemini-2.5-pro: Deep reasoning mode (slower but more accurate for complex problems)
+
+    Features:
     - Fast homework image parsing with optimized OCR (5-10s vs 30-60s for Pro)
     - Multimodal understanding (native image + text)
     - Cost-effective processing
@@ -72,9 +44,7 @@ class GeminiEducationalAIService:
     Configuration optimized for:
     - OCR accuracy: temperature=0.0, top_k=32
     - Large homework: max_output_tokens=8192
-    - Grading reasoning: temperature=0.3
-
-    Model: gemini-2.0-flash (FAST, avoids timeout issues)
+    - Grading reasoning: temperature=0.2-0.4
     """
 
     def __init__(self):
@@ -91,7 +61,7 @@ class GeminiEducationalAIService:
         else:
             print(f"✅ Gemini API key found: {api_key[:10]}..." if len(api_key) > 10 else "✅ Gemini API key found")
 
-            if genai and GEMINI_NEW_API:
+            if genai:
                 print("📱 Using NEW Gemini API: from google import genai")
                 # Initialize client
                 self.gemini_client = genai.Client(api_key=api_key)
@@ -383,37 +353,29 @@ class GeminiEducationalAIService:
                 }
                 timeout = 60  # INCREASED: 45s → 60s for concurrent grading stability
 
-            # Call Gemini API (NEW or LEGACY) with fallback on 503 errors
+            # Call Gemini API (NEW API only) with fallback on 503 errors
             response = None
             fallback_attempted = False
 
             try:
-                if GEMINI_NEW_API:
-                    # NEW API: client.models.generate_content(model="...", contents=...)
-                    # Note: NEW API doesn't support timeout in config, use concurrent.futures for timeout control
-                    import concurrent.futures
+                # NEW API: client.models.generate_content(model="...", contents=...)
+                # Note: NEW API doesn't support timeout in config, use concurrent.futures for timeout control
+                import concurrent.futures
 
-                    def _call_gemini():
-                        return selected_client.models.generate_content(
-                            model=model_name,
-                            contents=content,
-                            config=generation_config
-                        )
-
-                    # Execute with timeout using ThreadPoolExecutor
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                        future = executor.submit(_call_gemini)
-                        try:
-                            response = future.result(timeout=timeout)
-                        except concurrent.futures.TimeoutError:
-                            raise Exception(f"Gemini API timeout after {timeout}s. Try reducing homework size or using a different model.")
-                else:
-                    # LEGACY API: client.generate_content(content, generation_config=...)
-                    response = selected_client.generate_content(
-                        content,
-                        generation_config=generation_config,
-                        request_options={"timeout": timeout}
+                def _call_gemini():
+                    return selected_client.models.generate_content(
+                        model=model_name,
+                        contents=content,
+                        config=generation_config
                     )
+
+                # Execute with timeout using ThreadPoolExecutor
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(_call_gemini)
+                    try:
+                        response = future.result(timeout=timeout)
+                    except concurrent.futures.TimeoutError:
+                        raise Exception(f"Gemini API timeout after {timeout}s. Try reducing homework size or using a different model.")
             except Exception as e:
                 # Check if it's a 503 error (model overloaded/unavailable)
                 if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
@@ -423,30 +385,22 @@ class GeminiEducationalAIService:
                     # Fallback to gemini-2.5-flash (fast and reliable)
                     fallback_model = "gemini-2.5-flash"
 
-                    if GEMINI_NEW_API:
-                        # NEW API with timeout wrapper
-                        import concurrent.futures
+                    # NEW API with timeout wrapper
+                    import concurrent.futures
 
-                        def _call_gemini_fallback():
-                            return selected_client.models.generate_content(
-                                model=fallback_model,
-                                contents=content,
-                                config=generation_config
-                            )
-
-                        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                            future = executor.submit(_call_gemini_fallback)
-                            try:
-                                response = future.result(timeout=timeout)
-                            except concurrent.futures.TimeoutError:
-                                raise Exception(f"Gemini fallback API timeout after {timeout}s")
-                    else:
-                        # For LEGACY API, use the standard client
-                        response = self.client.generate_content(
-                            content,
-                            generation_config=generation_config,
-                            request_options={"timeout": timeout}
+                    def _call_gemini_fallback():
+                        return selected_client.models.generate_content(
+                            model=fallback_model,
+                            contents=content,
+                            config=generation_config
                         )
+
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                        future = executor.submit(_call_gemini_fallback)
+                        try:
+                            response = future.result(timeout=timeout)
+                        except concurrent.futures.TimeoutError:
+                            raise Exception(f"Gemini fallback API timeout after {timeout}s")
                     print(f"✅ Fallback to {fallback_model} successful")
                 else:
                     # Re-raise other errors
