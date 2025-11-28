@@ -22,6 +22,7 @@ struct HomeworkImageDetailView: View {
     @State private var showingDeleteConfirmation = false
     @State private var showingShareSheet = false
     @State private var showingQuestionsPDF = false
+    @State private var showingDigitalHomework = false  // ✅ NEW: Digital Homework view
     @Environment(\.dismiss) private var dismiss
 
     // MARK: - Initialization
@@ -112,6 +113,16 @@ struct HomeworkImageDetailView: View {
                                     .foregroundColor(.white)
                             }
 
+                            // ✅ NEW: Digital Homework Button (only show if Pro Mode data exists)
+                            if currentRecord.proModeData != nil {
+                                Button(action: {
+                                    showingDigitalHomework = true
+                                }) {
+                                    Image(systemName: "book.pages")
+                                        .foregroundColor(.white)
+                                }
+                            }
+
                             // PDF Questions Button (only show if rawQuestions exist)
                             if let rawQuestions = currentRecord.rawQuestions, !rawQuestions.isEmpty {
                                 Button(action: {
@@ -146,13 +157,13 @@ struct HomeworkImageDetailView: View {
             .toolbarBackground(Color.black.opacity(0.8), for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .statusBar(hidden: !isToolbarVisible)  // Hide status bar when toolbar hidden
-            .alert("Delete Homework Image?", isPresented: $showingDeleteConfirmation) {
-                Button("Cancel", role: .cancel) { }
-                Button("Delete", role: .destructive) {
+            .alert(NSLocalizedString("homeworkImageDetail.deleteTitle", value: "Delete Homework Image?", comment: ""), isPresented: $showingDeleteConfirmation) {
+                Button(NSLocalizedString("common.cancel", value: "Cancel", comment: ""), role: .cancel) { }
+                Button(NSLocalizedString("common.delete", value: "Delete", comment: ""), role: .destructive) {
                     deleteCurrentImage()
                 }
             } message: {
-                Text("This action cannot be undone.")
+                Text(NSLocalizedString("homeworkImageDetail.deleteMessage", value: "This action cannot be undone.", comment: ""))
             }
             .sheet(isPresented: $showingShareSheet) {
                 if let image = HomeworkImageStorageService.shared.loadHomeworkImage(record: currentRecord) {
@@ -161,6 +172,12 @@ struct HomeworkImageDetailView: View {
             }
             .sheet(isPresented: $showingQuestionsPDF) {
                 HomeworkQuestionsPDFPreviewView(homeworkRecord: currentRecord)
+            }
+            .sheet(isPresented: $showingDigitalHomework) {
+                // ✅ NEW: Show digital homework view with mode toggle
+                if let proModeData = currentRecord.proModeData {
+                    SavedDigitalHomeworkView(proModeData: proModeData)
+                }
             }
         }
     }
@@ -222,14 +239,14 @@ struct HomeworkImageDetailView: View {
             HStack(spacing: 24) {
                 HomeworkStatItem(
                     icon: "questionmark.circle.fill",
-                    label: "Questions",
+                    label: NSLocalizedString("homeworkImageDetail.questions", value: "Questions", comment: ""),
                     value: "\(currentRecord.questionCount)"
                 )
 
                 if let correctCount = currentRecord.correctCount {
                     HomeworkStatItem(
                         icon: "checkmark.circle.fill",
-                        label: "Correct",
+                        label: NSLocalizedString("homeworkImageDetail.correct", value: "Correct", comment: ""),
                         value: "\(correctCount)",
                         color: .green
                     )
@@ -238,7 +255,7 @@ struct HomeworkImageDetailView: View {
                 if let scoreText = currentRecord.scoreText {
                     HomeworkStatItem(
                         icon: "chart.bar.fill",
-                        label: "Score",
+                        label: NSLocalizedString("homeworkImageDetail.score", value: "Score", comment: ""),
                         value: scoreText
                     )
                 }
@@ -341,7 +358,8 @@ struct HomeworkShareSheet: UIViewControllerRepresentable {
                 incorrectCount: 2,
                 totalPoints: 85,
                 maxPoints: 100,
-                rawQuestions: ["Question 1", "Question 2"]
+                rawQuestions: ["Question 1", "Question 2"],
+                proModeData: nil  // ✅ NEW: No Pro Mode data for preview
             ),
             HomeworkImageRecord(
                 id: "preview2",
@@ -355,7 +373,8 @@ struct HomeworkShareSheet: UIViewControllerRepresentable {
                 incorrectCount: 1,
                 totalPoints: 92,
                 maxPoints: 100,
-                rawQuestions: nil
+                rawQuestions: nil,
+                proModeData: nil  // ✅ NEW: No Pro Mode data for preview
             )
         ],
         initialIndex: 0

@@ -325,6 +325,13 @@
 "homeworkAlbum.chooseHomework" = "Choose Homework";
 "homeworkAlbum.selectionHint" = "Tap any homework to select it for AI re-analysis";
 
+// Homework Image Detail
+"homeworkImageDetail.deleteTitle" = "Delete Homework Image?";
+"homeworkImageDetail.deleteMessage" = "This action cannot be undone.";
+"homeworkImageDetail.questions" = "Questions";
+"homeworkImageDetail.correct" = "Correct";
+"homeworkImageDetail.score" = "Score";
+
 // Question Generation
 "questionGeneration.title" = "Generate Questions";
 "questionGeneration.aiQuestionGenerator" = "AI Question Generator";
