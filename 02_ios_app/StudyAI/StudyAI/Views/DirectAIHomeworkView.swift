@@ -1983,46 +1983,83 @@ struct DirectAIHomeworkView: View {
 
         let base64Image = imageData.base64EncodedString()
 
-        do {
-            // NEW FLOW: Call AI Parse with Detail Mode (hierarchical parsing)
-            print("🤖 Calling AI Engine with Detail Mode (hierarchical parsing)...")
-            print("🤖 Using AI Model: \(selectedAIModel)")
-            print("📚 Selected Subject: \(selectedSubject)")
+        // ✅ Retry logic for network failures (max 3 attempts)
+        var lastError: Error?
+        let maxRetries = 3
 
-            let parseResponse = try await NetworkService.shared.parseHomeworkQuestions(
-                base64Image: base64Image,
-                parsingMode: "standard",  // Use standard mode for Pro
-                skipBboxDetection: true,   // No bbox needed
-                expectedQuestions: nil,
-                modelProvider: selectedAIModel,  // Pass selected AI model
-                subject: selectedSubject  // NEW: Pass selected subject
-            )
+        for attempt in 1...maxRetries {
+            do {
+                if attempt > 1 {
+                    print("🔄 Retry attempt \(attempt)/\(maxRetries)...")
+                    await MainActor.run {
+                        self.stateManager.processingStatus = "重试中... (\(attempt)/\(maxRetries))"
+                    }
+                    // Exponential backoff: 2s, 4s, 8s
+                    try await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt))) * 1_000_000_000)
+                }
 
-            guard parseResponse.success else {
-                throw ProgressiveGradingError.parsingFailed(parseResponse.error ?? "Unknown error")
+                // NEW FLOW: Call AI Parse with Detail Mode (hierarchical parsing)
+                print("🤖 Calling AI Engine with Detail Mode (hierarchical parsing)...")
+                print("🤖 Using AI Model: \(selectedAIModel)")
+                print("📚 Selected Subject: \(selectedSubject)")
+
+                let parseResponse = try await NetworkService.shared.parseHomeworkQuestions(
+                    base64Image: base64Image,
+                    parsingMode: "standard",  // Use standard mode for Pro
+                    skipBboxDetection: true,   // No bbox needed
+                    expectedQuestions: nil,
+                    modelProvider: selectedAIModel,  // Pass selected AI model
+                    subject: selectedSubject  // NEW: Pass selected subject
+                )
+
+                guard parseResponse.success else {
+                    throw ProgressiveGradingError.parsingFailed(parseResponse.error ?? "Unknown error")
+                }
+
+                print("✅ AI parsed \(parseResponse.totalQuestions) questions")
+                print("📚 Subject: \(parseResponse.subject)")
+
+                // Navigate to Summary View
+                await MainActor.run {
+                    self.stateManager.processingStatus = "分析完成"
+                    self.isProcessing = false
+
+                    // Store parse results for Summary View
+                    self.proModeParsedQuestions = parseResponse
+                    self.showProModeSummary = true  // NEW: Show summary instead of direct grading
+                }
+
+                print("✅ Pro Mode parsing complete, showing summary view")
+                return  // ✅ Success - exit retry loop
+
+            } catch {
+                lastError = error
+                let nsError = error as NSError
+
+                // Check if this is a network connection error that we should retry
+                let shouldRetry = (nsError.domain == NSURLErrorDomain &&
+                                  (nsError.code == NSURLErrorNetworkConnectionLost ||   // -1005
+                                   nsError.code == NSURLErrorTimedOut ||                 // -1001
+                                   nsError.code == NSURLErrorCannotConnectToHost))       // -1004
+
+                if !shouldRetry || attempt == maxRetries {
+                    // Don't retry, or this was the last attempt
+                    print("❌ Pro Mode processing failed: \(error.localizedDescription)")
+                    if attempt == maxRetries {
+                        print("❌ All \(maxRetries) retry attempts exhausted")
+                    }
+                    break
+                }
+
+                print("⚠️ Network error (attempt \(attempt)/\(maxRetries)): \(error.localizedDescription)")
             }
+        }
 
-            print("✅ AI parsed \(parseResponse.totalQuestions) questions")
-            print("📚 Subject: \(parseResponse.subject)")
-
-            // Navigate to Summary View
-            await MainActor.run {
-                self.stateManager.processingStatus = "分析完成"
-                self.isProcessing = false
-
-                // Store parse results for Summary View
-                self.proModeParsedQuestions = parseResponse
-                self.showProModeSummary = true  // NEW: Show summary instead of direct grading
-            }
-
-            print("✅ Pro Mode parsing complete, showing summary view")
-
-        } catch {
-            await MainActor.run {
-                self.stateManager.parsingError = error.localizedDescription
-                self.isProcessing = false
-            }
-            print("❌ Pro Mode processing failed: \(error.localizedDescription)")
+        // All retries failed
+        await MainActor.run {
+            let errorMessage = lastError?.localizedDescription ?? "Unknown error"
+            self.stateManager.parsingError = "网络连接失败，请检查网络后重试。(\(errorMessage))"
+            self.isProcessing = false
         }
     }
 

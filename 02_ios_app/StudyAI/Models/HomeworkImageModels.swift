@@ -28,6 +28,9 @@ struct HomeworkImageRecord: Codable, Identifiable {
     let maxPoints: Float?               // Maximum possible points
     let rawQuestions: [String]?         // Raw question texts for PDF generation
 
+    // ✅ NEW: Pro Mode digital homework data (stored as JSON)
+    let proModeData: Data?              // Serialized DigitalHomeworkData for Pro Mode homework
+
     // Custom initializer with default value for imageHash
     init(
         id: String,
@@ -42,7 +45,8 @@ struct HomeworkImageRecord: Codable, Identifiable {
         incorrectCount: Int? = nil,
         totalPoints: Float? = nil,
         maxPoints: Float? = nil,
-        rawQuestions: [String]? = nil
+        rawQuestions: [String]? = nil,
+        proModeData: Data? = nil  // ✅ NEW: Pro Mode digital homework data
     ) {
         self.id = id
         self.imageFileName = imageFileName
@@ -57,6 +61,7 @@ struct HomeworkImageRecord: Codable, Identifiable {
         self.totalPoints = totalPoints
         self.maxPoints = maxPoints
         self.rawQuestions = rawQuestions
+        self.proModeData = proModeData  // ✅ NEW
     }
 
     var accuracyPercentage: String {

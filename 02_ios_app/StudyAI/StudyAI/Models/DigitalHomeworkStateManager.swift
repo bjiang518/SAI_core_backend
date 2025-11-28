@@ -20,8 +20,8 @@ enum DigitalHomeworkState: String, Codable {
 }
 
 // MARK: - Digital Homework Data Model
-// ✅ In-memory only - no Codable needed (no UserDefaults persistence)
-struct DigitalHomeworkData {
+// ✅ Codable for persistence in Homework Album
+struct DigitalHomeworkData: Codable {
     let homeworkHash: String  // Unique identifier for this homework
     let parseResults: ParseHomeworkQuestionsResponse
     let originalImageData: Data  // Store as Data for in-memory persistence

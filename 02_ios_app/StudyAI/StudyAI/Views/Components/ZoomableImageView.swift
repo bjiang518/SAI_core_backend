@@ -2,93 +2,43 @@
 //  ZoomableImageView.swift
 //  StudyAI
 //
-//  Zoomable and pannable image view with annotation support
+//  Fully zoomable, pannable, and annotatable image view
 //
 
 import SwiftUI
 import UIKit
 
+// MARK: - AnnotatableImageView
+
 struct AnnotatableImageView: View {
     let image: UIImage
-    let annotations: [QuestionAnnotation]
+    let annotations: [QuestionAnnotation]             // read-only
     @Binding var selectedAnnotationId: UUID?
     let isInteractive: Bool
 
-    // ✅ NEW: For interactive mode, pass binding and available question numbers
     var annotationsBinding: Binding<[QuestionAnnotation]>?
     var availableQuestionNumbers: [String]?
 
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
+
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
 
     var body: some View {
-        GeometryReader { geometry in
-            // ✅ Calculate fitted image size (unified calculation)
-            let fittedSize = fittedImageSize(image.size, geometry.size)
+        GeometryReader { geo in
+            let fittedSize = fittedImageSize(image.size, geo.size)
 
             ZStack {
-                // Image with zoom/pan gestures
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: fittedSize.width, height: fittedSize.height)
-                    .gesture(
-                        SimultaneousGesture(
-                            MagnificationGesture()
-                                .onChanged { value in
-                                    let delta = value / lastScale
-                                    lastScale = value
-                                    scale = min(max(scale * delta, 0.5), 4.0)
-                                }
-                                .onEnded { _ in
-                                    lastScale = 1.0
-                                },
-                            DragGesture()
-                                .onChanged { value in
-                                    let newOffset = CGSize(
-                                        width: lastOffset.width + value.translation.width,
-                                        height: lastOffset.height + value.translation.height
-                                    )
-                                    offset = newOffset
-                                }
-                                .onEnded { _ in
-                                    lastOffset = offset
-                                }
-                        )
-                    )
-                    .onTapGesture(count: 2) {
-                        withAnimation(.spring()) {
-                            if scale > 1.0 {
-                                scale = 1.0
-                                offset = .zero
-                                lastOffset = .zero
-                            } else {
-                                scale = 2.0
-                            }
-                        }
-                    }
+                    .gesture(zoomGesture().simultaneously(with: panGesture()))
+                    .onTapGesture(count: 2) { doubleTap() }
                     .overlay(
-                        // ✅ CRITICAL FIX: Unified overlay rendering (both interactive and non-interactive)
-                        // Both share the same coordinate system with scale/offset transforms
-                        Group {
-                            if isInteractive, let binding = annotationsBinding, let questionNumbers = availableQuestionNumbers {
-                                // Interactive mode: user can drag/resize annotations
-                                AnnotationOverlay(
-                                    annotations: binding,
-                                    selectedAnnotationId: $selectedAnnotationId,
-                                    availableQuestionNumbers: questionNumbers,
-                                    fittedImageSize: fittedSize,
-                                    scale: scale  // ✅ NEW: Pass current zoom scale
-                                )
-                            } else if !isInteractive && !annotations.isEmpty {
-                                // Non-interactive mode: read-only visualization
-                                annotationsOverlay(imageSize: fittedSize)
-                            }
-                        }
+                        overlayForImage(fittedSize: fittedSize)
                     )
-                    // ✅ CRITICAL: Apply transforms to BOTH image and overlay together
                     .scaleEffect(scale)
                     .offset(offset)
             }
@@ -98,426 +48,363 @@ struct AnnotatableImageView: View {
         }
     }
 
-    // ✅ Unified image size calculation (used by both view and overlay)
-    private func fittedImageSize(_ imageSize: CGSize, _ containerSize: CGSize) -> CGSize {
-        let imageAspect = imageSize.width / imageSize.height
-        let containerAspect = containerSize.width / containerSize.height
+    // MARK: - Gestures
 
-        if imageAspect > containerAspect {
-            let width = containerSize.width
-            let height = width / imageAspect
-            return CGSize(width: width, height: height)
-        } else {
-            let height = containerSize.height
-            let width = height * imageAspect
-            return CGSize(width: width, height: height)
+    private func zoomGesture() -> some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                let delta = value / lastScale
+                lastScale = value
+                scale = min(max(scale * delta, 0.5), 4.0)
+            }
+            .onEnded { _ in lastScale = 1.0 }
+    }
+
+    private func panGesture() -> some Gesture {
+        DragGesture()
+            .onChanged { v in
+                offset = CGSize(
+                    width: lastOffset.width + v.translation.width,
+                    height: lastOffset.height + v.translation.height
+                )
+            }
+            .onEnded { _ in lastOffset = offset }
+    }
+
+    private func doubleTap() {
+        withAnimation(.spring()) {
+            if scale > 1 {
+                scale = 1
+                offset = .zero
+                lastOffset = .zero
+            } else {
+                scale = 2.0
+            }
         }
     }
 
-    // MARK: - Annotations Overlay (Read-only)
+    // MARK: - Overlay Router
 
-    private func annotationsOverlay(imageSize: CGSize) -> some View {
-        return ZStack {
-            ForEach(Array(annotations.enumerated()), id: \.offset) { index, annotation in
-                let topLeft = CGPoint(
-                    x: CGFloat(annotation.topLeft[0]) * imageSize.width,
-                    y: CGFloat(annotation.topLeft[1]) * imageSize.height
-                )
+    @ViewBuilder
+    private func overlayForImage(fittedSize: CGSize) -> some View {
+        if isInteractive,
+           let binding = annotationsBinding,
+           let available = availableQuestionNumbers
+        {
+            AnnotationOverlay(
+                annotations: binding,
+                selectedAnnotationId: $selectedAnnotationId,
+                fittedImageSize: fittedSize,
+                scale: scale,
+                availableNumbers: available
+            )
+        } else {
+            readOnlyAnnotationsOverlay(fittedSize: fittedSize)
+        }
+    }
 
-                let bottomRight = CGPoint(
-                    x: CGFloat(annotation.bottomRight[0]) * imageSize.width,
-                    y: CGFloat(annotation.bottomRight[1]) * imageSize.height
-                )
+    // MARK: - Read-only overlay
 
-                let rect = CGRect(
-                    x: topLeft.x,
-                    y: topLeft.y,
-                    width: bottomRight.x - topLeft.x,
-                    height: bottomRight.y - topLeft.y
-                )
+    private func readOnlyAnnotationsOverlay(fittedSize: CGSize) -> some View {
+        ZStack {
+            ForEach(annotations) { ann in
+                let rect = ann.rect(in: fittedSize)
 
                 Rectangle()
-                    .stroke(annotation.color, lineWidth: 2)
-                    .background(
-                        Rectangle()
-                            .fill(annotation.color.opacity(0.1))
-                    )
+                    .stroke(ann.color, lineWidth: 2)
+                    .background(Rectangle().fill(ann.color.opacity(0.1)))
                     .frame(width: rect.width, height: rect.height)
                     .position(x: rect.midX, y: rect.midY)
                     .overlay(
-                        Text(annotation.questionNumber ?? "?")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill(annotation.color)
-                            )
-                            .position(x: topLeft.x + 30, y: topLeft.y - 10)
+                        annotationLabel(for: ann, rect: rect),
+                        alignment: .topLeading
                     )
             }
         }
-        .frame(width: imageSize.width, height: imageSize.height)
+    }
+
+    private func annotationLabel(for ann: QuestionAnnotation, rect: CGRect) -> some View {
+        Group {
+            if let num = ann.questionNumber {
+                Text(num)
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(ann.color))
+                    .offset(x: rect.minX + 5, y: rect.minY - 20)
+            }
+        }
+    }
+
+    // MARK: - Fit calculation
+
+    private func fittedImageSize(_ img: CGSize, _ box: CGSize) -> CGSize {
+        let ratioImg = img.width / img.height
+        let ratioBox = box.width / box.height
+
+        if ratioImg > ratioBox {
+            let w = box.width
+            return CGSize(width: w, height: w / ratioImg)
+        } else {
+            let h = box.height
+            return CGSize(width: h * ratioImg, height: h)
+        }
     }
 }
 
-// MARK: - Annotation Overlay (Interactive)
+// MARK: - AnnotationOverlay
 
 struct AnnotationOverlay: View {
     @Binding var annotations: [QuestionAnnotation]
     @Binding var selectedAnnotationId: UUID?
-    let availableQuestionNumbers: [String]
-    let fittedImageSize: CGSize  // ✅ Accept fitted size from parent (no calculation)
-    let scale: CGFloat  // ✅ NEW: Current zoom scale
+
+    let fittedImageSize: CGSize
+    let scale: CGFloat
+    let availableNumbers: [String]
+
+    @State private var newColorIndex = 0
 
     var body: some View {
         ZStack {
-            // Tap to create new annotation (only on actual image area)
+            // Tap to add new annotation
             Color.clear
-                .contentShape(Rectangle())
                 .frame(width: fittedImageSize.width, height: fittedImageSize.height)
-                .onTapGesture { location in
-                    createAnnotation(at: location, imageSize: fittedImageSize)
-                }
+                .contentShape(Rectangle())
+                .onTapGesture { p in addAnnotation(at: p) }
 
-            // Render interactive annotations
-            ForEach(Array(annotations.enumerated()), id: \.element.id) { index, annotation in
+            // Existing annotation boxes
+            ForEach(Array(annotations.enumerated()), id: \.element.id) { index, ann in
                 InteractiveAnnotationBox(
                     annotation: $annotations[index],
-                    isSelected: selectedAnnotationId == annotation.id,
+                    isSelected: selectedAnnotationId == ann.id,
                     imageSize: fittedImageSize,
                     scale: scale,
-                    onSelect: {
-                        withAnimation(.spring()) {
-                            selectedAnnotationId = annotation.id
-                        }
-                    },
-                    onUpdateRect: { finalRect in
-                        // ✅ UNIFIED: Both move and resize use same callback
-                        resizeAnnotation(id: annotation.id, to: finalRect, imageSize: fittedImageSize)
-                    }
+                    onSelect: { selectedAnnotationId = ann.id },
+                    onRectChanged: { rect in updateAnnotationRect(id: ann.id, newRect: rect) }
                 )
             }
         }
         .frame(width: fittedImageSize.width, height: fittedImageSize.height)
     }
 
-    // MARK: - Create Annotation
+    private let colorPalette: [Color] = [
+        .blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint
+    ]
 
-    private func createAnnotation(at location: CGPoint, imageSize: CGSize) {
-        // Calculate square size (15% of image width)
-        let squareSize = imageSize.width * 0.15
+    // MARK: - Add annotation
 
-        // Calculate top-left corner (center the square at tap location)
-        let topLeftX = max(0, min(imageSize.width - squareSize, location.x - squareSize / 2))
-        let topLeftY = max(0, min(imageSize.height - squareSize, location.y - squareSize / 2))
+    private func addAnnotation(at p: CGPoint) {
+        let size = fittedImageSize.width * 0.15
+        var rect = CGRect(x: p.x - size/2, y: p.y - size/2, width: size, height: size)
+        rect = rect.clamped(to: fittedImageSize)
 
-        // Convert to normalized coordinates [0-1]
-        let topLeft = [
-            Double(topLeftX / imageSize.width),
-            Double(topLeftY / imageSize.height)
-        ]
+        let color = colorPalette[newColorIndex % colorPalette.count]
+        newColorIndex += 1
 
-        let bottomRight = [
-            Double((topLeftX + squareSize) / imageSize.width),
-            Double((topLeftY + squareSize) / imageSize.height)
-        ]
+        var ann = QuestionAnnotation.from(rect: rect, in: fittedImageSize, color: color)
 
-        let annotationColors: [Color] = [.blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint]
-        let color = annotationColors[annotations.count % annotationColors.count]
-
-        let newAnnotation = QuestionAnnotation(
-            topLeft: topLeft,
-            bottomRight: bottomRight,
-            questionNumber: nil,
-            color: color
-        )
-
-        withAnimation(.spring()) {
-            annotations.append(newAnnotation)
-            selectedAnnotationId = newAnnotation.id
+        // assign question number (if exists but optional)
+        if annotations.count < availableNumbers.count {
+            ann.questionNumber = availableNumbers[annotations.count]
         }
 
-        // Haptic feedback
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
+        annotations.append(ann)
+        selectedAnnotationId = ann.id
+
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
-    // MARK: - Update Annotation (Unified for both move and resize)
+    // MARK: - Update annotation rect
 
-    /// ✅ UNIFIED: Handles both move and resize operations with boundary clamping
-    /// Receives final rect and updates annotation coordinates
-    private func resizeAnnotation(id: UUID, to rect: CGRect, imageSize: CGSize) {
-        guard let index = annotations.firstIndex(where: { $0.id == id }) else { return }
-
-        var clampedRect = rect
-
-        // ✅ CRITICAL: Clamp to image bounds
-        if clampedRect.minX < 0 { clampedRect.origin.x = 0 }
-        if clampedRect.minY < 0 { clampedRect.origin.y = 0 }
-        if clampedRect.maxX > imageSize.width {
-            clampedRect.size.width = imageSize.width - clampedRect.minX
-        }
-        if clampedRect.maxY > imageSize.height {
-            clampedRect.size.height = imageSize.height - clampedRect.minY
-        }
-
-        // ✅ CRITICAL: Enforce minimum size (60x60 on screen)
-        let minSize: CGFloat = 60
-        if clampedRect.width < minSize {
-            clampedRect.size.width = minSize
-        }
-        if clampedRect.height < minSize {
-            clampedRect.size.height = minSize
-        }
-
-        // ✅ Convert clamped rect to normalized coordinates [0-1]
-        let newTopLeft = [
-            Double(clampedRect.minX / imageSize.width),
-            Double(clampedRect.minY / imageSize.height)
-        ]
-        let newBottomRight = [
-            Double(clampedRect.maxX / imageSize.width),
-            Double(clampedRect.maxY / imageSize.height)
-        ]
-
-        annotations[index].topLeft = newTopLeft
-        annotations[index].bottomRight = newBottomRight
+    private func updateAnnotationRect(id: UUID, newRect: CGRect) {
+        guard let i = annotations.firstIndex(where: { $0.id == id }) else { return }
+        annotations[i] = annotations[i].updating(rect: newRect, in: fittedImageSize)
     }
 }
 
-// MARK: - Interactive Annotation Box
+// MARK: - InteractiveAnnotationBox
 
 struct InteractiveAnnotationBox: View {
     @Binding var annotation: QuestionAnnotation
     let isSelected: Bool
     let imageSize: CGSize
     let scale: CGFloat
+
     let onSelect: () -> Void
+    let onRectChanged: (CGRect) -> Void
 
-    /// ✅ UNIFIED: Single callback for both move and resize - receives final CGRect
-    let onUpdateRect: (CGRect) -> Void
-
-    @State private var gestureStartTopLeft: CGPoint = .zero
-    @State private var gestureStartBottomRight: CGPoint = .zero
-    @State private var gestureActive: Bool = false  // ✅ RENAMED: More semantic than .idle/.dragging
+    @State private var gestureStartRect: CGRect = .zero
+    @State private var began = false
 
     var body: some View {
-        let minScreenSize: CGFloat = 60
-        let minNormalizedWidth = max(0.05, Double(minScreenSize / imageSize.width))
-        let minNormalizedHeight = max(0.05, Double(minScreenSize / imageSize.height))
+        let rect = annotation.rect(in: imageSize)
 
-        // ✅ CRITICAL: Always use annotation data directly (no preview layer)
-        let topLeft = CGPoint(
-            x: CGFloat(annotation.topLeft[0]) * imageSize.width,
-            y: CGFloat(annotation.topLeft[1]) * imageSize.height
-        )
-        let bottomRight = CGPoint(
-            x: CGFloat(annotation.bottomRight[0]) * imageSize.width,
-            y: CGFloat(annotation.bottomRight[1]) * imageSize.height
-        )
-        let currentRect = CGRect(
-            x: topLeft.x,
-            y: topLeft.y,
-            width: bottomRight.x - topLeft.x,
-            height: bottomRight.y - topLeft.y
-        )
-
-        return ZStack {
-            // Bounding box
+        ZStack {
             Rectangle()
                 .stroke(annotation.color, lineWidth: isSelected ? 4 : 2)
-                .background(
-                    Rectangle()
-                        .fill(annotation.color.opacity(isSelected ? 0.15 : 0.05))
-                )
-                .frame(width: currentRect.width, height: currentRect.height)
-                .position(x: currentRect.midX, y: currentRect.midY)
-                .highPriorityGesture(moveGesture())
+                .background(Rectangle().fill(annotation.color.opacity(isSelected ? 0.15 : 0.05)))
+                .frame(width: rect.width, height: rect.height)
+                .position(x: rect.midX, y: rect.minY + rect.height / 2)
+                .highPriorityGesture(moveGesture(initialRect: rect))
 
-            // Question number label
-            Text(annotation.questionNumber ?? "?")
-                .font(.caption)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(annotation.color)
-                )
-                .position(x: currentRect.minX + 30, y: currentRect.minY - 10)
+            // label
+            if let num = annotation.questionNumber {
+                Text(num)
+                    .font(.caption).fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(annotation.color))
+                    .position(x: rect.minX + 25, y: rect.minY - 12)
+            }
 
-            // Corner resize handles (only when selected)
             if isSelected {
-                ResizeHandleView(corner: .topLeft, color: annotation.color)
-                    .position(x: currentRect.minX, y: currentRect.minY)
-                    .highPriorityGesture(resizeGesture(corner: .topLeft, minNormalizedWidth: minNormalizedWidth, minNormalizedHeight: minNormalizedHeight))
-
-                ResizeHandleView(corner: .topRight, color: annotation.color)
-                    .position(x: currentRect.maxX, y: currentRect.minY)
-                    .highPriorityGesture(resizeGesture(corner: .topRight, minNormalizedWidth: minNormalizedWidth, minNormalizedHeight: minNormalizedHeight))
-
-                ResizeHandleView(corner: .bottomLeft, color: annotation.color)
-                    .position(x: currentRect.minX, y: currentRect.maxY)
-                    .highPriorityGesture(resizeGesture(corner: .bottomLeft, minNormalizedWidth: minNormalizedWidth, minNormalizedHeight: minNormalizedHeight))
-
-                ResizeHandleView(corner: .bottomRight, color: annotation.color)
-                    .position(x: currentRect.maxX, y: currentRect.maxY)
-                    .highPriorityGesture(resizeGesture(corner: .bottomRight, minNormalizedWidth: minNormalizedWidth, minNormalizedHeight: minNormalizedHeight))
+                corner(.topLeft, rect)
+                corner(.topRight, rect)
+                corner(.bottomLeft, rect)
+                corner(.bottomRight, rect)
             }
         }
     }
 
-    // MARK: - Move Gesture (Translation-based with gestureActive tracking)
+    // MARK: - Move
 
-    private func moveGesture() -> some Gesture {
-        DragGesture(minimumDistance: 5)
-            .onChanged { value in
+    private func moveGesture(initialRect: CGRect) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { v in
                 onSelect()
 
-                if !gestureActive {
-                    gestureActive = true
-                    gestureStartTopLeft = CGPoint(
-                        x: CGFloat(annotation.topLeft[0]) * imageSize.width,
-                        y: CGFloat(annotation.topLeft[1]) * imageSize.height
-                    )
-                    gestureStartBottomRight = CGPoint(
-                        x: CGFloat(annotation.bottomRight[0]) * imageSize.width,
-                        y: CGFloat(annotation.bottomRight[1]) * imageSize.height
-                    )
+                if !began {
+                    gestureStartRect = initialRect
+                    began = true
                 }
 
-                // Translate from start position
-                let dx = value.translation.width / scale
-                let dy = value.translation.height / scale
+                let dx = v.translation.width / scale
+                let dy = v.translation.height / scale
+                let newRect = gestureStartRect.offsetBy(dx: dx, dy: dy).clamped(to: imageSize)
 
-                let newTopLeft = CGPoint(
-                    x: gestureStartTopLeft.x + dx,
-                    y: gestureStartTopLeft.y + dy
-                )
-                let newBottomRight = CGPoint(
-                    x: gestureStartBottomRight.x + dx,
-                    y: gestureStartBottomRight.y + dy
-                )
-
-                let finalRect = CGRect(
-                    x: newTopLeft.x,
-                    y: newTopLeft.y,
-                    width: newBottomRight.x - newTopLeft.x,
-                    height: newBottomRight.y - newTopLeft.y
-                )
-
-                onUpdateRect(finalRect)
+                onRectChanged(newRect)
             }
-            .onEnded { _ in
-                gestureActive = false
-            }
+            .onEnded { _ in began = false }
     }
 
-    // MARK: - Resize Gesture (Translation-based with gestureActive tracking)
+    // MARK: - Resize
 
-    private func resizeGesture(corner: ResizeCorner, minNormalizedWidth: Double, minNormalizedHeight: Double) -> some Gesture {
-        DragGesture(minimumDistance: 5)
-            .onChanged { value in
+    private func resizeGesture(corner: ResizeCorner, initialRect: CGRect) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { v in
                 onSelect()
 
-                if !gestureActive {
-                    gestureActive = true
-                    gestureStartTopLeft = CGPoint(
-                        x: CGFloat(annotation.topLeft[0]) * imageSize.width,
-                        y: CGFloat(annotation.topLeft[1]) * imageSize.height
-                    )
-                    gestureStartBottomRight = CGPoint(
-                        x: CGFloat(annotation.bottomRight[0]) * imageSize.width,
-                        y: CGFloat(annotation.bottomRight[1]) * imageSize.height
-                    )
+                if !began {
+                    gestureStartRect = initialRect
+                    began = true
                 }
 
-                let dx = value.translation.width / scale
-                let dy = value.translation.height / scale
+                var r = gestureStartRect
+                let dx = v.translation.width / scale
+                let dy = v.translation.height / scale
 
-                applyResizeTranslation(dx: dx, dy: dy, corner: corner,
-                                      minNormalizedWidth: minNormalizedWidth,
-                                      minNormalizedHeight: minNormalizedHeight)
+                switch corner {
+                case .topLeft:
+                    r.origin.x += dx; r.origin.y += dy
+                    r.size.width -= dx; r.size.height -= dy
+                case .topRight:
+                    r.origin.y += dy
+                    r.size.width += dx; r.size.height -= dy
+                case .bottomLeft:
+                    r.origin.x += dx
+                    r.size.width -= dx; r.size.height += dy
+                case .bottomRight:
+                    r.size.width += dx; r.size.height += dy
+                }
+
+                onRectChanged(r.clamped(to: imageSize))
             }
-            .onEnded { _ in
-                gestureActive = false
-            }
+            .onEnded { _ in began = false }
     }
 
-    // MARK: - Apply Resize Translation
+    // MARK: handles
 
-    private func applyResizeTranslation(dx: CGFloat, dy: CGFloat, corner: ResizeCorner,
-                                       minNormalizedWidth: Double, minNormalizedHeight: Double) {
-        var newTopLeft = gestureStartTopLeft
-        var newBottomRight = gestureStartBottomRight
-
-        let minWidth = CGFloat(minNormalizedWidth * Double(imageSize.width))
-        let minHeight = CGFloat(minNormalizedHeight * Double(imageSize.height))
-
-        switch corner {
-        case .topLeft:
-            newTopLeft.x = max(0, min(gestureStartBottomRight.x - minWidth, gestureStartTopLeft.x + dx))
-            newTopLeft.y = max(0, min(gestureStartBottomRight.y - minHeight, gestureStartTopLeft.y + dy))
-
-        case .topRight:
-            newBottomRight.x = max(gestureStartTopLeft.x + minWidth, min(imageSize.width, gestureStartBottomRight.x + dx))
-            newTopLeft.y = max(0, min(gestureStartBottomRight.y - minHeight, gestureStartTopLeft.y + dy))
-
-        case .bottomLeft:
-            newTopLeft.x = max(0, min(gestureStartBottomRight.x - minWidth, gestureStartTopLeft.x + dx))
-            newBottomRight.y = max(gestureStartTopLeft.y + minHeight, min(imageSize.height, gestureStartBottomRight.y + dy))
-
-        case .bottomRight:
-            newBottomRight.x = max(gestureStartTopLeft.x + minWidth, min(imageSize.width, gestureStartBottomRight.x + dx))
-            newBottomRight.y = max(gestureStartTopLeft.y + minHeight, min(imageSize.height, gestureStartBottomRight.y + dy))
-        }
-
-        let finalRect = CGRect(
-            x: newTopLeft.x,
-            y: newTopLeft.y,
-            width: newBottomRight.x - newTopLeft.x,
-            height: newBottomRight.y - newTopLeft.y
-        )
-
-        onUpdateRect(finalRect)
-    }
-}
-
-// MARK: - Resize Handle View
-
-struct ResizeHandleView: View {
-    let corner: ResizeCorner
-    let color: Color
-
-    var body: some View {
+    private func corner(_ c: ResizeCorner, _ r: CGRect) -> some View {
         Circle()
-            .fill(color)
+            .fill(annotation.color)
             .frame(width: 20, height: 20)
-            .overlay(
-                Circle()
-                    .stroke(Color.white, lineWidth: 2)
-            )
-            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+            .position(c.position(in: r))
+            .highPriorityGesture(resizeGesture(corner: c, initialRect: r))
     }
 }
 
-// MARK: - Resize Corner Enum
+// MARK: - CGRect Clamp
+
+extension CGRect {
+    func clamped(to container: CGSize) -> CGRect {
+        var r = self
+
+        let minSize: CGFloat = 40
+        if r.width < minSize { r.size.width = minSize }
+        if r.height < minSize { r.size.height = minSize }
+
+        if r.minX < 0 { r.origin.x = 0 }
+        if r.minY < 0 { r.origin.y = 0 }
+        if r.maxX > container.width {
+            r.origin.x = container.width - r.width
+        }
+        if r.maxY > container.height {
+            r.origin.y = container.height - r.height
+        }
+
+        return r
+    }
+}
+
+// MARK: - QuestionAnnotation Helpers
+
+extension QuestionAnnotation {
+    static func from(rect: CGRect, in size: CGSize, color: Color = .blue) -> QuestionAnnotation {
+        QuestionAnnotation(
+            topLeft: [Double(rect.minX / size.width), Double(rect.minY / size.height)],
+            bottomRight: [Double(rect.maxX / size.width), Double(rect.maxY / size.height)],
+            questionNumber: nil,
+            color: color
+        )
+    }
+
+    func rect(in size: CGSize) -> CGRect {
+        CGRect(
+            x: CGFloat(topLeft[0]) * size.width,
+            y: CGFloat(topLeft[1]) * size.height,
+            width: CGFloat(bottomRight[0] - topLeft[0]) * size.width,
+            height: CGFloat(bottomRight[1] - topLeft[1]) * size.height
+        )
+    }
+
+    func updating(rect: CGRect, in size: CGSize) -> QuestionAnnotation {
+        var a = self
+        a.topLeft = [
+            Double(rect.minX / size.width),
+            Double(rect.minY / size.height)
+        ]
+        a.bottomRight = [
+            Double(rect.maxX / size.width),
+            Double(rect.maxY / size.height)
+        ]
+        return a
+    }
+}
+
+// MARK: - ResizeCorner
 
 enum ResizeCorner {
     case topLeft, topRight, bottomLeft, bottomRight
-}
 
-extension ResizeCorner: CustomStringConvertible {
-    var description: String {
+    func position(in rect: CGRect) -> CGPoint {
         switch self {
-        case .topLeft: return "topLeft"
-        case .topRight: return "topRight"
-        case .bottomLeft: return "bottomLeft"
-        case .bottomRight: return "bottomRight"
+        case .topLeft: return CGPoint(x: rect.minX, y: rect.minY)
+        case .topRight: return CGPoint(x: rect.maxX, y: rect.minY)
+        case .bottomLeft: return CGPoint(x: rect.minX, y: rect.maxY)
+        case .bottomRight: return CGPoint(x: rect.maxX, y: rect.maxY)
         }
     }
 }

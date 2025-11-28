@@ -437,6 +437,18 @@ class DigitalHomeworkViewModel: ObservableObject {
         // Get raw question texts for reference
         let rawQuestions = questions.map { $0.question.displayText }
 
+        // ✅ NEW: Serialize Pro Mode digital homework data for later viewing
+        var proModeData: Data? = nil
+        if let currentHomework = stateManager.currentHomework {
+            do {
+                let encoder = JSONEncoder()
+                proModeData = try encoder.encode(currentHomework)
+                print("   ✅ Serialized Pro Mode data (\(proModeData?.count ?? 0) bytes)")
+            } catch {
+                print("   ⚠️ Failed to serialize Pro Mode data: \(error.localizedDescription)")
+            }
+        }
+
         print("📸 [Album] Saving graded homework:")
         print("   Subject: \(subject)")
         print("   Accuracy: \(accuracy)")
@@ -454,7 +466,8 @@ class DigitalHomeworkViewModel: ObservableObject {
             incorrectCount: incorrectCount,
             totalPoints: nil,  // Digital Homework doesn't use points
             maxPoints: nil,
-            rawQuestions: rawQuestions.isEmpty ? nil : rawQuestions
+            rawQuestions: rawQuestions.isEmpty ? nil : rawQuestions,
+            proModeData: proModeData  // ✅ NEW: Save Pro Mode data
         )
 
         if record != nil {
@@ -1246,12 +1259,42 @@ class DigitalHomeworkViewModel: ObservableObject {
 
 // MARK: - Question Annotation Model
 
-struct QuestionAnnotation: Identifiable {
-    let id = UUID()
+struct QuestionAnnotation: Identifiable, Codable {
+    let id: UUID
     var topLeft: [Double]       // Normalized [0-1] coordinates
     var bottomRight: [Double]   // Normalized [0-1] coordinates
     var questionNumber: String? // Maps to question number (not id)
-    let color: Color
+    let colorIndex: Int         // ✅ CHANGED: Store color index instead of Color
+
+    // ✅ NEW: Computed property to get Color from index
+    var color: Color {
+        let colors: [Color] = [.blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint]
+        return colors[colorIndex % colors.count]
+    }
+
+    // ✅ NEW: Custom initializer to support old API
+    init(id: UUID = UUID(), topLeft: [Double], bottomRight: [Double], questionNumber: String?, colorIndex: Int) {
+        self.id = id
+        self.topLeft = topLeft
+        self.bottomRight = bottomRight
+        self.questionNumber = questionNumber
+        self.colorIndex = colorIndex
+    }
+
+    // ✅ NEW: Convenience initializer with Color (for backward compatibility)
+    init(topLeft: [Double], bottomRight: [Double], questionNumber: String?, color: Color) {
+        // Map color to index (approximate - just use sequential index)
+        let colors: [Color] = [.blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint]
+        let colorIndex = colors.firstIndex(of: color) ?? 0
+
+        self.init(
+            id: UUID(),
+            topLeft: topLeft,
+            bottomRight: bottomRight,
+            questionNumber: questionNumber,
+            colorIndex: colorIndex
+        )
+    }
 }
 
 // MARK: - UIImage Extension for Orientation Normalization
