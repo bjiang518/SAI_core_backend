@@ -1054,6 +1054,8 @@ class DigitalHomeworkViewModel: ObservableObject {
             print("   📝 [Archive] hasVisualElements: \(questionData["hasVisualElements"] ?? "nil")")
             print("   📝 [Archive] questionImageUrl: \(questionData["questionImageUrl"] ?? "nil")")
             print("   📝 [Archive] proMode: \(questionData["proMode"] ?? "nil")")
+            print("   📝 [Archive] ⚠️ isCorrect: \(questionData["isCorrect"] ?? "nil")") // DEBUG: Verify isCorrect flag
+            print("   📝 [Archive] ⚠️ grade: \(questionData["grade"] ?? "nil")")         // DEBUG: Verify grade string
         }
 
         print("")
