@@ -1299,12 +1299,33 @@ class QuestionLocalStorage {
     func getMistakeQuestions(subject: String? = nil) -> [[String: Any]] {
         let allQuestions = getLocalQuestions()
 
+        print("📚 [LibraryDataService] getMistakeQuestions called")
+        print("   Total questions in storage: \(allQuestions.count)")
+
+        // DEBUG: Log all Pro Mode questions
+        let proModeQuestions = allQuestions.filter { ($0["proMode"] as? Bool) == true }
+        print("   Pro Mode questions found: \(proModeQuestions.count)")
+
+        for (index, question) in proModeQuestions.enumerated() {
+            let isCorrect = question["isCorrect"] as? Bool
+            let grade = question["grade"] as? String ?? "NO_GRADE"
+            let subject = question["subject"] as? String ?? "NO_SUBJECT"
+            let questionText = (question["questionText"] as? String ?? "").prefix(30)
+            print("   Pro Mode Q\(index + 1): isCorrect=\(isCorrect?.description ?? "nil"), grade=\(grade), subject=\(subject), text=\(questionText)...")
+        }
+
         // Filter for mistakes (isCorrect == false)
         let mistakes = allQuestions.filter { question in
             let isCorrect = question["isCorrect"] as? Bool ?? true
             let matchesSubject = subject == nil || (question["subject"] as? String) == subject
             return !isCorrect && matchesSubject
         }
+
+        print("   Filtered mistakes count: \(mistakes.count) (subject filter: \(subject ?? "ALL"))")
+
+        // DEBUG: Log Pro Mode mistakes
+        let proModeMistakes = mistakes.filter { ($0["proMode"] as? Bool) == true }
+        print("   Pro Mode mistakes: \(proModeMistakes.count)")
 
         return mistakes
     }
