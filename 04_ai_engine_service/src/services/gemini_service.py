@@ -91,66 +91,30 @@ class GeminiEducationalAIService:
         else:
             print(f"✅ Gemini API key found: {api_key[:10]}..." if len(api_key) > 10 else "✅ Gemini API key found")
 
-            if genai:
-                # NEW API (Dec 2024)
-                if GEMINI_NEW_API:
-                    print("📱 Using NEW Gemini API: from google import genai")
-                    # Initialize client
-                    self.gemini_client = genai.Client(api_key=api_key)
+            if genai and GEMINI_NEW_API:
+                print("📱 Using NEW Gemini API: from google import genai")
+                # Initialize client
+                self.gemini_client = genai.Client(api_key=api_key)
 
-                    # Model names (NEW API uses different naming)
-                    # - gemini-2.5-flash: Fast parsing AND grading (optimized for speed)
-                    # - gemini-2.5-pro: Deep reasoning mode (slower but more accurate)
-                    self.model_name = "gemini-2.5-flash"  # UPGRADED: 2.0 → 2.5 for better parsing
-                    self.thinking_model_name = "gemini-2.5-pro"  # UPDATED: Deep reasoning with Pro model
-                    self.grading_model_name = "gemini-2.5-flash"  # Fast grading (1.5-3s per question)
+                # Model names (NEW API uses different naming)
+                # - gemini-2.5-flash: Fast parsing AND grading (optimized for speed)
+                # - gemini-2.5-pro: Deep reasoning mode (slower but more accurate)
+                self.model_name = "gemini-2.5-flash"  # UPGRADED: 2.0 → 2.5 for better parsing
+                self.thinking_model_name = "gemini-2.5-pro"  # UPDATED: Deep reasoning with Pro model
+                self.grading_model_name = "gemini-2.5-flash"  # Fast grading (1.5-3s per question)
 
-                    # Set client references (for compatibility)
-                    self.client = self.gemini_client
-                    self.thinking_client = self.gemini_client
-                    self.grading_client = self.gemini_client
+                # Set client references (for compatibility)
+                self.client = self.gemini_client
+                self.thinking_client = self.gemini_client
+                self.grading_client = self.gemini_client
 
-                    print(f"✅ Gemini parsing model: {self.model_name} (Flash 2.5 - Fast parsing)")
-                    print(f"✅ Gemini grading model: {self.grading_model_name} (Flash 2.5 - Fast grading)")
-                    print(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 2.5 Pro - Deep Reasoning)")
-                    print(f"📊 Pro Mode optimized: Fast parsing + Fast grading with timeout protection")
-
-                # LEGACY API (backward compatibility)
-                else:
-                    print("📱 Using LEGACY Gemini API: import google.generativeai")
-                    # Configure Gemini
-                    genai.configure(api_key=api_key)
-
-                    # Initialize standard model (Flash - Fast)
-                    # SPEED FIX: gemini-2.0-flash is MUCH faster than 3-pro-preview
-                    # - gemini-3-pro-preview: 30-60s (TIMEOUT issues) ❌
-                    # - gemini-2.0-flash: 5-10s (FAST, stable) ✅
-                    # - Still excellent for OCR and homework parsing
-                    self.model_name = "gemini-2.0-flash"
-                    self.client = genai.GenerativeModel(self.model_name)
-
-                    # Initialize thinking model (Flash Thinking - Deep Reasoning)
-                    # - gemini-2.0-flash-thinking-exp: Advanced reasoning mode
-                    # - Uses extended thinking process for complex problems
-                    # - Slower but more accurate for difficult questions
-                    self.thinking_model_name = "gemini-2.0-flash-thinking-exp"
-                    self.thinking_client = genai.GenerativeModel(self.thinking_model_name)
-
-                    # Initialize Gemini 3.0 Pro for grading (LEGACY API)
-                    self.grading_model_name = "gemini-exp-1206"
-                    try:
-                        self.grading_client = genai.GenerativeModel(self.grading_model_name)
-                        print(f"✅ Gemini grading model: {self.grading_model_name} (Gemini 3.0 Experimental)")
-                    except Exception as e:
-                        print(f"⚠️ Gemini exp-1206 not available, falling back to gemini-2.0-flash for grading")
-                        self.grading_model_name = "gemini-2.0-flash"
-                        self.grading_client = self.client
-
-                    print(f"✅ Gemini standard model: {self.model_name} (Flash - Fast & Stable)")
-                    print(f"✅ Gemini thinking model: {self.thinking_model_name} (Deep Reasoning)")
-                    print(f"📊 Features: Fast processing, multimodal vision, excellent OCR, deep reasoning")
+                print(f"✅ Gemini parsing model: {self.model_name} (Flash 2.5 - Fast parsing)")
+                print(f"✅ Gemini grading model: {self.grading_model_name} (Flash 2.5 - Fast grading)")
+                print(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 2.5 Pro - Deep Reasoning)")
+                print(f"📊 Pro Mode optimized: Fast parsing + Fast grading with timeout protection")
             else:
-                print("❌ google-generativeai module not available")
+                print("❌ NEW Gemini API not available. Please upgrade google-generativeai package:")
+                print("   pip install --upgrade google-generativeai")
                 self.client = None
                 self.thinking_client = None
                 self.grading_client = None
@@ -241,23 +205,12 @@ class GeminiEducationalAIService:
                 "candidate_count": 1
             }
 
-            # Call Gemini API (NEW or LEGACY)
-            if GEMINI_NEW_API:
-                # NEW API: client.models.generate_content(model="...", contents=...)
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=[image, system_prompt],  # Image FIRST, then prompt
-                    config=generation_config
-                )
-            else:
-                # LEGACY API: client.generate_content(content, generation_config=...)
-                response = self.client.generate_content(
-                    [
-                        image,  # Image FIRST (best practice per docs)
-                        system_prompt  # Text prompt AFTER image
-                    ],
-                    generation_config=generation_config
-                )
+            # Call Gemini API (NEW API only)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[image, system_prompt],  # Image FIRST, then prompt
+                config=generation_config
+            )
 
             api_duration = time.time() - start_time
             print(f"✅ Gemini API completed in {api_duration:.2f}s")

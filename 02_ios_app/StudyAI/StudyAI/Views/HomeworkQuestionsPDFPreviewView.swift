@@ -135,13 +135,45 @@ struct HomeworkQuestionsPDFPreviewView: View {
     // MARK: - PDF Generation
 
     private func generatePDF() async {
-        // Check if raw questions exist
-        guard let rawQuestions = homeworkRecord.rawQuestions, !rawQuestions.isEmpty else {
-            errorMessage = "No questions found in this homework record."
-            return
+        isGenerating = true
+
+        // ✅ Priority 1: Check for Pro Mode data (full grading information)
+        if let proModeData = homeworkRecord.proModeData {
+            // Deserialize DigitalHomeworkData
+            do {
+                let digitalHomework = try JSONDecoder().decode(DigitalHomeworkData.self, from: proModeData)
+
+                // Generate PDF with full Pro Mode data (includes grades, feedback, images)
+                let document = await pdfGenerator.generateProModePDF(
+                    digitalHomework: digitalHomework,
+                    subject: homeworkRecord.subject,
+                    date: homeworkRecord.submittedDate
+                )
+
+                await MainActor.run {
+                    isGenerating = false
+
+                    if let document = document {
+                        pdfDocument = document
+                        savePDFToTemp(document)
+                    } else {
+                        errorMessage = "Failed to generate Pro Mode PDF."
+                        showingError = true
+                    }
+                }
+                return
+            } catch {
+                print("⚠️ [PDF] Failed to decode Pro Mode data: \(error.localizedDescription)")
+                // Fall through to rawQuestions if decode fails
+            }
         }
 
-        isGenerating = true
+        // ✅ Priority 2: Fallback to raw questions (simple text-only)
+        guard let rawQuestions = homeworkRecord.rawQuestions, !rawQuestions.isEmpty else {
+            errorMessage = "No questions found in this homework record."
+            isGenerating = false
+            return
+        }
 
         let document = await pdfGenerator.generateRawQuestionsPDF(
             rawQuestions: rawQuestions,
