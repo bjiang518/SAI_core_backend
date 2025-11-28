@@ -1363,3 +1363,7 @@
 "homeworkSummary.subquestionCount" = "%d 个子题";
 "homeworkSummary.answer" = "答案: %@";
 
+"proMode.slideToMarkProgress" = "滑动以标记进度";
+"proMode.correct" = "正确";
+"proMode.partial" = "部分正确";
+"proMode.incorrect" = "错误";
