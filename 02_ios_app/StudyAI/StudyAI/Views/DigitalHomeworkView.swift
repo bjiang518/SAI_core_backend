@@ -167,6 +167,13 @@ struct DigitalHomeworkView: View {
                                         onArchive: {
                                             viewModel.archiveQuestion(questionId: questionWithGrade.question.id)
                                         },
+                                        onArchiveSubquestion: { subquestionId in
+                                            // ✅ NEW: Archive specific subquestion only
+                                            viewModel.archiveSubquestion(
+                                                parentQuestionId: questionWithGrade.question.id,
+                                                subquestionId: subquestionId
+                                            )
+                                        },
                                         onToggleSelection: {
                                             viewModel.toggleQuestionSelection(questionId: questionWithGrade.question.id)
                                         },
@@ -1178,6 +1185,7 @@ struct QuestionCard: View {
     let modelType: String  // ✅ NEW: Track AI model for loading indicator
     let onAskAI: (ProgressiveSubquestion?) -> Void  // ✅ UPDATED: Accept optional subquestion
     let onArchive: () -> Void
+    let onArchiveSubquestion: ((String) -> Void)?  // ✅ NEW: Archive specific subquestion (optional, only for parent questions)
     let onToggleSelection: () -> Void
     let onRemoveImage: () -> Void  // NEW: callback to remove image
 
@@ -1274,9 +1282,14 @@ struct QuestionCard: View {
                                     onAskAI(subquestion)
                                 },
                                 onArchive: {
-                                    // ✅ NEW: Archive whole parent question by default
+                                    // ✅ Archive whole parent question
                                     print("⭐ Archive from subquestion \(subquestion.id) -> archiving parent Q\(questionWithGrade.question.id)")
                                     onArchive()
+                                },
+                                onArchiveSubquestion: {
+                                    // ✅ NEW: Archive only this subquestion
+                                    print("⭐ Archive only subquestion \(subquestion.id)")
+                                    onArchiveSubquestion?(subquestion.id)
                                 }
                             )
                         }
@@ -1415,6 +1428,7 @@ struct SubquestionRow: View {
     let modelType: String  // ✅ NEW: Track AI model for loading indicator
     let onAskAI: () -> Void
     let onArchive: () -> Void  // This archives the parent question
+    let onArchiveSubquestion: () -> Void  // ✅ NEW: Archive this subquestion only
 
     @State private var showFeedback = false  // ✅ CHANGED: Collapsed by default
     @State private var showArchiveOptions = false  // ✅ NEW: Show action sheet for archive options
@@ -1566,8 +1580,8 @@ struct SubquestionRow: View {
             }
 
             Button("Archive This Subquestion Only") {
-                // TODO: Implement subquestion-only archiving
-                print("⭐ Archive only subquestion \(subquestion.id) (not implemented yet)")
+                // ✅ IMPLEMENTED: Archive only this subquestion
+                onArchiveSubquestion()
             }
 
             Button("Cancel", role: .cancel) {}

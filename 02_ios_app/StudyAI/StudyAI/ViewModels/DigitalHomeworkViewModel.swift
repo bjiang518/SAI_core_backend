@@ -992,6 +992,126 @@ class DigitalHomeworkViewModel: ObservableObject {
         }
     }
 
+    // ✅ NEW: Archive a specific subquestion only
+    func archiveSubquestion(parentQuestionId: Int, subquestionId: String) {
+        Task {
+            await archiveSubquestions(parentQuestionId: parentQuestionId, subquestionIds: [subquestionId])
+
+            // Mark the subquestion as archived (visual feedback)
+            await MainActor.run {
+                print("📦 [Archive] Marked subquestion \(subquestionId) of Q\(parentQuestionId) as archived")
+                // Note: No UI state change needed currently, as subquestions don't have individual archived state
+                // If needed in future, add isArchived flag to ProgressiveSubquestion
+            }
+        }
+    }
+
+    /// Archive specific subquestions from a parent question
+    private func archiveSubquestions(parentQuestionId: Int, subquestionIds: [String]) async {
+        guard let userId = AuthenticationService.shared.currentUser?.id else {
+            print("❌ [Archive] User not authenticated")
+            return
+        }
+
+        print("📦 [Archive] Archiving \(subquestionIds.count) subquestions from parent Q\(parentQuestionId)...")
+
+        guard let questionWithGrade = questions.first(where: { $0.question.id == parentQuestionId }) else {
+            print("❌ [Archive] Parent question \(parentQuestionId) not found")
+            return
+        }
+
+        let imageStorage = ProModeImageStorage.shared
+        var questionsToArchive: [[String: Any]] = []
+
+        // Get parent question content for context
+        let parentContent = questionWithGrade.question.parentContent ?? ""
+
+        // Save cropped image from parent question (shared by all subquestions)
+        var imagePath: String?
+        if let image = croppedImages[parentQuestionId] {
+            print("   ✅ [Archive] Found cropped image for parent Q\(parentQuestionId)")
+            imagePath = imageStorage.saveImage(image)
+            if let path = imagePath {
+                print("   ✅ [Archive] Saved parent image to: \(path)")
+            }
+        }
+
+        // Archive each subquestion individually
+        for subquestionId in subquestionIds {
+            guard let subquestion = questionWithGrade.question.subquestions?.first(where: { $0.id == subquestionId }) else {
+                print("   ⚠️ [Archive] Subquestion \(subquestionId) not found in parent")
+                continue
+            }
+
+            // Get grade for this specific subquestion
+            let grade = questionWithGrade.subquestionGrades[subquestionId]
+
+            // Determine grade string and isCorrect
+            let (gradeString, isCorrect) = determineSubquestionGrade(grade: grade)
+
+            // Build archived subquestion data (similar format to regular questions)
+            let questionData: [String: Any] = [
+                "id": UUID().uuidString,
+                "userId": userId,
+                "subject": subject,
+                "questionText": "\(parentContent)\n\nSubquestion (\(subquestionId)): \(subquestion.questionText)",  // Include parent context
+                "rawQuestionText": subquestion.questionText,
+                "answerText": subquestion.studentAnswer,
+                "confidence": 0.95,
+                "hasVisualElements": imagePath != nil,
+                "questionImageUrl": imagePath ?? "",  // Share parent's cropped image
+                "archivedAt": ISO8601DateFormatter().string(from: Date()),
+                "reviewCount": 0,
+                "tags": [],
+                "notes": "",
+                "studentAnswer": subquestion.studentAnswer,
+                "grade": gradeString,
+                "points": grade?.score ?? 0.0,
+                "maxPoints": 1.0,
+                "feedback": grade?.feedback ?? "",
+                "correctAnswer": grade?.correctAnswer ?? "",
+                "isGraded": grade != nil,
+                "isCorrect": isCorrect,
+                "questionType": subquestion.questionType ?? "short_answer",
+                "options": [],
+                "proMode": true,
+                "parentQuestionId": parentQuestionId,  // Link back to parent
+                "subquestionId": subquestionId  // Track subquestion ID
+            ]
+
+            questionsToArchive.append(questionData)
+            print("   📝 [Archive] Prepared subquestion \(subquestionId): \(subquestion.questionText.prefix(50))...")
+        }
+
+        print("")
+        print("📦 [Archive] === SUBQUESTION ARCHIVE SUMMARY ===")
+        print("   Parent Question: \(parentQuestionId)")
+        print("   Subquestions to archive: \(questionsToArchive.count)")
+        let withImages = questionsToArchive.filter { ($0["hasVisualElements"] as? Bool) == true }.count
+        print("   With shared parent image: \(withImages)")
+        print("")
+
+        // Save to local storage (same method as regular questions)
+        QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
+
+        print("✅ [Archive] Successfully archived \(questionsToArchive.count) subquestions from parent Q\(parentQuestionId)")
+    }
+
+    /// Determine grade string and isCorrect status for a subquestion
+    private func determineSubquestionGrade(grade: ProgressiveGradeResult?) -> (gradeString: String, isCorrect: Bool) {
+        if let grade = grade {
+            if grade.isCorrect {
+                return ("CORRECT", true)
+            } else if grade.score == 0 {
+                return ("INCORRECT", false)
+            } else {
+                return ("PARTIAL_CREDIT", false)
+            }
+        }
+        // Not graded
+        return ("", false)
+    }
+
     /// Archive questions by their IDs
     private func archiveQuestions(_ questionIds: [Int]) async {
         guard let userId = AuthenticationService.shared.currentUser?.id else {
