@@ -1588,6 +1588,8 @@ struct SubquestionRow: View {
         } message: {
             Text("Choose what to archive:")
         }
+    }
+}
 
 // MARK: - Homework Grade Badge Component
 
