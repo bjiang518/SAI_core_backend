@@ -68,7 +68,18 @@ struct AnnotatableImageView: View {
                     height: lastOffset.height + v.translation.height
                 )
             }
-            .onEnded { _ in lastOffset = offset }
+            .onEnded { _ in
+                // ✅ FIX: Only save offset if zoomed in (scale > 1)
+                // If not zoomed, snap back to center with animation
+                if scale > 1.0 {
+                    lastOffset = offset
+                } else {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        offset = .zero
+                        lastOffset = .zero
+                    }
+                }
+            }
     }
 
     private func doubleTap() {
