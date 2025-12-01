@@ -332,15 +332,16 @@ class GeminiEducationalAIService:
             timeout = 60  # Default timeout for standard grading
 
             if use_deep_reasoning:
-                # Deep reasoning mode: Higher temperature, more tokens
+                # Deep reasoning mode: Higher temperature, optimized tokens
+                # OPTIMIZED: Reduced max_tokens 2048 → 1024 to match OpenAI (faster generation)
                 generation_config = {
                     "temperature": 0.7,
                     "top_p": 0.95,
                     "top_k": 40,
-                    "max_output_tokens": 2048,
+                    "max_output_tokens": 1024,  # OPTIMIZED: 2048 → 1024 (match OpenAI)
                     "candidate_count": 1
                 }
-                timeout = 90  # INCREASED: 60 → 90 for deep reasoning
+                timeout = 100  # OPTIMIZED: 90 → 100 (safety margin with simplified prompt)
             else:
                 # OPTIMIZED: Match OpenAI's accuracy-focused configuration
                 # - temperature: 0.4 → 0.2 (match OpenAI for deterministic math grading)
@@ -732,7 +733,8 @@ The subquestion you are grading is part of this larger question. Consider:
 """
 
         if use_deep_reasoning:
-            # Deep reasoning mode: Guide the model to think step-by-step
+            # Deep reasoning mode: Concise guidance for efficient processing
+            # OPTIMIZED: Simplified from 65 lines to ~35 lines (match OpenAI approach)
             return f"""You are an expert educational grading assistant with deep reasoning capabilities.
 
 Question: {question_text}
@@ -745,34 +747,13 @@ Subject: {subject or 'General'}
 {parent_instructions}
 {image_instructions}
 DEEP REASONING INSTRUCTIONS:
-Think deeply about this question before grading. Follow these steps:
+Think deeply about this question before grading. Consider:
+1. What concept is being tested?
+2. What approach did the student take?
+3. Where (if anywhere) did they make mistakes?
+4. How significant are the errors?
 
-1. UNDERSTAND THE QUESTION:
-   - What concept is being tested?
-   - What knowledge/skills are required?
-   - Are there multiple valid approaches?
-
-2. ANALYZE STUDENT'S ANSWER:
-   - What approach did the student take?
-   - What is correct about their reasoning?
-   - Where (if anywhere) did they make mistakes?
-   - Is the mistake conceptual or computational?
-
-3. COMPARE WITH EXPECTED ANSWER (if provided):
-   - Does the student's answer match the key concept?
-   - Are there alternative valid solutions?
-   - How significant are any differences?
-
-4. ASSIGN SCORE:
-   - Consider partial credit for correct methodology
-   - Weigh conceptual understanding vs. execution
-   - Be fair and educational
-
-5. PROVIDE DETAILED FEEDBACK:
-   - Explain what the student did well
-   - Point out specific errors
-   - Suggest how to improve
-   - Encourage learning
+Provide detailed analysis with educational feedback (50-100 words).
 
 Return JSON in this exact format:
 {{
@@ -780,22 +761,22 @@ Return JSON in this exact format:
   "is_correct": true,
   "feedback": "Your reasoning is excellent. You correctly identified X and applied method Y. The calculation is accurate. Well done!",
   "confidence": 0.95,
-  "reasoning_steps": "Student used the correct formula F=ma. They identified mass=10kg and acceleration=5m/s². Calculation: F=10×5=50N. Answer is completely correct with proper units.",
+  "reasoning_steps": "Student used the correct formula. Calculation steps were accurate.",
   "correct_answer": "50N (or 50 Newtons)"
 }}
 
 GRADING SCALE:
-- score = 1.0: Completely correct (concept + execution)
-- score = 0.8-0.9: Minor errors (missing units, small arithmetic mistake)
-- score = 0.6-0.7: Correct concept but execution errors
-- score = 0.3-0.5: Partial understanding, significant conceptual gaps
-- score = 0.0-0.3: Incorrect or missing critical understanding
+- 1.0: Completely correct (concept + execution)
+- 0.8-0.9: Minor errors (missing units, small arithmetic mistake)
+- 0.6-0.7: Correct concept but execution errors
+- 0.3-0.5: Partial understanding, significant gaps
+- 0.0-0.3: Incorrect or missing critical understanding
 
 RULES:
 1. is_correct = (score >= 0.9)
-2. Feedback must be detailed and educational (50-100 words)
-3. Explain reasoning steps clearly
-4. correct_answer must be the expected/correct answer for this question
+2. Feedback: detailed and educational (50-100 words)
+3. Include reasoning_steps if complex problem
+4. correct_answer must be the expected/correct answer
 5. Return ONLY valid JSON, no markdown or extra text"""
 
         else:

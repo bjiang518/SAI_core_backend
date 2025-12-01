@@ -21,6 +21,7 @@ struct BackgroundMusicTrack: Identifiable, Codable, Hashable {
     // Remote download properties
     var remoteURL: String?  // URL for downloadable tracks
     var fileSize: Int64?    // Size in bytes
+    var description: String?  // Track description for remote tracks
     var isDownloaded: Bool = false
 
     // User library properties
@@ -135,7 +136,21 @@ struct BackgroundMusicTrack: Identifiable, Codable, Hashable {
         self.isDownloaded = true  // Bundle tracks are always "downloaded"
     }
 
-    // Initializer for remote tracks
+    // Full initializer with all properties (supports bundle and remote)
+    init(id: String, name: String, fileName: String, category: MusicCategory, duration: TimeInterval,
+         source: TrackSource, fileSize: Int64? = nil, description: String? = nil) {
+        self.id = id
+        self.name = name
+        self.fileName = fileName
+        self.category = category
+        self.duration = duration
+        self.source = source
+        self.fileSize = fileSize
+        self.description = description
+        self.isDownloaded = (source == .bundle)  // Bundle tracks are always available
+    }
+
+    // Initializer for remote tracks (backward compatible)
     init(id: String, name: String, fileName: String, category: MusicCategory, duration: TimeInterval,
          remoteURL: String, fileSize: Int64) {
         self.id = id

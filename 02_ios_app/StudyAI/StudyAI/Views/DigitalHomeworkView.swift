@@ -9,6 +9,7 @@
 import SwiftUI
 import UIKit
 import Combine
+import AVFoundation  // ✅ For iOS system unlock sound
 
 // MARK: - Digital Homework View
 
@@ -339,6 +340,7 @@ struct DigitalHomeworkView: View {
 
     @State private var slideOffset: CGFloat = 0
     @State private var isSliding = false
+    @State private var hasTriggeredMarkProgress = false  // ✅ FIX: Prevent multiple calls
 
     private var accuracyCardWithSlideToMark: some View {
         let stats = viewModel.accuracyStats
@@ -510,10 +512,16 @@ struct DigitalHomeworkView: View {
                                 isSliding = true
                             }
 
-                            // Check if reached the end
-                            if newOffset >= maxOffset * 0.95 {
+                            // ✅ FIX: Check if reached the end AND hasn't triggered yet
+                            if newOffset >= maxOffset * 0.95 && !hasTriggeredMarkProgress {
+                                // Set flag immediately to prevent multiple triggers
+                                hasTriggeredMarkProgress = true
+
                                 // Trigger mark progress
                                 viewModel.markProgress()
+
+                                // ✅ iOS unlock sound effect (1100 = Tock sound, similar to unlock)
+                                AudioServicesPlaySystemSound(1100)
 
                                 // Haptic feedback
                                 let generator = UINotificationFeedbackGenerator()
@@ -532,6 +540,9 @@ struct DigitalHomeworkView: View {
                                 slideOffset = 0
                                 isSliding = false
                             }
+
+                            // ✅ FIX: Reset flag when drag ends (allow next slide)
+                            hasTriggeredMarkProgress = false
                         }
                 )
             }
@@ -1071,7 +1082,7 @@ struct DigitalHomeworkView: View {
     }
 
     private var modelDisplayName: String {
-        let model = viewModel.selectedAIModel == "gemini" ? "Gemini 2.0" : "GPT-4o-mini"
+        let model = viewModel.selectedAIModel == "gemini" ? "Gemini 3.0" : "GPT-4o-mini"
         let mode = viewModel.useDeepReasoning ? " · 深度批改" : ""
         return model + mode
     }
