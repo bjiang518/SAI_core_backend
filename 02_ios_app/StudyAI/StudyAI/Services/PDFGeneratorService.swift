@@ -1219,6 +1219,8 @@ class PDFGeneratorService: ObservableObject {
     }
 
     // Full question layout (single column)
+    // ✅ IMPROVED: Removed grading information for Pro Mode (only show question + student answer)
+    // ✅ IMPROVED: Reduced spacing to optimize page usage
     private func drawProModeQuestion(
         in context: CGContext,
         x: CGFloat,
@@ -1229,7 +1231,6 @@ class PDFGeneratorService: ObservableObject {
     ) -> CGFloat {
         let questionFont = UIFont.systemFont(ofSize: 12, weight: .semibold)
         let bodyFont = UIFont.systemFont(ofSize: 10, weight: .regular)
-        let feedbackFont = UIFont.systemFont(ofSize: 9, weight: .regular)
 
         var currentY = y
 
@@ -1245,7 +1246,7 @@ class PDFGeneratorService: ObservableObject {
             color: UIColor.black,
             alignment: .left
         )
-        currentY += 25
+        currentY += 18  // ✅ Reduced from 25
 
         // Question text
         let questionHeight = drawMultilineText(
@@ -1255,7 +1256,7 @@ class PDFGeneratorService: ObservableObject {
             width: width - 10,
             font: bodyFont
         )
-        currentY += questionHeight + 10
+        currentY += questionHeight + 8  // ✅ Reduced from 10
 
         // Student answer (if available)
         if !question.question.displayStudentAnswer.isEmpty {
@@ -1268,7 +1269,7 @@ class PDFGeneratorService: ObservableObject {
                 color: UIColor.darkGray,
                 alignment: .left
             )
-            currentY += 15
+            currentY += 12  // ✅ Reduced from 15
 
             let answerHeight = drawMultilineText(
                 question.question.displayStudentAnswer,
@@ -1277,71 +1278,11 @@ class PDFGeneratorService: ObservableObject {
                 width: width - 20,
                 font: bodyFont
             )
-            currentY += answerHeight + 10
+            currentY += answerHeight + 8  // ✅ Reduced from 10
         }
 
-        // Grade and feedback (if graded)
-        if let grade = question.grade {
-            let gradeColor = grade.isCorrect ? UIColor.systemGreen : (grade.score >= 0.5 ? UIColor.systemOrange : UIColor.systemRed)
-            let gradeText = grade.isCorrect ? "✓ Correct" : "✗ Score: \(Int(grade.score * 100))%"
-
-            drawText(
-                gradeText,
-                in: context,
-                at: CGPoint(x: x + 10, y: currentY),
-                width: width - 10,
-                font: questionFont,
-                color: gradeColor,
-                alignment: .left
-            )
-            currentY += 20
-
-            // Feedback
-            if !grade.feedback.isEmpty {
-                drawText(
-                    "Feedback:",
-                    in: context,
-                    at: CGPoint(x: x + 10, y: currentY),
-                    width: width - 10,
-                    font: feedbackFont,
-                    color: UIColor.darkGray,
-                    alignment: .left
-                )
-                currentY += 12
-
-                let feedbackHeight = drawMultilineText(
-                    grade.feedback,
-                    in: context,
-                    at: CGPoint(x: x + 20, y: currentY),
-                    width: width - 20,
-                    font: feedbackFont
-                )
-                currentY += feedbackHeight + 10
-            }
-
-            // Correct answer (if incorrect)
-            if !grade.isCorrect, let correctAnswer = grade.correctAnswer, !correctAnswer.isEmpty {
-                drawText(
-                    "Correct Answer:",
-                    in: context,
-                    at: CGPoint(x: x + 10, y: currentY),
-                    width: width - 10,
-                    font: feedbackFont,
-                    color: UIColor.darkGray,
-                    alignment: .left
-                )
-                currentY += 12
-
-                let correctAnswerHeight = drawMultilineText(
-                    correctAnswer,
-                    in: context,
-                    at: CGPoint(x: x + 20, y: currentY),
-                    width: width - 20,
-                    font: feedbackFont
-                )
-                currentY += correctAnswerHeight + 10
-            }
-        }
+        // ✅ REMOVED: All grading information (grade, feedback, correct answer)
+        // Pro Mode PDFs should not contain original grading - user can review digital version for grades
 
         return currentY - y
     }

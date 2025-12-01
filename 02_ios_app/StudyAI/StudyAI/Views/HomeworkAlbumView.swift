@@ -304,15 +304,37 @@ struct HomeworkThumbnailCard: View {
 
                             Spacer()
 
-                            // Accuracy Badge
-                            Text(record.accuracyPercentage)
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(record.accuracyColor)
-                                .cornerRadius(8)
+                            // ✅ NEW: Show "PRO" label with accuracy for Pro Mode homework
+                            if record.proModeData != nil {
+                                HStack(spacing: 4) {
+                                    Text("PRO")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 2)
+                                        .background(Color.purple)
+                                        .cornerRadius(4)
+
+                                    Text(record.accuracyPercentage)
+                                        .font(.caption)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(record.accuracyColor)
+                                        .cornerRadius(8)
+                                }
+                            } else {
+                                // Regular homework: Show accuracy only
+                                Text(record.accuracyPercentage)
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(record.accuracyColor)
+                                    .cornerRadius(8)
+                            }
                         }
 
                         // Question Count and Date
