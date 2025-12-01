@@ -14,6 +14,10 @@ import Combine
 @MainActor
 class DigitalHomeworkViewModel: ObservableObject {
 
+    // MARK: - Logger
+
+    private let logger = AppLogger.forFeature("ProMode")
+
     // MARK: - Global State Manager
 
     // ✅ Use @ObservedObject to react to state changes
@@ -196,14 +200,14 @@ class DigitalHomeworkViewModel: ObservableObject {
     /// ✅ DEPRECATED: Setup is now handled by StateManager.parseHomework()
     /// This method is kept for backward compatibility during migration
     func setup(parseResults: ParseHomeworkQuestionsResponse, originalImage: UIImage) {
-        print("⚠️ [ViewModel] setup() called - redirecting to global state")
-        print("   State should already be .parsed from HomeworkSummaryView")
-        print("   Current state: \(stateManager.currentState)")
+        logger.debug("[ViewModel] setup() called - redirecting to global state")
+        logger.debug("State should already be .parsed from HomeworkSummaryView")
+        logger.debug("Current state: \(stateManager.currentState)")
 
         // State should already be set by HomeworkSummaryView calling stateManager.parseHomework()
         // If not, set it now (fallback for migration)
         if stateManager.currentState == .nothing {
-            print("   ⚠️ State is .nothing - calling parseHomework()")
+            logger.warning("State is .nothing - calling parseHomework()")
             stateManager.parseHomework(parseResults: parseResults, image: originalImage)
         }
     }
@@ -240,7 +244,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         selectedAnnotationId = newAnnotation.id
 
-        print("📝 Created annotation at (\(Int(point.x)), \(Int(point.y)))")
+        logger.debug("Created annotation at (\(Int(point.x)), \(Int(point.y)))")
     }
 
     func updateAnnotationQuestionNumber(annotationId: UUID, questionNumber: String) {
@@ -257,7 +261,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         // Update global state
         stateManager.updateHomework(annotations: updatedAnnotations)
 
-        print("✅ Updated annotation \(index) → Q\(questionNumber)")
+        logger.debug("Updated annotation \(index) → Q\(questionNumber)")
 
         // Trigger image cropping for this annotation
         cropImageForAnnotation(updatedAnnotations[index])
@@ -277,7 +281,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         if let questionNumber = annotation.questionNumber,
            let questionId = parseResults?.questions.first(where: { $0.questionNumber == questionNumber })?.id {
             updatedImages.removeValue(forKey: questionId)
-            print("🗑️ Removed cropped image for Q\(questionNumber) (id: \(questionId))")
+            logger.debug("Removed cropped image for Q\(questionNumber) (id: \(questionId))")
         }
 
         // Remove the annotation
@@ -292,7 +296,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         // Update global state
         stateManager.updateHomework(annotations: updatedAnnotations, croppedImages: updatedImages)
 
-        print("🗑️ Deleted annotation \(id)")
+        logger.debug("Deleted annotation \(id)")
     }
 
     func resetAnnotations() {
@@ -303,7 +307,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         stateManager.updateHomework(annotations: [], croppedImages: [:])
         selectedAnnotationId = nil
 
-        print("🔄 Reset all annotations")
+        logger.debug("Reset all annotations")
     }
 
     // ✅ OPTIMIZATION 4: Undo/Redo Functions
@@ -325,13 +329,13 @@ class DigitalHomeworkViewModel: ObservableObject {
             historyIndex -= 1
         }
 
-        print("💾 Saved annotation history (state \(historyIndex + 1)/\(annotationHistory.count))")
+        logger.debug("Saved annotation history (state \(historyIndex + 1)/\(annotationHistory.count))")
     }
 
     /// Undo last annotation change
     func undoAnnotation() {
         guard canUndo else {
-            print("⚠️ Cannot undo - at beginning of history")
+            logger.debug("Cannot undo - at beginning of history")
             return
         }
 
@@ -345,7 +349,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         // Resync cropped images
         syncCroppedImages()
 
-        print("↩️ Undo annotation (restored state \(historyIndex + 1)/\(annotationHistory.count))")
+        logger.debug("Undo annotation (restored state \(historyIndex + 1)/\(annotationHistory.count))")
 
         // Haptic feedback
         let generator = UIImpactFeedbackGenerator(style: .light)
@@ -355,7 +359,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     /// Redo previously undone annotation change
     func redoAnnotation() {
         guard canRedo else {
-            print("⚠️ Cannot redo - at end of history")
+            logger.debug("Cannot redo - at end of history")
             return
         }
 
@@ -369,7 +373,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         // Resync cropped images
         syncCroppedImages()
 
-        print("↪️ Redo annotation (restored state \(historyIndex + 1)/\(annotationHistory.count))")
+        logger.debug("Redo annotation (restored state \(historyIndex + 1)/\(annotationHistory.count))")
 
         // Haptic feedback
         let generator = UIImpactFeedbackGenerator(style: .light)
@@ -379,7 +383,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     /// ✅ NEW: Revert grading - clear all grades and return to pre-grading state
     /// ✅ CRITICAL FIX: Now RESETS hasMarkedProgress to prevent double-counting on regrade
     func revertGrading() {
-        print("🔄 [Revert] Reverting all grading results...")
+        logger.info("Reverting all grading results...")
 
         // Call global state manager's revert method
         // This transitions state from .graded → .parsed while preserving homework data
@@ -399,8 +403,8 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         // ✅ CRITICAL FIX: hasMarkedProgress is now reset in clearGrades()
         // This prevents double-counting when user reverts and regrades the same homework
-        print("✅ [Revert] hasMarkedProgress reset to: \(hasMarkedProgress) (allows fresh progress marking)")
-        print("✅ [Revert] Grading reverted successfully. State transitioned to .parsed")
+        logger.debug("hasMarkedProgress reset to: \(hasMarkedProgress)")
+        logger.info("Grading reverted successfully. State transitioned to .parsed")
     }
 
     // MARK: - Homework Album Storage
@@ -409,19 +413,19 @@ class DigitalHomeworkViewModel: ObservableObject {
     private func saveToHomeworkAlbum() {
         // Guard: Only save once per session
         guard !hasAlreadySavedToAlbum else {
-            print("📸 [Album] Already saved to album for this session, skipping")
+            logger.debug("Already saved to album for this session")
             return
         }
 
         // Only save if we have an image
         guard let image = originalImage else {
-            print("📸 [Album] No original image to save")
+            logger.debug("No original image to save")
             return
         }
 
         // Only save after grading is complete
         guard allQuestionsGraded else {
-            print("📸 [Album] Grading not complete, skipping album save")
+            logger.debug("Grading not complete, skipping album save")
             return
         }
 
@@ -444,18 +448,13 @@ class DigitalHomeworkViewModel: ObservableObject {
             do {
                 let encoder = JSONEncoder()
                 proModeData = try encoder.encode(currentHomework)
-                print("   ✅ Serialized Pro Mode data (\(proModeData?.count ?? 0) bytes)")
+                logger.debug("Serialized Pro Mode data (\(proModeData?.count ?? 0) bytes)")
             } catch {
-                print("   ⚠️ Failed to serialize Pro Mode data: \(error.localizedDescription)")
+                logger.error("Failed to serialize Pro Mode data: \(error.localizedDescription)")
             }
         }
 
-        print("📸 [Album] Saving graded homework:")
-        print("   Subject: \(subject)")
-        print("   Accuracy: \(accuracy)")
-        print("   Questions: \(questionCount)")
-        print("   Correct: \(correctCount)")
-        print("   Incorrect: \(incorrectCount)")
+        logger.info("Saving graded homework to album: \(subject), \(questionCount) questions")
 
         // Save to storage
         let record = homeworkImageStorage.saveHomeworkImage(
@@ -472,9 +471,9 @@ class DigitalHomeworkViewModel: ObservableObject {
         )
 
         if record != nil {
-            print("✅ [Album] Digital homework auto-saved to album: \(subject), \(questionCount) questions")
+            logger.info("Digital homework auto-saved to album: \(subject), \(questionCount) questions")
         } else {
-            print("⚠️ [Album] Failed to auto-save digital homework (might be duplicate)")
+            logger.error("Failed to auto-save digital homework (might be duplicate)")
         }
     }
 
@@ -490,7 +489,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         // ✅ OPTIMIZATION 1: Normalize image orientation BEFORE cropping
         // This fixes rotation bugs where EXIF orientation causes wrong crops
         guard let normalizedImage = originalImage.normalizedOrientation() else {
-            print("❌ Failed to normalize image orientation for Q\(questionNumber)")
+            logger.error("Failed to normalize image orientation for Q\(questionNumber)")
             return
         }
 
@@ -522,16 +521,16 @@ class DigitalHomeworkViewModel: ObservableObject {
                     let originalSize = croppedUIImage.pngData()?.count ?? 0
                     let compressedSize = jpegData.count
                     let savings = originalSize > 0 ? (1.0 - Double(compressedSize) / Double(originalSize)) * 100 : 0
-                    print("✂️ Cropped image for Q\(questionNumber) (id: \(questionId))")
-                    print("   📦 Compressed: \(originalSize / 1024)KB → \(compressedSize / 1024)KB (saved \(Int(savings))%)")
+                    logger.debug("Cropped image for Q\(questionNumber) (id: \(questionId))")
+                    logger.debug("Compressed: \(originalSize / 1024)KB → \(compressedSize / 1024)KB (saved \(Int(savings))%)")
                 } else {
-                    print("❌ Failed to create UIImage from JPEG data for Q\(questionNumber)")
+                    logger.error("Failed to create UIImage from JPEG data for Q\(questionNumber)")
                 }
             } else {
-                print("❌ Failed to compress image to JPEG for Q\(questionNumber)")
+                logger.error("Failed to compress image to JPEG for Q\(questionNumber)")
             }
         } else {
-            print("❌ Failed to crop image for Q\(questionNumber)")
+            logger.error("Failed to crop image for Q\(questionNumber)")
         }
     }
 
@@ -559,24 +558,21 @@ class DigitalHomeworkViewModel: ObservableObject {
         for questionId in croppedImages.keys {
             if !validQuestionIds.contains(questionId) {
                 updatedImages.removeValue(forKey: questionId)
-                print("🔄 Removed orphaned image for question ID \(questionId)")
+                logger.debug("Removed orphaned image for question ID \(questionId)")
             }
         }
 
         // Update global state if images changed
         if updatedImages.count != croppedImages.count {
             stateManager.updateHomework(croppedImages: updatedImages)
-            print("🔄 Synced cropped images: \(updatedImages.count) images remain")
+            logger.debug("Synced cropped images: \(updatedImages.count) images remain")
         }
     }
 
     // MARK: - AI Grading
 
     func startGrading() async {
-        print("🚀 === STARTING AI GRADING ===")
-        print("🤖 AI Model: \(selectedAIModel)")
-        print("🧠 Deep Reasoning: \(useDeepReasoning ? "YES" : "NO")")
-        print("📊 Total Questions: \(questions.count)")
+        logger.info("Starting AI grading: model=\(selectedAIModel), deepReasoning=\(useDeepReasoning), questions=\(questions.count)")
 
         // 隐藏图片预览（触发向上飞走动画）
         withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
@@ -612,7 +608,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
                     // ✅ NEW: Push isGrading state to UI immediately
                     stateManager.updateHomework(questions: updatedQuestions)
-                    print("📤 [Incremental] Marked Q\(question.question.id) as grading in UI")
+                    logger.debug("Marked Q\(question.question.id) as grading in UI")
 
                     // ✅ NEW: Update status message dynamically
                     let questionNum = question.question.questionNumber ?? "?"
@@ -650,11 +646,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
                         // Update subquestion data if present
                         if !result.subquestionGrades.isEmpty {
-                            print("🔥🔥🔥 STORING SUBQUESTION GRADES FOR Q\(result.questionId)")
-                            print("🔥 Grades dict: \(result.subquestionGrades.keys.sorted())")
-                            for (subId, grade) in result.subquestionGrades {
-                                print("🔥   \(subId): score=\(grade.score), feedback=\(grade.feedback.prefix(50))...")
-                            }
+                            logger.debug("Storing subquestion grades for Q\(result.questionId): \(result.subquestionGrades.count) subquestions")
                             updatedQuestions[index].subquestionGrades = result.subquestionGrades
                         }
                         if !result.subquestionErrors.isEmpty {
@@ -667,7 +659,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                         // ✅ NEW: INCREMENTAL UPDATE - Push grade to UI immediately
                         // This allows users to see grades appear dynamically as they complete
                         stateManager.updateHomework(questions: updatedQuestions)
-                        print("📤 [Incremental] Pushed Q\(result.questionId) grade to UI")
+                        logger.debug("Pushed Q\(result.questionId) grade to UI")
                     }
 
                     gradedCount += 1
@@ -678,7 +670,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                         currentGradingStatus = String(format: NSLocalizedString("proMode.grading.progress", comment: "Grading progress"), gradedCount, totalQuestions, progressPercent)
                     }
 
-                    print("✅ Q\(result.questionId) graded (\(gradedCount)/\(totalQuestions))")
+                    logger.debug("Q\(result.questionId) graded (\(gradedCount)/\(totalQuestions))")
                 }
             }
         }
@@ -693,7 +685,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         try? await Task.sleep(nanoseconds: 800_000_000)  // 0.8 seconds
 
         isGrading = false
-        print("✅ === ALL QUESTIONS GRADED ===")
+        logger.info("All questions graded successfully")
 
         // Reset animation state
         withAnimation(.easeOut(duration: 0.3)) {
@@ -703,7 +695,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         // ✅ SINGLE state transition: .parsed → .graded
         stateManager.completeGrading(gradedQuestions: updatedQuestions)
-        print("💾 State transitioned to .graded")
+        logger.debug("State transitioned to .graded")
 
         // Auto-save to Homework Album after grading completes
         saveToHomeworkAlbum()
@@ -723,7 +715,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         // Check if this is a parent question with subquestions
         if question.isParentQuestion, let subquestions = question.subquestions {
-            print("📋 Q\(question.id) is parent question with \(subquestions.count) subquestions")
+            logger.debug("Q\(question.id) is parent question with \(subquestions.count) subquestions")
 
             // Grade all subquestions in parallel
             var subquestionResults: [String: ProgressiveGradeResult] = [:]
@@ -751,7 +743,7 @@ class DigitalHomeworkViewModel: ObservableObject {
             }
 
             // ✅ SIMPLIFIED: Return all results in one batch
-            print("📋 Q\(question.id) completed: \(subquestionResults.count) subquestions graded")
+            logger.debug("Q\(question.id) completed: \(subquestionResults.count) subquestions graded")
 
             return GradingResult(
                 questionId: question.id,
@@ -778,7 +770,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 )
 
                 if response.success, let grade = response.grade {
-                    print("✅ Q\(question.id) graded: score=\(grade.score), correct=\(grade.isCorrect)")
+                    logger.debug("Q\(question.id) graded: score=\(grade.score), correct=\(grade.isCorrect)")
                     return GradingResult(
                         questionId: question.id,
                         grade: grade,
@@ -788,7 +780,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                     )
                 } else {
                     let error = response.error ?? "Grading failed"
-                    print("❌ Q\(question.id) grading error: \(error)")
+                    logger.error("Q\(question.id) grading error: \(error)")
                     return GradingResult(
                         questionId: question.id,
                         grade: nil,
@@ -799,7 +791,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 }
 
             } catch {
-                print("❌ Q\(question.id) exception: \(error.localizedDescription)")
+                logger.error("Q\(question.id) exception: \(error.localizedDescription)")
                 return GradingResult(
                     questionId: question.id,
                     grade: nil,
@@ -816,7 +808,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         parentQuestionId: Int
     ) async -> (String, ProgressiveGradeResult?, String?) {
 
-        print("   📝 Grading subquestion \(subquestion.id)...")
+        logger.debug("Grading subquestion \(subquestion.id)...")
 
         do {
             // Get context image from parent question if available
@@ -826,7 +818,7 @@ class DigitalHomeworkViewModel: ObservableObject {
             let parentContent = questions.first(where: { $0.question.id == parentQuestionId })?.question.parentContent
 
             if let parent = parentContent {
-                print("   📚 Including parent question context: \(parent.prefix(50))...")
+                logger.debug("Including parent question context: \(parent.prefix(50))...")
             }
 
             // Call grading endpoint with deep reasoning flag and parent content
@@ -841,16 +833,16 @@ class DigitalHomeworkViewModel: ObservableObject {
             )
 
             if response.success, let grade = response.grade {
-                print("   ✅ Subquestion \(subquestion.id): score \(grade.score)")
+                logger.debug("Subquestion \(subquestion.id) graded successfully")
                 return (subquestion.id, grade, nil)
             } else {
                 let error = response.error ?? "Grading failed"
-                print("   ❌ Subquestion \(subquestion.id) error: \(error)")
+                logger.error("Subquestion \(subquestion.id) error: \(error)")
                 return (subquestion.id, nil, error)
             }
 
         } catch {
-            print("   ❌ Subquestion \(subquestion.id) exception: \(error.localizedDescription)")
+            logger.error("Subquestion \(subquestion.id) exception: \(error.localizedDescription)")
             return (subquestion.id, nil, error.localizedDescription)
         }
     }
@@ -867,7 +859,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     func askAIForHelp(questionId: Int, appState: AppState, subquestion: ProgressiveSubquestion? = nil) {
         guard let questionWithGrade = questions.first(where: { $0.question.id == questionId }) else {
-            print("❌ Question not found: \(questionId)")
+            logger.error("Question not found: \(questionId)")
             return
         }
 
@@ -878,14 +870,12 @@ class DigitalHomeworkViewModel: ObservableObject {
             // Subquestion case: Use subquestion-specific data
             let subGrade = questionWithGrade.subquestionGrades[subquestion.id]
 
-            print("💬 Opening AI chat for subquestion \(subquestion.id) (parent Q\(questionId))")
-            print("📝 Subquestion: \(subquestion.questionText)")
-            print("📊 Grade: \(subGrade?.isCorrect == true ? "✅" : "❌") score: \(subGrade?.score ?? 0)")
+            logger.debug("Opening AI chat for subquestion \(subquestion.id) of Q\(questionId)")
 
             // Get cropped image from parent question if available
             let questionImage = croppedImages[questionId]
             if questionImage != nil {
-                print("🖼️ Including cropped image from parent Q\(questionId)")
+                logger.debug("Including cropped image from parent Q\(questionId)")
             }
 
             // Build context with subquestion data
@@ -928,20 +918,18 @@ class DigitalHomeworkViewModel: ObservableObject {
 
             appState.navigateToChatWithHomeworkQuestion(message: message, context: context)
 
-            print("✅ Navigated to chat with subquestion context (including parent background)")
+            logger.debug("Navigated to chat with subquestion context")
 
         } else {
             // Regular question case: Use original logic
             let grade = questionWithGrade.grade
 
-            print("💬 Opening AI chat for Q\(questionId)")
-            print("📝 Question: \(question.displayText)")
-            print("📊 Grade: \(grade?.isCorrect == true ? "✅" : "❌") score: \(grade?.score ?? 0)")
+            logger.debug("Opening AI chat for Q\(questionId)")
 
             // ✅ NEW: Get cropped image if available
             let questionImage = croppedImages[questionId]
             if questionImage != nil {
-                print("🖼️ Including cropped image for Q\(questionId)")
+                logger.debug("Including cropped image for Q\(questionId)")
             }
 
             // Build homework context
@@ -969,7 +957,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 context: context
             )
 
-            print("✅ Navigated to chat with homework context")
+            logger.debug("Navigated to chat with homework context")
         }
     }
 
@@ -989,7 +977,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                         updatedQuestions[index].isArchived = true
                         stateManager.updateHomework(questions: updatedQuestions)
                     }
-                    print("📦 [Archive] Marked Q\(questionId) as archived (remains visible)")
+                    logger.debug("Marked Q\(questionId) as archived (remains visible)")
                 }
             }
         }
@@ -1002,7 +990,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
             // Mark the subquestion as archived (visual feedback)
             await MainActor.run {
-                print("📦 [Archive] Marked subquestion \(subquestionId) of Q\(parentQuestionId) as archived")
+                logger.debug("Marked subquestion \(subquestionId) of Q\(parentQuestionId) as archived")
                 // Note: No UI state change needed currently, as subquestions don't have individual archived state
                 // If needed in future, add isArchived flag to ProgressiveSubquestion
             }
@@ -1012,14 +1000,14 @@ class DigitalHomeworkViewModel: ObservableObject {
     /// Archive specific subquestions from a parent question
     private func archiveSubquestions(parentQuestionId: Int, subquestionIds: [String]) async {
         guard let userId = AuthenticationService.shared.currentUser?.id else {
-            print("❌ [Archive] User not authenticated")
+            logger.error("User not authenticated")
             return
         }
 
-        print("📦 [Archive] Archiving \(subquestionIds.count) subquestions from parent Q\(parentQuestionId)...")
+        logger.debug("Archiving \(subquestionIds.count) subquestions from parent Q\(parentQuestionId)...")
 
         guard let questionWithGrade = questions.first(where: { $0.question.id == parentQuestionId }) else {
-            print("❌ [Archive] Parent question \(parentQuestionId) not found")
+            logger.error("Parent question \(parentQuestionId) not found")
             return
         }
 
@@ -1032,17 +1020,17 @@ class DigitalHomeworkViewModel: ObservableObject {
         // Save cropped image from parent question (shared by all subquestions)
         var imagePath: String?
         if let image = croppedImages[parentQuestionId] {
-            print("   ✅ [Archive] Found cropped image for parent Q\(parentQuestionId)")
+            logger.debug("Found cropped image for parent Q\(parentQuestionId)")
             imagePath = imageStorage.saveImage(image)
             if let path = imagePath {
-                print("   ✅ [Archive] Saved parent image to: \(path)")
+                logger.debug("Saved parent image: \(path)")
             }
         }
 
         // Archive each subquestion individually
         for subquestionId in subquestionIds {
             guard let subquestion = questionWithGrade.question.subquestions?.first(where: { $0.id == subquestionId }) else {
-                print("   ⚠️ [Archive] Subquestion \(subquestionId) not found in parent")
+                logger.error("Subquestion \(subquestionId) not found in parent")
                 continue
             }
 
@@ -1083,21 +1071,16 @@ class DigitalHomeworkViewModel: ObservableObject {
             ]
 
             questionsToArchive.append(questionData)
-            print("   📝 [Archive] Prepared subquestion \(subquestionId): \(subquestion.questionText.prefix(50))...")
+            logger.debug("Prepared subquestion \(subquestionId) for archiving")
         }
 
-        print("")
-        print("📦 [Archive] === SUBQUESTION ARCHIVE SUMMARY ===")
-        print("   Parent Question: \(parentQuestionId)")
-        print("   Subquestions to archive: \(questionsToArchive.count)")
         let withImages = questionsToArchive.filter { ($0["hasVisualElements"] as? Bool) == true }.count
-        print("   With shared parent image: \(withImages)")
-        print("")
+        logger.info("Subquestion archive summary: parent Q\(parentQuestionId), \(questionsToArchive.count) subquestions, \(withImages) with images")
 
         // Save to local storage (same method as regular questions)
         QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
 
-        print("✅ [Archive] Successfully archived \(questionsToArchive.count) subquestions from parent Q\(parentQuestionId)")
+        logger.info("Successfully archived \(questionsToArchive.count) subquestions from parent Q\(parentQuestionId)")
     }
 
     /// Determine grade string and isCorrect status for a subquestion
@@ -1118,11 +1101,11 @@ class DigitalHomeworkViewModel: ObservableObject {
     /// Archive questions by their IDs
     private func archiveQuestions(_ questionIds: [Int]) async {
         guard let userId = AuthenticationService.shared.currentUser?.id else {
-            print("❌ [Archive] User not authenticated")
+            logger.error("User not authenticated")
             return
         }
 
-        print("📦 [Archive] Archiving \(questionIds.count) Pro Mode questions...")
+        logger.debug("Archiving \(questionIds.count) Pro Mode questions...")
 
         let imageStorage = ProModeImageStorage.shared
         var questionsToArchive: [[String: Any]] = []
@@ -1136,21 +1119,20 @@ class DigitalHomeworkViewModel: ObservableObject {
 
             // Save cropped image to file system if available
             var imagePath: String?
-            print("   🔍 [Archive] Q\(questionId): Checking for cropped image...")
-            print("   🔍 [Archive] croppedImages dictionary has \(croppedImages.count) entries")
-            print("   🔍 [Archive] croppedImages keys: \(croppedImages.keys.sorted())")
+            logger.debug("Q\(questionId): Checking for cropped image...")
+            logger.debug("croppedImages has \(croppedImages.count) entries, keys: \(croppedImages.keys.sorted())")
 
             if let image = croppedImages[questionId] {
-                print("   ✅ [Archive] Q\(questionId): Found cropped image in memory (size: \(image.size))")
+                logger.debug("Q\(questionId): Found cropped image (size: \(image.size))")
                 imagePath = imageStorage.saveImage(image)
                 if let path = imagePath {
-                    print("   ✅ [Archive] Q\(questionId): Saved image to: \(path)")
-                    print("   ✅ [Archive] Q\(questionId): File exists: \(FileManager.default.fileExists(atPath: path))")
+                    let fileExists = FileManager.default.fileExists(atPath: path)
+                    logger.debug("Q\(questionId): Saved image to: \(path), exists: \(fileExists)")
                 } else {
-                    print("   ❌ [Archive] Q\(questionId): Failed to save image to file system")
+                    logger.error("Q\(questionId): Failed to save image to file system")
                 }
             } else {
-                print("   ⚠️ [Archive] Q\(questionId): No cropped image found in memory")
+                logger.debug("Q\(questionId): No cropped image found in memory")
             }
 
             // Determine grade and isCorrect
@@ -1185,26 +1167,16 @@ class DigitalHomeworkViewModel: ObservableObject {
             ]
 
             questionsToArchive.append(questionData)
-            print("   📝 [Archive] Prepared Q\(questionId): \(question.displayText.prefix(50))...")
-            print("   📝 [Archive] Question data keys: \(questionData.keys.sorted())")
-            print("   📝 [Archive] hasVisualElements: \(questionData["hasVisualElements"] ?? "nil")")
-            print("   📝 [Archive] questionImageUrl: \(questionData["questionImageUrl"] ?? "nil")")
-            print("   📝 [Archive] proMode: \(questionData["proMode"] ?? "nil")")
-            print("   📝 [Archive] ⚠️ isCorrect: \(questionData["isCorrect"] ?? "nil")") // DEBUG: Verify isCorrect flag
-            print("   📝 [Archive] ⚠️ grade: \(questionData["grade"] ?? "nil")")         // DEBUG: Verify grade string
+            logger.debug("Prepared Q\(questionId) for archiving (hasImage: \(imagePath != nil), isCorrect: \(isCorrect))")
         }
 
-        print("")
-        print("📦 [Archive] === ARCHIVE SUMMARY ===")
-        print("   Total questions to archive: \(questionsToArchive.count)")
         let withImages = questionsToArchive.filter { ($0["hasVisualElements"] as? Bool) == true }.count
-        print("   Questions with images: \(withImages)")
-        print("")
+        logger.info("Archive summary: \(questionsToArchive.count) questions, \(withImages) with images")
 
         // Save to local storage
         QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
 
-        print("✅ [Archive] Successfully archived \(questionsToArchive.count) Pro Mode questions")
+        logger.info("Successfully archived \(questionsToArchive.count) Pro Mode questions")
     }
 
     /// Determine grade string and isCorrect status for a question
@@ -1247,7 +1219,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 var correctCount = 0
                 var totalCount = 0
 
-                print("📊 [Progress] Calculating accuracy for \(questions.count) questions...")
+                logger.debug("Calculating accuracy for \(questions.count) questions...")
 
                 for (index, questionWithGrade) in questions.enumerated() {
                     // Handle parent questions (questions with subquestions)
@@ -1257,7 +1229,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                         let subCorrect = subquestionGrades.filter { $0.isCorrect }.count
                         correctCount += subCorrect
 
-                        print("   Q\(index+1) (Parent): \(subCorrect)/\(subquestionGrades.count) subquestions correct")
+                        logger.debug("Q\(index+1) (Parent): \(subCorrect)/\(subquestionGrades.count) subquestions correct")
 
                     } else {
                         // Handle regular questions
@@ -1267,17 +1239,17 @@ class DigitalHomeworkViewModel: ObservableObject {
                             // Question has been graded
                             if grade.isCorrect {
                                 correctCount += 1
-                                print("   Q\(index+1): ✅ Correct (score: \(grade.score))")
+                                logger.debug("Q\(index+1): Correct")
                             } else if grade.score >= 0.5 {
                                 // Partial credit: score >= 50%
                                 // Conservative approach: don't count as correct (consistent with Detail/Fast mode)
-                                print("   Q\(index+1): ⚡ Partial (score: \(grade.score)) - counted as incorrect")
+                                logger.debug("Q\(index+1): Partial - counted as incorrect")
                             } else {
-                                print("   Q\(index+1): ❌ Incorrect (score: \(grade.score))")
+                                logger.debug("Q\(index+1): Incorrect")
                             }
                         } else {
                             // Ungraded question: conservatively count as incorrect
-                            print("   Q\(index+1): 📝 Ungraded - counted as incorrect")
+                            logger.debug("Q\(index+1): Ungraded - counted as incorrect")
                         }
                     }
                 }
@@ -1286,7 +1258,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 let totalCorrect = correctCount
                 let accuracy = totalCount > 0 ? Float(correctCount) / Float(totalCount) : 0.0
 
-                print("📊 [Progress] Final stats: \(totalCorrect)/\(totalQuestions) correct (\(String(format: "%.1f%%", accuracy * 100)))")
+                logger.info("Progress marking: \(totalCorrect)/\(totalQuestions) correct")
 
                 // Update progress using PointsEarningManager
                 await MainActor.run {
@@ -1300,8 +1272,8 @@ class DigitalHomeworkViewModel: ObservableObject {
                     stateManager.currentHomework?.hasMarkedProgress = true
                 }
 
-                print("✅ Progress marked: \(totalCorrect)/\(totalQuestions) correct (\(String(format: "%.1f%%", accuracy * 100)))")
-                print("🔒 [Progress] hasMarkedProgress flag set to true in StateManager - persists across navigation")
+                logger.info("Progress marked successfully")
+                logger.debug("hasMarkedProgress flag set in StateManager")
             }
         }
     }
@@ -1357,7 +1329,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     func batchArchiveSelected() async {
         guard !selectedQuestionIds.isEmpty else { return }
 
-        print("📦 [Archive] Batch archiving \(selectedQuestionIds.count) Pro Mode questions...")
+        logger.debug("Batch archiving \(selectedQuestionIds.count) Pro Mode questions...")
 
         // Archive all selected questions
         await archiveQuestions(Array(selectedQuestionIds))
@@ -1377,7 +1349,7 @@ class DigitalHomeworkViewModel: ObservableObject {
             }
         }
 
-        print("✅ [Archive] Batch archive completed - \(selectedQuestionIds.count) questions marked as archived")
+        logger.info("Batch archive completed - \(selectedQuestionIds.count) questions marked as archived")
     }
 
     // MARK: - Helper Methods
