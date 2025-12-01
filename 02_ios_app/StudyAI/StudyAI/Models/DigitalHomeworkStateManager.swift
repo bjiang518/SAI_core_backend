@@ -66,6 +66,10 @@ struct DigitalHomeworkData: Codable {
 
             // Keep isArchived flag (archived questions persist)
         }
+
+        // ✅ CRITICAL FIX: Reset progress tracking when reverting grades
+        // This prevents double-counting when user reverts and regrades
+        hasMarkedProgress = false
     }
 }
 

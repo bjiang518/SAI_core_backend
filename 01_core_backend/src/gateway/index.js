@@ -29,6 +29,7 @@ const AuthRoutes = require('./routes/auth-routes');
 const ProgressRoutes = require('./routes/progress-routes');
 const ParentReportsRoutes = require('./routes/parent-reports');
 const HealthRoutes = require('./routes/health');
+const MusicRoutes = require('./routes/music-routes'); // NEW: Focus music library management
 const { serviceAuth } = require('./middleware/service-auth');
 const { requestValidator } = require('./middleware/request-validation');
 const { contractValidator } = require('./middleware/contract-validation');
@@ -421,6 +422,9 @@ if (features.useGateway) {
 
   // Archive routes for session management
   new ArchiveRoutes(fastify);
+
+  // Music library routes for focus music
+  fastify.register(MusicRoutes);
 
   fastify.log.info('✅ API Gateway enabled with enhanced routing and performance optimization');
 } else {
