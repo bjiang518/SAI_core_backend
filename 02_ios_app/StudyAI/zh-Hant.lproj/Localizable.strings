@@ -1334,3 +1334,12 @@
 "proMode.correct" = "正確";
 "proMode.partial" = "部分正確";
 "proMode.incorrect" = "錯誤";
+
+// Pro Mode - 批改狀態訊息
+"proMode.grading.deepAnalyzing" = "🧠 深度分析題目中...";
+"proMode.grading.analyzing" = "📝 正在分析題目中...";
+"proMode.grading.deepGrading" = "🧠 深度批改 Q%@...";
+"proMode.grading.geminiGrading" = "✨ Gemini 批改 Q%@...";
+"proMode.grading.grading" = "🤖 批改 Q%@...";
+"proMode.grading.progress" = "✅ 已完成 %d/%d (%d%%)";
+"proMode.grading.complete" = "🎉 批改完成！";

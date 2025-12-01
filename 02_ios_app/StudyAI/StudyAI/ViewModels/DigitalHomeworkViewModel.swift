@@ -377,12 +377,13 @@ class DigitalHomeworkViewModel: ObservableObject {
     }
 
     /// ✅ NEW: Revert grading - clear all grades and return to pre-grading state
-    /// ⚠️ IMPORTANT: Does NOT reset hasMarkedProgress - progress marking remains permanent even after revert
+    /// ✅ CRITICAL FIX: Now RESETS hasMarkedProgress to prevent double-counting on regrade
     func revertGrading() {
         print("🔄 [Revert] Reverting all grading results...")
 
         // Call global state manager's revert method
         // This transitions state from .graded → .parsed while preserving homework data
+        // ✅ clearGrades() now also resets hasMarkedProgress to false
         stateManager.revertGrading()
 
         // Reset UI-only state
@@ -396,9 +397,9 @@ class DigitalHomeworkViewModel: ObservableObject {
             selectedQuestionIds.removeAll()
         }
 
-        // ⚠️ NOTE: hasMarkedProgress is deliberately NOT reset here
-        // Progress marking should persist even after reverting grades
-        print("ℹ️ [Revert] hasMarkedProgress remains: \(hasMarkedProgress) (intentionally not reset)")
+        // ✅ CRITICAL FIX: hasMarkedProgress is now reset in clearGrades()
+        // This prevents double-counting when user reverts and regrades the same homework
+        print("✅ [Revert] hasMarkedProgress reset to: \(hasMarkedProgress) (allows fresh progress marking)")
         print("✅ [Revert] Grading reverted successfully. State transitioned to .parsed")
     }
 
@@ -588,9 +589,10 @@ class DigitalHomeworkViewModel: ObservableObject {
         // ✅ NEW: Set initial grading animation state
         withAnimation(.easeInOut(duration: 0.3)) {
             gradingAnimation = .analyzing
-            currentGradingStatus = useDeepReasoning ? "🧠 深度分析题目中..." : "📝 正在分析题目..."
+            currentGradingStatus = useDeepReasoning ?
+                NSLocalizedString("proMode.grading.deepAnalyzing", comment: "Deep analyzing questions...") :
+                NSLocalizedString("proMode.grading.analyzing", comment: "Analyzing questions...")
         }
-
         // Get mutable copy of questions
         var updatedQuestions = questions
 
@@ -613,13 +615,14 @@ class DigitalHomeworkViewModel: ObservableObject {
                     print("📤 [Incremental] Marked Q\(question.question.id) as grading in UI")
 
                     // ✅ NEW: Update status message dynamically
+                    let questionNum = question.question.questionNumber ?? "?"
                     let statusMessage: String
                     if useDeepReasoning && selectedAIModel == "gemini" {
-                        statusMessage = "🧠 深度批改 Q\(question.question.questionNumber ?? "?")..."
+                        statusMessage = String(format: NSLocalizedString("proMode.grading.deepGrading", comment: "Deep grading question"), questionNum)
                     } else if selectedAIModel == "gemini" {
-                        statusMessage = "✨ Gemini 批改 Q\(question.question.questionNumber ?? "?")..."
+                        statusMessage = String(format: NSLocalizedString("proMode.grading.geminiGrading", comment: "Gemini grading question"), questionNum)
                     } else {
-                        statusMessage = "🤖 批改 Q\(question.question.questionNumber ?? "?")..."
+                        statusMessage = String(format: NSLocalizedString("proMode.grading.grading", comment: "Grading question"), questionNum)
                     }
 
                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -672,7 +675,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                     // ✅ NEW: Update progress status with animation
                     let progressPercent = Int((Float(gradedCount) / Float(totalQuestions)) * 100)
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        currentGradingStatus = "✅ 已完成 \(gradedCount)/\(totalQuestions) (\(progressPercent)%)"
+                        currentGradingStatus = String(format: NSLocalizedString("proMode.grading.progress", comment: "Grading progress"), gradedCount, totalQuestions, progressPercent)
                     }
 
                     print("✅ Q\(result.questionId) graded (\(gradedCount)/\(totalQuestions))")
@@ -683,7 +686,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         // ✅ NEW: Final completion animation
         withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
             gradingAnimation = .complete
-            currentGradingStatus = "🎉 批改完成！"
+            currentGradingStatus = NSLocalizedString("proMode.grading.complete", comment: "Grading complete!")
         }
 
         // Small delay to show completion message

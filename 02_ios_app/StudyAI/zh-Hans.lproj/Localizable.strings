@@ -1382,3 +1382,12 @@
 "proMode.correct" = "正确";
 "proMode.partial" = "部分正确";
 "proMode.incorrect" = "错误";
+
+// Pro Mode - 批改状态消息
+"proMode.grading.deepAnalyzing" = "🧠 深度分析题目中...";
+"proMode.grading.analyzing" = "📝 正在分析题目中...";
+"proMode.grading.deepGrading" = "🧠 深度批改 Q%@...";
+"proMode.grading.geminiGrading" = "✨ Gemini 批改 Q%@...";
+"proMode.grading.grading" = "🤖 批改 Q%@...";
+"proMode.grading.progress" = "✅ 已完成 %d/%d (%d%%)";
+"proMode.grading.complete" = "🎉 批改完成！";

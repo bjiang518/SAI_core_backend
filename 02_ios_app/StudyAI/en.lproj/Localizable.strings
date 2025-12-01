@@ -1361,3 +1361,12 @@
 "proMode.correct" = "Correct";
 "proMode.partial" = "Partial";
 "proMode.incorrect" = "Incorrect";
+
+// Pro Mode - Grading Status Messages
+"proMode.grading.deepAnalyzing" = "Deep analyzing questions...";
+"proMode.grading.analyzing" = "Analyzing questions...";
+"proMode.grading.deepGrading" = "Deep grading Q%@...";
+"proMode.grading.geminiGrading" = "Gemini grading Q%@...";
+"proMode.grading.grading" = "Grading Q%@...";
+"proMode.grading.progress" = "Completed %d/%d (%d%%)";
+"proMode.grading.complete" = "Grading complete!";
