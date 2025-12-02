@@ -10,6 +10,8 @@ import SwiftUI
 import UIKit
 import Combine
 import AVFoundation  // ✅ For iOS system unlock sound
+import PDFKit  // ✅ For PDF generation and preview
+import UniformTypeIdentifiers  // ✅ For PDF transfer type
 
 // MARK: - Digital Homework View
 
@@ -26,6 +28,11 @@ struct DigitalHomeworkView: View {
 
     // ✅ NEW: Revert confirmation alert
     @State private var showRevertConfirmation = false
+
+    // ✅ PDF generation state
+    @State private var isGeneratingPDF = false
+    @State private var generatedPDFDocument: PDFDocument?
+    @State private var showPDFPreview = false
 
     // MARK: - Body
 
@@ -237,6 +244,9 @@ struct DigitalHomeworkView: View {
 
             // ✅ NEW: Revert button (appears only after grading)
             revertButton
+
+            // ✅ HIDDEN: PDF generation trigger (typeable text)
+            hiddenPDFTrigger
         }
     }
 
@@ -613,6 +623,57 @@ struct DigitalHomeworkView: View {
             .foregroundColor(.red)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
+        }
+    }
+
+    // MARK: - PDF Generation Button (可见的PDF生成按钮)
+
+    private var hiddenPDFTrigger: some View {
+        VStack(spacing: 12) {
+            // Visible PDF generation button
+            if !isGeneratingPDF {
+                Button(action: {
+                    print("📄 PDF Generation Button Tapped!")
+                    triggerPDFGeneration()
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc.text.fill")
+                            .font(.headline)
+                        Text("Generate PDF (Raw Questions)")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.blue, Color.blue.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(12)
+                    .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
+                }
+            }
+
+            // Status indicator (shows when generating)
+            if isGeneratingPDF {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Generating PDF...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 4)
+            }
+        }
+        .sheet(isPresented: $showPDFPreview) {
+            if let pdfDocument = generatedPDFDocument {
+                PDFPreviewSheet(pdfDocument: pdfDocument)
+            }
         }
     }
 
@@ -1723,6 +1784,126 @@ struct GradingLoadingIndicator: View {
         default:
             return "gemini-icon"
         }
+    }
+}
+
+// MARK: - PDF Generation Function
+
+extension DigitalHomeworkView {
+    /// Trigger AI-driven PDF generation pipeline
+    private func triggerPDFGeneration() {
+        print("📄 === Starting AI-Driven PDF Generation ===")
+
+        Task { @MainActor in
+            isGeneratingPDF = true
+
+            // Prepare digital homework data - create minimal struct needed for PDF generation
+            guard let originalImageData = originalImage.jpegData(compressionQuality: 0.85) else {
+                print("❌ Failed to convert original image to data")
+                isGeneratingPDF = false
+                return
+            }
+
+            // Convert viewModel.croppedImages [Int: UIImage] to [Int: Data] for DigitalHomeworkData
+            var croppedImagesData: [Int: Data] = [:]
+            for (questionId, image) in viewModel.croppedImages {
+                if let imageData = image.jpegData(compressionQuality: 0.85) {
+                    croppedImagesData[questionId] = imageData
+                }
+            }
+
+            let digitalHomework = DigitalHomeworkData(
+                homeworkHash: UUID().uuidString,  // Temporary hash for PDF generation
+                parseResults: parseResults,
+                originalImageData: originalImageData,
+                questions: viewModel.questions,
+                annotations: viewModel.annotations,
+                croppedImages: croppedImagesData,
+                createdAt: Date(),
+                lastModified: Date()
+            )
+
+            // Get subject and date
+            let subject = parseResults.subject
+            let date = Date()
+
+            print("📊 Generating PDF for \(viewModel.questions.count) questions")
+            print("📚 Subject: \(subject)")
+
+            // Call AI PDF generator service
+            let pdfService = AIPDFGeneratorService()
+
+            if let pdfDocument = await pdfService.generateProModePDF(
+                digitalHomework: digitalHomework,
+                croppedImages: viewModel.croppedImages,
+                subject: subject,
+                date: date
+            ) {
+                print("✅ PDF Generated successfully: \(pdfDocument.pageCount) pages")
+
+                // Store and show PDF
+                generatedPDFDocument = pdfDocument
+                showPDFPreview = true
+
+                // Haptic feedback
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+            } else {
+                print("❌ PDF Generation failed")
+
+                // Error feedback
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.error)
+            }
+
+            isGeneratingPDF = false
+        }
+    }
+}
+
+// MARK: - PDF Preview Sheet
+
+struct PDFPreviewSheet: View {
+    let pdfDocument: PDFDocument
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            PDFKitView(document: pdfDocument)
+                .navigationTitle("Raw Question PDF")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Close") {
+                            dismiss()
+                        }
+                    }
+
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        ShareLink(item: pdfDocument, preview: SharePreview("Homework", image: Image(systemName: "doc.text"))) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                    }
+                }
+        }
+    }
+}
+
+// MARK: - PDFDocument Transferable Conformance
+
+extension PDFDocument: @unchecked Sendable, Transferable {
+    public static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .pdf) { document in
+            guard let data = document.dataRepresentation() else {
+                throw TransferError.exportFailed
+            }
+            return data
+        }
+    }
+
+    enum TransferError: Error {
+        case exportFailed
     }
 }
 

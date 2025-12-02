@@ -16,6 +16,7 @@ import Foundation
 import PDFKit
 import WebKit
 import UIKit
+import Combine
 
 @MainActor
 class AIPDFGeneratorService: NSObject, ObservableObject {

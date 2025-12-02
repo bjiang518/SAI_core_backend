@@ -692,7 +692,7 @@ struct QuestionDetailView: View {
             questionText: question.questionText,
             rawQuestionText: question.rawQuestionText,
             studentAnswer: question.studentAnswer,
-            correctAnswer: question.correctAnswer,  // Use correctAnswer field (this is the bug we're tracking)
+            correctAnswer: question.answerText,  // Use answerText as correctAnswer (ArchivedQuestion doesn't have correctAnswer field)
             currentGrade: question.grade.map { grade in
                 // Map GradeResult to string
                 switch grade {
