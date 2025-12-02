@@ -11,6 +11,7 @@ struct MusicSelectionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @ObservedObject var musicService = BackgroundMusicService.shared
+    @ObservedObject var downloadService = MusicDownloadService.shared
 
     @Binding var selectedTrack: BackgroundMusicTrack?
     @Binding var selectedPlaylist: MusicPlaylist?
@@ -205,9 +206,9 @@ struct MusicSelectionSheet: View {
                 handleTrackSelection(musicService.availableTracks.first(where: { $0.id == "no_music" })!)
             }
 
-            // Tracks by Category
+            // Tracks by Category (only bundled tracks)
             ForEach(BackgroundMusicTrack.MusicCategory.allCases, id: \.self) { category in
-                let tracksInCategory = musicService.getTracks(category: category)
+                let tracksInCategory = musicService.getTracks(category: category).filter { $0.source == .bundle }
 
                 if !tracksInCategory.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
@@ -237,8 +238,66 @@ struct MusicSelectionSheet: View {
                     }
                 }
             }
+
+            // More Section - Remote Downloadable Tracks
+            remoteTracksSection
         }
         .padding(.vertical, 8)
+    }
+
+    // MARK: - Remote Tracks Section
+
+    private var remoteTracksSection: some View {
+        let remoteTracks = musicService.availableTracks.filter { $0.source == .remote }
+
+        return VStack(alignment: .leading, spacing: 12) {
+            // "More" Header
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .foregroundColor(.blue)
+
+                Text(NSLocalizedString("focus.moreMusic", comment: "More Music"))
+                    .font(.headline)
+                    .foregroundColor(colorScheme == .dark ? .white : .primary)
+
+                Spacer()
+
+                Text(NSLocalizedString("focus.downloadable", comment: "Downloadable"))
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+
+            // Remote tracks
+            ForEach(remoteTracks) { track in
+                RemoteTrackRow(
+                    track: track,
+                    isSelected: selectedTrack?.id == track.id,
+                    isPlaying: musicService.isPlaying && musicService.currentTrack?.id == track.id,
+                    isDownloaded: downloadService.isTrackDownloaded(track.id),
+                    downloadProgress: downloadService.downloadProgress[track.id],
+                    colorScheme: colorScheme,
+                    onSelect: {
+                        handleTrackSelection(track)
+                    },
+                    onDownload: {
+                        downloadService.downloadTrack(track)
+                    },
+                    onDelete: {
+                        downloadService.deleteTrack(track.id, fileName: track.fileName)
+                    },
+                    onCancelDownload: {
+                        downloadService.cancelDownload(track.id)
+                    }
+                )
+                .padding(.horizontal, 20)
+            }
+        }
     }
 
     // MARK: - Playlist Content
@@ -344,6 +403,12 @@ struct MusicSelectionSheet: View {
             musicService.stop()
             selectedTrack = track
             selectedPlaylist = nil
+            return
+        }
+
+        // If remote track is not downloaded, don't allow selection
+        if track.source == .remote && !downloadService.isTrackDownloaded(track.id) {
+            print("⚠️ Cannot play remote track: not downloaded yet")
             return
         }
 
@@ -514,6 +579,165 @@ struct PlaylistRow: View {
             }
         } message: {
             Text(NSLocalizedString("focus.deletePlaylistConfirmation", comment: "Are you sure you want to delete this playlist?"))
+        }
+    }
+}
+
+// MARK: - Remote Track Row Component
+
+struct RemoteTrackRow: View {
+    let track: BackgroundMusicTrack
+    let isSelected: Bool
+    let isPlaying: Bool
+    let isDownloaded: Bool
+    let downloadProgress: Double?
+    let colorScheme: ColorScheme
+    let onSelect: () -> Void
+    let onDownload: () -> Void
+    let onDelete: () -> Void
+    let onCancelDownload: () -> Void
+
+    @State private var showDeleteConfirmation = false
+
+    var body: some View {
+        Button(action: {
+            if isDownloaded {
+                onSelect()
+            }
+        }) {
+            HStack(spacing: 16) {
+                // Track Icon/Status
+                ZStack {
+                    Circle()
+                        .fill(isSelected ?
+                            track.category.color.opacity(0.2) :
+                            (colorScheme == .dark ? Color.white.opacity(0.05) : Color.gray.opacity(0.1)))
+                        .frame(width: 50, height: 50)
+
+                    if isPlaying {
+                        Image(systemName: "waveform")
+                            .foregroundColor(track.category.color)
+                            .font(.system(size: 20))
+                    } else if isDownloaded {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.system(size: 20))
+                    } else {
+                        Image(systemName: track.source.icon)
+                            .foregroundColor(.blue)
+                            .font(.system(size: 20))
+                    }
+                }
+
+                // Track Info
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(track.name)
+                        .font(.body)
+                        .fontWeight(isSelected ? .semibold : .regular)
+                        .foregroundColor(colorScheme == .dark ? .white : .primary)
+
+                    HStack(spacing: 8) {
+                        Text(track.category.displayName)
+                            .font(.caption)
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
+
+                        if let description = track.description {
+                            Text("•")
+                                .font(.caption)
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .secondary)
+
+                            Text(description)
+                                .font(.caption)
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
+                                .lineLimit(1)
+                        }
+                    }
+
+                    if let fileSize = track.formattedFileSize {
+                        Text(fileSize)
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                    }
+
+                    // Download Progress Bar
+                    if let progress = downloadProgress {
+                        VStack(spacing: 4) {
+                            GeometryReader { geometry in
+                                ZStack(alignment: .leading) {
+                                    // Background
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.gray.opacity(0.2))
+                                        .frame(height: 6)
+
+                                    // Progress
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.blue)
+                                        .frame(width: geometry.size.width * CGFloat(progress), height: 6)
+                                        .animation(.linear(duration: 0.2), value: progress)
+                                }
+                            }
+                            .frame(height: 6)
+
+                            HStack {
+                                Text(String(format: "%.0f%%", progress * 100))
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+
+                                Spacer()
+
+                                Button(action: onCancelDownload) {
+                                    Text(NSLocalizedString("common.cancel", comment: "Cancel"))
+                                        .font(.caption2)
+                                        .foregroundColor(.red)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer()
+
+                // Action Button
+                if let _ = downloadProgress {
+                    // Downloading - show progress spinner
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else if isDownloaded {
+                    // Downloaded - show delete button
+                    Button(action: { showDeleteConfirmation = true }) {
+                        Image(systemName: "trash.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(.red.opacity(0.7))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                } else {
+                    // Not downloaded - show download button
+                    Button(action: onDownload) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(.blue)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ?
+                        track.category.color.opacity(0.05) :
+                        (colorScheme == .dark ? Color.white.opacity(0.02) : Color.clear))
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .disabled(!isDownloaded && downloadProgress == nil)
+        .alert(NSLocalizedString("focus.deleteTrack", comment: "Delete Track"), isPresented: $showDeleteConfirmation) {
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
+            Button(NSLocalizedString("common.delete", comment: "Delete"), role: .destructive) {
+                onDelete()
+            }
+        } message: {
+            Text(NSLocalizedString("focus.deleteTrackConfirmation", comment: "Are you sure you want to delete this downloaded track? You can re-download it anytime."))
         }
     }
 }
