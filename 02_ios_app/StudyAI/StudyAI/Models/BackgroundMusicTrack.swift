@@ -138,7 +138,7 @@ struct BackgroundMusicTrack: Identifiable, Codable, Hashable {
 
     // Full initializer with all properties (supports bundle and remote)
     init(id: String, name: String, fileName: String, category: MusicCategory, duration: TimeInterval,
-         source: TrackSource, fileSize: Int64? = nil, description: String? = nil) {
+         source: TrackSource, fileSize: Int64? = nil, description: String? = nil, remoteURL: String? = nil) {
         self.id = id
         self.name = name
         self.fileName = fileName
@@ -147,6 +147,7 @@ struct BackgroundMusicTrack: Identifiable, Codable, Hashable {
         self.source = source
         self.fileSize = fileSize
         self.description = description
+        self.remoteURL = remoteURL
         self.isDownloaded = (source == .bundle)  // Bundle tracks are always available
     }
 

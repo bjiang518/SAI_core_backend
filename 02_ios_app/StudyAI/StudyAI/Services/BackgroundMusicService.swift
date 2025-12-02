@@ -80,23 +80,25 @@ class BackgroundMusicService: NSObject, ObservableObject {
             BackgroundMusicTrack(
                 id: "meditation_focus",
                 name: "Meditation & Focus",
-                fileName: "meditation-amp-focus",
+                fileName: "meditation-amp-focus.mp3",
                 category: .lofi,
                 duration: 274,  // 4:34
                 source: .remote,
                 fileSize: 8_400_000,  // ~8.4MB
-                description: "Deep focus meditation with lo-fi beats"
+                description: "Deep focus meditation with lo-fi beats",
+                remoteURL: "https://sai-backend-production.up.railway.app/api/music/download/meditation_focus"
             ),
 
             BackgroundMusicTrack(
                 id: "magic_healing",
                 name: "Magic Healing",
-                fileName: "magic-healing",
+                fileName: "magic-healing.mp3",
                 category: .ambient,
                 duration: 200,  // 3:20
                 source: .remote,
                 fileSize: 7_300_000,  // ~7.3MB
-                description: "Peaceful ambient music for deep concentration"
+                description: "Peaceful ambient music for deep concentration",
+                remoteURL: "https://sai-backend-production.up.railway.app/api/music/download/magic_healing"
             )
         ]
 

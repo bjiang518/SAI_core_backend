@@ -2264,8 +2264,17 @@ class NetworkService: ObservableObject {
             print("   - isCorrect: \(grade.isCorrect)")
             print("   - feedback: '\(grade.feedback)'")
             print("   - confidence: \(grade.confidence)")
+            print("   - correctAnswer: '\(grade.correctAnswer ?? "NIL")'")  // ✅ CRITICAL: Log correctAnswer
             print("   - feedback length: \(grade.feedback.count) chars")
             print("   - feedback empty: \(grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+
+            // ✅ CRITICAL: Additional correctAnswer validation
+            if let correctAnswer = grade.correctAnswer {
+                print("   - correctAnswer present: YES (\(correctAnswer.count) chars)")
+                print("   - correctAnswer preview: '\(correctAnswer.prefix(100))...'")
+            } else {
+                print("   - ⚠️  WARNING: correctAnswer is NIL! Backend may not be returning this field!")
+            }
         } else {
             print("❌ Grade Object is NIL")
         }

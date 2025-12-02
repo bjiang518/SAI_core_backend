@@ -1138,6 +1138,19 @@ class DigitalHomeworkViewModel: ObservableObject {
             // Determine grade and isCorrect
             let (gradeString, isCorrect) = determineGradeAndCorrectness(for: questionWithGrade)
 
+            // 🔍 CRITICAL DEBUG: Log grading data before archiving
+            logger.debug("=== ARCHIVE DEBUG Q\(questionId) ===")
+            logger.debug("Grade object present: \(questionWithGrade.grade != nil)")
+            if let grade = questionWithGrade.grade {
+                logger.debug("  - score: \(grade.score)")
+                logger.debug("  - isCorrect: \(grade.isCorrect)")
+                logger.debug("  - feedback: '\(grade.feedback.prefix(50))'...")
+                logger.debug("  - correctAnswer: '\(grade.correctAnswer ?? "NIL")'")
+                logger.debug("  - correctAnswer length: \(grade.correctAnswer?.count ?? 0)")
+            }
+            logger.debug("Student answer: '\(question.displayStudentAnswer.prefix(50))'...")
+            logger.debug("===")
+
             // Build archived question data
             let questionData: [String: Any] = [
                 "id": UUID().uuidString,
@@ -1158,7 +1171,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 "points": questionWithGrade.grade?.score ?? 0.0,
                 "maxPoints": 1.0,
                 "feedback": questionWithGrade.grade?.feedback ?? "",
-                "correctAnswer": questionWithGrade.grade?.correctAnswer ?? "",  // ✅ NEW: Save correct answer
+                "correctAnswer": questionWithGrade.grade?.correctAnswer ?? "",  // ✅ CRITICAL: Save correct answer
                 "isGraded": questionWithGrade.grade != nil,
                 "isCorrect": isCorrect,
                 "questionType": question.questionType ?? "short_answer",
@@ -1166,6 +1179,8 @@ class DigitalHomeworkViewModel: ObservableObject {
                 "proMode": true  // Mark as Pro Mode question
             ]
 
+            // 🔍 CRITICAL DEBUG: Log what's actually being archived
+            logger.debug("ARCHIVED Q\(questionId): studentAnswer='\(question.displayStudentAnswer.prefix(30))', correctAnswer='\((questionWithGrade.grade?.correctAnswer ?? "NIL").prefix(30))'")
             questionsToArchive.append(questionData)
             logger.debug("Prepared Q\(questionId) for archiving (hasImage: \(imagePath != nil), isCorrect: \(isCorrect))")
         }
