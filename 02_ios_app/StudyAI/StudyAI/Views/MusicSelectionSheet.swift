@@ -206,9 +206,14 @@ struct MusicSelectionSheet: View {
                 handleTrackSelection(musicService.availableTracks.first(where: { $0.id == "no_music" })!)
             }
 
-            // Tracks by Category (only bundled tracks)
+            // Tracks by Category (bundled + downloaded remote tracks)
             ForEach(BackgroundMusicTrack.MusicCategory.allCases, id: \.self) { category in
-                let tracksInCategory = musicService.getTracks(category: category).filter { $0.source == .bundle }
+                // Get both bundled and downloaded remote tracks for this category
+                let bundledTracks = musicService.getTracks(category: category).filter { $0.source == .bundle }
+                let downloadedRemoteTracks = musicService.getTracks(category: category).filter {
+                    $0.source == .remote && downloadService.isTrackDownloaded($0.id)
+                }
+                let tracksInCategory = bundledTracks + downloadedRemoteTracks
 
                 if !tracksInCategory.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
@@ -220,26 +225,59 @@ struct MusicSelectionSheet: View {
                             Text(category.displayName)
                                 .font(.headline)
                                 .foregroundColor(colorScheme == .dark ? .white : .primary)
+
+                            // Show count badge if there are downloaded remote tracks
+                            if !downloadedRemoteTracks.isEmpty {
+                                Text("\(tracksInCategory.count)")
+                                    .font(.caption2)
+                                    .foregroundColor(category.color)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(category.color.opacity(0.15))
+                                    .cornerRadius(8)
+                            }
                         }
                         .padding(.horizontal, 20)
 
                         // Tracks in this category
                         ForEach(tracksInCategory) { track in
-                            TrackRow(
-                                track: track,
-                                isSelected: selectedTrack?.id == track.id,
-                                isPlaying: musicService.isPlaying && musicService.currentTrack?.id == track.id,
-                                colorScheme: colorScheme
-                            ) {
-                                handleTrackSelection(track)
+                            if track.source == .bundle {
+                                // Bundled track - use TrackRow
+                                TrackRow(
+                                    track: track,
+                                    isSelected: selectedTrack?.id == track.id,
+                                    isPlaying: musicService.isPlaying && musicService.currentTrack?.id == track.id,
+                                    colorScheme: colorScheme
+                                ) {
+                                    handleTrackSelection(track)
+                                }
+                                .padding(.horizontal, 20)
+                            } else {
+                                // Downloaded remote track - use RemoteTrackRow with delete capability
+                                RemoteTrackRow(
+                                    track: track,
+                                    isSelected: selectedTrack?.id == track.id,
+                                    isPlaying: musicService.isPlaying && musicService.currentTrack?.id == track.id,
+                                    isDownloaded: true,  // Already filtered for downloaded
+                                    downloadProgress: nil,
+                                    colorScheme: colorScheme,
+                                    onSelect: {
+                                        handleTrackSelection(track)
+                                    },
+                                    onDownload: {},  // Already downloaded
+                                    onDelete: {
+                                        downloadService.deleteTrack(track.id, fileName: track.fileName)
+                                    },
+                                    onCancelDownload: {}
+                                )
+                                .padding(.horizontal, 20)
                             }
-                            .padding(.horizontal, 20)
                         }
                     }
                 }
             }
 
-            // More Section - Remote Downloadable Tracks
+            // More Section - Only NOT downloaded remote tracks
             remoteTracksSection
         }
         .padding(.vertical, 8)
@@ -248,54 +286,61 @@ struct MusicSelectionSheet: View {
     // MARK: - Remote Tracks Section
 
     private var remoteTracksSection: some View {
-        let remoteTracks = musicService.availableTracks.filter { $0.source == .remote }
+        // Only show remote tracks that are NOT downloaded
+        let remoteTracks = musicService.availableTracks.filter {
+            $0.source == .remote && !downloadService.isTrackDownloaded($0.id)
+        }
 
-        return VStack(alignment: .leading, spacing: 12) {
-            // "More" Header
-            HStack(spacing: 8) {
-                Image(systemName: "arrow.down.circle.fill")
-                    .foregroundColor(.blue)
+        return Group {
+            if !remoteTracks.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    // "More" Header
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundColor(.blue)
 
-                Text(NSLocalizedString("focus.moreMusic", comment: "More Music"))
-                    .font(.headline)
-                    .foregroundColor(colorScheme == .dark ? .white : .primary)
+                        Text(NSLocalizedString("focus.moreMusic", comment: "More Music"))
+                            .font(.headline)
+                            .foregroundColor(colorScheme == .dark ? .white : .primary)
 
-                Spacer()
+                        Spacer()
 
-                Text(NSLocalizedString("focus.downloadable", comment: "Downloadable"))
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(8)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-
-            // Remote tracks
-            ForEach(remoteTracks) { track in
-                RemoteTrackRow(
-                    track: track,
-                    isSelected: selectedTrack?.id == track.id,
-                    isPlaying: musicService.isPlaying && musicService.currentTrack?.id == track.id,
-                    isDownloaded: downloadService.isTrackDownloaded(track.id),
-                    downloadProgress: downloadService.downloadProgress[track.id],
-                    colorScheme: colorScheme,
-                    onSelect: {
-                        handleTrackSelection(track)
-                    },
-                    onDownload: {
-                        downloadService.downloadTrack(track)
-                    },
-                    onDelete: {
-                        downloadService.deleteTrack(track.id, fileName: track.fileName)
-                    },
-                    onCancelDownload: {
-                        downloadService.cancelDownload(track.id)
+                        Text(NSLocalizedString("focus.downloadable", comment: "Downloadable"))
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
                     }
-                )
-                .padding(.horizontal, 20)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+
+                    // Remote tracks that need download
+                    ForEach(remoteTracks) { track in
+                        RemoteTrackRow(
+                            track: track,
+                            isSelected: selectedTrack?.id == track.id,
+                            isPlaying: musicService.isPlaying && musicService.currentTrack?.id == track.id,
+                            isDownloaded: false,
+                            downloadProgress: downloadService.downloadProgress[track.id],
+                            colorScheme: colorScheme,
+                            onSelect: {
+                                handleTrackSelection(track)
+                            },
+                            onDownload: {
+                                downloadService.downloadTrack(track)
+                            },
+                            onDelete: {
+                                downloadService.deleteTrack(track.id, fileName: track.fileName)
+                            },
+                            onCancelDownload: {
+                                downloadService.cancelDownload(track.id)
+                            }
+                        )
+                        .padding(.horizontal, 20)
+                    }
+                }
             }
         }
     }
@@ -435,65 +480,84 @@ struct TrackRow: View {
     let colorScheme: ColorScheme
     let action: () -> Void
 
+    @ObservedObject var musicService = BackgroundMusicService.shared
+
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                // Track Icon/Status
-                ZStack {
-                    Circle()
-                        .fill(isSelected ?
-                            track.category.color.opacity(0.2) :
-                            (colorScheme == .dark ? Color.white.opacity(0.05) : Color.gray.opacity(0.1)))
-                        .frame(width: 44, height: 44)
+        HStack(spacing: 16) {
+            // Track Icon/Status
+            ZStack {
+                Circle()
+                    .fill(isSelected ?
+                        track.category.color.opacity(0.2) :
+                        (colorScheme == .dark ? Color.white.opacity(0.05) : Color.gray.opacity(0.1)))
+                    .frame(width: 44, height: 44)
 
-                    if isPlaying {
-                        Image(systemName: "waveform")
-                            .foregroundColor(track.category.color)
-                            .font(.system(size: 18))
-                    } else if track.id == "no_music" {
-                        Image(systemName: "speaker.slash.fill")
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
-                            .font(.system(size: 18))
-                    } else {
-                        Image(systemName: "music.note")
-                            .foregroundColor(isSelected ? track.category.color : (colorScheme == .dark ? .white.opacity(0.6) : .secondary))
-                            .font(.system(size: 18))
-                    }
-                }
-
-                // Track Info
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(track.name)
-                        .font(.body)
-                        .fontWeight(isSelected ? .semibold : .regular)
-                        .foregroundColor(colorScheme == .dark ? .white : .primary)
-
-                    if track.id != "no_music" {
-                        Text(track.category.displayName)
-                            .font(.caption)
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
-                    }
-                }
-
-                Spacer()
-
-                // Selection Indicator
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
+                if isPlaying {
+                    Image(systemName: "waveform")
                         .foregroundColor(track.category.color)
-                        .font(.system(size: 22))
+                        .font(.system(size: 18))
+                } else if track.id == "no_music" {
+                    Image(systemName: "speaker.slash.fill")
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
+                        .font(.system(size: 18))
+                } else {
+                    Image(systemName: "music.note")
+                        .foregroundColor(isSelected ? track.category.color : (colorScheme == .dark ? .white.opacity(0.6) : .secondary))
+                        .font(.system(size: 18))
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ?
-                        track.category.color.opacity(0.05) :
-                        (colorScheme == .dark ? Color.white.opacity(0.02) : Color.clear))
-            )
+
+            // Track Info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(track.name)
+                    .font(.body)
+                    .fontWeight(isSelected ? .semibold : .regular)
+                    .foregroundColor(colorScheme == .dark ? .white : .primary)
+
+                if track.id != "no_music" {
+                    Text(track.category.displayName)
+                        .font(.caption)
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
+                }
+            }
+
+            Spacer()
+
+            // Play/Stop Button
+            if track.id != "no_music" {
+                Button(action: {
+                    if isPlaying {
+                        musicService.stop()
+                    } else {
+                        musicService.play(track: track)
+                    }
+                }) {
+                    Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(isPlaying ? .red : track.category.color)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+
+            // Selection Indicator
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(track.category.color)
+                    .font(.system(size: 22))
+            }
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isSelected ?
+                    track.category.color.opacity(0.05) :
+                    (colorScheme == .dark ? Color.white.opacity(0.02) : Color.clear))
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            action()
+        }
     }
 }
 
@@ -598,139 +662,155 @@ struct RemoteTrackRow: View {
     let onCancelDownload: () -> Void
 
     @State private var showDeleteConfirmation = false
+    @ObservedObject var musicService = BackgroundMusicService.shared
 
     var body: some View {
-        Button(action: {
+        HStack(spacing: 16) {
+            // Track Icon/Status
+            ZStack {
+                Circle()
+                    .fill(isSelected ?
+                        track.category.color.opacity(0.2) :
+                        (colorScheme == .dark ? Color.white.opacity(0.05) : Color.gray.opacity(0.1)))
+                    .frame(width: 50, height: 50)
+
+                if isPlaying {
+                    Image(systemName: "waveform")
+                        .foregroundColor(track.category.color)
+                        .font(.system(size: 20))
+                } else if isDownloaded {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.system(size: 20))
+                } else {
+                    Image(systemName: track.source.icon)
+                        .foregroundColor(.blue)
+                        .font(.system(size: 20))
+                }
+            }
+
+            // Track Info
+            VStack(alignment: .leading, spacing: 6) {
+                Text(track.name)
+                    .font(.body)
+                    .fontWeight(isSelected ? .semibold : .regular)
+                    .foregroundColor(colorScheme == .dark ? .white : .primary)
+
+                HStack(spacing: 8) {
+                    Text(track.category.displayName)
+                        .font(.caption)
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
+
+                    if let description = track.description {
+                        Text("•")
+                            .font(.caption)
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .secondary)
+
+                        Text(description)
+                            .font(.caption)
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                if let fileSize = track.formattedFileSize {
+                    Text(fileSize)
+                        .font(.caption2)
+                        .foregroundColor(.blue)
+                }
+
+                // Download Progress Bar
+                if let progress = downloadProgress {
+                    VStack(spacing: 4) {
+                        GeometryReader { geometry in
+                            ZStack(alignment: .leading) {
+                                // Background
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.gray.opacity(0.2))
+                                    .frame(height: 6)
+
+                                // Progress
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color.blue)
+                                    .frame(width: geometry.size.width * CGFloat(progress), height: 6)
+                                    .animation(.linear(duration: 0.2), value: progress)
+                            }
+                        }
+                        .frame(height: 6)
+
+                        HStack {
+                            Text(String(format: "%.0f%%", progress * 100))
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+
+                            Spacer()
+
+                            Button(action: onCancelDownload) {
+                                Text(NSLocalizedString("common.cancel", comment: "Cancel"))
+                                    .font(.caption2)
+                                    .foregroundColor(.red)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer()
+
+            // Play/Stop Button (if downloaded)
+            if isDownloaded && downloadProgress == nil {
+                Button(action: {
+                    if isPlaying {
+                        musicService.stop()
+                    } else {
+                        musicService.play(track: track)
+                    }
+                }) {
+                    Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(isPlaying ? .red : track.category.color)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+
+            // Action Button (Download/Delete)
+            if let _ = downloadProgress {
+                // Downloading - show progress spinner
+                ProgressView()
+                    .scaleEffect(0.8)
+            } else if isDownloaded {
+                // Downloaded - show delete button
+                Button(action: { showDeleteConfirmation = true }) {
+                    Image(systemName: "trash.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(.red.opacity(0.7))
+                }
+                .buttonStyle(PlainButtonStyle())
+            } else {
+                // Not downloaded - show download button
+                Button(action: onDownload) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isSelected ?
+                    track.category.color.opacity(0.05) :
+                    (colorScheme == .dark ? Color.white.opacity(0.02) : Color.clear))
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            // Only allow tap to play if downloaded
             if isDownloaded {
                 onSelect()
             }
-        }) {
-            HStack(spacing: 16) {
-                // Track Icon/Status
-                ZStack {
-                    Circle()
-                        .fill(isSelected ?
-                            track.category.color.opacity(0.2) :
-                            (colorScheme == .dark ? Color.white.opacity(0.05) : Color.gray.opacity(0.1)))
-                        .frame(width: 50, height: 50)
-
-                    if isPlaying {
-                        Image(systemName: "waveform")
-                            .foregroundColor(track.category.color)
-                            .font(.system(size: 20))
-                    } else if isDownloaded {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.system(size: 20))
-                    } else {
-                        Image(systemName: track.source.icon)
-                            .foregroundColor(.blue)
-                            .font(.system(size: 20))
-                    }
-                }
-
-                // Track Info
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(track.name)
-                        .font(.body)
-                        .fontWeight(isSelected ? .semibold : .regular)
-                        .foregroundColor(colorScheme == .dark ? .white : .primary)
-
-                    HStack(spacing: 8) {
-                        Text(track.category.displayName)
-                            .font(.caption)
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
-
-                        if let description = track.description {
-                            Text("•")
-                                .font(.caption)
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .secondary)
-
-                            Text(description)
-                                .font(.caption)
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
-                                .lineLimit(1)
-                        }
-                    }
-
-                    if let fileSize = track.formattedFileSize {
-                        Text(fileSize)
-                            .font(.caption2)
-                            .foregroundColor(.blue)
-                    }
-
-                    // Download Progress Bar
-                    if let progress = downloadProgress {
-                        VStack(spacing: 4) {
-                            GeometryReader { geometry in
-                                ZStack(alignment: .leading) {
-                                    // Background
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.gray.opacity(0.2))
-                                        .frame(height: 6)
-
-                                    // Progress
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(Color.blue)
-                                        .frame(width: geometry.size.width * CGFloat(progress), height: 6)
-                                        .animation(.linear(duration: 0.2), value: progress)
-                                }
-                            }
-                            .frame(height: 6)
-
-                            HStack {
-                                Text(String(format: "%.0f%%", progress * 100))
-                                    .font(.caption2)
-                                    .foregroundColor(.blue)
-
-                                Spacer()
-
-                                Button(action: onCancelDownload) {
-                                    Text(NSLocalizedString("common.cancel", comment: "Cancel"))
-                                        .font(.caption2)
-                                        .foregroundColor(.red)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer()
-
-                // Action Button
-                if let _ = downloadProgress {
-                    // Downloading - show progress spinner
-                    ProgressView()
-                        .scaleEffect(0.8)
-                } else if isDownloaded {
-                    // Downloaded - show delete button
-                    Button(action: { showDeleteConfirmation = true }) {
-                        Image(systemName: "trash.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(.red.opacity(0.7))
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                } else {
-                    // Not downloaded - show download button
-                    Button(action: onDownload) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(.blue)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ?
-                        track.category.color.opacity(0.05) :
-                        (colorScheme == .dark ? Color.white.opacity(0.02) : Color.clear))
-            )
         }
-        .buttonStyle(PlainButtonStyle())
-        .disabled(!isDownloaded && downloadProgress == nil)
         .alert(NSLocalizedString("focus.deleteTrack", comment: "Delete Track"), isPresented: $showDeleteConfirmation) {
             Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
             Button(NSLocalizedString("common.delete", comment: "Delete"), role: .destructive) {
