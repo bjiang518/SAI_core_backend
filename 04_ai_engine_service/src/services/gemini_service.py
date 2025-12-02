@@ -439,6 +439,31 @@ class GeminiEducationalAIService:
 
             print(f"✅ Grade: score={grade_data.get('score', 0.0)}, correct={grade_data.get('is_correct', False)}, feedback={len(grade_data.get('feedback', ''))} chars")
 
+            # 🔍 CRITICAL DEBUG: Check if correct_answer is present in AI response
+            if 'correct_answer' in grade_data:
+                correct_ans = grade_data['correct_answer']
+                print(f"✅ correct_answer present: '{correct_ans[:50] if correct_ans else 'EMPTY STRING'}'...")
+            else:
+                print(f"⚠️ correct_answer MISSING in AI response! Keys: {list(grade_data.keys())}")
+
+            # 🛡️ FALLBACK: Ensure correct_answer always exists (fix for archive bug)
+            if not grade_data.get('correct_answer'):
+                # Use provided correct_answer if available, otherwise derive from question
+                if correct_answer:
+                    fallback_answer = correct_answer
+                    print(f"🛡️ Using provided correct_answer as fallback: '{fallback_answer[:50]}'...")
+                elif grade_data.get('is_correct'):
+                    # If student is correct, their answer is the correct answer
+                    fallback_answer = student_answer
+                    print(f"🛡️ Student answer correct, using as correct_answer: '{fallback_answer[:50]}'...")
+                else:
+                    # Last resort: use question text as placeholder
+                    fallback_answer = f"See question: {question_text[:100]}"
+                    print(f"⚠️ No correct answer available, using placeholder: '{fallback_answer[:50]}'...")
+
+                grade_data['correct_answer'] = fallback_answer
+                print(f"✅ Fallback correct_answer set successfully")
+
             return {
                 "success": True,
                 "grade": grade_data
@@ -762,8 +787,11 @@ Return JSON in this exact format:
   "feedback": "Your reasoning is excellent. You correctly identified X and applied method Y. The calculation is accurate. Well done!",
   "confidence": 0.95,
   "reasoning_steps": "Student used the correct formula. Calculation steps were accurate.",
-  "correct_answer": "50N (or 50 Newtons)"
+  "correct_answer": "REQUIRED: What is the correct/expected answer to this question?"
 }}
+
+CRITICAL: The "correct_answer" field is REQUIRED and must ALWAYS be included in your response.
+If an expected answer was not provided above, YOU MUST determine the correct answer based on the question.
 
 GRADING SCALE:
 - 1.0: Completely correct (concept + execution)
@@ -799,8 +827,11 @@ Return JSON in this exact format:
   "is_correct": true,
   "feedback": "Correct! Good work.",
   "confidence": 0.95,
-  "correct_answer": "The expected answer (brief)"
+  "correct_answer": "REQUIRED: What is the correct/expected answer?"
 }}
+
+CRITICAL: The "correct_answer" field is REQUIRED and must ALWAYS be included.
+If expected answer not provided above, YOU MUST determine it from the question.
 
 GRADING SCALE:
 - score = 1.0: Completely correct
