@@ -425,8 +425,8 @@ struct QuestionDetailView: View {
     @State private var question: ArchivedQuestion?
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var proModeImage: UIImage?  // ✅ NEW: For Pro Mode cropped images
-    @EnvironmentObject var appState: AppState  // ✅ NEW: For Ask AI navigation
+    @State private var proModeImage: UIImage?  // ✅ For Pro Mode cropped images
+    // Note: Ask AI feature not available in Archive view (requires AppState navigation context)
 
     var body: some View {
         ScrollView {
@@ -548,10 +548,11 @@ struct QuestionDetailView: View {
             }()
 
             // Use QuestionTypeRendererSelector to render based on type
+            // Note: Ask AI feature disabled in Archive view (requires AppState navigation context)
             QuestionTypeRendererSelector(
                 question: parsedQuestion,
                 isExpanded: true,
-                onTapAskAI: { askAIForHelp() }  // ✅ NEW: Proper Ask AI implementation
+                onTapAskAI: { } // Empty closure - Ask AI not available in Archive view
             )
 
             // User notes and tags
@@ -850,63 +851,7 @@ struct QuestionDetailView: View {
         }
     }
 
-    // MARK: - Ask AI for Help
-
-    /// Navigate to chat with question context (similar to Digital Homework implementation)
-    private func askAIForHelp() {
-        guard let question = question else { return }
-
-        // Build HomeworkQuestionContext from archived question
-        let context = HomeworkQuestionContext(
-            questionText: question.questionText,
-            rawQuestionText: question.rawQuestionText,
-            studentAnswer: question.studentAnswer,
-            correctAnswer: question.answerText,  // Use answerText as correctAnswer (ArchivedQuestion doesn't have correctAnswer field)
-            currentGrade: question.grade.map { grade in
-                // Map GradeResult to string
-                switch grade {
-                case .correct: return "CORRECT"
-                case .incorrect: return "INCORRECT"
-                case .empty: return "EMPTY"
-                case .partialCredit: return "PARTIAL_CREDIT"
-                }
-            },
-            originalFeedback: question.feedback,
-            pointsEarned: question.points,
-            pointsPossible: question.maxPoints,
-            questionNumber: nil,  // Archived questions don't have question numbers
-            subject: question.subject,
-            questionImage: proModeImage  // Include Pro Mode cropped image if available
-        )
-
-        // Build user message for AI (localized)
-        let hasGrade = question.grade != nil
-        let gradeText = question.grade.map { grade in
-            switch grade {
-            case .correct: return NSLocalizedString("homeworkResults.correct", comment: "")
-            case .incorrect: return NSLocalizedString("homeworkResults.incorrect", comment: "")
-            case .empty: return NSLocalizedString("homeworkResults.empty", comment: "")
-            case .partialCredit: return NSLocalizedString("homeworkResults.partialCredit", comment: "")
-            }
-        } ?? ""
-
-        let message = """
-\(NSLocalizedString("proMode.askAIPrompt", comment: "")):
-
-\(NSLocalizedString("homeworkResults.rawQuestion", comment: ""))\(question.rawQuestionText ?? question.questionText)
-
-\(NSLocalizedString("homeworkResults.studentAnswer", comment: ""))\(question.studentAnswer ?? NSLocalizedString("homeworkResults.noAnswerProvided", comment: ""))
-
-\(hasGrade ? "\(NSLocalizedString("homeworkResults.feedback", comment: ""))\(question.feedback ?? NSLocalizedString("proMode.noFeedback", comment: ""))\n\n\(gradeText)" : "")
-"""
-
-        // Navigate to chat with homework context
-        appState.navigateToChatWithHomeworkQuestion(message: message, context: context)
-
-        // Haptic feedback
-        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-        impactFeedback.impactOccurred()
-    }
+    // MARK: - Helper Methods
 
     private func confidenceColor(_ confidence: Float?) -> Color {
         guard let confidence = confidence else { return .gray }
