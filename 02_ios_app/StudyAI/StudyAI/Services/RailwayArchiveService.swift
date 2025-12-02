@@ -674,7 +674,9 @@ class RailwayArchiveService: ObservableObject {
             originalImageUrl: nil,
             questionImageUrl: nil,
             processingTime: 0.0,
-            archivedAt: archivedDate
+            archivedAt: archivedDate,
+            parentQuestionId: nil,
+            subquestionId: nil
         )
     }
     
