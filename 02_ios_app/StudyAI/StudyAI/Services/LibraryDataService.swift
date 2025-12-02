@@ -1445,6 +1445,10 @@ class QuestionLocalStorage {
         let questionImageUrl = data["questionImageUrl"] as? String
         let proMode = data["proMode"] as? Bool
 
+        // Parent-child hierarchy fields (for Pro Mode subquestions)
+        let parentQuestionId = data["parentQuestionId"] as? Int
+        let subquestionId = data["subquestionId"] as? String
+
         return QuestionSummary(
             id: id,
             subject: subject,
@@ -1463,7 +1467,9 @@ class QuestionLocalStorage {
             questionType: questionType,
             options: options,
             questionImageUrl: questionImageUrl,
-            proMode: proMode
+            proMode: proMode,
+            parentQuestionId: parentQuestionId,
+            subquestionId: subquestionId
         )
     }
 }

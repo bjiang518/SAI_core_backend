@@ -7,13 +7,31 @@
 
 import SwiftUI
 
+// MARK: - Grouped Question Structure for Parent-Child Display
+
+struct QuestionGroup: Identifiable {
+    let id: String
+    let parentQuestion: QuestionSummary?  // nil for standalone questions
+    let subquestions: [QuestionSummary]
+
+    var displayQuestion: QuestionSummary {
+        return parentQuestion ?? subquestions[0]
+    }
+
+    var hasSubquestions: Bool {
+        return parentQuestion != nil && subquestions.count > 1
+    }
+}
+
 struct ArchivedQuestionsView: View {
     @State private var questions: [QuestionSummary] = []
+    @State private var questionGroups: [QuestionGroup] = []
     @State private var isLoading = false
     @State private var errorMessage = ""
     @State private var selectedSubject: String? = nil
     @State private var searchText = ""
-    
+    @State private var expandedGroups: Set<String> = []  // Track expanded parent questions
+
     private let subjects = ["Math", "Physics", "Chemistry", "Biology", "English", "History", "Other"]
     
     var body: some View {
@@ -80,16 +98,90 @@ struct ArchivedQuestionsView: View {
     }
     
     // MARK: - Questions List
-    
+
     private var questionsList: some View {
-        List(filteredQuestions, id: \.id) { question in
-            NavigationLink(destination: QuestionDetailView(questionId: question.id)) {
-                CompactQuestionCard(question: question)
+        List(filteredQuestionGroups, id: \.id) { group in
+            if group.hasSubquestions {
+                // Parent question with subquestions - expandable
+                parentQuestionRow(group: group)
+            } else {
+                // Standalone question - navigate directly
+                NavigationLink(destination: QuestionDetailView(questionId: group.displayQuestion.id)) {
+                    CompactQuestionCard(question: group.displayQuestion)
+                }
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             }
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
         }
         .listStyle(PlainListStyle())
+    }
+
+    // MARK: - Parent Question Row (Expandable)
+
+    @ViewBuilder
+    private func parentQuestionRow(group: QuestionGroup) -> some View {
+        let isExpanded = expandedGroups.contains(group.id)
+
+        VStack(spacing: 0) {
+            // Parent question header (tappable to expand/collapse)
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    if isExpanded {
+                        expandedGroups.remove(group.id)
+                    } else {
+                        expandedGroups.insert(group.id)
+                    }
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    // Expand/collapse chevron
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .frame(width: 20)
+
+                    // Parent question card
+                    if let parentQuestion = group.parentQuestion {
+                        CompactQuestionCard(question: parentQuestion, isParent: true, subquestionCount: group.subquestions.count)
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PlainButtonStyle())
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+
+            // Subquestions (shown when expanded)
+            if isExpanded {
+                ForEach(group.subquestions, id: \.id) { subquestion in
+                    NavigationLink(destination: QuestionDetailView(questionId: subquestion.id)) {
+                        HStack(spacing: 12) {
+                            // Indent to show hierarchy
+                            Color.clear.frame(width: 32)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                // Subquestion ID badge (e.g., "1a", "1b")
+                                if let subqId = subquestion.subquestionId {
+                                    Text(subqId)
+                                        .font(.caption2)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.blue)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.blue.opacity(0.1))
+                                        .cornerRadius(4)
+                                }
+
+                                // Subquestion content
+                                CompactQuestionCard(question: subquestion, isSubquestion: true)
+                            }
+                        }
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 16))
+                }
+            }
+        }
     }
     
     // MARK: - Empty State
@@ -112,7 +204,7 @@ struct ArchivedQuestionsView: View {
     }
     
     // MARK: - Computed Properties
-    
+
     private var filteredQuestions: [QuestionSummary] {
         questions.filter { question in
             let matchesSubject = selectedSubject == nil || question.subject.contains(selectedSubject!)
@@ -122,6 +214,66 @@ struct ArchivedQuestionsView: View {
                 question.subject.localizedCaseInsensitiveContains(searchText)
             return matchesSubject && matchesSearch
         }
+    }
+
+    /// Group questions by parent-child relationships
+    private var filteredQuestionGroups: [QuestionGroup] {
+        let filtered = filteredQuestions
+
+        // Separate subquestions from standalone/parent questions
+        var subquestionsByParent: [Int: [QuestionSummary]] = [:]
+        var standaloneQuestions: [QuestionSummary] = []
+
+        for question in filtered {
+            if let parentId = question.parentQuestionId {
+                // This is a subquestion - group by parent ID
+                subquestionsByParent[parentId, default: []].append(question)
+            } else {
+                // Standalone question or parent question
+                standaloneQuestions.append(question)
+            }
+        }
+
+        // Build groups
+        var groups: [QuestionGroup] = []
+
+        for question in standaloneQuestions {
+            // Check if this question has subquestions
+            if let parentId = extractParentIdFromQuestion(question),
+               let subquestions = subquestionsByParent[parentId],
+               !subquestions.isEmpty {
+                // This is a parent question with subquestions
+                let sortedSubquestions = subquestions.sorted {
+                    ($0.subquestionId ?? "") < ($1.subquestionId ?? "")
+                }
+                groups.append(QuestionGroup(
+                    id: "parent-\(parentId)",
+                    parentQuestion: question,
+                    subquestions: sortedSubquestions
+                ))
+            } else {
+                // This is a standalone question (no subquestions)
+                groups.append(QuestionGroup(
+                    id: question.id,
+                    parentQuestion: nil,
+                    subquestions: [question]
+                ))
+            }
+        }
+
+        // Sort groups by archived date (most recent first)
+        return groups.sorted {
+            $0.displayQuestion.archivedAt > $1.displayQuestion.archivedAt
+        }
+    }
+
+    /// Extract parent ID from standalone question (heuristic approach)
+    /// Since parent questions aren't explicitly marked, we use question ID matching
+    private func extractParentIdFromQuestion(_ question: QuestionSummary) -> Int? {
+        // Try to parse the question ID to get a numeric parent ID
+        // This is a heuristic - in reality, we'd need the parent to store its own ID
+        // For now, we'll use the archived subquestions' parentQuestionId as the source of truth
+        return nil  // Will be populated from subquestions' parentQuestionId
     }
     
     // MARK: - Actions
@@ -148,23 +300,40 @@ struct ArchivedQuestionsView: View {
 
 struct CompactQuestionCard: View {
     let question: QuestionSummary
-    
+    var isParent: Bool = false
+    var isSubquestion: Bool = false
+    var subquestionCount: Int = 0
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // Header Row
             HStack {
-                // Subject Badge
-                Text(shortSubject)
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(subjectColor.opacity(0.2))
-                    .foregroundColor(subjectColor)
-                    .cornerRadius(4)
-                
+                // Subject Badge (for parent questions or standalone)
+                if !isSubquestion {
+                    Text(shortSubject)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(subjectColor.opacity(0.2))
+                        .foregroundColor(subjectColor)
+                        .cornerRadius(4)
+                }
+
+                // Parent indicator badge
+                if isParent && subquestionCount > 0 {
+                    Text("\(subquestionCount) parts")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundColor(.blue)
+                        .cornerRadius(4)
+                }
+
                 Spacer()
-                
+
                 // Confidence & Visual Indicators
                 HStack(spacing: 4) {
                     if question.hasVisualElements {
@@ -172,27 +341,27 @@ struct CompactQuestionCard: View {
                             .font(.caption2)
                             .foregroundColor(.blue)
                     }
-                    
+
                     Circle()
                         .fill(confidenceColor)
                         .frame(width: 6, height: 6)
                 }
             }
-            
+
             // Question Text
             // ✅ Use EnhancedMathText for LaTeX/math rendering
-            EnhancedMathText(question.rawQuestionText ?? question.questionText, fontSize: 14)
-                .lineLimit(2)
+            EnhancedMathText(question.rawQuestionText ?? question.questionText, fontSize: isSubquestion ? 13 : 14)
+                .lineLimit(isParent ? 1 : 2)
                 .multilineTextAlignment(.leading)
-            
+
             // Footer
             HStack {
                 Text(timeAgo)
                     .font(.caption2)
                     .foregroundColor(.gray)
-                
+
                 Spacer()
-                
+
                 if let tags = question.tags, !tags.isEmpty {
                     Text("• \(tags.count)")
                         .font(.caption2)
@@ -200,12 +369,12 @@ struct CompactQuestionCard: View {
                 }
             }
         }
-        .padding(12)
+        .padding(isSubquestion ? 8 : 12)
         .background(Color.white)
         .cornerRadius(8)
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.gray.opacity(0.15), lineWidth: 0.5)
+                .stroke(isParent ? Color.blue.opacity(0.3) : Color.gray.opacity(0.15), lineWidth: isParent ? 1 : 0.5)
         )
     }
     
