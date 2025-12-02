@@ -3156,6 +3156,13 @@ Grade this answer. Return JSON with:
 
             print(f"✅ Grade: score={grade_data.get('score', 0.0)}, correct={grade_data.get('is_correct', False)}, feedback={len(grade_data.get('feedback', ''))} chars")
 
+            # 🔍 CRITICAL DEBUG: Check if correct_answer is present in AI response
+            if 'correct_answer' in grade_data:
+                correct_ans = grade_data['correct_answer']
+                print(f"✅ correct_answer present: '{correct_ans[:50] if correct_ans else 'EMPTY STRING'}'...")
+            else:
+                print(f"⚠️ correct_answer MISSING in AI response! Keys: {list(grade_data.keys())}")
+
             return {
                 "success": True,
                 "grade": grade_data
