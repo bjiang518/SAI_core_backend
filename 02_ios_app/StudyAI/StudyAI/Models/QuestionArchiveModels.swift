@@ -67,6 +67,10 @@ struct ArchivedQuestion: Codable, Identifiable {
     let questionType: String?      // "multiple_choice", "true_false", etc.
     let options: [String]?         // Multiple choice options
 
+    // Parent-child hierarchy fields (for Pro Mode subquestions)
+    let parentQuestionId: Int?     // Parent question ID if this is a subquestion
+    let subquestionId: String?     // Subquestion ID (e.g., "1a", "1b")
+
     init(
         id: String = UUID().uuidString,
         userId: String,
@@ -92,7 +96,9 @@ struct ArchivedQuestion: Codable, Identifiable {
         isGraded: Bool = false,
         isCorrect: Bool? = nil,
         questionType: String? = nil,
-        options: [String]? = nil
+        options: [String]? = nil,
+        parentQuestionId: Int? = nil,
+        subquestionId: String? = nil
     ) {
         self.id = id
         self.userId = userId
@@ -119,6 +125,8 @@ struct ArchivedQuestion: Codable, Identifiable {
         self.isCorrect = isCorrect
         self.questionType = questionType
         self.options = options
+        self.parentQuestionId = parentQuestionId
+        self.subquestionId = subquestionId
     }
 }
 
@@ -268,6 +276,10 @@ struct QuestionSummary: Codable, Identifiable {
     // Pro Mode fields
     let questionImageUrl: String?  // File path to cropped image (for Pro Mode)
     let proMode: Bool?  // Indicates if this is from Pro Mode
+
+    // Parent-child hierarchy fields (for Pro Mode subquestions)
+    let parentQuestionId: Int?     // Parent question ID if this is a subquestion
+    let subquestionId: String?     // Subquestion ID (e.g., "1a", "1b")
 
     // Computed property for display
     var shortQuestionText: String {

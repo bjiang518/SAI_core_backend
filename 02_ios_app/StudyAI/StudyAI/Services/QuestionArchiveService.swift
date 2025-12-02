@@ -331,6 +331,10 @@ class QuestionArchiveService: ObservableObject {
         let questionImageUrl = data["questionImageUrl"] as? String
         let proMode = data["proMode"] as? Bool
 
+        // Parent-child hierarchy fields (for Pro Mode subquestions)
+        let parentQuestionId = data["parentQuestionId"] as? Int
+        let subquestionId = data["subquestionId"] as? String
+
         return QuestionSummary(
             id: id,
             subject: subject,
@@ -349,7 +353,9 @@ class QuestionArchiveService: ObservableObject {
             questionType: questionType,
             options: options,
             questionImageUrl: questionImageUrl,
-            proMode: proMode
+            proMode: proMode,
+            parentQuestionId: parentQuestionId,
+            subquestionId: subquestionId
         )
     }
     
@@ -435,6 +441,10 @@ class QuestionArchiveService: ObservableObject {
         let questionType = data["questionType"] as? String
         let options = data["options"] as? [String]
 
+        // Parent-child hierarchy fields (for Pro Mode subquestions)
+        let parentQuestionId = data["parentQuestionId"] as? Int
+        let subquestionId = data["subquestionId"] as? String
+
         // Log the isCorrect value for debugging
         print("   📊 [Convert] Question \(id): grade=\(gradeString ?? "nil"), isCorrect=\(isCorrect?.description ?? "nil")")
 
@@ -463,7 +473,9 @@ class QuestionArchiveService: ObservableObject {
             isGraded: isGraded,
             isCorrect: isCorrect,  // ✅ CRITICAL: Include for mistake tracking
             questionType: questionType,
-            options: options
+            options: options,
+            parentQuestionId: parentQuestionId,
+            subquestionId: subquestionId
         )
     }
     
