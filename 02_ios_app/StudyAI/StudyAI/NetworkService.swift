@@ -3841,6 +3841,66 @@ class NetworkService: ObservableObject {
         return formatter.string(from: Date())
     }
 
+    // MARK: - PDF Generation (AI-Driven Layout)
+
+    /// Generate HTML template for PDF using AI
+    /// - Parameter data: Question data with image metadata (NO base64 images)
+    /// - Returns: HTML template string
+    func generatePDFHTML(data: [String: Any]) async throws -> String {
+        let endpoint = "\(baseURL)/api/ai/generate-pdf-html"
+
+        guard let url = URL(string: endpoint) else {
+            throw NetworkError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Add auth token if available
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        // Serialize data to JSON
+        request.httpBody = try JSONSerialization.data(withJSONObject: data)
+
+        print("📤 [NetworkService] Sending PDF HTML generation request...")
+        print("   Questions: \((data["totalQuestions"] as? Int) ?? 0)")
+        print("   Subject: \(data["subject"] as? String ?? "Unknown")")
+
+        let (responseData, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+
+        print("📥 [NetworkService] PDF HTML response: \(httpResponse.statusCode)")
+
+        guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 401 {
+                throw NetworkError.authenticationRequired
+            }
+            throw NetworkError.serverError(httpResponse.statusCode)
+        }
+
+        // Parse response
+        let result = try JSONDecoder().decode(PDFHTMLResponse.self, from: responseData)
+
+        guard result.success else {
+            throw NetworkError.networkFailure(result.error ?? "Unknown error")
+        }
+
+        print("✅ [NetworkService] HTML generated successfully:")
+        print("   Length: \(result.html.count) characters")
+        if let metadata = result.metadata {
+            print("   Tokens used: \(metadata.tokensUsed)")
+            print("   Model: \(metadata.model)")
+        }
+
+        return result.html
+    }
+
     // MARK: - Parental Consent (COPPA Compliance)
 
     /// Check if current user requires parental consent
@@ -4000,4 +4060,19 @@ extension Dictionary {
         }
         return result
     }
+}
+
+// MARK: - PDF Generation Response Models
+
+struct PDFHTMLResponse: Codable {
+    let success: Bool
+    let html: String
+    let error: String?
+    let metadata: PDFMetadata?
+}
+
+struct PDFMetadata: Codable {
+    let tokensUsed: Int
+    let model: String
+    let estimatedCost: Double?
 }
