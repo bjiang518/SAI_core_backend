@@ -30,6 +30,11 @@ class AIPDFGeneratorService: NSObject, ObservableObject {
 
     private let networkService = NetworkService.shared
 
+    // MARK: - WebView State (strong references to prevent deallocation)
+
+    private var currentWebView: WKWebView?
+    private var currentDelegate: WebViewNavigationDelegate?
+
     // MARK: - Main Entry Point
 
     /// Generate Pro Mode PDF using AI-controlled layout
@@ -243,55 +248,96 @@ class AIPDFGeneratorService: NSObject, ObservableObject {
 
     private func renderHTMLToPDF(html: String) async -> PDFDocument? {
         return await withCheckedContinuation { continuation in
+            var hasResumed = false  // Prevent double-resume
+
+            // Helper to resume safely (must run on main actor)
+            @MainActor
+            func resumeOnce(with result: PDFDocument?) {
+                guard !hasResumed else {
+                    print("⚠️ [PDF] Attempted to resume continuation twice, ignoring")
+                    return
+                }
+                hasResumed = true
+
+                // Clean up references
+                self.currentWebView?.navigationDelegate = nil
+                self.currentWebView = nil
+                self.currentDelegate = nil
+
+                continuation.resume(returning: result)
+            }
+
             // Create WKWebView for rendering
             let configuration = WKWebViewConfiguration()
-            configuration.suppressesIncrementalRendering = false  // Allow progressive rendering
+            configuration.suppressesIncrementalRendering = false
 
-            let webView = WKWebView(frame: .zero, configuration: configuration)
+            let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 612, height: 792), configuration: configuration)
 
-            // Set up navigation delegate to detect when page is fully loaded
-            let delegate = WebViewNavigationDelegate { [weak webView] success in
-                guard let webView = webView else {
-                    print("❌ [PDF] WebView deallocated")
-                    continuation.resume(returning: nil)
-                    return
-                }
+            // Store strong references
+            self.currentWebView = webView
 
-                if !success {
-                    print("❌ [PDF] Page failed to load")
-                    continuation.resume(returning: nil)
-                    return
-                }
+            // Set up navigation delegate
+            let delegate = WebViewNavigationDelegate { [weak self] success in
+                Task { @MainActor in
+                    guard let self = self else {
+                        print("❌ [PDF] Service deallocated")
+                        resumeOnce(with: nil)
+                        return
+                    }
 
-                print("✅ [PDF] Page loaded, waiting for rendering...")
+                    if !success {
+                        print("❌ [PDF] Page failed to load")
+                        resumeOnce(with: nil)
+                        return
+                    }
 
-                // Wait longer for images to decode and render (5 seconds)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                    print("✅ [PDF] Page loaded, waiting for rendering...")
+
+                    // Wait for images to decode and render (3 seconds)
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+
+                    guard let webView = self.currentWebView else {
+                        print("❌ [PDF] WebView deallocated during wait")
+                        resumeOnce(with: nil)
+                        return
+                    }
+
                     let pdfConfiguration = WKPDFConfiguration()
-                    pdfConfiguration.rect = .zero  // Use entire page (respects @page CSS)
+                    pdfConfiguration.rect = .zero
 
                     print("📄 [PDF] Creating PDF from rendered page...")
 
                     webView.createPDF(configuration: pdfConfiguration) { result in
-                        switch result {
-                        case .success(let pdfData):
-                            print("✅ [PDF] PDF data created: \(pdfData.count) bytes")
-                            let pdfDocument = PDFDocument(data: pdfData)
-                            continuation.resume(returning: pdfDocument)
-                        case .failure(let error):
-                            print("❌ [PDF] Rendering failed: \(error.localizedDescription)")
-                            print("   Error domain: \(error._domain)")
-                            print("   Error code: \(error._code)")
-                            continuation.resume(returning: nil)
+                        Task { @MainActor in
+                            switch result {
+                            case .success(let pdfData):
+                                print("✅ [PDF] PDF data created: \(pdfData.count) bytes")
+                                let pdfDocument = PDFDocument(data: pdfData)
+                                resumeOnce(with: pdfDocument)
+                            case .failure(let error):
+                                print("❌ [PDF] Rendering failed: \(error.localizedDescription)")
+                                print("   Error domain: \(error._domain)")
+                                print("   Error code: \(error._code)")
+                                resumeOnce(with: nil)
+                            }
                         }
                     }
                 }
             }
 
+            self.currentDelegate = delegate
             webView.navigationDelegate = delegate
+
+            // Timeout fallback (15 seconds total)
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                print("⏰ [PDF] Timeout reached (15s), forcing failure")
+                resumeOnce(with: nil)
+            }
 
             // Load HTML
             print("📄 [PDF] Loading HTML into WebView...")
+            print("   HTML size: \(html.count) characters")
             webView.loadHTMLString(html, baseURL: nil)
         }
     }
