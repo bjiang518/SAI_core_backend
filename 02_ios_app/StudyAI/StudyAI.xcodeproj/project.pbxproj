@@ -215,9 +215,6 @@
 		7BD668B62ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */; };
 		7BD668B72ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */; };
 		7BD668B82ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */; };
-		7BD668BA2EDE7F9000E09E55 /* AIPDFGeneratorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668B92EDE7F9000E09E55 /* AIPDFGeneratorService.swift */; };
-		7BD668BB2EDE7F9000E09E55 /* AIPDFGeneratorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668B92EDE7F9000E09E55 /* AIPDFGeneratorService.swift */; };
-		7BD668BC2EDE7F9000E09E55 /* AIPDFGeneratorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668B92EDE7F9000E09E55 /* AIPDFGeneratorService.swift */; };
 		7BDE565E2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
 		7BDE565F2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
 		7BDE56602EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
@@ -499,7 +496,6 @@
 		7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkStateManager.swift; path = StudyAI/Models/DigitalHomeworkStateManager.swift; sourceTree = SOURCE_ROOT; };
 		7BD668A52ED6F36300E09E55 /* DigitalHomeworkViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkViewModel.swift; path = StudyAI/ViewModels/DigitalHomeworkViewModel.swift; sourceTree = SOURCE_ROOT; };
 		7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SavedDigitalHomeworkView.swift; path = StudyAI/Views/SavedDigitalHomeworkView.swift; sourceTree = SOURCE_ROOT; };
-		7BD668B92EDE7F9000E09E55 /* AIPDFGeneratorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AIPDFGeneratorService.swift; path = StudyAI/Services/AIPDFGeneratorService.swift; sourceTree = SOURCE_ROOT; };
 		7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MathJaxRenderer.swift; path = StudyAI/Services/MathJaxRenderer.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56612EC1C617004A8629 /* PomodoroDeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PomodoroDeepLinkHandler.swift; path = StudyAI/Services/PomodoroDeepLinkHandler.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56652EC1C64D004A8629 /* StreamingMessageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StreamingMessageService.swift; path = StudyAI/Services/StreamingMessageService.swift; sourceTree = SOURCE_ROOT; };
@@ -762,7 +758,6 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				7BD668B92EDE7F9000E09E55 /* AIPDFGeneratorService.swift */,
 				7BFC712F2EC5A91D00DB95A7 /* AssistantLogger.swift */,
 				7BFC71302EC5A91D00DB95A7 /* NetworkService+PracticeGenerator.swift */,
 				7BDE56E32EC31A8B004A8629 /* LaTeXToHTMLConverter.swift */,
@@ -1256,7 +1251,6 @@
 				7BD664DB2ECAB9D200E09E55 /* ProgressiveSubquestionModel.swift in Sources */,
 				CFF62B0E63B348CCA844F0C4 /* MusicPlaylist.swift in Sources */,
 				C7AB5FD25BB44CF4BDAF0DC6 /* FocusView.swift in Sources */,
-				7BD668BA2EDE7F9000E09E55 /* AIPDFGeneratorService.swift in Sources */,
 				52C62E0B488A4000B350549B /* MyGardenView.swift in Sources */,
 				7BDE56842EC1C718004A8629 /* PomodoroCalendarEvent.swift in Sources */,
 				0F87356DF3C14F9A8C93C7FE /* MusicSelectionSheet.swift in Sources */,
@@ -1367,7 +1361,6 @@
 				7BEEB6142E8E3A3200957748 /* DesignTokens.swift in Sources */,
 				25FC77CE76E748A797D68F8C /* ViewModifiers.swift in Sources */,
 				7B8E9EA12EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */,
-				7BD668BB2EDE7F9000E09E55 /* AIPDFGeneratorService.swift in Sources */,
 				7B83533F2EA6F11400199AC3 /* AppLogger.swift in Sources */,
 				7BDE56822EC1C718004A8629 /* PomodoroCalendarEvent.swift in Sources */,
 				7BD664CF2ECA8B2E00E09E55 /* ProgressiveHomeworkView.swift in Sources */,
@@ -1427,7 +1420,6 @@
 				7BD668A32ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */,
 				BF24FA3DE51E44C29A78596C /* ViewModifiers.swift in Sources */,
 				7BEEB6222E8E419600957748 /* LottieView.swift in Sources */,
-				7BD668BC2EDE7F9000E09E55 /* AIPDFGeneratorService.swift in Sources */,
 				7BDE56632EC1C617004A8629 /* PomodoroDeepLinkHandler.swift in Sources */,
 				7BDE56E92EC31AC7004A8629 /* GrammarCorrectionView.swift in Sources */,
 				7BDE56EA2EC31AC7004A8629 /* HTMLRendererView.swift in Sources */,
