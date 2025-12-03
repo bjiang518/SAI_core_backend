@@ -422,11 +422,11 @@ struct CompactQuestionCard: View {
 
 struct QuestionDetailView: View {
     let questionId: String
+    @EnvironmentObject var appState: AppState  // ✅ FIX: Inject AppState for "Ask AI" navigation
     @State private var question: ArchivedQuestion?
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var proModeImage: UIImage?  // ✅ For Pro Mode cropped images
-    // Note: Ask AI feature not available in Archive view (requires AppState navigation context)
 
     var body: some View {
         ScrollView {
@@ -548,11 +548,56 @@ struct QuestionDetailView: View {
             }()
 
             // Use QuestionTypeRendererSelector to render based on type
-            // Note: Ask AI feature disabled in Archive view (requires AppState navigation context)
+            // ✅ FIX: Implement "Ask AI" navigation with proper context
             QuestionTypeRendererSelector(
                 question: parsedQuestion,
                 isExpanded: true,
-                onTapAskAI: { } // Empty closure - Ask AI not available in Archive view
+                onTapAskAI: {
+                    // Build HomeworkQuestionContext from archived question
+                    let context = HomeworkQuestionContext(
+                        questionText: question.questionText,
+                        rawQuestionText: question.rawQuestionText ?? question.questionText,
+                        studentAnswer: question.studentAnswer ?? "",
+                        correctAnswer: question.answerText,  // Correct answer from archive
+                        currentGrade: question.grade.map {
+                            $0 == .correct ? "CORRECT" : ($0 == .incorrect ? "INCORRECT" : ($0 == .empty ? "EMPTY" : "PARTIAL_CREDIT"))
+                        },
+                        originalFeedback: question.feedback,
+                        pointsEarned: question.points,
+                        pointsPossible: question.maxPoints ?? 1.0,
+                        questionNumber: nil,  // Archive doesn't track question number
+                        subject: question.subject,
+                        questionImage: proModeImage  // Include Pro Mode image if available
+                    )
+
+                    // Build chat message with question details
+                    let message: String
+                    if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
+                        message = """
+                        \(NSLocalizedString("proMode.askAIPrompt", comment: "")):
+
+                        \(question.rawQuestionText ?? question.questionText)
+
+                        \(NSLocalizedString("proMode.myAnswer", comment: "")): \(studentAnswer)
+
+                        \(NSLocalizedString("proMode.teacherFeedback", comment: "")): \(question.feedback ?? NSLocalizedString("proMode.noFeedback", comment: ""))
+                        """
+                    } else {
+                        message = """
+                        \(NSLocalizedString("proMode.askAIPrompt", comment: "")):
+
+                        \(question.rawQuestionText ?? question.questionText)
+                        """
+                    }
+
+                    // Navigate to AI chat with homework context
+                    appState.navigateToChatWithHomeworkQuestion(
+                        message: message,
+                        context: context
+                    )
+
+                    print("📱 [Archive] Navigated to AI chat for question: \(question.id)")
+                }
             )
 
             // User notes and tags

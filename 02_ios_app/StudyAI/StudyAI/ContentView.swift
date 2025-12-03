@@ -266,6 +266,7 @@ struct MainTabView: View {
             // Library Tab
             NavigationStack {
                 UnifiedLibraryView()
+                    .environmentObject(appState)  // ✅ FIX: Inject AppState for "Ask AI" feature
                     .onAppear {
                         sessionManager.updateActivity()
                     }
