@@ -267,11 +267,18 @@ class AIPDFGeneratorService: NSObject, ObservableObject {
                 continuation.resume(returning: result)
             }
 
-            // Create WKWebView for rendering
+            // Create WKWebView for rendering with better configuration
             let configuration = WKWebViewConfiguration()
             configuration.suppressesIncrementalRendering = false
 
-            let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 612, height: 792), configuration: configuration)
+            // Use letter-size page dimensions (8.5" x 11" at 72 DPI)
+            let pageWidth: CGFloat = 612  // 8.5 inches * 72
+            let pageHeight: CGFloat = 792  // 11 inches * 72
+            let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight), configuration: configuration)
+
+            // Enable opaque background
+            webView.isOpaque = true
+            webView.backgroundColor = .white
 
             // Store strong references
             self.currentWebView = webView
@@ -293,8 +300,8 @@ class AIPDFGeneratorService: NSObject, ObservableObject {
 
                     print("✅ [PDF] Page loaded, waiting for rendering...")
 
-                    // Wait for images to decode and render (3 seconds)
-                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    // Wait for rendering to complete
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
 
                     guard let webView = self.currentWebView else {
                         print("❌ [PDF] WebView deallocated during wait")
@@ -302,25 +309,40 @@ class AIPDFGeneratorService: NSObject, ObservableObject {
                         return
                     }
 
-                    let pdfConfiguration = WKPDFConfiguration()
-                    pdfConfiguration.rect = .zero
-
                     print("📄 [PDF] Creating PDF from rendered page...")
 
-                    webView.createPDF(configuration: pdfConfiguration) { result in
-                        Task { @MainActor in
-                            switch result {
-                            case .success(let pdfData):
-                                print("✅ [PDF] PDF data created: \(pdfData.count) bytes")
-                                let pdfDocument = PDFDocument(data: pdfData)
-                                resumeOnce(with: pdfDocument)
-                            case .failure(let error):
-                                print("❌ [PDF] Rendering failed: \(error.localizedDescription)")
-                                print("   Error domain: \(error._domain)")
-                                print("   Error code: \(error._code)")
-                                resumeOnce(with: nil)
-                            }
-                        }
+                    // Create PDF using UIPrintPageRenderer (more reliable than WKWebView.createPDF)
+                    let printFormatter = webView.viewPrintFormatter()
+
+                    let renderer = UIPrintPageRenderer()
+                    renderer.addPrintFormatter(printFormatter, startingAtPageAt: 0)
+
+                    // Set paper size (US Letter)
+                    let paperRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
+                    let printableRect = paperRect.insetBy(dx: 36, dy: 36)  // 0.5" margins
+
+                    renderer.setValue(paperRect, forKey: "paperRect")
+                    renderer.setValue(printableRect, forKey: "printableRect")
+
+                    // Render to PDF data
+                    let pdfData = NSMutableData()
+
+                    UIGraphicsBeginPDFContextToData(pdfData, paperRect, nil)
+
+                    for pageIndex in 0..<renderer.numberOfPages {
+                        UIGraphicsBeginPDFPage()
+                        renderer.drawPage(at: pageIndex, in: UIGraphicsGetPDFContextBounds())
+                    }
+
+                    UIGraphicsEndPDFContext()
+
+                    if pdfData.length > 0 {
+                        print("✅ [PDF] PDF data created: \(pdfData.length) bytes, \(renderer.numberOfPages) pages")
+                        let pdfDocument = PDFDocument(data: pdfData as Data)
+                        resumeOnce(with: pdfDocument)
+                    } else {
+                        print("❌ [PDF] PDF rendering produced empty data")
+                        resumeOnce(with: nil)
                     }
                 }
             }
@@ -328,10 +350,10 @@ class AIPDFGeneratorService: NSObject, ObservableObject {
             self.currentDelegate = delegate
             webView.navigationDelegate = delegate
 
-            // Timeout fallback (15 seconds total)
+            // Timeout fallback (20 seconds total)
             Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 15_000_000_000)
-                print("⏰ [PDF] Timeout reached (15s), forcing failure")
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+                print("⏰ [PDF] Timeout reached (20s), forcing failure")
                 resumeOnce(with: nil)
             }
 
