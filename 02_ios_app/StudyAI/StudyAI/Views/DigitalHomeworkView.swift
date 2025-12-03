@@ -10,8 +10,6 @@ import SwiftUI
 import UIKit
 import Combine
 import AVFoundation  // ✅ For iOS system unlock sound
-import PDFKit  // ✅ For PDF generation and preview
-import UniformTypeIdentifiers  // ✅ For PDF transfer type
 
 // MARK: - Digital Homework View
 
@@ -28,12 +26,6 @@ struct DigitalHomeworkView: View {
 
     // ✅ NEW: Revert confirmation alert
     @State private var showRevertConfirmation = false
-
-    // ✅ PDF generation state
-    @State private var isGeneratingPDF = false
-    @State private var pdfGenerationProgress: Double = 0.0  // 0.0 to 1.0
-    @State private var generatedPDFDocument: PDFDocument?
-    @State private var showPDFPreview = false
 
     // MARK: - Body
 
@@ -245,9 +237,6 @@ struct DigitalHomeworkView: View {
 
             // ✅ NEW: Revert button (appears only after grading)
             revertButton
-
-            // ✅ HIDDEN: PDF generation trigger (typeable text)
-            hiddenPDFTrigger
         }
     }
 
@@ -625,120 +614,6 @@ struct DigitalHomeworkView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
         }
-    }
-
-    // MARK: - PDF Generation Button (可见的PDF生成按钮)
-
-    private var hiddenPDFTrigger: some View {
-        VStack(spacing: 12) {
-            // Visible PDF generation button
-            if !isGeneratingPDF {
-                Button(action: {
-                    print("📄 PDF Generation Button Tapped!")
-                    triggerPDFGeneration()
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "doc.text.fill")
-                            .font(.headline)
-                        Text("Generate PDF (Raw Questions)")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.blue, Color.blue.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .cornerRadius(12)
-                    .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
-                }
-            }
-
-            // Progress indicator with smooth animated bar (shows when generating)
-            if isGeneratingPDF {
-                VStack(spacing: 12) {
-                    // Progress bar
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            // Background track
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color(.systemGray5))
-                                .frame(height: 8)
-
-                            // Animated progress fill
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.blue, .purple],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(width: geometry.size.width * pdfGenerationProgress, height: 8)
-                                .animation(.easeInOut(duration: 0.3), value: pdfGenerationProgress)
-
-                            // Shimmer effect
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.white.opacity(0), Color.white.opacity(0.4), Color.white.opacity(0)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(width: 80, height: 8)
-                                .offset(x: pdfShimmerOffset(geometryWidth: geometry.size.width))
-                                .animation(.linear(duration: 1.5).repeatForever(autoreverses: false), value: pdfGenerationProgress)
-                        }
-                    }
-                    .frame(height: 8)
-
-                    // Status text
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text(pdfGenerationStatusText)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.vertical, 8)
-            }
-        }
-        .sheet(isPresented: $showPDFPreview) {
-            if let pdfDocument = generatedPDFDocument {
-                PDFPreviewSheet(pdfDocument: pdfDocument)
-            }
-        }
-    }
-
-    // Helper for progress status text
-    private var pdfGenerationStatusText: String {
-        switch pdfGenerationProgress {
-        case 0.0..<0.2:
-            return "Preparing data..."
-        case 0.2..<0.4:
-            return "Sending to AI..."
-        case 0.4..<0.6:
-            return "Generating layout..."
-        case 0.6..<0.8:
-            return "Processing images..."
-        case 0.8..<0.95:
-            return "Rendering PDF..."
-        default:
-            return "Almost done..."
-        }
-    }
-
-    // Helper for PDF shimmer animation offset
-    private func pdfShimmerOffset(geometryWidth: CGFloat) -> CGFloat {
-        let barWidth = geometryWidth * pdfGenerationProgress
-        return max(0, min(barWidth - 80, geometryWidth - 80))
     }
 
     // MARK: - Thumbnail Section (缩略图)
@@ -1848,154 +1723,6 @@ struct GradingLoadingIndicator: View {
         default:
             return "gemini-icon"
         }
-    }
-}
-
-// MARK: - PDF Generation Function
-
-extension DigitalHomeworkView {
-    /// Trigger AI-driven PDF generation pipeline
-    private func triggerPDFGeneration() {
-        print("📄 === Starting AI-Driven PDF Generation ===")
-
-        Task { @MainActor in
-            isGeneratingPDF = true
-            pdfGenerationProgress = 0.0
-
-            // Step 1: Prepare data (0% → 20%)
-            pdfGenerationProgress = 0.05
-            guard let originalImageData = originalImage.jpegData(compressionQuality: 0.85) else {
-                print("❌ Failed to convert original image to data")
-                isGeneratingPDF = false
-                pdfGenerationProgress = 0.0
-                return
-            }
-
-            pdfGenerationProgress = 0.15
-
-            // Convert viewModel.croppedImages [Int: UIImage] to [Int: Data] for DigitalHomeworkData
-            var croppedImagesData: [Int: Data] = [:]
-            for (questionId, image) in viewModel.croppedImages {
-                if let imageData = image.jpegData(compressionQuality: 0.85) {
-                    croppedImagesData[questionId] = imageData
-                }
-            }
-
-            pdfGenerationProgress = 0.2
-
-            let digitalHomework = DigitalHomeworkData(
-                homeworkHash: UUID().uuidString,  // Temporary hash for PDF generation
-                parseResults: parseResults,
-                originalImageData: originalImageData,
-                questions: viewModel.questions,
-                annotations: viewModel.annotations,
-                croppedImages: croppedImagesData,
-                createdAt: Date(),
-                lastModified: Date()
-            )
-
-            let subject = parseResults.subject
-            let date = Date()
-
-            print("📊 Generating PDF for \(viewModel.questions.count) questions")
-            print("📚 Subject: \(subject)")
-
-            // Step 2: Call AI service (20% → 80%)
-            pdfGenerationProgress = 0.3
-            let pdfService = AIPDFGeneratorService()
-
-            // Subscribe to service progress updates
-            let progressCancellable = pdfService.$generationProgress
-                .receive(on: DispatchQueue.main)
-                .sink { serviceProgress in
-                    // Map service progress (0-1) to our range (0.3-0.8)
-                    self.pdfGenerationProgress = 0.3 + (serviceProgress * 0.5)
-                }
-
-            let result = await pdfService.generateProModePDF(
-                digitalHomework: digitalHomework,
-                croppedImages: viewModel.croppedImages,
-                subject: subject,
-                date: date
-            )
-
-            progressCancellable.cancel()
-
-            // Step 3: Complete (80% → 100%)
-            if let pdfDocument = result {
-                pdfGenerationProgress = 0.9
-                print("✅ PDF Generated successfully: \(pdfDocument.pageCount) pages")
-
-                // Store and show PDF
-                generatedPDFDocument = pdfDocument
-                pdfGenerationProgress = 1.0
-
-                // Brief delay to show 100% before opening
-                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
-
-                showPDFPreview = true
-
-                // Haptic feedback
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.success)
-            } else {
-                print("❌ PDF Generation failed")
-                pdfGenerationProgress = 0.0
-
-                // Error feedback
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.error)
-            }
-
-            isGeneratingPDF = false
-            pdfGenerationProgress = 0.0
-        }
-    }
-}
-
-// MARK: - PDF Preview Sheet
-
-struct PDFPreviewSheet: View {
-    let pdfDocument: PDFDocument
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            PDFKitView(document: pdfDocument)
-                .navigationTitle("Raw Question PDF")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Close") {
-                            dismiss()
-                        }
-                    }
-
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        ShareLink(item: pdfDocument, preview: SharePreview("Homework", image: Image(systemName: "doc.text"))) {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                    }
-                }
-        }
-    }
-}
-
-// MARK: - PDFDocument Transferable Conformance
-
-extension PDFDocument: @unchecked Sendable, Transferable {
-    public static var transferRepresentation: some TransferRepresentation {
-        DataRepresentation(exportedContentType: .pdf) { document in
-            guard let data = document.dataRepresentation() else {
-                throw TransferError.exportFailed
-            }
-            return data
-        }
-    }
-
-    enum TransferError: Error {
-        case exportFailed
     }
 }
 
