@@ -31,6 +31,7 @@ struct DigitalHomeworkView: View {
 
     // ✅ PDF generation state
     @State private var isGeneratingPDF = false
+    @State private var pdfGenerationProgress: Double = 0.0  // 0.0 to 1.0
     @State private var generatedPDFDocument: PDFDocument?
     @State private var showPDFPreview = false
 
@@ -658,16 +659,55 @@ struct DigitalHomeworkView: View {
                 }
             }
 
-            // Status indicator (shows when generating)
+            // Progress indicator with smooth animated bar (shows when generating)
             if isGeneratingPDF {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Generating PDF...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                VStack(spacing: 12) {
+                    // Progress bar
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            // Background track
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(.systemGray5))
+                                .frame(height: 8)
+
+                            // Animated progress fill
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [.blue, .purple],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: geometry.size.width * pdfGenerationProgress, height: 8)
+                                .animation(.easeInOut(duration: 0.3), value: pdfGenerationProgress)
+
+                            // Shimmer effect
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.white.opacity(0), Color.white.opacity(0.4), Color.white.opacity(0)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: 80, height: 8)
+                                .offset(x: pdfShimmerOffset(geometryWidth: geometry.size.width))
+                                .animation(.linear(duration: 1.5).repeatForever(autoreverses: false), value: pdfGenerationProgress)
+                        }
+                    }
+                    .frame(height: 8)
+
+                    // Status text
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text(pdfGenerationStatusText)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
-                .padding(.top, 4)
+                .padding(.vertical, 8)
             }
         }
         .sheet(isPresented: $showPDFPreview) {
@@ -675,6 +715,30 @@ struct DigitalHomeworkView: View {
                 PDFPreviewSheet(pdfDocument: pdfDocument)
             }
         }
+    }
+
+    // Helper for progress status text
+    private var pdfGenerationStatusText: String {
+        switch pdfGenerationProgress {
+        case 0.0..<0.2:
+            return "Preparing data..."
+        case 0.2..<0.4:
+            return "Sending to AI..."
+        case 0.4..<0.6:
+            return "Generating layout..."
+        case 0.6..<0.8:
+            return "Processing images..."
+        case 0.8..<0.95:
+            return "Rendering PDF..."
+        default:
+            return "Almost done..."
+        }
+    }
+
+    // Helper for PDF shimmer animation offset
+    private func pdfShimmerOffset(geometryWidth: CGFloat) -> CGFloat {
+        let barWidth = geometryWidth * pdfGenerationProgress
+        return max(0, min(barWidth - 80, geometryWidth - 80))
     }
 
     // MARK: - Thumbnail Section (缩略图)
@@ -1796,13 +1860,18 @@ extension DigitalHomeworkView {
 
         Task { @MainActor in
             isGeneratingPDF = true
+            pdfGenerationProgress = 0.0
 
-            // Prepare digital homework data - create minimal struct needed for PDF generation
+            // Step 1: Prepare data (0% → 20%)
+            pdfGenerationProgress = 0.05
             guard let originalImageData = originalImage.jpegData(compressionQuality: 0.85) else {
                 print("❌ Failed to convert original image to data")
                 isGeneratingPDF = false
+                pdfGenerationProgress = 0.0
                 return
             }
+
+            pdfGenerationProgress = 0.15
 
             // Convert viewModel.croppedImages [Int: UIImage] to [Int: Data] for DigitalHomeworkData
             var croppedImagesData: [Int: Data] = [:]
@@ -1811,6 +1880,8 @@ extension DigitalHomeworkView {
                     croppedImagesData[questionId] = imageData
                 }
             }
+
+            pdfGenerationProgress = 0.2
 
             let digitalHomework = DigitalHomeworkData(
                 homeworkHash: UUID().uuidString,  // Temporary hash for PDF generation
@@ -1823,26 +1894,45 @@ extension DigitalHomeworkView {
                 lastModified: Date()
             )
 
-            // Get subject and date
             let subject = parseResults.subject
             let date = Date()
 
             print("📊 Generating PDF for \(viewModel.questions.count) questions")
             print("📚 Subject: \(subject)")
 
-            // Call AI PDF generator service
+            // Step 2: Call AI service (20% → 80%)
+            pdfGenerationProgress = 0.3
             let pdfService = AIPDFGeneratorService()
 
-            if let pdfDocument = await pdfService.generateProModePDF(
+            // Subscribe to service progress updates
+            let progressCancellable = pdfService.$generationProgress
+                .receive(on: DispatchQueue.main)
+                .sink { serviceProgress in
+                    // Map service progress (0-1) to our range (0.3-0.8)
+                    self.pdfGenerationProgress = 0.3 + (serviceProgress * 0.5)
+                }
+
+            let result = await pdfService.generateProModePDF(
                 digitalHomework: digitalHomework,
                 croppedImages: viewModel.croppedImages,
                 subject: subject,
                 date: date
-            ) {
+            )
+
+            progressCancellable.cancel()
+
+            // Step 3: Complete (80% → 100%)
+            if let pdfDocument = result {
+                pdfGenerationProgress = 0.9
                 print("✅ PDF Generated successfully: \(pdfDocument.pageCount) pages")
 
                 // Store and show PDF
                 generatedPDFDocument = pdfDocument
+                pdfGenerationProgress = 1.0
+
+                // Brief delay to show 100% before opening
+                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+
                 showPDFPreview = true
 
                 // Haptic feedback
@@ -1850,6 +1940,7 @@ extension DigitalHomeworkView {
                 generator.notificationOccurred(.success)
             } else {
                 print("❌ PDF Generation failed")
+                pdfGenerationProgress = 0.0
 
                 // Error feedback
                 let generator = UINotificationFeedbackGenerator()
@@ -1857,6 +1948,7 @@ extension DigitalHomeworkView {
             }
 
             isGeneratingPDF = false
+            pdfGenerationProgress = 0.0
         }
     }
 }
