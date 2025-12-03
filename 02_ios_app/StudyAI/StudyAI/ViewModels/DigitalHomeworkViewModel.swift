@@ -1109,6 +1109,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         let imageStorage = ProModeImageStorage.shared
         var questionsToArchive: [[String: Any]] = []
+        var subquestionsToArchive: [(parentId: Int, subquestionIds: [String])] = []
 
         for questionId in questionIds {
             guard let questionWithGrade = questions.first(where: { $0.question.id == questionId }) else {
@@ -1116,6 +1117,13 @@ class DigitalHomeworkViewModel: ObservableObject {
             }
 
             let question = questionWithGrade.question
+
+            // ✅ NEW: Check if this is a parent question with subquestions
+            if question.isParentQuestion, let subquestions = question.subquestions, !subquestions.isEmpty {
+                logger.debug("Q\(questionId): Detected parent question with \(subquestions.count) subquestions")
+                let subquestionIds = subquestions.map { $0.id }
+                subquestionsToArchive.append((parentId: questionId, subquestionIds: subquestionIds))
+            }
 
             // Save cropped image to file system if available
             var imagePath: String?
@@ -1192,6 +1200,17 @@ class DigitalHomeworkViewModel: ObservableObject {
         QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
 
         logger.info("Successfully archived \(questionsToArchive.count) Pro Mode questions")
+
+        // ✅ NEW: Archive all subquestions for parent questions
+        if !subquestionsToArchive.isEmpty {
+            logger.debug("Archiving subquestions for \(subquestionsToArchive.count) parent questions...")
+            for (parentId, subquestionIds) in subquestionsToArchive {
+                logger.debug("Archiving \(subquestionIds.count) subquestions for parent Q\(parentId)")
+                await archiveSubquestions(parentQuestionId: parentId, subquestionIds: subquestionIds)
+            }
+            let totalSubquestions = subquestionsToArchive.reduce(0) { $0 + $1.subquestionIds.count }
+            logger.info("Successfully archived \(totalSubquestions) subquestions across \(subquestionsToArchive.count) parent questions")
+        }
     }
 
     /// Determine grade string and isCorrect status for a question
