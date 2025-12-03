@@ -244,28 +244,80 @@ class AIPDFGeneratorService: NSObject, ObservableObject {
     private func renderHTMLToPDF(html: String) async -> PDFDocument? {
         return await withCheckedContinuation { continuation in
             // Create WKWebView for rendering
-            let webView = WKWebView()
+            let configuration = WKWebViewConfiguration()
+            configuration.suppressesIncrementalRendering = false  // Allow progressive rendering
 
-            // Load HTML
-            webView.loadHTMLString(html, baseURL: nil)
+            let webView = WKWebView(frame: .zero, configuration: configuration)
 
-            // Wait for content to load (including MathJax if present)
-            // Longer timeout to ensure MathJax renders
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                let pdfConfiguration = WKPDFConfiguration()
-                pdfConfiguration.rect = .zero  // Use entire page (respects @page CSS)
+            // Set up navigation delegate to detect when page is fully loaded
+            let delegate = WebViewNavigationDelegate { [weak webView] success in
+                guard let webView = webView else {
+                    print("❌ [PDF] WebView deallocated")
+                    continuation.resume(returning: nil)
+                    return
+                }
 
-                webView.createPDF(configuration: pdfConfiguration) { result in
-                    switch result {
-                    case .success(let pdfData):
-                        let pdfDocument = PDFDocument(data: pdfData)
-                        continuation.resume(returning: pdfDocument)
-                    case .failure(let error):
-                        print("❌ [PDF] Rendering failed: \(error.localizedDescription)")
-                        continuation.resume(returning: nil)
+                if !success {
+                    print("❌ [PDF] Page failed to load")
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                print("✅ [PDF] Page loaded, waiting for rendering...")
+
+                // Wait longer for images to decode and render (5 seconds)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                    let pdfConfiguration = WKPDFConfiguration()
+                    pdfConfiguration.rect = .zero  // Use entire page (respects @page CSS)
+
+                    print("📄 [PDF] Creating PDF from rendered page...")
+
+                    webView.createPDF(configuration: pdfConfiguration) { result in
+                        switch result {
+                        case .success(let pdfData):
+                            print("✅ [PDF] PDF data created: \(pdfData.count) bytes")
+                            let pdfDocument = PDFDocument(data: pdfData)
+                            continuation.resume(returning: pdfDocument)
+                        case .failure(let error):
+                            print("❌ [PDF] Rendering failed: \(error.localizedDescription)")
+                            print("   Error domain: \(error._domain)")
+                            print("   Error code: \(error._code)")
+                            continuation.resume(returning: nil)
+                        }
                     }
                 }
             }
+
+            webView.navigationDelegate = delegate
+
+            // Load HTML
+            print("📄 [PDF] Loading HTML into WebView...")
+            webView.loadHTMLString(html, baseURL: nil)
         }
+    }
+}
+
+// MARK: - WebView Navigation Delegate
+
+private class WebViewNavigationDelegate: NSObject, WKNavigationDelegate {
+    let completion: (Bool) -> Void
+
+    init(completion: @escaping (Bool) -> Void) {
+        self.completion = completion
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        print("✅ [PDF] WebView finished loading")
+        completion(true)
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        print("❌ [PDF] WebView failed to load: \(error.localizedDescription)")
+        completion(false)
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        print("❌ [PDF] WebView provisional load failed: \(error.localizedDescription)")
+        completion(false)
     }
 }
