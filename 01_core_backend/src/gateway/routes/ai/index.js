@@ -19,7 +19,6 @@ const QuestionGenerationRoutes = require('./modules/question-generation');
 const QuestionGenerationV2Routes = require('./modules/question-generation-v2'); // NEW: Assistants API support
 const TTSRoutes = require('./modules/tts');
 const AnalyticsRoutes = require('./modules/analytics');
-const PDFGenerationRoutes = require('./modules/pdf-generation'); // NEW: AI-driven PDF generation
 
 /**
  * Register all AI routes
@@ -60,15 +59,6 @@ async function aiRoutes(fastify, opts) {
   } catch (error) {
     fastify.log.error(`  ❌ Failed to register Question Generation V2 routes:`, error);
     // Don't throw - allow app to continue with legacy routes
-  }
-
-  // Register PDF generation module
-  try {
-    await fastify.register(PDFGenerationRoutes);
-    fastify.log.info(`  ✅ PDF Generation (AI-driven layout) routes registered`);
-  } catch (error) {
-    fastify.log.error(`  ❌ Failed to register PDF Generation routes:`, error);
-    // Don't throw - allow app to continue
   }
 
   fastify.log.info('✅ All AI routes registered successfully');
