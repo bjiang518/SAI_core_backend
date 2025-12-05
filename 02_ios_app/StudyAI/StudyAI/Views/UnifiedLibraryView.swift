@@ -228,16 +228,15 @@ struct UnifiedLibraryView: View {
     }
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                if !userSession.isAuthenticated {
-                    UnifiedAuthenticationRequiredView()
-                } else {
-                    content
-                }
+        VStack(spacing: 0) {
+            if !userSession.isAuthenticated {
+                UnifiedAuthenticationRequiredView()
+            } else {
+                content
             }
-            .navigationTitle(NSLocalizedString("library.title", comment: ""))
-            .navigationBarTitleDisplayMode(.inline)
+        }
+        .navigationTitle(NSLocalizedString("library.title", comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
@@ -303,7 +302,6 @@ struct UnifiedLibraryView: View {
                     }
                 )
             }
-        }
         .task {
             await loadContent()
         }
