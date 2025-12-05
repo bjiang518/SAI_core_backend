@@ -9,6 +9,7 @@
 import SwiftUI
 import PDFKit
 import UIKit
+import Combine
 
 @MainActor
 class ProModePDFExporter: ObservableObject {

@@ -238,6 +238,7 @@ struct MainTabView: View {
             // Chat Tab
             NavigationStack {
                 SessionChatView()
+                    .environmentObject(appState)  // ✅ FIX: Pass AppState for "Ask AI" navigation
                     .onAppear {
                         sessionManager.updateActivity()
                     }
