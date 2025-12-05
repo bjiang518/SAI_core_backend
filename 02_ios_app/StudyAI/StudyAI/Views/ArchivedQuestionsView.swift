@@ -36,29 +36,27 @@ struct ArchivedQuestionsView: View {
     private let subjects = ["Math", "Physics", "Chemistry", "Biology", "English", "History", "Other"]
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Compact Filter Bar
-                if !questions.isEmpty {
-                    filterBar
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                }
-                
-                // Content
-                if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if questions.isEmpty {
-                    emptyState
-                } else {
-                    questionsList
-                }
+        VStack(spacing: 0) {
+            // Compact Filter Bar
+            if !questions.isEmpty {
+                filterBar
+                    .padding(.horizontal)
+                    .padding(.top, 8)
             }
-            .navigationTitle("Archive")
-            .navigationBarTitleDisplayMode(.inline)
-            .onAppear { loadQuestions() }
+
+            // Content
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if questions.isEmpty {
+                emptyState
+            } else {
+                questionsList
+            }
         }
+        .navigationTitle("Archive")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { loadQuestions() }
     }
     
     // MARK: - Compact Filter Bar
@@ -430,7 +428,11 @@ struct QuestionDetailView: View {
     @State private var proModeImage: UIImage?  // ✅ For Pro Mode cropped images
 
     var body: some View {
-        ScrollView {
+        // 🔍 DEBUG: Log when QuestionDetailView body is evaluated
+        let _ = print("🔍 [QuestionDetailView] Body evaluated for question ID: \(questionId)")
+        let _ = print("🔍 [QuestionDetailView] AppState is available in environment object")
+
+        return ScrollView {
             if isLoading {
                 ProgressView()
                     .padding(.top, 100)
@@ -591,13 +593,19 @@ struct QuestionDetailView: View {
                         """
                     }
 
+                    // 🔍 DEBUG: Log before navigating to AI chat
+                    print("🔍 [ArchivedQuestionsView] === ASK AI BUTTON TAPPED ===")
+                    print("🔍 [ArchivedQuestionsView] Question ID: \(question.id)")
+                    print("🔍 [ArchivedQuestionsView] About to call appState.navigateToChatWithHomeworkQuestion")
+                    print("🔍 [ArchivedQuestionsView] Message length: \(message.count) chars")
+
                     // Navigate to AI chat with homework context
                     appState.navigateToChatWithHomeworkQuestion(
                         message: message,
                         context: context
                     )
 
-                    print("📱 [Archive] Navigated to AI chat for question: \(question.id)")
+                    print("✅ [ArchivedQuestionsView] Successfully navigated to AI chat for question: \(question.id)")
                 }
             )
 
