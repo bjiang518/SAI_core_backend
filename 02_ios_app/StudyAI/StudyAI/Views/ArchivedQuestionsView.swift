@@ -24,7 +24,7 @@ struct QuestionGroup: Identifiable {
 }
 
 struct ArchivedQuestionsView: View {
-    @EnvironmentObject var appState: AppState  // ✅ FIX: Receive AppState to pass down to QuestionDetailView
+    // ⚠️ REMOVED: @EnvironmentObject var appState (no longer needed after removing "Ask AI" button)
     @State private var questions: [QuestionSummary] = []
     @State private var questionGroups: [QuestionGroup] = []
     @State private var isLoading = false
@@ -421,7 +421,7 @@ struct CompactQuestionCard: View {
 
 struct QuestionDetailView: View {
     let questionId: String
-    @EnvironmentObject var appState: AppState  // ✅ FIX: Inject AppState for "Ask AI" navigation
+    // ⚠️ REMOVED: @EnvironmentObject var appState (no longer needed after removing "Ask AI" button)
     @State private var question: ArchivedQuestion?
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -430,7 +430,6 @@ struct QuestionDetailView: View {
     var body: some View {
         // 🔍 DEBUG: Log when QuestionDetailView body is evaluated
         let _ = print("🔍 [QuestionDetailView] Body evaluated for question ID: \(questionId)")
-        let _ = print("🔍 [QuestionDetailView] AppState is available in environment object")
 
         return ScrollView {
             if isLoading {
@@ -550,64 +549,17 @@ struct QuestionDetailView: View {
                 }
             }()
 
-            // Use QuestionTypeRendererSelector to render based on type
-            // ✅ FIX: Implement "Ask AI" navigation with proper context
-            QuestionTypeRendererSelector(
-                question: parsedQuestion,
-                isExpanded: true,
-                onTapAskAI: {
-                    // Build HomeworkQuestionContext from archived question
-                    let context = HomeworkQuestionContext(
-                        questionText: question.questionText,
-                        rawQuestionText: question.rawQuestionText ?? question.questionText,
-                        studentAnswer: question.studentAnswer ?? "",
-                        correctAnswer: question.answerText,  // Correct answer from archive
-                        currentGrade: question.grade.map {
-                            $0 == .correct ? "CORRECT" : ($0 == .incorrect ? "INCORRECT" : ($0 == .empty ? "EMPTY" : "PARTIAL_CREDIT"))
-                        },
-                        originalFeedback: question.feedback,
-                        pointsEarned: question.points,
-                        pointsPossible: question.maxPoints ?? 1.0,
-                        questionNumber: nil,  // Archive doesn't track question number
-                        subject: question.subject,
-                        questionImage: proModeImage  // Include Pro Mode image if available
-                    )
+            // ⚠️ DISABLED: QuestionTypeRendererSelector with "Ask AI" button
+            // Replaced with simple display (no button) to avoid AppState crash
+            // The button functionality can be re-enabled later after proper debugging
 
-                    // Build chat message with question details
-                    let message: String
-                    if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
-                        message = """
-                        \(NSLocalizedString("proMode.askAIPrompt", comment: "")):
-
-                        \(question.rawQuestionText ?? question.questionText)
-
-                        \(NSLocalizedString("proMode.myAnswer", comment: "")): \(studentAnswer)
-
-                        \(NSLocalizedString("proMode.teacherFeedback", comment: "")): \(question.feedback ?? NSLocalizedString("proMode.noFeedback", comment: ""))
-                        """
-                    } else {
-                        message = """
-                        \(NSLocalizedString("proMode.askAIPrompt", comment: "")):
-
-                        \(question.rawQuestionText ?? question.questionText)
-                        """
-                    }
-
-                    // 🔍 DEBUG: Log before navigating to AI chat
-                    print("🔍 [ArchivedQuestionsView] === ASK AI BUTTON TAPPED ===")
-                    print("🔍 [ArchivedQuestionsView] Question ID: \(question.id)")
-                    print("🔍 [ArchivedQuestionsView] About to call appState.navigateToChatWithHomeworkQuestion")
-                    print("🔍 [ArchivedQuestionsView] Message length: \(message.count) chars")
-
-                    // Navigate to AI chat with homework context
-                    appState.navigateToChatWithHomeworkQuestion(
-                        message: message,
-                        context: context
-                    )
-
-                    print("✅ [ArchivedQuestionsView] Successfully navigated to AI chat for question: \(question.id)")
-                }
-            )
+            // Display question content only (no interactive buttons)
+            EnhancedMathText(question.rawQuestionText ?? question.questionText, fontSize: 16)
+                .fontWeight(.medium)
+                .textSelection(.enabled)
+                .padding()
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(12)
 
             // User notes and tags
             userNotesAndTags(for: question)
