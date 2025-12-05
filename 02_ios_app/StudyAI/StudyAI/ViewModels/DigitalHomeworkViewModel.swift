@@ -10,6 +10,7 @@ import Foundation
 import SwiftUI
 import UIKit
 import Combine
+import PDFKit
 
 @MainActor
 class DigitalHomeworkViewModel: ObservableObject {
@@ -1384,6 +1385,45 @@ class DigitalHomeworkViewModel: ObservableObject {
         }
 
         logger.info("Batch archive completed - \(selectedQuestionIds.count) questions marked as archived")
+    }
+
+    // MARK: - PDF Export
+
+    @Published var isExportingPDF = false
+    @Published var pdfExportProgress: Double = 0.0
+    @Published var exportedPDFDocument: PDFDocument?
+    @Published var showPDFShareSheet = false
+
+    private let pdfExporter = ProModePDFExporter()
+
+    /// Export homework to PDF (local rendering, no AI/backend)
+    func exportToPDF() async {
+        logger.info("Starting PDF export...")
+
+        // Update progress from exporter
+        let cancellable = pdfExporter.$exportProgress.sink { [weak self] progress in
+            Task { @MainActor in
+                self?.pdfExportProgress = progress
+            }
+        }
+
+        // Export PDF
+        let pdfDocument = await pdfExporter.exportToPDF(
+            questions: questions,
+            subject: parseResults?.subject ?? "Homework",
+            totalQuestions: parseResults?.totalQuestions ?? questions.count,
+            croppedImages: croppedImages
+        )
+
+        cancellable.cancel()
+
+        if let pdfDocument = pdfDocument {
+            logger.info("PDF export succeeded - \(pdfDocument.pageCount) pages")
+            exportedPDFDocument = pdfDocument
+            showPDFShareSheet = true
+        } else {
+            logger.error("PDF export failed")
+        }
     }
 
     // MARK: - Helper Methods
