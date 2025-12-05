@@ -457,6 +457,23 @@ struct QuestionDetailView: View {
                 .padding(.top, 100)
             } else if let question = question {
                 VStack(alignment: .leading, spacing: 16) {
+                    // 🎨 DEBUG: Log renderer selection
+                    let _ = {
+                        print("")
+                        print("🎨 [QuestionDetailView] ========================================")
+                        print("🎨 [QuestionDetailView] RENDERER SELECTION")
+                        print("🎨 [QuestionDetailView] ========================================")
+                        print("🎨 [QuestionDetailView] Question Type: \(question.questionType ?? "nil")")
+                        print("🎨 [QuestionDetailView] Is Empty: \(question.questionType?.isEmpty ?? true)")
+                        if let questionType = question.questionType, !questionType.isEmpty {
+                            print("🎨 [QuestionDetailView] ✅ Using TYPE-SPECIFIC renderer for type: \(questionType)")
+                        } else {
+                            print("🎨 [QuestionDetailView] ⚠️ Using DEFAULT GENERIC renderer (no question type)")
+                        }
+                        print("🎨 [QuestionDetailView] ========================================")
+                        print("")
+                    }()
+
                     // Check if we should use type-specific renderer
                     if let questionType = question.questionType, !questionType.isEmpty {
                         // Use type-specific renderer
@@ -477,19 +494,65 @@ struct QuestionDetailView: View {
 
     @ViewBuilder
     private func typeSpecificQuestionRenderer(for question: ArchivedQuestion) -> some View {
-        // Debug logging for data conversion (execute before View body)
+        // Debug logging for data conversion and rendering decisions
         let _ = {
-            print("🔄 [QuestionDetail] === CONVERTING TO PARSED QUESTION ===")
-            print("🔄 [QuestionDetail] Question ID: \(question.id)")
-            print("🔄 [QuestionDetail] Has rawQuestionText in ArchivedQuestion: \(question.rawQuestionText != nil)")
-            if let rawText = question.rawQuestionText {
-                print("🔄 [QuestionDetail] ArchivedQuestion rawQuestionText length: \(rawText.count) chars")
-                print("🔄 [QuestionDetail] ArchivedQuestion rawQuestionText: \(rawText)")
+            print("")
+            print("🎨 [TypeSpecificRenderer] ========================================")
+            print("🎨 [TypeSpecificRenderer] RENDERING TYPE-SPECIFIC QUESTION")
+            print("🎨 [TypeSpecificRenderer] ========================================")
+            print("🎨 [TypeSpecificRenderer] Question ID: \(question.id)")
+            print("🎨 [TypeSpecificRenderer] Question Type: \(question.questionType ?? "nil")")
+
+            // Pro Mode Image
+            print("")
+            print("🖼️ [TypeSpecificRenderer] === PRO MODE IMAGE DISPLAY ===")
+            if proModeImage != nil {
+                print("🖼️ [TypeSpecificRenderer] ✅ WILL DISPLAY Pro Mode image")
             } else {
-                print("🔄 [QuestionDetail] ❌ ArchivedQuestion rawQuestionText is NIL")
+                print("🖼️ [TypeSpecificRenderer] ⚠️ WILL NOT DISPLAY Pro Mode image (image is nil)")
             }
-            print("🔄 [QuestionDetail] ArchivedQuestion questionText length: \(question.questionText.count) chars")
-            print("🔄 [QuestionDetail] ArchivedQuestion questionText: \(question.questionText)")
+
+            // Question Section
+            print("")
+            print("📝 [TypeSpecificRenderer] === QUESTION SECTION ===")
+            print("📝 [TypeSpecificRenderer] ✅ WILL DISPLAY question section")
+            print("📝 [TypeSpecificRenderer] Using text: \(question.rawQuestionText != nil ? "rawQuestionText" : "questionText")")
+            let displayText = question.rawQuestionText ?? question.questionText
+            print("📝 [TypeSpecificRenderer] Text length: \(displayText.count) chars")
+
+            // Student Answer
+            print("")
+            print("👤 [TypeSpecificRenderer] === STUDENT ANSWER SECTION ===")
+            if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
+                print("👤 [TypeSpecificRenderer] ✅ WILL DISPLAY student answer")
+                print("👤 [TypeSpecificRenderer] Student answer length: \(studentAnswer.count) chars")
+                print("👤 [TypeSpecificRenderer] Student answer: '\(studentAnswer)'")
+            } else {
+                print("👤 [TypeSpecificRenderer] ⚠️ WILL NOT DISPLAY student answer (nil or empty)")
+                print("👤 [TypeSpecificRenderer] Is nil: \(question.studentAnswer == nil)")
+                print("👤 [TypeSpecificRenderer] Is empty: \(question.studentAnswer?.isEmpty ?? true)")
+            }
+
+            // Correct Answer + Feedback
+            print("")
+            print("✅ [TypeSpecificRenderer] === CORRECT ANSWER + FEEDBACK SECTION ===")
+            print("✅ [TypeSpecificRenderer] ✅ WILL DISPLAY correct answer section")
+            print("✅ [TypeSpecificRenderer] Answer text length: \(question.answerText.count) chars")
+            print("✅ [TypeSpecificRenderer] Answer text: '\(question.answerText)'")
+
+            if let feedback = question.feedback, !feedback.isEmpty, feedback != "No feedback provided" {
+                print("💬 [TypeSpecificRenderer] ✅ WILL DISPLAY feedback inside answer section")
+                print("💬 [TypeSpecificRenderer] Feedback length: \(feedback.count) chars")
+                print("💬 [TypeSpecificRenderer] Feedback: '\(feedback)'")
+            } else {
+                print("💬 [TypeSpecificRenderer] ⚠️ WILL NOT DISPLAY feedback (nil, empty, or 'No feedback provided')")
+                print("💬 [TypeSpecificRenderer] Is nil: \(question.feedback == nil)")
+                print("💬 [TypeSpecificRenderer] Is empty: \(question.feedback?.isEmpty ?? true)")
+                print("💬 [TypeSpecificRenderer] Is 'No feedback provided': \(question.feedback == "No feedback provided")")
+            }
+
+            print("🎨 [TypeSpecificRenderer] ========================================")
+            print("")
         }()
 
         VStack(alignment: .leading, spacing: 16) {
@@ -651,6 +714,82 @@ struct QuestionDetailView: View {
 
     @ViewBuilder
     private func defaultQuestionRenderer(for question: ArchivedQuestion) -> some View {
+        // Debug logging for rendering decisions
+        let _ = {
+            print("")
+            print("🎨 [DefaultRenderer] ========================================")
+            print("🎨 [DefaultRenderer] RENDERING DEFAULT GENERIC QUESTION")
+            print("🎨 [DefaultRenderer] ========================================")
+            print("🎨 [DefaultRenderer] Question ID: \(question.id)")
+
+            // Pro Mode Image
+            print("")
+            print("🖼️ [DefaultRenderer] === PRO MODE IMAGE DISPLAY ===")
+            if proModeImage != nil {
+                print("🖼️ [DefaultRenderer] ✅ WILL DISPLAY Pro Mode image")
+            } else {
+                print("🖼️ [DefaultRenderer] ⚠️ WILL NOT DISPLAY Pro Mode image (image is nil)")
+            }
+
+            // Question Section
+            print("")
+            print("📝 [DefaultRenderer] === QUESTION SECTION ===")
+            print("📝 [DefaultRenderer] ✅ WILL DISPLAY question section")
+            print("📝 [DefaultRenderer] Using text: \(question.rawQuestionText != nil ? "rawQuestionText" : "questionText")")
+            let displayText = question.rawQuestionText ?? question.questionText
+            print("📝 [DefaultRenderer] Text length: \(displayText.count) chars")
+
+            // Raw Question (Original) Section
+            print("")
+            print("📄 [DefaultRenderer] === RAW QUESTION (ORIGINAL) SECTION ===")
+            if let rawText = question.rawQuestionText, rawText != question.questionText {
+                print("📄 [DefaultRenderer] ✅ WILL DISPLAY 'Original Question' section")
+                print("📄 [DefaultRenderer] rawQuestionText differs from questionText")
+                print("📄 [DefaultRenderer] Raw text length: \(rawText.count) chars")
+            } else {
+                print("📄 [DefaultRenderer] ⚠️ WILL NOT DISPLAY 'Original Question' section")
+                print("📄 [DefaultRenderer] Reason: rawQuestionText is nil or same as questionText")
+                print("📄 [DefaultRenderer] rawQuestionText is nil: \(question.rawQuestionText == nil)")
+                if question.rawQuestionText != nil {
+                    print("📄 [DefaultRenderer] rawQuestionText == questionText: \(question.rawQuestionText == question.questionText)")
+                }
+            }
+
+            // Student Answer
+            print("")
+            print("👤 [DefaultRenderer] === STUDENT ANSWER SECTION ===")
+            if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
+                print("👤 [DefaultRenderer] ✅ WILL DISPLAY student answer")
+                print("👤 [DefaultRenderer] Student answer length: \(studentAnswer.count) chars")
+                print("👤 [DefaultRenderer] Student answer: '\(studentAnswer)'")
+            } else {
+                print("👤 [DefaultRenderer] ⚠️ WILL NOT DISPLAY student answer (nil or empty)")
+                print("👤 [DefaultRenderer] Is nil: \(question.studentAnswer == nil)")
+                print("👤 [DefaultRenderer] Is empty: \(question.studentAnswer?.isEmpty ?? true)")
+            }
+
+            // Correct Answer + Feedback
+            print("")
+            print("✅ [DefaultRenderer] === CORRECT ANSWER + FEEDBACK SECTION ===")
+            print("✅ [DefaultRenderer] ✅ WILL DISPLAY correct answer section")
+            print("✅ [DefaultRenderer] Answer text length: \(question.answerText.count) chars")
+            print("✅ [DefaultRenderer] Answer text: '\(question.answerText)'")
+
+            if let feedback = question.feedback, !feedback.isEmpty, feedback != "No feedback provided" {
+                print("💬 [DefaultRenderer] ✅ WILL DISPLAY feedback inside answer section")
+                print("💬 [DefaultRenderer] Feedback length: \(feedback.count) chars")
+                print("💬 [DefaultRenderer] Feedback: '\(feedback)'")
+            } else {
+                print("💬 [DefaultRenderer] ⚠️ WILL NOT DISPLAY feedback (nil, empty, or 'No feedback provided')")
+                print("💬 [DefaultRenderer] Is nil: \(question.feedback == nil)")
+                print("💬 [DefaultRenderer] Is empty: \(question.feedback?.isEmpty ?? true)")
+                print("💬 [DefaultRenderer] Is 'No feedback provided': \(question.feedback == "No feedback provided")")
+            }
+
+            print("🎨 [DefaultRenderer] ========================================")
+            print("")
+        }()
+
         VStack(alignment: .leading, spacing: 16) {
             // Header with subject and grade (shared component)
             questionHeader(for: question)
@@ -890,36 +1029,156 @@ struct QuestionDetailView: View {
     // MARK: - Data Loading
 
     private func loadQuestion() {
-        print("🔍 [QuestionDetail] Loading question: \(questionId)")
+        print("")
+        print("🔍 [QuestionDetail] ========================================")
+        print("🔍 [QuestionDetail] LOADING QUESTION DETAILS")
+        print("🔍 [QuestionDetail] ========================================")
+        print("🔍 [QuestionDetail] Question ID: \(questionId)")
 
         Task {
             do {
                 let fetchedQuestion = try await QuestionArchiveService.shared.getQuestionDetails(questionId: questionId)
                 await MainActor.run {
-                    print("✅ [QuestionDetail] Loaded question successfully")
-                    print("📋 [QuestionDetail] Question subject: \(fetchedQuestion.subject)")
-                    print("📋 [QuestionDetail] Question text length: \(fetchedQuestion.questionText.count) chars")
-                    print("📋 [QuestionDetail] Has rawQuestionText: \(fetchedQuestion.rawQuestionText != nil)")
-                    if let rawText = fetchedQuestion.rawQuestionText {
-                        print("📋 [QuestionDetail] rawQuestionText length: \(rawText.count) chars")
-                        print("📋 [QuestionDetail] rawQuestionText value: \(rawText)")
-                    } else {
-                        print("📋 [QuestionDetail] ❌ rawQuestionText is NIL in loaded question")
-                    }
-                    print("📋 [QuestionDetail] questionText value: \(fetchedQuestion.questionText)")
+                    print("")
+                    print("✅ [QuestionDetail] ========================================")
+                    print("✅ [QuestionDetail] QUESTION LOADED SUCCESSFULLY")
+                    print("✅ [QuestionDetail] ========================================")
 
-                    // ✅ NEW: Load Pro Mode image if available
+                    // BASIC INFO
+                    print("")
+                    print("📋 [QuestionDetail] === BASIC INFO ===")
+                    print("📋 [QuestionDetail] ID: \(fetchedQuestion.id)")
+                    print("📋 [QuestionDetail] Subject: \(fetchedQuestion.subject)")
+                    print("📋 [QuestionDetail] Confidence: \(fetchedQuestion.confidence ?? 0.0)")
+                    print("📋 [QuestionDetail] Has Visual Elements: \(fetchedQuestion.hasVisualElements)")
+                    print("📋 [QuestionDetail] Question Type: \(fetchedQuestion.questionType ?? "nil")")
+
+                    // PARENT-CHILD RELATIONSHIP
+                    print("")
+                    print("🌳 [QuestionDetail] === PARENT-CHILD RELATIONSHIP ===")
+                    print("🌳 [QuestionDetail] Parent Question ID: \(fetchedQuestion.parentQuestionId?.description ?? "nil")")
+                    print("🌳 [QuestionDetail] Subquestion ID: \(fetchedQuestion.subquestionId ?? "nil")")
+                    print("🌳 [QuestionDetail] Is this a parent question: \(fetchedQuestion.parentQuestionId == nil && fetchedQuestion.subquestionId == nil)")
+                    print("🌳 [QuestionDetail] Is this a subquestion: \(fetchedQuestion.parentQuestionId != nil)")
+
+                    // QUESTION TEXT
+                    print("")
+                    print("📝 [QuestionDetail] === QUESTION TEXT ===")
+                    print("📝 [QuestionDetail] questionText length: \(fetchedQuestion.questionText.count) chars")
+                    print("📝 [QuestionDetail] questionText: '\(fetchedQuestion.questionText)'")
+                    print("📝 [QuestionDetail] Has rawQuestionText: \(fetchedQuestion.rawQuestionText != nil)")
+                    if let rawText = fetchedQuestion.rawQuestionText {
+                        print("📝 [QuestionDetail] rawQuestionText length: \(rawText.count) chars")
+                        print("📝 [QuestionDetail] rawQuestionText: '\(rawText)'")
+                    } else {
+                        print("📝 [QuestionDetail] ❌ rawQuestionText is NIL")
+                    }
+
+                    // STUDENT ANSWER
+                    print("")
+                    print("👤 [QuestionDetail] === STUDENT ANSWER ===")
+                    if let studentAnswer = fetchedQuestion.studentAnswer {
+                        print("👤 [QuestionDetail] Has student answer: YES")
+                        print("👤 [QuestionDetail] Student answer length: \(studentAnswer.count) chars")
+                        print("👤 [QuestionDetail] Student answer: '\(studentAnswer)'")
+                        print("👤 [QuestionDetail] Is empty: \(studentAnswer.isEmpty)")
+                    } else {
+                        print("👤 [QuestionDetail] ❌ Student answer is NIL")
+                    }
+
+                    // CORRECT ANSWER
+                    print("")
+                    print("✅ [QuestionDetail] === CORRECT ANSWER ===")
+                    print("✅ [QuestionDetail] answerText length: \(fetchedQuestion.answerText.count) chars")
+                    print("✅ [QuestionDetail] answerText: '\(fetchedQuestion.answerText)'")
+                    print("✅ [QuestionDetail] Is empty: \(fetchedQuestion.answerText.isEmpty)")
+
+                    // FEEDBACK
+                    print("")
+                    print("💬 [QuestionDetail] === FEEDBACK ===")
+                    if let feedback = fetchedQuestion.feedback {
+                        print("💬 [QuestionDetail] Has feedback: YES")
+                        print("💬 [QuestionDetail] Feedback length: \(feedback.count) chars")
+                        print("💬 [QuestionDetail] Feedback: '\(feedback)'")
+                        print("💬 [QuestionDetail] Is empty: \(feedback.isEmpty)")
+                        print("💬 [QuestionDetail] Is 'No feedback provided': \(feedback == "No feedback provided")")
+                    } else {
+                        print("💬 [QuestionDetail] ❌ Feedback is NIL")
+                    }
+
+                    // GRADING INFO
+                    print("")
+                    print("📊 [QuestionDetail] === GRADING INFO ===")
+                    print("📊 [QuestionDetail] Is Graded: \(fetchedQuestion.isGraded)")
+                    if let grade = fetchedQuestion.grade {
+                        print("📊 [QuestionDetail] Grade: \(grade.displayName)")
+                        print("📊 [QuestionDetail] Grade raw value: \(grade.rawValue)")
+                    } else {
+                        print("📊 [QuestionDetail] ❌ Grade is NIL")
+                    }
+                    if let points = fetchedQuestion.points {
+                        print("📊 [QuestionDetail] Points earned: \(points)")
+                    } else {
+                        print("📊 [QuestionDetail] ❌ Points is NIL")
+                    }
+                    if let maxPoints = fetchedQuestion.maxPoints {
+                        print("📊 [QuestionDetail] Max points: \(maxPoints)")
+                    } else {
+                        print("📊 [QuestionDetail] ❌ Max points is NIL")
+                    }
+
+                    // OPTIONS (for multiple choice)
+                    print("")
+                    print("🔘 [QuestionDetail] === OPTIONS (Multiple Choice) ===")
+                    if let options = fetchedQuestion.options {
+                        print("🔘 [QuestionDetail] Has options: YES")
+                        print("🔘 [QuestionDetail] Options count: \(options.count)")
+                        for (index, option) in options.enumerated() {
+                            print("🔘 [QuestionDetail] Option \(index): '\(option)'")
+                        }
+                    } else {
+                        print("🔘 [QuestionDetail] ❌ Options is NIL (not a multiple choice question)")
+                    }
+
+                    // METADATA
+                    print("")
+                    print("🏷️ [QuestionDetail] === METADATA ===")
+                    if let tags = fetchedQuestion.tags {
+                        print("🏷️ [QuestionDetail] Tags count: \(tags.count)")
+                        print("🏷️ [QuestionDetail] Tags: \(tags)")
+                    } else {
+                        print("🏷️ [QuestionDetail] ❌ Tags is NIL")
+                    }
+                    if let notes = fetchedQuestion.notes {
+                        print("🏷️ [QuestionDetail] Notes length: \(notes.count) chars")
+                        print("🏷️ [QuestionDetail] Notes: '\(notes)'")
+                    } else {
+                        print("🏷️ [QuestionDetail] ❌ Notes is NIL")
+                    }
+                    print("🏷️ [QuestionDetail] Archived At: \(fetchedQuestion.archivedAt)")
+
+                    // PRO MODE IMAGE
+                    print("")
+                    print("🖼️ [QuestionDetail] === PRO MODE IMAGE ===")
                     if let imagePath = fetchedQuestion.questionImageUrl, !imagePath.isEmpty {
-                        print("🖼️ [QuestionDetail] Found questionImageUrl: \(imagePath)")
+                        print("🖼️ [QuestionDetail] Has questionImageUrl: YES")
+                        print("🖼️ [QuestionDetail] Image path: \(imagePath)")
                         if let loadedImage = ProModeImageStorage.shared.loadImage(from: imagePath) {
                             print("✅ [QuestionDetail] Successfully loaded Pro Mode image")
+                            print("🖼️ [QuestionDetail] Image size: \(loadedImage.size.width) x \(loadedImage.size.height)")
                             self.proModeImage = loadedImage
                         } else {
                             print("⚠️ [QuestionDetail] Failed to load Pro Mode image from path")
                         }
                     } else {
-                        print("📋 [QuestionDetail] No Pro Mode image path found")
+                        print("🖼️ [QuestionDetail] ❌ No Pro Mode image path found")
                     }
+
+                    print("")
+                    print("✅ [QuestionDetail] ========================================")
+                    print("✅ [QuestionDetail] DATA LOADING COMPLETE")
+                    print("✅ [QuestionDetail] ========================================")
+                    print("")
 
                     self.question = fetchedQuestion
                     self.isLoading = false
@@ -927,10 +1186,15 @@ struct QuestionDetailView: View {
                 }
             } catch {
                 await MainActor.run {
-                    print("❌ [QuestionDetail] Failed to load question")
+                    print("")
+                    print("❌ [QuestionDetail] ========================================")
+                    print("❌ [QuestionDetail] FAILED TO LOAD QUESTION")
+                    print("❌ [QuestionDetail] ========================================")
                     print("❌ [QuestionDetail] Question ID: \(questionId)")
                     print("❌ [QuestionDetail] Error: \(error)")
                     print("❌ [QuestionDetail] Error description: \(error.localizedDescription)")
+                    print("❌ [QuestionDetail] ========================================")
+                    print("")
                     self.errorMessage = error.localizedDescription
                     self.isLoading = false
                 }
