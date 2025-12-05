@@ -10,6 +10,7 @@ import SwiftUI
 import UIKit
 import Combine
 import AVFoundation  // ✅ For iOS system unlock sound
+import PDFKit  // ✅ For PDF export functionality
 
 // MARK: - Digital Homework View
 

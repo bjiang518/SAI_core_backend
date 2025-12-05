@@ -215,6 +215,9 @@
 		7BD668B62ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */; };
 		7BD668B72ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */; };
 		7BD668B82ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */; };
+		7BD668C42EE2E88700E09E55 /* ProModePDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C32EE2E88700E09E55 /* ProModePDFExporter.swift */; };
+		7BD668C52EE2E88700E09E55 /* ProModePDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C32EE2E88700E09E55 /* ProModePDFExporter.swift */; };
+		7BD668C62EE2E88700E09E55 /* ProModePDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C32EE2E88700E09E55 /* ProModePDFExporter.swift */; };
 		7BDE565E2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
 		7BDE565F2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
 		7BDE56602EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
@@ -496,6 +499,7 @@
 		7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkStateManager.swift; path = StudyAI/Models/DigitalHomeworkStateManager.swift; sourceTree = SOURCE_ROOT; };
 		7BD668A52ED6F36300E09E55 /* DigitalHomeworkViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkViewModel.swift; path = StudyAI/ViewModels/DigitalHomeworkViewModel.swift; sourceTree = SOURCE_ROOT; };
 		7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SavedDigitalHomeworkView.swift; path = StudyAI/Views/SavedDigitalHomeworkView.swift; sourceTree = SOURCE_ROOT; };
+		7BD668C32EE2E88700E09E55 /* ProModePDFExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProModePDFExporter.swift; path = StudyAI/Services/ProModePDFExporter.swift; sourceTree = SOURCE_ROOT; };
 		7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MathJaxRenderer.swift; path = StudyAI/Services/MathJaxRenderer.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56612EC1C617004A8629 /* PomodoroDeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PomodoroDeepLinkHandler.swift; path = StudyAI/Services/PomodoroDeepLinkHandler.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56652EC1C64D004A8629 /* StreamingMessageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StreamingMessageService.swift; path = StudyAI/Services/StreamingMessageService.swift; sourceTree = SOURCE_ROOT; };
@@ -758,6 +762,7 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7BD668C32EE2E88700E09E55 /* ProModePDFExporter.swift */,
 				7BFC712F2EC5A91D00DB95A7 /* AssistantLogger.swift */,
 				7BFC71302EC5A91D00DB95A7 /* NetworkService+PracticeGenerator.swift */,
 				7BDE56E32EC31A8B004A8629 /* LaTeXToHTMLConverter.swift */,
@@ -1181,6 +1186,7 @@
 				PNTS789012345678EFGH0123 /* PointsEarningSystem.swift in Sources */,
 				7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */,
 				7BEDA62D2E80B91100D57B15 /* QuestionDetailView.swift in Sources */,
+				7BD668C42EE2E88700E09E55 /* ProModePDFExporter.swift in Sources */,
 				7BDE56782EC1C6A3004A8629 /* PomodoroNotificationService.swift in Sources */,
 				7B1ED8452E829DBE00E5E57D /* ReportDetailView.swift in Sources */,
 				7BEDA62E2E80B91100D57B15 /* QuestionGenerationView.swift in Sources */,
@@ -1384,6 +1390,7 @@
 				7BEEB6202E8E419600957748 /* LottieView.swift in Sources */,
 				7BD664DC2ECAB9D200E09E55 /* ProgressiveSubquestionModel.swift in Sources */,
 				7B8E9E942EAB50F400E83DA8 /* HomeworkAlbumView.swift in Sources */,
+				7BD668C62EE2E88700E09E55 /* ProModePDFExporter.swift in Sources */,
 				7BDE56602EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */,
 				7BDE56702EC1C667004A8629 /* SessionChatViewModel.swift in Sources */,
 				7BD668B72ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift in Sources */,
@@ -1416,6 +1423,7 @@
 				7BEEB6132E8E3A3200957748 /* DesignTokens.swift in Sources */,
 				7BFC71332EC5A91D00DB95A7 /* AssistantLogger.swift in Sources */,
 				7BD668A72ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */,
+				7BD668C52EE2E88700E09E55 /* ProModePDFExporter.swift in Sources */,
 				7BFC71342EC5A91D00DB95A7 /* NetworkService+PracticeGenerator.swift in Sources */,
 				7BD668A32ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */,
 				BF24FA3DE51E44C29A78596C /* ViewModifiers.swift in Sources */,
