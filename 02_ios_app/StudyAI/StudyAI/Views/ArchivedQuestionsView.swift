@@ -24,6 +24,7 @@ struct QuestionGroup: Identifiable {
 }
 
 struct ArchivedQuestionsView: View {
+    @EnvironmentObject var appState: AppState  // ✅ FIX: Receive AppState to pass down to QuestionDetailView
     @State private var questions: [QuestionSummary] = []
     @State private var questionGroups: [QuestionGroup] = []
     @State private var isLoading = false
