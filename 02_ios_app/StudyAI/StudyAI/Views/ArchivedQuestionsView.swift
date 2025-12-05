@@ -549,17 +549,98 @@ struct QuestionDetailView: View {
                 }
             }()
 
-            // ⚠️ DISABLED: QuestionTypeRendererSelector with "Ask AI" button
-            // Replaced with simple display (no button) to avoid AppState crash
-            // The button functionality can be re-enabled later after proper debugging
+            // ⚠️ SIMPLIFIED: Removed QuestionTypeRendererSelector to avoid "Ask AI" button crash
+            // Display question content with student answer, correct answer, and feedback (no interactive buttons)
 
-            // Display question content only (no interactive buttons)
-            EnhancedMathText(question.rawQuestionText ?? question.questionText, fontSize: 16)
-                .fontWeight(.medium)
-                .textSelection(.enabled)
+            // Question section
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Q")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .frame(width: 20, height: 20)
+                        .background(Color.blue)
+                        .cornerRadius(4)
+
+                    Text("Question")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+
+                    Spacer()
+                }
+
+                EnhancedMathText(question.rawQuestionText ?? question.questionText, fontSize: 16)
+                    .fontWeight(.medium)
+                    .textSelection(.enabled)
+            }
+            .padding()
+            .background(Color.gray.opacity(0.05))
+            .cornerRadius(12)
+
+            // Student Answer
+            if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "person.fill")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        Text("Student Answer")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+
+                    EnhancedMathText(studentAnswer, fontSize: 16)
+                        .foregroundColor(.black)
+                        .textSelection(.enabled)
+                }
                 .padding()
-                .background(Color.gray.opacity(0.05))
+                .background(Color.blue.opacity(0.05))
                 .cornerRadius(12)
+            }
+
+            // Correct Answer with Feedback
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("A")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .frame(width: 20, height: 20)
+                        .background(Color.green)
+                        .cornerRadius(4)
+
+                    Text("Correct Answer")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+
+                EnhancedMathText(question.answerText, fontSize: 16)
+                    .foregroundColor(.black)
+                    .textSelection(.enabled)
+
+                // AI Feedback (if available and not empty)
+                if let feedback = question.feedback, !feedback.isEmpty, feedback != "No feedback provided" {
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    HStack {
+                        Image(systemName: "bubble.left.fill")
+                            .font(.caption)
+                            .foregroundColor(.purple)
+                        Text("AI Feedback")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+
+                    EnhancedMathText(feedback, fontSize: 16)
+                        .foregroundColor(.black)
+                        .textSelection(.enabled)
+                }
+            }
+            .padding()
+            .background(Color.green.opacity(0.05))
+            .cornerRadius(12)
 
             // User notes and tags
             userNotesAndTags(for: question)
