@@ -41,6 +41,7 @@ enum ContentTypeFilter: CaseIterable {
 struct UnifiedLibraryView: View {
     @StateObject private var libraryService = LibraryDataService.shared
     @StateObject private var userSession = UserSessionManager.shared
+    @EnvironmentObject var appState: AppState  // ✅ FIX: Receive AppState to pass down to QuestionDetailView
 
     @State private var libraryContent = LibraryContent(questions: [], conversations: [], error: nil)
     @State private var searchText = ""
