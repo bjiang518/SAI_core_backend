@@ -237,6 +237,9 @@ struct DigitalHomeworkView: View {
 
             // ✅ NEW: Revert button (appears only after grading)
             revertButton
+
+            // ✅ NEW: Export to PDF button
+            exportPDFButton
         }
     }
 
@@ -613,6 +616,48 @@ struct DigitalHomeworkView: View {
             .foregroundColor(.red)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
+        }
+    }
+
+    // MARK: - Export PDF Button (导出PDF按钮)
+
+    private var exportPDFButton: some View {
+        Button(action: {
+            Task {
+                await viewModel.exportToPDF()
+            }
+
+            // Haptic feedback
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: "doc.fill")
+                    .font(.headline)
+                Text("Export to PDF")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                LinearGradient(
+                    colors: [Color.blue, Color.blue.opacity(0.8)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(12)
+            .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
+        }
+        .disabled(viewModel.isExportingPDF)
+        .opacity(viewModel.isExportingPDF ? 0.6 : 1.0)
+        .sheet(isPresented: $viewModel.showPDFShareSheet) {
+            if let pdfDocument = viewModel.exportedPDFDocument,
+               let pdfData = pdfDocument.dataRepresentation() {
+                ActivityViewController(activityItems: [pdfData])
+            }
         }
     }
 
