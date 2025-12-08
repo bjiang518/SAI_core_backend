@@ -654,7 +654,7 @@ struct QuestionDetailView: View {
                     }
 
                     EnhancedMathText(studentAnswer, fontSize: 16)
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                         .textSelection(.enabled)
                 }
                 .padding()
@@ -679,7 +679,7 @@ struct QuestionDetailView: View {
                 }
 
                 EnhancedMathText(question.answerText, fontSize: 16)
-                    .foregroundColor(.black)
+                    .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                     .textSelection(.enabled)
 
                 // AI Feedback (if available and not empty)
@@ -697,7 +697,7 @@ struct QuestionDetailView: View {
                     }
 
                     EnhancedMathText(feedback, fontSize: 16)
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                         .textSelection(.enabled)
                 }
             }
@@ -862,7 +862,7 @@ struct QuestionDetailView: View {
 
                     Text(rawText)
                         .font(.callout)
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                         .textSelection(.enabled)
                 }
                 .padding()
@@ -884,7 +884,7 @@ struct QuestionDetailView: View {
 
                     // ✅ Use EnhancedMathText for math support in student answers
                     EnhancedMathText(studentAnswer, fontSize: 16)
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                         .textSelection(.enabled)
                 }
                 .padding()
@@ -910,7 +910,7 @@ struct QuestionDetailView: View {
 
                 // ✅ Use EnhancedMathText for LaTeX/math rendering in answers
                 EnhancedMathText(question.answerText, fontSize: 16)
-                    .foregroundColor(.black)
+                    .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                     .textSelection(.enabled)
 
                 // AI Feedback (if available and not empty)
@@ -929,7 +929,7 @@ struct QuestionDetailView: View {
 
                     // ✅ Use EnhancedMathText for math support in feedback
                     EnhancedMathText(feedback, fontSize: 16)
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                         .textSelection(.enabled)
                 }
             }
@@ -1017,7 +1017,7 @@ struct QuestionDetailView: View {
 
                 Text(notes)
                     .font(.callout)
-                    .foregroundColor(.black)
+                    .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                     .textSelection(.enabled)
             }
             .padding()
