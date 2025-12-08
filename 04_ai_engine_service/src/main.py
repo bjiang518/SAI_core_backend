@@ -15,6 +15,7 @@ import uvicorn
 import os
 import base64
 import json
+import time
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -234,6 +235,33 @@ class AIAnalyticsResponse(BaseModel):
     success: bool
     insights: Optional[Dict[str, Any]] = None
     processing_time_ms: int
+    error: Optional[str] = None
+
+# Diagram Generation Models
+class DiagramGenerationRequest(BaseModel):
+    conversation_history: List[Dict[str, str]]  # Array of {role: "user|assistant", content: "..."}
+    diagram_request: str  # The specific diagram request (e.g., "生成示意图")
+    session_id: Optional[str] = None  # Current chat session ID for context
+    subject: Optional[str] = "general"  # Subject context (mathematics, physics, etc.)
+    language: Optional[str] = "en"  # Display language
+    student_id: Optional[str] = None  # For logging purposes
+    context: Optional[Dict[str, Any]] = None  # Additional context
+
+class RenderingHint(BaseModel):
+    width: int = 400
+    height: int = 300
+    background: str = "white"
+    scale_factor: Optional[float] = 1.0
+
+class DiagramGenerationResponse(BaseModel):
+    success: bool
+    diagram_type: Optional[str] = None  # "latex", "svg", "ascii"
+    diagram_code: Optional[str] = None  # LaTeX/TikZ, SVG, or ASCII code
+    diagram_title: Optional[str] = None  # Human-readable title
+    explanation: Optional[str] = None  # Brief explanation of the diagram
+    rendering_hint: Optional[RenderingHint] = None  # Rendering parameters for iOS
+    processing_time_ms: int
+    tokens_used: Optional[int] = None
     error: Optional[str] = None
 
 # Health Check with optional authentication
@@ -1949,6 +1977,112 @@ async def get_session(session_id: str):
 # MARK: - Homework Follow-up with Grade Correction
 
 # Helper function for generating follow-up suggestions
+def check_if_diagram_helpful(ai_response: str, user_message: str, subject: str) -> bool:
+    """
+    Analyze conversation content to determine if a diagram would be helpful.
+
+    Returns True if visual content is detected that would benefit from a diagram.
+    """
+    # Combine content for analysis
+    combined_text = f"{user_message} {ai_response}".lower()
+
+    # Mathematical content indicators
+    math_keywords = [
+        'function', '函数', 'equation', '方程', 'graph', '图像', '图形', 'plot', '绘图',
+        'derivative', '导数', 'integral', '积分', 'limit', '极限', 'matrix', '矩阵',
+        'parabola', '抛物线', 'sine', '正弦', 'cosine', '余弦', 'tangent', '正切',
+        'polynomial', '多项式', 'quadratic', '二次', 'linear', '线性', 'exponential', '指数',
+        'logarithm', '对数', 'coordinate', '坐标'
+    ]
+
+    # Geometric content indicators
+    geometry_keywords = [
+        'triangle', '三角形', 'circle', '圆', 'rectangle', '矩形', 'square', '正方形',
+        'angle', '角', '角度', 'line', '直线', 'point', '点', 'polygon', '多边形',
+        'diameter', '直径', 'radius', '半径', 'area', '面积', 'perimeter', '周长',
+        'volume', '体积', 'surface', '表面', 'shape', '形状', 'geometric', '几何',
+        'parallel', '平行', 'perpendicular', '垂直', 'hypotenuse', '斜边'
+    ]
+
+    # Physics content indicators
+    physics_keywords = [
+        'force', '力', 'velocity', '速度', 'acceleration', '加速度', 'motion', '运动',
+        'wave', '波', 'frequency', '频率', 'amplitude', '振幅', 'circuit', '电路',
+        'voltage', '电压', 'current', '电流', 'resistance', '电阻', 'field', '场',
+        'magnetic', '磁', 'electric', '电', 'energy', '能量', 'momentum', '动量',
+        'oscillation', '振荡', 'pendulum', '钟摆', 'spring', '弹簧', 'trajectory', '轨迹'
+    ]
+
+    # Chemistry content indicators
+    chemistry_keywords = [
+        'molecule', '分子', 'atom', '原子', 'bond', '键', 'structure', '结构',
+        'reaction', '反应', 'formula', '化学式', 'compound', '化合物', 'element', '元素',
+        'orbital', '轨道', 'electron', '电子', 'proton', '质子', 'neutron', '中子',
+        'periodic', '周期', 'valence', '价', 'crystal', '晶体', 'lattice', '晶格'
+    ]
+
+    # Biology content indicators
+    biology_keywords = [
+        'cell', '细胞', 'tissue', '组织', 'organ', '器官', 'system', '系统',
+        'dna', 'rna', 'protein', '蛋白质', 'enzyme', '酶', 'membrane', '膜',
+        'nucleus', '细胞核', 'mitochondria', '线粒体', 'chromosome', '染色体',
+        'anatomy', '解剖', 'physiology', '生理', 'ecosystem', '生态系统'
+    ]
+
+    # Visual request indicators
+    visual_request_keywords = [
+        'show', '展示', '显示', 'draw', '画', '绘制', 'illustrate', '说明', '图解',
+        'demonstrate', '演示', 'visualize', '可视化', 'diagram', '示意图', '图表',
+        'chart', 'picture', '图片', 'image', '图像', 'sketch', '草图', '素描',
+        'how does it look', '长什么样', '看起来', 'what does', 'can you show',
+        '能展示', '可以画', '帮我画'
+    ]
+
+    # Count keyword matches
+    math_count = sum(1 for keyword in math_keywords if keyword in combined_text)
+    geometry_count = sum(1 for keyword in geometry_keywords if keyword in combined_text)
+    physics_count = sum(1 for keyword in physics_keywords if keyword in combined_text)
+    chemistry_count = sum(1 for keyword in chemistry_keywords if keyword in combined_text)
+    biology_count = sum(1 for keyword in biology_keywords if keyword in combined_text)
+    visual_request_count = sum(1 for keyword in visual_request_keywords if keyword in combined_text)
+
+    # Subject-specific thresholds
+    if subject in ['mathematics', 'math', '数学', 'geometry', '几何']:
+        if math_count >= 2 or geometry_count >= 1 or visual_request_count >= 1:
+            return True
+
+    elif subject in ['physics', '物理']:
+        if physics_count >= 2 or geometry_count >= 1 or visual_request_count >= 1:
+            return True
+
+    elif subject in ['chemistry', '化学']:
+        if chemistry_count >= 2 or visual_request_count >= 1:
+            return True
+
+    elif subject in ['biology', '生物']:
+        if biology_count >= 2 or visual_request_count >= 1:
+            return True
+
+    # General thresholds (any subject)
+    total_visual_keywords = math_count + geometry_count + physics_count + chemistry_count + biology_count
+
+    # High confidence indicators
+    if visual_request_count >= 2:  # Explicit request for visual aid
+        return True
+    if total_visual_keywords >= 4:  # High density of visual content
+        return True
+    if geometry_count >= 2:  # Geometric content almost always benefits from diagrams
+        return True
+
+    # Medium confidence indicators
+    if visual_request_count >= 1 and total_visual_keywords >= 2:
+        return True
+    if math_count >= 3:  # Complex mathematical concepts
+        return True
+
+    return False
+
+
 async def generate_follow_up_suggestions(ai_response: str, user_message: str, subject: str) -> List[Dict[str, str]]:
     """
     Generate contextual follow-up suggestions based on AI response and conversation.
@@ -1999,6 +2133,35 @@ The AI response is in ENGLISH, so you MUST generate follow-up suggestions in ENG
 - All "value" questions must be in English
 """
 
+        # Check if conversation content suggests diagram would be helpful
+        should_suggest_diagram = check_if_diagram_helpful(ai_response, user_message, subject)
+        diagram_suggestion_text = ""
+
+        if should_suggest_diagram:
+            if is_chinese:
+                diagram_suggestion_text = """
+IMPORTANT: Since this conversation involves visual concepts that would benefit from a diagram,
+you MUST include ONE of these diagram suggestions as one of your 3 follow-up options:
+- {"key": "生成示意图", "value": "能帮我画个示意图来解释吗？"}
+- {"key": "画个图解释", "value": "可以画个图来帮助理解吗？"}
+- {"key": "可视化展示", "value": "能用图像的方式展示这个概念吗？"}
+
+Choose the most appropriate diagram suggestion based on the conversation context.
+"""
+            else:
+                diagram_suggestion_text = """
+IMPORTANT: Since this conversation involves visual concepts that would benefit from a diagram,
+you MUST include ONE of these diagram suggestions as one of your 3 follow-up options:
+- {"key": "Draw diagram", "value": "Can you draw a diagram to explain this?"}
+- {"key": "Show visually", "value": "Can you show this concept visually?"}
+- {"key": "Create chart", "value": "Could you create a visual representation?"}
+
+Choose the most appropriate diagram suggestion based on the conversation context.
+"""
+            print(f"📊 Diagram suggestion will be included (detected visual content)")
+        else:
+            print(f"📊 No diagram suggestion needed (non-visual content)")
+
         # Create a prompt for generating follow-up suggestions
         suggestion_prompt = f"""Based on this educational conversation, generate 3 contextual follow-up questions that would help the student learn more.
 
@@ -2008,12 +2171,15 @@ Subject: {subject}
 
 {language_instruction}
 
+{diagram_suggestion_text}
+
 Generate 3 follow-up questions that:
 1. Help deepen understanding of the concept
 2. Connect to related topics
 3. Encourage critical thinking
 4. Are natural conversation starters
 5. Match the SAME LANGUAGE as the AI response above
+{("6. Include ONE diagram suggestion if visual content was detected above" if should_suggest_diagram else "")}
 
 Format your response EXACTLY as a JSON array:
 [
@@ -2616,6 +2782,365 @@ Format the response as JSON with fields: narrative, summary, keyInsights, recomm
             processing_time_ms=processing_time,
             error=f"Narrative generation error: {str(e)}"
         )
+
+
+# ====================================
+# DIAGRAM GENERATION ENDPOINT
+# ====================================
+
+@app.post("/api/v1/generate-diagram", response_model=DiagramGenerationResponse)
+async def generate_diagram(request: DiagramGenerationRequest):
+    """
+    Generate educational diagrams (LaTeX/SVG) from conversation context.
+
+    This endpoint analyzes the conversation history and generates appropriate
+    visual representations to help students understand complex concepts.
+
+    Features:
+    - Intelligent format selection (LaTeX for complex math, SVG for simple shapes)
+    - Multi-language support for diagram annotations
+    - Subject-specific diagram generation
+    - Conversation context analysis for relevant visual aids
+    """
+    start_time = time.time()
+
+    try:
+        print(f"📊 === DIAGRAM GENERATION REQUEST ===")
+        print(f"📊 Session: {request.session_id}")
+        print(f"📊 Subject: {request.subject}")
+        print(f"📊 Language: {request.language}")
+        print(f"📊 Request: {request.diagram_request}")
+        print(f"📊 Conversation length: {len(request.conversation_history)} messages")
+
+        # Extract the most recent relevant content for context
+        conversation_text = ""
+        for msg in request.conversation_history[-6:]:  # Last 6 messages for context
+            role = msg.get('role', 'unknown')
+            content = msg.get('content', '')
+            conversation_text += f"{role.upper()}: {content}\n\n"
+
+        # Analyze content to determine best diagram type
+        content_analysis = analyze_content_for_diagram_type(conversation_text, request.subject)
+        diagram_type = content_analysis['diagram_type']
+        complexity = content_analysis['complexity']
+
+        print(f"📊 Analyzed content: type={diagram_type}, complexity={complexity}")
+
+        # Generate diagram based on type
+        if diagram_type == "latex":
+            result = await generate_latex_diagram(
+                conversation_text=conversation_text,
+                diagram_request=request.diagram_request,
+                subject=request.subject,
+                language=request.language,
+                complexity=complexity
+            )
+        elif diagram_type == "svg":
+            result = await generate_svg_diagram(
+                conversation_text=conversation_text,
+                diagram_request=request.diagram_request,
+                subject=request.subject,
+                language=request.language,
+                complexity=complexity
+            )
+        else:  # ascii fallback
+            result = await generate_ascii_diagram(
+                conversation_text=conversation_text,
+                diagram_request=request.diagram_request,
+                subject=request.subject,
+                language=request.language
+            )
+
+        processing_time = int((time.time() - start_time) * 1000)
+
+        print(f"📊 Diagram generated successfully in {processing_time}ms")
+        print(f"📊 Type: {result['diagram_type']}, Code length: {len(result.get('diagram_code', ''))}")
+
+        return DiagramGenerationResponse(
+            success=True,
+            diagram_type=result['diagram_type'],
+            diagram_code=result['diagram_code'],
+            diagram_title=result['diagram_title'],
+            explanation=result['explanation'],
+            rendering_hint=RenderingHint(
+                width=result.get('width', 400),
+                height=result.get('height', 300),
+                background=result.get('background', 'white')
+            ),
+            processing_time_ms=processing_time,
+            tokens_used=result.get('tokens_used')
+        )
+
+    except Exception as e:
+        processing_time = int((time.time() - start_time) * 1000)
+        error_msg = f"Diagram generation failed: {str(e)}"
+
+        print(f"❌ {error_msg}")
+        import traceback
+        print(f"📋 Traceback: {traceback.format_exc()}")
+
+        return DiagramGenerationResponse(
+            success=False,
+            processing_time_ms=processing_time,
+            error=error_msg
+        )
+
+
+def analyze_content_for_diagram_type(conversation_text: str, subject: str) -> Dict[str, str]:
+    """
+    Analyze conversation content to determine the best diagram type.
+    """
+    content_lower = conversation_text.lower()
+
+    # Mathematical content indicators
+    math_keywords = ['function', '函数', 'equation', '方程', 'graph', '图像', 'derivative', '导数',
+                     'integral', '积分', 'limit', '极限', 'matrix', '矩阵']
+
+    # Geometric content indicators
+    geometry_keywords = ['triangle', '三角形', 'circle', '圆', 'rectangle', '矩形', 'angle', '角',
+                        'line', '直线', 'point', '点', 'polygon', '多边形']
+
+    # Physics content indicators
+    physics_keywords = ['force', '力', 'velocity', '速度', 'acceleration', '加速度', 'wave', '波',
+                       'circuit', '电路', 'field', '场', 'energy', '能量']
+
+    # Chemistry content indicators
+    chemistry_keywords = ['molecule', '分子', 'atom', '原子', 'bond', '键', 'structure', '结构',
+                         'reaction', '反应', 'formula', '化学式']
+
+    # Count keyword occurrences
+    math_count = sum(1 for kw in math_keywords if kw in content_lower)
+    geometry_count = sum(1 for kw in geometry_keywords if kw in content_lower)
+    physics_count = sum(1 for kw in physics_keywords if kw in content_lower)
+    chemistry_count = sum(1 for kw in chemistry_keywords if kw in content_lower)
+
+    # Determine complexity and type
+    total_keywords = math_count + geometry_count + physics_count + chemistry_count
+
+    if subject in ['mathematics', 'math', '数学'] and (math_count > 2 or 'function' in content_lower):
+        return {'diagram_type': 'latex', 'complexity': 'high'}
+    elif subject in ['physics', '物理'] and physics_count > 1:
+        return {'diagram_type': 'svg', 'complexity': 'medium'}
+    elif subject in ['chemistry', '化学'] and chemistry_count > 1:
+        return {'diagram_type': 'svg', 'complexity': 'medium'}
+    elif geometry_count > 1:
+        return {'diagram_type': 'svg', 'complexity': 'low'}
+    elif total_keywords > 3:
+        return {'diagram_type': 'latex', 'complexity': 'high'}
+    elif total_keywords > 0:
+        return {'diagram_type': 'svg', 'complexity': 'low'}
+    else:
+        return {'diagram_type': 'ascii', 'complexity': 'minimal'}
+
+
+async def generate_latex_diagram(conversation_text: str, diagram_request: str,
+                                subject: str, language: str, complexity: str) -> Dict:
+    """
+    Generate LaTeX/TikZ diagram for complex mathematical content.
+    """
+    language_instructions = {
+        'en': 'Generate comments and labels in English.',
+        'zh-Hans': '使用简体中文生成注释和标签。',
+        'zh-Hant': '使用繁體中文生成註釋和標籤。'
+    }
+
+    language_instruction = language_instructions.get(language, language_instructions['en'])
+
+    prompt = f"""Based on this educational conversation, generate a LaTeX/TikZ diagram to help visualize the concept.
+
+CONVERSATION CONTEXT:
+{conversation_text}
+
+DIAGRAM REQUEST: {diagram_request}
+SUBJECT: {subject}
+COMPLEXITY: {complexity}
+
+{language_instruction}
+
+Generate a complete, valid LaTeX document with TikZ diagram that:
+1. Clearly illustrates the main concept from the conversation
+2. Includes proper labels and annotations
+3. Uses appropriate mathematical notation
+4. Is educational and clear
+5. Can be compiled directly
+
+Format your response as a JSON object:
+{{
+    "diagram_type": "latex",
+    "diagram_code": "\\\\documentclass{{article}}\\n\\\\usepackage{{tikz}}\\n...",
+    "diagram_title": "Clear title for the diagram",
+    "explanation": "Brief explanation of what the diagram shows",
+    "width": 400,
+    "height": 300,
+    "background": "white"
+}}
+
+IMPORTANT: Return ONLY the JSON object, no other text."""
+
+    response = await ai_service.client.chat.completions.create(
+        model="gpt-4o-mini",  # Better for code generation
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,  # Lower temperature for more consistent code
+        max_tokens=1500
+    )
+
+    result_text = response.choices[0].message.content.strip()
+
+    # Parse JSON response
+    import json
+    try:
+        result = json.loads(result_text)
+        result['tokens_used'] = response.usage.total_tokens
+        return result
+    except json.JSONDecodeError:
+        # Fallback if JSON parsing fails
+        return {
+            'diagram_type': 'latex',
+            'diagram_code': result_text,  # Use raw response as code
+            'diagram_title': 'Mathematical Diagram',
+            'explanation': 'LaTeX diagram generated from conversation context',
+            'width': 400,
+            'height': 300,
+            'tokens_used': response.usage.total_tokens
+        }
+
+
+async def generate_svg_diagram(conversation_text: str, diagram_request: str,
+                              subject: str, language: str, complexity: str) -> Dict:
+    """
+    Generate SVG diagram for geometric shapes and simple visualizations.
+    """
+    language_instructions = {
+        'en': 'Use English for all text labels and annotations.',
+        'zh-Hans': '使用简体中文作为所有文字标签和注释。',
+        'zh-Hant': '使用繁體中文作為所有文字標籤和註釋。'
+    }
+
+    language_instruction = language_instructions.get(language, language_instructions['en'])
+
+    prompt = f"""Based on this educational conversation, generate an SVG diagram to help visualize the concept.
+
+CONVERSATION CONTEXT:
+{conversation_text}
+
+DIAGRAM REQUEST: {diagram_request}
+SUBJECT: {subject}
+COMPLEXITY: {complexity}
+
+{language_instruction}
+
+Generate a complete, valid SVG diagram that:
+1. Clearly illustrates the main concept from the conversation
+2. Uses appropriate geometric shapes and lines
+3. Includes clear labels and annotations
+4. Is educational and visually appealing
+5. Works on mobile devices (responsive)
+
+Format your response as a JSON object:
+{{
+    "diagram_type": "svg",
+    "diagram_code": "<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 400 300\\">...</svg>",
+    "diagram_title": "Clear title for the diagram",
+    "explanation": "Brief explanation of what the diagram shows",
+    "width": 400,
+    "height": 300,
+    "background": "white"
+}}
+
+IMPORTANT: Return ONLY the JSON object, no other text."""
+
+    response = await ai_service.client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,
+        max_tokens=1200
+    )
+
+    result_text = response.choices[0].message.content.strip()
+
+    # Parse JSON response
+    import json
+    try:
+        result = json.loads(result_text)
+        result['tokens_used'] = response.usage.total_tokens
+        return result
+    except json.JSONDecodeError:
+        # Fallback
+        return {
+            'diagram_type': 'svg',
+            'diagram_code': result_text,
+            'diagram_title': 'Visual Diagram',
+            'explanation': 'SVG diagram generated from conversation context',
+            'width': 400,
+            'height': 300,
+            'tokens_used': response.usage.total_tokens
+        }
+
+
+async def generate_ascii_diagram(conversation_text: str, diagram_request: str,
+                                subject: str, language: str) -> Dict:
+    """
+    Generate ASCII art diagram for simple text-based visualizations.
+    """
+    language_instructions = {
+        'en': 'Use English for all labels.',
+        'zh-Hans': '使用简体中文作为标签。',
+        'zh-Hant': '使用繁體中文作為標籤。'
+    }
+
+    language_instruction = language_instructions.get(language, language_instructions['en'])
+
+    prompt = f"""Based on this educational conversation, generate a simple ASCII art diagram.
+
+CONVERSATION CONTEXT:
+{conversation_text}
+
+DIAGRAM REQUEST: {diagram_request}
+SUBJECT: {subject}
+
+{language_instruction}
+
+Generate a clear ASCII art diagram that:
+1. Uses simple characters (-, |, +, *, etc.)
+2. Includes labels and annotations
+3. Is readable on mobile devices
+4. Shows the main concept clearly
+
+Format your response as a JSON object:
+{{
+    "diagram_type": "ascii",
+    "diagram_code": "     A\\n    /|\\\\\\n   / | \\\\\\n  B--+--C\\n     |\\n     D",
+    "diagram_title": "Simple ASCII Diagram",
+    "explanation": "ASCII representation of the concept"
+}}
+
+IMPORTANT: Return ONLY the JSON object, no other text."""
+
+    response = await ai_service.client.chat.completions.create(
+        model="gpt-3.5-turbo",  # Sufficient for simple ASCII
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.4,
+        max_tokens=800
+    )
+
+    result_text = response.choices[0].message.content.strip()
+
+    # Parse JSON response
+    import json
+    try:
+        result = json.loads(result_text)
+        result['tokens_used'] = response.usage.total_tokens
+        return result
+    except json.JSONDecodeError:
+        # Fallback
+        return {
+            'diagram_type': 'ascii',
+            'diagram_code': result_text,
+            'diagram_title': 'Text Diagram',
+            'explanation': 'ASCII diagram generated from conversation context',
+            'tokens_used': response.usage.total_tokens
+        }
+
 
 if __name__ == "__main__":
     # Get port from environment variable (Railway sets this automatically)
