@@ -50,6 +50,10 @@ class ProModePDFExporter: ObservableObject {
         ]
 
         let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792) // US Letter size
+        let margin: CGFloat = 60
+        let contentWidth = pageRect.width - (margin * 2)
+        let maxContentHeight = pageRect.height - (margin * 2)  // Maximum usable height per page
+
         let pdfData = NSMutableData()
 
         guard let pdfContext = CGContext(consumer: CGDataConsumer(data: pdfData)!, mediaBox: nil, pdfMetadata as CFDictionary) else {
@@ -71,23 +75,36 @@ class ProModePDFExporter: ObservableObject {
 
         exportProgress = 0.2
 
-        // Render questions
-        var currentY: CGFloat = 0
-        var pageNumber = 1
+        // ✅ UPDATED: Dynamic page management - add questions until page is full
+        var currentY: CGFloat = margin  // Start with top margin
+        var pageNumber = 2  // Page 2 (after cover)
+        var isFirstQuestionOnPage = true
 
         for (index, questionWithGrade) in questionsToExport.enumerated() {
             let progress = 0.2 + (Double(index) / Double(questionsToExport.count)) * 0.7
             exportProgress = progress
 
-            // Start new page if needed
-            if index > 0 {
+            // Calculate how much space this question needs
+            let questionHeight = calculateQuestionHeight(
+                questionWithGrade: questionWithGrade,
+                croppedImage: croppedImages[questionWithGrade.question.id],
+                contentWidth: contentWidth
+            )
+
+            // ✅ Check if question fits on current page (with spacing)
+            let questionSpacing: CGFloat = 24  // Space between questions
+            let totalQuestionHeight = questionHeight + (isFirstQuestionOnPage ? 0 : questionSpacing)
+
+            if currentY + totalQuestionHeight > maxContentHeight + margin {
+                // Question doesn't fit - start new page
+                pdfContext.endPDFPage()
                 pdfContext.beginPDFPage(nil)
-                currentY = 60 // Top margin
+                currentY = margin
                 pageNumber += 1
-            } else {
-                pdfContext.beginPDFPage(nil)
-                currentY = 60
-                pageNumber += 1
+                isFirstQuestionOnPage = true
+            } else if !isFirstQuestionOnPage {
+                // Add spacing before question (not first on page)
+                currentY += questionSpacing
             }
 
             // Render question
@@ -97,9 +114,21 @@ class ProModePDFExporter: ObservableObject {
                 questionWithGrade: questionWithGrade,
                 croppedImage: croppedImages[questionWithGrade.question.id],
                 startY: currentY,
-                pageNumber: pageNumber
+                pageNumber: pageNumber,
+                margin: margin,
+                contentWidth: contentWidth
             )
 
+            isFirstQuestionOnPage = false
+
+            // Start first page after cover if needed
+            if index == 0 && currentY == margin {
+                pdfContext.beginPDFPage(nil)
+            }
+        }
+
+        // Close last page if it was started
+        if !isFirstQuestionOnPage {
             pdfContext.endPDFPage()
         }
 
@@ -191,6 +220,134 @@ class ProModePDFExporter: ObservableObject {
         context.endPDFPage()
     }
 
+    // MARK: - Height Calculation
+
+    /// Calculate the total height required for a question (for page break logic)
+    /// - Parameters:
+    ///   - questionWithGrade: Question with grading data
+    ///   - croppedImage: Optional cropped image
+    ///   - contentWidth: Available content width
+    /// - Returns: Total height in points
+    private func calculateQuestionHeight(
+        questionWithGrade: ProgressiveQuestionWithGrade,
+        croppedImage: UIImage?,
+        contentWidth: CGFloat
+    ) -> CGFloat {
+        var totalHeight: CGFloat = 0
+
+        // Question header
+        let headerAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 18, weight: .bold),
+            .foregroundColor: UIColor.systemBlue
+        ]
+        let headerString = NSAttributedString(
+            string: "Question \(questionWithGrade.question.questionNumber ?? "?")",
+            attributes: headerAttributes
+        )
+        totalHeight += headerString.size().height + 15
+
+        // Cropped image (if available) - ✅ PROPORTIONAL SIZING
+        if let image = croppedImage {
+            let maxImageHeight: CGFloat = 200
+            let imageAspect = image.size.width / image.size.height
+            let imageWidth = contentWidth
+            let imageHeight = min(imageWidth / imageAspect, maxImageHeight)
+            totalHeight += imageHeight + 15
+        }
+
+        // Question text
+        let questionTextAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 14, weight: .regular),
+            .foregroundColor: UIColor.label
+        ]
+        let questionText = questionWithGrade.question.displayText
+        let questionTextSize = (questionText as NSString).boundingRect(
+            with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: questionTextAttributes,
+            context: nil
+        ).size
+        totalHeight += questionTextSize.height + 15
+
+        // Student answer (if available)
+        let studentAnswer = questionWithGrade.question.displayStudentAnswer
+        if !studentAnswer.isEmpty {
+            let answerLabelAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12, weight: .semibold),
+                .foregroundColor: UIColor.systemBlue
+            ]
+            let answerLabel = NSAttributedString(string: "Student Answer:", attributes: answerLabelAttributes)
+            totalHeight += answerLabel.size().height + 5
+
+            let answerTextAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12, weight: .regular),
+                .foregroundColor: UIColor.label
+            ]
+            let answerSize = (studentAnswer as NSString).boundingRect(
+                with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: answerTextAttributes,
+                context: nil
+            ).size
+            totalHeight += answerSize.height + 15
+        }
+
+        // Grade badge and feedback (if graded)
+        if let grade = questionWithGrade.grade {
+            totalHeight += 10
+
+            // Badge
+            let badgeHeight: CGFloat = 30
+            totalHeight += badgeHeight + 15
+
+            // Correct answer (if available)
+            if let correctAnswer = grade.correctAnswer, !correctAnswer.isEmpty {
+                let correctLabelAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 12, weight: .semibold),
+                    .foregroundColor: UIColor.systemGreen
+                ]
+                let correctLabel = NSAttributedString(string: "Correct Answer:", attributes: correctLabelAttributes)
+                totalHeight += correctLabel.size().height + 5
+
+                let correctTextAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 12, weight: .regular),
+                    .foregroundColor: UIColor.label
+                ]
+                let correctSize = (correctAnswer as NSString).boundingRect(
+                    with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: correctTextAttributes,
+                    context: nil
+                ).size
+                totalHeight += correctSize.height + 15
+            }
+
+            // Feedback
+            if !grade.feedback.isEmpty {
+                let feedbackLabelAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 12, weight: .semibold),
+                    .foregroundColor: UIColor.secondaryLabel
+                ]
+                let feedbackLabel = NSAttributedString(string: "Feedback:", attributes: feedbackLabelAttributes)
+                totalHeight += feedbackLabel.size().height + 5
+
+                let feedbackTextAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 11, weight: .regular),
+                    .foregroundColor: UIColor.secondaryLabel
+                ]
+                let feedbackSize = (grade.feedback as NSString).boundingRect(
+                    with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: feedbackTextAttributes,
+                    context: nil
+                ).size
+                totalHeight += feedbackSize.height + 20
+            }
+        }
+
+        return totalHeight
+    }
+
     // MARK: - Question Rendering
 
     private func renderQuestion(
@@ -199,11 +356,11 @@ class ProModePDFExporter: ObservableObject {
         questionWithGrade: ProgressiveQuestionWithGrade,
         croppedImage: UIImage?,
         startY: CGFloat,
-        pageNumber: Int
+        pageNumber: Int,
+        margin: CGFloat,
+        contentWidth: CGFloat
     ) -> CGFloat {
         var y = startY
-        let margin: CGFloat = 60
-        let contentWidth = pageRect.width - (margin * 2)
 
         // Question number header
         let headerAttributes: [NSAttributedString.Key: Any] = [
@@ -217,11 +374,12 @@ class ProModePDFExporter: ObservableObject {
         headerString.draw(at: CGPoint(x: margin, y: y))
         y += headerString.size().height + 15
 
-        // Cropped image (if available)
+        // Cropped image (if available) - ✅ PROPORTIONAL SIZING
         if let image = croppedImage {
             let maxImageHeight: CGFloat = 200
             let imageAspect = image.size.width / image.size.height
             let imageWidth = contentWidth
+            // ✅ Respect aspect ratio: calculate height based on width and aspect
             let imageHeight = min(imageWidth / imageAspect, maxImageHeight)
 
             let imageRect = CGRect(x: margin, y: y, width: imageWidth, height: imageHeight)
