@@ -1981,105 +1981,178 @@ def check_if_diagram_helpful(ai_response: str, user_message: str, subject: str) 
     """
     Analyze conversation content to determine if a diagram would be helpful.
 
+    🎯 OPTIMIZED FOR HIGHER DIAGRAM SUGGESTION RATE
     Returns True if visual content is detected that would benefit from a diagram.
     """
     # Combine content for analysis
     combined_text = f"{user_message} {ai_response}".lower()
 
-    # Mathematical content indicators
+    print(f"🎨 [DiagramDetection] Analyzing content for diagram potential...")
+    print(f"🎨 [DiagramDetection] Subject: {subject}")
+    print(f"🎨 [DiagramDetection] Combined text length: {len(combined_text)} chars")
+
+    # ✅ EXPANDED Mathematical content indicators
     math_keywords = [
+        # Basic math
         'function', '函数', 'equation', '方程', 'graph', '图像', '图形', 'plot', '绘图',
         'derivative', '导数', 'integral', '积分', 'limit', '极限', 'matrix', '矩阵',
         'parabola', '抛物线', 'sine', '正弦', 'cosine', '余弦', 'tangent', '正切',
         'polynomial', '多项式', 'quadratic', '二次', 'linear', '线性', 'exponential', '指数',
-        'logarithm', '对数', 'coordinate', '坐标'
+        'logarithm', '对数', 'coordinate', '坐标',
+        # Additional math terms
+        'formula', '公式', 'calculation', '计算', 'solve', '解', '求解', 'variable', '变量',
+        'constant', '常数', 'coefficient', '系数', 'slope', '斜率', 'intercept', '截距',
+        'domain', '定义域', 'range', '值域', 'axis', '轴', 'scale', '刻度', 'origin', '原点',
+        'maximum', '最大值', 'minimum', '最小值', 'curve', '曲线', 'step', '步骤',
+        'solution', '解答', 'method', '方法', 'approach', '方式', 'strategy', '策略'
     ]
 
-    # Geometric content indicators
+    # ✅ EXPANDED Geometric content indicators
     geometry_keywords = [
         'triangle', '三角形', 'circle', '圆', 'rectangle', '矩形', 'square', '正方形',
         'angle', '角', '角度', 'line', '直线', 'point', '点', 'polygon', '多边形',
         'diameter', '直径', 'radius', '半径', 'area', '面积', 'perimeter', '周长',
         'volume', '体积', 'surface', '表面', 'shape', '形状', 'geometric', '几何',
-        'parallel', '平行', 'perpendicular', '垂直', 'hypotenuse', '斜边'
+        'parallel', '平行', 'perpendicular', '垂直', 'hypotenuse', '斜边',
+        # Additional geometry
+        'vertex', '顶点', 'edge', '边', 'side', '边长', 'height', '高', 'base', '底',
+        'diagonal', '对角线', 'symmetry', '对称', 'congruent', '全等', 'similar', '相似',
+        'rotate', '旋转', 'translate', '平移', 'reflect', '反射', 'transform', '变换'
     ]
 
-    # Physics content indicators
+    # ✅ EXPANDED Physics content indicators
     physics_keywords = [
         'force', '力', 'velocity', '速度', 'acceleration', '加速度', 'motion', '运动',
         'wave', '波', 'frequency', '频率', 'amplitude', '振幅', 'circuit', '电路',
         'voltage', '电压', 'current', '电流', 'resistance', '电阻', 'field', '场',
         'magnetic', '磁', 'electric', '电', 'energy', '能量', 'momentum', '动量',
-        'oscillation', '振荡', 'pendulum', '钟摆', 'spring', '弹簧', 'trajectory', '轨迹'
+        'oscillation', '振荡', 'pendulum', '钟摆', 'spring', '弹簧', 'trajectory', '轨迹',
+        # Additional physics
+        'gravity', '重力', 'mass', '质量', 'weight', '重量', 'density', '密度',
+        'pressure', '压力', 'temperature', '温度', 'heat', '热', 'light', '光',
+        'particle', '粒子', 'atom', '原子', 'electron', '电子', 'nucleus', '原子核'
     ]
 
-    # Chemistry content indicators
+    # ✅ EXPANDED Chemistry content indicators
     chemistry_keywords = [
         'molecule', '分子', 'atom', '原子', 'bond', '键', 'structure', '结构',
         'reaction', '反应', 'formula', '化学式', 'compound', '化合物', 'element', '元素',
         'orbital', '轨道', 'electron', '电子', 'proton', '质子', 'neutron', '中子',
-        'periodic', '周期', 'valence', '价', 'crystal', '晶体', 'lattice', '晶格'
+        'periodic', '周期', 'valence', '价', 'crystal', '晶体', 'lattice', '晶格',
+        # Additional chemistry
+        'ion', '离子', 'acid', '酸', 'base', '碱', 'salt', '盐', 'ph', 'oxidation', '氧化',
+        'reduction', '还原', 'catalyst', '催化剂', 'solution', '溶液', 'mixture', '混合物'
     ]
 
-    # Biology content indicators
+    # ✅ EXPANDED Biology content indicators
     biology_keywords = [
         'cell', '细胞', 'tissue', '组织', 'organ', '器官', 'system', '系统',
         'dna', 'rna', 'protein', '蛋白质', 'enzyme', '酶', 'membrane', '膜',
         'nucleus', '细胞核', 'mitochondria', '线粒体', 'chromosome', '染色体',
-        'anatomy', '解剖', 'physiology', '生理', 'ecosystem', '生态系统'
+        'anatomy', '解剖', 'physiology', '生理', 'ecosystem', '生态系统',
+        # Additional biology
+        'evolution', '进化', 'genetics', '遗传学', 'inheritance', '遗传', 'mutation', '突变',
+        'species', '物种', 'organism', '生物体', 'bacteria', '细菌', 'virus', '病毒'
     ]
 
-    # Visual request indicators
+    # ✅ EXPANDED Visual request indicators (更积极的检测)
     visual_request_keywords = [
         'show', '展示', '显示', 'draw', '画', '绘制', 'illustrate', '说明', '图解',
         'demonstrate', '演示', 'visualize', '可视化', 'diagram', '示意图', '图表',
         'chart', 'picture', '图片', 'image', '图像', 'sketch', '草图', '素描',
         'how does it look', '长什么样', '看起来', 'what does', 'can you show',
-        '能展示', '可以画', '帮我画'
+        '能展示', '可以画', '帮我画',
+        # 🎯 NEW: More aggressive visual indicators
+        'example', '例子', '举例', 'step', '步骤', '过程', 'process', 'flow', '流程',
+        'structure', '结构', 'model', '模型', 'pattern', '模式', 'layout', '布局',
+        'design', '设计', 'plan', '计划', 'map', '图', 'guide', '指南',
+        'relationship', '关系', 'connection', '连接', 'compare', '比较', 'contrast', '对比',
+        'understand', '理解', 'explain', '解释', 'clarify', '澄清', 'help', '帮助'
     ]
 
-    # Count keyword matches
+    # ✅ NEW: Educational context indicators (学习相关关键词)
+    educational_keywords = [
+        'learn', '学习', 'study', '学', 'understand', '理解', 'explain', '解释',
+        'teach', '教', 'lesson', '课', 'homework', '作业', 'exercise', '练习',
+        'problem', '问题', 'question', '题目', 'answer', '答案', 'solution', '解答',
+        'concept', '概念', 'principle', '原理', 'theory', '理论', 'rule', '规则',
+        'why', '为什么', 'how', '怎么', 'what', '什么', 'when', '什么时候', 'where', '哪里'
+    ]
+
+    # Count keyword matches with expanded detection
     math_count = sum(1 for keyword in math_keywords if keyword in combined_text)
     geometry_count = sum(1 for keyword in geometry_keywords if keyword in combined_text)
     physics_count = sum(1 for keyword in physics_keywords if keyword in combined_text)
     chemistry_count = sum(1 for keyword in chemistry_keywords if keyword in combined_text)
     biology_count = sum(1 for keyword in biology_keywords if keyword in combined_text)
     visual_request_count = sum(1 for keyword in visual_request_keywords if keyword in combined_text)
+    educational_count = sum(1 for keyword in educational_keywords if keyword in combined_text)
 
-    # Subject-specific thresholds
+    print(f"🎨 [DiagramDetection] Keyword analysis:")
+    print(f"🎨 [DiagramDetection] - Math: {math_count}, Geometry: {geometry_count}")
+    print(f"🎨 [DiagramDetection] - Physics: {physics_count}, Chemistry: {chemistry_count}")
+    print(f"🎨 [DiagramDetection] - Biology: {biology_count}, Visual: {visual_request_count}")
+    print(f"🎨 [DiagramDetection] - Educational: {educational_count}")
+
+    # ✅ OPTIMIZED: Much lower thresholds for diagram suggestions
+
+    # 🔥 SUBJECT-SPECIFIC OPTIMIZED THRESHOLDS (更宽松的条件)
     if subject in ['mathematics', 'math', '数学', 'geometry', '几何']:
-        if math_count >= 2 or geometry_count >= 1 or visual_request_count >= 1:
+        if math_count >= 1 or geometry_count >= 1 or visual_request_count >= 1:
+            print(f"🎨 [DiagramDetection] ✅ MATH subject trigger: math={math_count}, geo={geometry_count}, visual={visual_request_count}")
             return True
 
     elif subject in ['physics', '物理']:
-        if physics_count >= 2 or geometry_count >= 1 or visual_request_count >= 1:
+        if physics_count >= 1 or geometry_count >= 1 or visual_request_count >= 1:
+            print(f"🎨 [DiagramDetection] ✅ PHYSICS subject trigger: physics={physics_count}, geo={geometry_count}, visual={visual_request_count}")
             return True
 
     elif subject in ['chemistry', '化学']:
-        if chemistry_count >= 2 or visual_request_count >= 1:
+        if chemistry_count >= 1 or visual_request_count >= 1:
+            print(f"🎨 [DiagramDetection] ✅ CHEMISTRY subject trigger: chem={chemistry_count}, visual={visual_request_count}")
             return True
 
     elif subject in ['biology', '生物']:
-        if biology_count >= 2 or visual_request_count >= 1:
+        if biology_count >= 1 or visual_request_count >= 1:
+            print(f"🎨 [DiagramDetection] ✅ BIOLOGY subject trigger: bio={biology_count}, visual={visual_request_count}")
             return True
 
-    # General thresholds (any subject)
+    # ✅ GENERAL OPTIMIZED THRESHOLDS (any subject)
     total_visual_keywords = math_count + geometry_count + physics_count + chemistry_count + biology_count
 
-    # High confidence indicators
-    if visual_request_count >= 2:  # Explicit request for visual aid
-        return True
-    if total_visual_keywords >= 4:  # High density of visual content
-        return True
-    if geometry_count >= 2:  # Geometric content almost always benefits from diagrams
+    # 🔥 VERY HIGH confidence indicators (always suggest)
+    if visual_request_count >= 1:  # Any visual request → IMMEDIATE diagram suggestion
+        print(f"🎨 [DiagramDetection] ✅ HIGH: Explicit visual request detected ({visual_request_count})")
         return True
 
-    # Medium confidence indicators
-    if visual_request_count >= 1 and total_visual_keywords >= 2:
-        return True
-    if math_count >= 3:  # Complex mathematical concepts
+    if total_visual_keywords >= 2:  # Lower threshold for technical content
+        print(f"🎨 [DiagramDetection] ✅ HIGH: Technical content density ({total_visual_keywords})")
         return True
 
+    if geometry_count >= 1:  # Any geometric content benefits from diagrams
+        print(f"🎨 [DiagramDetection] ✅ HIGH: Geometric content detected ({geometry_count})")
+        return True
+
+    # 🔥 MEDIUM confidence indicators (educational context)
+    if educational_count >= 2 and total_visual_keywords >= 1:
+        print(f"🎨 [DiagramDetection] ✅ MEDIUM: Educational + technical content (edu={educational_count}, tech={total_visual_keywords})")
+        return True
+
+    if math_count >= 1:  # Any mathematical content is visual
+        print(f"🎨 [DiagramDetection] ✅ MEDIUM: Mathematical content detected ({math_count})")
+        return True
+
+    # 🔥 NEW: Length-based heuristic (longer explanations often benefit from visuals)
+    if len(ai_response) > 500 and total_visual_keywords >= 1:
+        print(f"🎨 [DiagramDetection] ✅ LENGTH: Long explanation + technical content (len={len(ai_response)}, tech={total_visual_keywords})")
+        return True
+
+    # 🔥 NEW: Cross-subject support (broader detection)
+    if total_visual_keywords >= 1 and educational_count >= 1:
+        print(f"🎨 [DiagramDetection] ✅ CROSS: Any technical + educational content (tech={total_visual_keywords}, edu={educational_count})")
+        return True
+
+    print(f"🎨 [DiagramDetection] ❌ No diagram triggers met")
     return False
 
 
@@ -2140,30 +2213,41 @@ The AI response is in ENGLISH, so you MUST generate follow-up suggestions in ENG
         if should_suggest_diagram:
             if is_chinese:
                 diagram_suggestion_text = """
-IMPORTANT: Since this conversation involves visual concepts that would benefit from a diagram,
-you MUST include ONE of these diagram suggestions as one of your 3 follow-up options:
+🔥 DIAGRAM REQUIREMENT - THIS IS MANDATORY:
+Since this conversation involves concepts that would benefit from visual representation,
+you MUST include ONE diagram suggestion as your FIRST follow-up option:
+
+REQUIRED DIAGRAM SUGGESTIONS (choose one for position #1):
 - {"key": "生成示意图", "value": "能帮我画个示意图来解释吗？"}
 - {"key": "画个图解释", "value": "可以画个图来帮助理解吗？"}
 - {"key": "可视化展示", "value": "能用图像的方式展示这个概念吗？"}
+- {"key": "绘制流程图", "value": "可以画个流程图说明这个过程吗？"}
+- {"key": "图表分析", "value": "能用图表的形式来分析吗？"}
 
-Choose the most appropriate diagram suggestion based on the conversation context.
+The diagram suggestion MUST be the first item in your JSON response.
 """
             else:
                 diagram_suggestion_text = """
-IMPORTANT: Since this conversation involves visual concepts that would benefit from a diagram,
-you MUST include ONE of these diagram suggestions as one of your 3 follow-up options:
+🔥 DIAGRAM REQUIREMENT - THIS IS MANDATORY:
+Since this conversation involves concepts that would benefit from visual representation,
+you MUST include ONE diagram suggestion as your FIRST follow-up option:
+
+REQUIRED DIAGRAM SUGGESTIONS (choose one for position #1):
 - {"key": "Draw diagram", "value": "Can you draw a diagram to explain this?"}
 - {"key": "Show visually", "value": "Can you show this concept visually?"}
 - {"key": "Create chart", "value": "Could you create a visual representation?"}
+- {"key": "Make flowchart", "value": "Can you make a flowchart for this process?"}
+- {"key": "Visual guide", "value": "Could you provide a visual guide?"}
 
-Choose the most appropriate diagram suggestion based on the conversation context.
+The diagram suggestion MUST be the first item in your JSON response.
 """
-            print(f"📊 Diagram suggestion will be included (detected visual content)")
+            print(f"📊 ✅ DIAGRAM SUGGESTION REQUIRED - will be included as first option")
         else:
-            print(f"📊 No diagram suggestion needed (non-visual content)")
+            print(f"📊 ❌ No diagram suggestion needed (non-visual content)")
 
-        # Create a prompt for generating follow-up suggestions
-        suggestion_prompt = f"""Based on this educational conversation, generate 3 contextual follow-up questions that would help the student learn more.
+        # Create a prompt for generating follow-up suggestions with DIAGRAM PRIORITY
+        if should_suggest_diagram:
+            suggestion_prompt = f"""Based on this educational conversation, generate 3 contextual follow-up questions that would help the student learn more.
 
 Student asked: {user_message[:200]}
 AI explained: {ai_response[:500]}
@@ -2171,7 +2255,44 @@ Subject: {subject}
 
 {language_instruction}
 
+🔥🔥🔥 CRITICAL REQUIREMENT - DIAGRAM FIRST 🔥🔥🔥
 {diagram_suggestion_text}
+
+🎯 RESPONSE STRUCTURE REQUIREMENT:
+Since this conversation involves visual concepts, you MUST follow this EXACT structure:
+
+1. FIRST suggestion: MUST be a diagram/visual request (mandatory)
+2. SECOND suggestion: Learning-related follow-up
+3. THIRD suggestion: Concept exploration follow-up
+
+Generate 3 follow-up questions that:
+1. MANDATORY: Start with ONE diagram suggestion (use examples from above)
+2. Help deepen understanding of the concept
+3. Connect to related topics
+4. Encourage critical thinking
+5. Are natural conversation starters
+6. Match the SAME LANGUAGE as the AI response above
+
+Format your response EXACTLY as a JSON array (diagram suggestion MUST be first):
+[
+  {{"key": "生成示意图", "value": "能帮我画个示意图来解释吗？"}},
+  {{"key": "Short label", "value": "Second follow-up question"}},
+  {{"key": "Short label", "value": "Third follow-up question"}}
+]
+
+CRITICAL REMINDERS:
+- DIAGRAM SUGGESTION MUST BE POSITION #1
+- Return ONLY the JSON array, no other text
+- The language of ALL suggestions MUST match the language of the AI response
+- Use the EXACT diagram suggestion format provided above"""
+        else:
+            suggestion_prompt = f"""Based on this educational conversation, generate 3 contextual follow-up questions that would help the student learn more.
+
+Student asked: {user_message[:200]}
+AI explained: {ai_response[:500]}
+Subject: {subject}
+
+{language_instruction}
 
 Generate 3 follow-up questions that:
 1. Help deepen understanding of the concept
@@ -2179,7 +2300,6 @@ Generate 3 follow-up questions that:
 3. Encourage critical thinking
 4. Are natural conversation starters
 5. Match the SAME LANGUAGE as the AI response above
-{("6. Include ONE diagram suggestion if visual content was detected above" if should_suggest_diagram else "")}
 
 Format your response EXACTLY as a JSON array:
 [
