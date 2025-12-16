@@ -218,6 +218,12 @@
 		7BD668C42EE2E88700E09E55 /* ProModePDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C32EE2E88700E09E55 /* ProModePDFExporter.swift */; };
 		7BD668C52EE2E88700E09E55 /* ProModePDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C32EE2E88700E09E55 /* ProModePDFExporter.swift */; };
 		7BD668C62EE2E88700E09E55 /* ProModePDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C32EE2E88700E09E55 /* ProModePDFExporter.swift */; };
+		7BD668C92EE6A7F000E09E55 /* DiagramMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C72EE6A7F000E09E55 /* DiagramMessageView.swift */; };
+		7BD668CA2EE6A7F000E09E55 /* DiagramRendererView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C82EE6A7F000E09E55 /* DiagramRendererView.swift */; };
+		7BD668CB2EE6A7F000E09E55 /* DiagramMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C72EE6A7F000E09E55 /* DiagramMessageView.swift */; };
+		7BD668CC2EE6A7F000E09E55 /* DiagramRendererView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C82EE6A7F000E09E55 /* DiagramRendererView.swift */; };
+		7BD668CD2EE6A7F000E09E55 /* DiagramMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C72EE6A7F000E09E55 /* DiagramMessageView.swift */; };
+		7BD668CE2EE6A7F000E09E55 /* DiagramRendererView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C82EE6A7F000E09E55 /* DiagramRendererView.swift */; };
 		7BDE565E2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
 		7BDE565F2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
 		7BDE56602EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
@@ -500,6 +506,8 @@
 		7BD668A52ED6F36300E09E55 /* DigitalHomeworkViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkViewModel.swift; path = StudyAI/ViewModels/DigitalHomeworkViewModel.swift; sourceTree = SOURCE_ROOT; };
 		7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SavedDigitalHomeworkView.swift; path = StudyAI/Views/SavedDigitalHomeworkView.swift; sourceTree = SOURCE_ROOT; };
 		7BD668C32EE2E88700E09E55 /* ProModePDFExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProModePDFExporter.swift; path = StudyAI/Services/ProModePDFExporter.swift; sourceTree = SOURCE_ROOT; };
+		7BD668C72EE6A7F000E09E55 /* DiagramMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DiagramMessageView.swift; path = StudyAI/Views/Components/DiagramMessageView.swift; sourceTree = SOURCE_ROOT; };
+		7BD668C82EE6A7F000E09E55 /* DiagramRendererView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DiagramRendererView.swift; path = StudyAI/Views/Components/DiagramRendererView.swift; sourceTree = SOURCE_ROOT; };
 		7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MathJaxRenderer.swift; path = StudyAI/Services/MathJaxRenderer.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56612EC1C617004A8629 /* PomodoroDeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PomodoroDeepLinkHandler.swift; path = StudyAI/Services/PomodoroDeepLinkHandler.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56652EC1C64D004A8629 /* StreamingMessageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StreamingMessageService.swift; path = StudyAI/Services/StreamingMessageService.swift; sourceTree = SOURCE_ROOT; };
@@ -821,6 +829,8 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7BD668C72EE6A7F000E09E55 /* DiagramMessageView.swift */,
+				7BD668C82EE6A7F000E09E55 /* DiagramRendererView.swift */,
 				7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */,
 				7BD6687B2ED05FD400E09E55 /* ZoomableImageView.swift */,
 				7BD668732ED05FAE00E09E55 /* DigitalHomeworkView.swift */,
@@ -1251,6 +1261,8 @@
 				DCHK890123456789FGHI1234 /* DailyCheckoutView.swift in Sources */,
 				7B8353482EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */,
 				7B8E9EA32EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */,
+				7BD668CB2EE6A7F000E09E55 /* DiagramMessageView.swift in Sources */,
+				7BD668CC2EE6A7F000E09E55 /* DiagramRendererView.swift in Sources */,
 				7B8E9E9F2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				LGLS901234567890GHIJ2345 /* LearningGoalsSettingsView.swift in Sources */,
 				51E8895014244637989DCA32 /* HomeView.swift in Sources */,
@@ -1351,6 +1363,8 @@
 				7B1961AC2E949DAD0024317A /* NotificationSettingsView.swift in Sources */,
 				7BD668A82ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */,
 				7BD664D62ECAB29F00E09E55 /* NativePhotoViewer.swift in Sources */,
+				7BD668C92EE6A7F000E09E55 /* DiagramMessageView.swift in Sources */,
+				7BD668CA2EE6A7F000E09E55 /* DiagramRendererView.swift in Sources */,
 				7B83534A2EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */,
 				7B1961EB2E94E2740024317A /* PasswordManagementView.swift in Sources */,
 				7BDE56F02EC31AD7004A8629 /* EssayResultsView.swift in Sources */,
@@ -1420,6 +1434,8 @@
 				7BD668792ED05FAE00E09E55 /* DigitalHomeworkView.swift in Sources */,
 				7BD6687A2ED05FAE00E09E55 /* HomeworkSummaryView.swift in Sources */,
 				7BDE56802EC1C6E5004A8629 /* PomodoroCalendarService.swift in Sources */,
+				7BD668CD2EE6A7F000E09E55 /* DiagramMessageView.swift in Sources */,
+				7BD668CE2EE6A7F000E09E55 /* DiagramRendererView.swift in Sources */,
 				7BEEB6132E8E3A3200957748 /* DesignTokens.swift in Sources */,
 				7BFC71332EC5A91D00DB95A7 /* AssistantLogger.swift in Sources */,
 				7BD668A72ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */,

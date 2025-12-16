@@ -387,7 +387,7 @@ struct ModernSessionListCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(session["title"] as? String ?? "Study Session")
                         .font(.headline)
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                         .lineLimit(2)
                     
                     if let subject = session["subject"] as? String {
@@ -499,8 +499,8 @@ struct SessionListCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(session.title)
                         .font(.headline)
-                        .foregroundColor(.black)
-                    
+                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
+
                     Text(session.subject)
                         .font(.caption)
                         .foregroundColor(.gray)
@@ -585,7 +585,7 @@ struct StatItem: View {
                 Text(value)
                     .font(.caption)
                     .fontWeight(.bold)
-                    .foregroundColor(.black)
+                    .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
             }
             
             Text(label)
@@ -767,7 +767,7 @@ struct SessionCalendarView: View {
                     HStack {
                         Text("Sessions on \(selectedDate!, style: .date)")
                             .font(.headline)
-                            .foregroundColor(.black)
+                            .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                         Spacer()
                         Text("\(sessionsForSelectedDate.count) session(s)")
                             .font(.caption)
@@ -985,7 +985,7 @@ struct SubjectCodebookView: View {
                 Text("Subjects")
                     .font(.headline)
                     .fontWeight(.bold)
-                    .foregroundColor(.black)
+                    .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
                     .padding(.bottom, 12)
@@ -1028,7 +1028,7 @@ struct SubjectCodebookView: View {
                             Text(selectedSubject.rawValue)
                                 .font(.title2)
                                 .fontWeight(.bold)
-                                .foregroundColor(.black)
+                                .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                             
                             Spacer()
                         }
@@ -1062,7 +1062,7 @@ struct SubjectCodebookView: View {
                     Text("Select a Subject")
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                     
                     Text("Choose a subject from the left to view your sessions")
                         .font(.subheadline)
@@ -1120,7 +1120,7 @@ struct SubjectCodebookRow: View {
                     Text(subject.rawValue)
                         .font(.subheadline)
                         .fontWeight(.medium)
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                         .lineLimit(1)
                     
                     Text("\(sessionCount) session\(sessionCount == 1 ? "" : "s")")
@@ -1155,7 +1155,7 @@ struct SubjectSessionCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(session.title)
                         .font(.headline)
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                         .lineLimit(2)
                     
                     Text(session.sessionDate, style: .date)
@@ -1174,7 +1174,7 @@ struct SubjectSessionCard: View {
                         Text("\(session.questionCount)")
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(.black)
+                            .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                     }
                     
                     HStack(spacing: 4) {
@@ -1184,7 +1184,7 @@ struct SubjectSessionCard: View {
                         Text("\(Int(session.overallConfidence * 100))%")
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(.black)
+                            .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
                     }
                 }
             }

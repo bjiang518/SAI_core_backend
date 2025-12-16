@@ -88,6 +88,10 @@ class SessionChatViewModel: ObservableObject {
     @Published var aiGeneratedSuggestions: [NetworkService.FollowUpSuggestion] = []
     @Published var isStreamingComplete = true
 
+    // Diagram generation state
+    @Published var isGeneratingDiagram = false
+    @Published var generatedDiagrams: [String: NetworkService.DiagramGenerationResponse] = [:]
+
     // UI refresh
     @Published var refreshTrigger = UUID()
 
@@ -460,6 +464,67 @@ class SessionChatViewModel: ObservableObject {
 
         messageText = recognizedText
         sendMessage()
+    }
+
+    // MARK: - Diagram Generation
+
+    /// Generate a diagram based on current conversation context
+    func generateDiagram(request: String) async {
+        print("🎨 === GENERATING DIAGRAM ===")
+        print("🎨 Request: \(request)")
+        print("🎨 Session ID: \(networkService.currentSessionId ?? "nil")")
+
+        guard let sessionId = networkService.currentSessionId else {
+            print("❌ No session ID for diagram generation")
+            return
+        }
+
+        await MainActor.run {
+            isGeneratingDiagram = true
+        }
+
+        // Call the network service to generate diagram
+        let response = await networkService.generateDiagram(
+            conversationHistory: networkService.conversationHistory,
+            diagramRequest: request,
+            sessionId: sessionId,
+            subject: selectedSubject
+        )
+
+        await MainActor.run {
+            isGeneratingDiagram = false
+
+            if response.success {
+                // Store the generated diagram with a unique key
+                let diagramKey = "\(sessionId)-\(Date().timeIntervalSince1970)"
+                generatedDiagrams[diagramKey] = response
+
+                // Add diagram as AI message to conversation history
+                let diagramMessage = "Generated diagram: \(response.diagramTitle ?? "Visual Diagram")"
+                networkService.addToConversationHistory(role: "assistant", content: diagramMessage)
+
+                // Store diagram reference in message for rendering
+                if let lastIndex = networkService.conversationHistory.indices.last {
+                    // Add diagram reference to the message
+                    networkService.conversationHistory[lastIndex]["diagramKey"] = diagramKey
+                }
+
+                print("✅ Diagram generated and added to conversation")
+                print("🎨 Title: \(response.diagramTitle ?? "No title")")
+                print("🎨 Type: \(response.diagramType ?? "Unknown")")
+            } else {
+                print("❌ Diagram generation failed: \(response.error ?? "Unknown error")")
+
+                // Add error message to conversation
+                let errorMessage = "Sorry, I couldn't generate the diagram. \(response.error ?? "Please try again.")"
+                networkService.addToConversationHistory(role: "assistant", content: errorMessage)
+            }
+        }
+    }
+
+    /// Get diagram data for a given key
+    func getDiagramData(for key: String) -> NetworkService.DiagramGenerationResponse? {
+        return generatedDiagrams[key]
     }
 
     // MARK: - Phase 2.2: Message Retry Functionality

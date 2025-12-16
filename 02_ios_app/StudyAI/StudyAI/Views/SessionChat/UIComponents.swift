@@ -322,3 +322,81 @@ struct NetworkStatusBanner: View {
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 }
+
+// MARK: - Diagram Generation Indicator
+
+struct DiagramGenerationIndicatorView: View {
+    @State private var isAnimating = false
+    @State private var rotationDegrees = 0.0
+
+    var body: some View {
+        HStack(spacing: 16) {
+            // Animated icon
+            ZStack {
+                Image(systemName: "chart.bar.doc.horizontal")
+                    .font(.system(size: 20))
+                    .foregroundColor(.blue)
+                    .rotationEffect(.degrees(rotationDegrees))
+                    .onAppear {
+                        withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
+                            rotationDegrees = 360
+                        }
+                    }
+
+                // Pulsing ring
+                Circle()
+                    .stroke(Color.blue.opacity(0.3), lineWidth: 2)
+                    .frame(width: 32, height: 32)
+                    .scaleEffect(isAnimating ? 1.2 : 0.8)
+                    .opacity(isAnimating ? 0.0 : 1.0)
+                    .onAppear {
+                        withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: false)) {
+                            isAnimating = true
+                        }
+                    }
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Generating diagram...")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(.primary)
+
+                Text("AI is creating a visual representation")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            // Progress dots
+            HStack(spacing: 6) {
+                ForEach(0..<3, id: \.self) { index in
+                    Circle()
+                        .fill(Color.blue.opacity(0.6))
+                        .frame(width: 6, height: 6)
+                        .scaleEffect(isAnimating ? 1.5 : 1.0)
+                        .animation(
+                            .easeInOut(duration: 0.5)
+                                .repeatForever(autoreverses: true)
+                                .delay(Double(index) * 0.2),
+                            value: isAnimating
+                        )
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.blue.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 20)
+        .onAppear {
+            isAnimating = true
+        }
+    }
+}

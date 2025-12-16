@@ -541,14 +541,30 @@ struct SessionChatView: View {
                                         .id(index)
                                 }
                             } else {
-                                // AI message - ChatGPT style with character avatar
-                                ModernAIMessageView(
-                                    message: message["content"] ?? "",
-                                    voiceType: voiceService.voiceSettings.voiceType,
-                                    isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
-                                    messageId: "message-\(index)"
-                                )
-                                .id(index)
+                                // AI message - Check for diagram data
+                                let diagramKey = message["diagramKey"] as? String
+                                let diagramData = diagramKey != nil ? viewModel.getDiagramData(for: diagramKey!) : nil
+
+                                if diagramData != nil {
+                                    // AI message with diagram
+                                    EnhancedAIMessageView(
+                                        message: message["content"] ?? "",
+                                        diagramData: diagramData,
+                                        voiceType: voiceService.voiceSettings.voiceType,
+                                        isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
+                                        messageId: "message-\(index)"
+                                    )
+                                    .id(index)
+                                } else {
+                                    // Regular AI message - ChatGPT style with character avatar
+                                    ModernAIMessageView(
+                                        message: message["content"] ?? "",
+                                        voiceType: voiceService.voiceSettings.voiceType,
+                                        isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
+                                        messageId: "message-\(index)"
+                                    )
+                                    .id(index)
+                                }
                             }
                         }
 
@@ -575,6 +591,12 @@ struct SessionChatView: View {
                         if viewModel.showTypingIndicator {
                             ModernTypingIndicatorView()
                                 .id("typing-indicator")
+                        }
+
+                        // Show diagram generation indicator
+                        if viewModel.isGeneratingDiagram {
+                            DiagramGenerationIndicatorView()
+                                .id("diagram-indicator")
                         }
                     }
                 }
@@ -711,11 +733,28 @@ struct SessionChatView: View {
                 if viewModel.isStreamingComplete && !viewModel.aiGeneratedSuggestions.isEmpty && suggestionsMatchLanguage {
                     ForEach(viewModel.aiGeneratedSuggestions, id: \.id) { suggestion in
                         Button(suggestion.key) {
-                            // Use the full prompt from AI suggestions
-                            viewModel.messageText = suggestion.value
-                            viewModel.sendMessage()
+                            // Check if this is a diagram generation request
+                            if isDiagramGenerationRequest(suggestion.key) {
+                                // Handle diagram generation
+                                handleDiagramGenerationRequest(suggestion)
+                            } else {
+                                // Use the full prompt from AI suggestions
+                                viewModel.messageText = suggestion.value
+                                viewModel.sendMessage()
+                            }
                         }
                         .modernButtonStyle()
+                        .overlay(
+                            // Add special icon for diagram generation buttons
+                            isDiagramGenerationRequest(suggestion.key) ?
+                            HStack {
+                                Spacer()
+                                Image(systemName: "chart.xyaxis.line")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
+                            .padding(.trailing, 8) : nil
+                        )
                     }
                 } else {
                     // Fallback to manually-generated contextual buttons (localized)
@@ -1536,6 +1575,34 @@ struct SessionChatView: View {
             topAvatarState = .idle
         }
     }
+
+    // MARK: - Diagram Generation Helpers
+
+    /// Check if a follow-up suggestion key indicates a diagram generation request
+    private func isDiagramGenerationRequest(_ key: String) -> Bool {
+        let diagramKeywords = [
+            // English
+            "diagram", "draw", "chart", "visual", "graph", "show",
+            "illustrate", "sketch", "plot",
+            // Chinese
+            "示意图", "图解", "画", "绘制", "图表", "可视化", "展示"
+        ]
+
+        let lowercaseKey = key.lowercased()
+        return diagramKeywords.contains { keyword in
+            lowercaseKey.contains(keyword.lowercased())
+        }
+    }
+
+    /// Handle diagram generation request from follow-up suggestion
+    private func handleDiagramGenerationRequest(_ suggestion: NetworkService.FollowUpSuggestion) {
+        print("📊 Diagram generation requested: \(suggestion.key)")
+
+        Task {
+            // Use the ViewModel's diagram generation method
+            await viewModel.generateDiagram(request: suggestion.value)
+        }
+    }
 }
 
 // MARK: - Modern Message Components (ChatGPT Style)
@@ -1938,7 +2005,7 @@ struct WeChatStyleVoiceInput: View {
             impactFeedback.impactOccurred()
         }
     }
-    
+
     private func formatDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
