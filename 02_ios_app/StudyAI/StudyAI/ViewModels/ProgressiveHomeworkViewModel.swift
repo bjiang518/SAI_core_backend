@@ -387,13 +387,11 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     private func gradeAllQuestions() async {
         print("🚀 === PHASE 2: GRADING QUESTIONS ===")
 
-        await MainActor.run {
-            self.currentPhase = .grading
-            self.loadingMessage = "Grading questions..."
-            self.gradedCount = 0
-        }
+        self.currentPhase = .grading
+        self.loadingMessage = "Grading questions..."
+        self.gradedCount = 0
 
-        let questions = await state.questions
+        let questions = state.questions
 
         // Use TaskGroup for controlled concurrency
         await withTaskGroup(of: (Int, ProgressiveGradeResult?, String?).self) { group in
@@ -587,7 +585,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                 let response = try await networkService.gradeSingleQuestion(
                     questionText: question.displayText,
                     studentAnswer: question.displayStudentAnswer,
-                    subject: await state.subject,
+                    subject: state.subject,
                     contextImageBase64: contextImage
                 )
 
@@ -626,7 +624,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
             print("   🆔 Subquestion ID: '\(subquestion.id)'")
             print("   📝 Question Text: '\(subquestion.questionText.prefix(50))...'")
             print("   📝 Student Answer: '\(subquestion.studentAnswer)'")
-            print("   📚 Subject: '\(await state.subject ?? "nil")'")
+            print("   📚 Subject: '\(state.subject ?? "nil")'")
             print("   🖼️ Context Image: \(contextImage != nil ? "YES (has parent image)" : "NO")")
             print("   " + String(repeating: "=", count: 70))
             print("")
@@ -635,7 +633,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
             let response = try await networkService.gradeSingleQuestion(
                 questionText: subquestion.questionText,
                 studentAnswer: subquestion.studentAnswer,
-                subject: await state.subject,
+                subject: state.subject,
                 contextImageBase64: contextImage
             )
 
@@ -707,7 +705,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     // MARK: - Helper Methods
 
     private func getContextImageBase64(for questionId: Int) async -> String? {
-        guard let jpegData = await state.croppedImages[questionId] else {
+        guard let jpegData = state.croppedImages[questionId] else {
             return nil
         }
         return jpegData.base64EncodedString()

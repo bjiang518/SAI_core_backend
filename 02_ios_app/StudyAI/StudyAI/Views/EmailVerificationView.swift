@@ -107,7 +107,7 @@ struct EmailVerificationView: View {
                 Text("Verify Your Email")
                     .font(.title)
                     .fontWeight(.bold)
-                    .foregroundColor(.black)
+                    .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
 
                 Text("We've sent a 6-digit verification code to")
                     .font(.body)

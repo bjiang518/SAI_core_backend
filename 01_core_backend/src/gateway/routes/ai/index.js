@@ -19,6 +19,7 @@ const QuestionGenerationRoutes = require('./modules/question-generation');
 const QuestionGenerationV2Routes = require('./modules/question-generation-v2'); // NEW: Assistants API support
 const TTSRoutes = require('./modules/tts');
 const AnalyticsRoutes = require('./modules/analytics');
+const DiagramGenerationRoutes = require('./modules/diagram-generation'); // NEW: AI diagram generation
 
 /**
  * Register all AI routes
@@ -39,6 +40,7 @@ async function aiRoutes(fastify, opts) {
     // { name: 'Question Generation (Legacy)', Class: QuestionGenerationRoutes },
     { name: 'Text-to-Speech', Class: TTSRoutes },
     { name: 'Analytics', Class: AnalyticsRoutes },
+    { name: 'Diagram Generation', Class: DiagramGenerationRoutes }, // NEW: AI diagram generation
   ];
 
   for (const module of classModules) {

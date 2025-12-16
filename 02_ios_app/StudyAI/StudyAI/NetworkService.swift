@@ -1384,6 +1384,65 @@ class NetworkService: ObservableObject {
         }
     }
 
+    // MARK: - Diagram Generation Models
+
+    /// Request model for diagram generation
+    struct DiagramGenerationRequest: Codable {
+        let conversationHistory: [[String: String]]
+        let diagramRequest: String
+        let sessionId: String?
+        let subject: String
+        let language: String
+
+        enum CodingKeys: String, CodingKey {
+            case conversationHistory = "conversation_history"
+            case diagramRequest = "diagram_request"
+            case sessionId = "session_id"
+            case subject
+            case language
+        }
+    }
+
+    /// Rendering hints for diagram display
+    struct DiagramRenderingHint: Codable {
+        let width: Int
+        let height: Int
+        let background: String
+        let scaleFactor: Double?
+
+        enum CodingKeys: String, CodingKey {
+            case width
+            case height
+            case background
+            case scaleFactor = "scale_factor"
+        }
+    }
+
+    /// Response model for diagram generation
+    struct DiagramGenerationResponse: Codable {
+        let success: Bool
+        let diagramType: String?
+        let diagramCode: String?
+        let diagramTitle: String?
+        let explanation: String?
+        let renderingHint: DiagramRenderingHint?
+        let processingTimeMs: Int?
+        let tokensUsed: Int?
+        let error: String?
+
+        enum CodingKeys: String, CodingKey {
+            case success
+            case diagramType = "diagram_type"
+            case diagramCode = "diagram_code"
+            case diagramTitle = "diagram_title"
+            case explanation
+            case renderingHint = "rendering_hint"
+            case processingTimeMs = "processing_time_ms"
+            case tokensUsed = "tokens_used"
+            case error
+        }
+    }
+
     func getSessionInfo(sessionId: String) async -> (success: Bool, sessionInfo: [String: Any]?) {
         // Check authentication first - use unified auth system
         guard AuthenticationService.shared.getAuthToken() != nil else {
@@ -1439,7 +1498,211 @@ class NetworkService: ObservableObject {
             return (false, nil)
         }
     }
-    
+
+    // MARK: - Diagram Generation
+
+    /// Generate diagram from conversation context
+    func generateDiagram(
+        conversationHistory: [[String: String]],
+        diagramRequest: String,
+        sessionId: String,
+        subject: String,
+        language: String = "en"
+    ) async -> DiagramGenerationResponse {
+        print("📊 ============================================")
+        print("📊 === NETWORK SERVICE: GENERATE DIAGRAM ===")
+        print("📊 ============================================")
+        print("📊 Timestamp: \(Date())")
+        print("📊 Session ID: \(sessionId)")
+        print("📊 Subject: \(subject)")
+        print("📊 Language: \(language)")
+        print("📊 Request: \(diagramRequest)")
+        print("📊 Conversation history length: \(conversationHistory.count)")
+
+        // Check authentication first
+        guard AuthenticationService.shared.getAuthToken() != nil else {
+            print("❌ Authentication required to generate diagrams")
+            return DiagramGenerationResponse(
+                success: false,
+                diagramType: nil,
+                diagramCode: nil,
+                diagramTitle: nil,
+                explanation: nil,
+                renderingHint: nil,
+                processingTimeMs: nil,
+                tokensUsed: nil,
+                error: "Authentication required"
+            )
+        }
+
+        let diagramURL = "\(baseURL)/api/ai/generate-diagram"
+        guard let url = URL(string: diagramURL) else {
+            print("❌ Invalid diagram generation URL")
+            return DiagramGenerationResponse(
+                success: false,
+                diagramType: nil,
+                diagramCode: nil,
+                diagramTitle: nil,
+                explanation: nil,
+                renderingHint: nil,
+                processingTimeMs: nil,
+                tokensUsed: nil,
+                error: "Invalid URL"
+            )
+        }
+
+        let requestData = DiagramGenerationRequest(
+            conversationHistory: conversationHistory,
+            diagramRequest: diagramRequest,
+            sessionId: sessionId,
+            subject: subject,
+            language: language
+        )
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 45.0 // Extended timeout for diagram generation
+
+        // Add authentication header
+        addAuthHeader(to: &request)
+
+        do {
+            request.httpBody = try JSONEncoder().encode(requestData)
+
+            print("📊 Sending diagram generation request...")
+            let startTime = Date()
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let networkTime = Date().timeIntervalSince(startTime) * 1000
+
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📊 HTTP Status Code: \(httpResponse.statusCode)")
+
+                if httpResponse.statusCode == 200 {
+                    do {
+                        let decodedResponse = try JSONDecoder().decode(DiagramGenerationResponse.self, from: data)
+
+                        print("📊 ============================================")
+                        print("📊 === AI RESPONSE ANALYSIS ===")
+                        print("📊 ============================================")
+                        print("📊 Diagram generation successful!")
+                        print("📊 Type: \(decodedResponse.diagramType ?? "unknown")")
+                        print("📊 Title: '\(decodedResponse.diagramTitle ?? "No title")'")
+                        print("📊 Code length: \(decodedResponse.diagramCode?.count ?? 0) characters")
+                        print("📊 Has explanation: \(decodedResponse.explanation != nil)")
+                        if let explanation = decodedResponse.explanation {
+                            print("📊 Explanation preview: '\(explanation.prefix(100))...'")
+                        }
+                        if let renderingHint = decodedResponse.renderingHint {
+                            print("📊 Rendering hint: \(renderingHint.width)x\(renderingHint.height), bg=\(renderingHint.background), scale=\(renderingHint.scaleFactor)")
+                        }
+                        print("📊 Processing time: \(decodedResponse.processingTimeMs ?? 0)ms")
+                        print("📊 Tokens used: \(decodedResponse.tokensUsed ?? 0)")
+                        print("📊 Network time: \(Int(networkTime))ms")
+
+                        // Log the actual diagram code (truncated for readability)
+                        if let diagramCode = decodedResponse.diagramCode {
+                            print("📊 Diagram code preview:")
+                            let preview = diagramCode.prefix(200)
+                            print("📊 \(preview)\(diagramCode.count > 200 ? "..." : "")")
+                        }
+                        print("📊 ============================================")
+
+                        return decodedResponse
+
+                    } catch {
+                        print("❌ Failed to decode diagram response: \(error)")
+
+                        // Try to get error message from raw response
+                        if let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                           let errorMessage = jsonData["error"] as? String {
+                            return DiagramGenerationResponse(
+                                success: false,
+                                diagramType: nil,
+                                diagramCode: nil,
+                                diagramTitle: nil,
+                                explanation: nil,
+                                renderingHint: nil,
+                                processingTimeMs: Int(networkTime),
+                                tokensUsed: nil,
+                                error: errorMessage
+                            )
+                        }
+
+                        return DiagramGenerationResponse(
+                            success: false,
+                            diagramType: nil,
+                            diagramCode: nil,
+                            diagramTitle: nil,
+                            explanation: nil,
+                            renderingHint: nil,
+                            processingTimeMs: Int(networkTime),
+                            tokensUsed: nil,
+                            error: "Failed to parse response"
+                        )
+                    }
+                } else {
+                    print("❌ HTTP Error: \(httpResponse.statusCode)")
+
+                    // Try to get error message from response body
+                    if let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = jsonData["error"] as? String {
+                        return DiagramGenerationResponse(
+                            success: false,
+                            diagramType: nil,
+                            diagramCode: nil,
+                            diagramTitle: nil,
+                            explanation: nil,
+                            renderingHint: nil,
+                            processingTimeMs: Int(networkTime),
+                            tokensUsed: nil,
+                            error: errorMessage
+                        )
+                    }
+
+                    return DiagramGenerationResponse(
+                        success: false,
+                        diagramType: nil,
+                        diagramCode: nil,
+                        diagramTitle: nil,
+                        explanation: nil,
+                        renderingHint: nil,
+                        processingTimeMs: Int(networkTime),
+                        tokensUsed: nil,
+                        error: "HTTP \(httpResponse.statusCode)"
+                    )
+                }
+            } else {
+                print("❌ No HTTP response")
+                return DiagramGenerationResponse(
+                    success: false,
+                    diagramType: nil,
+                    diagramCode: nil,
+                    diagramTitle: nil,
+                    explanation: nil,
+                    renderingHint: nil,
+                    processingTimeMs: Int(networkTime),
+                    tokensUsed: nil,
+                    error: "No response"
+                )
+            }
+
+        } catch {
+            print("❌ Diagram generation error: \(error.localizedDescription)")
+            return DiagramGenerationResponse(
+                success: false,
+                diagramType: nil,
+                diagramCode: nil,
+                diagramTitle: nil,
+                explanation: nil,
+                renderingHint: nil,
+                processingTimeMs: nil,
+                tokensUsed: nil,
+                error: error.localizedDescription
+            )
+        }
+    }
+
     func startNewSession(subject: String) async -> (success: Bool, message: String) {
         let result = await createSession(subject: subject)
         return (result.success, result.message)

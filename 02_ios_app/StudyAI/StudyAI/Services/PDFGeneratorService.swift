@@ -1164,7 +1164,6 @@ class PDFGeneratorService: ObservableObject {
         totalQuestions: Int
     ) -> CGFloat {
         let titleFont = UIFont.systemFont(ofSize: 18, weight: .bold)
-        let subtitleFont = UIFont.systemFont(ofSize: 12, weight: .medium)
         let metadataFont = UIFont.systemFont(ofSize: 10, weight: .regular)
 
         var currentY = y
