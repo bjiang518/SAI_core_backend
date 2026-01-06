@@ -254,11 +254,18 @@ struct DiagramRendererView: View {
 class LaTeXRenderer {
     static let shared = LaTeXRenderer()
 
+    // ✅ FIX: Retain active renderers until they complete
+    private var activeRenderers: [String: LaTeXWebRenderer] = [:]
+    private let queue = DispatchQueue(label: "latex.renderer.manager")
+
     private init() {}
 
     func renderLaTeX(_ code: String, hint: NetworkService.DiagramRenderingHint?) async throws -> UIImage {
+        let continuationId = "LaTeX-\(UUID().uuidString.prefix(8))"
+
         print("🎨 [LaTeXRenderer] Starting LaTeX rendering...")
         print("🎨 [LaTeXRenderer] Code length: \(code.count) characters")
+        print("🎨 [LaTeXRenderer] Continuation ID: \(continuationId)")
         if let hint = hint {
             print("🎨 [LaTeXRenderer] Size: \(hint.width)x\(hint.height)")
         }
@@ -267,12 +274,28 @@ class LaTeXRenderer {
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.main.async {
                 print("🎨 [LaTeXRenderer] Creating WebView renderer...")
-                _ = LaTeXWebRenderer(
+
+                let renderer = LaTeXWebRenderer(
                     latexCode: code,
                     hint: hint,
-                    completion: continuation.resume
+                    completion: { [weak self] result in
+                        print("🎨 [LaTeXRenderer] ✅ Renderer completion called for \(continuationId)")
+                        continuation.resume(with: result)
+
+                        // ✅ FIX: Remove renderer from active list after completion
+                        self?.queue.async {
+                            self?.activeRenderers.removeValue(forKey: continuationId)
+                            print("🎨 [LaTeXRenderer] ✅ Removed renderer \(continuationId) from active list (count: \(self?.activeRenderers.count ?? 0))")
+                        }
+                    }
                 )
-                // Renderer will be retained by the WebView
+
+                // ✅ FIX: Store renderer in active list to prevent deallocation
+                self.queue.async {
+                    self.activeRenderers[continuationId] = renderer
+                    print("🎨 [LaTeXRenderer] ✅ Stored renderer \(continuationId) in active list (count: \(self.activeRenderers.count))")
+                }
+
                 print("🎨 [LaTeXRenderer] WebView renderer created and started")
             }
         }
@@ -322,6 +345,10 @@ class DiagramDebugLogger {
 class SVGRenderer {
     static let shared = SVGRenderer()
 
+    // ✅ FIX: Retain active renderers until they complete
+    private var activeRenderers: [String: SVGImageRenderer] = [:]
+    private let queue = DispatchQueue(label: "svg.renderer.manager")
+
     private init() {}
 
     func renderSVG(_ svgCode: String, hint: NetworkService.DiagramRenderingHint?) async throws -> UIImage {
@@ -346,13 +373,26 @@ class SVGRenderer {
                     svgCode: svgCode,
                     hint: hint,
                     continuationId: continuationId,  // Pass the ID for tracking
-                    completion: { result in
+                    completion: { [weak self] result in
                         print("🔍 [DEBUG] SVGImageRenderer completion called for \(continuationId)")
                         DiagramDebugLogger.shared.logContinuationResumed(continuationId)
                         continuation.resume(with: result)
                         print("🔍 [DEBUG] continuation.resume(with:) called for \(continuationId)")
+
+                        // ✅ FIX: Remove renderer from active list after completion
+                        self?.queue.async {
+                            self?.activeRenderers.removeValue(forKey: continuationId)
+                            print("🎨 [SVGRenderer] ✅ Removed renderer \(continuationId) from active list (count: \(self?.activeRenderers.count ?? 0))")
+                        }
                     }
                 )
+
+                // ✅ FIX: Store renderer in active list to prevent deallocation
+                self.queue.async {
+                    self.activeRenderers[continuationId] = renderer
+                    print("🎨 [SVGRenderer] ✅ Stored renderer \(continuationId) in active list (count: \(self.activeRenderers.count))")
+                }
+
                 print("🎨 [SVGRenderer] Starting render process...")
                 renderer.render()
             }

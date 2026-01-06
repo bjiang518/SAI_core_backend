@@ -14,6 +14,12 @@ struct StudyAIApp: App {
     @StateObject private var deepLinkHandler = PomodoroDeepLinkHandler.shared
 
     init() {
+        // ✅ TODO: For cleaner console logs, add to Xcode scheme:
+        // Edit Scheme → Run → Arguments → Environment Variables:
+        // OS_ACTIVITY_MODE = disable
+        //
+        // AppLogger.setupConsoleFiltering()  // Uncomment after Xcode reindex
+
         setupGoogleSignIn()
         setupLanguage()
     }
