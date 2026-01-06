@@ -14,11 +14,23 @@ struct LogConfig {
     static let verboseLogging = false  // Set to true to enable verbose logging in debug
     static let networkLogging = true   // Network request/response logging
     static let performanceLogging = false  // Performance metrics
+    static let suppressSystemLogs = true  // ✅ NEW: Suppress noisy iOS system logs
     #else
     static let verboseLogging = false
     static let networkLogging = false
     static let performanceLogging = false
+    static let suppressSystemLogs = true
     #endif
+
+    // ✅ NEW: System log patterns to suppress
+    static let systemLogPatterns = [
+        "contentsScale",
+        "BSServiceConnection",
+        "candidate resultset",
+        "containerToPush is nil",
+        "teletype",
+        "_UITextLayoutCanvasView"
+    ]
 }
 
 /// Centralized logging utility
@@ -123,6 +135,41 @@ struct AppLogger {
             message += " [\(metadataString)]"
         }
         logger.info("\(message)")
+    }
+
+    // MARK: - System Log Filtering
+
+    /// ✅ NEW: Setup console filtering to suppress noisy iOS system logs
+    /// Call this in AppDelegate.didFinishLaunching() or StudyAIApp.init()
+    static func setupConsoleFiltering() {
+        #if DEBUG
+        guard LogConfig.suppressSystemLogs else { return }
+
+        print("🔇 [AppLogger] Setting up console filtering to suppress iOS system logs...")
+
+        // Suppress UIKit internal logging
+        UserDefaults.standard.set(false, forKey: "UITextEffectsWindow_debugLogging")
+        UserDefaults.standard.set(false, forKey: "_UIInputManagerRuntimeEnabled")
+        UserDefaults.standard.set(false, forKey: "_UITextLayoutCanvasView_debugLogging")
+
+        // Note: For complete system log suppression, add to Xcode scheme:
+        // Environment Variable: OS_ACTIVITY_MODE = disable
+
+        print("✅ [AppLogger] Console filtering enabled!")
+        print("💡 [AppLogger] For even cleaner logs, add environment variable:")
+        print("   Xcode → Edit Scheme → Run → Arguments → Environment Variables")
+        print("   OS_ACTIVITY_MODE = disable")
+        #endif
+    }
+
+    /// ✅ NEW: Check if a log message should be suppressed
+    static func shouldSuppressLog(_ message: String) -> Bool {
+        guard LogConfig.suppressSystemLogs else { return false }
+
+        // Check if message contains any system log patterns
+        return LogConfig.systemLogPatterns.contains { pattern in
+            message.contains(pattern)
+        }
     }
 }
 

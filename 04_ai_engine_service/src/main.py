@@ -3037,20 +3037,41 @@ def analyze_content_for_diagram_type(conversation_text: str, subject: str) -> Di
     # Determine complexity and type
     total_keywords = math_count + geometry_count + physics_count + chemistry_count
 
-    if subject in ['mathematics', 'math', '数学'] and (math_count > 2 or 'function' in content_lower):
+    # ✅ IMPROVED: Check for mathematical content first (regardless of subject)
+    # LaTeX is better for equations, functions, calculus, algebra
+    if math_count >= 2 or 'function' in content_lower or 'equation' in content_lower or 'graph' in content_lower:
+        print(f"📊 [DiagramType] LaTeX selected: math_count={math_count}, has_math_keywords=True")
+        return {'diagram_type': 'latex', 'complexity': 'high'}
+
+    # Subject-specific routing
+    if subject in ['mathematics', 'math', '数学']:
+        print(f"📊 [DiagramType] LaTeX selected: subject=mathematics")
         return {'diagram_type': 'latex', 'complexity': 'high'}
     elif subject in ['physics', '物理'] and physics_count > 1:
+        print(f"📊 [DiagramType] SVG selected: subject=physics, count={physics_count}")
         return {'diagram_type': 'svg', 'complexity': 'medium'}
     elif subject in ['chemistry', '化学'] and chemistry_count > 1:
+        print(f"📊 [DiagramType] SVG selected: subject=chemistry, count={chemistry_count}")
         return {'diagram_type': 'svg', 'complexity': 'medium'}
-    elif geometry_count > 1:
+
+    # Geometry is usually better in SVG (unless complex math)
+    if geometry_count > math_count and geometry_count > 1:
+        print(f"📊 [DiagramType] SVG selected: geometry_count={geometry_count} > math_count={math_count}")
         return {'diagram_type': 'svg', 'complexity': 'low'}
-    elif total_keywords > 3:
+
+    # High keyword count suggests complex content → LaTeX
+    if total_keywords > 3:
+        print(f"📊 [DiagramType] LaTeX selected: total_keywords={total_keywords} > 3")
         return {'diagram_type': 'latex', 'complexity': 'high'}
-    elif total_keywords > 0:
+
+    # Some technical content but simple → SVG
+    if total_keywords > 0:
+        print(f"📊 [DiagramType] SVG selected: total_keywords={total_keywords} (simple)")
         return {'diagram_type': 'svg', 'complexity': 'low'}
-    else:
-        return {'diagram_type': 'ascii', 'complexity': 'minimal'}
+
+    # Minimal/no technical content → ASCII fallback
+    print(f"📊 [DiagramType] ASCII selected: no technical keywords detected")
+    return {'diagram_type': 'ascii', 'complexity': 'minimal'}
 
 
 async def generate_latex_diagram(conversation_text: str, diagram_request: str,
@@ -3097,32 +3118,61 @@ Format your response as a JSON object:
 
 IMPORTANT: Return ONLY the JSON object, no other text."""
 
-    response = await ai_service.client.chat.completions.create(
-        model="gpt-4o-mini",  # Better for code generation
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,  # Lower temperature for more consistent code
-        max_tokens=1500
-    )
+    # ✅ STABILITY IMPROVEMENT: Add retry logic for better reliability
+    max_retries = 2
+    last_error = None
 
-    result_text = response.choices[0].message.content.strip()
+    for attempt in range(max_retries):
+        try:
+            print(f"🎨 [LaTeXDiagram] Attempt {attempt + 1}/{max_retries}")
 
-    # Parse JSON response
-    import json
-    try:
-        result = json.loads(result_text)
-        result['tokens_used'] = response.usage.total_tokens
-        return result
-    except json.JSONDecodeError:
-        # Fallback if JSON parsing fails
-        return {
-            'diagram_type': 'latex',
-            'diagram_code': result_text,  # Use raw response as code
-            'diagram_title': 'Mathematical Diagram',
-            'explanation': 'LaTeX diagram generated from conversation context',
-            'width': 400,
-            'height': 300,
-            'tokens_used': response.usage.total_tokens
-        }
+            response = await ai_service.client.chat.completions.create(
+                model="gpt-4o-mini",  # Better for code generation
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,  # ✅ LOWER: 0.3 → 0.2 for more consistent code
+                max_tokens=2000,  # ✅ INCREASED: 1500 → 2000 for complex LaTeX
+                response_format={"type": "json_object"}  # ✅ NEW: Force JSON output
+            )
+
+            result_text = response.choices[0].message.content.strip()
+            print(f"🎨 [LaTeXDiagram] Response length: {len(result_text)} chars")
+
+            # Parse JSON response
+            import json
+            result = json.loads(result_text)
+
+            # ✅ VALIDATION: Check for required fields
+            if not result.get('diagram_code'):
+                raise ValueError("Missing diagram_code in response")
+
+            # ✅ VALIDATION: Check if LaTeX code is valid
+            latex_code = result['diagram_code']
+            required_patterns = ['\\begin{', '\\end{']
+            if not any(pattern in latex_code for pattern in required_patterns):
+                raise ValueError(f"Invalid LaTeX format - missing \\begin or \\end tags")
+
+            result['tokens_used'] = response.usage.total_tokens
+            print(f"✅ [LaTeXDiagram] Valid LaTeX generated on attempt {attempt + 1}")
+            return result
+
+        except (json.JSONDecodeError, ValueError) as e:
+            last_error = e
+            print(f"⚠️ [LaTeXDiagram] Attempt {attempt + 1} failed: {str(e)}")
+            if attempt < max_retries - 1:
+                print(f"🔄 [LaTeXDiagram] Retrying...")
+                continue
+
+    # All retries failed - return error fallback
+    print(f"❌ [LaTeXDiagram] All {max_retries} attempts failed: {last_error}")
+    return {
+        'diagram_type': 'latex',
+        'diagram_code': '\\text{Diagram generation failed. Please try again.}',
+        'diagram_title': 'Generation Failed',
+        'explanation': f'Failed to generate LaTeX diagram after {max_retries} attempts: {str(last_error)}',
+        'width': 400,
+        'height': 300,
+        'tokens_used': 0
+    }
 
 
 async def generate_svg_diagram(conversation_text: str, diagram_request: str,
@@ -3137,6 +3187,11 @@ async def generate_svg_diagram(conversation_text: str, diagram_request: str,
     }
 
     language_instruction = language_instructions.get(language, language_instructions['en'])
+
+    # ✅ VALIDATION: Check if this should actually be LaTeX
+    if any(kw in conversation_text.lower() for kw in ['y =', 'f(x) =', 'parabola', 'quadratic function']):
+        print(f"⚠️ [SVGDiagram] Warning: Mathematical function detected, LaTeX might be better")
+        print(f"   Conversation contains function notation - consider using LaTeX instead")
 
     prompt = f"""Based on this educational conversation, generate an SVG diagram to help visualize the concept.
 
@@ -3156,6 +3211,14 @@ Generate a complete, valid SVG diagram that:
 4. Is educational and visually appealing
 5. Works on mobile devices (responsive)
 
+⚠️ CRITICAL FOR PARABOLAS/GRAPHS:
+- If drawing a quadratic function (parabola), ensure correct orientation:
+  * If coefficient of x² is POSITIVE (e.g., y = x² + 5x + 6), parabola opens UPWARD
+  * If coefficient of x² is NEGATIVE (e.g., y = -x² + 5x + 6), parabola opens DOWNWARD
+- Mark x-intercepts (roots) clearly with labeled points
+- Show vertex position accurately
+- Include properly scaled x and y axes with labels
+
 Format your response as a JSON object:
 {{
     "diagram_type": "svg",
@@ -3169,32 +3232,64 @@ Format your response as a JSON object:
 
 IMPORTANT: Return ONLY the JSON object, no other text."""
 
-    response = await ai_service.client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
-        max_tokens=1200
-    )
+    # ✅ STABILITY IMPROVEMENT: Add retry logic for better reliability
+    max_retries = 2
+    last_error = None
 
-    result_text = response.choices[0].message.content.strip()
+    for attempt in range(max_retries):
+        try:
+            print(f"🎨 [SVGDiagram] Attempt {attempt + 1}/{max_retries}")
 
-    # Parse JSON response
-    import json
-    try:
-        result = json.loads(result_text)
-        result['tokens_used'] = response.usage.total_tokens
-        return result
-    except json.JSONDecodeError:
-        # Fallback
-        return {
-            'diagram_type': 'svg',
-            'diagram_code': result_text,
-            'diagram_title': 'Visual Diagram',
-            'explanation': 'SVG diagram generated from conversation context',
-            'width': 400,
-            'height': 300,
-            'tokens_used': response.usage.total_tokens
-        }
+            response = await ai_service.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,  # ✅ LOWER: 0.3 → 0.2 for more consistent output
+                max_tokens=1800,  # ✅ INCREASED: 1200 → 1800 for complex diagrams
+                response_format={"type": "json_object"}  # ✅ NEW: Force JSON output
+            )
+
+            result_text = response.choices[0].message.content.strip()
+            print(f"🎨 [SVGDiagram] Response length: {len(result_text)} chars")
+
+            # Parse JSON response
+            import json
+            result = json.loads(result_text)
+
+            # ✅ VALIDATION: Check for required fields
+            if not result.get('diagram_code'):
+                raise ValueError("Missing diagram_code in response")
+
+            # ✅ VALIDATION: Check if SVG code is valid
+            svg_code = result['diagram_code']
+            if not svg_code.strip().lower().startswith('<svg'):
+                raise ValueError(f"Invalid SVG format - missing <svg> tag")
+
+            # ✅ VALIDATION: Check for closing tag
+            if '</svg>' not in svg_code.lower():
+                raise ValueError(f"Invalid SVG format - missing </svg> tag")
+
+            result['tokens_used'] = response.usage.total_tokens
+            print(f"✅ [SVGDiagram] Valid SVG generated on attempt {attempt + 1}")
+            return result
+
+        except (json.JSONDecodeError, ValueError) as e:
+            last_error = e
+            print(f"⚠️ [SVGDiagram] Attempt {attempt + 1} failed: {str(e)}")
+            if attempt < max_retries - 1:
+                print(f"🔄 [SVGDiagram] Retrying...")
+                continue
+
+    # All retries failed - return error fallback
+    print(f"❌ [SVGDiagram] All {max_retries} attempts failed: {last_error}")
+    return {
+        'diagram_type': 'svg',
+        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="white"/><text x="200" y="150" text-anchor="middle" font-size="14" fill="gray">Diagram generation failed. Please try again.</text></svg>',
+        'diagram_title': 'Generation Failed',
+        'explanation': f'Failed to generate diagram after {max_retries} attempts: {str(last_error)}',
+        'width': 400,
+        'height': 300,
+        'tokens_used': 0
+    }
 
 
 async def generate_ascii_diagram(conversation_text: str, diagram_request: str,
