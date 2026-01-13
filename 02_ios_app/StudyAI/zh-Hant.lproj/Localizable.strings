@@ -690,6 +690,12 @@
 "chat.prompt.giveExample" = "你能提供一個具體的例子嗎？";
 "chat.prompt.moreDetails" = "你能詳細說明這個主題嗎？";
 
+// Diagram Generation
+"diagram.header" = "生成的圖表";
+"diagram.explanation" = "說明";
+"diagram.generating" = "正在生成圖表...";
+"diagram.generatingSubtext" = "AI正在創建可視化表示";
+
 // Example Prompts - Mathematics
 "chat.example.math.1" = "解方程式：2x + 5 = 13";
 "chat.example.math.2" = "x²的導數是什麼？";

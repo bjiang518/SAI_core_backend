@@ -329,7 +329,7 @@ struct ConversationDetailContent: View {
                                                 .font(.system(size: 14))
                                                 .foregroundColor(.blue)
 
-                                            Text("Generated Diagram")
+                                            Text(NSLocalizedString("diagram.header", comment: ""))
                                                 .font(.system(size: 14, weight: .medium))
                                                 .foregroundColor(.secondary)
                                         }
@@ -370,7 +370,7 @@ struct ConversationDetailContent: View {
                                                         .font(.system(size: 12))
                                                         .foregroundColor(.secondary)
 
-                                                    Text("Explanation")
+                                                    Text(NSLocalizedString("diagram.explanation", comment: ""))
                                                         .font(.system(size: 12, weight: .medium))
                                                         .foregroundColor(.secondary)
                                                 }

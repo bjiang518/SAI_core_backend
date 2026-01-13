@@ -31,7 +31,7 @@ struct DiagramMessageView: View {
                     .font(.system(size: 14))
                     .foregroundColor(characterIconColor)
 
-                Text("Generated Diagram")
+                Text(NSLocalizedString("diagram.header", comment: ""))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.secondary)
 
@@ -69,7 +69,7 @@ struct DiagramMessageView: View {
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
 
-                        Text("Explanation")
+                        Text(NSLocalizedString("diagram.explanation", comment: ""))
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
 
