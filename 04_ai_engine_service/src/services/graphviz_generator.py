@@ -4,6 +4,7 @@ Generates DOT language code for graphs, trees, and network diagrams
 """
 
 from typing import Dict, Optional
+from .svg_utils import optimize_svg_for_display
 
 # Gracefully handle graphviz import
 try:
@@ -217,9 +218,12 @@ Generate the DOT code. Only return rejection JSON if request is genuinely imposs
             svg_bytes = dot.pipe(format='svg')
             svg_string = svg_bytes.decode('utf-8')
 
+            # ✅ FIX: Add padding to prevent cropping at edges
+            svg_optimized = optimize_svg_for_display(svg_string, padding=20)
+
             return {
                 'success': True,
-                'svg_data': svg_string,
+                'svg_data': svg_optimized,
                 'format': 'svg',
                 'error': None
             }
