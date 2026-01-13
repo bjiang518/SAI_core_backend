@@ -252,14 +252,15 @@ struct SessionChatView: View {
             .alert(NSLocalizedString("chat.alert.archiveSuccess.title", comment: ""), isPresented: $showingArchiveSuccess) {
                 Button(NSLocalizedString("chat.alert.archiveSuccess.startNewChat", comment: "Start New Chat")) {
                     showingArchiveSuccess = false
-                    // Focus is already on new session, no action needed
+                    viewModel.startNewSession()
                 }
                 Button(NSLocalizedString("chat.alert.archiveSuccess.viewInLibrary", comment: "")) {
                     showingArchiveSuccess = false
-                    // TODO: Navigate to library tab if needed
+                    // Navigate to library tab
+                    appState.selectedTab = 2 // Library tab index
                 }
             } message: {
-                Text("✅ '\(viewModel.archivedSessionTitle.isEmpty ? "Your conversation" : viewModel.archivedSessionTitle.capitalized)' saved successfully!\n\n📚 You can view it anytime in the Library tab.\n\n🆕 A new chat session is ready for you!")
+                Text("'\(viewModel.archivedSessionTitle.isEmpty ? "Your conversation" : viewModel.archivedSessionTitle.capitalized)' saved successfully!\n\nYou can view it anytime in the Library tab.\n\nA new chat session is ready for you!")
             }
             .alert("Grade Update Detected", isPresented: $showingGradeCorrectionAlert) {
                 Button("Accept Grade Change", role: .destructive) {
