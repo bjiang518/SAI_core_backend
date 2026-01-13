@@ -664,6 +664,7 @@ struct SessionChatView: View {
                 WeChatStyleVoiceInput(
                     isVoiceMode: $isVoiceMode,
                     onVoiceInput: { recognizedText in
+                        isMessageInputFocused = false  // Ensure keyboard is dismissed
                         viewModel.handleVoiceInput(recognizedText)
                     },
                     onModeToggle: {
@@ -711,7 +712,8 @@ struct SessionChatView: View {
                                     isMessageInputFocused = false
                                 }
                             } else {
-                                // Send action
+                                // Send action - dismiss keyboard first
+                                isMessageInputFocused = false
                                 viewModel.sendMessage()
                             }
                         }) {
@@ -760,6 +762,7 @@ struct SessionChatView: View {
                                 handleDiagramGenerationRequest(suggestion)
                             } else {
                                 // Use the full prompt from AI suggestions
+                                isMessageInputFocused = false  // Dismiss keyboard if visible
                                 viewModel.messageText = suggestion.value
                                 viewModel.sendMessage()
                             }
@@ -771,6 +774,7 @@ struct SessionChatView: View {
                     let contextButtons = generateContextualButtons(for: lastMessage)
                     ForEach(contextButtons, id: \.self) { buttonTitle in
                         Button(buttonTitle) {
+                            isMessageInputFocused = false  // Dismiss keyboard if visible
                             viewModel.messageText = generateContextualPrompt(for: buttonTitle, lastMessage: lastMessage)
                             viewModel.sendMessage()
                         }
