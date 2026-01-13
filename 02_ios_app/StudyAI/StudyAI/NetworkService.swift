@@ -1393,6 +1393,7 @@ class NetworkService: ObservableObject {
         let sessionId: String?
         let subject: String
         let language: String
+        let regenerate: Bool  // If true, uses better model (o1-mini) for two-step reasoning
 
         enum CodingKeys: String, CodingKey {
             case conversationHistory = "conversation_history"
@@ -1400,6 +1401,7 @@ class NetworkService: ObservableObject {
             case sessionId = "session_id"
             case subject
             case language
+            case regenerate
         }
     }
 
@@ -1425,6 +1427,7 @@ class NetworkService: ObservableObject {
         let diagramCode: String?
         let diagramTitle: String?
         let explanation: String?
+        let reasoning: String?  // AI's analysis and tool selection reasoning (two-step process)
         let renderingHint: DiagramRenderingHint?
         let processingTimeMs: Int?
         let tokensUsed: Int?
@@ -1436,6 +1439,7 @@ class NetworkService: ObservableObject {
             case diagramCode = "diagram_code"
             case diagramTitle = "diagram_title"
             case explanation
+            case reasoning
             case renderingHint = "rendering_hint"
             case processingTimeMs = "processing_time_ms"
             case tokensUsed = "tokens_used"
@@ -1507,7 +1511,8 @@ class NetworkService: ObservableObject {
         diagramRequest: String,
         sessionId: String,
         subject: String,
-        language: String = "en"
+        language: String = "en",
+        regenerate: Bool = false  // If true, uses o1-mini for two-step reasoning
     ) async -> DiagramGenerationResponse {
         print("📊 ============================================")
         print("📊 === NETWORK SERVICE: GENERATE DIAGRAM ===")
@@ -1516,6 +1521,7 @@ class NetworkService: ObservableObject {
         print("📊 Session ID: \(sessionId)")
         print("📊 Subject: \(subject)")
         print("📊 Language: \(language)")
+        print("📊 Regenerate mode: \(regenerate ? "YES (o1-mini)" : "NO (gpt-4o)")")
         print("📊 Request: \(diagramRequest)")
         print("📊 Conversation history length: \(conversationHistory.count)")
 
@@ -1528,6 +1534,7 @@ class NetworkService: ObservableObject {
                 diagramCode: nil,
                 diagramTitle: nil,
                 explanation: nil,
+                reasoning: nil,
                 renderingHint: nil,
                 processingTimeMs: nil,
                 tokensUsed: nil,
@@ -1544,6 +1551,7 @@ class NetworkService: ObservableObject {
                 diagramCode: nil,
                 diagramTitle: nil,
                 explanation: nil,
+                reasoning: nil,
                 renderingHint: nil,
                 processingTimeMs: nil,
                 tokensUsed: nil,
@@ -1556,7 +1564,8 @@ class NetworkService: ObservableObject {
             diagramRequest: diagramRequest,
             sessionId: sessionId,
             subject: subject,
-            language: language
+            language: language,
+            regenerate: regenerate  // Pass regenerate flag for model selection
         )
 
         var request = URLRequest(url: url)
@@ -1622,6 +1631,7 @@ class NetworkService: ObservableObject {
                                 diagramCode: nil,
                                 diagramTitle: nil,
                                 explanation: nil,
+                                reasoning: nil,
                                 renderingHint: nil,
                                 processingTimeMs: Int(networkTime),
                                 tokensUsed: nil,
@@ -1635,6 +1645,7 @@ class NetworkService: ObservableObject {
                             diagramCode: nil,
                             diagramTitle: nil,
                             explanation: nil,
+                            reasoning: nil,
                             renderingHint: nil,
                             processingTimeMs: Int(networkTime),
                             tokensUsed: nil,
@@ -1653,6 +1664,7 @@ class NetworkService: ObservableObject {
                             diagramCode: nil,
                             diagramTitle: nil,
                             explanation: nil,
+                            reasoning: nil,
                             renderingHint: nil,
                             processingTimeMs: Int(networkTime),
                             tokensUsed: nil,
@@ -1666,6 +1678,7 @@ class NetworkService: ObservableObject {
                         diagramCode: nil,
                         diagramTitle: nil,
                         explanation: nil,
+                        reasoning: nil,
                         renderingHint: nil,
                         processingTimeMs: Int(networkTime),
                         tokensUsed: nil,
@@ -1680,6 +1693,7 @@ class NetworkService: ObservableObject {
                     diagramCode: nil,
                     diagramTitle: nil,
                     explanation: nil,
+                    reasoning: nil,
                     renderingHint: nil,
                     processingTimeMs: Int(networkTime),
                     tokensUsed: nil,
@@ -1695,6 +1709,7 @@ class NetworkService: ObservableObject {
                 diagramCode: nil,
                 diagramTitle: nil,
                 explanation: nil,
+                reasoning: nil,
                 renderingHint: nil,
                 processingTimeMs: nil,
                 tokensUsed: nil,

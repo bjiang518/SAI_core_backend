@@ -289,6 +289,7 @@ class DiagramGenerationRequest(BaseModel):
     session_id: Optional[str] = None  # Current chat session ID for context
     subject: Optional[str] = "general"  # Subject context (mathematics, physics, etc.)
     language: Optional[str] = "en"  # Display language
+    regenerate: Optional[bool] = False  # If True, use better model (o1-mini) for two-step reasoning
     student_id: Optional[str] = None  # For logging purposes
     context: Optional[Dict[str, Any]] = None  # Additional context
 
@@ -304,6 +305,7 @@ class DiagramGenerationResponse(BaseModel):
     diagram_code: Optional[str] = None  # Base64 PNG (matplotlib), LaTeX/TikZ, SVG, or DOT code
     diagram_title: Optional[str] = None  # Human-readable title
     explanation: Optional[str] = None  # Brief explanation of the diagram
+    reasoning: Optional[str] = None  # AI's analysis and tool selection reasoning (two-step process)
     rendering_hint: Optional[RenderingHint] = None  # Rendering parameters for iOS
     processing_time_ms: int
     tokens_used: Optional[int] = None
@@ -3093,11 +3095,13 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
         # 🚀 UNIFIED GENERATION: AI chooses tool and generates code in single call
         print(f"🎨 === UNIFIED DIAGRAM GENERATION ===")
+        print(f"🔄 Regenerate mode: {request.regenerate}")
         ai_output = await generate_diagram_unified(
             conversation_text=conversation_text,
             diagram_request=request.diagram_request,
             subject=request.subject,
-            language=request.language
+            language=request.language,
+            regenerate=request.regenerate  # Pass regenerate flag for model selection
         )
 
         # Extract type and content from AI response
@@ -3270,6 +3274,7 @@ async def generate_diagram(request: DiagramGenerationRequest):
             diagram_code=result['diagram_code'],
             diagram_title=result['diagram_title'],
             explanation=result['explanation'],
+            reasoning=ai_output.get('reasoning', ''),  # Include AI's reasoning from two-step process
             rendering_hint=RenderingHint(
                 width=result.get('width', 400),
                 height=result.get('height', 300),
@@ -3292,11 +3297,17 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
 
 async def generate_diagram_unified(conversation_text: str, diagram_request: str,
-                                   subject: str, language: str) -> Dict:
+                                   subject: str, language: str, regenerate: bool = False) -> Dict:
     """
     Unified diagram generation: AI chooses tool AND generates code in one call.
 
-    Returns structured output: {"type": "matplotlib|svg|graphviz|latex", "content": "..."}
+    Enhanced with two-step reasoning:
+    - STEP 1: Analysis and tool selection (explicit reasoning)
+    - STEP 2: Code generation based on analysis
+
+    When regenerate=True, uses better model (o1-mini) for deeper reasoning.
+
+    Returns structured output: {"type": "matplotlib|svg|graphviz|latex", "content": "...", "reasoning": "..."}
     """
     language_instructions = {
         'en': 'Use English for all labels, titles, and legends.',
@@ -3306,9 +3317,9 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
 
     lang_instruction = language_instructions.get(language, language_instructions['en'])
 
-    # Build unified prompt that lets AI choose tool and generate code
+    # Build enhanced prompt with two-step reasoning
     prompt = f"""You are an expert educational diagram generator. You have multiple tools available.
-Choose the BEST tool for this request and generate the code.
+Your task requires TWO STEPS: First analyze and decide, then generate code.
 
 **REQUEST**: {diagram_request}
 
@@ -3325,61 +3336,91 @@ Choose the BEST tool for this request and generate the code.
 1. **matplotlib** (Python code)
    - BEST FOR: Mathematical functions, graphs, plots, data visualization
    - Examples: "graph y = x^2", "plot sin(x)", "histogram", "scatter plot"
-   - Strengths: Perfect viewport framing, calculus, statistics
+   - Strengths: Perfect viewport framing, calculus, statistics, automatic scaling
    - Weaknesses: Poor for geometric shapes, flowcharts
+   - CODE REQUIREMENTS: Complete Python code with imports, figure creation, plotting
 
 2. **svg** (SVG markup)
    - BEST FOR: Geometric shapes, concept diagrams, simple illustrations
    - Examples: "draw triangle", "show circle", "illustrate concept"
-   - Strengths: Vector graphics, clean shapes, flexible
+   - Strengths: Vector graphics, clean shapes, flexible styling
    - Weaknesses: Not for data plots or complex graphs
+   - CODE REQUIREMENTS: Valid SVG markup with proper viewBox
 
 3. **latex** (TikZ)
    - BEST FOR: Geometric proofs, formal constructions, precise diagrams
    - Examples: "prove theorem", "geometric construction", "angle bisector proof"
-   - Strengths: Mathematical precision, formal diagrams
+   - Strengths: Mathematical precision, formal diagrams, publication-quality
    - Weaknesses: Complex syntax, slower rendering
+   - CODE REQUIREMENTS: Complete TikZ code with \\begin{{tikzpicture}}
 
 4. **graphviz** (DOT language)
    - BEST FOR: Trees, graphs, flowcharts, hierarchies, network diagrams
    - Examples: "binary search tree", "flowchart", "decision tree", "state diagram"
    - Strengths: Automatic layout, perfect for graphs and hierarchies
    - Weaknesses: Not for data plots or geometric shapes
+   - CODE REQUIREMENTS: Valid DOT syntax with proper graph structure
 
 ---
 
-**INSTRUCTIONS**:
+**YOUR TASK - TWO STEP PROCESS**:
 
-1. **Analyze the request** - What type of diagram is being requested?
-2. **Choose the BEST tool** - Which tool is most appropriate?
-3. **Generate complete, working code** - Code must be ready to execute
-4. **Make reasonable assumptions** - If some details are missing, use sensible defaults
-5. {lang_instruction}
+**STEP 1: ANALYSIS & DECISION** (Write this in "reasoning" field)
+Carefully analyze the request and decide:
+- What type of content needs to be visualized?
+- What are the key requirements and constraints?
+- Which tool will produce the BEST result and why?
+- How should the content be presented (layout, structure, style)?
+- What are potential challenges or edge cases?
+- What specific features of the chosen tool will be leveraged?
+
+Write out your complete reasoning process. Be thorough and specific.
+
+**STEP 2: CODE GENERATION** (Based on your analysis)
+Generate COMPLETE, EXECUTABLE code:
+- Follow the exact syntax and requirements of the chosen tool
+- Include all necessary imports, declarations, and setup
+- Make the code production-ready (no placeholders or TODOs)
+- Apply best practices for the chosen tool
+- {lang_instruction}
+
+---
 
 **RESPONSE FORMAT** (JSON):
 {{
-  "type": "matplotlib",  // chosen tool: matplotlib, svg, latex, or graphviz
-  "content": "...",      // complete working code in chosen tool's format
-  "title": "...",        // diagram title
-  "explanation": "...",  // brief explanation of the diagram
-  "width": 400,          // suggested width
-  "height": 300          // suggested height
+  "reasoning": "...",     // STEP 1: Your complete analysis and decision-making process
+  "type": "matplotlib",   // STEP 2: Chosen tool (matplotlib, svg, latex, or graphviz)
+  "content": "...",       // STEP 2: Complete working code in chosen tool's format
+  "title": "...",         // Brief title for the diagram
+  "explanation": "...",   // Brief explanation of what the diagram shows
+  "width": 400,           // Suggested width in pixels
+  "height": 300           // Suggested height in pixels
 }}
 
-**CRITICAL**:
+**CRITICAL REQUIREMENTS**:
+- The "reasoning" field MUST contain your STEP 1 analysis (minimum 3-4 sentences)
 - Choose the tool that will produce the BEST result for this specific request
-- Generate COMPLETE, EXECUTABLE code (no placeholders)
-- If request is ambiguous, make reasonable assumptions
+- Generate COMPLETE, EXECUTABLE code (no placeholders, no incomplete sections)
+- If request is ambiguous, make reasonable assumptions and document them in reasoning
 - Return ONLY the JSON object, no other text
 
-Generate the diagram now:"""
+Generate the diagram now with TWO-STEP reasoning:"""
 
     try:
+        # Choose model based on regeneration mode
+        # o1-mini provides deeper reasoning for regeneration
+        # gpt-4o provides faster response for initial generation
+        model = "o1-mini" if regenerate else "gpt-4o"
+        temperature = 0.1 if regenerate else 0.2
+        max_tokens = 3000 if regenerate else 2000  # More tokens for reasoning
+
+        print(f"🤖 Using model: {model} (regenerate={regenerate})")
+
         response = await ai_service.client.chat.completions.create(
-            model="gpt-4o",
+            model=model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-            max_tokens=2000,
+            temperature=temperature,
+            max_tokens=max_tokens,
             response_format={"type": "json_object"}
         )
 
@@ -3397,10 +3438,23 @@ Generate the diagram now:"""
             print(f"⚠️ Invalid tool '{chosen_tool}', defaulting to SVG")
             chosen_tool = 'svg'
 
+        # Log the AI's reasoning and decision
+        reasoning = result.get('reasoning', '')
         print(f"✅ AI chose: {chosen_tool}")
         print(f"   Title: {result.get('title', 'Untitled')}")
+        if reasoning:
+            # Truncate reasoning for logging (first 200 chars)
+            reasoning_preview = reasoning[:200] + "..." if len(reasoning) > 200 else reasoning
+            print(f"   Reasoning: {reasoning_preview}")
+        else:
+            print(f"   ⚠️ No reasoning provided by model")
 
         result['tokens_used'] = response.usage.total_tokens
+
+        # Ensure reasoning field is present in output (even if empty)
+        if 'reasoning' not in result:
+            result['reasoning'] = ''
+
         return result
 
     except Exception as e:
@@ -3411,6 +3465,7 @@ Generate the diagram now:"""
             'content': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Diagram generation failed</text></svg>',
             'title': 'Generation Failed',
             'explanation': f'Failed to generate diagram: {str(e)}',
+            'reasoning': '',  # Empty reasoning on error
             'width': 400,
             'height': 300,
             'tokens_used': 0
