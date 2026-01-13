@@ -2178,24 +2178,45 @@ def check_if_diagram_helpful(ai_response: str, user_message: str, subject: str) 
     # ✅ OPTIMIZED: Much lower thresholds for diagram suggestions
 
     # 🔥 SUBJECT-SPECIFIC OPTIMIZED THRESHOLDS (更宽松的条件)
+    # 🎯 OPTIMIZATION: Suggest diagrams much more aggressively for all subjects
     if subject in ['mathematics', 'math', '数学', 'geometry', '几何']:
-        if math_count >= 1 or geometry_count >= 1 or visual_request_count >= 1:
+        # Always suggest for math - visual learning is critical
+        if math_count >= 1 or geometry_count >= 1 or visual_request_count >= 1 or total_visual_keywords >= 1:
             print(f"🎨 [DiagramDetection] ✅ MATH subject trigger: math={math_count}, geo={geometry_count}, visual={visual_request_count}")
+            return True
+        # NEW: Default to True for any math conversation with explanation
+        if len(ai_response) > 100:  # Any substantial math response
+            print(f"🎨 [DiagramDetection] ✅ MATH default: Substantial math response detected")
             return True
 
     elif subject in ['physics', '物理']:
-        if physics_count >= 1 or geometry_count >= 1 or visual_request_count >= 1:
+        # Always suggest for physics - visual concepts are essential
+        if physics_count >= 1 or geometry_count >= 1 or visual_request_count >= 1 or total_visual_keywords >= 1:
             print(f"🎨 [DiagramDetection] ✅ PHYSICS subject trigger: physics={physics_count}, geo={geometry_count}, visual={visual_request_count}")
+            return True
+        # NEW: Default to True for any physics conversation
+        if len(ai_response) > 100:
+            print(f"🎨 [DiagramDetection] ✅ PHYSICS default: Substantial physics response detected")
             return True
 
     elif subject in ['chemistry', '化学']:
-        if chemistry_count >= 1 or visual_request_count >= 1:
+        # Always suggest for chemistry - molecules and structures are visual
+        if chemistry_count >= 1 or visual_request_count >= 1 or total_visual_keywords >= 1:
             print(f"🎨 [DiagramDetection] ✅ CHEMISTRY subject trigger: chem={chemistry_count}, visual={visual_request_count}")
+            return True
+        # NEW: Default to True for chemistry
+        if len(ai_response) > 100:
+            print(f"🎨 [DiagramDetection] ✅ CHEMISTRY default: Substantial chemistry response detected")
             return True
 
     elif subject in ['biology', '生物']:
-        if biology_count >= 1 or visual_request_count >= 1:
+        # Always suggest for biology - anatomy and systems are visual
+        if biology_count >= 1 or visual_request_count >= 1 or total_visual_keywords >= 1:
             print(f"🎨 [DiagramDetection] ✅ BIOLOGY subject trigger: bio={biology_count}, visual={visual_request_count}")
+            return True
+        # NEW: Default to True for biology
+        if len(ai_response) > 100:
+            print(f"🎨 [DiagramDetection] ✅ BIOLOGY default: Substantial biology response detected")
             return True
 
     # ✅ GENERAL OPTIMIZED THRESHOLDS (any subject)
@@ -2231,6 +2252,21 @@ def check_if_diagram_helpful(ai_response: str, user_message: str, subject: str) 
     # 🔥 NEW: Cross-subject support (broader detection)
     if total_visual_keywords >= 1 and educational_count >= 1:
         print(f"🎨 [DiagramDetection] ✅ CROSS: Any technical + educational content (tech={total_visual_keywords}, edu={educational_count})")
+        return True
+
+    # 🔥 NEW: ANY technical keyword is enough (ultra-aggressive)
+    if total_visual_keywords >= 1:
+        print(f"🎨 [DiagramDetection] ✅ AGGRESSIVE: Any technical content detected ({total_visual_keywords})")
+        return True
+
+    # 🔥 NEW: Default to True for any substantial educational response
+    if educational_count >= 1 and len(ai_response) > 150:
+        print(f"🎨 [DiagramDetection] ✅ DEFAULT: Educational response with substantial content")
+        return True
+
+    # 🔥 NEW: Even if no keywords, suggest for longer responses (assume complexity)
+    if len(ai_response) > 300:
+        print(f"🎨 [DiagramDetection] ✅ FALLBACK: Long response likely benefits from visualization")
         return True
 
     print(f"🎨 [DiagramDetection] ❌ No diagram triggers met")
