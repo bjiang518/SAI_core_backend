@@ -54,7 +54,7 @@ struct SessionDetailView: View {
                 }
             }
             .navigationTitle(isConversation ? NSLocalizedString("sessionDetail.conversationDetails", comment: "") : NSLocalizedString("sessionDetail.sessionDetails", comment: ""))
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(NSLocalizedString("common.done", comment: "")) {
@@ -302,77 +302,99 @@ struct ConversationDetailContent: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Conversation Content
+                // Conversation Content with inline diagrams
                 VStack(alignment: .leading, spacing: 16) {
                     Text(NSLocalizedString("sessionDetail.conversation", comment: ""))
                         .font(.headline)
 
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 12) {
-                            ForEach(parseConversation(conversation.conversationContent), id: \.offset) { messageItem in
-                                ConversationMessageView(
-                                    speaker: messageItem.element.speaker,
-                                    message: messageItem.element.message,
-                                    isUser: messageItem.element.speaker.lowercased().contains("user")
-                                )
-                            }
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Show all conversation messages
+                        ForEach(parseConversation(conversation.conversationContent), id: \.offset) { messageItem in
+                            ConversationMessageView(
+                                speaker: messageItem.element.speaker,
+                                message: messageItem.element.message,
+                                isUser: messageItem.element.speaker.lowercased().contains("user")
+                            )
                         }
-                        .padding(.horizontal, 4)
-                    }
-                    .frame(maxHeight: 400)
-                }
 
-                // ✅ NEW: Diagrams Section (if diagrams exist in archive)
-                if let diagrams = conversation.diagrams, !diagrams.isEmpty {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Generated Diagrams")
-                            .font(.headline)
+                        // Show diagrams inline at the end as AI messages (if diagrams exist in archive)
+                        if let diagrams = conversation.diagrams, !diagrams.isEmpty {
+                            ForEach(Array(diagrams.enumerated()), id: \.offset) { index, diagramDict in
+                                // Wrap diagram in AI message style
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        // AI character indicator
+                                        HStack {
+                                            Image(systemName: "chart.bar.doc.horizontal.fill")
+                                                .font(.system(size: 14))
+                                                .foregroundColor(.blue)
 
-                        ForEach(Array(diagrams.enumerated()), id: \.offset) { index, diagramDict in
-                            VStack(alignment: .leading, spacing: 8) {
-                                if let title = diagramDict["title"] as? String {
-                                    Text(title)
-                                        .font(.subheadline)
-                                        .bold()
-                                }
-
-                                if let type = diagramDict["type"] as? String,
-                                   let code = diagramDict["code"] as? String {
-                                    // Create rendering hint if available
-                                    let hint: NetworkService.DiagramRenderingHint? = {
-                                        if let width = diagramDict["width"] as? Int,
-                                           let height = diagramDict["height"] as? Int {
-                                            return NetworkService.DiagramRenderingHint(
-                                                width: width,
-                                                height: height,
-                                                background: diagramDict["background"] as? String ?? "white",
-                                                scaleFactor: 1.0
-                                            )
+                                            Text("Generated Diagram")
+                                                .font(.system(size: 14, weight: .medium))
+                                                .foregroundColor(.secondary)
                                         }
-                                        return nil
-                                    }()
 
-                                    // Display the diagram
-                                    DiagramRendererView(
-                                        diagramType: type,
-                                        diagramCode: code,
-                                        diagramTitle: diagramDict["title"] as? String,
-                                        renderingHint: hint
+                                        if let type = diagramDict["type"] as? String,
+                                           let code = diagramDict["code"] as? String {
+                                            // Create rendering hint if available
+                                            let hint: NetworkService.DiagramRenderingHint? = {
+                                                if let width = diagramDict["width"] as? Int,
+                                                   let height = diagramDict["height"] as? Int {
+                                                    return NetworkService.DiagramRenderingHint(
+                                                        width: width,
+                                                        height: height,
+                                                        background: diagramDict["background"] as? String ?? "white",
+                                                        scaleFactor: 1.0
+                                                    )
+                                                }
+                                                return nil
+                                            }()
+
+                                            // Display the diagram
+                                            DiagramRendererView(
+                                                diagramType: type,
+                                                diagramCode: code,
+                                                diagramTitle: diagramDict["title"] as? String,
+                                                renderingHint: hint
+                                            )
+                                            .frame(maxHeight: 400)
+                                        }
+
+                                        // Explanation text (if provided)
+                                        if let explanation = diagramDict["explanation"] as? String, !explanation.isEmpty {
+                                            VStack(alignment: .leading, spacing: 8) {
+                                                Divider()
+
+                                                HStack {
+                                                    Image(systemName: "text.bubble")
+                                                        .font(.system(size: 12))
+                                                        .foregroundColor(.secondary)
+
+                                                    Text("Explanation")
+                                                        .font(.system(size: 12, weight: .medium))
+                                                        .foregroundColor(.secondary)
+                                                }
+
+                                                Text(explanation)
+                                                    .font(.body)
+                                                    .foregroundColor(.primary.opacity(0.9))
+                                            }
+                                        }
+                                    }
+                                    .padding(12)
+                                    .background(Color.gray.opacity(0.1))
+                                    .cornerRadius(16)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                                     )
-                                    .frame(maxHeight: 400)
-                                }
 
-                                if let explanation = diagramDict["explanation"] as? String, !explanation.isEmpty {
-                                    Text(explanation)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                    Spacer(minLength: 50)
                                 }
                             }
-                            .padding()
-                            .background(Color.gray.opacity(0.05))
-                            .cornerRadius(12)
                         }
                     }
+                    .padding(.horizontal, 4)
                 }
 
                 // Metadata Section
