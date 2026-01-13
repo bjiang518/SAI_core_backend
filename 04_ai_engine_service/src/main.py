@@ -92,103 +92,30 @@ async def lifespan(app: FastAPI):
     """Initialize and cleanup application lifecycle"""
 
     # ============================================================================
-    # STARTUP DIAGNOSTICS: Verify LaTeX Installation
+    # STARTUP DIAGNOSTICS
     # ============================================================================
-    print("\n" + "="*80)
-    print("🚀 === STUDYAI AI ENGINE STARTUP DIAGNOSTICS ===")
-    print("="*80)
+    print("\n✅ StudyAI AI Engine started")
 
-    # 1. Check Python environment
-    import sys
-    print(f"\n📦 Python Environment:")
-    print(f"   - Python version: {sys.version.split()[0]}")
-    print(f"   - Python executable: {sys.executable}")
+    # Quick LaTeX check for diagram generation
+    import subprocess, shutil
+    latex_available = bool(shutil.which('pdflatex') and shutil.which('pdf2svg'))
 
-    # 2. Check critical Python packages
-    print(f"\n📦 Critical Python Packages:")
-
-    critical_packages = [
-        'fastapi', 'openai', 'redis', 'cairosvg',
-        'numpy', 'pydantic', 'uvicorn'
-    ]
-
-    for package_name in critical_packages:
-        try:
-            module = __import__(package_name)
-            version = getattr(module, '__version__', 'unknown')
-            print(f"   ✅ {package_name}: {version}")
-        except ImportError as e:
-            print(f"   ❌ {package_name}: NOT INSTALLED - {str(e)}")
-
-    # 3. Check LaTeX system dependencies (CRITICAL for diagram generation)
-    print(f"\n🎨 LaTeX System Dependencies (for diagram generation):")
-
-    import subprocess
-    import shutil
-
-    latex_commands = [
-        ('pdflatex', 'LaTeX compiler (core)'),
-        ('pdf2svg', 'PDF to SVG converter'),
-        ('gs', 'Ghostscript (PDF processing)')
-    ]
-
-    latex_installed = True
-    for cmd, description in latex_commands:
-        cmd_path = shutil.which(cmd)
-        if cmd_path:
-            try:
-                # Get version for debugging
-                if cmd == 'pdflatex':
-                    result = subprocess.run([cmd, '--version'],
-                                          capture_output=True, text=True, timeout=5)
-                    version_line = result.stdout.split('\n')[0] if result.stdout else 'unknown'
-                    print(f"   ✅ {cmd}: {cmd_path}")
-                    print(f"      Version: {version_line}")
-                else:
-                    print(f"   ✅ {cmd}: {cmd_path}")
-            except Exception as e:
-                print(f"   ⚠️ {cmd}: Found at {cmd_path} but version check failed: {e}")
-        else:
-            print(f"   ❌ {cmd}: NOT FOUND - {description}")
-            latex_installed = False
-
-    # 4. Test latex2svg functionality
-    print(f"\n🧪 Testing LaTeX Converter:")
-    try:
-        from src.services.latex_converter import latex_converter
-        print(f"   ✅ latex_converter module imported successfully")
-
-        # Test simple conversion
-        test_latex = r"\begin{tikzpicture}\draw (0,0) circle (1);\end{tikzpicture}"
-        print(f"   🧪 Running test conversion...")
-        test_result = await latex_converter.convert_tikz_to_svg(
-            tikz_code=test_latex,
-            title="Test Diagram",
-            width=200,
-            height=200
-        )
-
-        if test_result['success']:
-            svg_length = len(test_result['svg_code']) if test_result['svg_code'] else 0
-            print(f"   ✅ LaTeX → SVG conversion TEST PASSED")
-            print(f"      Generated SVG length: {svg_length} characters")
-        else:
-            print(f"   ❌ LaTeX → SVG conversion TEST FAILED")
-            print(f"      Error: {test_result['error']}")
-            latex_installed = False
-    except Exception as e:
-        print(f"   ❌ latex_converter test failed: {str(e)}")
-        import traceback
-        print(f"      Traceback:\n{traceback.format_exc()}")
-        latex_installed = False
-
-    # 5. Summary
-    print(f"\n" + "="*80)
-    if latex_installed:
-        print("✅ ALL SYSTEMS OPERATIONAL - LaTeX diagram generation ENABLED")
+    if latex_available:
+        print("✅ LaTeX: Available")
     else:
-        print("⚠️ WARNING: LaTeX not fully operational - Diagrams will use SVG-only mode")
-    print("="*80 + "\n")
+        print("⚠️ LaTeX: Not available (SVG fallback enabled)")
+
+    # Quick matplotlib check
+    try:
+        from src.services.matplotlib_generator import MATPLOTLIB_AVAILABLE
+        if MATPLOTLIB_AVAILABLE:
+            print("✅ Matplotlib: Available")
+        else:
+            print("⚠️ Matplotlib: Not available")
+    except:
+        print("⚠️ Matplotlib: Not available")
+
+    print("")  # Blank line for readability
 
     # Startup: Initialize background tasks
     if os.getenv('RAILWAY_KEEP_ALIVE') == 'true':
