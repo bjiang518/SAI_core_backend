@@ -27,31 +27,7 @@ struct DiagramRendererView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Diagram title
-            if let title = diagramTitle, !title.isEmpty {
-                HStack {
-                    Image(systemName: "chart.bar.doc.horizontal")
-                        .foregroundColor(.blue)
-                        .font(.system(size: 14))
-
-                    Text(title)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.primary)
-
-                    Spacer()
-
-                    // Format indicator
-                    Text(diagramType.uppercased())
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(4)
-                }
-            }
-
-            // Diagram content
+            // Diagram content (title and badge removed for cleaner display)
             Group {
                 if hasError {
                     errorView
