@@ -812,6 +812,12 @@
 "chat.prompt.giveExample" = "Can you provide a specific example?";
 "chat.prompt.moreDetails" = "Can you elaborate on this topic with more details?";
 
+// Diagram Generation
+"diagram.header" = "Generated Diagram";
+"diagram.explanation" = "Explanation";
+"diagram.generating" = "Generating diagram...";
+"diagram.generatingSubtext" = "AI is creating a visual representation";
+
 // Example Prompts - Mathematics
 "chat.example.math.1" = "Solve: 2x + 5 = 13";
 "chat.example.math.2" = "What is the derivative of x²?";

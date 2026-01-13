@@ -480,6 +480,18 @@ class SessionChatViewModel: ObservableObject {
 
     // MARK: - Diagram Generation
 
+    /// Get the user's preferred language for diagram explanations
+    private func getUserLanguage() -> String {
+        // Get the user's preferred language from system settings
+        let preferredLanguage = Locale.preferredLanguages.first ?? "en"
+
+        // Extract language code (e.g., "zh-Hans" -> "zh", "en-US" -> "en")
+        let languageCode = String(preferredLanguage.prefix(2))
+
+        print("🌐 User's preferred language: \(preferredLanguage) -> \(languageCode)")
+        return languageCode
+    }
+
     /// Generate a diagram based on current conversation context
     func generateDiagram(request: String) async {
         print("🎨 === GENERATING DIAGRAM ===")
@@ -512,7 +524,8 @@ class SessionChatViewModel: ObservableObject {
             conversationHistory: networkService.conversationHistory,
             diagramRequest: uniqueRequest,  // ✅ Use unique request to prevent cache collisions
             sessionId: sessionId,
-            subject: selectedSubject
+            subject: selectedSubject,
+            language: getUserLanguage()  // ✅ Pass user's preferred language
         )
 
         await MainActor.run {
@@ -612,7 +625,8 @@ class SessionChatViewModel: ObservableObject {
             conversationHistory: networkService.conversationHistory,
             diagramRequest: cacheBypassRequest,  // ✅ Use cache-bypass request
             sessionId: sessionId,
-            subject: selectedSubject
+            subject: selectedSubject,
+            language: getUserLanguage()  // ✅ Pass user's preferred language
         )
 
         await MainActor.run {

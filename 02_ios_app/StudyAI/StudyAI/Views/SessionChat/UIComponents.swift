@@ -357,11 +357,11 @@ struct DiagramGenerationIndicatorView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Generating diagram...")
+                Text(NSLocalizedString("diagram.generating", comment: ""))
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(.primary)
 
-                Text("AI is creating a visual representation")
+                Text(NSLocalizedString("diagram.generatingSubtext", comment: ""))
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
