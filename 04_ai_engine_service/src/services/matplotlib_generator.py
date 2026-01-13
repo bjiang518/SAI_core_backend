@@ -92,19 +92,21 @@ class MatplotlibDiagramGenerator:
 Context: {conversation_text[:400]}
 Subject: {subject}
 
+IMPORTANT: plt and np are ALREADY IMPORTED. Do NOT include import statements.
+
 Requirements:
-1. Import only: matplotlib.pyplot as plt, numpy as np
-2. For math functions: Calculate critical points (vertex, roots) FIRST
-3. Use plt.subplots(figsize=(8,6)) for proper sizing
-4. Add grid, labels, legend, title
-5. Mark critical points (roots, vertex, intercepts) with colored dots
-6. Use plt.tight_layout() for perfect framing
-7. {lang_instruction}
+1. DO NOT write: import matplotlib.pyplot as plt (already available)
+2. DO NOT write: import numpy as np (already available)
+3. For math functions: Calculate critical points (vertex, roots) FIRST
+4. Use plt.subplots(figsize=(8,6)) for proper sizing
+5. Add grid, labels, legend, title
+6. Mark critical points (roots, vertex, intercepts) with colored dots
+7. Use plt.tight_layout() for perfect framing
+8. {lang_instruction}
 
 Example for y = x² + 5x + 6:
 ```python
-import matplotlib.pyplot as plt
-import numpy as np
+# NO IMPORTS - plt and np already available!
 
 # Critical points
 vertex_x, vertex_y = -2.5, -0.25
@@ -147,6 +149,22 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
                 code = code.split('```python')[1].split('```')[0].strip()
             elif '```' in code:
                 code = code.split('```')[1].split('```')[0].strip()
+
+            # Strip import statements (plt and np are already provided)
+            # GPT sometimes ignores instructions and includes imports anyway
+            lines = code.split('\n')
+            filtered_lines = []
+            for line in lines:
+                stripped = line.strip()
+                # Skip import statements
+                if stripped.startswith('import matplotlib') or \
+                   stripped.startswith('import numpy') or \
+                   stripped.startswith('from matplotlib') or \
+                   stripped.startswith('from numpy'):
+                    print(f"🔧 [MatplotlibGen] Stripped import: {stripped}")
+                    continue
+                filtered_lines.append(line)
+            code = '\n'.join(filtered_lines)
 
             print(f"✅ [MatplotlibGen] Code generated: {len(code)} chars")
             print(f"📝 [MatplotlibGen] Code preview:\n{code[:200]}...")
