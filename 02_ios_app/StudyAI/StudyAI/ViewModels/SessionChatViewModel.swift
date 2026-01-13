@@ -481,15 +481,23 @@ class SessionChatViewModel: ObservableObject {
     // MARK: - Diagram Generation
 
     /// Get the user's preferred language for diagram explanations
+    /// Maps system locale to backend's allowed values: "en", "zh-Hans", "zh-Hant"
     private func getUserLanguage() -> String {
         // Get the user's preferred language from system settings
         let preferredLanguage = Locale.preferredLanguages.first ?? "en"
 
-        // Extract language code (e.g., "zh-Hans" -> "zh", "en-US" -> "en")
-        let languageCode = String(preferredLanguage.prefix(2))
+        // Map to backend's allowed language values
+        let mappedLanguage: String
+        if preferredLanguage.hasPrefix("zh-Hans") {
+            mappedLanguage = "zh-Hans"
+        } else if preferredLanguage.hasPrefix("zh-Hant") {
+            mappedLanguage = "zh-Hant"
+        } else {
+            mappedLanguage = "en"  // Default to English for all other languages
+        }
 
-        print("🌐 User's preferred language: \(preferredLanguage) -> \(languageCode)")
-        return languageCode
+        print("🌐 User's preferred language: \(preferredLanguage) -> \(mappedLanguage)")
+        return mappedLanguage
     }
 
     /// Generate a diagram based on current conversation context
