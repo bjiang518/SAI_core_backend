@@ -2324,6 +2324,7 @@ The diagram suggestion MUST be the first item in your JSON response.
 """
         else:
             # No diagram needed
+            diagram_suggestion_text = ""
 
         # Create a prompt for generating follow-up suggestions with DIAGRAM PRIORITY
         if should_suggest_diagram:
@@ -3094,8 +3095,8 @@ def analyze_content_for_diagram_type(conversation_text: str, subject: str) -> Di
     """
     Analyze conversation content to determine the best diagram type.
 
-    NOTE: LaTeX/TikZ requires full compiler, not supported by MathJax.
-    Use LaTeX only for equations, SVG for diagrams/graphs.
+    OPTIMIZATION: Prefer matplotlib 90% of the time for best quality and reliability.
+    Only use LaTeX for very specific geometric constructions.
     """
     content_lower = conversation_text.lower()
 
@@ -3121,62 +3122,39 @@ def analyze_content_for_diagram_type(conversation_text: str, subject: str) -> Di
     physics_count = sum(1 for kw in physics_keywords if kw in content_lower)
     chemistry_count = sum(1 for kw in chemistry_keywords if kw in content_lower)
 
-    # Determine complexity and type
     total_keywords = math_count + geometry_count + physics_count + chemistry_count
 
-    # 🚀 NEW: Multi-pathway routing system
-    # Priority: matplotlib > LaTeX > SVG
+    # 🚀 OPTIMIZED: Use matplotlib for 90% of cases
+    # Matplotlib provides perfect viewport framing, fast execution, and publication quality
 
-    # 📊 MATPLOTLIB PATHWAY (NEW!) - ONLY for EXPLICIT drawing/plotting requests
-    # ✅ Perfect viewport framing, fast execution, publication quality
-    # ⚠️ IMPORTANT: Only triggers when user explicitly asks to draw/plot/graph
+    # ⚠️ VERY RARE: Only use LaTeX for pure geometric constructions without math functions
+    # Examples: geometric proofs, angle diagrams, parallel line constructions
+    latex_only_indicators = ['proof', '证明', 'theorem', '定理', 'perpendicular', '垂直', 'parallel', '平行']
+    has_latex_only = any(indicator in content_lower for indicator in latex_only_indicators)
 
-    explicit_draw_keywords = [
-        'draw', '画', 'plot', '绘制', 'graph', 'sketch', '草图',
-        'visualize', '可视化', 'show me', 'illustrate', '说明',
-        'diagram', '图表', 'chart'
-    ]
+    # Check if this is a pure geometric construction (no functions/equations)
+    has_math_functions = any(kw in content_lower for kw in ['y =', 'f(x) =', 'equation', '方程', 'function', '函数'])
 
-    # Check if user is explicitly requesting a visualization
-    has_draw_request = any(keyword in content_lower for keyword in explicit_draw_keywords)
+    if has_latex_only and not has_math_functions and geometry_count >= 2:
+        # Pure geometric construction → use LaTeX (rare case, ~5%)
+        return {'diagram_type': 'latex', 'complexity': 'high'}
 
-    # If explicit draw request + mathematical content → matplotlib
-    if has_draw_request:
-        math_function_indicators = ['y =', 'f(x) =', 'parabola', '抛物线',
-                                   'quadratic', '二次', 'function', '函数',
-                                   'equation', '方程', 'curve', '曲线']
+    # 📊 DEFAULT: Use matplotlib for everything else (90%+ of cases)
+    if total_keywords > 0:
+        # Any technical/educational content → matplotlib
+        return {'diagram_type': 'matplotlib', 'complexity': 'high'}
 
-        has_math_function = any(indicator in content_lower for indicator in math_function_indicators)
+    # Subject-based routing → still prefer matplotlib
+    if subject in ['mathematics', 'math', '数学', 'physics', '物理', 'chemistry', '化学']:
+        return {'diagram_type': 'matplotlib', 'complexity': 'medium'}
 
-        if has_math_function or subject in ['mathematics', 'math', '数学', 'physics', '物理']:
-            return {'diagram_type': 'matplotlib', 'complexity': 'high'}
+    # Fallback for minimal content → use matplotlib as well
+    # Only use ASCII if absolutely no visual content possible
+    if len(content_lower) < 50:
+        return {'diagram_type': 'ascii', 'complexity': 'minimal'}
 
-    # 🎨 LATEX PATHWAY - For geometric diagrams and mathematical proofs
-    # Use LaTeX for triangles, angles, geometric constructions
-    latex_indicators = ['triangle', '三角形', 'angle', '角', 'perpendicular', '垂直',
-                       'parallel', '平行', 'proof', '证明', 'theorem', '定理']
-
-    if any(indicator in content_lower for indicator in latex_indicators):
-        if geometry_count >= 2:
-            return {'diagram_type': 'latex', 'complexity': 'high'}
-
-    # Subject-specific routing - prefer LaTeX for math/physics
-    if subject in ['mathematics', 'math', '数学']:
-        if math_count >= 2:
-            return {'diagram_type': 'latex', 'complexity': 'high'}
-        else:
-            return {'diagram_type': 'svg', 'complexity': 'medium'}
-    elif subject in ['physics', '物理'] and physics_count > 1:
-        return {'diagram_type': 'svg', 'complexity': 'medium'}
-    elif subject in ['chemistry', '化学'] and chemistry_count > 1:
-        return {'diagram_type': 'svg', 'complexity': 'medium'}
-
-    # Geometry is better in SVG
-    if geometry_count > 1 or total_keywords > 0:
-        return {'diagram_type': 'svg', 'complexity': 'low'}
-
-    # Minimal/no technical content → ASCII fallback
-    return {'diagram_type': 'ascii', 'complexity': 'minimal'}
+    # Default: matplotlib for best quality
+    return {'diagram_type': 'matplotlib', 'complexity': 'medium'}
 
 
 async def generate_latex_diagram(conversation_text: str, diagram_request: str,
