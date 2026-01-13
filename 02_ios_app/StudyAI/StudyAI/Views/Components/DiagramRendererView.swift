@@ -174,6 +174,9 @@ struct DiagramRendererView: View {
         case "matplotlib":
             print("🎨 [DiagramImage] ➡️ Using Matplotlib renderer (base64 PNG)")
             return try MatplotlibRenderer.shared.renderMatplotlib(diagramCode)
+        case "png":
+            print("🎨 [DiagramImage] ➡️ Using PNG renderer (base64 PNG from Graphviz)")
+            return try MatplotlibRenderer.shared.renderPNG(diagramCode)
         case "latex", "tikz":
             print("🎨 [DiagramImage] ➡️ Using LaTeX renderer")
             return try await LaTeXRenderer.shared.renderLaTeX(diagramCode, hint: renderingHint)
@@ -218,6 +221,42 @@ class MatplotlibRenderer {
         guard let image = UIImage(data: imageData) else {
             print("🎨 [MatplotlibRenderer] ❌ Failed to create UIImage from data")
             throw DiagramError.renderingFailed("Could not create image from matplotlib PNG data")
+        }
+
+        print("🎨 [MatplotlibRenderer] ✅ Created UIImage successfully")
+        print("🎨 [MatplotlibRenderer] Image size: \(image.size.width)x\(image.size.height)")
+        print("🎨 [MatplotlibRenderer] Image scale: \(image.scale)")
+
+        return image
+    }
+
+    func renderPNG(_ dataURL: String) throws -> UIImage {
+        print("🎨 [MatplotlibRenderer] Rendering PNG from data URL...")
+        print("🎨 [MatplotlibRenderer] Data URL length: \(dataURL.count) characters")
+
+        // Extract base64 data from data URL format: "data:image/png;base64,{base64_string}"
+        let base64String: String
+        if dataURL.hasPrefix("data:image/png;base64,") {
+            base64String = String(dataURL.dropFirst("data:image/png;base64,".count))
+            print("🎨 [MatplotlibRenderer] Extracted base64 from data URL")
+        } else {
+            // Assume it's already base64 without the data URL prefix
+            base64String = dataURL
+            print("🎨 [MatplotlibRenderer] Using string as-is (no data URL prefix)")
+        }
+
+        // Decode base64 string to Data
+        guard let imageData = Data(base64Encoded: base64String, options: .ignoreUnknownCharacters) else {
+            print("🎨 [MatplotlibRenderer] ❌ Failed to decode base64 string")
+            throw DiagramError.invalidCode("Invalid base64 PNG data from Graphviz")
+        }
+
+        print("🎨 [MatplotlibRenderer] ✅ Decoded \(imageData.count) bytes")
+
+        // Create UIImage from data
+        guard let image = UIImage(data: imageData) else {
+            print("🎨 [MatplotlibRenderer] ❌ Failed to create UIImage from data")
+            throw DiagramError.renderingFailed("Could not create image from PNG data")
         }
 
         print("🎨 [MatplotlibRenderer] ✅ Created UIImage successfully")
