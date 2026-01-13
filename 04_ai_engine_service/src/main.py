@@ -3309,13 +3309,14 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
 
     Returns structured output: {"type": "matplotlib|svg|graphviz|latex", "content": "...", "reasoning": "..."}
     """
-    language_instructions = {
-        'en': 'Use English for all labels, titles, and legends.',
-        'zh-Hans': '使用简体中文作为所有标签、标题和图例。',
-        'zh-Hant': '使用繁體中文作為所有標籤、標題和圖例。'
+    # Language-specific instructions for explanations (NOT for diagram code)
+    explanation_language_map = {
+        'en': 'English',
+        'zh-Hans': '简体中文 (Simplified Chinese)',
+        'zh-Hant': '繁體中文 (Traditional Chinese)'
     }
 
-    lang_instruction = language_instructions.get(language, language_instructions['en'])
+    explanation_lang = explanation_language_map.get(language, 'English')
 
     # Build enhanced prompt with two-step reasoning
     prompt = f"""You are an expert educational diagram generator. You have multiple tools available.
@@ -3382,17 +3383,19 @@ Generate COMPLETE, EXECUTABLE code:
 - Include all necessary imports, declarations, and setup
 - Make the code production-ready (no placeholders or TODOs)
 - Apply best practices for the chosen tool
-- {lang_instruction}
+- **CRITICAL: Use ONLY English/ASCII text in diagram code** (labels, titles, legends, annotations)
+- Chinese fonts are NOT available - using Chinese characters will cause rendering failures
+- All text within the code (matplotlib labels, SVG text, LaTeX labels, Graphviz node labels) MUST be English
 
 ---
 
 **RESPONSE FORMAT** (JSON):
 {{
-  "reasoning": "...",     // STEP 1: Your complete analysis and decision-making process
+  "reasoning": "...",     // STEP 1: Your complete analysis (can be in {explanation_lang})
   "type": "matplotlib",   // STEP 2: Chosen tool (matplotlib, svg, latex, or graphviz)
-  "content": "...",       // STEP 2: Complete working code in chosen tool's format
-  "title": "...",         // Brief title for the diagram
-  "explanation": "...",   // Brief explanation of what the diagram shows
+  "content": "...",       // STEP 2: Complete code with ONLY ENGLISH TEXT in diagram
+  "title": "...",         // Brief title (can be in {explanation_lang})
+  "explanation": "...",   // Brief explanation (can be in {explanation_lang})
   "width": 400,           // Suggested width in pixels
   "height": 300           // Suggested height in pixels
 }}
@@ -3401,6 +3404,8 @@ Generate COMPLETE, EXECUTABLE code:
 - The "reasoning" field MUST contain your STEP 1 analysis (minimum 3-4 sentences)
 - Choose the tool that will produce the BEST result for this specific request
 - Generate COMPLETE, EXECUTABLE code (no placeholders, no incomplete sections)
+- **DIAGRAM CODE MUST USE ONLY ENGLISH TEXT** - no Chinese characters in labels/legends/titles
+- Title and explanation fields CAN be in {explanation_lang} for user readability
 - If request is ambiguous, make reasonable assumptions and document them in reasoning
 - Return ONLY the JSON object, no other text
 
