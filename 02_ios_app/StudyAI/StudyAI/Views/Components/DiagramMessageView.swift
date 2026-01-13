@@ -16,6 +16,8 @@ struct DiagramMessageView: View {
     let diagramData: NetworkService.DiagramGenerationResponse
     let voiceType: VoiceType
     let messageId: String
+    var onRemove: (() -> Void)? = nil
+    var onRegenerate: (() -> Void)? = nil
 
     @StateObject private var voiceService = VoiceInteractionService.shared
     @State private var isCurrentlyPlaying = false
@@ -82,6 +84,27 @@ struct DiagramMessageView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 0)
         .fixedSize(horizontal: false, vertical: true)
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            // Remove button
+            if let onRemove = onRemove {
+                Button(role: .destructive) {
+                    onRemove()
+                } label: {
+                    Label("Remove", systemImage: "trash")
+                }
+                .tint(.red)
+            }
+
+            // Regenerate button
+            if let onRegenerate = onRegenerate {
+                Button {
+                    onRegenerate()
+                } label: {
+                    Label("Regenerate", systemImage: "arrow.clockwise")
+                }
+                .tint(.blue)
+            }
+        }
         .fullScreenCover(isPresented: $showingFullscreen) {
             DiagramFullscreenView(diagramData: diagramData)
         }
@@ -188,6 +211,8 @@ struct EnhancedAIMessageView: View {
     let voiceType: VoiceType
     let isStreaming: Bool
     let messageId: String
+    var onRemoveDiagram: (() -> Void)? = nil
+    var onRegenerateDiagram: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -203,7 +228,9 @@ struct EnhancedAIMessageView: View {
                 DiagramMessageView(
                     diagramData: diagramData,
                     voiceType: voiceType,
-                    messageId: "\(messageId)-diagram"
+                    messageId: "\(messageId)-diagram",
+                    onRemove: onRemoveDiagram,
+                    onRegenerate: onRegenerateDiagram
                 )
             }
         }
