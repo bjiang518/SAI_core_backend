@@ -586,11 +586,6 @@ struct SessionChatView: View {
                                         messageId: "message-\(index)",
                                         onRemoveDiagram: diagramKey != nil ? {
                                             viewModel.removeDiagram(withKey: diagramKey!)
-                                        } : nil,
-                                        onRegenerateDiagram: diagramKey != nil ? {
-                                            Task {
-                                                await viewModel.regenerateDiagram(withKey: diagramKey!)
-                                            }
                                         } : nil
                                     )
                                     .id(index)
