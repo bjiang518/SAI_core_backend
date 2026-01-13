@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies including LaTeX and matplotlib requirements
+# Install system dependencies including LaTeX, matplotlib, and Graphviz
 RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     texlive-fonts-recommended \
     ghostscript \
     pdf2svg \
+    graphviz \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching

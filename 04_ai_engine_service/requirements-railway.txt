@@ -30,6 +30,7 @@ tenacity==8.2.3  # Retry logic for OpenAI API calls
 # Educational Processing (lightweight)
 numpy==1.25.2
 matplotlib==3.8.2  # NEW: For fast mathematical diagram generation
+graphviz==0.20.1  # Graph/tree/flowchart diagram generation
 Pillow==10.1.0  # Image processing for Gemini API
 
 # LaTeX to SVG Conversion (for diagram generation)
