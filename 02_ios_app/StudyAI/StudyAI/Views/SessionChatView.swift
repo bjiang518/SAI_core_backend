@@ -774,9 +774,16 @@ struct SessionChatView: View {
                 if viewModel.isStreamingComplete && !viewModel.aiGeneratedSuggestions.isEmpty && suggestionsMatchLanguage {
                     ForEach(viewModel.aiGeneratedSuggestions, id: \.id) { suggestion in
                         Button(suggestion.key) {
-                            // Check if this is a diagram generation request
-                            if isDiagramGenerationRequest(suggestion.key) {
-                                // Handle diagram generation
+                            // Check if this is the regenerate diagram button
+                            if suggestion.value == "__REGENERATE_DIAGRAM__" {
+                                // Trigger diagram regeneration
+                                if let diagramKey = viewModel.lastGeneratedDiagramKey {
+                                    Task {
+                                        await viewModel.regenerateDiagram(withKey: diagramKey)
+                                    }
+                                }
+                            } else if isDiagramGenerationRequest(suggestion.key) {
+                                // Handle new diagram generation
                                 handleDiagramGenerationRequest(suggestion)
                             } else {
                                 // Use the full prompt from AI suggestions

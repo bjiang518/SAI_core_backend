@@ -48,15 +48,34 @@ struct DiagramMessageView: View {
                 }
             }
 
-            // Diagram renderer
-            DiagramRendererView(
-                diagramType: diagramData.diagramType ?? "unknown",
-                diagramCode: diagramData.diagramCode ?? "",
-                diagramTitle: diagramData.diagramTitle,
-                renderingHint: diagramData.renderingHint
-            )
-            .onTapGesture {
-                showingFullscreen = true
+            // Diagram renderer with X button overlay
+            ZStack(alignment: .topTrailing) {
+                DiagramRendererView(
+                    diagramType: diagramData.diagramType ?? "unknown",
+                    diagramCode: diagramData.diagramCode ?? "",
+                    diagramTitle: diagramData.diagramTitle,
+                    renderingHint: diagramData.renderingHint
+                )
+                .onTapGesture {
+                    showingFullscreen = true
+                }
+
+                // X button to remove diagram (top-right corner)
+                if let onRemove = onRemove {
+                    Button(action: onRemove) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white)
+                            .background(
+                                Circle()
+                                    .fill(Color.red.opacity(0.8))
+                                    .frame(width: 28, height: 28)
+                            )
+                            .shadow(color: Color.black.opacity(0.3), radius: 2, x: 0, y: 1)
+                    }
+                    .padding(8)
+                    .buttonStyle(PlainButtonStyle())
+                }
             }
 
             // Explanation text (if provided)

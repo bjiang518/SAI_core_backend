@@ -92,6 +92,7 @@ class SessionChatViewModel: ObservableObject {
     @Published var isGeneratingDiagram = false
     @Published var generatedDiagrams: [String: NetworkService.DiagramGenerationResponse] = [:]
     @Published var diagramRequests: [String: String] = [:]  // Store original request for regeneration
+    @Published var lastGeneratedDiagramKey: String?  // Track last diagram for regenerate button
 
     // UI refresh
     @Published var refreshTrigger = UUID()
@@ -241,6 +242,7 @@ class SessionChatViewModel: ObservableObject {
 
         // ✅ FIX: Clear diagrams from previous session to prevent them from appearing in archive
         generatedDiagrams.removeAll()
+        lastGeneratedDiagramKey = nil
         print("🔄 Starting new session - cleared generated diagrams")
 
         Task {
@@ -545,6 +547,7 @@ class SessionChatViewModel: ObservableObject {
                 let diagramKey = "\(sessionId)-\(Date().timeIntervalSince1970)"
                 generatedDiagrams[diagramKey] = response
                 diagramRequests[diagramKey] = request  // Store original request for regeneration
+                lastGeneratedDiagramKey = diagramKey  // Track for regenerate button
 
                 // Add diagram as AI message to conversation history (empty content, diagram will be displayed separately)
                 networkService.addToConversationHistory(role: "assistant", content: "")
@@ -555,9 +558,21 @@ class SessionChatViewModel: ObservableObject {
                     networkService.conversationHistory[lastIndex]["diagramKey"] = diagramKey
                 }
 
+                // Add "Regenerate Image" button to follow-up suggestions
+                let regenerateSuggestion = NetworkService.FollowUpSuggestion(
+                    key: "🔄 Regenerate Image",
+                    value: "__REGENERATE_DIAGRAM__"  // Special marker
+                )
+
+                // Replace or add to suggestions
+                if !aiGeneratedSuggestions.contains(where: { $0.key.contains("Regenerate") }) {
+                    aiGeneratedSuggestions.insert(regenerateSuggestion, at: 0)  // Add at beginning
+                }
+
                 print("✅ Diagram generated and added to conversation")
                 print("🎨 Title: \(response.diagramTitle ?? "No title")")
                 print("🎨 Type: \(response.diagramType ?? "Unknown")")
+                print("🔄 Added 'Regenerate Image' button to suggestions")
             } else {
                 print("❌ Diagram generation failed: \(response.error ?? "Unknown error")")
 
@@ -650,6 +665,15 @@ class SessionChatViewModel: ObservableObject {
                 print("✅ Diagram regenerated successfully")
                 print("🔄 Title: \(response.diagramTitle ?? "No title")")
                 print("🔄 Type: \(response.diagramType ?? "Unknown")")
+
+                // Keep the "Regenerate Image" button available
+                if !aiGeneratedSuggestions.contains(where: { $0.key.contains("Regenerate") }) {
+                    let regenerateSuggestion = NetworkService.FollowUpSuggestion(
+                        key: "🔄 Regenerate Image",
+                        value: "__REGENERATE_DIAGRAM__"
+                    )
+                    aiGeneratedSuggestions.insert(regenerateSuggestion, at: 0)
+                }
 
                 // Trigger UI refresh to show new diagram
                 refreshTrigger = UUID()
