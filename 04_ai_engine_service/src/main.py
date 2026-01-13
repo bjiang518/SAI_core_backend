@@ -3031,11 +3031,25 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
     try:
         # Extract the most recent relevant content for context
+        # ✅ OPTIMIZATION: Focus on the most recent 3-4 message pairs for better diagram relevance
+        # This prevents old diagram contexts from interfering with new requests
         conversation_text = ""
-        for msg in request.conversation_history[-6:]:  # Last 6 messages for context
+
+        # Get last 4 messages (2 Q&A pairs) for focused context
+        recent_messages = request.conversation_history[-4:] if len(request.conversation_history) >= 4 else request.conversation_history
+
+        for msg in recent_messages:
             role = msg.get('role', 'unknown')
             content = msg.get('content', '')
+
+            # Skip messages that reference old diagrams to avoid confusion
+            if 'generated diagram:' in content.lower() or 'diagram request context' in content.lower():
+                continue
+
             conversation_text += f"{role.upper()}: {content}\n\n"
+
+        # ✅ Add the specific diagram request at the end for clarity
+        conversation_text += f"\nDIAGRAM REQUEST: {request.diagram_request}\n"
 
         # Analyze content to determine best diagram type
         content_analysis = analyze_content_for_diagram_type(conversation_text, request.subject)

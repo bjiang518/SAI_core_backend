@@ -78,13 +78,6 @@ struct DiagramMessageView: View {
                         .foregroundColor(.primary.opacity(0.9))
                 }
             }
-
-            // Processing info (for debugging in development)
-            if let processingTime = diagramData.processingTimeMs {
-                Text("Generated in \(processingTime)ms")
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary.opacity(0.7))
-            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 0)

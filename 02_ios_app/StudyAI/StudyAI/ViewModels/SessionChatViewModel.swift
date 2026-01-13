@@ -485,10 +485,22 @@ class SessionChatViewModel: ObservableObject {
             isGeneratingDiagram = true
         }
 
+        // ✅ FIX: Add timestamp and last message content to make request unique and avoid cache issues
+        // This ensures each diagram generation creates a unique cache key
+        let timestamp = Date().timeIntervalSince1970
+        let lastMessage = networkService.conversationHistory.last?["content"] ?? ""
+        let lastMessagePreview = String(lastMessage.prefix(200)) // Include context from last message
+        let uniqueRequest = """
+        \(request)
+
+        [Diagram Request Context - Timestamp: \(timestamp)]
+        Recent context: \(lastMessagePreview)
+        """
+
         // Call the network service to generate diagram
         let response = await networkService.generateDiagram(
             conversationHistory: networkService.conversationHistory,
-            diagramRequest: request,
+            diagramRequest: uniqueRequest,  // ✅ Use unique request to prevent cache collisions
             sessionId: sessionId,
             subject: selectedSubject
         )
@@ -501,9 +513,8 @@ class SessionChatViewModel: ObservableObject {
                 let diagramKey = "\(sessionId)-\(Date().timeIntervalSince1970)"
                 generatedDiagrams[diagramKey] = response
 
-                // Add diagram as AI message to conversation history
-                let diagramMessage = "Generated diagram: \(response.diagramTitle ?? "Visual Diagram")"
-                networkService.addToConversationHistory(role: "assistant", content: diagramMessage)
+                // Add diagram as AI message to conversation history (empty content, diagram will be displayed separately)
+                networkService.addToConversationHistory(role: "assistant", content: "")
 
                 // Store diagram reference in message for rendering
                 if let lastIndex = networkService.conversationHistory.indices.last {
