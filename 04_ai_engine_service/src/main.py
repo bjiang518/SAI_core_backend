@@ -25,6 +25,15 @@ from src.services.gemini_service import GeminiEducationalAIService  # Gemini alt
 from src.services.prompt_service import AdvancedPromptService
 from src.services.session_service import SessionService
 from src.services.ai_analytics_service import AIAnalyticsService
+from src.services.latex_converter import latex_converter
+
+# Import matplotlib generator with graceful fallback
+try:
+    from src.services.matplotlib_generator import matplotlib_generator, MATPLOTLIB_AVAILABLE
+except ImportError as e:
+    print(f"⚠️ Could not import matplotlib_generator: {e}")
+    matplotlib_generator = None
+    MATPLOTLIB_AVAILABLE = False
 
 # Import service authentication
 from src.middleware.service_auth import (
@@ -81,6 +90,106 @@ async def keep_alive_task():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize and cleanup application lifecycle"""
+
+    # ============================================================================
+    # STARTUP DIAGNOSTICS: Verify LaTeX Installation
+    # ============================================================================
+    print("\n" + "="*80)
+    print("🚀 === STUDYAI AI ENGINE STARTUP DIAGNOSTICS ===")
+    print("="*80)
+
+    # 1. Check Python environment
+    import sys
+    print(f"\n📦 Python Environment:")
+    print(f"   - Python version: {sys.version.split()[0]}")
+    print(f"   - Python executable: {sys.executable}")
+
+    # 2. Check critical Python packages
+    print(f"\n📦 Critical Python Packages:")
+
+    critical_packages = [
+        'fastapi', 'openai', 'redis', 'cairosvg',
+        'numpy', 'pydantic', 'uvicorn'
+    ]
+
+    for package_name in critical_packages:
+        try:
+            module = __import__(package_name)
+            version = getattr(module, '__version__', 'unknown')
+            print(f"   ✅ {package_name}: {version}")
+        except ImportError as e:
+            print(f"   ❌ {package_name}: NOT INSTALLED - {str(e)}")
+
+    # 3. Check LaTeX system dependencies (CRITICAL for diagram generation)
+    print(f"\n🎨 LaTeX System Dependencies (for diagram generation):")
+
+    import subprocess
+    import shutil
+
+    latex_commands = [
+        ('pdflatex', 'LaTeX compiler (core)'),
+        ('pdf2svg', 'PDF to SVG converter'),
+        ('gs', 'Ghostscript (PDF processing)')
+    ]
+
+    latex_installed = True
+    for cmd, description in latex_commands:
+        cmd_path = shutil.which(cmd)
+        if cmd_path:
+            try:
+                # Get version for debugging
+                if cmd == 'pdflatex':
+                    result = subprocess.run([cmd, '--version'],
+                                          capture_output=True, text=True, timeout=5)
+                    version_line = result.stdout.split('\n')[0] if result.stdout else 'unknown'
+                    print(f"   ✅ {cmd}: {cmd_path}")
+                    print(f"      Version: {version_line}")
+                else:
+                    print(f"   ✅ {cmd}: {cmd_path}")
+            except Exception as e:
+                print(f"   ⚠️ {cmd}: Found at {cmd_path} but version check failed: {e}")
+        else:
+            print(f"   ❌ {cmd}: NOT FOUND - {description}")
+            latex_installed = False
+
+    # 4. Test latex2svg functionality
+    print(f"\n🧪 Testing LaTeX Converter:")
+    try:
+        from src.services.latex_converter import latex_converter
+        print(f"   ✅ latex_converter module imported successfully")
+
+        # Test simple conversion
+        test_latex = r"\begin{tikzpicture}\draw (0,0) circle (1);\end{tikzpicture}"
+        print(f"   🧪 Running test conversion...")
+        test_result = await latex_converter.convert_tikz_to_svg(
+            tikz_code=test_latex,
+            title="Test Diagram",
+            width=200,
+            height=200
+        )
+
+        if test_result['success']:
+            svg_length = len(test_result['svg_code']) if test_result['svg_code'] else 0
+            print(f"   ✅ LaTeX → SVG conversion TEST PASSED")
+            print(f"      Generated SVG length: {svg_length} characters")
+        else:
+            print(f"   ❌ LaTeX → SVG conversion TEST FAILED")
+            print(f"      Error: {test_result['error']}")
+            latex_installed = False
+    except Exception as e:
+        print(f"   ❌ latex_converter test failed: {str(e)}")
+        import traceback
+        print(f"      Traceback:\n{traceback.format_exc()}")
+        latex_installed = False
+
+    # 5. Summary
+    print(f"\n" + "="*80)
+    if latex_installed:
+        print("✅ ALL SYSTEMS OPERATIONAL - LaTeX diagram generation ENABLED")
+    else:
+        print("⚠️ WARNING: LaTeX not fully operational - Diagrams will use SVG-only mode")
+    print("="*80 + "\n")
+
     # Startup: Initialize background tasks
     if os.getenv('RAILWAY_KEEP_ALIVE') == 'true':
         asyncio.create_task(keep_alive_task())
@@ -255,8 +364,8 @@ class RenderingHint(BaseModel):
 
 class DiagramGenerationResponse(BaseModel):
     success: bool
-    diagram_type: Optional[str] = None  # "latex", "svg", "ascii"
-    diagram_code: Optional[str] = None  # LaTeX/TikZ, SVG, or ASCII code
+    diagram_type: Optional[str] = None  # "matplotlib", "latex", "svg", "ascii"
+    diagram_code: Optional[str] = None  # Base64 PNG (matplotlib), LaTeX/TikZ, SVG, or ASCII code
     diagram_title: Optional[str] = None  # Human-readable title
     explanation: Optional[str] = None  # Brief explanation of the diagram
     rendering_hint: Optional[RenderingHint] = None  # Rendering parameters for iOS
@@ -270,10 +379,31 @@ async def health_check(service_info = optional_service_auth()):
     """Enhanced health check with system status and cache metrics for Railway monitoring"""
     import psutil
     import time
+    import shutil
 
     # System metrics for monitoring
     memory_usage = psutil.virtual_memory()
     cpu_usage = psutil.cpu_percent(interval=1)
+
+    # Check LaTeX installation status
+    latex_status = {
+        'pdflatex': shutil.which('pdflatex') is not None,
+        'pdf2svg': shutil.which('pdf2svg') is not None,
+        'ghostscript': shutil.which('gs') is not None
+    }
+
+    # Check Python packages
+    python_packages = {
+        'cairosvg': False
+    }
+
+    try:
+        import cairosvg
+        python_packages['cairosvg'] = True
+    except ImportError:
+        pass
+
+    latex_fully_operational = all(latex_status.values()) and all(python_packages.values())
 
     # OPTIMIZED: Include cache performance metrics (with backward compatibility)
     cache_metrics = {}
@@ -306,13 +436,30 @@ async def health_check(service_info = optional_service_auth()):
             "message": "Upgrade to optimized service for detailed cache metrics"
         }
 
+    # Build features list based on availability
+    features_list = [
+        "advanced_prompting",
+        "educational_optimization",
+        "practice_generation"
+    ]
+
+    # Add matplotlib if available
+    if MATPLOTLIB_AVAILABLE:
+        features_list.append("matplotlib_diagrams")
+
+    # Add LaTeX or SVG fallback
+    if latex_fully_operational:
+        features_list.append("latex_diagrams")
+    else:
+        features_list.append("svg_diagrams")
+
     status_data = {
         "status": "healthy",
         "service": "StudyAI AI Engine",
         "version": "2.0.0",
         "timestamp": datetime.now().isoformat(),
         "uptime_seconds": int(time.time() - app.state.start_time) if hasattr(app.state, 'start_time') else 0,
-        "features": ["advanced_prompting", "educational_optimization", "practice_generation"],
+        "features": features_list,
         "authenticated": service_info.get("authenticated", False),
         "auth_enabled": service_auth.enabled,
         "system_health": {
@@ -321,6 +468,17 @@ async def health_check(service_info = optional_service_auth()):
             "cpu_usage_percent": cpu_usage,
             "redis_connected": redis_client is not None,
             "keep_alive_enabled": os.getenv('RAILWAY_KEEP_ALIVE') == 'true'
+        },
+        "latex_diagram_support": {
+            "operational": latex_fully_operational,
+            "system_dependencies": latex_status,
+            "python_packages": python_packages,
+            "status": "✅ LaTeX diagrams ENABLED" if latex_fully_operational else "⚠️ LaTeX diagrams DISABLED"
+        },
+        "matplotlib_diagram_support": {
+            "operational": MATPLOTLIB_AVAILABLE,  # Check actual availability
+            "status": "✅ Matplotlib diagrams ENABLED (primary pathway)" if MATPLOTLIB_AVAILABLE else "⚠️ Matplotlib not installed - using SVG fallback",
+            "features": ["perfect_viewport_framing", "publication_quality", "fast_execution"] if MATPLOTLIB_AVAILABLE else []
         },
         "cache_metrics": cache_metrics
     }
@@ -2911,16 +3069,18 @@ Format the response as JSON with fields: narrative, summary, keyInsights, recomm
 @app.post("/api/v1/generate-diagram", response_model=DiagramGenerationResponse)
 async def generate_diagram(request: DiagramGenerationRequest):
     """
-    Generate educational diagrams (LaTeX/SVG) from conversation context.
+    Generate educational diagrams (Matplotlib/LaTeX/SVG) from conversation context.
 
     This endpoint analyzes the conversation history and generates appropriate
     visual representations to help students understand complex concepts.
 
     Features:
-    - Intelligent format selection (LaTeX for complex math, SVG for simple shapes)
+    - Multi-pathway system: Matplotlib (best for math graphs) > LaTeX (geometry) > SVG (concepts)
+    - Intelligent format selection based on content analysis
     - Multi-language support for diagram annotations
     - Subject-specific diagram generation
     - Conversation context analysis for relevant visual aids
+    - Automatic fallback if primary pathway fails
     """
     start_time = time.time()
 
@@ -2947,7 +3107,39 @@ async def generate_diagram(request: DiagramGenerationRequest):
         print(f"📊 Analyzed content: type={diagram_type}, complexity={complexity}")
 
         # Generate diagram based on type
-        if diagram_type == "latex":
+        if diagram_type == "matplotlib":
+            # 📊 NEW: Matplotlib pathway for mathematical functions
+            # Check if matplotlib is available
+            if not MATPLOTLIB_AVAILABLE or matplotlib_generator is None:
+                print(f"⚠️ Matplotlib not available, falling back to SVG")
+                result = await generate_svg_diagram(
+                    conversation_text=conversation_text,
+                    diagram_request=request.diagram_request,
+                    subject=request.subject,
+                    language=request.language,
+                    complexity=complexity
+                )
+            else:
+                result = await matplotlib_generator.generate_and_execute(
+                    conversation_text=conversation_text,
+                    diagram_request=request.diagram_request,
+                    subject=request.subject,
+                    language=request.language,
+                    ai_service=ai_service
+                )
+
+                # If matplotlib fails, fallback to SVG
+                if not result.get('success', False):
+                    print(f"⚠️ Matplotlib generation failed, falling back to SVG")
+                    print(f"   Error: {result.get('error', 'Unknown error')}")
+                    result = await generate_svg_diagram(
+                        conversation_text=conversation_text,
+                        diagram_request=request.diagram_request,
+                        subject=request.subject,
+                        language=request.language,
+                        complexity=complexity
+                    )
+        elif diagram_type == "latex":
             result = await generate_latex_diagram(
                 conversation_text=conversation_text,
                 diagram_request=request.diagram_request,
@@ -3009,6 +3201,9 @@ async def generate_diagram(request: DiagramGenerationRequest):
 def analyze_content_for_diagram_type(conversation_text: str, subject: str) -> Dict[str, str]:
     """
     Analyze conversation content to determine the best diagram type.
+
+    NOTE: LaTeX/TikZ requires full compiler, not supported by MathJax.
+    Use LaTeX only for equations, SVG for diagrams/graphs.
     """
     content_lower = conversation_text.lower()
 
@@ -3037,16 +3232,52 @@ def analyze_content_for_diagram_type(conversation_text: str, subject: str) -> Di
     # Determine complexity and type
     total_keywords = math_count + geometry_count + physics_count + chemistry_count
 
-    # ✅ IMPROVED: Check for mathematical content first (regardless of subject)
-    # LaTeX is better for equations, functions, calculus, algebra
-    if math_count >= 2 or 'function' in content_lower or 'equation' in content_lower or 'graph' in content_lower:
-        print(f"📊 [DiagramType] LaTeX selected: math_count={math_count}, has_math_keywords=True")
-        return {'diagram_type': 'latex', 'complexity': 'high'}
+    # 🚀 NEW: Multi-pathway routing system
+    # Priority: matplotlib > LaTeX > SVG
 
-    # Subject-specific routing
+    # 📊 MATPLOTLIB PATHWAY (NEW!) - ONLY for EXPLICIT drawing/plotting requests
+    # ✅ Perfect viewport framing, fast execution, publication quality
+    # ⚠️ IMPORTANT: Only triggers when user explicitly asks to draw/plot/graph
+
+    explicit_draw_keywords = [
+        'draw', '画', 'plot', '绘制', 'graph', 'sketch', '草图',
+        'visualize', '可视化', 'show me', 'illustrate', '说明',
+        'diagram', '图表', 'chart'
+    ]
+
+    # Check if user is explicitly requesting a visualization
+    has_draw_request = any(keyword in content_lower for keyword in explicit_draw_keywords)
+
+    # If explicit draw request + mathematical content → matplotlib
+    if has_draw_request:
+        math_function_indicators = ['y =', 'f(x) =', 'parabola', '抛物线',
+                                   'quadratic', '二次', 'function', '函数',
+                                   'equation', '方程', 'curve', '曲线']
+
+        has_math_function = any(indicator in content_lower for indicator in math_function_indicators)
+
+        if has_math_function or subject in ['mathematics', 'math', '数学', 'physics', '物理']:
+            print(f"📊 [DiagramType] MATPLOTLIB selected: Explicit draw request + math content")
+            return {'diagram_type': 'matplotlib', 'complexity': 'high'}
+
+    # 🎨 LATEX PATHWAY - For geometric diagrams and mathematical proofs
+    # Use LaTeX for triangles, angles, geometric constructions
+    latex_indicators = ['triangle', '三角形', 'angle', '角', 'perpendicular', '垂直',
+                       'parallel', '平行', 'proof', '证明', 'theorem', '定理']
+
+    if any(indicator in content_lower for indicator in latex_indicators):
+        if geometry_count >= 2:
+            print(f"📊 [DiagramType] LATEX selected: Geometric diagram (geometry_count={geometry_count})")
+            return {'diagram_type': 'latex', 'complexity': 'high'}
+
+    # Subject-specific routing - prefer LaTeX for math/physics
     if subject in ['mathematics', 'math', '数学']:
-        print(f"📊 [DiagramType] LaTeX selected: subject=mathematics")
-        return {'diagram_type': 'latex', 'complexity': 'high'}
+        if math_count >= 2:
+            print(f"📊 [DiagramType] LATEX selected: subject=mathematics with {math_count} math keywords")
+            return {'diagram_type': 'latex', 'complexity': 'high'}
+        else:
+            print(f"📊 [DiagramType] SVG selected: subject=mathematics (simple visualization)")
+            return {'diagram_type': 'svg', 'complexity': 'medium'}
     elif subject in ['physics', '物理'] and physics_count > 1:
         print(f"📊 [DiagramType] SVG selected: subject=physics, count={physics_count}")
         return {'diagram_type': 'svg', 'complexity': 'medium'}
@@ -3054,19 +3285,9 @@ def analyze_content_for_diagram_type(conversation_text: str, subject: str) -> Di
         print(f"📊 [DiagramType] SVG selected: subject=chemistry, count={chemistry_count}")
         return {'diagram_type': 'svg', 'complexity': 'medium'}
 
-    # Geometry is usually better in SVG (unless complex math)
-    if geometry_count > math_count and geometry_count > 1:
-        print(f"📊 [DiagramType] SVG selected: geometry_count={geometry_count} > math_count={math_count}")
-        return {'diagram_type': 'svg', 'complexity': 'low'}
-
-    # High keyword count suggests complex content → LaTeX
-    if total_keywords > 3:
-        print(f"📊 [DiagramType] LaTeX selected: total_keywords={total_keywords} > 3")
-        return {'diagram_type': 'latex', 'complexity': 'high'}
-
-    # Some technical content but simple → SVG
-    if total_keywords > 0:
-        print(f"📊 [DiagramType] SVG selected: total_keywords={total_keywords} (simple)")
+    # Geometry is better in SVG
+    if geometry_count > 1 or total_keywords > 0:
+        print(f"📊 [DiagramType] SVG selected: geometry_count={geometry_count}, total={total_keywords}")
         return {'diagram_type': 'svg', 'complexity': 'low'}
 
     # Minimal/no technical content → ASCII fallback
@@ -3087,7 +3308,7 @@ async def generate_latex_diagram(conversation_text: str, diagram_request: str,
 
     language_instruction = language_instructions.get(language, language_instructions['en'])
 
-    prompt = f"""Based on this educational conversation, generate a LaTeX/TikZ diagram to help visualize the concept.
+    prompt = f"""Based on this educational conversation, generate LaTeX/TikZ code for rendering.
 
 CONVERSATION CONTEXT:
 {conversation_text}
@@ -3098,23 +3319,81 @@ COMPLEXITY: {complexity}
 
 {language_instruction}
 
-Generate a complete, valid LaTeX document with TikZ diagram that:
-1. Clearly illustrates the main concept from the conversation
-2. Includes proper labels and annotations
-3. Uses appropriate mathematical notation
-4. Is educational and clear
-5. Can be compiled directly
+⚠️ CRITICAL - TIKZ REQUIREMENTS:
+You MUST generate ONLY the TikZ picture code, NOT a full LaTeX document.
 
-Format your response as a JSON object:
+❌ DO NOT USE:
+- \\documentclass{{...}}
+- \\begin{{document}} ... \\end{{document}}
+- \\usepackage{{...}}
+
+✅ DO USE:
+- Pure TikZ code: \\begin{{tikzpicture}} ... \\end{{tikzpicture}}
+- Math mode delimiters: \\[ ... \\] or $ ... $
+- TikZ libraries (axis, arrows, decorations)
+- Coordinate systems and plotting
+
+📐 CRITICAL VIEWPORT OPTIMIZATION FOR MATH GRAPHS:
+
+BEFORE generating TikZ, you MUST:
+
+1. ANALYZE the mathematical function to find critical points:
+   - For quadratic y = ax² + bx + c:
+     * Vertex at x = -b/(2a)
+     * Roots by solving ax² + bx + c = 0
+     * Y-intercept at (0, c)
+
+2. CALCULATE optimal domain for plotting:
+   - Include ALL critical features (vertex, roots, intercepts)
+   - Center on the most important region
+   - Add 15-20% padding beyond critical points
+
+3. SET axis ranges and plot domain accordingly:
+   - X-axis: From x_min to x_max (covering all critical points)
+   - Y-axis: From y_min to y_max (based on function values)
+   - Plot domain: [domain=x_min:x_max] to show full curve
+
+EXAMPLE for y = x² + 5x + 6:
+Critical points:
+  - Vertex: (-2.5, -0.25)
+  - Roots: x = -3, x = -2
+  - Y-intercept: (0, 6)
+
+Optimal viewport:
+  - X-axis: -4 to 0 (centers on vertex/roots, not origin)
+  - Y-axis: -1 to 7 (covers full parabola with padding)
+  - Plot domain: domain=-4:0
+
+TikZ code:
+\\begin{{tikzpicture}}[scale=1.2]
+  \\draw[->] (-4,0) -- (0.5,0) node[right] {{$x$}};
+  \\draw[->] (-2.5,-1) -- (-2.5,7) node[above] {{$y$}};
+  \\draw[blue,thick,domain=-4:0] plot (\\x, {{\\x*\\x + 5*\\x + 6}});
+  \\fill[red] (-3,0) circle (2pt) node[below] {{$x=-3$}};
+  \\fill[red] (-2,0) circle (2pt) node[below] {{$x=-2$}};
+  \\fill[green] (-2.5,-0.25) circle (2pt) node[above right] {{Vertex}};
+\\end{{tikzpicture}}
+
+REQUIREMENTS:
+1. Start directly with \\begin{{tikzpicture}}
+2. Calculate and center on critical features
+3. Include axis labels and critical point markers
+4. Use appropriate scale for mobile viewing
+5. Add annotations for important features
+6. Use proper mathematical notation
+
+EXAMPLE OUTPUT FORMAT:
 {{
     "diagram_type": "latex",
-    "diagram_code": "\\\\documentclass{{article}}\\n\\\\usepackage{{tikz}}\\n...",
-    "diagram_title": "Clear title for the diagram",
-    "explanation": "Brief explanation of what the diagram shows",
+    "diagram_code": "\\\\begin{{tikzpicture}}[scale=1.5]\\n  \\\\draw[->] (-3,0) -- (3,0) node[right] {{$x$}};\\n  \\\\draw[->] (0,-1) -- (0,5) node[above] {{$y$}};\\n  \\\\draw[blue,thick,domain=-2.5:0.5] plot (\\\\x, {{\\\\x*\\\\x + 5*\\\\x + 6}});\\n  \\\\node at (1,4) {{$y = x^2 + 5x + 6$}};\\n\\\\end{{tikzpicture}}",
+    "diagram_title": "Graph of Quadratic Function",
+    "explanation": "Parabola showing roots and vertex",
     "width": 400,
     "height": 300,
     "background": "white"
 }}
+
+Format your response as a JSON object with the structure shown above.
 
 IMPORTANT: Return ONLY the JSON object, no other text."""
 
@@ -3127,7 +3406,7 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
             print(f"🎨 [LaTeXDiagram] Attempt {attempt + 1}/{max_retries}")
 
             response = await ai_service.client.chat.completions.create(
-                model="gpt-4o-mini",  # Better for code generation
+                model="gpt-4o",  # 🚀 UPGRADED: gpt-4o-mini → gpt-4o for better geometric accuracy
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,  # ✅ LOWER: 0.3 → 0.2 for more consistent code
                 max_tokens=2000,  # ✅ INCREASED: 1500 → 2000 for complex LaTeX
@@ -3153,7 +3432,30 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
 
             result['tokens_used'] = response.usage.total_tokens
             print(f"✅ [LaTeXDiagram] Valid LaTeX generated on attempt {attempt + 1}")
-            return result
+
+            # 🚀 Convert LaTeX to SVG for client-side rendering
+            latex_code = result['diagram_code']
+            print(f"🔄 [LaTeXDiagram] Converting LaTeX to SVG...")
+
+            conversion_result = await latex_converter.convert_tikz_to_svg(
+                tikz_code=latex_code,
+                title=result.get('diagram_title', 'Diagram'),
+                width=result.get('width', 400),
+                height=result.get('height', 300)
+            )
+
+            if conversion_result['success']:
+                # Return as SVG so iOS can render it easily
+                print(f"✅ [LaTeXDiagram] Converted to SVG successfully")
+                result['diagram_type'] = 'svg'  # Change type to SVG
+                result['diagram_code'] = conversion_result['svg_code']
+                result['latex_source'] = latex_code  # Keep original LaTeX for reference
+                return result
+            else:
+                # Conversion failed, return original LaTeX (iOS will try to render)
+                print(f"⚠️ [LaTeXDiagram] SVG conversion failed: {conversion_result['error']}")
+                print(f"   Returning original LaTeX code for client-side rendering")
+                return result
 
         except (json.JSONDecodeError, ValueError) as e:
             last_error = e
@@ -3211,18 +3513,76 @@ Generate a complete, valid SVG diagram that:
 4. Is educational and visually appealing
 5. Works on mobile devices (responsive)
 
+📐 CRITICAL VIEWPORT OPTIMIZATION (MOST IMPORTANT):
+
+BEFORE generating the SVG, you MUST:
+
+1. ANALYZE the mathematical function or concept to identify the "interesting region"
+2. CALCULATE critical points that MUST be visible:
+   - For quadratic y = ax² + bx + c:
+     * Vertex at x = -b/(2a)
+     * Roots (x-intercepts) by solving ax² + bx + c = 0
+     * Y-intercept at (0, c)
+   - For other functions: local maxima, minima, inflection points
+
+3. DETERMINE optimal viewport bounds:
+   - X-range: Should include ALL critical points with 15% padding
+   - Y-range: From min to max y-values in the x-range, with 15% padding
+   - DO NOT center on (0,0) unless mathematically relevant
+   - CENTER on the most important feature (vertex, roots, etc.)
+
+4. SET viewBox attribute to MATHEMATICAL coordinates (not pixel dimensions):
+   - ✅ CORRECT: viewBox="-4 -1 5 10" (x_min, y_min, width, height in graph coordinates)
+   - ❌ WRONG: viewBox="0 0 400 300" (pixel dimensions - always wrong for math graphs)
+
+EXAMPLE 1 - Quadratic y = x² + 5x + 6:
+Step 1: Calculate critical points
+  - Vertex: x = -5/(2×1) = -2.5, y = (-2.5)² + 5(-2.5) + 6 = -0.25
+  - Roots: x = -3 and x = -2 (solve x² + 5x + 6 = 0)
+  - Y-intercept: (0, 6)
+  - Interesting x-range: -3.5 to -0.5 (centered on vertex and roots)
+
+Step 2: Calculate viewport
+  - X-range: -3.5 to -0.5 (3 units wide) → with padding: -4 to 0 (4 units)
+  - Y-range: -0.25 to 6 → with padding: -1 to 7 (8 units tall)
+
+Step 3: Set viewBox
+  - viewBox="-4 -1 4 8"  (x=-4, y=-1, width=4, height=8)
+  - This centers on vertex region and shows all critical features
+
+EXAMPLE 2 - Clock showing 5:15:
+Step 1: Critical features
+  - Clock face centered at origin
+  - Radius = 100 units
+  - Hour hand, minute hand, numbers 1-12
+
+Step 2: Viewport
+  - X-range: -120 to 120 (with padding around radius 100)
+  - Y-range: -120 to 120
+
+Step 3: Set viewBox
+  - viewBox="-120 -120 240 240" (centered square)
+
 ⚠️ CRITICAL FOR PARABOLAS/GRAPHS:
 - If drawing a quadratic function (parabola), ensure correct orientation:
   * If coefficient of x² is POSITIVE (e.g., y = x² + 5x + 6), parabola opens UPWARD
   * If coefficient of x² is NEGATIVE (e.g., y = -x² + 5x + 6), parabola opens DOWNWARD
-- Mark x-intercepts (roots) clearly with labeled points
-- Show vertex position accurately
-- Include properly scaled x and y axes with labels
+- Mark x-intercepts (roots) clearly with labeled points or dots
+- Mark vertex position with a dot or label
+- Show ALL critical features within viewport
+- Include properly scaled x and y axes with tick marks
+- Use mathematical coordinate system (y increases upward)
+
+🎯 SVG COORDINATE SYSTEM (CRITICAL):
+- SVG has y-axis DOWNWARD by default
+- For math graphs, FLIP the y-axis using transform="scale(1,-1)"
+- Or adjust all y-coordinates to flip the graph
+- Ensure axes and labels account for this transformation
 
 Format your response as a JSON object:
 {{
     "diagram_type": "svg",
-    "diagram_code": "<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 400 300\\">...</svg>",
+    "diagram_code": "<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"-4 -1 4 8\\">...</svg>",
     "diagram_title": "Clear title for the diagram",
     "explanation": "Brief explanation of what the diagram shows",
     "width": 400,
@@ -3241,7 +3601,7 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
             print(f"🎨 [SVGDiagram] Attempt {attempt + 1}/{max_retries}")
 
             response = await ai_service.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",  # 🚀 UPGRADED: gpt-4o-mini → gpt-4o for better geometric accuracy
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,  # ✅ LOWER: 0.3 → 0.2 for more consistent output
                 max_tokens=1800,  # ✅ INCREASED: 1200 → 1800 for complex diagrams

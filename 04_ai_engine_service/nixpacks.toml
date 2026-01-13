@@ -1,0 +1,22 @@
+[phases.setup]
+# Install LaTeX for latex2svg conversion
+# Install matplotlib system dependencies (libfreetype, libpng, etc.)
+aptPkgs = [
+    "texlive-latex-base",
+    "texlive-latex-extra",
+    "texlive-fonts-recommended",
+    "ghostscript",
+    "pdf2svg",
+    # Matplotlib system dependencies
+    "python3-dev",
+    "build-essential",
+    "libfreetype6-dev",
+    "libpng-dev",
+    "pkg-config"
+]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "python src/main.py"
