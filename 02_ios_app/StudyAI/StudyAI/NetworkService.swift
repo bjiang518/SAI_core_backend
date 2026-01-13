@@ -2909,7 +2909,7 @@ class NetworkService: ObservableObject {
     // MARK: - Session Archive Management
     
     /// Archive a session conversation to LOCAL storage only (with image processing)
-    func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil) async -> (success: Bool, message: String, conversation: [String: Any]?) {
+    func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil, diagrams: [String: DiagramGenerationResponse]? = nil) async -> (success: Bool, message: String, conversation: [String: Any]?) {
         print("📦 === ARCHIVE CONVERSATION SESSION (LOCAL-ONLY) ===")
         print("📁 Session ID: \(sessionId)")
         print("📝 Title: \(title ?? "Auto-generated")")
@@ -2940,6 +2940,33 @@ class NetworkService: ObservableObject {
             "hasImageSummaries": processedConversation.imagesProcessed > 0,
             "imageCount": processedConversation.imagesProcessed
         ]
+
+        // ✅ NEW: Save diagram data for retrieval in library
+        if let diagrams = diagrams, !diagrams.isEmpty {
+            var diagramsArray: [[String: Any]] = []
+
+            for (key, diagramResponse) in diagrams {
+                var diagramDict: [String: Any] = [
+                    "key": key,
+                    "type": diagramResponse.diagramType ?? "svg",
+                    "code": diagramResponse.diagramCode ?? "",
+                    "title": diagramResponse.diagramTitle ?? "Diagram",
+                    "explanation": diagramResponse.explanation ?? ""
+                ]
+
+                if let hint = diagramResponse.renderingHint {
+                    diagramDict["width"] = hint.width
+                    diagramDict["height"] = hint.height
+                    diagramDict["background"] = hint.background ?? "white"
+                }
+
+                diagramsArray.append(diagramDict)
+            }
+
+            conversationData["diagrams"] = diagramsArray
+            conversationData["diagramCount"] = diagramsArray.count
+            print("📊 Saved \(diagramsArray.count) diagram(s) to archive")
+        }
 
         // Add title
         if let title = title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -2997,22 +3024,40 @@ class NetworkService: ObservableObject {
     
     /// Process conversation history to create text-only archive content
     /// Images are converted to detailed summaries to preserve context while avoiding database storage issues
+    /// Diagrams are saved with their full data for later retrieval
     private func processConversationForArchive() async -> ProcessedConversation {
         print("🔄 === PROCESSING CONVERSATION FOR ARCHIVE ===")
-        
+
         var processedMessages: [String] = []
         var imageCount = 0
         var summaryCount = 0
-        
+        var diagramCount = 0
+
         for (index, message) in conversationHistory.enumerated() {
             let role = message["role"] ?? "unknown"
             let content = message["content"] ?? ""
             let hasImage = message["hasImage"] == "true"
             let messageId = message["messageId"] ?? ""
-            
-            print("📝 Processing message \(index): role=\(role), hasImage=\(hasImage)")
-            
-            if hasImage && !messageId.isEmpty {
+            let diagramKey = message["diagramKey"] as? String
+
+            print("📝 Processing message \(index): role=\(role), hasImage=\(hasImage), hasDiagram=\(diagramKey != nil)")
+
+            // Check if this message has a diagram attached
+            if let diagramKey = diagramKey {
+                // Message contains a generated diagram - preserve diagram data
+                diagramCount += 1
+
+                // The diagram content is already in the message content
+                // Just format it nicely for archive
+                let formattedMessage = "\(role.uppercased()): \(content)"
+                processedMessages.append(formattedMessage)
+
+                // Add a note that diagram was generated
+                processedMessages.append("[DIAGRAM: Saved and available in library]")
+
+                print("✅ Preserved diagram message \(index) with key: \(diagramKey)")
+            }
+            else if hasImage && !messageId.isEmpty {
                 // This message contains an image - create a detailed summary instead
                 imageCount += 1
                 

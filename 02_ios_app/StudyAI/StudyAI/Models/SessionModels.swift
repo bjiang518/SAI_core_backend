@@ -280,8 +280,13 @@ struct ArchivedConversation: Codable, Identifiable {
     let conversationContent: String
     let archivedDate: Date
     let createdAt: Date
-    
-    init(id: String, userId: String, subject: String, topic: String?, conversationContent: String, archivedDate: Date, createdAt: Date) {
+    let diagrams: [[String: Any]]?  // ✅ NEW: Store diagram data
+
+    enum CodingKeys: String, CodingKey {
+        case id, userId, subject, topic, conversationContent, archivedDate, createdAt, diagrams
+    }
+
+    init(id: String, userId: String, subject: String, topic: String?, conversationContent: String, archivedDate: Date, createdAt: Date, diagrams: [[String: Any]]? = nil) {
         self.id = id
         self.userId = userId
         self.subject = subject
@@ -289,6 +294,42 @@ struct ArchivedConversation: Codable, Identifiable {
         self.conversationContent = conversationContent
         self.archivedDate = archivedDate
         self.createdAt = createdAt
+        self.diagrams = diagrams
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        userId = try container.decode(String.self, forKey: .userId)
+        subject = try container.decode(String.self, forKey: .subject)
+        topic = try container.decodeIfPresent(String.self, forKey: .topic)
+        conversationContent = try container.decode(String.self, forKey: .conversationContent)
+        archivedDate = try container.decode(Date.self, forKey: .archivedDate)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+
+        // Decode diagrams as [[String: Any]]
+        if let diagramsData = try? container.decodeIfPresent(Data.self, forKey: .diagrams) {
+            diagrams = try? JSONSerialization.jsonObject(with: diagramsData) as? [[String: Any]]
+        } else {
+            diagrams = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(userId, forKey: .userId)
+        try container.encode(subject, forKey: .subject)
+        try container.encodeIfPresent(topic, forKey: .topic)
+        try container.encode(conversationContent, forKey: .conversationContent)
+        try container.encode(archivedDate, forKey: .archivedDate)
+        try container.encode(createdAt, forKey: .createdAt)
+
+        // Encode diagrams
+        if let diagrams = diagrams {
+            let diagramsData = try? JSONSerialization.data(withJSONObject: diagrams)
+            try container.encodeIfPresent(diagramsData, forKey: .diagrams)
+        }
     }
 }
 
