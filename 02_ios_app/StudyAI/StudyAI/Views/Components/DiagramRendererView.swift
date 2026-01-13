@@ -228,6 +228,9 @@ struct DiagramRendererView: View {
         print("🎨 [DiagramImage] Selecting renderer for type: \(diagramType)")
 
         switch diagramType.lowercased() {
+        case "matplotlib":
+            print("🎨 [DiagramImage] ➡️ Using Matplotlib renderer (base64 PNG)")
+            return try MatplotlibRenderer.shared.renderMatplotlib(diagramCode)
         case "latex", "tikz":
             print("🎨 [DiagramImage] ➡️ Using LaTeX renderer")
             return try await LaTeXRenderer.shared.renderLaTeX(diagramCode, hint: renderingHint)
@@ -245,6 +248,40 @@ struct DiagramRendererView: View {
             return CGFloat(hint.height)
         }
         return 300 // Default max height
+    }
+}
+
+// MARK: - Matplotlib Renderer
+
+/// Handles Matplotlib PNG diagram rendering (base64 decode only - no WebView needed!)
+class MatplotlibRenderer {
+    static let shared = MatplotlibRenderer()
+
+    private init() {}
+
+    func renderMatplotlib(_ base64PngCode: String) throws -> UIImage {
+        print("🎨 [MatplotlibRenderer] Starting base64 PNG decode...")
+        print("🎨 [MatplotlibRenderer] Code length: \(base64PngCode.count) characters")
+
+        // Decode base64 string to Data
+        guard let imageData = Data(base64Encoded: base64PngCode, options: .ignoreUnknownCharacters) else {
+            print("🎨 [MatplotlibRenderer] ❌ Failed to decode base64 string")
+            throw DiagramError.invalidCode("Invalid base64 PNG data from matplotlib")
+        }
+
+        print("🎨 [MatplotlibRenderer] ✅ Decoded \(imageData.count) bytes")
+
+        // Create UIImage from data
+        guard let image = UIImage(data: imageData) else {
+            print("🎨 [MatplotlibRenderer] ❌ Failed to create UIImage from data")
+            throw DiagramError.renderingFailed("Could not create image from matplotlib PNG data")
+        }
+
+        print("🎨 [MatplotlibRenderer] ✅ Created UIImage successfully")
+        print("🎨 [MatplotlibRenderer] Image size: \(image.size.width)x\(image.size.height)")
+        print("🎨 [MatplotlibRenderer] Image scale: \(image.scale)")
+
+        return image
     }
 }
 
@@ -409,6 +446,10 @@ class LaTeXWebRenderer: NSObject, WKNavigationDelegate {
     private let latexCode: String
     private let hint: NetworkService.DiagramRenderingHint?
 
+    // ✅ FIX: Flag to prevent double completion call
+    private var hasCompleted = false
+    private let completionLock = NSLock()
+
     init(latexCode: String, hint: NetworkService.DiagramRenderingHint?, completion: @escaping (Result<UIImage, Error>) -> Void) {
         self.latexCode = latexCode
         self.hint = hint
@@ -518,7 +559,22 @@ class LaTeXWebRenderer: NSObject, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         print("🎨 [LaTeXWebRenderer] ❌ Navigation failed: \(error.localizedDescription)")
-        completion(.failure(error))
+        completeOnce(with: .failure(error))
+    }
+
+    // ✅ FIX: Thread-safe completion wrapper to prevent double resume
+    private func completeOnce(with result: Result<UIImage, Error>) {
+        completionLock.lock()
+        defer { completionLock.unlock() }
+
+        guard !hasCompleted else {
+            print("⚠️ [LaTeXWebRenderer] Completion already called - ignoring duplicate call")
+            return
+        }
+
+        hasCompleted = true
+        print("🎨 [LaTeXWebRenderer] Calling completion (first time)")
+        completion(result)
     }
 
     private func captureWebViewImage() {
@@ -535,19 +591,19 @@ class LaTeXWebRenderer: NSObject, WKNavigationDelegate {
                 print("🎨 [LaTeXWebRenderer] - Image size: \(image.size)")
                 print("🎨 [LaTeXWebRenderer] - Image scale: \(image.scale)")
                 print("🎨 [LaTeXWebRenderer] - Total pixels: \(Int(image.size.width * image.size.height))")
-                print("🎨 [LaTeXWebRenderer] Calling completion(.success)")
-                self?.completion(.success(image))
+                print("🎨 [LaTeXWebRenderer] Calling completeOnce(.success)")
+                self?.completeOnce(with: .success(image))
             } else if let error = error {
                 print("🎨 [LaTeXWebRenderer] ❌ Snapshot failed with error")
                 print("🎨 [LaTeXWebRenderer] - Error type: \(type(of: error))")
                 print("🎨 [LaTeXWebRenderer] - Error description: \(error.localizedDescription)")
-                print("🎨 [LaTeXWebRenderer] Calling completion(.failure) with error")
-                self?.completion(.failure(error))
+                print("🎨 [LaTeXWebRenderer] Calling completeOnce(.failure) with error")
+                self?.completeOnce(with: .failure(error))
             } else {
                 print("🎨 [LaTeXWebRenderer] ❌ Snapshot failed with no error information")
                 print("🎨 [LaTeXWebRenderer] This is an unexpected state - no image and no error")
-                print("🎨 [LaTeXWebRenderer] Calling completion(.failure) with generic error")
-                self?.completion(.failure(DiagramError.renderingFailed("Unknown error during LaTeX rendering")))
+                print("🎨 [LaTeXWebRenderer] Calling completeOnce(.failure) with generic error")
+                self?.completeOnce(with: .failure(DiagramError.renderingFailed("Unknown error during LaTeX rendering")))
             }
 
             print("🎨 [LaTeXWebRenderer] === LATEX RENDERING COMPLETE ===")
@@ -1166,28 +1222,43 @@ enum DiagramError: LocalizedError {
 
 struct DiagramRendererView_Previews: PreviewProvider {
     static var previews: some View {
-        VStack(spacing: 20) {
-            // LaTeX example
-            DiagramRendererView(
-                diagramType: "latex",
-                diagramCode: "\\begin{tikzpicture} \\draw (0,0) circle (1); \\end{tikzpicture}",
-                diagramTitle: "Simple Circle",
-                renderingHint: NetworkService.DiagramRenderingHint(
-                    width: 300,
-                    height: 200,
-                    background: "white",
-                    scaleFactor: 1.0
+        ScrollView {
+            VStack(spacing: 20) {
+                // Matplotlib example (would be actual base64 PNG in production)
+                DiagramRendererView(
+                    diagramType: "matplotlib",
+                    diagramCode: "iVBORw0KGgoAAAANSUhEUg...", // Placeholder base64
+                    diagramTitle: "Quadratic Function y = x² + 5x + 6",
+                    renderingHint: NetworkService.DiagramRenderingHint(
+                        width: 800,
+                        height: 600,
+                        background: "white",
+                        scaleFactor: 1.0
+                    )
                 )
-            )
 
-            // SVG example
-            DiagramRendererView(
-                diagramType: "svg",
-                diagramCode: "<svg width='200' height='200'><circle cx='100' cy='100' r='50' fill='blue'/></svg>",
-                diagramTitle: "SVG Circle",
-                renderingHint: nil
-            )
+                // LaTeX example
+                DiagramRendererView(
+                    diagramType: "latex",
+                    diagramCode: "\\begin{tikzpicture} \\draw (0,0) circle (1); \\end{tikzpicture}",
+                    diagramTitle: "Simple Circle",
+                    renderingHint: NetworkService.DiagramRenderingHint(
+                        width: 300,
+                        height: 200,
+                        background: "white",
+                        scaleFactor: 1.0
+                    )
+                )
+
+                // SVG example
+                DiagramRendererView(
+                    diagramType: "svg",
+                    diagramCode: "<svg width='200' height='200'><circle cx='100' cy='100' r='50' fill='blue'/></svg>",
+                    diagramTitle: "SVG Circle",
+                    renderingHint: nil
+                )
+            }
+            .padding()
         }
-        .padding()
     }
 }
