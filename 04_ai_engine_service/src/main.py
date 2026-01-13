@@ -3082,82 +3082,123 @@ async def generate_diagram(request: DiagramGenerationRequest):
             conversation_text += f"DO NOT draw any previous equations or functions.\n"
             conversation_text += f"Focus EXCLUSIVELY on: {request.diagram_request}\n"
 
-        # Analyze content to determine best diagram type
-        content_analysis = analyze_content_for_diagram_type(conversation_text, request.subject)
-        diagram_type = content_analysis['diagram_type']
-        complexity = content_analysis['complexity']
+        # 🚀 UNIFIED GENERATION: AI chooses tool and generates code in single call
+        print(f"🎨 === UNIFIED DIAGRAM GENERATION ===")
+        ai_output = await generate_diagram_unified(
+            conversation_text=conversation_text,
+            diagram_request=request.diagram_request,
+            subject=request.subject,
+            language=request.language
+        )
 
-        # Generate diagram based on type
+        # Extract type and content from AI response
+        diagram_type = ai_output.get('type', 'svg').lower()
+        diagram_content = ai_output.get('content', '')
+
+        print(f"🎨 AI selected tool: {diagram_type}")
+        print(f"🎨 Content length: {len(diagram_content)} chars")
+
+        # 🎯 ROUTE TO APPROPRIATE RENDERER BASED ON TYPE
+        result = None
+
         if diagram_type == "matplotlib":
-            # 📊 NEW: Matplotlib pathway for mathematical functions
-            # Check if matplotlib is available
+            # Execute matplotlib code
+            print(f"📊 [Renderer] Executing matplotlib code...")
+
             if not MATPLOTLIB_AVAILABLE or matplotlib_generator is None:
-                result = await generate_svg_diagram(
-                    conversation_text=conversation_text,
-                    diagram_request=request.diagram_request,
-                    subject=request.subject,
-                    language=request.language,
-                    complexity=complexity
-                )
+                print(f"⚠️ [Renderer] Matplotlib not available, falling back to SVG")
+                # Generate SVG as fallback
+                result = {
+                    'success': True,
+                    'diagram_type': 'svg',
+                    'diagram_code': ai_output.get('content', '<svg></svg>'),
+                    'diagram_title': ai_output.get('title', 'Diagram'),
+                    'explanation': ai_output.get('explanation', ''),
+                    'width': ai_output.get('width', 400),
+                    'height': ai_output.get('height', 300),
+                    'tokens_used': ai_output.get('tokens_used', 0)
+                }
             else:
-                result = await matplotlib_generator.generate_and_execute(
-                    conversation_text=conversation_text,
-                    diagram_request=request.diagram_request,
-                    subject=request.subject,
-                    language=request.language,
-                    ai_service=ai_service
-                )
+                # Execute matplotlib code through renderer
+                exec_result = matplotlib_generator.execute_code_safely(diagram_content, timeout_seconds=5)
 
-                # ✅ NEW: Check if AI gracefully declined (don't fallback - respect the decision)
-                if result.get('declined', False):
-                    print(f"🚫 [DiagramGen] AI declined to generate diagram - respecting decision")
-                    processing_time = int((time.time() - start_time) * 1000)
+                if exec_result['success']:
+                    result = {
+                        'success': True,
+                        'diagram_type': 'matplotlib',
+                        'diagram_code': exec_result['image_data'],  # Base64 PNG
+                        'diagram_format': 'png_base64',
+                        'diagram_title': ai_output.get('title', 'Matplotlib Visualization'),
+                        'explanation': ai_output.get('explanation', ''),
+                        'width': ai_output.get('width', 800),
+                        'height': ai_output.get('height', 600),
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+                else:
+                    # Matplotlib execution failed, use SVG content as fallback
+                    print(f"⚠️ [Renderer] Matplotlib execution failed: {exec_result.get('error')}")
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Matplotlib execution failed</text></svg>',
+                        'diagram_title': ai_output.get('title', 'Diagram'),
+                        'explanation': f"Execution error: {exec_result.get('error', 'Unknown')}",
+                        'width': 400,
+                        'height': 300,
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
 
-                    # Return helpful error message with suggestion
-                    error_msg = result.get('error', 'Cannot generate this diagram')
-                    if result.get('suggestion'):
-                        error_msg += f"\n\nSuggestion: {result['suggestion']}"
-
-                    return DiagramGenerationResponse(
-                        success=False,
-                        processing_time_ms=processing_time,
-                        tokens_used=result.get('tokens_used'),
-                        error=error_msg
-                    )
-
-                # If matplotlib fails (not declined), fallback to SVG
-                if not result.get('success', False):
-                    print(f"⚠️ [DiagramGen] Matplotlib failed - falling back to SVG")
-                    result = await generate_svg_diagram(
-                        conversation_text=conversation_text,
-                        diagram_request=request.diagram_request,
-                        subject=request.subject,
-                        language=request.language,
-                        complexity=complexity
-                    )
         elif diagram_type == "latex":
-            result = await generate_latex_diagram(
-                conversation_text=conversation_text,
-                diagram_request=request.diagram_request,
-                subject=request.subject,
-                language=request.language,
-                complexity=complexity
+            # Convert LaTeX to SVG
+            print(f"📐 [Renderer] Converting LaTeX to SVG...")
+            latex_code = diagram_content
+
+            conversion_result = await latex_converter.convert_tikz_to_svg(
+                tikz_code=latex_code,
+                title=ai_output.get('title', 'Diagram'),
+                width=ai_output.get('width', 400),
+                height=ai_output.get('height', 300)
             )
-        elif diagram_type == "svg":
-            result = await generate_svg_diagram(
-                conversation_text=conversation_text,
-                diagram_request=request.diagram_request,
-                subject=request.subject,
-                language=request.language,
-                complexity=complexity
-            )
-        else:  # ascii fallback
-            result = await generate_ascii_diagram(
-                conversation_text=conversation_text,
-                diagram_request=request.diagram_request,
-                subject=request.subject,
-                language=request.language
-            )
+
+            if conversion_result['success']:
+                result = {
+                    'success': True,
+                    'diagram_type': 'svg',  # Return as SVG
+                    'diagram_code': conversion_result['svg_code'],
+                    'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
+                    'explanation': ai_output.get('explanation', ''),
+                    'width': ai_output.get('width', 400),
+                    'height': ai_output.get('height', 300),
+                    'latex_source': latex_code,  # Keep original
+                    'tokens_used': ai_output.get('tokens_used', 0)
+                }
+            else:
+                # LaTeX conversion failed, return raw LaTeX
+                print(f"⚠️ [Renderer] LaTeX conversion failed: {conversion_result['error']}")
+                result = {
+                    'success': True,
+                    'diagram_type': 'latex',
+                    'diagram_code': latex_code,
+                    'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
+                    'explanation': ai_output.get('explanation', ''),
+                    'width': ai_output.get('width', 400),
+                    'height': ai_output.get('height', 300),
+                    'tokens_used': ai_output.get('tokens_used', 0)
+                }
+
+        else:  # svg (default)
+            # SVG is already ready - just return it
+            print(f"🎨 [Renderer] Using SVG directly")
+            result = {
+                'success': True,
+                'diagram_type': 'svg',
+                'diagram_code': diagram_content,
+                'diagram_title': ai_output.get('title', 'SVG Diagram'),
+                'explanation': ai_output.get('explanation', ''),
+                'width': ai_output.get('width', 400),
+                'height': ai_output.get('height', 300),
+                'tokens_used': ai_output.get('tokens_used', 0)
+            }
 
         processing_time = int((time.time() - start_time) * 1000)
 
@@ -3188,6 +3229,126 @@ async def generate_diagram(request: DiagramGenerationRequest):
             processing_time_ms=processing_time,
             error=error_message
         )
+
+
+async def generate_diagram_unified(conversation_text: str, diagram_request: str,
+                                   subject: str, language: str) -> Dict:
+    """
+    Unified diagram generation: AI chooses tool AND generates code in one call.
+
+    Returns structured output: {"type": "matplotlib|svg|graphviz|latex", "content": "..."}
+    """
+    language_instructions = {
+        'en': 'Use English for all labels, titles, and legends.',
+        'zh-Hans': '使用简体中文作为所有标签、标题和图例。',
+        'zh-Hant': '使用繁體中文作為所有標籤、標題和圖例。'
+    }
+
+    lang_instruction = language_instructions.get(language, language_instructions['en'])
+
+    # Build unified prompt that lets AI choose tool and generate code
+    prompt = f"""You are an expert educational diagram generator. You have multiple tools available.
+Choose the BEST tool for this request and generate the code.
+
+**REQUEST**: {diagram_request}
+
+**CONTEXT**:
+{conversation_text}
+
+**SUBJECT**: {subject}
+**LANGUAGE**: {language}
+
+---
+
+**AVAILABLE TOOLS** (choose the best one):
+
+1. **matplotlib** (Python code)
+   - BEST FOR: Mathematical functions, graphs, plots, data visualization
+   - Examples: "graph y = x²", "plot sin(x)", "histogram", "scatter plot"
+   - Strengths: Perfect viewport framing, calculus, statistics
+   - Weaknesses: Poor for geometric shapes, flowcharts
+
+2. **svg** (SVG markup)
+   - BEST FOR: Geometric shapes, concept diagrams, simple illustrations
+   - Examples: "draw triangle", "show circle", "illustrate concept"
+   - Strengths: Vector graphics, clean shapes, flexible
+   - Weaknesses: Not for data plots or complex graphs
+
+3. **latex** (TikZ)
+   - BEST FOR: Geometric proofs, formal constructions, precise diagrams
+   - Examples: "prove theorem", "geometric construction", "angle bisector proof"
+   - Strengths: Mathematical precision, formal diagrams
+   - Weaknesses: Complex syntax, slower rendering
+
+---
+
+**INSTRUCTIONS**:
+
+1. **Analyze the request** - What type of diagram is being requested?
+2. **Choose the BEST tool** - Which tool is most appropriate?
+3. **Generate complete, working code** - Code must be ready to execute
+4. **Make reasonable assumptions** - If some details are missing, use sensible defaults
+5. {lang_instruction}
+
+**RESPONSE FORMAT** (JSON):
+{{
+  "type": "matplotlib",  // chosen tool: matplotlib, svg, or latex
+  "content": "...",      // complete working code in chosen tool's format
+  "title": "...",        // diagram title
+  "explanation": "...",  // brief explanation of the diagram
+  "width": 400,          // suggested width
+  "height": 300          // suggested height
+}}
+
+**CRITICAL**:
+- Choose the tool that will produce the BEST result for this specific request
+- Generate COMPLETE, EXECUTABLE code (no placeholders)
+- If request is ambiguous, make reasonable assumptions
+- Return ONLY the JSON object, no other text
+
+Generate the diagram now:"""
+
+    try:
+        response = await ai_service.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=2000,
+            response_format={"type": "json_object"}
+        )
+
+        result_text = response.choices[0].message.content.strip()
+
+        # Parse JSON response
+        import json
+        result = json.loads(result_text)
+
+        # Validate tool choice
+        valid_tools = ['matplotlib', 'svg', 'latex']
+        chosen_tool = result.get('type', 'svg').lower()
+
+        if chosen_tool not in valid_tools:
+            print(f"⚠️ Invalid tool '{chosen_tool}', defaulting to SVG")
+            chosen_tool = 'svg'
+
+        print(f"✅ AI chose: {chosen_tool}")
+        print(f"   Title: {result.get('title', 'Untitled')}")
+
+        result['tokens_used'] = response.usage.total_tokens
+        return result
+
+    except Exception as e:
+        print(f"❌ Unified generation failed: {e}")
+        # Fallback to SVG
+        return {
+            'type': 'svg',
+            'content': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Diagram generation failed</text></svg>',
+            'title': 'Generation Failed',
+            'explanation': f'Failed to generate diagram: {str(e)}',
+            'width': 400,
+            'height': 300,
+            'tokens_used': 0
+        }
 
 
 def analyze_content_for_diagram_type(conversation_text: str, subject: str) -> Dict[str, str]:
