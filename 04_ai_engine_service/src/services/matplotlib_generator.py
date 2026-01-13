@@ -132,8 +132,6 @@ plt.tight_layout()
 
 Generate ONLY the Python code, no explanations. Code must be complete and executable."""
 
-        print(f"📊 [MatplotlibGen] Generating code with GPT-4o...")
-
         try:
             response = await ai_service.client.chat.completions.create(
                 model="gpt-4o",
@@ -161,13 +159,9 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
                    stripped.startswith('import numpy') or \
                    stripped.startswith('from matplotlib') or \
                    stripped.startswith('from numpy'):
-                    print(f"🔧 [MatplotlibGen] Stripped import: {stripped}")
-                    continue
+                    continue  # Silently skip imports
                 filtered_lines.append(line)
             code = '\n'.join(filtered_lines)
-
-            print(f"✅ [MatplotlibGen] Code generated: {len(code)} chars")
-            print(f"📝 [MatplotlibGen] Code preview:\n{code[:200]}...")
 
             return {
                 'success': True,
@@ -218,12 +212,9 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
         """
         Execute matplotlib code in restricted environment
         """
-        print(f"🔒 [MatplotlibExec] Executing code with {timeout_seconds}s timeout...")
-
         # Validate safety first
         safety_check = self.validate_code_safety(code)
         if not safety_check['safe']:
-            print(f"❌ [MatplotlibExec] Safety check failed: {safety_check['error']}")
             return {
                 'success': False,
                 'error': f"Security validation failed: {safety_check['error']}",
@@ -270,8 +261,6 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
             plt.close(fig)
             buf.close()
 
-            print(f"✅ [MatplotlibExec] Execution successful, image size: {len(image_data)} bytes")
-
             return {
                 'success': True,
                 'image_data': image_data,
@@ -280,7 +269,6 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
             }
 
         except TimeoutException as e:
-            print(f"⏱️ [MatplotlibExec] Timeout: {e}")
             plt.close('all')
             return {
                 'success': False,
@@ -288,9 +276,6 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
                 'image_data': None
             }
         except Exception as e:
-            print(f"❌ [MatplotlibExec] Execution failed: {e}")
-            import traceback
-            print(f"   Traceback:\n{traceback.format_exc()}")
             plt.close('all')
             return {
                 'success': False,
@@ -306,13 +291,11 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
         """
         Complete pipeline: generate code → validate → execute → return image
         """
-        print(f"📊 === MATPLOTLIB DIAGRAM GENERATION ===")
-        print(f"📊 Request: {diagram_request}")
-        print(f"📊 Subject: {subject}, Language: {language}")
+        import time
+        start_time = time.time()
 
         # Check if matplotlib is available
         if not MATPLOTLIB_AVAILABLE:
-            print(f"❌ [Matplotlib] Matplotlib not available - cannot generate diagram")
             return {
                 'success': False,
                 'error': 'Matplotlib is not installed on this server',
@@ -326,6 +309,7 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
         )
 
         if not code_result['success']:
+            print(f"❌ Matplotlib: Code generation failed - {code_result.get('error', 'Unknown')}")
             return {
                 'success': False,
                 'error': f"Code generation failed: {code_result.get('error', 'Unknown error')}",
@@ -338,7 +322,10 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
         # Step 2: Execute code
         exec_result = self.execute_code_safely(code, timeout_seconds=5)
 
+        elapsed_ms = int((time.time() - start_time) * 1000)
+
         if not exec_result['success']:
+            print(f"❌ Matplotlib: Execution failed in {elapsed_ms}ms - {exec_result['error']}")
             return {
                 'success': False,
                 'error': f"Code execution failed: {exec_result['error']}",
@@ -348,6 +335,7 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
             }
 
         # Step 3: Return success
+        print(f"✅ Matplotlib: Generated successfully in {elapsed_ms}ms")
         return {
             'success': True,
             'diagram_type': 'matplotlib',
