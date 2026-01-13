@@ -238,6 +238,10 @@ class SessionChatViewModel: ObservableObject {
         aiGeneratedSuggestions = []
         print("🔄 Starting new session - cleared AI suggestions")
 
+        // ✅ FIX: Clear diagrams from previous session to prevent them from appearing in archive
+        generatedDiagrams.removeAll()
+        print("🔄 Starting new session - cleared generated diagrams")
+
         Task {
             let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
 
@@ -276,6 +280,11 @@ class SessionChatViewModel: ObservableObject {
         } else {
             // No existing session - create new one
             print("🟣 No existing session - creating new one")
+
+            // ✅ FIX: Clear diagrams before creating new session
+            generatedDiagrams.removeAll()
+            print("🟣 Cleared generated diagrams before creating new session")
+
             Task {
                 let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
 
@@ -982,6 +991,10 @@ class SessionChatViewModel: ObservableObject {
     }
 
     private func startNewSessionAndRetry(message: String) async {
+        // ✅ FIX: Clear diagrams before creating new session
+        generatedDiagrams.removeAll()
+        print("🔄 Cleared generated diagrams before retry with new session")
+
         let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
 
         if result.success {
