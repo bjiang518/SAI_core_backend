@@ -35,6 +35,14 @@ except ImportError as e:
     matplotlib_generator = None
     MATPLOTLIB_AVAILABLE = False
 
+# Import graphviz generator with graceful fallback
+try:
+    from src.services.graphviz_generator import graphviz_generator, GRAPHVIZ_AVAILABLE
+except ImportError as e:
+    print(f"⚠️ Could not import graphviz_generator: {e}")
+    graphviz_generator = None
+    GRAPHVIZ_AVAILABLE = False
+
 # Import service authentication
 from src.middleware.service_auth import (
     service_auth,
@@ -291,8 +299,8 @@ class RenderingHint(BaseModel):
 
 class DiagramGenerationResponse(BaseModel):
     success: bool
-    diagram_type: Optional[str] = None  # "matplotlib", "latex", "svg", "ascii"
-    diagram_code: Optional[str] = None  # Base64 PNG (matplotlib), LaTeX/TikZ, SVG, or ASCII code
+    diagram_type: Optional[str] = None  # "matplotlib", "latex", "svg", "graphviz"
+    diagram_code: Optional[str] = None  # Base64 PNG (matplotlib), LaTeX/TikZ, SVG, or DOT code
     diagram_title: Optional[str] = None  # Human-readable title
     explanation: Optional[str] = None  # Brief explanation of the diagram
     rendering_hint: Optional[RenderingHint] = None  # Rendering parameters for iOS
@@ -3186,6 +3194,53 @@ async def generate_diagram(request: DiagramGenerationRequest):
                     'tokens_used': ai_output.get('tokens_used', 0)
                 }
 
+        elif diagram_type == "graphviz":
+            # Convert Graphviz DOT to SVG
+            print(f"🔷 [Renderer] Converting Graphviz DOT to SVG...")
+            dot_code = diagram_content
+
+            # Check if graphviz is available
+            if not GRAPHVIZ_AVAILABLE or graphviz_generator is None:
+                print(f"⚠️ [Renderer] Graphviz not available, falling back to SVG")
+                result = {
+                    'success': True,
+                    'diagram_type': 'svg',
+                    'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Graphviz not installed</text></svg>',
+                    'diagram_title': ai_output.get('title', 'Diagram'),
+                    'explanation': ai_output.get('explanation', ''),
+                    'width': 400,
+                    'height': 300,
+                    'tokens_used': ai_output.get('tokens_used', 0)
+                }
+            else:
+                exec_result = graphviz_generator.execute_code_safely(dot_code, timeout_seconds=5)
+
+                if exec_result['success']:
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',  # Return as SVG
+                        'diagram_code': exec_result['svg_data'],
+                        'diagram_title': ai_output.get('title', 'Graphviz Diagram'),
+                        'explanation': ai_output.get('explanation', ''),
+                        'width': ai_output.get('width', 400),
+                        'height': ai_output.get('height', 300),
+                        'graphviz_source': dot_code,  # Keep original DOT code
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+                else:
+                    # Graphviz execution failed
+                    print(f"⚠️ [Renderer] Graphviz execution failed: {exec_result['error']}")
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Graphviz execution failed</text></svg>',
+                        'diagram_title': ai_output.get('title', 'Diagram'),
+                        'explanation': f"Execution error: {exec_result.get('error', 'Unknown')}",
+                        'width': 400,
+                        'height': 300,
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+
         else:  # svg (default)
             # SVG is already ready - just return it
             print(f"🎨 [Renderer] Using SVG directly")
@@ -3280,6 +3335,12 @@ Choose the BEST tool for this request and generate the code.
    - Strengths: Mathematical precision, formal diagrams
    - Weaknesses: Complex syntax, slower rendering
 
+4. **graphviz** (DOT language)
+   - BEST FOR: Trees, graphs, flowcharts, hierarchies, network diagrams
+   - Examples: "binary search tree", "flowchart", "decision tree", "state diagram"
+   - Strengths: Automatic layout, perfect for graphs and hierarchies
+   - Weaknesses: Not for data plots or geometric shapes
+
 ---
 
 **INSTRUCTIONS**:
@@ -3292,7 +3353,7 @@ Choose the BEST tool for this request and generate the code.
 
 **RESPONSE FORMAT** (JSON):
 {{
-  "type": "matplotlib",  // chosen tool: matplotlib, svg, or latex
+  "type": "matplotlib",  // chosen tool: matplotlib, svg, latex, or graphviz
   "content": "...",      // complete working code in chosen tool's format
   "title": "...",        // diagram title
   "explanation": "...",  // brief explanation of the diagram
@@ -3324,7 +3385,7 @@ Generate the diagram now:"""
         result = json.loads(result_text)
 
         # Validate tool choice
-        valid_tools = ['matplotlib', 'svg', 'latex']
+        valid_tools = ['matplotlib', 'svg', 'latex', 'graphviz']
         chosen_tool = result.get('type', 'svg').lower()
 
         if chosen_tool not in valid_tools:
@@ -3779,71 +3840,6 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
         'height': 300,
         'tokens_used': 0
     }
-
-
-async def generate_ascii_diagram(conversation_text: str, diagram_request: str,
-                                subject: str, language: str) -> Dict:
-    """
-    Generate ASCII art diagram for simple text-based visualizations.
-    """
-    language_instructions = {
-        'en': 'Use English for all labels.',
-        'zh-Hans': '使用简体中文作为标签。',
-        'zh-Hant': '使用繁體中文作為標籤。'
-    }
-
-    language_instruction = language_instructions.get(language, language_instructions['en'])
-
-    prompt = f"""Based on this educational conversation, generate a simple ASCII art diagram.
-
-CONVERSATION CONTEXT:
-{conversation_text}
-
-DIAGRAM REQUEST: {diagram_request}
-SUBJECT: {subject}
-
-{language_instruction}
-
-Generate a clear ASCII art diagram that:
-1. Uses simple characters (-, |, +, *, etc.)
-2. Includes labels and annotations
-3. Is readable on mobile devices
-4. Shows the main concept clearly
-
-Format your response as a JSON object:
-{{
-    "diagram_type": "ascii",
-    "diagram_code": "     A\\n    /|\\\\\\n   / | \\\\\\n  B--+--C\\n     |\\n     D",
-    "diagram_title": "Simple ASCII Diagram",
-    "explanation": "ASCII representation of the concept"
-}}
-
-IMPORTANT: Return ONLY the JSON object, no other text."""
-
-    response = await ai_service.client.chat.completions.create(
-        model="gpt-3.5-turbo",  # Sufficient for simple ASCII
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.4,
-        max_tokens=800
-    )
-
-    result_text = response.choices[0].message.content.strip()
-
-    # Parse JSON response
-    import json
-    try:
-        result = json.loads(result_text)
-        result['tokens_used'] = response.usage.total_tokens
-        return result
-    except json.JSONDecodeError:
-        # Fallback
-        return {
-            'diagram_type': 'ascii',
-            'diagram_code': result_text,
-            'diagram_title': 'Text Diagram',
-            'explanation': 'ASCII diagram generated from conversation context',
-            'tokens_used': response.usage.total_tokens
-        }
 
 
 if __name__ == "__main__":
