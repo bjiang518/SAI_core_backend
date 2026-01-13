@@ -87,9 +87,15 @@ class MatplotlibDiagramGenerator:
 
         lang_instruction = language_instructions.get(language, language_instructions['en'])
 
+        # Debug: Log conversation context being used
+        context_preview = conversation_text[:2000]
+        print(f"📊 [MatplotlibGen] Context length: {len(conversation_text)} chars (using first 2000)")
+        print(f"📊 [MatplotlibGen] Context preview: {context_preview[:200]}...")
+        print(f"📊 [MatplotlibGen] Diagram request: {diagram_request}")
+
         prompt = f"""Generate Python matplotlib code to visualize: {diagram_request}
 
-Context: {conversation_text[:400]}
+Context: {context_preview}
 Subject: {subject}
 
 IMPORTANT: plt and np are ALREADY IMPORTED. Do NOT include import statements.
