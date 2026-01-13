@@ -257,7 +257,7 @@ struct SessionChatView: View {
                 Button(NSLocalizedString("chat.alert.archiveSuccess.viewInLibrary", comment: "")) {
                     showingArchiveSuccess = false
                     // Navigate to library tab
-                    appState.selectedTab = 2 // Library tab index
+                    appState.selectedTab = .library
                 }
             } message: {
                 Text("'\(viewModel.archivedSessionTitle.isEmpty ? "Your conversation" : viewModel.archivedSessionTitle.capitalized)' saved successfully!\n\nYou can view it anytime in the Library tab.\n\nA new chat session is ready for you!")
