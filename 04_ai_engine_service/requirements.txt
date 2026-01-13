@@ -47,3 +47,7 @@ matplotlib==3.8.2
 # Optional: For future mathematical processing
 sympy==1.12
 scipy==1.11.4
+
+# LaTeX to SVG Conversion (uses system pdflatex + pdf2svg via subprocess)
+# System dependencies installed via Dockerfile: texlive-latex-base, pdf2svg
+cairosvg==2.7.1   # SVG optimization (optional)

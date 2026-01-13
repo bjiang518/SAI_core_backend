@@ -672,14 +672,16 @@ struct QuickActionCard_New: View {
             .frame(height: 120)
             .background(
                 ZStack {
-                    // White card background
-                    DesignTokens.Colors.cardBackground
+                    // Brighter card background for light mode
+                    colorScheme == .dark ?
+                        DesignTokens.Colors.cardBackground :
+                        Color.white
 
-                    // Subtle gradient overlay with the card's color
+                    // More vibrant gradient overlay with increased opacity for light mode
                     LinearGradient(
                         colors: [
-                            color.opacity(0.12),
-                            color.opacity(0.05),
+                            color.opacity(colorScheme == .dark ? 0.12 : 0.25),
+                            color.opacity(colorScheme == .dark ? 0.05 : 0.15),
                             Color.clear
                         ],
                         startPoint: .topLeading,
@@ -693,8 +695,8 @@ struct QuickActionCard_New: View {
                     .strokeBorder(
                         LinearGradient(
                             colors: [
-                                color.opacity(isPressed ? 0.5 : 0.3),
-                                color.opacity(isPressed ? 0.3 : 0.15)
+                                color.opacity(isPressed ? (colorScheme == .dark ? 0.5 : 0.6) : (colorScheme == .dark ? 0.3 : 0.4)),
+                                color.opacity(isPressed ? (colorScheme == .dark ? 0.3 : 0.4) : (colorScheme == .dark ? 0.15 : 0.25))
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -817,14 +819,18 @@ struct HorizontalActionButton: View {
                     .offset(x: isPressed ? 3 : 0)
             }
             .padding(16)
-            .background(isPressed ? color.opacity(0.05) : DesignTokens.Colors.cardBackground)
+            .background(
+                isPressed ?
+                    color.opacity(colorScheme == .dark ? 0.05 : 0.1) :
+                    (colorScheme == .dark ? DesignTokens.Colors.cardBackground : Color.white)
+            )
             .cornerRadius(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .strokeBorder(
                         style: StrokeStyle(lineWidth: isPressed ? 2.0 : 1.5, dash: [5, 3])
                     )
-                    .foregroundColor(isPressed ? color.opacity(0.6) : color.opacity(0.3))
+                    .foregroundColor(isPressed ? color.opacity(colorScheme == .dark ? 0.6 : 0.7) : color.opacity(colorScheme == .dark ? 0.3 : 0.4))
             )
             .shadow(
                 color: colorScheme == .dark ?

@@ -250,14 +250,16 @@ struct SessionChatView: View {
                 Text(viewModel.errorMessage)
             }
             .alert(NSLocalizedString("chat.alert.archiveSuccess.title", comment: ""), isPresented: $showingArchiveSuccess) {
+                Button(NSLocalizedString("chat.alert.archiveSuccess.startNewChat", comment: "Start New Chat")) {
+                    showingArchiveSuccess = false
+                    // Focus is already on new session, no action needed
+                }
                 Button(NSLocalizedString("chat.alert.archiveSuccess.viewInLibrary", comment: "")) {
                     showingArchiveSuccess = false
-                }
-                Button(NSLocalizedString("common.ok", comment: "")) {
-                    showingArchiveSuccess = false
+                    // TODO: Navigate to library tab if needed
                 }
             } message: {
-                Text("✅ Conversation '\(viewModel.archivedSessionTitle.capitalized)' saved locally!\n\n💡 Tip: Use 'Sync with Server' in Settings to upload to cloud.")
+                Text("✅ '\(viewModel.archivedSessionTitle.isEmpty ? "Your conversation" : viewModel.archivedSessionTitle.capitalized)' saved successfully!\n\n📚 You can view it anytime in the Library tab.\n\n🆕 A new chat session is ready for you!")
             }
             .alert("Grade Update Detected", isPresented: $showingGradeCorrectionAlert) {
                 Button("Accept Grade Change", role: .destructive) {
@@ -350,6 +352,24 @@ struct SessionChatView: View {
                 // Update avatar to show processing state when streaming text
                 if isStreaming {
                     topAvatarState = .processing  // Fast animation, no effects
+                }
+            }
+            .onChange(of: viewModel.isArchiving) { wasArchiving, isArchiving in
+                // Handle archive completion
+                if wasArchiving && !isArchiving {
+                    // Archive process completed
+                    if !viewModel.archivedSessionTitle.isEmpty {
+                        // Success - dismiss archive dialog and show success alert
+                        showingArchiveDialog = false
+                        showingArchiveSuccess = true
+
+                        // Start a new session automatically after a short delay
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            viewModel.startNewSession()
+                        }
+                    }
+                    // If archivedSessionTitle is empty, it means error occurred
+                    // Error is already handled by viewModel.errorMessage alert
                 }
             }
     }
@@ -744,17 +764,6 @@ struct SessionChatView: View {
                             }
                         }
                         .modernButtonStyle()
-                        .overlay(
-                            // Add special icon for diagram generation buttons
-                            isDiagramGenerationRequest(suggestion.key) ?
-                            HStack {
-                                Spacer()
-                                Image(systemName: "chart.xyaxis.line")
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                            }
-                            .padding(.trailing, 8) : nil
-                        )
                     }
                 } else {
                     // Fallback to manually-generated contextual buttons (localized)
@@ -1389,6 +1398,21 @@ struct SessionChatView: View {
                     .background(viewModel.isArchiving ? Color.gray : Color.blue)
                     .cornerRadius(10)
                     .disabled(viewModel.isArchiving)
+                    .overlay(
+                        // Show loading indicator when archiving
+                        Group {
+                            if viewModel.isArchiving {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.9)
+                                    Text(NSLocalizedString("chat.archive.archiving", comment: "Archiving..."))
+                                        .foregroundColor(.white)
+                                        .font(.system(size: 16, weight: .medium))
+                                }
+                            }
+                        }
+                    )
                 }
                 .padding()
             }
