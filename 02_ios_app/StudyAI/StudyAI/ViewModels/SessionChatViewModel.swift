@@ -525,7 +525,8 @@ class SessionChatViewModel: ObservableObject {
             diagramRequest: uniqueRequest,  // ✅ Use unique request to prevent cache collisions
             sessionId: sessionId,
             subject: selectedSubject,
-            language: getUserLanguage()  // ✅ Pass user's preferred language
+            language: getUserLanguage(),  // ✅ Pass user's preferred language
+            regenerate: false  // Standard generation with gpt-4o
         )
 
         await MainActor.run {
@@ -626,7 +627,8 @@ class SessionChatViewModel: ObservableObject {
             diagramRequest: cacheBypassRequest,  // ✅ Use cache-bypass request
             sessionId: sessionId,
             subject: selectedSubject,
-            language: getUserLanguage()  // ✅ Pass user's preferred language
+            language: getUserLanguage(),  // ✅ Pass user's preferred language
+            regenerate: true  // ✅ Use o1-mini for deeper reasoning on regeneration
         )
 
         await MainActor.run {

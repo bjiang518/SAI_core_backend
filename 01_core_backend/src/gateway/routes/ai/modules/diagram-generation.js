@@ -124,7 +124,8 @@ class DiagramGenerationRoutes {
       diagram_request,
       session_id,
       subject = 'general',
-      language = 'en'
+      language = 'en',
+      regenerate = false  // Two-step reasoning with better model (o1-mini)
     } = request.body;
 
     try {
@@ -134,6 +135,7 @@ class DiagramGenerationRoutes {
 
       this.fastify.log.info(`📊 Generating diagram for user: ${PIIMasking.maskUserId(userId)}`);
       this.fastify.log.info(`📊 Subject: ${subject}, Language: ${language}`);
+      this.fastify.log.info(`📊 Regenerate mode: ${regenerate ? 'YES (o1-mini)' : 'NO (gpt-4o)'}`);
       this.fastify.log.info(`📊 Request: ${diagram_request}`);
       this.fastify.log.info(`📊 Conversation length: ${conversation_history.length} messages`);
 
@@ -147,6 +149,7 @@ class DiagramGenerationRoutes {
         session_id,
         subject,
         language,
+        regenerate,  // Pass regenerate flag to AI Engine for model selection
         student_id: userId,
         context: {
           timestamp: new Date().toISOString(),

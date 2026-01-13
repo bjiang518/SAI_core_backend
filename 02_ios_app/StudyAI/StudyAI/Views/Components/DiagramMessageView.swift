@@ -260,6 +260,7 @@ struct DiagramMessageView_Previews: PreviewProvider {
                     diagramCode: "\\begin{tikzpicture} \\draw (0,0) circle (1); \\end{tikzpicture}",
                     diagramTitle: "Sample Circle",
                     explanation: "This diagram shows a simple circle with radius 1 centered at the origin.",
+                    reasoning: nil,
                     renderingHint: NetworkService.DiagramRenderingHint(
                         width: 300,
                         height: 200,
@@ -283,6 +284,7 @@ struct DiagramMessageView_Previews: PreviewProvider {
                     diagramCode: "<svg width='200' height='200'><circle cx='100' cy='100' r='50' fill='blue'/></svg>",
                     diagramTitle: "Visual Example",
                     explanation: nil,
+                    reasoning: nil,
                     renderingHint: nil,
                     processingTimeMs: nil,
                     tokensUsed: nil,
