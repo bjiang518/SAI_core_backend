@@ -150,6 +150,9 @@ struct SessionChatView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button(NSLocalizedString("chat.menu.newSession", comment: "")) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            hasConversationStarted = false
+                        }
                         viewModel.startNewSession()
                     }
 
@@ -252,6 +255,9 @@ struct SessionChatView: View {
             .alert(NSLocalizedString("chat.alert.archiveSuccess.title", comment: ""), isPresented: $showingArchiveSuccess) {
                 Button(NSLocalizedString("chat.alert.archiveSuccess.startNewChat", comment: "Start New Chat")) {
                     showingArchiveSuccess = false
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        hasConversationStarted = false
+                    }
                     viewModel.startNewSession()
                 }
                 Button(NSLocalizedString("chat.alert.archiveSuccess.viewInLibrary", comment: "")) {
@@ -311,6 +317,7 @@ struct SessionChatView: View {
                     }
                 } else {
                     if networkService.currentSessionId == nil {
+                        hasConversationStarted = false
                         viewModel.startNewSession()
                     }
                 }
@@ -366,6 +373,9 @@ struct SessionChatView: View {
 
                         // Start a new session automatically after a short delay
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                hasConversationStarted = false
+                            }
                             viewModel.startNewSession()
                         }
                     }
@@ -1175,6 +1185,7 @@ struct SessionChatView: View {
                     // Visual feedback with animation
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         viewModel.selectedSubject = subject
+                        hasConversationStarted = false
                     }
 
                     // Haptic feedback
