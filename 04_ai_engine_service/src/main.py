@@ -2145,10 +2145,6 @@ def check_if_diagram_helpful(ai_response: str, user_message: str, subject: str) 
     # Combine content for analysis
     combined_text = f"{user_message} {ai_response}".lower()
 
-    print(f"🎨 [DiagramDetection] Analyzing content for diagram potential...")
-    print(f"🎨 [DiagramDetection] Subject: {subject}")
-    print(f"🎨 [DiagramDetection] Combined text length: {len(combined_text)} chars")
-
     # ✅ EXPANDED Mathematical content indicators
     math_keywords = [
         # Basic math
@@ -2399,9 +2395,8 @@ REQUIRED DIAGRAM SUGGESTIONS (choose one for position #1):
 
 The diagram suggestion MUST be the first item in your JSON response.
 """
-            print(f"📊 ✅ DIAGRAM SUGGESTION REQUIRED - will be included as first option")
         else:
-            print(f"📊 ❌ No diagram suggestion needed (non-visual content)")
+            # No diagram needed
 
         # Create a prompt for generating follow-up suggestions with DIAGRAM PRIORITY
         if should_suggest_diagram:
@@ -2470,8 +2465,6 @@ IMPORTANT:
 - Return ONLY the JSON array, no other text
 - The language of the suggestions MUST match the language of the AI response"""
 
-        print(f"📤 Calling GPT-3.5-turbo for suggestions (fast & cheap)...")
-
         # Use AI service to generate suggestions with fast model
         response = await ai_service.client.chat.completions.create(
             model="gpt-3.5-turbo",  # 🚀 Fast model for suggestions (70% cheaper)
@@ -2481,8 +2474,6 @@ IMPORTANT:
         )
 
         suggestion_text = response.choices[0].message.content.strip()
-        print(f"📥 Received suggestion response: {len(suggestion_text)} chars")
-        print(f"🔍 First 200 chars: {suggestion_text[:200]}")
 
         # Parse JSON response
         import json, re
@@ -2490,34 +2481,24 @@ IMPORTANT:
         # Extract JSON array from response
         json_match = re.search(r'\[.*\]', suggestion_text, re.DOTALL)
         if json_match:
-            print(f"✅ Found JSON array in response")
             try:
                 suggestions = json.loads(json_match.group())
-                print(f"📊 Parsed {len(suggestions)} suggestions from JSON")
 
                 # Validate format
                 valid_suggestions = []
-                for i, sug in enumerate(suggestions):
+                for sug in suggestions:
                     if isinstance(sug, dict) and 'key' in sug and 'value' in sug:
                         valid_suggestions.append(sug)
-                        print(f"  ✓ Suggestion {i+1}: '{sug['key']}' - '{sug['value'][:50]}...'")
-                    else:
-                        print(f"  ✗ Suggestion {i+1}: Invalid format - {sug}")
 
                 if valid_suggestions:
-                    print(f"✨ Generated {len(valid_suggestions)} valid follow-up suggestions")
+                    print(f"💡 Generated {len(valid_suggestions)} suggestions")
                     return valid_suggestions[:3]  # Limit to 3
                 else:
-                    print(f"⚠️ No valid suggestions after validation")
                     return []
 
-            except json.JSONDecodeError as je:
-                print(f"❌ JSON parsing failed: {str(je)}")
-                print(f"🔍 JSON content: {json_match.group()[:300]}")
+            except json.JSONDecodeError:
                 return []
         else:
-            print("⚠️ Could not find JSON array in response")
-            print(f"🔍 Full response: {suggestion_text[:500]}")
             return []
 
     except Exception as e:
@@ -3085,13 +3066,6 @@ async def generate_diagram(request: DiagramGenerationRequest):
     start_time = time.time()
 
     try:
-        print(f"📊 === DIAGRAM GENERATION REQUEST ===")
-        print(f"📊 Session: {request.session_id}")
-        print(f"📊 Subject: {request.subject}")
-        print(f"📊 Language: {request.language}")
-        print(f"📊 Request: {request.diagram_request}")
-        print(f"📊 Conversation length: {len(request.conversation_history)} messages")
-
         # Extract the most recent relevant content for context
         conversation_text = ""
         for msg in request.conversation_history[-6:]:  # Last 6 messages for context
@@ -3104,14 +3078,11 @@ async def generate_diagram(request: DiagramGenerationRequest):
         diagram_type = content_analysis['diagram_type']
         complexity = content_analysis['complexity']
 
-        print(f"📊 Analyzed content: type={diagram_type}, complexity={complexity}")
-
         # Generate diagram based on type
         if diagram_type == "matplotlib":
             # 📊 NEW: Matplotlib pathway for mathematical functions
             # Check if matplotlib is available
             if not MATPLOTLIB_AVAILABLE or matplotlib_generator is None:
-                print(f"⚠️ Matplotlib not available, falling back to SVG")
                 result = await generate_svg_diagram(
                     conversation_text=conversation_text,
                     diagram_request=request.diagram_request,
@@ -3130,8 +3101,6 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
                 # If matplotlib fails, fallback to SVG
                 if not result.get('success', False):
-                    print(f"⚠️ Matplotlib generation failed, falling back to SVG")
-                    print(f"   Error: {result.get('error', 'Unknown error')}")
                     result = await generate_svg_diagram(
                         conversation_text=conversation_text,
                         diagram_request=request.diagram_request,
@@ -3165,8 +3134,7 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
         processing_time = int((time.time() - start_time) * 1000)
 
-        print(f"📊 Diagram generated successfully in {processing_time}ms")
-        print(f"📊 Type: {result['diagram_type']}, Code length: {len(result.get('diagram_code', ''))}")
+        print(f"📊 Diagram: {result['diagram_type']} for {request.subject} ({processing_time}ms)")
 
         return DiagramGenerationResponse(
             success=True,
@@ -3185,16 +3153,13 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
     except Exception as e:
         processing_time = int((time.time() - start_time) * 1000)
-        error_msg = f"Diagram generation failed: {str(e)}"
-
-        print(f"❌ {error_msg}")
-        import traceback
-        print(f"📋 Traceback: {traceback.format_exc()}")
+        error_message = f"Diagram generation failed: {str(e)}"
+        print(f"❌ Diagram: Failed ({processing_time}ms) - {str(e)}")
 
         return DiagramGenerationResponse(
             success=False,
             processing_time_ms=processing_time,
-            error=error_msg
+            error=error_message
         )
 
 
@@ -3257,7 +3222,6 @@ def analyze_content_for_diagram_type(conversation_text: str, subject: str) -> Di
         has_math_function = any(indicator in content_lower for indicator in math_function_indicators)
 
         if has_math_function or subject in ['mathematics', 'math', '数学', 'physics', '物理']:
-            print(f"📊 [DiagramType] MATPLOTLIB selected: Explicit draw request + math content")
             return {'diagram_type': 'matplotlib', 'complexity': 'high'}
 
     # 🎨 LATEX PATHWAY - For geometric diagrams and mathematical proofs
@@ -3267,31 +3231,24 @@ def analyze_content_for_diagram_type(conversation_text: str, subject: str) -> Di
 
     if any(indicator in content_lower for indicator in latex_indicators):
         if geometry_count >= 2:
-            print(f"📊 [DiagramType] LATEX selected: Geometric diagram (geometry_count={geometry_count})")
             return {'diagram_type': 'latex', 'complexity': 'high'}
 
     # Subject-specific routing - prefer LaTeX for math/physics
     if subject in ['mathematics', 'math', '数学']:
         if math_count >= 2:
-            print(f"📊 [DiagramType] LATEX selected: subject=mathematics with {math_count} math keywords")
             return {'diagram_type': 'latex', 'complexity': 'high'}
         else:
-            print(f"📊 [DiagramType] SVG selected: subject=mathematics (simple visualization)")
             return {'diagram_type': 'svg', 'complexity': 'medium'}
     elif subject in ['physics', '物理'] and physics_count > 1:
-        print(f"📊 [DiagramType] SVG selected: subject=physics, count={physics_count}")
         return {'diagram_type': 'svg', 'complexity': 'medium'}
     elif subject in ['chemistry', '化学'] and chemistry_count > 1:
-        print(f"📊 [DiagramType] SVG selected: subject=chemistry, count={chemistry_count}")
         return {'diagram_type': 'svg', 'complexity': 'medium'}
 
     # Geometry is better in SVG
     if geometry_count > 1 or total_keywords > 0:
-        print(f"📊 [DiagramType] SVG selected: geometry_count={geometry_count}, total={total_keywords}")
         return {'diagram_type': 'svg', 'complexity': 'low'}
 
     # Minimal/no technical content → ASCII fallback
-    print(f"📊 [DiagramType] ASCII selected: no technical keywords detected")
     return {'diagram_type': 'ascii', 'complexity': 'minimal'}
 
 
