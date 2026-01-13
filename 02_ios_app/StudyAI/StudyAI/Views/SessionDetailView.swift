@@ -86,7 +86,8 @@ struct SessionDetailView: View {
                         topic: localConversation["topic"] as? String,
                         conversationContent: localConversation["conversationContent"] as? String ?? "",
                         archivedDate: ISO8601DateFormatter().date(from: localConversation["archivedDate"] as? String ?? "") ?? Date(),
-                        createdAt: ISO8601DateFormatter().date(from: localConversation["createdAt"] as? String ?? "") ?? Date()
+                        createdAt: ISO8601DateFormatter().date(from: localConversation["createdAt"] as? String ?? "") ?? Date(),
+                        diagrams: localConversation["diagrams"] as? [[String: Any]]  // ✅ NEW: Load diagrams from archive
                     )
 
                     await MainActor.run {
@@ -346,6 +347,59 @@ struct ConversationDetailContent: View {
                         .padding(.horizontal, 4)
                     }
                     .frame(maxHeight: 400)
+                }
+
+                // ✅ NEW: Diagrams Section (if diagrams exist in archive)
+                if let diagrams = conversation.diagrams, !diagrams.isEmpty {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("📊 Generated Diagrams")
+                            .font(.headline)
+
+                        ForEach(Array(diagrams.enumerated()), id: \.offset) { index, diagramDict in
+                            VStack(alignment: .leading, spacing: 8) {
+                                if let title = diagramDict["title"] as? String {
+                                    Text(title)
+                                        .font(.subheadline)
+                                        .bold()
+                                }
+
+                                if let type = diagramDict["type"] as? String,
+                                   let code = diagramDict["code"] as? String {
+                                    // Create rendering hint if available
+                                    let hint: NetworkService.DiagramRenderingHint? = {
+                                        if let width = diagramDict["width"] as? Int,
+                                           let height = diagramDict["height"] as? Int {
+                                            return NetworkService.DiagramRenderingHint(
+                                                width: width,
+                                                height: height,
+                                                background: diagramDict["background"] as? String ?? "white",
+                                                scaleFactor: 1.0
+                                            )
+                                        }
+                                        return nil
+                                    }()
+
+                                    // Display the diagram
+                                    DiagramRendererView(
+                                        diagramType: type,
+                                        diagramCode: code,
+                                        diagramTitle: diagramDict["title"] as? String,
+                                        renderingHint: hint
+                                    )
+                                    .frame(maxHeight: 400)
+                                }
+
+                                if let explanation = diagramDict["explanation"] as? String, !explanation.isEmpty {
+                                    Text(explanation)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.05))
+                            .cornerRadius(12)
+                        }
+                    }
                 }
 
                 // Metadata Section

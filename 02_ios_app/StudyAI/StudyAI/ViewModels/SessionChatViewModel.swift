@@ -328,7 +328,8 @@ class SessionChatViewModel: ObservableObject {
                 title: archiveTitle.isEmpty ? nil : archiveTitle,
                 topic: archiveTopic.isEmpty ? nil : archiveTopic,
                 subject: selectedSubject,
-                notes: archiveNotes.isEmpty ? nil : archiveNotes
+                notes: archiveNotes.isEmpty ? nil : archiveNotes,
+                diagrams: generatedDiagrams  // ✅ NEW: Pass diagrams for archiving
             )
 
             isArchiving = false
@@ -342,6 +343,7 @@ class SessionChatViewModel: ObservableObject {
                 // Clear current session
                 networkService.currentSessionId = nil
                 networkService.conversationHistory.removeAll()
+                generatedDiagrams.removeAll()  // ✅ NEW: Clear diagrams after archiving
             } else {
                 errorMessage = NSLocalizedString("error.session.archive", comment: "")
             }
