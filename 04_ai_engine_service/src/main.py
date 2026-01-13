@@ -3108,8 +3108,26 @@ async def generate_diagram(request: DiagramGenerationRequest):
                     ai_service=ai_service
                 )
 
-                # If matplotlib fails, fallback to SVG
+                # ✅ NEW: Check if AI gracefully declined (don't fallback - respect the decision)
+                if result.get('declined', False):
+                    print(f"🚫 [DiagramGen] AI declined to generate diagram - respecting decision")
+                    processing_time = int((time.time() - start_time) * 1000)
+
+                    # Return helpful error message with suggestion
+                    error_msg = result.get('error', 'Cannot generate this diagram')
+                    if result.get('suggestion'):
+                        error_msg += f"\n\nSuggestion: {result['suggestion']}"
+
+                    return DiagramGenerationResponse(
+                        success=False,
+                        processing_time_ms=processing_time,
+                        tokens_used=result.get('tokens_used'),
+                        error=error_msg
+                    )
+
+                # If matplotlib fails (not declined), fallback to SVG
                 if not result.get('success', False):
+                    print(f"⚠️ [DiagramGen] Matplotlib failed - falling back to SVG")
                     result = await generate_svg_diagram(
                         conversation_text=conversation_text,
                         diagram_request=request.diagram_request,
