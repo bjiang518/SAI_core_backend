@@ -3192,68 +3192,71 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
 def analyze_content_for_diagram_type(conversation_text: str, subject: str) -> Dict[str, str]:
     """
-    Analyze conversation content to determine the best diagram type.
+    Smart routing: Choose the RIGHT tool for each diagram type.
 
-    OPTIMIZATION: Prefer matplotlib 90% of the time for best quality and reliability.
-    Only use LaTeX for very specific geometric constructions.
+    PHILOSOPHY: Match tool to task for 90%+ success rate
+    - Geometric shapes → SVG (vector graphics, perfect for shapes)
+    - Math functions → Matplotlib (data plotting, perfect for graphs)
+    - Geometric proofs → LaTeX (rare, precise constructions)
     """
     content_lower = conversation_text.lower()
 
-    # Mathematical content indicators
-    math_keywords = ['function', '函数', 'equation', '方程', 'graph', '图像', 'derivative', '导数',
-                     'integral', '积分', 'limit', '极限', 'matrix', '矩阵']
+    # 🎯 PRIORITY 1: Geometric SHAPES → SVG (best tool for vector shapes)
+    geometric_shapes = ['triangle', '三角形', 'circle', '圆', 'rectangle', '矩形', 'square', '正方形',
+                       'pentagon', '五边形', 'hexagon', '六边形', 'polygon', '多边形', 'ellipse', '椭圆',
+                       'diamond', '菱形', 'trapezoid', '梯形', 'parallelogram', '平行四边形']
 
-    # Geometric content indicators
-    geometry_keywords = ['triangle', '三角形', 'circle', '圆', 'rectangle', '矩形', 'angle', '角',
-                        'line', '直线', 'point', '点', 'polygon', '多边形']
+    shape_verbs = ['draw', 'sketch', 'show', 'illustrate', '画', '绘制', '显示']
 
-    # Physics content indicators
-    physics_keywords = ['force', '力', 'velocity', '速度', 'acceleration', '加速度', 'wave', '波',
-                       'circuit', '电路', 'field', '场', 'energy', '能量']
+    # Check if this is a request to draw a geometric shape
+    has_shape_request = any(shape in content_lower for shape in geometric_shapes)
+    has_draw_verb = any(verb in content_lower for verb in shape_verbs)
 
-    # Chemistry content indicators
-    chemistry_keywords = ['molecule', '分子', 'atom', '原子', 'bond', '键', 'structure', '结构',
-                         'reaction', '反应', 'formula', '化学式']
+    # Check if it's a math function (should use matplotlib instead)
+    has_math_function = any(indicator in content_lower for indicator in
+                           ['y =', 'f(x) =', 'f(x)=', 'y=', 'plot', 'graph the', '绘制函数', '函数图像'])
 
-    # Count keyword occurrences
-    math_count = sum(1 for kw in math_keywords if kw in content_lower)
-    geometry_count = sum(1 for kw in geometry_keywords if kw in content_lower)
-    physics_count = sum(1 for kw in physics_keywords if kw in content_lower)
-    chemistry_count = sum(1 for kw in chemistry_keywords if kw in content_lower)
+    # If drawing geometric shapes (not math functions) → SVG
+    if has_shape_request and not has_math_function:
+        print(f"📊 [Routing] Geometric shape detected → SVG")
+        return {'diagram_type': 'svg', 'complexity': 'medium'}
 
-    total_keywords = math_count + geometry_count + physics_count + chemistry_count
+    # 📈 PRIORITY 2: Mathematical FUNCTIONS → Matplotlib (best for data plots)
+    math_function_indicators = [
+        'y =', 'f(x) =', 'f(x)=', 'y=', 'g(x) =',  # Function notation
+        'plot', 'graph', 'curve', '函数', '图像', '曲线',  # Plotting keywords
+        'parabola', 'quadratic', 'linear', 'exponential', 'logarithmic',  # Function types
+        'sin(', 'cos(', 'tan(', 'e^', 'ln(', 'log(',  # Math functions
+        'derivative', '导数', 'integral', '积分'  # Calculus
+    ]
 
-    # 🚀 OPTIMIZED: Use matplotlib for 90% of cases
-    # Matplotlib provides perfect viewport framing, fast execution, and publication quality
-
-    # ⚠️ VERY RARE: Only use LaTeX for pure geometric constructions without math functions
-    # Examples: geometric proofs, angle diagrams, parallel line constructions
-    latex_only_indicators = ['proof', '证明', 'theorem', '定理', 'perpendicular', '垂直', 'parallel', '平行']
-    has_latex_only = any(indicator in content_lower for indicator in latex_only_indicators)
-
-    # Check if this is a pure geometric construction (no functions/equations)
-    has_math_functions = any(kw in content_lower for kw in ['y =', 'f(x) =', 'equation', '方程', 'function', '函数'])
-
-    if has_latex_only and not has_math_functions and geometry_count >= 2:
-        # Pure geometric construction → use LaTeX (rare case, ~5%)
-        return {'diagram_type': 'latex', 'complexity': 'high'}
-
-    # 📊 DEFAULT: Use matplotlib for everything else (90%+ of cases)
-    if total_keywords > 0:
-        # Any technical/educational content → matplotlib
+    if any(indicator in content_lower for indicator in math_function_indicators):
+        print(f"📊 [Routing] Mathematical function detected → Matplotlib")
         return {'diagram_type': 'matplotlib', 'complexity': 'high'}
 
-    # Subject-based routing → still prefer matplotlib
-    if subject in ['mathematics', 'math', '数学', 'physics', '物理', 'chemistry', '化学']:
+    # 📐 PRIORITY 3: Geometric PROOFS → LaTeX (rare, precise constructions)
+    latex_indicators = ['proof', '证明', 'theorem', '定理', 'perpendicular', '垂直',
+                       'parallel', '平行', 'congruent', '全等', 'similar', '相似']
+
+    if any(indicator in content_lower for indicator in latex_indicators):
+        print(f"📊 [Routing] Geometric proof detected → LaTeX")
+        return {'diagram_type': 'latex', 'complexity': 'high'}
+
+    # 📊 PRIORITY 4: Subject-based defaults
+    if subject in ['mathematics', 'math', '数学']:
+        # Math subject: Try matplotlib first (good for most math content)
+        print(f"📊 [Routing] Math subject → Matplotlib")
         return {'diagram_type': 'matplotlib', 'complexity': 'medium'}
 
-    # Fallback for minimal content → use matplotlib as well
-    # Only use ASCII if absolutely no visual content possible
-    if len(content_lower) < 50:
-        return {'diagram_type': 'ascii', 'complexity': 'minimal'}
+    if subject in ['physics', '物理', 'chemistry', '化学']:
+        # Science subjects: SVG is flexible for diagrams
+        print(f"📊 [Routing] Science subject → SVG")
+        return {'diagram_type': 'svg', 'complexity': 'medium'}
 
-    # Default: matplotlib for best quality
-    return {'diagram_type': 'matplotlib', 'complexity': 'medium'}
+    # 🎨 DEFAULT: SVG (most flexible for general diagrams)
+    # SVG handles: shapes, concepts, flowcharts, diagrams, illustrations
+    print(f"📊 [Routing] General request → SVG (default)")
+    return {'diagram_type': 'svg', 'complexity': 'medium'}
 
 
 async def generate_latex_diagram(conversation_text: str, diagram_request: str,
@@ -3467,12 +3470,16 @@ COMPLEXITY: {complexity}
 
 {language_instruction}
 
+**TRY YOUR BEST** - SVG is flexible! Make reasonable assumptions if some details are missing.
+You can draw: geometric shapes, concept diagrams, flowcharts, simple illustrations, graphs, etc.
+
 Generate a complete, valid SVG diagram that:
 1. Clearly illustrates the main concept from the conversation
 2. Uses appropriate geometric shapes and lines
 3. Includes clear labels and annotations
 4. Is educational and visually appealing
 5. Works on mobile devices (responsive)
+6. **Makes reasonable assumptions** if exact dimensions or details aren't specified
 
 📐 CRITICAL VIEWPORT OPTIMIZATION (MOST IMPORTANT):
 
