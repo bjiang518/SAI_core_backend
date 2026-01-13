@@ -3200,13 +3200,13 @@ async def generate_diagram(request: DiagramGenerationRequest):
                 }
 
         elif diagram_type == "graphviz":
-            # Convert Graphviz DOT to SVG
-            print(f"🔷 [Renderer] Converting Graphviz DOT to SVG...")
+            # Convert Graphviz DOT to PNG (more reliable than SVG)
+            print(f"🔷 [Renderer] Converting Graphviz DOT to PNG...")
             dot_code = diagram_content
 
             # Check if graphviz is available
             if not GRAPHVIZ_AVAILABLE or graphviz_generator is None:
-                print(f"⚠️ [Renderer] Graphviz not available, falling back to SVG")
+                print(f"⚠️ [Renderer] Graphviz not available, falling back to error message")
                 result = {
                     'success': True,
                     'diagram_type': 'svg',
@@ -3223,12 +3223,12 @@ async def generate_diagram(request: DiagramGenerationRequest):
                 if exec_result['success']:
                     result = {
                         'success': True,
-                        'diagram_type': 'svg',  # Return as SVG
-                        'diagram_code': exec_result['svg_data'],
+                        'diagram_type': 'png',  # Return as PNG for reliable rendering
+                        'diagram_code': exec_result['image_data'],  # PNG data URL
                         'diagram_title': ai_output.get('title', 'Graphviz Diagram'),
                         'explanation': ai_output.get('explanation', ''),
-                        'width': ai_output.get('width', 400),
-                        'height': ai_output.get('height', 300),
+                        'width': ai_output.get('width', 600),  # Larger default for PNG
+                        'height': ai_output.get('height', 400),
                         'graphviz_source': dot_code,  # Keep original DOT code
                         'tokens_used': ai_output.get('tokens_used', 0)
                     }
@@ -3238,7 +3238,7 @@ async def generate_diagram(request: DiagramGenerationRequest):
                     result = {
                         'success': True,
                         'diagram_type': 'svg',
-                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Graphviz execution failed</text></svg>',
+                        'diagram_code': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Graphviz execution failed: {exec_result.get("error", "Unknown")}</text></svg>',
                         'diagram_title': ai_output.get('title', 'Diagram'),
                         'explanation': f"Execution error: {exec_result.get('error', 'Unknown')}",
                         'width': 400,
