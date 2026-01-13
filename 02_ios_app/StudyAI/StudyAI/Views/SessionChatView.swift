@@ -573,7 +573,15 @@ struct SessionChatView: View {
                                         diagramData: diagramData,
                                         voiceType: voiceService.voiceSettings.voiceType,
                                         isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
-                                        messageId: "message-\(index)"
+                                        messageId: "message-\(index)",
+                                        onRemoveDiagram: diagramKey != nil ? {
+                                            viewModel.removeDiagram(withKey: diagramKey!)
+                                        } : nil,
+                                        onRegenerateDiagram: diagramKey != nil ? {
+                                            Task {
+                                                await viewModel.regenerateDiagram(withKey: diagramKey!)
+                                            }
+                                        } : nil
                                     )
                                     .id(index)
                                 } else {

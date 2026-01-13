@@ -91,6 +91,7 @@ class SessionChatViewModel: ObservableObject {
     // Diagram generation state
     @Published var isGeneratingDiagram = false
     @Published var generatedDiagrams: [String: NetworkService.DiagramGenerationResponse] = [:]
+    @Published var diagramRequests: [String: String] = [:]  // Store original request for regeneration
 
     // UI refresh
     @Published var refreshTrigger = UUID()
@@ -521,6 +522,7 @@ class SessionChatViewModel: ObservableObject {
                 // Store the generated diagram with a unique key
                 let diagramKey = "\(sessionId)-\(Date().timeIntervalSince1970)"
                 generatedDiagrams[diagramKey] = response
+                diagramRequests[diagramKey] = request  // Store original request for regeneration
 
                 // Add diagram as AI message to conversation history (empty content, diagram will be displayed separately)
                 networkService.addToConversationHistory(role: "assistant", content: "")
@@ -547,6 +549,91 @@ class SessionChatViewModel: ObservableObject {
     /// Get diagram data for a given key
     func getDiagramData(for key: String) -> NetworkService.DiagramGenerationResponse? {
         return generatedDiagrams[key]
+    }
+
+    /// Remove a diagram from the conversation
+    func removeDiagram(withKey diagramKey: String) {
+        print("🗑️ === REMOVING DIAGRAM ===")
+        print("🗑️ Diagram key: \(diagramKey)")
+
+        // Remove from diagrams dictionary
+        generatedDiagrams.removeValue(forKey: diagramKey)
+        diagramRequests.removeValue(forKey: diagramKey)
+
+        // Find and remove the message with this diagram key from conversation history
+        if let index = networkService.conversationHistory.firstIndex(where: { message in
+            if let key = message["diagramKey"] as? String {
+                return key == diagramKey
+            }
+            return false
+        }) {
+            networkService.conversationHistory.remove(at: index)
+            print("✅ Diagram and message removed from conversation history")
+        } else {
+            print("⚠️ Message with diagram key not found in conversation history")
+        }
+
+        // Trigger UI refresh
+        refreshTrigger = UUID()
+    }
+
+    /// Regenerate a diagram with cache bypass
+    func regenerateDiagram(withKey diagramKey: String) async {
+        print("🔄 === REGENERATING DIAGRAM ===")
+        print("🔄 Diagram key: \(diagramKey)")
+
+        // Get the original request
+        guard let originalRequest = diagramRequests[diagramKey] else {
+            print("❌ Original request not found for diagram key: \(diagramKey)")
+            errorMessage = "Cannot regenerate diagram: Original request not found"
+            return
+        }
+
+        guard let sessionId = networkService.currentSessionId else {
+            print("❌ No session ID for diagram regeneration")
+            return
+        }
+
+        await MainActor.run {
+            isGeneratingDiagram = true
+        }
+
+        // ✅ CRITICAL: Force cache bypass by adding UUID to request
+        // This ensures the regeneration creates a completely new diagram
+        let cacheBypassRequest = """
+        \(originalRequest)
+
+        [Regeneration Request - ID: \(UUID().uuidString)]
+        [Timestamp: \(Date().timeIntervalSince1970)]
+        """
+
+        // Call the network service to generate new diagram
+        let response = await networkService.generateDiagram(
+            conversationHistory: networkService.conversationHistory,
+            diagramRequest: cacheBypassRequest,  // ✅ Use cache-bypass request
+            sessionId: sessionId,
+            subject: selectedSubject
+        )
+
+        await MainActor.run {
+            isGeneratingDiagram = false
+
+            if response.success {
+                // Replace the old diagram with the new one using the SAME key
+                // This ensures the UI updates the diagram in place
+                generatedDiagrams[diagramKey] = response
+
+                print("✅ Diagram regenerated successfully")
+                print("🔄 Title: \(response.diagramTitle ?? "No title")")
+                print("🔄 Type: \(response.diagramType ?? "Unknown")")
+
+                // Trigger UI refresh to show new diagram
+                refreshTrigger = UUID()
+            } else {
+                print("❌ Diagram regeneration failed: \(response.error ?? "Unknown error")")
+                errorMessage = "Failed to regenerate diagram: \(response.error ?? "Please try again.")"
+            }
+        }
     }
 
     // MARK: - Phase 2.2: Message Retry Functionality
