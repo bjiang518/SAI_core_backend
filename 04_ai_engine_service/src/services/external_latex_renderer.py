@@ -6,6 +6,7 @@ Uses QuickLaTeX API or similar service for LaTeX to image conversion
 import aiohttp
 import base64
 from typing import Dict
+from .svg_utils import optimize_svg_for_display
 
 
 class ExternalLaTeXRenderer:
@@ -90,9 +91,12 @@ class ExternalLaTeXRenderer:
                                    x="0" y="0" width="{width}" height="{height}"/>
                         </svg>'''
 
+                        # ✅ FIX: Add padding to prevent cropping at edges
+                        svg_optimized = optimize_svg_for_display(svg_code, padding=20)
+
                         return {
                             'success': True,
-                            'svg_code': svg_code,
+                            'svg_code': svg_optimized,
                             'error': None
                         }
 

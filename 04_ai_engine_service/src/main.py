@@ -26,6 +26,7 @@ from src.services.prompt_service import AdvancedPromptService
 from src.services.session_service import SessionService
 from src.services.ai_analytics_service import AIAnalyticsService
 from src.services.latex_converter import latex_converter
+from src.services.svg_utils import optimize_svg_for_display
 
 # Import matplotlib generator with graceful fallback
 try:
@@ -3242,12 +3243,16 @@ async def generate_diagram(request: DiagramGenerationRequest):
                     }
 
         else:  # svg (default)
-            # SVG is already ready - just return it
+            # SVG is already ready - optimize and return it
             print(f"🎨 [Renderer] Using SVG directly")
+
+            # ✅ FIX: Add padding to prevent cropping at edges
+            svg_optimized = optimize_svg_for_display(diagram_content, padding=20)
+
             result = {
                 'success': True,
                 'diagram_type': 'svg',
-                'diagram_code': diagram_content,
+                'diagram_code': svg_optimized,
                 'diagram_title': ai_output.get('title', 'SVG Diagram'),
                 'explanation': ai_output.get('explanation', ''),
                 'width': ai_output.get('width', 400),
