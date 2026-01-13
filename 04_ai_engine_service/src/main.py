@@ -3038,6 +3038,10 @@ async def generate_diagram(request: DiagramGenerationRequest):
         # Get last 4 messages (2 Q&A pairs) for focused context
         recent_messages = request.conversation_history[-4:] if len(request.conversation_history) >= 4 else request.conversation_history
 
+        # ✅ FIX: Track if we've seen specific diagram requests to avoid context contamination
+        has_previous_math_content = False
+        previous_functions = []
+
         for msg in recent_messages:
             role = msg.get('role', 'unknown')
             content = msg.get('content', '')
@@ -3046,10 +3050,37 @@ async def generate_diagram(request: DiagramGenerationRequest):
             if 'generated diagram:' in content.lower() or 'diagram request context' in content.lower():
                 continue
 
+            # ✅ NEW: Detect previous mathematical function discussions that could contaminate new requests
+            content_lower = content.lower()
+            if any(indicator in content_lower for indicator in ['y =', 'f(x) =', 'equation', 'function', 'quadratic', 'parabola']):
+                has_previous_math_content = True
+                # Extract function patterns for logging
+                import re
+                function_patterns = re.findall(r'y\s*=\s*[^,\n]+', content, re.IGNORECASE)
+                previous_functions.extend(function_patterns[:2])  # Keep up to 2 examples
+
             conversation_text += f"{role.upper()}: {content}\n\n"
 
         # ✅ Add the specific diagram request at the end for clarity
         conversation_text += f"\nDIAGRAM REQUEST: {request.diagram_request}\n"
+
+        # ✅ CRITICAL FIX: If diagram request is for geometric shapes but context has old math functions,
+        # add explicit instruction to ignore previous functions and focus ONLY on current request
+        geometric_requests = ['triangle', 'circle', 'rectangle', 'square', 'pentagon', 'hexagon',
+                            'polygon', '三角形', '圆', '矩形', '正方形', '多边形']
+        is_geometric_request = any(shape in request.diagram_request.lower() for shape in geometric_requests)
+
+        if is_geometric_request and has_previous_math_content:
+            print(f"⚠️ [DiagramGen] Geometric request detected with previous math context")
+            print(f"   Previous functions: {previous_functions}")
+            print(f"   Current request: {request.diagram_request}")
+            print(f"   Adding explicit isolation instruction to prevent context contamination")
+
+            # Add strong directive to focus ONLY on current geometric request
+            conversation_text += f"\n⚠️ CRITICAL INSTRUCTION: The user is requesting a NEW geometric shape ({request.diagram_request}).\n"
+            conversation_text += f"IGNORE all previous mathematical functions in the conversation history.\n"
+            conversation_text += f"DO NOT draw any previous equations or functions.\n"
+            conversation_text += f"Focus EXCLUSIVELY on: {request.diagram_request}\n"
 
         # Analyze content to determine best diagram type
         content_analysis = analyze_content_for_diagram_type(conversation_text, request.subject)

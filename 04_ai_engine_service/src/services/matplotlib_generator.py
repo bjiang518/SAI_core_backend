@@ -93,7 +93,60 @@ class MatplotlibDiagramGenerator:
         print(f"📊 [MatplotlibGen] Context preview: {context_preview[:200]}...")
         print(f"📊 [MatplotlibGen] Diagram request: {diagram_request}")
 
-        prompt = f"""Generate Python matplotlib code to visualize: {diagram_request}
+        # ✅ NEW: Detect if this is a geometric shape request (matplotlib is not ideal for these)
+        geometric_shapes = ['triangle', 'circle', 'rectangle', 'square', 'pentagon', 'hexagon', 'polygon']
+        is_geometric = any(shape in diagram_request.lower() for shape in geometric_shapes)
+
+        if is_geometric:
+            print(f"⚠️ [MatplotlibGen] Geometric shape detected: {diagram_request}")
+            print(f"⚠️ [MatplotlibGen] Matplotlib is not ideal for geometric shapes - expect potential fallback to SVG")
+
+        # Build context-aware prompt
+        if is_geometric:
+            # Geometric shape prompt - simpler, focused on patches
+            prompt = f"""Generate Python matplotlib code to draw this geometric shape: {diagram_request}
+
+IMPORTANT: plt and np are ALREADY IMPORTED. Do NOT include import statements.
+
+For geometric shapes, use matplotlib patches:
+- For triangles: Use plt.Polygon() or ax.fill()
+- For circles: Use plt.Circle() or ax.add_patch()
+- For rectangles: Use plt.Rectangle() or ax.add_patch()
+
+Requirements:
+1. DO NOT write: import matplotlib.pyplot as plt (already available)
+2. DO NOT write: import numpy as np (already available)
+3. Use fig, ax = plt.subplots(figsize=(8,6))
+4. Center the shape in the plot area
+5. Add clear labels and title
+6. Use equal aspect ratio: ax.set_aspect('equal')
+7. {lang_instruction}
+
+Example for equilateral triangle:
+```python
+# NO IMPORTS - plt and np already available!
+import matplotlib.patches as mpatches
+
+fig, ax = plt.subplots(figsize=(8, 6))
+
+# Equilateral triangle vertices
+vertices = np.array([[0, 0], [1, 0], [0.5, np.sqrt(3)/2]])
+triangle = mpatches.Polygon(vertices, closed=True, edgecolor='blue', facecolor='lightblue', linewidth=2)
+ax.add_patch(triangle)
+
+# Set equal aspect and limits
+ax.set_aspect('equal')
+ax.set_xlim(-0.2, 1.2)
+ax.set_ylim(-0.2, 1.0)
+ax.grid(True, alpha=0.3)
+ax.set_title('Equilateral Triangle')
+plt.tight_layout()
+```
+
+Generate ONLY the Python code, no explanations. Code must be complete and executable."""
+        else:
+            # Mathematical function prompt
+            prompt = f"""Generate Python matplotlib code to visualize: {diagram_request}
 
 Context: {context_preview}
 Subject: {subject}
@@ -201,12 +254,13 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
                     'error': f"Dangerous pattern detected: {pattern}"
                 }
 
+        # ✅ UPDATED: Allow matplotlib.patches for geometric shapes
         # Check for allowed imports only
         required_imports = ['matplotlib', 'numpy']
-        has_matplotlib = any(imp in code for imp in ['matplotlib.pyplot', 'plt'])
+        has_matplotlib = any(imp in code for imp in ['matplotlib.pyplot', 'matplotlib.patches', 'plt', 'mpatches'])
         has_numpy = 'numpy' in code or 'np.' in code
 
-        if not (has_matplotlib and has_numpy):
+        if not (has_matplotlib or has_numpy):
             return {
                 'safe': False,
                 'error': "Missing required imports (matplotlib, numpy)"
@@ -228,12 +282,16 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
             }
 
         try:
+            # ✅ UPDATED: Import matplotlib.patches for geometric shapes
+            import matplotlib.patches as mpatches
+
             # Create restricted globals with only allowed imports
             restricted_globals = {
                 'matplotlib': matplotlib,
                 'plt': plt,
                 'np': np,
                 'numpy': np,
+                'mpatches': mpatches,  # ✅ NEW: Add patches for geometric shapes
                 '__builtins__': {
                     'range': range,
                     'len': len,
