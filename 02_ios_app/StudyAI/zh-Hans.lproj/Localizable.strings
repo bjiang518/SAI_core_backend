@@ -670,6 +670,7 @@
 "chat.archive.topicPlaceholder" = "输入主题（例如 %@）...";
 "chat.archive.notesPlaceholder" = "添加此会话的备注...";
 "chat.archive.buttonTitle" = "归档会话";
+"chat.archive.archiving" = "正在归档...";
 "chat.archive.infoTitle" = "归档信息";
 "chat.archive.infoMessage" = "保存此对话以便将来参考。您可以添加自定义标题和备注，帮助您记住所学内容。";
 
@@ -691,6 +692,7 @@
 "chat.alert.archiveSuccess.title" = "归档成功！🎉";
 "chat.alert.archiveSuccess.message" = "%@ 已成功归档并保存到您的学习资料库。";
 "chat.alert.archiveSuccess.viewInLibrary" = "在资料库中查看";
+"chat.alert.archiveSuccess.startNewChat" = "开始新对话";
 
 // Empty State
 "chat.emptyState.greeting" = "你好！我是 %@";

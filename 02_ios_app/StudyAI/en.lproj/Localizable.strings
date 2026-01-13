@@ -741,6 +741,7 @@
 "chat.archive.topicPlaceholder" = "Enter topic (e.g., %@)...";
 "chat.archive.notesPlaceholder" = "Add any notes about this session...";
 "chat.archive.buttonTitle" = "Archive Session";
+"chat.archive.archiving" = "Archiving...";
 "chat.archive.infoTitle" = "Archive Information";
 "chat.archive.infoMessage" = "Save this conversation for future reference. You can add a custom title and notes to help you remember what you learned.";
 
@@ -762,6 +763,7 @@
 "chat.alert.archiveSuccess.title" = "Archive Successful! 🎉";
 "chat.alert.archiveSuccess.message" = "%@ has been successfully archived and saved to your Study Library.";
 "chat.alert.archiveSuccess.viewInLibrary" = "View in Library";
+"chat.alert.archiveSuccess.startNewChat" = "Start New Chat";
 
 // Empty State
 "chat.emptyState.greeting" = "Hi! I'm %@";

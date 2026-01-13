@@ -171,61 +171,33 @@ struct DiagramRendererView: View {
     // MARK: - Diagram Rendering Logic
 
     private func renderDiagram() {
-        print("🎨 ============================================")
-        print("🎨 === DIAGRAM RENDERING START ===")
-        print("🎨 ============================================")
-        print("🎨 Type: \(diagramType)")
-        print("🎨 Title: '\(diagramTitle ?? "No title")'")
-        print("🎨 Code length: \(diagramCode.count) characters")
-        if let hint = renderingHint {
-            print("🎨 Rendering hint: \(hint.width)x\(hint.height), bg=\(hint.background), scale=\(hint.scaleFactor)")
-        }
-        print("🎨 Code preview: '\(diagramCode.prefix(100))\(diagramCode.count > 100 ? "..." : "")'")
-
         Task {
             await MainActor.run {
                 isLoading = true
                 hasError = false
                 errorMessage = ""
-                print("🎨 Setting loading state...")
             }
 
-            let renderStartTime = Date()
             do {
-                print("🎨 Starting rendering process...")
                 let image = try await renderDiagramImage()
-                let renderTime = Date().timeIntervalSince(renderStartTime) * 1000
-
-                print("🎨 ✅ Rendering completed successfully in \(Int(renderTime))ms")
-                print("🎨 Image size: \(image.size.width)x\(image.size.height)")
-                print("🎨 Image scale: \(image.scale)")
 
                 await MainActor.run {
                     renderedImage = image
                     isLoading = false
-                    print("🎨 UI updated with rendered image")
                 }
             } catch {
-                let renderTime = Date().timeIntervalSince(renderStartTime) * 1000
-                print("🎨 ❌ Rendering failed after \(Int(renderTime))ms")
-                print("🎨 Error: \(error.localizedDescription)")
+                print("❌ [DiagramRenderer] Rendering failed: \(error.localizedDescription)")
 
                 await MainActor.run {
                     hasError = true
                     errorMessage = error.localizedDescription
                     isLoading = false
-                    print("🎨 UI updated with error state")
                 }
             }
-
-            print("🎨 ============================================")
-            print("🎨 === DIAGRAM RENDERING END ===")
-            print("🎨 ============================================")
         }
     }
 
     private func renderDiagramImage() async throws -> UIImage {
-        print("🎨 [DiagramImage] Selecting renderer for type: \(diagramType)")
 
         switch diagramType.lowercased() {
         case "matplotlib":
@@ -648,12 +620,9 @@ class SVGImageRenderer: NSObject {
         self.completion = completion
         self.continuationId = continuationId
         super.init()
-
-        print("🔍 [DEBUG] SVGImageRenderer INITIALIZED with continuation \(continuationId)")
     }
 
     deinit {
-        print("🔍 [DEBUG] SVGImageRenderer DEINIT for continuation \(continuationId)")
         if !hasCompleted {
             DiagramDebugLogger.shared.logContinuationLeak(continuationId)
         }
@@ -661,12 +630,8 @@ class SVGImageRenderer: NSObject {
 
     func render() {
         guard !hasCompleted else {
-            print("🎨 [SVGImageRenderer] ⚠️ Already completed, skipping render")
             return
         }
-
-        print("🎨 [SVGImageRenderer] Starting render process")
-        print("🎨 [SVGImageRenderer] Code length: \(svgCode.count) characters")
 
         DispatchQueue.main.async {
             self.renderSVGWithWebView()
@@ -677,24 +642,14 @@ class SVGImageRenderer: NSObject {
         let width = hint?.width ?? 400
         let height = hint?.height ?? 300
 
-        print("🎨 [SVGImageRenderer] === STARTING SVG WEBVIEW RENDERING ===")
-        print("🎨 [SVGImageRenderer] Creating WebView: \(width)x\(height)")
-        print("🎨 [SVGImageRenderer] Background color: \(hint?.background ?? "white")")
-
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = WKWebsiteDataStore.nonPersistent() // Fresh store for each render
+        config.websiteDataStore = WKWebsiteDataStore.nonPersistent()
         config.suppressesIncrementalRendering = false
         config.allowsInlineMediaPlayback = true
-        print("🎨 [SVGImageRenderer] Created WKWebViewConfiguration with nonPersistent store")
 
         webView = WKWebView(frame: CGRect(x: 0, y: 0, width: width, height: height), configuration: config)
-        print("🎨 [SVGImageRenderer] Created WKWebView with frame: \(CGRect(x: 0, y: 0, width: width, height: height))")
-
-        // CRITICAL: Set delegate BEFORE any loading operations
         webView?.navigationDelegate = self
-        print("🎨 [SVGImageRenderer] ✅ Set navigation delegate BEFORE loading")
 
-        // Enhanced HTML with completion detection
         let htmlContent = """
         <!DOCTYPE html>
         <html>
@@ -753,197 +708,78 @@ class SVGImageRenderer: NSObject {
         </html>
         """
 
-        print("🎨 [SVGImageRenderer] === HTML CONTENT ANALYSIS ===")
-        print("🎨 [SVGImageRenderer] - Total HTML length: \(htmlContent.count) characters")
-        print("🎨 [SVGImageRenderer] - SVG code length: \(svgCode.count) characters")
-        print("🎨 [SVGImageRenderer] - SVG preview: '\(svgCode.prefix(150))\(svgCode.count > 150 ? "..." : "")'")
-
-        // Enhanced SVG validation
+        // Validate SVG
         let svgLower = svgCode.lowercased()
-        if svgLower.contains("<svg") {
-            print("🎨 [SVGImageRenderer] ✅ Valid SVG detected (contains <svg tag)")
-            if svgLower.contains("viewbox") {
-                print("🎨 [SVGImageRenderer] ✅ SVG has viewBox attribute")
-            }
-            if svgLower.contains("width") && svgLower.contains("height") {
-                print("🎨 [SVGImageRenderer] ✅ SVG has width/height attributes")
-            }
-        } else {
-            print("🎨 [SVGImageRenderer] ❌ ERROR: SVG content does not contain valid <svg tag")
-            print("🎨 [SVGImageRenderer] ❌ This will likely cause rendering failure")
-
-            // Early failure for invalid SVG
+        if !svgLower.contains("<svg") {
+            print("❌ [SVGImageRenderer] Invalid SVG: missing <svg> tag")
             completeWithResult(image: nil, error: DiagramError.invalidCode("SVG content missing <svg> tag"))
             return
         }
 
-        // Set up timeout timer with shorter duration for faster feedback
-        print("🎨 [SVGImageRenderer] Setting up 3-second timeout protection")
+        // Set up timeout timer
         timeoutTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
-            print("🎨 [SVGImageRenderer] ⏰ Timeout timer fired after 3 seconds")
             self?.handleTimeout()
         }
-        print("🎨 [SVGImageRenderer] ✅ Timeout timer scheduled successfully")
 
-        // CRITICAL: Check WebView state before loading
         guard let webView = webView else {
-            print("🎨 [SVGImageRenderer] ❌ CRITICAL ERROR: WebView is nil before loading")
+            print("❌ [SVGImageRenderer] WebView creation failed")
             completeWithResult(image: nil, error: DiagramError.renderingFailed("WebView creation failed"))
             return
         }
 
-        print("🎨 [SVGImageRenderer] === STARTING HTML LOAD OPERATION ===")
-        print("🎨 [SVGImageRenderer] WebView state: Ready")
-        print("🎨 [SVGImageRenderer] Navigation delegate: \(webView.navigationDelegate != nil ? "Set" : "NOT SET")")
-        print("🎨 [SVGImageRenderer] Loading HTML content...")
-
-        // Load HTML with detailed monitoring
         webView.loadHTMLString(htmlContent, baseURL: nil)
-
-        print("🎨 [SVGImageRenderer] ✅ loadHTMLString() call completed")
-        print("🎨 [SVGImageRenderer] WebView.isLoading: \(webView.isLoading)")
-        print("🎨 [SVGImageRenderer] WebView.url: \(webView.url?.absoluteString ?? "nil")")
-        print("🎨 [SVGImageRenderer] === SVG WEBVIEW SETUP COMPLETE ===")
     }
 
     private func captureSnapshot() {
-        print("🎨 [SVGImageRenderer] === STARTING SNAPSHOT CAPTURE ===")
-        print("🎨 [SVGImageRenderer] Checking preconditions...")
-        print("🎨 [SVGImageRenderer] WebView exists: \(webView != nil)")
-        print("🎨 [SVGImageRenderer] Has completed: \(hasCompleted)")
-
         guard let webView = webView, !hasCompleted else {
-            print("🎨 [SVGImageRenderer] ❌ Snapshot capture aborted - preconditions failed")
-            if webView == nil {
-                print("🎨 [SVGImageRenderer] ❌ WebView is nil")
-            }
-            if hasCompleted {
-                print("🎨 [SVGImageRenderer] ❌ Rendering already completed")
-            }
             return
         }
 
-        print("🎨 [SVGImageRenderer] ✅ Preconditions passed, taking snapshot...")
-        print("🎨 [SVGImageRenderer] WebView frame: \(webView.frame)")
-        print("🎨 [SVGImageRenderer] WebView content size: \(webView.scrollView.contentSize)")
-
         webView.takeSnapshot(with: nil) { [weak self] image, error in
-            print("🎨 [SVGImageRenderer] === SNAPSHOT COMPLETION CALLBACK ===")
-
-            if let image = image {
-                print("🎨 [SVGImageRenderer] ✅ Snapshot captured successfully")
-                print("🎨 [SVGImageRenderer] Image size: \(image.size)")
-                print("🎨 [SVGImageRenderer] Image scale: \(image.scale)")
-            } else if let error = error {
-                print("🎨 [SVGImageRenderer] ❌ Snapshot failed with error:")
-                print("🎨 [SVGImageRenderer] Error: \(error.localizedDescription)")
-            } else {
-                print("🎨 [SVGImageRenderer] ❌ Snapshot failed with no error information")
+            if let error = error {
+                print("❌ [SVGImageRenderer] Snapshot failed: \(error.localizedDescription)")
             }
-
-            print("🎨 [SVGImageRenderer] Calling completion handler...")
             self?.completeWithResult(image: image, error: error)
         }
-
-        print("🎨 [SVGImageRenderer] Snapshot capture request sent")
     }
 
     private func completeWithResult(image: UIImage?, error: Error?) {
-        print("🎨 [SVGRenderer] === COMPLETING RENDERING RESULT ===")
-        print("🎨 [SVGRenderer] Continuation ID: \(continuationId)")
-        print("🎨 [SVGRenderer] Checking completion state...")
-        print("🎨 [SVGRenderer] Has completed before: \(hasCompleted)")
-
         guard !hasCompleted else {
-            print("🎨 [SVGRenderer] ❌ Already completed, ignoring duplicate completion call")
-            print("🔍 [DEBUG] DUPLICATE completion attempt for \(continuationId)")
             return
         }
 
         hasCompleted = true
-        print("🎨 [SVGRenderer] ✅ Set completion flag to true")
-        print("🔍 [DEBUG] Marking continuation \(continuationId) as completed")
-
-        // Analyze the result
-        print("🎨 [SVGRenderer] === RESULT ANALYSIS ===")
-        let hasImage = image != nil
-        let hasError = error != nil
-        print("🎨 [SVGRenderer] Success: \(hasImage), Error: \(hasError)")
-
-        if let image = image {
-            print("🎨 [SVGRenderer] ✅ Success result:")
-            print("🎨 [SVGRenderer] - Image size: \(image.size)")
-            print("🎨 [SVGRenderer] - Image scale: \(image.scale)")
-            print("🎨 [SVGRenderer] - Total pixels: \(Int(image.size.width * image.size.height))")
-        }
 
         if let error = error {
-            print("🎨 [SVGRenderer] ❌ Error result:")
-            print("🎨 [SVGRenderer] - Error type: \(type(of: error))")
-            print("🎨 [SVGRenderer] - Error description: \(error.localizedDescription)")
+            print("❌ [SVGRenderer] Rendering failed: \(error.localizedDescription)")
         }
-
-        if !hasImage && !hasError {
-            print("🎨 [SVGRenderer] ⚠️ Warning: No image and no error - unexpected state")
-        }
-
-        print("🎨 [SVGRenderer] === CLEANUP PROCESS ===")
 
         // Clean up timeout timer
         if let timer = timeoutTimer {
-            print("🎨 [SVGRenderer] Invalidating timeout timer")
             timer.invalidate()
             timeoutTimer = nil
-            print("🎨 [SVGRenderer] ✅ Timeout timer cleaned up")
-        } else {
-            print("🎨 [SVGRenderer] No timeout timer to clean up")
         }
 
         // Clear webView to prevent memory leaks
         if let webView = webView {
-            print("🎨 [SVGRenderer] Cleaning up WebView...")
-            print("🎨 [SVGRenderer] - Current WebView frame: \(webView.frame)")
-            print("🎨 [SVGRenderer] - Setting navigation delegate to nil")
             webView.navigationDelegate = nil
             self.webView = nil
-            print("🎨 [SVGRenderer] ✅ WebView cleaned up")
-        } else {
-            print("🎨 [SVGRenderer] No WebView to clean up")
         }
-
-        print("🎨 [SVGRenderer] === CALLING COMPLETION HANDLER ===")
-        print("🔍 [DEBUG] About to call completion handler for \(continuationId)")
 
         // Call completion with appropriate result
         if let image = image {
-            print("🎨 [SVGRenderer] Calling completion(.success) with image")
-            print("🔍 [DEBUG] completion(.success) called for \(continuationId)")
             completion(.success(image))
         } else if let error = error {
-            print("🎨 [SVGRenderer] Calling completion(.failure) with error: \(error.localizedDescription)")
-            print("🔍 [DEBUG] completion(.failure) called for \(continuationId)")
             completion(.failure(error))
         } else {
-            print("🎨 [SVGRenderer] Calling completion(.failure) with generic error")
-            print("🔍 [DEBUG] completion(.failure) with generic error for \(continuationId)")
             completion(.failure(DiagramError.renderingFailed("Unknown error during SVG rendering")))
         }
-
-        print("🎨 [SVGRenderer] === RENDERING COMPLETION FINISHED ===")
-        print("🔍 [DEBUG] Completion handler finished for \(continuationId)")
     }
 
     private func handleTimeout() {
-        print("🎨 [SVGRenderer] === TIMEOUT HANDLER CALLED ===")
-        print("🎨 [SVGRenderer] Rendering timeout after 3 seconds")
-        print("🎨 [SVGRenderer] Checking completion state: \(hasCompleted)")
-
         guard !hasCompleted else {
-            print("🎨 [SVGRenderer] ❌ Already completed, ignoring timeout")
             return
         }
-
-        print("🎨 [SVGRenderer] ⏰ Handling timeout - attempting alternative rendering...")
 
         // Try alternative rendering approach as fallback
         attemptAlternativeRendering()

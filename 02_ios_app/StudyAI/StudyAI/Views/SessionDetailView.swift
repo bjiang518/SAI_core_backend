@@ -302,33 +302,6 @@ struct ConversationDetailContent: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Header Card
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: "message.circle")
-                            .foregroundColor(.blue)
-                            .font(.title2)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(conversation.subject)
-                                .font(.headline)
-                            if let topic = conversation.topic {
-                                Text(topic)
-                                    .font(.subheadline)
-                                    .foregroundColor(.blue)
-                            }
-                            Text(conversation.archivedDate, style: .date)
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
-                        
-                        Spacer()
-                    }
-                }
-                .padding()
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(12)
-                
                 // Conversation Content
                 VStack(alignment: .leading, spacing: 16) {
                     Text(NSLocalizedString("sessionDetail.conversation", comment: ""))
@@ -352,7 +325,7 @@ struct ConversationDetailContent: View {
                 // ✅ NEW: Diagrams Section (if diagrams exist in archive)
                 if let diagrams = conversation.diagrams, !diagrams.isEmpty {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("📊 Generated Diagrams")
+                        Text("Generated Diagrams")
                             .font(.headline)
 
                         ForEach(Array(diagrams.enumerated()), id: \.offset) { index, diagramDict in

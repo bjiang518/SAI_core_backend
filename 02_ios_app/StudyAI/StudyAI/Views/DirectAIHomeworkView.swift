@@ -150,11 +150,15 @@ class AIHomeworkStateManager: ObservableObject {
 struct DirectAIHomeworkView: View {
     @StateObject private var stateManager = AIHomeworkStateManager.shared
     @StateObject private var rateLimitManager = RateLimitManager.shared
+    // @StateObject private var viewModel = DirectAIHomeworkViewModel()  // TODO: Complete MVVM refactoring
     @EnvironmentObject private var appState: AppState
     @State private var showingResults = false
     @State private var isProcessing = false
     @State private var showingErrorAlert = false
     @State private var currentError: UserFacingError?
+
+    // NOTE: Currently using NetworkService.shared directly for backward compatibility
+    // Future: Migrate to viewModel methods for cleaner MVVM architecture
 
     // Detect Light/Dark mode for icon selection
     @Environment(\.colorScheme) var colorScheme
