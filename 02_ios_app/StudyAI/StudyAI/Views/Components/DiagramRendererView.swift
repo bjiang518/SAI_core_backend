@@ -71,11 +71,11 @@ struct DiagramRendererView: View {
 
     private var errorView: some View {
         VStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle")
-                .foregroundColor(.orange)
+            Image(systemName: "info.circle")
+                .foregroundColor(.blue)
                 .font(.system(size: 20))
 
-            Text("Diagram Render Error")
+            Text("Cannot Generate Diagram")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.primary)
 
@@ -83,12 +83,7 @@ struct DiagramRendererView: View {
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-
-            Button("View Source Code") {
-                // Show raw code in expandable view
-            }
-            .font(.system(size: 12, weight: .medium))
-            .foregroundColor(.blue)
+                .padding(.horizontal, 8)
         }
         .padding(16)
         .frame(maxWidth: .infinity)

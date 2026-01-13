@@ -104,14 +104,37 @@ class MatplotlibDiagramGenerator:
         # Build context-aware prompt
         if is_geometric:
             # Geometric shape prompt - simpler, focused on patches
-            prompt = f"""Generate Python matplotlib code to draw this geometric shape: {diagram_request}
+            prompt = f"""You are an educational diagram generator. Analyze this request: {diagram_request}
+
+Context: {context_preview}
 
 IMPORTANT: plt and np are ALREADY IMPORTED. Do NOT include import statements.
 
-For geometric shapes, use matplotlib patches:
-- For triangles: Use plt.Polygon() or ax.fill()
-- For circles: Use plt.Circle() or ax.add_patch()
-- For rectangles: Use plt.Rectangle() or ax.add_patch()
+**FIRST, assess if this diagram is appropriate for matplotlib:**
+
+✅ CAN GENERATE (use matplotlib.patches):
+- Simple geometric shapes: triangles, circles, rectangles, squares, polygons
+- Basic geometric constructions with clear dimensions
+- Shapes with specific properties (equilateral, right-angled, etc.)
+
+❌ CANNOT GENERATE (be honest and decline):
+- Complex 3D shapes or perspective drawings
+- Highly detailed artistic renderings
+- Ambiguous requests without clear dimensions
+- Shapes requiring advanced CAD capabilities
+- Requests that are too vague to produce accurate results
+
+If you CANNOT generate a quality diagram, respond with JSON:
+{{
+    "can_generate": false,
+    "reason": "Brief explanation why this diagram cannot be accurately generated",
+    "suggestion": "Suggest what information is needed or alternative approaches"
+}}
+
+If you CAN generate, provide matplotlib code using patches:
+- For triangles: Use mpatches.Polygon() with calculated vertices
+- For circles: Use mpatches.Circle()
+- For rectangles: Use mpatches.Rectangle()
 
 Requirements:
 1. DO NOT write: import matplotlib.pyplot as plt (already available)
@@ -143,15 +166,39 @@ ax.set_title('Equilateral Triangle')
 plt.tight_layout()
 ```
 
-Generate ONLY the Python code, no explanations. Code must be complete and executable."""
+Generate ONLY the Python code OR the rejection JSON. No additional explanations."""
         else:
             # Mathematical function prompt
-            prompt = f"""Generate Python matplotlib code to visualize: {diagram_request}
+            prompt = f"""You are an educational diagram generator. Analyze this request: {diagram_request}
 
 Context: {context_preview}
 Subject: {subject}
 
 IMPORTANT: plt and np are ALREADY IMPORTED. Do NOT include import statements.
+
+**FIRST, assess if this diagram is appropriate for matplotlib:**
+
+✅ CAN GENERATE:
+- Mathematical functions (polynomials, trigonometric, exponential, logarithmic)
+- Graphs with clear equations or data points
+- Statistical plots (histograms, scatter plots, bar charts)
+- Functions with well-defined domains and ranges
+
+❌ CANNOT GENERATE (be honest and decline):
+- Ambiguous requests without clear mathematical expressions
+- Diagrams requiring specialized domain knowledge you're uncertain about
+- Requests that are too vague to produce accurate mathematical visualizations
+- Complex 3D surfaces requiring advanced capabilities
+- Diagrams where you're not confident in accuracy
+
+If you CANNOT generate a quality diagram, respond with JSON:
+{{
+    "can_generate": false,
+    "reason": "Brief explanation why this diagram cannot be accurately generated",
+    "suggestion": "Suggest what information is needed (e.g., specific equation, domain, etc.)"
+}}
+
+If you CAN generate, provide matplotlib code following these requirements:
 
 Requirements:
 1. DO NOT write: import matplotlib.pyplot as plt (already available)
@@ -189,7 +236,7 @@ ax.set_title('Quadratic Function y = x² + 5x + 6')
 plt.tight_layout()
 ```
 
-Generate ONLY the Python code, no explanations. Code must be complete and executable."""
+Generate ONLY the Python code OR the rejection JSON. No additional explanations."""
 
         try:
             response = await ai_service.client.chat.completions.create(
@@ -200,6 +247,27 @@ Generate ONLY the Python code, no explanations. Code must be complete and execut
             )
 
             code = response.choices[0].message.content.strip()
+
+            # ✅ NEW: Check if AI declined to generate (graceful rejection)
+            import json
+            if code.startswith('{') and 'can_generate' in code:
+                try:
+                    rejection = json.loads(code)
+                    if rejection.get('can_generate') == False:
+                        print(f"🚫 [MatplotlibGen] AI declined to generate diagram")
+                        print(f"   Reason: {rejection.get('reason', 'Unknown')}")
+                        print(f"   Suggestion: {rejection.get('suggestion', 'None')}")
+
+                        return {
+                            'success': False,
+                            'code': None,
+                            'error': rejection.get('reason', 'Cannot generate this diagram'),
+                            'suggestion': rejection.get('suggestion'),
+                            'tokens_used': response.usage.total_tokens,
+                            'declined': True  # Flag to indicate this was a graceful decline
+                        }
+                except json.JSONDecodeError:
+                    pass  # Not a JSON response, continue with code parsing
 
             # Extract code from markdown blocks if present
             if '```python' in code:
