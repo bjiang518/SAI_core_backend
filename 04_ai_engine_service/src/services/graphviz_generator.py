@@ -199,7 +199,8 @@ Generate the DOT code. Only return rejection JSON if request is genuinely imposs
 
     def execute_code_safely(self, dot_code: str, timeout_seconds: int = 5) -> Dict:
         """
-        Execute Graphviz DOT code and return SVG
+        Execute Graphviz DOT code and return PNG (more reliable than SVG)
+        PNG format eliminates SVG cropping issues and provides consistent rendering
         """
         # Validate safety first
         safety_check = self.validate_code_safety(dot_code)
@@ -207,24 +208,28 @@ Generate the DOT code. Only return rejection JSON if request is genuinely imposs
             return {
                 'success': False,
                 'error': f"Security validation failed: {safety_check['error']}",
-                'svg_data': None
+                'image_data': None
             }
 
         try:
             # Create graph from DOT code
             dot = graphviz.Source(dot_code)
 
-            # Render to SVG
-            svg_bytes = dot.pipe(format='svg')
-            svg_string = svg_bytes.decode('utf-8')
+            # Render to PNG (more reliable than SVG for Graphviz)
+            # PNG includes proper margins and avoids viewBox cropping issues
+            png_bytes = dot.pipe(format='png', renderer='cairo', formatter='cairo')
 
-            # ✅ FIX: Add padding to prevent cropping at edges
-            svg_optimized = optimize_svg_for_display(svg_string, padding=20)
+            # Convert PNG bytes to base64 for embedding in response
+            import base64
+            png_base64 = base64.b64encode(png_bytes).decode('utf-8')
+
+            # Create data URL for iOS to display
+            data_url = f"data:image/png;base64,{png_base64}"
 
             return {
                 'success': True,
-                'svg_data': svg_optimized,
-                'format': 'svg',
+                'image_data': data_url,
+                'format': 'png',
                 'error': None
             }
 
@@ -232,7 +237,7 @@ Generate the DOT code. Only return rejection JSON if request is genuinely imposs
             return {
                 'success': False,
                 'error': f"Execution error: {str(e)}",
-                'svg_data': None
+                'image_data': None
             }
 
     async def generate_and_execute(self, conversation_text: str,
@@ -287,17 +292,17 @@ Generate the DOT code. Only return rejection JSON if request is genuinely imposs
             }
 
         # Step 3: Return success
-        print(f"✅ Graphviz: Generated successfully in {elapsed_ms}ms")
+        print(f"✅ Graphviz: Generated PNG successfully in {elapsed_ms}ms")
         return {
             'success': True,
-            'diagram_type': 'svg',  # Return as SVG for iOS rendering
-            'diagram_code': exec_result['svg_data'],  # SVG string
-            'diagram_format': 'svg',
-            'generated_code': code,  # Keep original DOT code
+            'diagram_type': 'png',  # Return as PNG for reliable rendering
+            'diagram_code': exec_result['image_data'],  # PNG data URL
+            'diagram_format': 'png',
+            'generated_code': code,  # Keep original DOT code for reference
             'diagram_title': f"Graphviz Visualization",
             'explanation': f"Generated using Graphviz for {subject}",
-            'width': 400,
-            'height': 300,
+            'width': 600,  # PNG renders at fixed size, no cropping
+            'height': 400,
             'tokens_used': code_result['tokens_used']
         }
 
