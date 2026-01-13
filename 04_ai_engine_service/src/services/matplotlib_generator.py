@@ -172,7 +172,7 @@ Requirements:
 8. {lang_instruction}
 9. **Make reasonable assumptions** - if domain/range not specified, choose sensible defaults
 
-Example for y = x² + 5x + 6:
+Example for y = x^2 + 5x + 6:
 ```python
 # NO IMPORTS - plt and np already available!
 
@@ -185,7 +185,7 @@ x = np.linspace(-4, 0, 300)
 y = x**2 + 5*x + 6
 
 fig, ax = plt.subplots(figsize=(8, 6))
-ax.plot(x, y, 'b-', linewidth=2, label='y = x² + 5x + 6')
+ax.plot(x, y, 'b-', linewidth=2, label='y = x^2 + 5x + 6')
 ax.axhline(0, color='k', linewidth=0.5)
 ax.axvline(0, color='k', linewidth=0.5)
 ax.plot([r[0] for r in roots], [r[1] for r in roots], 'ro', markersize=8, label='Roots')
@@ -194,7 +194,7 @@ ax.grid(True, alpha=0.3)
 ax.legend()
 ax.set_xlabel('x')
 ax.set_ylabel('y')
-ax.set_title('Quadratic Function y = x² + 5x + 6')
+ax.set_title('Quadratic Function y = x^2 + 5x + 6')
 plt.tight_layout()
 ```
 

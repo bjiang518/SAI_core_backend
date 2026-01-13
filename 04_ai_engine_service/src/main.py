@@ -3264,7 +3264,7 @@ Choose the BEST tool for this request and generate the code.
 
 1. **matplotlib** (Python code)
    - BEST FOR: Mathematical functions, graphs, plots, data visualization
-   - Examples: "graph y = x²", "plot sin(x)", "histogram", "scatter plot"
+   - Examples: "graph y = x^2", "plot sin(x)", "histogram", "scatter plot"
    - Strengths: Perfect viewport framing, calculus, statistics
    - Weaknesses: Poor for geometric shapes, flowcharts
 
@@ -3463,9 +3463,9 @@ You MUST generate ONLY the TikZ picture code, NOT a full LaTeX document.
 BEFORE generating TikZ, you MUST:
 
 1. ANALYZE the mathematical function to find critical points:
-   - For quadratic y = ax² + bx + c:
+   - For quadratic y = ax^2 + bx + c:
      * Vertex at x = -b/(2a)
-     * Roots by solving ax² + bx + c = 0
+     * Roots by solving ax^2 + bx + c = 0
      * Y-intercept at (0, c)
 
 2. CALCULATE optimal domain for plotting:
@@ -3478,7 +3478,7 @@ BEFORE generating TikZ, you MUST:
    - Y-axis: From y_min to y_max (based on function values)
    - Plot domain: [domain=x_min:x_max] to show full curve
 
-EXAMPLE for y = x² + 5x + 6:
+EXAMPLE for y = x^2 + 5x + 6:
 Critical points:
   - Vertex: (-2.5, -0.25)
   - Roots: x = -3, x = -2
@@ -3648,9 +3648,9 @@ BEFORE generating the SVG, you MUST:
 
 1. ANALYZE the mathematical function or concept to identify the "interesting region"
 2. CALCULATE critical points that MUST be visible:
-   - For quadratic y = ax² + bx + c:
+   - For quadratic y = ax^2 + bx + c:
      * Vertex at x = -b/(2a)
-     * Roots (x-intercepts) by solving ax² + bx + c = 0
+     * Roots (x-intercepts) by solving ax^2 + bx + c = 0
      * Y-intercept at (0, c)
    - For other functions: local maxima, minima, inflection points
 
@@ -3664,10 +3664,10 @@ BEFORE generating the SVG, you MUST:
    - ✅ CORRECT: viewBox="-4 -1 5 10" (x_min, y_min, width, height in graph coordinates)
    - ❌ WRONG: viewBox="0 0 400 300" (pixel dimensions - always wrong for math graphs)
 
-EXAMPLE 1 - Quadratic y = x² + 5x + 6:
+EXAMPLE 1 - Quadratic y = x^2 + 5x + 6:
 Step 1: Calculate critical points
-  - Vertex: x = -5/(2×1) = -2.5, y = (-2.5)² + 5(-2.5) + 6 = -0.25
-  - Roots: x = -3 and x = -2 (solve x² + 5x + 6 = 0)
+  - Vertex: x = -5/(2*1) = -2.5, y = (-2.5)^2 + 5(-2.5) + 6 = -0.25
+  - Roots: x = -3 and x = -2 (solve x^2 + 5x + 6 = 0)
   - Y-intercept: (0, 6)
   - Interesting x-range: -3.5 to -0.5 (centered on vertex and roots)
 
@@ -3694,8 +3694,8 @@ Step 3: Set viewBox
 
 ⚠️ CRITICAL FOR PARABOLAS/GRAPHS:
 - If drawing a quadratic function (parabola), ensure correct orientation:
-  * If coefficient of x² is POSITIVE (e.g., y = x² + 5x + 6), parabola opens UPWARD
-  * If coefficient of x² is NEGATIVE (e.g., y = -x² + 5x + 6), parabola opens DOWNWARD
+  * If coefficient of x^2 is POSITIVE (e.g., y = x^2 + 5x + 6), parabola opens UPWARD
+  * If coefficient of x^2 is NEGATIVE (e.g., y = -x^2 + 5x + 6), parabola opens DOWNWARD
 - Mark x-intercepts (roots) clearly with labeled points or dots
 - Mark vertex position with a dot or label
 - Show ALL critical features within viewport
