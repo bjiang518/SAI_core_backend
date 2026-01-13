@@ -12,12 +12,20 @@ import SwiftUI
 
 /// Specialized message view for AI-generated diagrams
 /// Integrates with existing ModernAIMessageView pattern
+///
+/// User Interactions:
+/// - X button (top-right overlay): Removes the diagram
+/// - Tap diagram: Opens fullscreen view with zoom
+/// - "Regenerate Image" button: Shown in follow-up suggestions (uses better AI model)
+///
+/// Note: SwipeActions are not supported because messages are in ScrollView (not List).
+/// All diagram controls use direct buttons instead.
 struct DiagramMessageView: View {
     let diagramData: NetworkService.DiagramGenerationResponse
     let voiceType: VoiceType
     let messageId: String
     var onRemove: (() -> Void)? = nil
-    var onRegenerate: (() -> Void)? = nil
+    // Note: Regeneration is handled by "Regenerate Image" button in follow-up suggestions
 
     @StateObject private var voiceService = VoiceInteractionService.shared
     @State private var isCurrentlyPlaying = false
@@ -103,27 +111,6 @@ struct DiagramMessageView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 0)
         .fixedSize(horizontal: false, vertical: true)
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            // Remove button
-            if let onRemove = onRemove {
-                Button(role: .destructive) {
-                    onRemove()
-                } label: {
-                    Label("Remove", systemImage: "trash")
-                }
-                .tint(.red)
-            }
-
-            // Regenerate button
-            if let onRegenerate = onRegenerate {
-                Button {
-                    onRegenerate()
-                } label: {
-                    Label("Regenerate", systemImage: "arrow.clockwise")
-                }
-                .tint(.blue)
-            }
-        }
         .fullScreenCover(isPresented: $showingFullscreen) {
             DiagramFullscreenView(diagramData: diagramData)
         }
@@ -231,7 +218,7 @@ struct EnhancedAIMessageView: View {
     let isStreaming: Bool
     let messageId: String
     var onRemoveDiagram: (() -> Void)? = nil
-    var onRegenerateDiagram: (() -> Void)? = nil
+    // Note: Regeneration is handled by "Regenerate Image" button in follow-up suggestions
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -248,8 +235,7 @@ struct EnhancedAIMessageView: View {
                     diagramData: diagramData,
                     voiceType: voiceType,
                     messageId: "\(messageId)-diagram",
-                    onRemove: onRemoveDiagram,
-                    onRegenerate: onRegenerateDiagram
+                    onRemove: onRemoveDiagram
                 )
             }
         }
