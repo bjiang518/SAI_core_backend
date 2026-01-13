@@ -149,7 +149,7 @@ ax.set_title('Equilateral Triangle')
 plt.tight_layout()
 ```
 
-Generate the Python code. Only return rejection JSON if request is genuinely impossible.
+Generate the Python code. Only return rejection JSON if request is genuinely impossible."""
         else:
             # Mathematical function prompt
             prompt = f"""Generate Python matplotlib code to visualize: {diagram_request}
