@@ -104,37 +104,19 @@ class MatplotlibDiagramGenerator:
         # Build context-aware prompt
         if is_geometric:
             # Geometric shape prompt - simpler, focused on patches
-            prompt = f"""You are an educational diagram generator. Analyze this request: {diagram_request}
+            prompt = f"""Generate Python matplotlib code to draw this geometric shape: {diagram_request}
 
 Context: {context_preview}
 
 IMPORTANT: plt and np are ALREADY IMPORTED. Do NOT include import statements.
 
-**FIRST, assess if this diagram is appropriate for matplotlib:**
+**TRY YOUR BEST** - Only decline if truly impossible. Most shapes CAN be drawn!
 
-✅ CAN GENERATE (use matplotlib.patches):
-- Simple geometric shapes: triangles, circles, rectangles, squares, polygons
-- Basic geometric constructions with clear dimensions
-- Shapes with specific properties (equilateral, right-angled, etc.)
-
-❌ CANNOT GENERATE (be honest and decline):
-- Complex 3D shapes or perspective drawings
-- Highly detailed artistic renderings
-- Ambiguous requests without clear dimensions
-- Shapes requiring advanced CAD capabilities
-- Requests that are too vague to produce accurate results
-
-If you CANNOT generate a quality diagram, respond with JSON:
-{{
-    "can_generate": false,
-    "reason": "Brief explanation why this diagram cannot be accurately generated",
-    "suggestion": "Suggest what information is needed or alternative approaches"
-}}
-
-If you CAN generate, provide matplotlib code using patches:
+For geometric shapes, use matplotlib patches:
 - For triangles: Use mpatches.Polygon() with calculated vertices
 - For circles: Use mpatches.Circle()
 - For rectangles: Use mpatches.Rectangle()
+- For arbitrary polygons: Use mpatches.Polygon()
 
 Requirements:
 1. DO NOT write: import matplotlib.pyplot as plt (already available)
@@ -144,6 +126,7 @@ Requirements:
 5. Add clear labels and title
 6. Use equal aspect ratio: ax.set_aspect('equal')
 7. {lang_instruction}
+8. **Make reasonable assumptions** if some details are missing
 
 Example for equilateral triangle:
 ```python
@@ -152,7 +135,7 @@ import matplotlib.patches as mpatches
 
 fig, ax = plt.subplots(figsize=(8, 6))
 
-# Equilateral triangle vertices
+# Equilateral triangle vertices (side length 1)
 vertices = np.array([[0, 0], [1, 0], [0.5, np.sqrt(3)/2]])
 triangle = mpatches.Polygon(vertices, closed=True, edgecolor='blue', facecolor='lightblue', linewidth=2)
 ax.add_patch(triangle)
@@ -166,49 +149,28 @@ ax.set_title('Equilateral Triangle')
 plt.tight_layout()
 ```
 
-Generate ONLY the Python code OR the rejection JSON. No additional explanations."""
+Generate the Python code. Only return rejection JSON if request is genuinely impossible.
         else:
             # Mathematical function prompt
-            prompt = f"""You are an educational diagram generator. Analyze this request: {diagram_request}
+            prompt = f"""Generate Python matplotlib code to visualize: {diagram_request}
 
 Context: {context_preview}
 Subject: {subject}
 
 IMPORTANT: plt and np are ALREADY IMPORTED. Do NOT include import statements.
 
-**FIRST, assess if this diagram is appropriate for matplotlib:**
-
-✅ CAN GENERATE:
-- Mathematical functions (polynomials, trigonometric, exponential, logarithmic)
-- Graphs with clear equations or data points
-- Statistical plots (histograms, scatter plots, bar charts)
-- Functions with well-defined domains and ranges
-
-❌ CANNOT GENERATE (be honest and decline):
-- Ambiguous requests without clear mathematical expressions
-- Diagrams requiring specialized domain knowledge you're uncertain about
-- Requests that are too vague to produce accurate mathematical visualizations
-- Complex 3D surfaces requiring advanced capabilities
-- Diagrams where you're not confident in accuracy
-
-If you CANNOT generate a quality diagram, respond with JSON:
-{{
-    "can_generate": false,
-    "reason": "Brief explanation why this diagram cannot be accurately generated",
-    "suggestion": "Suggest what information is needed (e.g., specific equation, domain, etc.)"
-}}
-
-If you CAN generate, provide matplotlib code following these requirements:
+**TRY YOUR BEST** - Make reasonable assumptions if needed. Only reject if truly impossible!
 
 Requirements:
 1. DO NOT write: import matplotlib.pyplot as plt (already available)
 2. DO NOT write: import numpy as np (already available)
-3. For math functions: Calculate critical points (vertex, roots) FIRST
+3. For math functions: Calculate critical points (vertex, roots) if applicable
 4. Use plt.subplots(figsize=(8,6)) for proper sizing
 5. Add grid, labels, legend, title
-6. Mark critical points (roots, vertex, intercepts) with colored dots
+6. Mark critical points (roots, vertex, intercepts) with colored dots if relevant
 7. Use plt.tight_layout() for perfect framing
 8. {lang_instruction}
+9. **Make reasonable assumptions** - if domain/range not specified, choose sensible defaults
 
 Example for y = x² + 5x + 6:
 ```python
@@ -236,7 +198,7 @@ ax.set_title('Quadratic Function y = x² + 5x + 6')
 plt.tight_layout()
 ```
 
-Generate ONLY the Python code OR the rejection JSON. No additional explanations."""
+Generate the Python code. Only return rejection JSON if request is genuinely impossible."""
 
         try:
             response = await ai_service.client.chat.completions.create(
