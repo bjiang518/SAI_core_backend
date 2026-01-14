@@ -3162,6 +3162,60 @@ async def generate_diagram(request: DiagramGenerationRequest):
                 'height': 300,
                 'tokens_used': ai_output.get('tokens_used', 0)
             }
+        else:
+            # ✅ PREFLIGHT VALIDATION: Tool-specific syntax checks
+            if diagram_type == "matplotlib":
+                import ast
+                try:
+                    ast.parse(diagram_content)
+                    print(f"✅ [Preflight] Matplotlib code passed AST validation")
+                except SyntaxError as e:
+                    print(f"❌ [Preflight] Matplotlib syntax error: {e}")
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Syntax Error</text></svg>',
+                        'diagram_title': ai_output.get('title', 'Error'),
+                        'explanation': f'Syntax error: {str(e)}',
+                        'width': 400,
+                        'height': 300,
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+            elif diagram_type == "graphviz":
+                # Validate DOT structure
+                dot_lower = diagram_content.lower()
+                if not (dot_lower.strip().startswith('digraph') or dot_lower.strip().startswith('graph')):
+                    print(f"❌ [Preflight] Invalid DOT: must start with 'digraph' or 'graph'")
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Invalid DOT</text></svg>',
+                        'diagram_title': ai_output.get('title', 'Error'),
+                        'explanation': 'Invalid DOT syntax',
+                        'width': 400,
+                        'height': 300,
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+                # Check for contamination
+                elif any(kw in diagram_content for kw in ['import ', 'plt.', 'np.', 'def ', 'matplotlib']):
+                    print(f"❌ [Preflight] DOT contamination detected")
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">DOT contaminated</text></svg>',
+                        'diagram_title': ai_output.get('title', 'Error'),
+                        'explanation': 'DOT contains Python syntax',
+                        'width': 400,
+                        'height': 300,
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+                else:
+                    # ✅ SANITIZE: Force quoting on labels
+                    import re
+                    diagram_content = re.sub(r'label=([^"\s\[\],;]+)', r'label="\1"', diagram_content)
+                    ai_output['content'] = diagram_content
+                    print(f"✅ [Preflight] DOT sanitized and validated")
+
         # 4. Check for backslash line continuations in Python code (common error)
         elif diagram_type == "matplotlib":
             bad_lines = [i for i, l in enumerate(diagram_content.splitlines(), 1) if l.rstrip().endswith("\\") and not l.strip().startswith("#")]
@@ -3407,10 +3461,23 @@ def extract_json_from_responses(response):
                         print(f"✅ Extracted from part.json (type={part_type})")
                         return result
 
-                # ❌ REFUSE output_text in schema mode - enforce compiler-grade structured output
-                if part_type in ("output_text", "text"):
-                    print(f"❌ Schema violation: Received {part_type} block instead of output_json")
-                    print(f"   Schema mode requires strict JSON output, not text blocks")
+                # ✅ SALVAGE: Try to parse JSON from output_text before rejecting
+                # SDK 2.x sometimes wraps valid JSON as output_text instead of output_json
+                if part_type in ("output_text", "text") and hasattr(part, "text"):
+                    text = part.text.strip()
+                    # Check if it looks like JSON
+                    if text.startswith("{") and text.endswith("}"):
+                        try:
+                            obj = _json.loads(text)
+                            # Validate it has required diagram schema keys
+                            if "type" in obj and "content" in obj:
+                                print(f"✅ Salvaged valid JSON from {part_type} block (SDK 2.x behavior)")
+                                return obj
+                        except _json.JSONDecodeError:
+                            pass  # Not valid JSON, continue to error
+
+                    # If we get here, it's truly non-JSON text (preamble/explanation)
+                    print(f"❌ Schema violation: Received {part_type} block with non-JSON content")
                     raise ValueError(f"Schema mode failed: received {part_type} block instead of output_json")
 
     # If we reach here, schema was not respected - raise error to trigger fallback
@@ -3477,7 +3544,17 @@ Server has NO unicode fonts. Use English/ASCII labels ONLY in diagram code.
 - Generate COMPLETE, executable code (imports, setup, all details)
 - NO placeholders, TODOs, markdown fences, or backslash line continuations
 - Return JSON with keys: type, content, title, explanation, width, height
-- JSON only - no preamble, no markdown, no extra text"""
+- JSON only - no preamble, no markdown, no extra text
+
+**⚠️ EMERGENCY FALLBACK**: If you cannot generate the diagram (conflicting constraints, impossible request), return this minimal SVG:
+{{
+  "type": "svg",
+  "content": "<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 400 300\\"><text x=\\"200\\" y=\\"150\\" text-anchor=\\"middle\\">Diagram unavailable</text></svg>",
+  "title": "Error",
+  "explanation": "Cannot generate this diagram type",
+  "width": 400,
+  "height": 300
+}}"""
 
     try:
         # ✅ FIX: Define strict JSON schema WITHOUT reasoning field
@@ -3544,18 +3621,28 @@ Server has NO unicode fonts. Use English/ASCII labels ONLY in diagram code.
             # - No temperature parameter (deterministic by design)
             # - Uses max_completion_tokens instead of max_tokens
             print(f"🔄 Using chat.completions for o4-mini (model-specific parameters)")
-            response = await ai_service.client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                max_completion_tokens=max_completion_tokens,  # ✅ o4-mini parameter
-                response_format={"type": "json_object"}
-            )
-            result_text = response.choices[0].message.content.strip()
 
-            # ✅ CHECK: Handle empty o4-mini responses (known issue with reasoning models)
+            # ✅ RETRY: o4-mini sometimes returns empty - retry once with explicit reminder
+            for attempt in range(2):
+                response = await ai_service.client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt + ("\n\nReturn JSON now." if attempt > 0 else "")}],
+                    max_completion_tokens=max_completion_tokens,
+                    response_format={"type": "json_object"}
+                )
+                result_text = response.choices[0].message.content.strip()
+
+                if result_text and result_text != "":
+                    break  # Got valid response
+                else:
+                    print(f"❌ o4-mini attempt {attempt + 1} returned empty response")
+                    if attempt < 1:
+                        print(f"🔄 Retrying with explicit reminder...")
+
+            # Final check after retries
             if not result_text or result_text == "":
-                print(f"❌ o4-mini returned empty response")
-                raise ValueError("o4-mini returned empty response - fallback required")
+                print(f"❌ o4-mini failed after 2 attempts - using emergency fallback")
+                raise ValueError("o4-mini returned empty response after retries")
         else:
             # ✅ GPT-4O-MINI INITIAL GENERATION PATH (speed-focused)
             model = "gpt-4o-mini"
