@@ -3149,15 +3149,15 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
         if diagram_type in ["matplotlib", "graphviz"] and contains_non_ascii(diagram_content):
             print(f"❌ Non-ASCII characters detected in {diagram_type} code")
-            print(f"   Chinese characters will cause rendering failures (server-side fonts)")
+            print(f"   Unicode/non-English characters will cause rendering failures (server has no unicode fonts)")
             print(f"   Returning error diagram")
             # Return error diagram (success=True with error message)
             result = {
                 'success': True,  # ✅ Success=True because we're returning a valid error diagram
                 'diagram_type': 'svg',
-                'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle" font-size="14">Error: Non-ASCII characters in code</text><text x="200" y="180" text-anchor="middle" font-size="12">Please use English labels only</text></svg>',
+                'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle" font-size="14">Error: Non-ASCII characters in code</text><text x="200" y="180" text-anchor="middle" font-size="12">Use English/ASCII labels only</text></svg>',
                 'diagram_title': ai_output.get('title', 'Error'),
-                'explanation': f'Code contains non-ASCII characters (Chinese/unicode). {diagram_type} requires English labels only (server-side font limitation).',
+                'explanation': f'Code contains non-ASCII/unicode characters. {diagram_type} requires English/ASCII labels only (server lacks unicode font support).',
                 'width': 400,
                 'height': 300,
                 'tokens_used': ai_output.get('tokens_used', 0)
@@ -3471,8 +3471,8 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
    - Examples: graph y = x^2, plot sin(x), histogram
    - Strengths: Perfect framing, calculus, statistics
    - CODE REQUIREMENTS: Complete Python with imports (matplotlib.pyplot as plt)
-   - ⚠️ CRITICAL: All labels/text in code MUST be English (plt.xlabel, plt.title, etc.)
-   - ⚠️ Chinese characters in code = IMMEDIATE FAILURE (server has no Chinese fonts)
+   - ⚠️ CRITICAL: All labels/text in code MUST be English/ASCII only (plt.xlabel, plt.title, etc.)
+   - ⚠️ Non-English characters (Chinese, Japanese, Arabic, etc.) = IMMEDIATE FAILURE (server has no unicode fonts)
 
 2. **svg**: Geometric shapes, concept diagrams, simple illustrations
    - Examples: draw triangle, show circle, illustrate concept
@@ -3488,25 +3488,27 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
    - Examples: binary tree, flowchart, state diagram
    - Strengths: Automatic layout for hierarchies
    - CODE REQUIREMENTS: Valid DOT syntax (digraph or graph)
-   - ⚠️ CRITICAL: All node labels/text MUST be English
-   - ⚠️ Chinese characters in labels = IMMEDIATE FAILURE (server has no Chinese fonts)
+   - ⚠️ CRITICAL: All node labels/text MUST be English/ASCII only
+   - ⚠️ Non-English characters (Chinese, Japanese, Arabic, etc.) = IMMEDIATE FAILURE (server has no unicode fonts)
 
 ---
 
 **YOUR TASK**:
 Choose the best tool and generate COMPLETE, EXECUTABLE code.
 
-**⚠️ CRITICAL: NO CHINESE CHARACTERS IN CODE ⚠️**
-The server environment does NOT have Chinese fonts installed. If you put Chinese characters
-in matplotlib labels, SVG text, or graphviz node labels, the diagram will FAIL immediately.
-- Title and explanation fields CAN use Chinese (for user readability)
-- But ALL text inside the code (plt.xlabel, plt.title, SVG <text>, DOT node labels) MUST be English
-- Example WRONG: plt.xlabel('函数')  → WILL FAIL
+**⚠️ CRITICAL: ONLY ENGLISH/ASCII TEXT IN CODE ⚠️**
+The server environment does NOT have unicode fonts installed. If you use non-English characters
+(Chinese, Japanese, Korean, Arabic, Cyrillic, accented letters, etc.) in matplotlib labels,
+graphviz node labels, or any code text, the diagram will FAIL immediately.
+- Title and explanation fields CAN use any language (for user readability)
+- But ALL text inside the code (plt.xlabel, plt.title, DOT node labels) MUST be English/ASCII only
+- Example WRONG: plt.xlabel('函数') or plt.xlabel('関数') or plt.xlabel('Функция')  → WILL FAIL
 - Example CORRECT: plt.xlabel('Function')  → WILL WORK
+- NO accented letters: 'café' → use 'cafe', 'naïve' → use 'naive'
 
 **CRITICAL REQUIREMENTS**:
 - Select appropriate "type" field: matplotlib, svg, latex, or graphviz
-- Provide complete executable "content" with **ONLY English/ASCII text** in diagram code (no Chinese/unicode characters)
+- Provide complete executable "content" with **ONLY English/ASCII text** in diagram code (no unicode/non-English characters)
 - Include all necessary imports and declarations
 - Make code production-ready (no placeholders, no TODOs, no code fences)
 - Provide brief "title" in {explanation_lang}
