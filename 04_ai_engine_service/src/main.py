@@ -3164,11 +3164,60 @@ async def generate_diagram(request: DiagramGenerationRequest):
             }
         else:
             # ✅ PREFLIGHT VALIDATION: Tool-specific syntax checks
+            skip_execution = False  # Flag to prevent execution if validation fails
+
             if diagram_type == "matplotlib":
                 import ast
                 try:
-                    ast.parse(diagram_content)
-                    print(f"✅ [Preflight] Matplotlib code passed AST validation")
+                    tree = ast.parse(diagram_content)
+                    print(f"✅ [Preflight] Matplotlib code passed AST syntax validation")
+
+                    # ✅ Check for undefined names (NameError prevention)
+                    # Common failures: 'a not defined', 'x not defined', 'plt without import'
+                    allowlist = {'plt', 'np', 'matplotlib', 'mpatches', 'patches', 'colors',
+                                'pyplot', 'math', 'pi', 'e', 'inf', 'nan'}  # Standard imports
+
+                    # Walk AST and collect Name nodes in Load context (variable reads)
+                    undefined_names = set()
+                    defined_names = set()
+
+                    for node in ast.walk(tree):
+                        # Track assignments (defined names)
+                        if isinstance(node, ast.Assign):
+                            for target in node.targets:
+                                if isinstance(target, ast.Name):
+                                    defined_names.add(target.id)
+                        # Track function definitions
+                        elif isinstance(node, ast.FunctionDef):
+                            defined_names.add(node.name)
+                        # Track imports
+                        elif isinstance(node, ast.Import):
+                            for alias in node.names:
+                                defined_names.add(alias.asname if alias.asname else alias.name)
+                        elif isinstance(node, ast.ImportFrom):
+                            for alias in node.names:
+                                defined_names.add(alias.asname if alias.asname else alias.name)
+                        # Check variable usage
+                        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+                            if node.id not in allowlist and node.id not in defined_names:
+                                undefined_names.add(node.id)
+
+                    if undefined_names:
+                        print(f"❌ [Preflight] Matplotlib undefined names: {undefined_names}")
+                        result = {
+                            'success': True,
+                            'diagram_type': 'svg',
+                            'diagram_code': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Undefined names: {", ".join(list(undefined_names)[:3])}</text></svg>',
+                            'diagram_title': ai_output.get('title', 'Error'),
+                            'explanation': f'Undefined names: {", ".join(undefined_names)}. Likely missing imports or typos.',
+                            'width': 400,
+                            'height': 300,
+                            'tokens_used': ai_output.get('tokens_used', 0)
+                        }
+                        skip_execution = True
+                    else:
+                        print(f"✅ [Preflight] All names defined or in allowlist")
+
                 except SyntaxError as e:
                     print(f"❌ [Preflight] Matplotlib syntax error: {e}")
                     result = {
@@ -3181,6 +3230,8 @@ async def generate_diagram(request: DiagramGenerationRequest):
                         'height': 300,
                         'tokens_used': ai_output.get('tokens_used', 0)
                     }
+                    skip_execution = True
+
             elif diagram_type == "graphviz":
                 # Validate DOT structure
                 dot_lower = diagram_content.lower()
@@ -3196,9 +3247,10 @@ async def generate_diagram(request: DiagramGenerationRequest):
                         'height': 300,
                         'tokens_used': ai_output.get('tokens_used', 0)
                     }
-                # Check for contamination
-                elif any(kw in diagram_content for kw in ['import ', 'plt.', 'np.', 'def ', 'matplotlib']):
-                    print(f"❌ [Preflight] DOT contamination detected")
+                    skip_execution = True
+                # Check for contamination (case-insensitive on lowercased version)
+                elif any(kw in dot_lower for kw in ['import ', 'plt.', 'np.', 'def ', 'matplotlib']):
+                    print(f"❌ [Preflight] DOT contamination detected (case-insensitive)")
                     result = {
                         'success': True,
                         'diagram_type': 'svg',
@@ -3209,21 +3261,51 @@ async def generate_diagram(request: DiagramGenerationRequest):
                         'height': 300,
                         'tokens_used': ai_output.get('tokens_used', 0)
                     }
+                    skip_execution = True
                 else:
-                    # ✅ SANITIZE: Force quoting on labels
+                    # ✅ IMPROVED SANITIZE: Handle complex label patterns
                     import re
-                    diagram_content = re.sub(r'label=([^"\s\[\],;]+)', r'label="\1"', diagram_content)
-                    ai_output['content'] = diagram_content
-                    print(f"✅ [Preflight] DOT sanitized and validated")
 
-        # 4. Check for backslash line continuations in Python code (common error)
-        elif diagram_type == "matplotlib":
+                    # Strategy: Only fix obviously broken labels (unquoted simple identifiers)
+                    # Leave already-quoted, HTML-like (<...>), and complex cases alone
+
+                    def sanitize_label(match):
+                        """Fix only simple unquoted labels like label=2a or label=Step"""
+                        label_value = match.group(1)
+
+                        # Skip if already quoted
+                        if label_value.startswith('"') and label_value.endswith('"'):
+                            return match.group(0)
+
+                        # Skip HTML-like labels
+                        if label_value.startswith('<') and label_value.endswith('>'):
+                            return match.group(0)
+
+                        # Skip if contains spaces (needs manual repair)
+                        if ' ' in label_value:
+                            print(f"⚠️ [Preflight] Label with spaces needs quoting: {label_value}")
+                            # Let it fail and trigger repair call later
+                            return match.group(0)
+
+                        # Fix simple unquoted identifier: label=2a → label="2a"
+                        return f'label="{label_value}"'
+
+                    original_content = diagram_content
+                    diagram_content = re.sub(r'label=([^"\s\[\],;]+)', sanitize_label, diagram_content)
+
+                    if diagram_content != original_content:
+                        print(f"✅ [Preflight] DOT label sanitization applied")
+                    ai_output['content'] = diagram_content
+                    print(f"✅ [Preflight] DOT validated")
+
+        # ✅ Additional check: backslash line continuations in matplotlib code
+        if not skip_execution and diagram_type == "matplotlib":
             bad_lines = [i for i, l in enumerate(diagram_content.splitlines(), 1) if l.rstrip().endswith("\\") and not l.strip().startswith("#")]
             if bad_lines:
                 print(f"❌ Backslash line continuations detected at lines: {bad_lines}")
                 print(f"   This will cause: 'unexpected character after line continuation'")
                 result = {
-                    'success': True,  # ✅ Success=True because we're returning a valid error diagram
+                    'success': True,
                     'diagram_type': 'svg',
                     'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle" font-size="14">Error: Invalid line continuations</text><text x="200" y="180" text-anchor="middle" font-size="12">Use parentheses instead</text></svg>',
                     'diagram_title': ai_output.get('title', 'Error'),
@@ -3232,16 +3314,13 @@ async def generate_diagram(request: DiagramGenerationRequest):
                     'height': 300,
                     'tokens_used': ai_output.get('tokens_used', 0)
                 }
-            else:
-                result = None  # Continue to execution
-        else:
-            result = None  # Continue to execution
+                skip_execution = True
 
         # Update diagram_content back to ai_output for downstream use
         ai_output['content'] = diagram_content
 
         # 🎯 ROUTE TO APPROPRIATE RENDERER BASED ON TYPE (only if validation passed)
-        if result is None:
+        if not skip_execution:
             if diagram_type == "matplotlib":
                 # Execute matplotlib code
                 print(f"📊 [Renderer] Executing matplotlib code...")
@@ -3431,10 +3510,45 @@ def extract_json_from_responses(response):
     - SDK 1.x (>=1.50.0): Uses response.output_parsed
     - SDK 2.x (>=2.0.0): Extracts from response.output[*].content[*].json
 
-    ✅ CRITICAL: Refuses output_text blocks in schema mode - only accepts output_json.
-    This enforces compiler-grade structured output and triggers fallback if schema violated.
+    ✅ SALVAGE MODE: Prefers output_json but will salvage valid JSON from output_text.
+    SDK 2.x sometimes wraps valid JSON as output_text - we validate and extract it.
+    Validates all required keys and types before accepting salvaged JSON.
     """
     # Note: _json module is imported at module level (line 17) as alias to avoid shadowing
+
+    # Required keys and valid types for diagram schema
+    REQUIRED_KEYS = {"type", "content", "title", "explanation", "width", "height"}
+    VALID_TYPES = {"matplotlib", "svg", "latex", "graphviz"}
+
+    def validate_diagram_json(obj):
+        """Validate diagram JSON has all required keys with correct types."""
+        if not isinstance(obj, dict):
+            return False
+
+        # Check all required keys present
+        if not REQUIRED_KEYS.issubset(obj.keys()):
+            missing = REQUIRED_KEYS - obj.keys()
+            print(f"⚠️ Missing required keys: {missing}")
+            return False
+
+        # Validate types
+        if obj["type"] not in VALID_TYPES:
+            print(f"⚠️ Invalid type: {obj['type']} (must be one of {VALID_TYPES})")
+            return False
+
+        if not isinstance(obj["content"], str) or len(obj["content"]) == 0:
+            print(f"⚠️ content must be non-empty string")
+            return False
+
+        if not isinstance(obj["width"], int) or not (200 <= obj["width"] <= 4096):
+            print(f"⚠️ width must be int in range [200, 4096]")
+            return False
+
+        if not isinstance(obj["height"], int) or not (200 <= obj["height"] <= 4096):
+            print(f"⚠️ height must be int in range [200, 4096]")
+            return False
+
+        return True
 
     # 1.x path: output_parsed is available
     if hasattr(response, "output_parsed") and response.output_parsed is not None:
@@ -3465,15 +3579,26 @@ def extract_json_from_responses(response):
                 # SDK 2.x sometimes wraps valid JSON as output_text instead of output_json
                 if part_type in ("output_text", "text") and hasattr(part, "text"):
                     text = part.text.strip()
-                    # Check if it looks like JSON
-                    if text.startswith("{") and text.endswith("}"):
+
+                    # Handle leading/trailing junk: find first { and last }
+                    first_brace = text.find("{")
+                    last_brace = text.rfind("}")
+
+                    if first_brace != -1 and last_brace != -1 and first_brace < last_brace:
+                        json_candidate = text[first_brace:last_brace+1]
                         try:
-                            obj = _json.loads(text)
-                            # Validate it has required diagram schema keys
-                            if "type" in obj and "content" in obj:
+                            obj = _json.loads(json_candidate)
+
+                            # Validate it has all required diagram schema keys with correct types
+                            if validate_diagram_json(obj):
                                 print(f"✅ Salvaged valid JSON from {part_type} block (SDK 2.x behavior)")
+                                if first_brace > 0 or last_brace < len(text) - 1:
+                                    print(f"   (stripped {first_brace} leading + {len(text)-last_brace-1} trailing chars)")
                                 return obj
-                        except _json.JSONDecodeError:
+                            else:
+                                print(f"❌ Salvaged JSON failed validation")
+                        except _json.JSONDecodeError as e:
+                            print(f"⚠️ Found braces but invalid JSON: {e}")
                             pass  # Not valid JSON, continue to error
 
                     # If we get here, it's truly non-JSON text (preamble/explanation)
@@ -3543,10 +3668,14 @@ Server has NO unicode fonts. Use English/ASCII labels ONLY in diagram code.
 - Choose appropriate "type": matplotlib, svg, latex, or graphviz
 - Generate COMPLETE, executable code (imports, setup, all details)
 - NO placeholders, TODOs, markdown fences, or backslash line continuations
-- Return JSON with keys: type, content, title, explanation, width, height
-- JSON only - no preamble, no markdown, no extra text
+- Output must be valid json (lowercase required)
 
-**⚠️ EMERGENCY FALLBACK**: If you cannot generate the diagram (conflicting constraints, impossible request), return this minimal SVG:
+**OUTPUT FORMAT**:
+Return JSON only - no preamble, no markdown, no extra text.
+
+Required keys (all must be present): type, content, title, explanation, width, height
+
+**⚠️ EMERGENCY FALLBACK**: If you cannot generate the diagram (conflicting constraints, impossible request), return EXACTLY this object:
 {{
   "type": "svg",
   "content": "<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 400 300\\"><text x=\\"200\\" y=\\"150\\" text-anchor=\\"middle\\">Diagram unavailable</text></svg>",
@@ -3622,7 +3751,44 @@ Server has NO unicode fonts. Use English/ASCII labels ONLY in diagram code.
             # - Uses max_completion_tokens instead of max_tokens
             print(f"🔄 Using chat.completions for o4-mini (model-specific parameters)")
 
-            # ✅ RETRY: o4-mini sometimes returns empty - retry once with explicit reminder
+            # Required keys for validation
+            REQUIRED_KEYS = {"type", "content", "title", "explanation", "width", "height"}
+
+            def is_valid_response(text: str) -> tuple[bool, str]:
+                """
+                Validate o4-mini response is usable.
+                Returns: (is_valid, error_message)
+                """
+                # Check empty/whitespace
+                if not text or text.strip() == "":
+                    return False, "empty or whitespace-only"
+
+                # Check null
+                if text.strip().lower() == "null":
+                    return False, "returned 'null'"
+
+                # Try to parse JSON
+                try:
+                    obj = _json.loads(text)
+                except _json.JSONDecodeError as e:
+                    return False, f"JSON parse error: {e}"
+
+                # Check if empty object
+                if obj == {}:
+                    return False, "empty object '{}'"
+
+                # Check required keys
+                if not isinstance(obj, dict):
+                    return False, f"not a dict, got {type(obj).__name__}"
+
+                missing_keys = REQUIRED_KEYS - obj.keys()
+                if missing_keys:
+                    return False, f"missing required keys: {missing_keys}"
+
+                return True, ""
+
+            # ✅ RETRY: o4-mini with comprehensive validation
+            result_text = None
             for attempt in range(2):
                 response = await ai_service.client.chat.completions.create(
                     model=model,
@@ -3630,19 +3796,24 @@ Server has NO unicode fonts. Use English/ASCII labels ONLY in diagram code.
                     max_completion_tokens=max_completion_tokens,
                     response_format={"type": "json_object"}
                 )
-                result_text = response.choices[0].message.content.strip()
+                candidate_text = response.choices[0].message.content.strip()
 
-                if result_text and result_text != "":
-                    break  # Got valid response
+                # Validate response
+                is_valid, error_reason = is_valid_response(candidate_text)
+
+                if is_valid:
+                    result_text = candidate_text
+                    print(f"✅ o4-mini attempt {attempt + 1} returned valid JSON")
+                    break
                 else:
-                    print(f"❌ o4-mini attempt {attempt + 1} returned empty response")
+                    print(f"❌ o4-mini attempt {attempt + 1} failed: {error_reason}")
                     if attempt < 1:
                         print(f"🔄 Retrying with explicit reminder...")
 
             # Final check after retries
-            if not result_text or result_text == "":
+            if not result_text:
                 print(f"❌ o4-mini failed after 2 attempts - using emergency fallback")
-                raise ValueError("o4-mini returned empty response after retries")
+                raise ValueError("o4-mini returned invalid response after retries")
         else:
             # ✅ GPT-4O-MINI INITIAL GENERATION PATH (speed-focused)
             model = "gpt-4o-mini"
