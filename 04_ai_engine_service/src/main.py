@@ -126,6 +126,14 @@ async def lifespan(app: FastAPI):
 
     print("")  # Blank line for readability
 
+    # ✅ CRITICAL: Log OpenAI SDK version for debugging Responses API compatibility
+    try:
+        import openai
+        print(f"✅ OpenAI SDK version: {openai.__version__}")
+        print(f"   (Responses API with output_parsed requires >=1.50.0)")
+    except Exception as e:
+        print(f"⚠️ Could not check OpenAI SDK version: {e}")
+
     # Startup: Initialize background tasks
     if os.getenv('RAILWAY_KEEP_ALIVE') == 'true':
         asyncio.create_task(keep_alive_task())
@@ -289,7 +297,7 @@ class DiagramGenerationRequest(BaseModel):
     session_id: Optional[str] = None  # Current chat session ID for context
     subject: Optional[str] = "general"  # Subject context (mathematics, physics, etc.)
     language: Optional[str] = "en"  # Display language
-    regenerate: Optional[bool] = False  # If True, use better model (o1-mini) for two-step reasoning
+    regenerate: Optional[bool] = False  # If True, use better model (o4-mini) for two-step reasoning
     student_id: Optional[str] = None  # For logging purposes
     context: Optional[Dict[str, Any]] = None  # Additional context
 
@@ -3042,12 +3050,12 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
     try:
         # Extract the most recent relevant content for context
-        # ✅ OPTIMIZATION: Focus on the most recent 3-4 message pairs for better diagram relevance
+        # ✅ OPTIMIZATION: Focus on the most recent 2 messages for faster processing
         # This prevents old diagram contexts from interfering with new requests
         conversation_text = ""
 
-        # Get last 4 messages (2 Q&A pairs) for focused context
-        recent_messages = request.conversation_history[-4:] if len(request.conversation_history) >= 4 else request.conversation_history
+        # Get last 2 messages (1 Q&A pair) for focused context - optimized for speed
+        recent_messages = request.conversation_history[-2:] if len(request.conversation_history) >= 2 else request.conversation_history
 
         # ✅ FIX: Track if we've seen specific diagram requests to avoid context contamination
         has_previous_math_content = False
@@ -3296,16 +3304,72 @@ async def generate_diagram(request: DiagramGenerationRequest):
         )
 
 
+def extract_json_from_responses(response):
+    """
+    Cross-version helper to extract JSON from OpenAI Responses API.
+
+    Works across different SDK versions:
+    - SDK 1.x (>=1.50.0): Uses response.output_parsed
+    - SDK 2.x (>=2.0.0): Extracts from response.output[*].content[*].json
+    - Fallback: Tries response.output_text
+
+    This ensures diagram generation works regardless of SDK version in production.
+    """
+    # Note: json module is imported at module level (line 17)
+
+    # 1.x path: output_parsed is available
+    if hasattr(response, "output_parsed") and response.output_parsed is not None:
+        print("✅ Using output_parsed (SDK 1.x >=1.50.0)")
+        return response.output_parsed
+
+    # 2.x path: walk output blocks and find json content
+    if hasattr(response, "output") and response.output:
+        print("⚠️ output_parsed not available, walking output blocks (SDK 2.x)")
+        for item in response.output:
+            # item.content is usually a list of content parts
+            content = getattr(item, "content", None)
+            if not content:
+                continue
+            for part in content:
+                # In schema mode (SDK 2.x), this is usually "output_json" or "json"
+                part_type = getattr(part, "type", None)
+
+                if part_type in ("output_json", "json"):
+                    # SDK 2.x: access part.json directly (already parsed dict)
+                    # Use dot notation to avoid conflict with json module
+                    if hasattr(part, "json"):
+                        result = part.json
+                        print(f"✅ Extracted from part.json (type={part_type})")
+                        return result
+
+                # Fallback: sometimes text is returned that needs parsing
+                if part_type in ("output_text", "text"):
+                    t = getattr(part, "text", None)
+                    if t:
+                        print(f"⚠️ Parsing from part.text (type={part_type})")
+                        return json.loads(t)
+
+    # Fallback: try output_text if present (older SDK versions)
+    if hasattr(response, "output_text") and response.output_text:
+        print("⚠️ Using fallback output_text")
+        return json.loads(response.output_text)
+
+    # Last resort: check for text attribute directly
+    if hasattr(response, "text") and response.text:
+        print("⚠️ Using fallback text attribute")
+        return json.loads(response.text)
+
+    raise ValueError("Could not extract JSON from Responses API response - SDK version may be incompatible")
+
+
 async def generate_diagram_unified(conversation_text: str, diagram_request: str,
                                    subject: str, language: str, regenerate: bool = False) -> Dict:
     """
     Unified diagram generation: AI chooses tool AND generates code in one call.
 
-    Enhanced with two-step reasoning:
-    - STEP 1: Analysis and tool selection (explicit reasoning)
-    - STEP 2: Code generation based on analysis
-
-    When regenerate=True, uses better model (o1-mini) for deeper reasoning.
+    Two modes:
+    - Initial generation (regenerate=False): gpt-4o-mini, one-step, fast (optimized for speed)
+    - Regeneration (regenerate=True): o4-mini, two-step reasoning (optimized for quality)
 
     Returns structured output: {"type": "matplotlib|svg|graphviz|latex", "content": "...", "reasoning": "..."}
     """
@@ -3318,8 +3382,10 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
 
     explanation_lang = explanation_language_map.get(language, 'English')
 
-    # Build enhanced prompt with two-step reasoning
-    prompt = f"""You are an expert educational diagram generator. You have multiple tools available.
+    # Build prompt based on generation mode
+    if regenerate:
+        # TWO-STEP REASONING for regeneration (o4-mini, quality-focused)
+        prompt = f"""You are an expert educational diagram generator. You have multiple tools available.
 Your task requires TWO STEPS: First analyze and decide, then generate code.
 
 **REQUEST**: {diagram_request}
@@ -3410,26 +3476,237 @@ Generate COMPLETE, EXECUTABLE code:
 - Return ONLY the JSON object, no other text
 
 Generate the diagram now with TWO-STEP reasoning:"""
+    else:
+        # ONE-STEP GENERATION for initial generation (gpt-4o-mini, speed-focused)
+        prompt = f"""You are an expert educational diagram generator with multiple visualization tools.
+
+**REQUEST**: {diagram_request}
+
+**CONTEXT**:
+{conversation_text}
+
+**SUBJECT**: {subject}
+
+---
+
+**AVAILABLE TOOLS** (choose the best one):
+
+1. **matplotlib**: Math functions, graphs, plots, data visualization
+   - Examples: graph y = x^2, plot sin(x), histogram
+   - Strengths: Perfect framing, calculus, statistics
+
+2. **svg**: Geometric shapes, concept diagrams, simple illustrations
+   - Examples: draw triangle, show circle, illustrate concept
+   - Strengths: Vector graphics, clean shapes
+
+3. **latex** (TikZ): Geometric proofs, formal constructions
+   - Examples: prove theorem, geometric construction
+   - Strengths: Mathematical precision, formal diagrams
+
+4. **graphviz**: Trees, graphs, flowcharts, hierarchies
+   - Examples: binary tree, flowchart, state diagram
+   - Strengths: Automatic layout for hierarchies
+
+---
+
+**YOUR TASK**:
+Choose the best tool and generate COMPLETE, EXECUTABLE code:
+- Use ONLY English/ASCII text in diagram code (no Chinese characters)
+- Include all necessary imports/declarations
+- Make code production-ready (no placeholders)
+- Title and explanation can be in {explanation_lang}
+
+**RESPONSE FORMAT** (JSON):
+{{
+  "type": "matplotlib",   // Chosen tool
+  "content": "...",       // Complete code with ONLY ENGLISH TEXT
+  "title": "...",         // Brief title (can be in {explanation_lang})
+  "explanation": "...",   // Brief explanation (can be in {explanation_lang})
+  "width": 400,
+  "height": 300
+}}
+
+Generate the diagram now:"""
 
     try:
-        # Choose model based on regeneration mode
-        # o1-mini provides deeper reasoning for regeneration
-        # gpt-4o provides faster response for initial generation
-        model = "o1-mini" if regenerate else "gpt-4o"
-        temperature = 0.1 if regenerate else 0.2
-        max_tokens = 3000 if regenerate else 2000  # More tokens for reasoning
+        # Define strict JSON schema for diagram generation
+        # Schema varies by mode: reasoning required for regeneration, optional for initial
+        diagram_schema_base = {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": ["matplotlib", "svg", "latex", "graphviz"],
+                    "description": "Chosen visualization tool"
+                },
+                "content": {
+                    "type": "string",
+                    "minLength": 10,
+                    "description": "Complete executable code (ONLY ENGLISH TEXT in diagram)"
+                },
+                "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Brief title for the diagram"
+                },
+                "explanation": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Brief explanation of the diagram"
+                },
+                "width": {
+                    "type": "integer",
+                    "minimum": 200,
+                    "maximum": 4096,
+                    "description": "Suggested width in pixels"
+                },
+                "height": {
+                    "type": "integer",
+                    "minimum": 200,
+                    "maximum": 4096,
+                    "description": "Suggested height in pixels"
+                }
+            },
+            "additionalProperties": False
+        }
 
-        print(f"🤖 Using model: {model} (regenerate={regenerate})")
+        # Add reasoning field for regeneration mode (two-step reasoning)
+        if regenerate:
+            diagram_schema_base["properties"]["reasoning"] = {
+                "type": "string",
+                "minLength": 20,
+                "description": "Detailed reasoning for tool choice and approach"
+            }
+            diagram_schema_base["required"] = ["type", "content", "title", "explanation", "width", "height", "reasoning"]
+        else:
+            # Initial generation: reasoning not required (one-step, fast)
+            diagram_schema_base["required"] = ["type", "content", "title", "explanation", "width", "height"]
 
-        response = await ai_service.client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=temperature,
-            max_tokens=max_tokens,
-            response_format={"type": "json_object"}
-        )
+        diagram_schema = diagram_schema_base
 
-        result_text = response.choices[0].message.content.strip()
+        # Choose model and parameters based on regeneration mode
+        # Using Responses API for both models (consistent API shape)
+        # Falls back to chat.completions if responses API not available (old SDK)
+        #
+        # Regeneration (regenerate=True):
+        #   - Model: o4-mini (deterministic reasoning, high quality)
+        #   - Prompt: Two-step reasoning (analysis + code)
+        #   - Max tokens: 2500
+        #
+        # Initial generation (regenerate=False):
+        #   - Model: gpt-4o-mini (fast, cost-effective)
+        #   - Prompt: One-step generation (direct code)
+        #   - Max tokens: 1200
+
+        # Check if Responses API is available (SDK >= 1.50.0)
+        has_responses_api = hasattr(ai_service.client, 'responses')
+
+        if regenerate:
+            model = "o4-mini"
+            max_tokens = 2500
+            print(f"🤖 Using model: {model} (regenerate=True, two-step reasoning, quality-focused)")
+
+            if has_responses_api:
+                # Responses API for o4-mini (reasoning model) with strict JSON schema
+                print(f"✅ Using Responses API with strict JSON schema")
+                try:
+                    response = await ai_service.client.responses.create(
+                        model=model,
+                        input=prompt,
+                        # No temperature for o4-mini - deterministic regeneration
+                        max_output_tokens=max_tokens,
+                        text={
+                            "format": {
+                                "type": "json_schema",
+                                "name": "diagram_generation",
+                                "strict": True,
+                                "schema": diagram_schema
+                            }
+                        }
+                    )
+
+                    # ✅ Use cross-version helper to extract JSON
+                    result_obj = extract_json_from_responses(response)
+                    result_text = json.dumps(result_obj)  # Convert to JSON string for downstream code
+                    print(f"✅ Got result: {result_obj.get('type', 'unknown')} diagram")
+                    print(f"✅ Content length: {len(result_obj.get('content', ''))} chars")
+
+                except Exception as e:
+                    print(f"❌ o4-mini Responses API failed: {type(e).__name__}: {e}")
+                    print(f"⚠️ Falling back to gpt-4o with chat.completions")
+                    # Fallback to gpt-4o if o4-mini fails
+                    response = await ai_service.client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.2,
+                        max_tokens=max_tokens,  # Use same max_tokens as regeneration
+                        response_format={"type": "json_object"}
+                    )
+                    result_text = response.choices[0].message.content.strip()
+            else:
+                # Fallback to chat.completions for old SDK
+                print(f"⚠️ Responses API not available, using chat.completions (upgrade openai SDK to >=1.50.0)")
+                response = await ai_service.client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=max_tokens,  # Use max_tokens for best compatibility
+                    response_format={"type": "json_object"}
+                )
+                result_text = response.choices[0].message.content.strip()
+        else:
+            model = "gpt-4o-mini"
+            temperature = 0.2  # Slight creativity for initial generation
+            max_tokens = 1200
+            print(f"🤖 Using model: {model} (regenerate=False, one-step generation, speed-focused)")
+
+            if has_responses_api:
+                # Responses API for gpt-4o-mini with strict JSON schema
+                print(f"✅ Using Responses API with strict JSON schema")
+                try:
+                    response = await ai_service.client.responses.create(
+                        model=model,
+                        input=prompt,
+                        temperature=temperature,
+                        max_output_tokens=max_tokens,
+                        text={
+                            "format": {
+                                "type": "json_schema",
+                                "name": "diagram_generation",
+                                "strict": True,
+                                "schema": diagram_schema
+                            }
+                        }
+                    )
+
+                    # ✅ Use cross-version helper to extract JSON
+                    result_obj = extract_json_from_responses(response)
+                    result_text = json.dumps(result_obj)  # Convert to JSON string for downstream code
+                    print(f"✅ Got result: {result_obj.get('type', 'unknown')} diagram")
+                    print(f"✅ Content length: {len(result_obj.get('content', ''))} chars")
+
+                except Exception as e:
+                    print(f"❌ gpt-4o-mini Responses API failed: {type(e).__name__}: {e}")
+                    print(f"⚠️ Falling back to chat.completions")
+                    # Fallback to chat.completions
+                    response = await ai_service.client.chat.completions.create(
+                        model=model,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        response_format={"type": "json_object"}
+                    )
+                    result_text = response.choices[0].message.content.strip()
+            else:
+                # Fallback to chat.completions for old SDK
+                print(f"⚠️ Responses API not available, using chat.completions (upgrade openai SDK to >=1.50.0)")
+                response = await ai_service.client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=temperature,
+                    max_tokens=max_tokens,  # Use max_tokens for best compatibility
+                    response_format={"type": "json_object"}
+                )
+                result_text = response.choices[0].message.content.strip()
 
         # Parse JSON response
         import json
