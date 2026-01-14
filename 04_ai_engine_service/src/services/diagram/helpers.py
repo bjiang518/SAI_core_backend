@@ -288,6 +288,11 @@ Required keys (all must be present): type, content, title, explanation, width, h
                 )
                 candidate_text = response.choices[0].message.content.strip()
 
+                # 🔍 DEBUG: Log raw o4-mini output
+                print(f"🔍 [DEBUG] o4-mini attempt {attempt + 1} raw response (first 500 chars):")
+                print(f"🔍 {candidate_text[:500]}")
+                print(f"🔍 [DEBUG] Response type: {type(candidate_text)}, Length: {len(candidate_text)} chars")
+
                 # Validate response
                 is_valid, error_reason = is_valid_response(candidate_text)
 
@@ -333,6 +338,12 @@ Required keys (all must be present): type, content, title, explanation, width, h
                     # ✅ Use cross-version helper to extract JSON
                     result_obj = extract_json_from_responses(response)
                     result_text = _json.dumps(result_obj)  # Convert to JSON string for downstream code
+
+                    # 🔍 DEBUG: Log raw Responses API output
+                    print(f"🔍 [DEBUG] gpt-4o-mini Responses API result (first 500 chars):")
+                    print(f"🔍 {result_text[:500]}")
+                    print(f"🔍 [DEBUG] Parsed type: {result_obj.get('type', 'unknown')}, Content length: {len(result_obj.get('content', ''))} chars")
+
                     print(f"✅ Got result: {result_obj.get('type', 'unknown')} diagram")
                     print(f"✅ Content length: {len(result_obj.get('content', ''))} chars")
 
@@ -348,6 +359,11 @@ Required keys (all must be present): type, content, title, explanation, width, h
                         response_format={"type": "json_object"}
                     )
                     result_text = response.choices[0].message.content.strip()
+
+                    # 🔍 DEBUG: Log fallback output
+                    print(f"🔍 [DEBUG] gpt-4o-mini chat.completions fallback (first 500 chars):")
+                    print(f"🔍 {result_text[:500]}")
+                    print(f"🔍 [DEBUG] Response type: {type(result_text)}, Length: {len(result_text)} chars")
             else:
                 # Fallback to chat.completions for old SDK
                 print(f"⚠️ Responses API not available, using chat.completions (upgrade openai SDK to >=1.50.0)")
@@ -360,7 +376,17 @@ Required keys (all must be present): type, content, title, explanation, width, h
                 )
                 result_text = response.choices[0].message.content.strip()
 
+                # 🔍 DEBUG: Log old SDK output
+                print(f"🔍 [DEBUG] gpt-4o-mini old SDK chat.completions (first 500 chars):")
+                print(f"🔍 {result_text[:500]}")
+                print(f"🔍 [DEBUG] Response type: {type(result_text)}, Length: {len(result_text)} chars")
+
         # Parse JSON response
+        # 🔍 DEBUG: Final consolidated log before parsing
+        print(f"🔍 [DEBUG] === FINAL JSON TO PARSE (first 800 chars) ===")
+        print(f"🔍 {result_text[:800]}")
+        print(f"🔍 [DEBUG] === END RAW OUTPUT ===")
+
         result = _json.loads(result_text)
 
         # Validate tool choice
@@ -373,6 +399,13 @@ Required keys (all must be present): type, content, title, explanation, width, h
 
         print(f"✅ AI chose: {chosen_tool}")
         print(f"   Title: {result.get('title', 'Untitled')}")
+
+        # 🔍 DEBUG: Log the actual generated code
+        generated_code = result.get('content', '')
+        print(f"🔍 [DEBUG] === GENERATED {chosen_tool.upper()} CODE (first 800 chars) ===")
+        print(f"🔍 {generated_code[:800]}")
+        print(f"🔍 [DEBUG] === END GENERATED CODE ===")
+        print(f"🔍 [DEBUG] Full code length: {len(generated_code)} chars")
 
         # ✅ FIX: Safe token accounting across SDK versions
         tokens = getattr(getattr(response, "usage", None), "total_tokens", None)

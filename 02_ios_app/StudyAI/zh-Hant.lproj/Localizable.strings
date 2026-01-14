@@ -624,6 +624,11 @@
 "chat.archive.infoTitle" = "封存資訊";
 "chat.archive.infoMessage" = "儲存此對話以供日後參考。您可以新增自訂標題和備註，協助您記住所學內容。";
 
+// Diagram
+"chat.diagram.regenerate" = "重新生成圖片";
+"chat.diagram.regenerating" = "正在重新生成示意圖...";
+"chat.diagram.generating" = "正在生成示意圖...";
+
 // Input
 "chat.input.placeholder" = "訊息";
 "chat.input.archiveTitle" = "輸入封存標題...";

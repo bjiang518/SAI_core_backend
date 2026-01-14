@@ -745,6 +745,11 @@
 "chat.archive.infoTitle" = "Archive Information";
 "chat.archive.infoMessage" = "Save this conversation for future reference. You can add a custom title and notes to help you remember what you learned.";
 
+// Diagram
+"chat.diagram.regenerate" = "Regenerate Image";
+"chat.diagram.regenerating" = "Regenerating diagram...";
+"chat.diagram.generating" = "Generating diagram...";
+
 // Input
 "chat.input.placeholder" = "Message";
 "chat.input.archiveTitle" = "Enter archive title...";
