@@ -576,7 +576,22 @@ struct SessionChatView: View {
                                 let diagramKey = message["diagramKey"] as? String
                                 let diagramData = diagramKey != nil ? viewModel.getDiagramData(for: diagramKey!) : nil
 
-                                if diagramData != nil {
+                                // ✅ CRITICAL: Check if this diagram is being regenerated
+                                let isRegenerating = diagramKey != nil && viewModel.regeneratingDiagramKey == diagramKey
+
+                                if isRegenerating {
+                                    // Show loading animation while regenerating
+                                    VStack(spacing: 12) {
+                                        DiagramGenerationIndicatorView()
+
+                                        Text(NSLocalizedString("chat.diagram.regenerating", value: "Regenerating diagram...", comment: ""))
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding()
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .id(index)
+                                } else if diagramData != nil {
                                     // AI message with diagram
                                     EnhancedAIMessageView(
                                         message: message["content"] ?? "",
@@ -627,10 +642,19 @@ struct SessionChatView: View {
                                 .id("typing-indicator")
                         }
 
-                        // Show diagram generation indicator
-                        if viewModel.isGeneratingDiagram {
-                            DiagramGenerationIndicatorView()
-                                .id("diagram-indicator")
+                        // ✅ Show diagram generation indicator ONLY for initial generation
+                        // (not for regeneration - that shows per-message loading state)
+                        if viewModel.isGeneratingDiagram && viewModel.regeneratingDiagramKey == nil {
+                            VStack(spacing: 12) {
+                                DiagramGenerationIndicatorView()
+
+                                Text(NSLocalizedString("chat.diagram.generating", value: "Generating diagram...", comment: ""))
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .id("diagram-generation")
                         }
                     }
                 }
@@ -646,11 +670,59 @@ struct SessionChatView: View {
                     }
                 }
 
-                // Auto-scroll to bottom when new messages arrive
+                // ✅ AUTO-SCROLL: Scroll to bottom when new messages are added to history
                 let lastIndex = networkService.conversationHistory.count - 1
                 if lastIndex >= 0 {
-                    withAnimation(.easeOut(duration: 0.5)) {
-                        proxy.scrollTo(lastIndex, anchor: .bottom)
+                    // Use DispatchQueue to ensure layout has updated before scrolling
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            proxy.scrollTo(lastIndex, anchor: .bottom)
+                        }
+                    }
+                }
+            }
+            .onChange(of: viewModel.isActivelyStreaming) { _, isStreaming in
+                // ✅ AUTO-SCROLL: When streaming starts, scroll to show the streaming message
+                if isStreaming {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            proxy.scrollTo("streaming-message", anchor: .bottom)
+                        }
+                    }
+                }
+            }
+            .onChange(of: viewModel.activeStreamingMessage) { _, newContent in
+                // ✅ AUTO-SCROLL: As streaming content grows, keep scrolling to show new content
+                // Only scroll if we're actively streaming and content is not empty
+                if viewModel.isActivelyStreaming && !newContent.isEmpty {
+                    // Throttle scroll updates during streaming to avoid too many animations
+                    // Only scroll every 100ms to balance smoothness and performance
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo("streaming-message", anchor: .bottom)
+                        }
+                    }
+                }
+            }
+            .onChange(of: viewModel.pendingUserMessage) { _, newMessage in
+                // ✅ AUTO-SCROLL: When user sends a message, immediately scroll to show it
+                // This makes the interaction feel instant and responsive
+                if !newMessage.isEmpty {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            proxy.scrollTo("pending-user", anchor: .bottom)
+                        }
+                    }
+                }
+            }
+            .onChange(of: viewModel.isGeneratingDiagram) { _, isGenerating in
+                // ✅ AUTO-SCROLL: When diagram generation starts, scroll to show the indicator
+                // Only scroll for initial generation (not regeneration which shows inline)
+                if isGenerating && viewModel.regeneratingDiagramKey == nil {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            proxy.scrollTo("diagram-generation", anchor: .bottom)
+                        }
                     }
                 }
             }
@@ -764,9 +836,9 @@ struct SessionChatView: View {
 
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                // ✅ CRITICAL: If last message is a diagram, ALWAYS show regenerate button first
+                // ✅ CRITICAL: If last message is a diagram, show ONE regenerate button first
                 if lastMessageHasDiagram, let diagramKey = lastDiagramKey {
-                    Button("🔄 Regenerate Image") {
+                    Button(NSLocalizedString("chat.diagram.regenerate", value: "Regenerate Image", comment: "")) {
                         Task {
                             await viewModel.regenerateDiagram(withKey: diagramKey)
                         }
