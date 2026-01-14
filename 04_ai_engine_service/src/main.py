@@ -3377,10 +3377,8 @@ def extract_json_from_responses(response):
     - SDK 1.x (>=1.50.0): Uses response.output_parsed
     - SDK 2.x (>=2.0.0): Extracts from response.output[*].content[*].json
 
-    ✅ FIX: Uses _json alias to avoid variable shadowing from part.json attribute access
-    ✅ CRITICAL: Refuses output_text in schema mode - only accepts output_json blocks
-
-    This ensures diagram generation works regardless of SDK version in production.
+    ✅ FIX: Attempts to salvage JSON from output_text blocks before rejecting
+    This handles cases where the SDK wraps valid JSON as text instead of output_json.
     """
     # Note: _json module is imported at module level (line 17) as alias to avoid shadowing
 
@@ -3401,8 +3399,7 @@ def extract_json_from_responses(response):
                 # In schema mode (SDK 2.x), this is usually "output_json" or "json"
                 part_type = getattr(part, "type", None)
 
-                # ✅ CRITICAL: Only accept proper schema output (output_json or json)
-                # Refuse output_text to ensure "compiler-grade" structured output
+                # ✅ PRIORITY: Accept proper schema output (output_json or json)
                 if part_type in ("output_json", "json"):
                     # SDK 2.x: access part.json directly (already parsed dict)
                     if hasattr(part, "json"):
@@ -3410,10 +3407,22 @@ def extract_json_from_responses(response):
                         print(f"✅ Extracted from part.json (type={part_type})")
                         return result
 
-                # ❌ REFUSE output_text in schema mode - this indicates schema violation
-                # If model emits output_text, we should fail and fallback to chat.completions
-                if part_type in ("output_text", "text"):
-                    print(f"❌ Schema violation: Received {part_type} instead of output_json")
+                # ✅ NEW FALLBACK: Try to salvage JSON from output_text
+                # Sometimes SDK wraps valid JSON as text instead of output_json
+                if part_type in ("output_text", "text") and hasattr(part, "text"):
+                    text = part.text.strip()
+                    # Check if it looks like JSON
+                    if text.startswith("{") and text.endswith("}"):
+                        try:
+                            obj = _json.loads(text)
+                            print(f"✅ Parsed JSON from part.text (type={part_type})")
+                            return obj
+                        except Exception:
+                            # Not parseable JSON, continue to error
+                            pass
+
+                    # If we get here, it's truly non-JSON text (preamble/markdown)
+                    print(f"❌ Schema violation: Received {part_type} but not valid JSON")
                     print(f"   This indicates prompt allows non-JSON preamble/markdown")
                     raise ValueError(f"Schema mode failed: received {part_type} block instead of output_json")
 
@@ -3492,7 +3501,11 @@ Choose the best tool and generate COMPLETE, EXECUTABLE code.
 - Provide brief "explanation" in {explanation_lang}
 - Suggest appropriate "width" and "height" in pixels (200-4096 range)
 - **NO backslash line continuations** in Python code (use parentheses instead)
-- **NO markdown code fences** (```python) - return raw code only"""
+- **NO markdown code fences** (```python) - return raw code only
+
+**OUTPUT FORMAT**:
+You MUST respond with a valid JSON object only. No markdown, no preamble, no extra text.
+The JSON object must contain these exact keys: type, content, title, explanation, width, height."""
 
     try:
         # ✅ FIX: Define strict JSON schema WITHOUT reasoning field
