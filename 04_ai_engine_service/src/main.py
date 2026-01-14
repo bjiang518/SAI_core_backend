@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 import os
 import base64
-import json
+import json as _json  # ✅ FIX: Use alias to avoid variable shadowing from part.json attribute
 import time
 from datetime import datetime
 from dotenv import load_dotenv
@@ -1010,7 +1010,7 @@ async def process_chat_image_stream(request: ChatImageRequest):
 
         # For errors, return a single SSE error event
         async def error_generator():
-            yield f"data: {json.dumps({'type': 'error', 'error': error_msg})}\n\n"
+            yield f"data: {_json.dumps({'type': 'error', 'error': error_msg})}\n\n"
 
         return StreamingResponse(
             error_generator(),
@@ -1896,7 +1896,7 @@ async def send_session_message_stream(
                     'session_id': session_id,
                     'model': selected_model
                 }
-                yield f"data: {json.dumps(start_event)}\n\n"
+                yield f"data: {_json.dumps(start_event)}\n\n"
 
                 # Call OpenAI with streaming and dynamic model selection
                 stream = await ai_service.client.chat.completions.create(
@@ -1917,7 +1917,7 @@ async def send_session_message_stream(
                             accumulated_content += content_chunk
 
                             # Send content chunk
-                            yield f"data: {json.dumps({'type': 'content', 'content': accumulated_content, 'delta': content_chunk})}\n\n"
+                            yield f"data: {_json.dumps({'type': 'content', 'content': accumulated_content, 'delta': content_chunk})}\n\n"
 
                         # Check for finish
                         if chunk.choices[0].finish_reason:
@@ -1939,7 +1939,7 @@ async def send_session_message_stream(
                                 'content': accumulated_content,
                                 'session_id': session_id
                             }
-                            yield f"data: {json.dumps(end_event)}\n\n"
+                            yield f"data: {_json.dumps(end_event)}\n\n"
                             print(f"📤 Sent 'end' event (user sees completion immediately)")
 
                             # Generate AI follow-up suggestions in background (non-blocking perceived completion)
@@ -1971,7 +1971,7 @@ async def send_session_message_stream(
                                             'suggestions': serializable_suggestions,
                                             'session_id': session_id
                                         }
-                                        yield f"data: {json.dumps(suggestions_event)}\n\n"
+                                        yield f"data: {_json.dumps(suggestions_event)}\n\n"
                                         print(f"💡 Sent {len(serializable_suggestions)} follow-up suggestions")
                                     else:
                                         print(f"ℹ️ No valid suggestions after filtering")
@@ -2008,7 +2008,7 @@ async def send_session_message_stream(
                                             'change_grade': True,
                                             'grade_correction': serializable_grade_data
                                         }
-                                        yield f"data: {json.dumps(grade_event)}\n\n"
+                                        yield f"data: {_json.dumps(grade_event)}\n\n"
                                         print(f"✅ Sent grade_correction SSE event")
                                     else:
                                         print(f"ℹ️ No grade correction detected in response")
@@ -2025,7 +2025,7 @@ async def send_session_message_stream(
                 full_traceback = traceback.format_exc()
                 print(f"❌ {error_msg}")
                 print(f"📋 Full traceback:\n{full_traceback}")
-                yield f"data: {json.dumps({'type': 'error', 'error': error_msg, 'traceback': full_traceback[:500]})}\n\n"
+                yield f"data: {_json.dumps({'type': 'error', 'error': error_msg, 'traceback': full_traceback[:500]})}\n\n"
 
         # Return streaming response
         return StreamingResponse(
@@ -2046,7 +2046,7 @@ async def send_session_message_stream(
         print(f"📋 Full traceback:\n{full_traceback}")
 
         async def error_generator():
-            yield f"data: {json.dumps({'type': 'error', 'error': error_msg, 'traceback': full_traceback[:500]})}\n\n"
+            yield f"data: {_json.dumps({'type': 'error', 'error': error_msg, 'traceback': full_traceback[:500]})}\n\n"
 
         return StreamingResponse(
             error_generator(),
@@ -2459,13 +2459,13 @@ IMPORTANT:
         suggestion_text = response.choices[0].message.content.strip()
 
         # Parse JSON response
-        import json, re
+        import re  # ✅ FIX: Removed json import - using module-level _json instead
 
         # Extract JSON array from response
         json_match = re.search(r'\[.*\]', suggestion_text, re.DOTALL)
         if json_match:
             try:
-                suggestions = json.loads(json_match.group())
+                suggestions = _json.loads(json_match.group())
 
                 # Validate format
                 valid_suggestions = []
@@ -2950,13 +2950,13 @@ Format the response as JSON with fields: narrative, summary, keyInsights, recomm
         narrative_content = ai_response.get('answer', '')
 
         # Try to extract JSON from the response if it's structured
-        import json, re
+        import re  # ✅ FIX: Removed json import - using module-level _json instead
 
         try:
             # Look for JSON in the response
             json_match = re.search(r'\{.*\}', narrative_content, re.DOTALL)
             if json_match:
-                json_data = json.loads(json_match.group())
+                json_data = _json.loads(json_match.group())
                 narrative = json_data.get('narrative', narrative_content)
                 summary = json_data.get('summary', 'Generated narrative report for student progress.')
                 key_insights = json_data.get('keyInsights', [])
@@ -3311,11 +3311,13 @@ def extract_json_from_responses(response):
     Works across different SDK versions:
     - SDK 1.x (>=1.50.0): Uses response.output_parsed
     - SDK 2.x (>=2.0.0): Extracts from response.output[*].content[*].json
-    - Fallback: Tries response.output_text
+
+    ✅ FIX: Uses _json alias to avoid variable shadowing from part.json attribute access
+    ✅ CRITICAL: Refuses output_text in schema mode - only accepts output_json blocks
 
     This ensures diagram generation works regardless of SDK version in production.
     """
-    # Note: json module is imported at module level (line 17)
+    # Note: _json module is imported at module level (line 17) as alias to avoid shadowing
 
     # 1.x path: output_parsed is available
     if hasattr(response, "output_parsed") and response.output_parsed is not None:
@@ -3334,32 +3336,24 @@ def extract_json_from_responses(response):
                 # In schema mode (SDK 2.x), this is usually "output_json" or "json"
                 part_type = getattr(part, "type", None)
 
+                # ✅ CRITICAL: Only accept proper schema output (output_json or json)
+                # Refuse output_text to ensure "compiler-grade" structured output
                 if part_type in ("output_json", "json"):
                     # SDK 2.x: access part.json directly (already parsed dict)
-                    # Use dot notation to avoid conflict with json module
                     if hasattr(part, "json"):
                         result = part.json
                         print(f"✅ Extracted from part.json (type={part_type})")
                         return result
 
-                # Fallback: sometimes text is returned that needs parsing
+                # ❌ REFUSE output_text in schema mode - this indicates schema violation
+                # If model emits output_text, we should fail and fallback to chat.completions
                 if part_type in ("output_text", "text"):
-                    t = getattr(part, "text", None)
-                    if t:
-                        print(f"⚠️ Parsing from part.text (type={part_type})")
-                        return json.loads(t)
+                    print(f"❌ Schema violation: Received {part_type} instead of output_json")
+                    print(f"   This indicates prompt allows non-JSON preamble/markdown")
+                    raise ValueError(f"Schema mode failed: received {part_type} block instead of output_json")
 
-    # Fallback: try output_text if present (older SDK versions)
-    if hasattr(response, "output_text") and response.output_text:
-        print("⚠️ Using fallback output_text")
-        return json.loads(response.output_text)
-
-    # Last resort: check for text attribute directly
-    if hasattr(response, "text") and response.text:
-        print("⚠️ Using fallback text attribute")
-        return json.loads(response.text)
-
-    raise ValueError("Could not extract JSON from Responses API response - SDK version may be incompatible")
+    # If we reach here, schema was not respected - raise error to trigger fallback
+    raise ValueError("Schema output missing (no output_json block found) - SDK version may be incompatible or schema not enforced")
 
 
 async def generate_diagram_unified(conversation_text: str, diagram_request: str,
@@ -3627,7 +3621,7 @@ Generate the diagram now:"""
 
                     # ✅ Use cross-version helper to extract JSON
                     result_obj = extract_json_from_responses(response)
-                    result_text = json.dumps(result_obj)  # Convert to JSON string for downstream code
+                    result_text = _json.dumps(result_obj)  # Convert to JSON string for downstream code
                     print(f"✅ Got result: {result_obj.get('type', 'unknown')} diagram")
                     print(f"✅ Content length: {len(result_obj.get('content', ''))} chars")
 
@@ -3680,7 +3674,7 @@ Generate the diagram now:"""
 
                     # ✅ Use cross-version helper to extract JSON
                     result_obj = extract_json_from_responses(response)
-                    result_text = json.dumps(result_obj)  # Convert to JSON string for downstream code
+                    result_text = _json.dumps(result_obj)  # Convert to JSON string for downstream code
                     print(f"✅ Got result: {result_obj.get('type', 'unknown')} diagram")
                     print(f"✅ Content length: {len(result_obj.get('content', ''))} chars")
 
@@ -3708,9 +3702,8 @@ Generate the diagram now:"""
                 )
                 result_text = response.choices[0].message.content.strip()
 
-        # Parse JSON response
-        import json
-        result = json.loads(result_text)
+        # Parse JSON response (using module-level _json)
+        result = _json.loads(result_text)
 
         # Validate tool choice
         valid_tools = ['matplotlib', 'svg', 'latex', 'graphviz']
@@ -3944,9 +3937,8 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
             result_text = response.choices[0].message.content.strip()
             print(f"🎨 [LaTeXDiagram] Response length: {len(result_text)} chars")
 
-            # Parse JSON response
-            import json
-            result = json.loads(result_text)
+            # Parse JSON response (using module-level _json)
+            result = _json.loads(result_text)
 
             # ✅ VALIDATION: Check for required fields
             if not result.get('diagram_code'):
@@ -4143,9 +4135,8 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
             result_text = response.choices[0].message.content.strip()
             print(f"🎨 [SVGDiagram] Response length: {len(result_text)} chars")
 
-            # Parse JSON response
-            import json
-            result = json.loads(result_text)
+            # Parse JSON response (using module-level _json)
+            result = _json.loads(result_text)
 
             # ✅ VALIDATION: Check for required fields
             if not result.get('diagram_code'):
