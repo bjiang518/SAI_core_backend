@@ -3471,6 +3471,8 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
    - Examples: graph y = x^2, plot sin(x), histogram
    - Strengths: Perfect framing, calculus, statistics
    - CODE REQUIREMENTS: Complete Python with imports (matplotlib.pyplot as plt)
+   - ⚠️ CRITICAL: All labels/text in code MUST be English (plt.xlabel, plt.title, etc.)
+   - ⚠️ Chinese characters in code = IMMEDIATE FAILURE (server has no Chinese fonts)
 
 2. **svg**: Geometric shapes, concept diagrams, simple illustrations
    - Examples: draw triangle, show circle, illustrate concept
@@ -3486,11 +3488,21 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
    - Examples: binary tree, flowchart, state diagram
    - Strengths: Automatic layout for hierarchies
    - CODE REQUIREMENTS: Valid DOT syntax (digraph or graph)
+   - ⚠️ CRITICAL: All node labels/text MUST be English
+   - ⚠️ Chinese characters in labels = IMMEDIATE FAILURE (server has no Chinese fonts)
 
 ---
 
 **YOUR TASK**:
 Choose the best tool and generate COMPLETE, EXECUTABLE code.
+
+**⚠️ CRITICAL: NO CHINESE CHARACTERS IN CODE ⚠️**
+The server environment does NOT have Chinese fonts installed. If you put Chinese characters
+in matplotlib labels, SVG text, or graphviz node labels, the diagram will FAIL immediately.
+- Title and explanation fields CAN use Chinese (for user readability)
+- But ALL text inside the code (plt.xlabel, plt.title, SVG <text>, DOT node labels) MUST be English
+- Example WRONG: plt.xlabel('函数')  → WILL FAIL
+- Example CORRECT: plt.xlabel('Function')  → WILL WORK
 
 **CRITICAL REQUIREMENTS**:
 - Select appropriate "type" field: matplotlib, svg, latex, or graphviz
