@@ -3536,61 +3536,81 @@ Server has NO unicode fonts. Use English/ASCII labels ONLY in diagram code.
         }
 
         # Choose model and parameters based on regeneration mode
-        # ✅ FIX: Both modes use Responses API with strict schema (no reasoning field)
-        # This prevents schema violations and ensures reliable JSON output
-        #
         # Regeneration (regenerate=True):
         #   - Model: o4-mini (higher quality, better tool selection)
-        #   - Max tokens: 1500
+        #   - Uses chat.completions with max_completion_tokens (no temperature)
         #
         # Initial generation (regenerate=False):
         #   - Model: gpt-4o-mini (fast, cost-effective)
-        #   - Max tokens: 1200
+        #   - Uses Responses API with strict JSON schema
 
         # Check if Responses API is available (SDK >= 1.50.0)
         has_responses_api = hasattr(ai_service.client, 'responses')
 
         if regenerate:
+            # ✅ O4-MINI REGENERATION PATH (quality-focused)
             model = "o4-mini"
-            max_tokens = 1500  # Reduced from 2500 (no reasoning field needed)
+            max_completion_tokens = 1500
             print(f"🤖 Using model: {model} (regenerate=True, quality-focused)")
+
+            # ✅ FIX: o4-mini requires special parameters:
+            # - No temperature parameter (deterministic by design)
+            # - Uses max_completion_tokens instead of max_tokens
+            print(f"🔄 Using chat.completions for o4-mini (model-specific parameters)")
+            response = await ai_service.client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_completion_tokens=max_completion_tokens,  # ✅ o4-mini parameter
+                response_format={"type": "json_object"}
+            )
+            result_text = response.choices[0].message.content.strip()
         else:
+            # ✅ GPT-4O-MINI INITIAL GENERATION PATH (speed-focused)
             model = "gpt-4o-mini"
             max_tokens = 1200
+            temperature = 0.2
             print(f"🤖 Using model: {model} (regenerate=False, speed-focused)")
 
-        # ✅ Use same API pattern for both models
-        temperature = 0.2
-
-        if has_responses_api:
-            # Responses API with strict JSON schema
-            print(f"✅ Using Responses API with strict JSON schema")
-            try:
-                response = await ai_service.client.responses.create(
-                    model=model,
-                    input=prompt,
-                    temperature=temperature,
-                    max_output_tokens=max_tokens,
-                    text={
-                        "format": {
-                            "type": "json_schema",
-                            "name": "diagram_generation",
-                            "strict": True,
-                            "schema": diagram_schema
+            if has_responses_api:
+                # Responses API with strict JSON schema
+                print(f"✅ Using Responses API with strict JSON schema")
+                try:
+                    response = await ai_service.client.responses.create(
+                        model=model,
+                        input=prompt,
+                        temperature=temperature,
+                        max_output_tokens=max_tokens,
+                        text={
+                            "format": {
+                                "type": "json_schema",
+                                "name": "diagram_generation",
+                                "strict": True,
+                                "schema": diagram_schema
+                            }
                         }
-                    }
-                )
+                    )
 
-                # ✅ Use cross-version helper to extract JSON
-                result_obj = extract_json_from_responses(response)
-                result_text = _json.dumps(result_obj)  # Convert to JSON string for downstream code
-                print(f"✅ Got result: {result_obj.get('type', 'unknown')} diagram")
-                print(f"✅ Content length: {len(result_obj.get('content', ''))} chars")
+                    # ✅ Use cross-version helper to extract JSON
+                    result_obj = extract_json_from_responses(response)
+                    result_text = _json.dumps(result_obj)  # Convert to JSON string for downstream code
+                    print(f"✅ Got result: {result_obj.get('type', 'unknown')} diagram")
+                    print(f"✅ Content length: {len(result_obj.get('content', ''))} chars")
 
-            except Exception as e:
-                print(f"❌ {model} Responses API failed: {type(e).__name__}: {e}")
-                print(f"⚠️ Falling back to chat.completions")
-                # Fallback to chat.completions
+                except Exception as e:
+                    print(f"❌ {model} Responses API failed: {type(e).__name__}: {e}")
+                    print(f"⚠️ Falling back to chat.completions")
+                    # Fallback to chat.completions
+                    response = await ai_service.client.chat.completions.create(
+                        model=model,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        response_format={"type": "json_object"}
+                    )
+                    result_text = response.choices[0].message.content.strip()
+            else:
+                # Fallback to chat.completions for old SDK
+                print(f"⚠️ Responses API not available, using chat.completions (upgrade openai SDK to >=1.50.0)")
                 response = await ai_service.client.chat.completions.create(
                     model=model,
                     messages=[{"role": "user", "content": prompt}],
@@ -3599,17 +3619,6 @@ Server has NO unicode fonts. Use English/ASCII labels ONLY in diagram code.
                     response_format={"type": "json_object"}
                 )
                 result_text = response.choices[0].message.content.strip()
-        else:
-            # Fallback to chat.completions for old SDK
-            print(f"⚠️ Responses API not available, using chat.completions (upgrade openai SDK to >=1.50.0)")
-            response = await ai_service.client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=temperature,
-                max_tokens=max_tokens,
-                response_format={"type": "json_object"}
-            )
-            result_text = response.choices[0].message.content.strip()
 
         # Parse JSON response (using module-level _json)
         result = _json.loads(result_text)
