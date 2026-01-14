@@ -1,0 +1,450 @@
+# -*- coding: utf-8 -*-
+"""
+Diagram Generation Endpoint
+"""
+from fastapi import APIRouter
+from pydantic import BaseModel, ConfigDict
+from typing import List, Dict, Optional, Any
+import time
+import re
+
+from src.services.diagram import (
+    extract_json_from_responses,
+    generate_diagram_unified,
+    analyze_content_for_diagram_type,
+    generate_latex_diagram,
+    generate_svg_diagram
+)
+
+router = APIRouter()
+
+
+# Request/Response Models
+class DiagramGenerationRequest(BaseModel):
+    conversation_history: List[Dict[str, str]]  # Array of {role: "user|assistant", content: "..."}
+    diagram_request: str  # The specific diagram request (e.g., "生成示意图")
+    session_id: Optional[str] = None  # Current chat session ID for context
+    subject: Optional[str] = "general"  # Subject context (mathematics, physics, etc.)
+    language: Optional[str] = "en"  # Display language
+    regenerate: Optional[bool] = False  # If True, use better model (o4-mini) for two-step reasoning
+    student_id: Optional[str] = None  # For logging purposes
+    context: Optional[Dict[str, Any]] = None  # Additional context
+
+
+class RenderingHint(BaseModel):
+    width: int = 400
+    height: int = 300
+    background: str = "white"
+    scale_factor: Optional[float] = 1.0
+
+
+class DiagramGenerationResponse(BaseModel):
+    success: bool
+    diagram_type: Optional[str] = None  # "matplotlib", "latex", "svg", "graphviz"
+    diagram_code: Optional[str] = None  # Base64 PNG (matplotlib), LaTeX/TikZ, SVG, or DOT code
+    diagram_title: Optional[str] = None  # Human-readable title
+    explanation: Optional[str] = None  # Brief explanation of the diagram
+    reasoning: Optional[str] = None  # AI's analysis and tool selection reasoning (two-step process)
+    rendering_hint: Optional[RenderingHint] = None  # Rendering parameters for iOS
+    processing_time_ms: int
+    tokens_used: Optional[int] = None
+    error: Optional[str] = None
+
+
+@router.post("/api/v1/generate-diagram", response_model=DiagramGenerationResponse)
+async def generate_diagram(request: DiagramGenerationRequest):
+    """
+    Generate educational diagrams (Matplotlib/LaTeX/SVG) from conversation context.
+
+    This endpoint analyzes the conversation history and generates appropriate
+    visual representations to help students understand complex concepts.
+
+    Features:
+    - Multi-pathway system: Matplotlib (best for math graphs) > LaTeX (geometry) > SVG (concepts)
+    - Intelligent format selection based on content analysis
+    - Multi-language support for diagram annotations
+    - Subject-specific diagram generation
+    - Conversation context analysis for relevant visual aids
+    - Automatic fallback if primary pathway fails
+    """
+    start_time = time.time()
+
+    try:
+        # Import services that need to be injected
+        from src.services.improved_openai_service import EducationalAIService
+        from src.services.latex_converter import latex_converter
+        from src.services.svg_utils import optimize_svg_for_display
+
+        # Import matplotlib and graphviz generators
+        try:
+            from src.services.matplotlib_generator import matplotlib_generator, MATPLOTLIB_AVAILABLE
+        except ImportError:
+            matplotlib_generator = None
+            MATPLOTLIB_AVAILABLE = False
+
+        try:
+            from src.services.graphviz_generator import graphviz_generator, GRAPHVIZ_AVAILABLE
+        except ImportError:
+            graphviz_generator = None
+            GRAPHVIZ_AVAILABLE = False
+
+        ai_service = EducationalAIService()
+
+        # Extract the most recent relevant content for context
+        # ✅ OPTIMIZATION: Focus on the most recent 2 messages for faster processing
+        conversation_text = ""
+
+        # Get last 2 messages (1 Q&A pair) for focused context
+        recent_messages = request.conversation_history[-2:] if len(request.conversation_history) >= 2 else request.conversation_history
+
+        # ✅ FIX: Track if we've seen specific diagram requests to avoid context contamination
+        has_previous_math_content = False
+        previous_functions = []
+
+        for msg in recent_messages:
+            role = msg.get('role', 'unknown')
+            content = msg.get('content', '')
+
+            # Skip messages that reference old diagrams
+            if 'generated diagram:' in content.lower() or 'diagram request context' in content.lower():
+                continue
+
+            # ✅ NEW: Detect previous mathematical function discussions
+            content_lower = content.lower()
+            if any(indicator in content_lower for indicator in ['y =', 'f(x) =', 'equation', 'function', 'quadratic', 'parabola']):
+                has_previous_math_content = True
+                # Extract function patterns for logging
+                function_patterns = re.findall(r'y\s*=\s*[^,\n]+', content, re.IGNORECASE)
+                previous_functions.extend(function_patterns[:2])
+
+            conversation_text += f"{role.upper()}: {content}\n\n"
+
+        # ✅ Add the specific diagram request at the end
+        conversation_text += f"\nDIAGRAM REQUEST: {request.diagram_request}\n"
+
+        # ✅ CRITICAL FIX: If geometric request but context has old math functions, add isolation instruction
+        geometric_requests = ['triangle', 'circle', 'rectangle', 'square', 'pentagon', 'hexagon',
+                            'polygon', '三角形', '圆', '矩形', '正方形', '多边形']
+
+        req_lower = request.diagram_request.lower()
+        is_geometric_request = any(shape.lower() in req_lower for shape in geometric_requests if isinstance(shape, str))
+
+        if is_geometric_request and has_previous_math_content:
+            print(f"⚠️ [DiagramGen] Geometric request detected with previous math context")
+            print(f"   Previous functions: {previous_functions}")
+            print(f"   Current request: {request.diagram_request}")
+
+            conversation_text += f"\n⚠️ CRITICAL INSTRUCTION: The user is requesting a NEW geometric shape ({request.diagram_request}).\n"
+            conversation_text += f"IGNORE all previous mathematical functions in the conversation history.\n"
+            conversation_text += f"DO NOT draw any previous equations or functions.\n"
+            conversation_text += f"Focus EXCLUSIVELY on: {request.diagram_request}\n"
+
+        # 🚀 UNIFIED GENERATION: AI chooses tool and generates code in single call
+        print(f"🎨 === UNIFIED DIAGRAM GENERATION ===")
+        print(f"🔄 Regenerate mode: {request.regenerate}")
+        ai_output = await generate_diagram_unified(
+            conversation_text=conversation_text,
+            diagram_request=request.diagram_request,
+            subject=request.subject,
+            language=request.language,
+            regenerate=request.regenerate,
+            ai_service=ai_service
+        )
+
+        # Extract type and content from AI response
+        diagram_type = ai_output.get('type', 'svg').lower()
+        diagram_content = ai_output.get('content', '')
+
+        print(f"🎨 AI selected tool: {diagram_type}")
+        print(f"🎨 Content length: {len(diagram_content)} chars")
+
+        # ✅ FIX: Validate and normalize code before execution
+        # 1. Strip markdown code fences
+        if "```" in diagram_content:
+            print(f"⚠️ Stripping markdown code fences from content")
+            lines = diagram_content.split('\n')
+            cleaned_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith('```'):
+                    continue
+                cleaned_lines.append(line)
+            diagram_content = '\n'.join(cleaned_lines)
+
+        # 2. Normalize newlines
+        diagram_content = diagram_content.replace("\r\n", "\n").replace("\r", "\n")
+
+        # 3. Check for ASCII-only in code (matplotlib/graphviz only)
+        def contains_non_ascii(s: str) -> bool:
+            return any(ord(c) > 127 for c in s)
+
+        if diagram_type in ["matplotlib", "graphviz"] and contains_non_ascii(diagram_content):
+            print(f"❌ Non-ASCII characters detected in {diagram_type} code")
+            result = {
+                'success': True,
+                'diagram_type': 'svg',
+                'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle" font-size="14">Error: Non-ASCII characters in code</text></svg>',
+                'diagram_title': ai_output.get('title', 'Error'),
+                'explanation': f'Code contains non-ASCII characters. {diagram_type} requires English/ASCII labels only.',
+                'width': 400,
+                'height': 300,
+                'tokens_used': ai_output.get('tokens_used', 0)
+            }
+        else:
+            # ✅ PREFLIGHT VALIDATION: Tool-specific syntax checks
+            skip_execution = False
+
+            if diagram_type == "matplotlib":
+                import ast
+                try:
+                    tree = ast.parse(diagram_content)
+                    print(f"✅ [Preflight] Matplotlib code passed AST syntax validation")
+
+                    # Check for undefined names
+                    allowlist = {'plt', 'np', 'matplotlib', 'mpatches', 'patches', 'colors',
+                                'pyplot', 'math', 'pi', 'e', 'inf', 'nan'}
+
+                    undefined_names = set()
+                    defined_names = set()
+
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.Assign):
+                            for target in node.targets:
+                                if isinstance(target, ast.Name):
+                                    defined_names.add(target.id)
+                        elif isinstance(node, ast.FunctionDef):
+                            defined_names.add(node.name)
+                        elif isinstance(node, ast.Import):
+                            for alias in node.names:
+                                defined_names.add(alias.asname if alias.asname else alias.name)
+                        elif isinstance(node, ast.ImportFrom):
+                            for alias in node.names:
+                                defined_names.add(alias.asname if alias.asname else alias.name)
+                        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+                            if node.id not in allowlist and node.id not in defined_names:
+                                undefined_names.add(node.id)
+
+                    if undefined_names:
+                        print(f"❌ [Preflight] Matplotlib undefined names: {undefined_names}")
+                        result = {
+                            'success': True,
+                            'diagram_type': 'svg',
+                            'diagram_code': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Undefined names: {", ".join(list(undefined_names)[:3])}</text></svg>',
+                            'diagram_title': ai_output.get('title', 'Error'),
+                            'explanation': f'Undefined names: {", ".join(undefined_names)}',
+                            'width': 400,
+                            'height': 300,
+                            'tokens_used': ai_output.get('tokens_used', 0)
+                        }
+                        skip_execution = True
+
+                except SyntaxError as e:
+                    print(f"❌ [Preflight] Matplotlib syntax error: {e}")
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Syntax Error</text></svg>',
+                        'diagram_title': ai_output.get('title', 'Error'),
+                        'explanation': f'Syntax error: {str(e)}',
+                        'width': 400,
+                        'height': 300,
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+                    skip_execution = True
+
+            elif diagram_type == "graphviz":
+                dot_lower = diagram_content.lower()
+                if not (dot_lower.strip().startswith('digraph') or dot_lower.strip().startswith('graph')):
+                    print(f"❌ [Preflight] Invalid DOT: must start with 'digraph' or 'graph'")
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Invalid DOT</text></svg>',
+                        'diagram_title': ai_output.get('title', 'Error'),
+                        'explanation': 'Invalid DOT syntax',
+                        'width': 400,
+                        'height': 300,
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+                    skip_execution = True
+                elif any(kw in dot_lower for kw in ['import ', 'plt.', 'np.', 'def ', 'matplotlib']):
+                    print(f"❌ [Preflight] DOT contamination detected")
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">DOT contaminated</text></svg>',
+                        'diagram_title': ai_output.get('title', 'Error'),
+                        'explanation': 'DOT contains Python syntax',
+                        'width': 400,
+                        'height': 300,
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+                    skip_execution = True
+                else:
+                    # Sanitize labels
+                    def sanitize_label(match):
+                        label_value = match.group(1)
+                        if label_value.startswith('"') and label_value.endswith('"'):
+                            return match.group(0)
+                        if label_value.startswith('<') and label_value.endswith('>'):
+                            return match.group(0)
+                        if ' ' in label_value:
+                            return match.group(0)
+                        return f'label="{label_value}"'
+
+                    diagram_content = re.sub(r'label=([^"\s\[\],;]+)', sanitize_label, diagram_content)
+                    ai_output['content'] = diagram_content
+
+        # Update content
+        ai_output['content'] = diagram_content
+
+        # Route to appropriate renderer
+        if not skip_execution:
+            if diagram_type == "matplotlib":
+                if not MATPLOTLIB_AVAILABLE or matplotlib_generator is None:
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': ai_output.get('content', '<svg></svg>'),
+                        'diagram_title': ai_output.get('title', 'Diagram'),
+                        'explanation': ai_output.get('explanation', ''),
+                        'width': ai_output.get('width', 400),
+                        'height': ai_output.get('height', 300),
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+                else:
+                    exec_result = matplotlib_generator.execute_code_safely(diagram_content, timeout_seconds=5)
+                    if exec_result['success']:
+                        result = {
+                            'success': True,
+                            'diagram_type': 'matplotlib',
+                            'diagram_code': exec_result['image_data'],
+                            'diagram_format': 'png_base64',
+                            'diagram_title': ai_output.get('title', 'Matplotlib Visualization'),
+                            'explanation': ai_output.get('explanation', ''),
+                            'width': ai_output.get('width', 800),
+                            'height': ai_output.get('height', 600),
+                            'tokens_used': ai_output.get('tokens_used', 0)
+                        }
+                    else:
+                        result = {
+                            'success': True,
+                            'diagram_type': 'svg',
+                            'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Matplotlib execution failed</text></svg>',
+                            'diagram_title': ai_output.get('title', 'Diagram'),
+                            'explanation': f"Execution error: {exec_result.get('error', 'Unknown')}",
+                            'width': 400,
+                            'height': 300,
+                            'tokens_used': ai_output.get('tokens_used', 0)
+                        }
+
+            elif diagram_type == "latex":
+                latex_code = diagram_content
+                conversion_result = await latex_converter.convert_tikz_to_svg(
+                    tikz_code=latex_code,
+                    title=ai_output.get('title', 'Diagram'),
+                    width=ai_output.get('width', 400),
+                    height=ai_output.get('height', 300)
+                )
+                if conversion_result['success']:
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': conversion_result['svg_code'],
+                        'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
+                        'explanation': ai_output.get('explanation', ''),
+                        'width': ai_output.get('width', 400),
+                        'height': ai_output.get('height', 300),
+                        'latex_source': latex_code,
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+                else:
+                    result = {
+                        'success': True,
+                        'diagram_type': 'latex',
+                        'diagram_code': latex_code,
+                        'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
+                        'explanation': ai_output.get('explanation', ''),
+                        'width': ai_output.get('width', 400),
+                        'height': ai_output.get('height', 300),
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+
+            elif diagram_type == "graphviz":
+                if not GRAPHVIZ_AVAILABLE or graphviz_generator is None:
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Graphviz not installed</text></svg>',
+                        'diagram_title': ai_output.get('title', 'Diagram'),
+                        'explanation': ai_output.get('explanation', ''),
+                        'width': 400,
+                        'height': 300,
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+                else:
+                    exec_result = graphviz_generator.execute_code_safely(diagram_content, timeout_seconds=5)
+                    if exec_result['success']:
+                        result = {
+                            'success': True,
+                            'diagram_type': 'png',
+                            'diagram_code': exec_result['image_data'],
+                            'diagram_title': ai_output.get('title', 'Graphviz Diagram'),
+                            'explanation': ai_output.get('explanation', ''),
+                            'width': ai_output.get('width', 600),
+                            'height': ai_output.get('height', 400),
+                            'graphviz_source': diagram_content,
+                            'tokens_used': ai_output.get('tokens_used', 0)
+                        }
+                    else:
+                        result = {
+                            'success': True,
+                            'diagram_type': 'svg',
+                            'diagram_code': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Graphviz execution failed</text></svg>',
+                            'diagram_title': ai_output.get('title', 'Diagram'),
+                            'explanation': f"Execution error: {exec_result.get('error', 'Unknown')}",
+                            'width': 400,
+                            'height': 300,
+                            'tokens_used': ai_output.get('tokens_used', 0)
+                        }
+
+            else:  # svg
+                svg_optimized = optimize_svg_for_display(diagram_content, padding=20)
+                result = {
+                    'success': True,
+                    'diagram_type': 'svg',
+                    'diagram_code': svg_optimized,
+                    'diagram_title': ai_output.get('title', 'SVG Diagram'),
+                    'explanation': ai_output.get('explanation', ''),
+                    'width': ai_output.get('width', 400),
+                    'height': ai_output.get('height', 300),
+                    'tokens_used': ai_output.get('tokens_used', 0)
+                }
+
+        processing_time = int((time.time() - start_time) * 1000)
+
+        return DiagramGenerationResponse(
+            success=True,
+            diagram_type=result['diagram_type'],
+            diagram_code=result['diagram_code'],
+            diagram_title=result['diagram_title'],
+            explanation=result['explanation'],
+            rendering_hint=RenderingHint(
+                width=result.get('width', 400),
+                height=result.get('height', 300),
+                background=result.get('background', 'white')
+            ),
+            processing_time_ms=processing_time,
+            tokens_used=result.get('tokens_used')
+        )
+
+    except Exception as e:
+        processing_time = int((time.time() - start_time) * 1000)
+        error_message = f"Diagram generation failed: {str(e)}"
+        print(f"❌ Diagram: Failed ({processing_time}ms) - {str(e)}")
+
+        return DiagramGenerationResponse(
+            success=False,
+            processing_time_ms=processing_time,
+            error=error_message
+        )
