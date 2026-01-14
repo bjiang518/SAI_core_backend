@@ -3087,7 +3087,10 @@ async def generate_diagram(request: DiagramGenerationRequest):
         # add explicit instruction to ignore previous functions and focus ONLY on current request
         geometric_requests = ['triangle', 'circle', 'rectangle', 'square', 'pentagon', 'hexagon',
                             'polygon', '三角形', '圆', '矩形', '正方形', '多边形']
-        is_geometric_request = any(shape in request.diagram_request.lower() for shape in geometric_requests)
+
+        # ✅ FIX: Case-insensitive matching for both English and Chinese
+        req_lower = request.diagram_request.lower()
+        is_geometric_request = any(shape.lower() in req_lower for shape in geometric_requests if isinstance(shape, str))
 
         if is_geometric_request and has_previous_math_content:
             print(f"⚠️ [DiagramGen] Geometric request detected with previous math context")
@@ -3119,158 +3122,221 @@ async def generate_diagram(request: DiagramGenerationRequest):
         print(f"🎨 AI selected tool: {diagram_type}")
         print(f"🎨 Content length: {len(diagram_content)} chars")
 
-        # 🎯 ROUTE TO APPROPRIATE RENDERER BASED ON TYPE
-        result = None
+        # ✅ FIX: Validate and normalize code before execution
+        # This prevents common execution failures
 
-        if diagram_type == "matplotlib":
-            # Execute matplotlib code
-            print(f"📊 [Renderer] Executing matplotlib code...")
+        # 1. Strip markdown code fences (```python, ```, etc.)
+        if "```" in diagram_content:
+            print(f"⚠️ Stripping markdown code fences from content")
+            lines = diagram_content.split('\n')
+            cleaned_lines = []
+            for line in lines:
+                stripped = line.strip()
+                # Skip fence lines
+                if stripped.startswith('```'):
+                    continue
+                cleaned_lines.append(line)
+            diagram_content = '\n'.join(cleaned_lines)
 
-            if not MATPLOTLIB_AVAILABLE or matplotlib_generator is None:
-                print(f"⚠️ [Renderer] Matplotlib not available, falling back to SVG")
-                # Generate SVG as fallback
+        # 2. Normalize newlines (Windows/Mac/Unix compatibility)
+        diagram_content = diagram_content.replace("\r\n", "\n").replace("\r", "\n")
+
+        # 3. Check for ASCII-only in code (Chinese characters cause rendering failures)
+        # ✅ FIX: Only check matplotlib/graphviz (server-side font rendering issues)
+        # SVG can render Chinese fine on iOS/web if client fonts exist
+        def contains_non_ascii(s: str) -> bool:
+            return any(ord(c) > 127 for c in s)
+
+        if diagram_type in ["matplotlib", "graphviz"] and contains_non_ascii(diagram_content):
+            print(f"❌ Non-ASCII characters detected in {diagram_type} code")
+            print(f"   Chinese characters will cause rendering failures (server-side fonts)")
+            print(f"   Returning error diagram")
+            # Return error diagram (success=True with error message)
+            result = {
+                'success': True,  # ✅ Success=True because we're returning a valid error diagram
+                'diagram_type': 'svg',
+                'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle" font-size="14">Error: Non-ASCII characters in code</text><text x="200" y="180" text-anchor="middle" font-size="12">Please use English labels only</text></svg>',
+                'diagram_title': ai_output.get('title', 'Error'),
+                'explanation': f'Code contains non-ASCII characters (Chinese/unicode). {diagram_type} requires English labels only (server-side font limitation).',
+                'width': 400,
+                'height': 300,
+                'tokens_used': ai_output.get('tokens_used', 0)
+            }
+        # 4. Check for backslash line continuations in Python code (common error)
+        elif diagram_type == "matplotlib":
+            bad_lines = [i for i, l in enumerate(diagram_content.splitlines(), 1) if l.rstrip().endswith("\\") and not l.strip().startswith("#")]
+            if bad_lines:
+                print(f"❌ Backslash line continuations detected at lines: {bad_lines}")
+                print(f"   This will cause: 'unexpected character after line continuation'")
                 result = {
-                    'success': True,
+                    'success': True,  # ✅ Success=True because we're returning a valid error diagram
                     'diagram_type': 'svg',
-                    'diagram_code': ai_output.get('content', '<svg></svg>'),
-                    'diagram_title': ai_output.get('title', 'Diagram'),
-                    'explanation': ai_output.get('explanation', ''),
-                    'width': ai_output.get('width', 400),
-                    'height': ai_output.get('height', 300),
-                    'tokens_used': ai_output.get('tokens_used', 0)
-                }
-            else:
-                # Execute matplotlib code through renderer
-                exec_result = matplotlib_generator.execute_code_safely(diagram_content, timeout_seconds=5)
-
-                if exec_result['success']:
-                    result = {
-                        'success': True,
-                        'diagram_type': 'matplotlib',
-                        'diagram_code': exec_result['image_data'],  # Base64 PNG
-                        'diagram_format': 'png_base64',
-                        'diagram_title': ai_output.get('title', 'Matplotlib Visualization'),
-                        'explanation': ai_output.get('explanation', ''),
-                        'width': ai_output.get('width', 800),
-                        'height': ai_output.get('height', 600),
-                        'tokens_used': ai_output.get('tokens_used', 0)
-                    }
-                else:
-                    # Matplotlib execution failed, use SVG content as fallback
-                    print(f"⚠️ [Renderer] Matplotlib execution failed: {exec_result.get('error')}")
-                    result = {
-                        'success': True,
-                        'diagram_type': 'svg',
-                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Matplotlib execution failed</text></svg>',
-                        'diagram_title': ai_output.get('title', 'Diagram'),
-                        'explanation': f"Execution error: {exec_result.get('error', 'Unknown')}",
-                        'width': 400,
-                        'height': 300,
-                        'tokens_used': ai_output.get('tokens_used', 0)
-                    }
-
-        elif diagram_type == "latex":
-            # Convert LaTeX to SVG
-            print(f"📐 [Renderer] Converting LaTeX to SVG...")
-            latex_code = diagram_content
-
-            conversion_result = await latex_converter.convert_tikz_to_svg(
-                tikz_code=latex_code,
-                title=ai_output.get('title', 'Diagram'),
-                width=ai_output.get('width', 400),
-                height=ai_output.get('height', 300)
-            )
-
-            if conversion_result['success']:
-                result = {
-                    'success': True,
-                    'diagram_type': 'svg',  # Return as SVG
-                    'diagram_code': conversion_result['svg_code'],
-                    'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
-                    'explanation': ai_output.get('explanation', ''),
-                    'width': ai_output.get('width', 400),
-                    'height': ai_output.get('height', 300),
-                    'latex_source': latex_code,  # Keep original
-                    'tokens_used': ai_output.get('tokens_used', 0)
-                }
-            else:
-                # LaTeX conversion failed, return raw LaTeX
-                print(f"⚠️ [Renderer] LaTeX conversion failed: {conversion_result['error']}")
-                result = {
-                    'success': True,
-                    'diagram_type': 'latex',
-                    'diagram_code': latex_code,
-                    'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
-                    'explanation': ai_output.get('explanation', ''),
-                    'width': ai_output.get('width', 400),
-                    'height': ai_output.get('height', 300),
-                    'tokens_used': ai_output.get('tokens_used', 0)
-                }
-
-        elif diagram_type == "graphviz":
-            # Convert Graphviz DOT to PNG (more reliable than SVG)
-            print(f"🔷 [Renderer] Converting Graphviz DOT to PNG...")
-            dot_code = diagram_content
-
-            # Check if graphviz is available
-            if not GRAPHVIZ_AVAILABLE or graphviz_generator is None:
-                print(f"⚠️ [Renderer] Graphviz not available, falling back to error message")
-                result = {
-                    'success': True,
-                    'diagram_type': 'svg',
-                    'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Graphviz not installed</text></svg>',
-                    'diagram_title': ai_output.get('title', 'Diagram'),
-                    'explanation': ai_output.get('explanation', ''),
+                    'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle" font-size="14">Error: Invalid line continuations</text><text x="200" y="180" text-anchor="middle" font-size="12">Use parentheses instead</text></svg>',
+                    'diagram_title': ai_output.get('title', 'Error'),
+                    'explanation': f'Code contains backslash line continuations at lines {bad_lines}. Use parentheses for multi-line expressions.',
                     'width': 400,
                     'height': 300,
                     'tokens_used': ai_output.get('tokens_used', 0)
                 }
             else:
-                exec_result = graphviz_generator.execute_code_safely(dot_code, timeout_seconds=5)
+                result = None  # Continue to execution
+        else:
+            result = None  # Continue to execution
 
-                if exec_result['success']:
-                    result = {
-                        'success': True,
-                        'diagram_type': 'png',  # Return as PNG for reliable rendering
-                        'diagram_code': exec_result['image_data'],  # PNG data URL
-                        'diagram_title': ai_output.get('title', 'Graphviz Diagram'),
-                        'explanation': ai_output.get('explanation', ''),
-                        'width': ai_output.get('width', 600),  # Larger default for PNG
-                        'height': ai_output.get('height', 400),
-                        'graphviz_source': dot_code,  # Keep original DOT code
-                        'tokens_used': ai_output.get('tokens_used', 0)
-                    }
-                else:
-                    # Graphviz execution failed
-                    print(f"⚠️ [Renderer] Graphviz execution failed: {exec_result['error']}")
+        # Update diagram_content back to ai_output for downstream use
+        ai_output['content'] = diagram_content
+
+        # 🎯 ROUTE TO APPROPRIATE RENDERER BASED ON TYPE (only if validation passed)
+        if result is None:
+            if diagram_type == "matplotlib":
+                # Execute matplotlib code
+                print(f"📊 [Renderer] Executing matplotlib code...")
+
+                if not MATPLOTLIB_AVAILABLE or matplotlib_generator is None:
+                    print(f"⚠️ [Renderer] Matplotlib not available, falling back to SVG")
+                    # Generate SVG as fallback
                     result = {
                         'success': True,
                         'diagram_type': 'svg',
-                        'diagram_code': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Graphviz execution failed: {exec_result.get("error", "Unknown")}</text></svg>',
+                        'diagram_code': ai_output.get('content', '<svg></svg>'),
                         'diagram_title': ai_output.get('title', 'Diagram'),
-                        'explanation': f"Execution error: {exec_result.get('error', 'Unknown')}",
+                        'explanation': ai_output.get('explanation', ''),
+                        'width': ai_output.get('width', 400),
+                        'height': ai_output.get('height', 300),
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+                else:
+                    # Execute matplotlib code through renderer
+                    exec_result = matplotlib_generator.execute_code_safely(diagram_content, timeout_seconds=5)
+
+                    if exec_result['success']:
+                        result = {
+                            'success': True,
+                            'diagram_type': 'matplotlib',
+                            'diagram_code': exec_result['image_data'],  # Base64 PNG
+                            'diagram_format': 'png_base64',
+                            'diagram_title': ai_output.get('title', 'Matplotlib Visualization'),
+                            'explanation': ai_output.get('explanation', ''),
+                            'width': ai_output.get('width', 800),
+                            'height': ai_output.get('height', 600),
+                            'tokens_used': ai_output.get('tokens_used', 0)
+                        }
+                    else:
+                        # Matplotlib execution failed, use SVG content as fallback
+                        print(f"⚠️ [Renderer] Matplotlib execution failed: {exec_result.get('error')}")
+                        result = {
+                            'success': True,
+                            'diagram_type': 'svg',
+                            'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Matplotlib execution failed</text></svg>',
+                            'diagram_title': ai_output.get('title', 'Diagram'),
+                            'explanation': f"Execution error: {exec_result.get('error', 'Unknown')}",
+                            'width': 400,
+                            'height': 300,
+                            'tokens_used': ai_output.get('tokens_used', 0)
+                        }
+
+            elif diagram_type == "latex":
+                # Convert LaTeX to SVG
+                print(f"📐 [Renderer] Converting LaTeX to SVG...")
+                latex_code = diagram_content
+
+                conversion_result = await latex_converter.convert_tikz_to_svg(
+                    tikz_code=latex_code,
+                    title=ai_output.get('title', 'Diagram'),
+                    width=ai_output.get('width', 400),
+                    height=ai_output.get('height', 300)
+                )
+
+                if conversion_result['success']:
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',  # Return as SVG
+                        'diagram_code': conversion_result['svg_code'],
+                        'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
+                        'explanation': ai_output.get('explanation', ''),
+                        'width': ai_output.get('width', 400),
+                        'height': ai_output.get('height', 300),
+                        'latex_source': latex_code,  # Keep original
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+                else:
+                    # LaTeX conversion failed, return raw LaTeX
+                    print(f"⚠️ [Renderer] LaTeX conversion failed: {conversion_result['error']}")
+                    result = {
+                        'success': True,
+                        'diagram_type': 'latex',
+                        'diagram_code': latex_code,
+                        'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
+                        'explanation': ai_output.get('explanation', ''),
+                        'width': ai_output.get('width', 400),
+                        'height': ai_output.get('height', 300),
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
+
+            elif diagram_type == "graphviz":
+                # Convert Graphviz DOT to PNG (more reliable than SVG)
+                print(f"🔷 [Renderer] Converting Graphviz DOT to PNG...")
+                dot_code = diagram_content
+
+                # Check if graphviz is available
+                if not GRAPHVIZ_AVAILABLE or graphviz_generator is None:
+                    print(f"⚠️ [Renderer] Graphviz not available, falling back to error message")
+                    result = {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Graphviz not installed</text></svg>',
+                        'diagram_title': ai_output.get('title', 'Diagram'),
+                        'explanation': ai_output.get('explanation', ''),
                         'width': 400,
                         'height': 300,
                         'tokens_used': ai_output.get('tokens_used', 0)
                     }
+                else:
+                    exec_result = graphviz_generator.execute_code_safely(dot_code, timeout_seconds=5)
 
-        else:  # svg (default)
-            # SVG is already ready - optimize and return it
-            print(f"🎨 [Renderer] Using SVG directly")
+                    if exec_result['success']:
+                        result = {
+                            'success': True,
+                            'diagram_type': 'png',  # Return as PNG for reliable rendering
+                            'diagram_code': exec_result['image_data'],  # PNG data URL
+                            'diagram_title': ai_output.get('title', 'Graphviz Diagram'),
+                            'explanation': ai_output.get('explanation', ''),
+                            'width': ai_output.get('width', 600),  # Larger default for PNG
+                            'height': ai_output.get('height', 400),
+                            'graphviz_source': dot_code,  # Keep original DOT code
+                            'tokens_used': ai_output.get('tokens_used', 0)
+                        }
+                    else:
+                        # Graphviz execution failed
+                        print(f"⚠️ [Renderer] Graphviz execution failed: {exec_result['error']}")
+                        result = {
+                            'success': True,
+                            'diagram_type': 'svg',
+                            'diagram_code': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Graphviz execution failed: {exec_result.get("error", "Unknown")}</text></svg>',
+                            'diagram_title': ai_output.get('title', 'Diagram'),
+                            'explanation': f"Execution error: {exec_result.get('error', 'Unknown')}",
+                            'width': 400,
+                            'height': 300,
+                            'tokens_used': ai_output.get('tokens_used', 0)
+                        }
 
-            # ✅ FIX: Add padding to prevent cropping at edges
-            svg_optimized = optimize_svg_for_display(diagram_content, padding=20)
+            else:  # svg (default)
+                # SVG is already ready - optimize and return it
+                print(f"🎨 [Renderer] Using SVG directly")
 
-            result = {
-                'success': True,
-                'diagram_type': 'svg',
-                'diagram_code': svg_optimized,
-                'diagram_title': ai_output.get('title', 'SVG Diagram'),
-                'explanation': ai_output.get('explanation', ''),
-                'width': ai_output.get('width', 400),
-                'height': ai_output.get('height', 300),
-                'tokens_used': ai_output.get('tokens_used', 0)
-            }
+                # ✅ FIX: Add padding to prevent cropping at edges
+                svg_optimized = optimize_svg_for_display(diagram_content, padding=20)
+
+                result = {
+                    'success': True,
+                    'diagram_type': 'svg',
+                    'diagram_code': svg_optimized,
+                    'diagram_title': ai_output.get('title', 'SVG Diagram'),
+                    'explanation': ai_output.get('explanation', ''),
+                    'width': ai_output.get('width', 400),
+                    'height': ai_output.get('height', 300),
+                    'tokens_used': ai_output.get('tokens_used', 0)
+                }
 
         processing_time = int((time.time() - start_time) * 1000)
 
@@ -3282,7 +3348,6 @@ async def generate_diagram(request: DiagramGenerationRequest):
             diagram_code=result['diagram_code'],
             diagram_title=result['diagram_title'],
             explanation=result['explanation'],
-            reasoning=ai_output.get('reasoning', ''),  # Include AI's reasoning from two-step process
             rendering_hint=RenderingHint(
                 width=result.get('width', 400),
                 height=result.get('height', 300),
@@ -3376,103 +3441,11 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
 
     explanation_lang = explanation_language_map.get(language, 'English')
 
-    # Build prompt based on generation mode
-    if regenerate:
-        # TWO-STEP REASONING for regeneration (o4-mini, quality-focused)
-        prompt = f"""You are an expert educational diagram generator. You have multiple tools available.
-Your task requires TWO STEPS: First analyze and decide, then generate code.
+    # ✅ FIX: Use SAME prompt structure for both modes (no reasoning requirement)
+    # Only difference: regenerate=True uses o4-mini for better quality
+    # Both use Responses API with strict schema (no reasoning field - avoids schema violations)
 
-**REQUEST**: {diagram_request}
-
-**CONTEXT**:
-{conversation_text}
-
-**SUBJECT**: {subject}
-**LANGUAGE**: {language}
-
----
-
-**AVAILABLE TOOLS** (choose the best one):
-
-1. **matplotlib** (Python code)
-   - BEST FOR: Mathematical functions, graphs, plots, data visualization
-   - Examples: "graph y = x^2", "plot sin(x)", "histogram", "scatter plot"
-   - Strengths: Perfect viewport framing, calculus, statistics, automatic scaling
-   - Weaknesses: Poor for geometric shapes, flowcharts
-   - CODE REQUIREMENTS: Complete Python code with imports, figure creation, plotting
-
-2. **svg** (SVG markup)
-   - BEST FOR: Geometric shapes, concept diagrams, simple illustrations
-   - Examples: "draw triangle", "show circle", "illustrate concept"
-   - Strengths: Vector graphics, clean shapes, flexible styling
-   - Weaknesses: Not for data plots or complex graphs
-   - CODE REQUIREMENTS: Valid SVG markup with proper viewBox
-
-3. **latex** (TikZ)
-   - BEST FOR: Geometric proofs, formal constructions, precise diagrams
-   - Examples: "prove theorem", "geometric construction", "angle bisector proof"
-   - Strengths: Mathematical precision, formal diagrams, publication-quality
-   - Weaknesses: Complex syntax, slower rendering
-   - CODE REQUIREMENTS: Complete TikZ code with \\begin{{tikzpicture}}
-
-4. **graphviz** (DOT language)
-   - BEST FOR: Trees, graphs, flowcharts, hierarchies, network diagrams
-   - Examples: "binary search tree", "flowchart", "decision tree", "state diagram"
-   - Strengths: Automatic layout, perfect for graphs and hierarchies
-   - Weaknesses: Not for data plots or geometric shapes
-   - CODE REQUIREMENTS: Valid DOT syntax with proper graph structure
-
----
-
-**YOUR TASK - TWO STEP PROCESS**:
-
-**STEP 1: ANALYSIS & DECISION** (Write this in "reasoning" field)
-Carefully analyze the request and decide:
-- What type of content needs to be visualized?
-- What are the key requirements and constraints?
-- Which tool will produce the BEST result and why?
-- How should the content be presented (layout, structure, style)?
-- What are potential challenges or edge cases?
-- What specific features of the chosen tool will be leveraged?
-
-Write out your complete reasoning process. Be thorough and specific.
-
-**STEP 2: CODE GENERATION** (Based on your analysis)
-Generate COMPLETE, EXECUTABLE code:
-- Follow the exact syntax and requirements of the chosen tool
-- Include all necessary imports, declarations, and setup
-- Make the code production-ready (no placeholders or TODOs)
-- Apply best practices for the chosen tool
-- **CRITICAL: Use ONLY English/ASCII text in diagram code** (labels, titles, legends, annotations)
-- Chinese fonts are NOT available - using Chinese characters will cause rendering failures
-- All text within the code (matplotlib labels, SVG text, LaTeX labels, Graphviz node labels) MUST be English
-
----
-
-**RESPONSE FORMAT** (JSON):
-{{
-  "reasoning": "...",     // STEP 1: Your complete analysis (can be in {explanation_lang})
-  "type": "matplotlib",   // STEP 2: Chosen tool (matplotlib, svg, latex, or graphviz)
-  "content": "...",       // STEP 2: Complete code with ONLY ENGLISH TEXT in diagram
-  "title": "...",         // Brief title (can be in {explanation_lang})
-  "explanation": "...",   // Brief explanation (can be in {explanation_lang})
-  "width": 400,           // Suggested width in pixels
-  "height": 300           // Suggested height in pixels
-}}
-
-**CRITICAL REQUIREMENTS**:
-- The "reasoning" field MUST contain your STEP 1 analysis (minimum 3-4 sentences)
-- Choose the tool that will produce the BEST result for this specific request
-- Generate COMPLETE, EXECUTABLE code (no placeholders, no incomplete sections)
-- **DIAGRAM CODE MUST USE ONLY ENGLISH TEXT** - no Chinese characters in labels/legends/titles
-- Title and explanation fields CAN be in {explanation_lang} for user readability
-- If request is ambiguous, make reasonable assumptions and document them in reasoning
-- Return ONLY the JSON object, no other text
-
-Generate the diagram now with TWO-STEP reasoning:"""
-    else:
-        # ONE-STEP GENERATION for initial generation (gpt-4o-mini, speed-focused)
-        prompt = f"""You are an expert educational diagram generator with multiple visualization tools.
+    prompt = f"""You are an expert educational diagram generator with multiple visualization tools.
 
 **REQUEST**: {diagram_request}
 
@@ -3488,44 +3461,43 @@ Generate the diagram now with TWO-STEP reasoning:"""
 1. **matplotlib**: Math functions, graphs, plots, data visualization
    - Examples: graph y = x^2, plot sin(x), histogram
    - Strengths: Perfect framing, calculus, statistics
+   - CODE REQUIREMENTS: Complete Python with imports (matplotlib.pyplot as plt)
 
 2. **svg**: Geometric shapes, concept diagrams, simple illustrations
    - Examples: draw triangle, show circle, illustrate concept
    - Strengths: Vector graphics, clean shapes
+   - CODE REQUIREMENTS: Valid SVG markup starting with <svg
 
 3. **latex** (TikZ): Geometric proofs, formal constructions
    - Examples: prove theorem, geometric construction
    - Strengths: Mathematical precision, formal diagrams
+   - CODE REQUIREMENTS: Complete TikZ with \\begin{{tikzpicture}}
 
 4. **graphviz**: Trees, graphs, flowcharts, hierarchies
    - Examples: binary tree, flowchart, state diagram
    - Strengths: Automatic layout for hierarchies
+   - CODE REQUIREMENTS: Valid DOT syntax (digraph or graph)
 
 ---
 
 **YOUR TASK**:
-Choose the best tool and generate COMPLETE, EXECUTABLE code:
-- Use ONLY English/ASCII text in diagram code (no Chinese characters)
-- Include all necessary imports/declarations
-- Make code production-ready (no placeholders)
-- Title and explanation can be in {explanation_lang}
+Choose the best tool and generate COMPLETE, EXECUTABLE code.
 
-**RESPONSE FORMAT** (JSON):
-{{
-  "type": "matplotlib",   // Chosen tool
-  "content": "...",       // Complete code with ONLY ENGLISH TEXT
-  "title": "...",         // Brief title (can be in {explanation_lang})
-  "explanation": "...",   // Brief explanation (can be in {explanation_lang})
-  "width": 400,
-  "height": 300
-}}
-
-Generate the diagram now:"""
+**CRITICAL REQUIREMENTS**:
+- Select appropriate "type" field: matplotlib, svg, latex, or graphviz
+- Provide complete executable "content" with **ONLY English/ASCII text** in diagram code (no Chinese/unicode characters)
+- Include all necessary imports and declarations
+- Make code production-ready (no placeholders, no TODOs, no code fences)
+- Provide brief "title" in {explanation_lang}
+- Provide brief "explanation" in {explanation_lang}
+- Suggest appropriate "width" and "height" in pixels (200-4096 range)
+- **NO backslash line continuations** in Python code (use parentheses instead)
+- **NO markdown code fences** (```python) - return raw code only"""
 
     try:
-        # Define strict JSON schema for diagram generation
-        # Schema varies by mode: reasoning required for regeneration, optional for initial
-        diagram_schema_base = {
+        # ✅ FIX: Define strict JSON schema WITHOUT reasoning field
+        # Same schema for both generation and regeneration (no reasoning = no schema violations)
+        diagram_schema = {
             "type": "object",
             "properties": {
                 "type": {
@@ -3561,35 +3533,20 @@ Generate the diagram now:"""
                     "description": "Suggested height in pixels"
                 }
             },
+            "required": ["type", "content", "title", "explanation", "width", "height"],
             "additionalProperties": False
         }
 
-        # Add reasoning field for regeneration mode (two-step reasoning)
-        if regenerate:
-            diagram_schema_base["properties"]["reasoning"] = {
-                "type": "string",
-                "minLength": 20,
-                "description": "Detailed reasoning for tool choice and approach"
-            }
-            diagram_schema_base["required"] = ["type", "content", "title", "explanation", "width", "height", "reasoning"]
-        else:
-            # Initial generation: reasoning not required (one-step, fast)
-            diagram_schema_base["required"] = ["type", "content", "title", "explanation", "width", "height"]
-
-        diagram_schema = diagram_schema_base
-
         # Choose model and parameters based on regeneration mode
-        # Using Responses API for both models (consistent API shape)
-        # Falls back to chat.completions if responses API not available (old SDK)
+        # ✅ FIX: Both modes use Responses API with strict schema (no reasoning field)
+        # This prevents schema violations and ensures reliable JSON output
         #
         # Regeneration (regenerate=True):
-        #   - Model: o4-mini (deterministic reasoning, high quality)
-        #   - Prompt: Two-step reasoning (analysis + code)
-        #   - Max tokens: 2500
+        #   - Model: o4-mini (higher quality, better tool selection)
+        #   - Max tokens: 1500
         #
         # Initial generation (regenerate=False):
         #   - Model: gpt-4o-mini (fast, cost-effective)
-        #   - Prompt: One-step generation (direct code)
         #   - Max tokens: 1200
 
         # Check if Responses API is available (SDK >= 1.50.0)
@@ -3597,74 +3554,64 @@ Generate the diagram now:"""
 
         if regenerate:
             model = "o4-mini"
-            max_tokens = 2500
-            print(f"🤖 Using model: {model} (regenerate=True, two-step reasoning, quality-focused)")
-
-            # ✅ FIX: o4-mini is a reasoning model that emits output_text (reasoning steps)
-            # before output_json (final result). Responses API with strict schema rejects this.
-            # SOLUTION: Use chat.completions directly for o4-mini (more reliable for reasoning models)
-            print(f"🔄 Using chat.completions for o4-mini (reasoning model compatibility)")
-            response = await ai_service.client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=max_tokens,
-                response_format={"type": "json_object"}  # Allows reasoning text + JSON
-            )
-            result_text = response.choices[0].message.content.strip()
+            max_tokens = 1500  # Reduced from 2500 (no reasoning field needed)
+            print(f"🤖 Using model: {model} (regenerate=True, quality-focused)")
         else:
             model = "gpt-4o-mini"
-            temperature = 0.2  # Slight creativity for initial generation
             max_tokens = 1200
-            print(f"🤖 Using model: {model} (regenerate=False, one-step generation, speed-focused)")
+            print(f"🤖 Using model: {model} (regenerate=False, speed-focused)")
 
-            if has_responses_api:
-                # Responses API for gpt-4o-mini with strict JSON schema
-                print(f"✅ Using Responses API with strict JSON schema")
-                try:
-                    response = await ai_service.client.responses.create(
-                        model=model,
-                        input=prompt,
-                        temperature=temperature,
-                        max_output_tokens=max_tokens,
-                        text={
-                            "format": {
-                                "type": "json_schema",
-                                "name": "diagram_generation",
-                                "strict": True,
-                                "schema": diagram_schema
-                            }
+        # ✅ Use same API pattern for both models
+        temperature = 0.2
+
+        if has_responses_api:
+            # Responses API with strict JSON schema
+            print(f"✅ Using Responses API with strict JSON schema")
+            try:
+                response = await ai_service.client.responses.create(
+                    model=model,
+                    input=prompt,
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                    text={
+                        "format": {
+                            "type": "json_schema",
+                            "name": "diagram_generation",
+                            "strict": True,
+                            "schema": diagram_schema
                         }
-                    )
+                    }
+                )
 
-                    # ✅ Use cross-version helper to extract JSON
-                    result_obj = extract_json_from_responses(response)
-                    result_text = _json.dumps(result_obj)  # Convert to JSON string for downstream code
-                    print(f"✅ Got result: {result_obj.get('type', 'unknown')} diagram")
-                    print(f"✅ Content length: {len(result_obj.get('content', ''))} chars")
+                # ✅ Use cross-version helper to extract JSON
+                result_obj = extract_json_from_responses(response)
+                result_text = _json.dumps(result_obj)  # Convert to JSON string for downstream code
+                print(f"✅ Got result: {result_obj.get('type', 'unknown')} diagram")
+                print(f"✅ Content length: {len(result_obj.get('content', ''))} chars")
 
-                except Exception as e:
-                    print(f"❌ gpt-4o-mini Responses API failed: {type(e).__name__}: {e}")
-                    print(f"⚠️ Falling back to chat.completions")
-                    # Fallback to chat.completions
-                    response = await ai_service.client.chat.completions.create(
-                        model=model,
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=temperature,
-                        max_tokens=max_tokens,
-                        response_format={"type": "json_object"}
-                    )
-                    result_text = response.choices[0].message.content.strip()
-            else:
-                # Fallback to chat.completions for old SDK
-                print(f"⚠️ Responses API not available, using chat.completions (upgrade openai SDK to >=1.50.0)")
+            except Exception as e:
+                print(f"❌ {model} Responses API failed: {type(e).__name__}: {e}")
+                print(f"⚠️ Falling back to chat.completions")
+                # Fallback to chat.completions
                 response = await ai_service.client.chat.completions.create(
                     model=model,
                     messages=[{"role": "user", "content": prompt}],
                     temperature=temperature,
-                    max_tokens=max_tokens,  # Use max_tokens for best compatibility
+                    max_tokens=max_tokens,
                     response_format={"type": "json_object"}
                 )
                 result_text = response.choices[0].message.content.strip()
+        else:
+            # Fallback to chat.completions for old SDK
+            print(f"⚠️ Responses API not available, using chat.completions (upgrade openai SDK to >=1.50.0)")
+            response = await ai_service.client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"}
+            )
+            result_text = response.choices[0].message.content.strip()
 
         # Parse JSON response (using module-level _json)
         result = _json.loads(result_text)
@@ -3677,22 +3624,12 @@ Generate the diagram now:"""
             print(f"⚠️ Invalid tool '{chosen_tool}', defaulting to SVG")
             chosen_tool = 'svg'
 
-        # Log the AI's reasoning and decision
-        reasoning = result.get('reasoning', '')
         print(f"✅ AI chose: {chosen_tool}")
         print(f"   Title: {result.get('title', 'Untitled')}")
-        if reasoning:
-            # Truncate reasoning for logging (first 200 chars)
-            reasoning_preview = reasoning[:200] + "..." if len(reasoning) > 200 else reasoning
-            print(f"   Reasoning: {reasoning_preview}")
-        else:
-            print(f"   ⚠️ No reasoning provided by model")
 
-        result['tokens_used'] = response.usage.total_tokens
-
-        # Ensure reasoning field is present in output (even if empty)
-        if 'reasoning' not in result:
-            result['reasoning'] = ''
+        # ✅ FIX: Safe token accounting across SDK versions
+        tokens = getattr(getattr(response, "usage", None), "total_tokens", None)
+        result['tokens_used'] = tokens if tokens is not None else 0
 
         return result
 
@@ -3704,7 +3641,6 @@ Generate the diagram now:"""
             'content': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Diagram generation failed</text></svg>',
             'title': 'Generation Failed',
             'explanation': f'Failed to generate diagram: {str(e)}',
-            'reasoning': '',  # Empty reasoning on error
             'width': 400,
             'height': 300,
             'tokens_used': 0
