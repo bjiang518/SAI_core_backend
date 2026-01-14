@@ -3600,53 +3600,17 @@ Generate the diagram now:"""
             max_tokens = 2500
             print(f"🤖 Using model: {model} (regenerate=True, two-step reasoning, quality-focused)")
 
-            if has_responses_api:
-                # Responses API for o4-mini (reasoning model) with strict JSON schema
-                print(f"✅ Using Responses API with strict JSON schema")
-                try:
-                    response = await ai_service.client.responses.create(
-                        model=model,
-                        input=prompt,
-                        # No temperature for o4-mini - deterministic regeneration
-                        max_output_tokens=max_tokens,
-                        text={
-                            "format": {
-                                "type": "json_schema",
-                                "name": "diagram_generation",
-                                "strict": True,
-                                "schema": diagram_schema
-                            }
-                        }
-                    )
-
-                    # ✅ Use cross-version helper to extract JSON
-                    result_obj = extract_json_from_responses(response)
-                    result_text = _json.dumps(result_obj)  # Convert to JSON string for downstream code
-                    print(f"✅ Got result: {result_obj.get('type', 'unknown')} diagram")
-                    print(f"✅ Content length: {len(result_obj.get('content', ''))} chars")
-
-                except Exception as e:
-                    print(f"❌ o4-mini Responses API failed: {type(e).__name__}: {e}")
-                    print(f"⚠️ Falling back to gpt-4o with chat.completions")
-                    # Fallback to gpt-4o if o4-mini fails
-                    response = await ai_service.client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=0.2,
-                        max_tokens=max_tokens,  # Use same max_tokens as regeneration
-                        response_format={"type": "json_object"}
-                    )
-                    result_text = response.choices[0].message.content.strip()
-            else:
-                # Fallback to chat.completions for old SDK
-                print(f"⚠️ Responses API not available, using chat.completions (upgrade openai SDK to >=1.50.0)")
-                response = await ai_service.client.chat.completions.create(
-                    model=model,
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=max_tokens,  # Use max_tokens for best compatibility
-                    response_format={"type": "json_object"}
-                )
-                result_text = response.choices[0].message.content.strip()
+            # ✅ FIX: o4-mini is a reasoning model that emits output_text (reasoning steps)
+            # before output_json (final result). Responses API with strict schema rejects this.
+            # SOLUTION: Use chat.completions directly for o4-mini (more reliable for reasoning models)
+            print(f"🔄 Using chat.completions for o4-mini (reasoning model compatibility)")
+            response = await ai_service.client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"}  # Allows reasoning text + JSON
+            )
+            result_text = response.choices[0].message.content.strip()
         else:
             model = "gpt-4o-mini"
             temperature = 0.2  # Slight creativity for initial generation
