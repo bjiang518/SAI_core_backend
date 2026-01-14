@@ -3454,72 +3454,43 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
     # Only difference: regenerate=True uses o4-mini for better quality
     # Both use Responses API with strict schema (no reasoning field - avoids schema violations)
 
-    prompt = f"""You are an expert educational diagram generator with multiple visualization tools.
+    prompt = f"""You are an expert educational diagram generator.
 
 **REQUEST**: {diagram_request}
-
-**CONTEXT**:
-{conversation_text}
-
+**CONTEXT**: {conversation_text}
 **SUBJECT**: {subject}
 
 ---
 
-**AVAILABLE TOOLS** (choose the best one):
+**AVAILABLE TOOLS**:
 
-1. **matplotlib**: Math functions, graphs, plots, data visualization
-   - Examples: graph y = x^2, plot sin(x), histogram
-   - Strengths: Perfect framing, calculus, statistics
-   - CODE REQUIREMENTS: Complete Python with imports (matplotlib.pyplot as plt)
-   - ⚠️ CRITICAL: All labels/text in code MUST be English/ASCII only (plt.xlabel, plt.title, etc.)
-   - ⚠️ Non-English characters (Chinese, Japanese, Arabic, etc.) = IMMEDIATE FAILURE (server has no unicode fonts)
+1. **matplotlib** - Math functions, graphs, plots, data visualization
+   Best for: y = x^2, sin(x), histograms, scatter plots
 
-2. **svg**: Geometric shapes, concept diagrams, simple illustrations
-   - Examples: draw triangle, show circle, illustrate concept
-   - Strengths: Vector graphics, clean shapes
-   - CODE REQUIREMENTS: Valid SVG markup starting with <svg
+2. **svg** - Geometric shapes, concept diagrams, simple illustrations
+   Best for: triangles, circles, concept diagrams
 
-3. **latex** (TikZ): Geometric proofs, formal constructions
-   - Examples: prove theorem, geometric construction
-   - Strengths: Mathematical precision, formal diagrams
-   - CODE REQUIREMENTS: Complete TikZ with \\begin{{tikzpicture}}
+3. **latex** (TikZ) - Geometric proofs, formal constructions
+   Best for: theorem proofs, precise geometric diagrams
 
-4. **graphviz**: Trees, graphs, flowcharts, hierarchies
-   - Examples: binary tree, flowchart, state diagram
-   - Strengths: Automatic layout for hierarchies
-   - CODE REQUIREMENTS: Valid DOT syntax (digraph or graph)
-   - ⚠️ CRITICAL: All node labels/text MUST be English/ASCII only
-   - ⚠️ Non-English characters (Chinese, Japanese, Arabic, etc.) = IMMEDIATE FAILURE (server has no unicode fonts)
+4. **graphviz** - Trees, graphs, flowcharts, hierarchies
+   Best for: binary trees, flowcharts, state diagrams
 
 ---
 
-**YOUR TASK**:
-Choose the best tool and generate COMPLETE, EXECUTABLE code.
+**⚠️ CRITICAL: ASCII-ONLY TEXT IN CODE**
+Server has NO unicode fonts. Use English/ASCII labels ONLY in diagram code.
+- ❌ WRONG: plt.xlabel('函数') or 'café' or '関数' → FAILS
+- ✅ CORRECT: plt.xlabel('Function') or 'cafe' → WORKS
+- Title/explanation fields CAN use {explanation_lang} (user-facing)
+- Code text (labels, legends, nodes) MUST be English/ASCII (rendering)
 
-**⚠️ CRITICAL: ONLY ENGLISH/ASCII TEXT IN CODE ⚠️**
-The server environment does NOT have unicode fonts installed. If you use non-English characters
-(Chinese, Japanese, Korean, Arabic, Cyrillic, accented letters, etc.) in matplotlib labels,
-graphviz node labels, or any code text, the diagram will FAIL immediately.
-- Title and explanation fields CAN use any language (for user readability)
-- But ALL text inside the code (plt.xlabel, plt.title, DOT node labels) MUST be English/ASCII only
-- Example WRONG: plt.xlabel('函数') or plt.xlabel('関数') or plt.xlabel('Функция')  → WILL FAIL
-- Example CORRECT: plt.xlabel('Function')  → WILL WORK
-- NO accented letters: 'café' → use 'cafe', 'naïve' → use 'naive'
-
-**CRITICAL REQUIREMENTS**:
-- Select appropriate "type" field: matplotlib, svg, latex, or graphviz
-- Provide complete executable "content" with **ONLY English/ASCII text** in diagram code (no unicode/non-English characters)
-- Include all necessary imports and declarations
-- Make code production-ready (no placeholders, no TODOs, no code fences)
-- Provide brief "title" in {explanation_lang}
-- Provide brief "explanation" in {explanation_lang}
-- Suggest appropriate "width" and "height" in pixels (200-4096 range)
-- **NO backslash line continuations** in Python code (use parentheses instead)
-- **NO markdown code fences** (```python) - return raw code only
-
-**OUTPUT FORMAT**:
-You MUST respond with a valid JSON object only. No markdown, no preamble, no extra text.
-The JSON object must contain these exact keys: type, content, title, explanation, width, height."""
+**REQUIREMENTS**:
+- Choose appropriate "type": matplotlib, svg, latex, or graphviz
+- Generate COMPLETE, executable code (imports, setup, all details)
+- NO placeholders, TODOs, markdown fences, or backslash line continuations
+- Return JSON with keys: type, content, title, explanation, width, height
+- JSON only - no preamble, no markdown, no extra text"""
 
     try:
         # ✅ FIX: Define strict JSON schema WITHOUT reasoning field
