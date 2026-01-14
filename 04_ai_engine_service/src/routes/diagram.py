@@ -178,6 +178,7 @@ async def generate_diagram(request: DiagramGenerationRequest):
         def contains_non_ascii(s: str) -> bool:
             return any(ord(c) > 127 for c in s)
 
+        # ASCII validation for renderers without unicode font support
         if diagram_type in ["matplotlib", "graphviz"] and contains_non_ascii(diagram_content):
             print(f"❌ Non-ASCII characters detected in {diagram_type} code")
             result = {
@@ -191,259 +192,84 @@ async def generate_diagram(request: DiagramGenerationRequest):
                 'tokens_used': ai_output.get('tokens_used', 0)
             }
         else:
-            # ✅ PREFLIGHT VALIDATION: Tool-specific syntax checks
-            skip_execution = False
+            # Graphviz label sanitization
+            if diagram_type == "graphviz":
+                diagram_content = re.sub(
+                    r'label=([^"\s\[\],;]+)',
+                    lambda m: f'label="{m.group(1)}"' if not (m.group(1).startswith('"') or m.group(1).startswith('<') or ' ' in m.group(1)) else m.group(0),
+                    diagram_content
+                )
+                ai_output['content'] = diagram_content
 
-            if diagram_type == "matplotlib":
-                import ast
-                try:
-                    tree = ast.parse(diagram_content)
-                    print(f"✅ [Preflight] Matplotlib code passed AST syntax validation")
+            # Route to appropriate renderer
+            def error_svg(msg):
+                return {
+                    'success': True, 'diagram_type': 'svg',
+                    'diagram_code': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">{msg}</text></svg>',
+                    'diagram_title': ai_output.get('title', 'Error'), 'explanation': msg,
+                    'width': 400, 'height': 300, 'tokens_used': ai_output.get('tokens_used', 0)
+                }
 
-                    # Check for undefined names
-                    # ✅ FIX: Include all Python builtins that are actually available in the matplotlib sandbox
-                    # This must match the __builtins__ whitelist in matplotlib_generator.py
-                    allowlist = {
-                        # Matplotlib/numpy modules
-                        'plt', 'np', 'matplotlib', 'mpatches', 'patches', 'colors', 'pyplot',
-                        # Math constants
-                        'math', 'pi', 'e', 'inf', 'nan',
-                        # Standard Python builtins (matching sandbox whitelist)
-                        'range', 'len', 'enumerate', 'zip', 'max', 'min', 'abs', 'sum',
-                        'int', 'float', 'str', 'bool', 'list', 'dict', 'tuple', 'set',
-                        'isinstance', 'type', 'hasattr', 'getattr', 'setattr', 'print'
-                    }
-
-                    undefined_names = set()
-                    defined_names = set()
-
-                    # ✅ FIX: Helper to extract names from assignment targets (handles tuple unpacking)
-                    def extract_names_from_target(target):
-                        """Recursively extract variable names from assignment target.
-                        Handles: x = 1, (a, b) = (1, 2), a, b, c = 1, 2, 3, etc.
-                        """
-                        if isinstance(target, ast.Name):
-                            return {target.id}
-                        elif isinstance(target, (ast.Tuple, ast.List)):
-                            names = set()
-                            for elt in target.elts:
-                                names.update(extract_names_from_target(elt))
-                            return names
-                        else:
-                            return set()
-
-                    for node in ast.walk(tree):
-                        if isinstance(node, ast.Assign):
-                            # ✅ FIX: Extract ALL names from assignment targets (including tuple unpacking)
-                            for target in node.targets:
-                                defined_names.update(extract_names_from_target(target))
-                        elif isinstance(node, ast.FunctionDef):
-                            defined_names.add(node.name)
-                        elif isinstance(node, ast.Import):
-                            for alias in node.names:
-                                defined_names.add(alias.asname if alias.asname else alias.name)
-                        elif isinstance(node, ast.ImportFrom):
-                            for alias in node.names:
-                                defined_names.add(alias.asname if alias.asname else alias.name)
-                        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
-                            if node.id not in allowlist and node.id not in defined_names:
-                                undefined_names.add(node.id)
-
-                    # 🔍 DEBUG: Log detected defined names
-                    print(f"🔍 [Preflight] Detected {len(defined_names)} defined names: {sorted(defined_names)[:20]}")
-
-                    if undefined_names:
-                        print(f"❌ [Preflight] Matplotlib undefined names: {undefined_names}")
-                        result = {
-                            'success': True,
-                            'diagram_type': 'svg',
-                            'diagram_code': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Undefined names: {", ".join(list(undefined_names)[:3])}</text></svg>',
-                            'diagram_title': ai_output.get('title', 'Error'),
-                            'explanation': f'Undefined names: {", ".join(undefined_names)}',
-                            'width': 400,
-                            'height': 300,
-                            'tokens_used': ai_output.get('tokens_used', 0)
-                        }
-                        skip_execution = True
-                    else:
-                        print(f"✅ [Preflight] All variable names are defined - proceeding to execution")
-
-                except SyntaxError as e:
-                    print(f"❌ [Preflight] Matplotlib syntax error: {e}")
-                    result = {
-                        'success': True,
-                        'diagram_type': 'svg',
-                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Syntax Error</text></svg>',
-                        'diagram_title': ai_output.get('title', 'Error'),
-                        'explanation': f'Syntax error: {str(e)}',
-                        'width': 400,
-                        'height': 300,
-                        'tokens_used': ai_output.get('tokens_used', 0)
-                    }
-                    skip_execution = True
-
-            elif diagram_type == "graphviz":
-                dot_lower = diagram_content.lower()
-                if not (dot_lower.strip().startswith('digraph') or dot_lower.strip().startswith('graph')):
-                    print(f"❌ [Preflight] Invalid DOT: must start with 'digraph' or 'graph'")
-                    result = {
-                        'success': True,
-                        'diagram_type': 'svg',
-                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Invalid DOT</text></svg>',
-                        'diagram_title': ai_output.get('title', 'Error'),
-                        'explanation': 'Invalid DOT syntax',
-                        'width': 400,
-                        'height': 300,
-                        'tokens_used': ai_output.get('tokens_used', 0)
-                    }
-                    skip_execution = True
-                elif any(kw in dot_lower for kw in ['import ', 'plt.', 'np.', 'def ', 'matplotlib']):
-                    print(f"❌ [Preflight] DOT contamination detected")
-                    result = {
-                        'success': True,
-                        'diagram_type': 'svg',
-                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">DOT contaminated</text></svg>',
-                        'diagram_title': ai_output.get('title', 'Error'),
-                        'explanation': 'DOT contains Python syntax',
-                        'width': 400,
-                        'height': 300,
-                        'tokens_used': ai_output.get('tokens_used', 0)
-                    }
-                    skip_execution = True
-                else:
-                    # Sanitize labels
-                    def sanitize_label(match):
-                        label_value = match.group(1)
-                        if label_value.startswith('"') and label_value.endswith('"'):
-                            return match.group(0)
-                        if label_value.startswith('<') and label_value.endswith('>'):
-                            return match.group(0)
-                        if ' ' in label_value:
-                            return match.group(0)
-                        return f'label="{label_value}"'
-
-                    diagram_content = re.sub(r'label=([^"\s\[\],;]+)', sanitize_label, diagram_content)
-                    ai_output['content'] = diagram_content
-
-        # Update content
-        ai_output['content'] = diagram_content
-
-        # Route to appropriate renderer
-        if not skip_execution:
             if diagram_type == "matplotlib":
                 if not MATPLOTLIB_AVAILABLE or matplotlib_generator is None:
-                    result = {
-                        'success': True,
-                        'diagram_type': 'svg',
-                        'diagram_code': ai_output.get('content', '<svg></svg>'),
-                        'diagram_title': ai_output.get('title', 'Diagram'),
-                        'explanation': ai_output.get('explanation', ''),
-                        'width': ai_output.get('width', 400),
-                        'height': ai_output.get('height', 300),
-                        'tokens_used': ai_output.get('tokens_used', 0)
-                    }
+                    result = error_svg('Matplotlib not available')
                 else:
                     exec_result = matplotlib_generator.execute_code_safely(diagram_content, timeout_seconds=5)
-                    if exec_result['success']:
-                        result = {
-                            'success': True,
-                            'diagram_type': 'matplotlib',
-                            'diagram_code': exec_result['image_data'],
-                            'diagram_format': 'png_base64',
-                            'diagram_title': ai_output.get('title', 'Matplotlib Visualization'),
-                            'explanation': ai_output.get('explanation', ''),
-                            'width': ai_output.get('width', 800),
-                            'height': ai_output.get('height', 600),
-                            'tokens_used': ai_output.get('tokens_used', 0)
-                        }
-                    else:
-                        result = {
-                            'success': True,
-                            'diagram_type': 'svg',
-                            'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Matplotlib execution failed</text></svg>',
-                            'diagram_title': ai_output.get('title', 'Diagram'),
-                            'explanation': f"Execution error: {exec_result.get('error', 'Unknown')}",
-                            'width': 400,
-                            'height': 300,
-                            'tokens_used': ai_output.get('tokens_used', 0)
-                        }
+                    result = {
+                        'success': True,
+                        'diagram_type': 'matplotlib' if exec_result['success'] else 'svg',
+                        'diagram_code': exec_result['image_data'] if exec_result['success'] else error_svg(f"Execution error: {exec_result.get('error', 'Unknown')}")['diagram_code'],
+                        'diagram_format': 'png_base64' if exec_result['success'] else None,
+                        'diagram_title': ai_output.get('title', 'Matplotlib Visualization'),
+                        'explanation': ai_output.get('explanation', '') if exec_result['success'] else f"Execution error: {exec_result.get('error', 'Unknown')}",
+                        'width': ai_output.get('width', 800) if exec_result['success'] else 400,
+                        'height': ai_output.get('height', 600) if exec_result['success'] else 300,
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
 
             elif diagram_type == "latex":
-                latex_code = diagram_content
                 conversion_result = await latex_converter.convert_tikz_to_svg(
-                    tikz_code=latex_code,
+                    tikz_code=diagram_content,
                     title=ai_output.get('title', 'Diagram'),
                     width=ai_output.get('width', 400),
                     height=ai_output.get('height', 300)
                 )
+                result = {
+                    'success': True,
+                    'diagram_type': 'svg' if conversion_result['success'] else 'latex',
+                    'diagram_code': conversion_result.get('svg_code', diagram_content) if conversion_result['success'] else diagram_content,
+                    'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
+                    'explanation': ai_output.get('explanation', ''),
+                    'width': ai_output.get('width', 400),
+                    'height': ai_output.get('height', 300),
+                    'tokens_used': ai_output.get('tokens_used', 0)
+                }
                 if conversion_result['success']:
-                    result = {
-                        'success': True,
-                        'diagram_type': 'svg',
-                        'diagram_code': conversion_result['svg_code'],
-                        'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
-                        'explanation': ai_output.get('explanation', ''),
-                        'width': ai_output.get('width', 400),
-                        'height': ai_output.get('height', 300),
-                        'latex_source': latex_code,
-                        'tokens_used': ai_output.get('tokens_used', 0)
-                    }
-                else:
-                    result = {
-                        'success': True,
-                        'diagram_type': 'latex',
-                        'diagram_code': latex_code,
-                        'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
-                        'explanation': ai_output.get('explanation', ''),
-                        'width': ai_output.get('width', 400),
-                        'height': ai_output.get('height', 300),
-                        'tokens_used': ai_output.get('tokens_used', 0)
-                    }
+                    result['latex_source'] = diagram_content
 
             elif diagram_type == "graphviz":
                 if not GRAPHVIZ_AVAILABLE or graphviz_generator is None:
-                    result = {
-                        'success': True,
-                        'diagram_type': 'svg',
-                        'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Graphviz not installed</text></svg>',
-                        'diagram_title': ai_output.get('title', 'Diagram'),
-                        'explanation': ai_output.get('explanation', ''),
-                        'width': 400,
-                        'height': 300,
-                        'tokens_used': ai_output.get('tokens_used', 0)
-                    }
+                    result = error_svg('Graphviz not installed')
                 else:
                     exec_result = graphviz_generator.execute_code_safely(diagram_content, timeout_seconds=5)
+                    result = {
+                        'success': True,
+                        'diagram_type': 'png' if exec_result['success'] else 'svg',
+                        'diagram_code': exec_result['image_data'] if exec_result['success'] else error_svg(f"Execution error: {exec_result.get('error', 'Unknown')}")['diagram_code'],
+                        'diagram_title': ai_output.get('title', 'Graphviz Diagram'),
+                        'explanation': ai_output.get('explanation', '') if exec_result['success'] else f"Execution error: {exec_result.get('error', 'Unknown')}",
+                        'width': ai_output.get('width', 600) if exec_result['success'] else 400,
+                        'height': ai_output.get('height', 400) if exec_result['success'] else 300,
+                        'tokens_used': ai_output.get('tokens_used', 0)
+                    }
                     if exec_result['success']:
-                        result = {
-                            'success': True,
-                            'diagram_type': 'png',
-                            'diagram_code': exec_result['image_data'],
-                            'diagram_title': ai_output.get('title', 'Graphviz Diagram'),
-                            'explanation': ai_output.get('explanation', ''),
-                            'width': ai_output.get('width', 600),
-                            'height': ai_output.get('height', 400),
-                            'graphviz_source': diagram_content,
-                            'tokens_used': ai_output.get('tokens_used', 0)
-                        }
-                    else:
-                        result = {
-                            'success': True,
-                            'diagram_type': 'svg',
-                            'diagram_code': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Graphviz execution failed</text></svg>',
-                            'diagram_title': ai_output.get('title', 'Diagram'),
-                            'explanation': f"Execution error: {exec_result.get('error', 'Unknown')}",
-                            'width': 400,
-                            'height': 300,
-                            'tokens_used': ai_output.get('tokens_used', 0)
-                        }
+                        result['graphviz_source'] = diagram_content
 
             else:  # svg
-                svg_optimized = optimize_svg_for_display(diagram_content, padding=20)
                 result = {
                     'success': True,
                     'diagram_type': 'svg',
-                    'diagram_code': svg_optimized,
+                    'diagram_code': optimize_svg_for_display(diagram_content, padding=20),
                     'diagram_title': ai_output.get('title', 'SVG Diagram'),
                     'explanation': ai_output.get('explanation', ''),
                     'width': ai_output.get('width', 400),
