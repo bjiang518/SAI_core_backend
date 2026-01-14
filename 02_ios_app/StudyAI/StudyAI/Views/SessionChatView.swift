@@ -758,8 +758,22 @@ struct SessionChatView: View {
     private var conversationContinuationButtons: some View {
         let lastMessage = networkService.conversationHistory.last?["content"] ?? ""
 
+        // Check if last message is a diagram
+        let lastMessageHasDiagram = networkService.conversationHistory.last?["diagramKey"] != nil
+        let lastDiagramKey = networkService.conversationHistory.last?["diagramKey"] as? String
+
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
+                // ✅ CRITICAL: If last message is a diagram, ALWAYS show regenerate button first
+                if lastMessageHasDiagram, let diagramKey = lastDiagramKey {
+                    Button("🔄 Regenerate Image") {
+                        Task {
+                            await viewModel.regenerateDiagram(withKey: diagramKey)
+                        }
+                    }
+                    .modernButtonStyle()
+                }
+
                 // ✨ PRIORITY: Display AI-generated suggestions if available AND language matches AND streaming is complete
                 // ✅ FIX: Only show suggestions after streaming completes to prevent position switching
                 let responseIsChinese = detectChinese(in: lastMessage)
@@ -768,29 +782,28 @@ struct SessionChatView: View {
 
                 if viewModel.isStreamingComplete && !viewModel.aiGeneratedSuggestions.isEmpty && suggestionsMatchLanguage {
                     ForEach(viewModel.aiGeneratedSuggestions, id: \.id) { suggestion in
-                        Button(suggestion.key) {
-                            // Check if this is the regenerate diagram button
-                            if suggestion.value == "__REGENERATE_DIAGRAM__" {
-                                // Trigger diagram regeneration
-                                if let diagramKey = viewModel.lastGeneratedDiagramKey {
-                                    Task {
-                                        await viewModel.regenerateDiagram(withKey: diagramKey)
-                                    }
-                                }
-                            } else if isDiagramGenerationRequest(suggestion.key) {
+                        // Skip the regenerate suggestion if we already showed it above
+                        if suggestion.value == "__REGENERATE_DIAGRAM__" {
+                            EmptyView()
+                        } else if isDiagramGenerationRequest(suggestion.key) {
+                            Button(suggestion.key) {
                                 // Handle new diagram generation
                                 handleDiagramGenerationRequest(suggestion)
-                            } else {
+                            }
+                            .modernButtonStyle()
+                        } else {
+                            Button(suggestion.key) {
                                 // Use the full prompt from AI suggestions
                                 isMessageInputFocused = false  // Dismiss keyboard if visible
                                 viewModel.messageText = suggestion.value
                                 viewModel.sendMessage()
                             }
+                            .modernButtonStyle()
                         }
-                        .modernButtonStyle()
                     }
-                } else {
+                } else if !lastMessageHasDiagram {
                     // Fallback to manually-generated contextual buttons (localized)
+                    // Only show if there's no diagram (diagram gets regenerate button instead)
                     let contextButtons = generateContextualButtons(for: lastMessage)
                     ForEach(contextButtons, id: \.self) { buttonTitle in
                         Button(buttonTitle) {
