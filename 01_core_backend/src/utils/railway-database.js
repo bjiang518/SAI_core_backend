@@ -3951,7 +3951,7 @@ async function runDatabaseMigrations() {
             RETURN NEXT;
 
             -- Soft delete expired question sessions (if table exists)
-            IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'question_sessions') THEN
+            IF EXISTS (SELECT FROM information_schema.tables WHERE information_schema.tables.table_name = 'question_sessions') THEN
               UPDATE question_sessions
               SET deleted_at = CURRENT_TIMESTAMP
               WHERE retention_expires_at < CURRENT_TIMESTAMP
@@ -3992,7 +3992,7 @@ async function runDatabaseMigrations() {
             RETURN NEXT;
 
             -- Hard delete question sessions deleted > 30 days ago (if table exists)
-            IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'question_sessions') THEN
+            IF EXISTS (SELECT FROM information_schema.tables WHERE information_schema.tables.table_name = 'question_sessions') THEN
               DELETE FROM question_sessions
               WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
 
