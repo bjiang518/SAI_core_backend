@@ -3377,8 +3377,8 @@ def extract_json_from_responses(response):
     - SDK 1.x (>=1.50.0): Uses response.output_parsed
     - SDK 2.x (>=2.0.0): Extracts from response.output[*].content[*].json
 
-    ✅ FIX: Attempts to salvage JSON from output_text blocks before rejecting
-    This handles cases where the SDK wraps valid JSON as text instead of output_json.
+    ✅ CRITICAL: Refuses output_text blocks in schema mode - only accepts output_json.
+    This enforces compiler-grade structured output and triggers fallback if schema violated.
     """
     # Note: _json module is imported at module level (line 17) as alias to avoid shadowing
 
@@ -3407,23 +3407,10 @@ def extract_json_from_responses(response):
                         print(f"✅ Extracted from part.json (type={part_type})")
                         return result
 
-                # ✅ NEW FALLBACK: Try to salvage JSON from output_text
-                # Sometimes SDK wraps valid JSON as text instead of output_json
-                if part_type in ("output_text", "text") and hasattr(part, "text"):
-                    text = part.text.strip()
-                    # Check if it looks like JSON
-                    if text.startswith("{") and text.endswith("}"):
-                        try:
-                            obj = _json.loads(text)
-                            print(f"✅ Parsed JSON from part.text (type={part_type})")
-                            return obj
-                        except Exception:
-                            # Not parseable JSON, continue to error
-                            pass
-
-                    # If we get here, it's truly non-JSON text (preamble/markdown)
-                    print(f"❌ Schema violation: Received {part_type} but not valid JSON")
-                    print(f"   This indicates prompt allows non-JSON preamble/markdown")
+                # ❌ REFUSE output_text in schema mode - enforce compiler-grade structured output
+                if part_type in ("output_text", "text"):
+                    print(f"❌ Schema violation: Received {part_type} block instead of output_json")
+                    print(f"   Schema mode requires strict JSON output, not text blocks")
                     raise ValueError(f"Schema mode failed: received {part_type} block instead of output_json")
 
     # If we reach here, schema was not respected - raise error to trigger fallback
@@ -3564,6 +3551,11 @@ Server has NO unicode fonts. Use English/ASCII labels ONLY in diagram code.
                 response_format={"type": "json_object"}
             )
             result_text = response.choices[0].message.content.strip()
+
+            # ✅ CHECK: Handle empty o4-mini responses (known issue with reasoning models)
+            if not result_text or result_text == "":
+                print(f"❌ o4-mini returned empty response")
+                raise ValueError("o4-mini returned empty response - fallback required")
         else:
             # ✅ GPT-4O-MINI INITIAL GENERATION PATH (speed-focused)
             model = "gpt-4o-mini"
