@@ -174,10 +174,23 @@ Generate the DOT code. Only return rejection JSON if request is genuinely imposs
     def validate_code_safety(self, code: str) -> Dict:
         """
         Validate DOT code for security risks
+
+        Note: DOT is a declarative graph description language with no executable code.
+        It only defines nodes, edges, and visual styling - inherently safe.
+        We keep basic validation to catch malformed input.
         """
-        # Check for dangerous patterns (though DOT is declarative and relatively safe)
+        # ✅ FIX: Removed 'import ' from dangerous patterns - DOT language is declarative
+        # and commonly uses "import" in node labels (e.g., "Data Import", "Import Settings")
+        #
+        # DOT language does not support:
+        # - Python import statements
+        # - exec/eval/compile
+        # - File operations (open)
+        # - System calls
+        #
+        # Keeping this list for extreme edge cases, but DOT is inherently safe.
         dangerous_patterns = [
-            'import ', 'exec(', 'eval(', '__import__',
+            'exec(', 'eval(', '__import__',
             'compile(', 'open(', 'system(', 'popen('
         ]
 
