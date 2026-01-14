@@ -217,11 +217,26 @@ async def generate_diagram(request: DiagramGenerationRequest):
                     undefined_names = set()
                     defined_names = set()
 
+                    # ✅ FIX: Helper to extract names from assignment targets (handles tuple unpacking)
+                    def extract_names_from_target(target):
+                        """Recursively extract variable names from assignment target.
+                        Handles: x = 1, (a, b) = (1, 2), a, b, c = 1, 2, 3, etc.
+                        """
+                        if isinstance(target, ast.Name):
+                            return {target.id}
+                        elif isinstance(target, (ast.Tuple, ast.List)):
+                            names = set()
+                            for elt in target.elts:
+                                names.update(extract_names_from_target(elt))
+                            return names
+                        else:
+                            return set()
+
                     for node in ast.walk(tree):
                         if isinstance(node, ast.Assign):
+                            # ✅ FIX: Extract ALL names from assignment targets (including tuple unpacking)
                             for target in node.targets:
-                                if isinstance(target, ast.Name):
-                                    defined_names.add(target.id)
+                                defined_names.update(extract_names_from_target(target))
                         elif isinstance(node, ast.FunctionDef):
                             defined_names.add(node.name)
                         elif isinstance(node, ast.Import):
@@ -233,6 +248,9 @@ async def generate_diagram(request: DiagramGenerationRequest):
                         elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
                             if node.id not in allowlist and node.id not in defined_names:
                                 undefined_names.add(node.id)
+
+                    # 🔍 DEBUG: Log detected defined names
+                    print(f"🔍 [Preflight] Detected {len(defined_names)} defined names: {sorted(defined_names)[:20]}")
 
                     if undefined_names:
                         print(f"❌ [Preflight] Matplotlib undefined names: {undefined_names}")
@@ -247,6 +265,8 @@ async def generate_diagram(request: DiagramGenerationRequest):
                             'tokens_used': ai_output.get('tokens_used', 0)
                         }
                         skip_execution = True
+                    else:
+                        print(f"✅ [Preflight] All variable names are defined - proceeding to execution")
 
                 except SyntaxError as e:
                     print(f"❌ [Preflight] Matplotlib syntax error: {e}")
