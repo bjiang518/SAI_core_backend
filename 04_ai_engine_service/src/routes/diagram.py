@@ -201,8 +201,18 @@ async def generate_diagram(request: DiagramGenerationRequest):
                     print(f"✅ [Preflight] Matplotlib code passed AST syntax validation")
 
                     # Check for undefined names
-                    allowlist = {'plt', 'np', 'matplotlib', 'mpatches', 'patches', 'colors',
-                                'pyplot', 'math', 'pi', 'e', 'inf', 'nan'}
+                    # ✅ FIX: Include all Python builtins that are actually available in the matplotlib sandbox
+                    # This must match the __builtins__ whitelist in matplotlib_generator.py
+                    allowlist = {
+                        # Matplotlib/numpy modules
+                        'plt', 'np', 'matplotlib', 'mpatches', 'patches', 'colors', 'pyplot',
+                        # Math constants
+                        'math', 'pi', 'e', 'inf', 'nan',
+                        # Standard Python builtins (matching sandbox whitelist)
+                        'range', 'len', 'enumerate', 'zip', 'max', 'min', 'abs', 'sum',
+                        'int', 'float', 'str', 'bool', 'list', 'dict', 'tuple', 'set',
+                        'isinstance', 'type', 'hasattr', 'getattr', 'setattr', 'print'
+                    }
 
                     undefined_names = set()
                     defined_names = set()

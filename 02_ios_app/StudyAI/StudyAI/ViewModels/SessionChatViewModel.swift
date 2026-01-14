@@ -93,6 +93,7 @@ class SessionChatViewModel: ObservableObject {
     @Published var generatedDiagrams: [String: NetworkService.DiagramGenerationResponse] = [:]
     @Published var diagramRequests: [String: String] = [:]  // Store original request for regeneration
     @Published var lastGeneratedDiagramKey: String?  // Track last diagram for regenerate button
+    @Published var regeneratingDiagramKey: String?  // Track which diagram is being regenerated (for loading state)
 
     // UI refresh
     @Published var refreshTrigger = UUID()
@@ -558,21 +559,23 @@ class SessionChatViewModel: ObservableObject {
                     networkService.conversationHistory[lastIndex]["diagramKey"] = diagramKey
                 }
 
-                // Add "Regenerate Image" button to follow-up suggestions
+                // ✅ FIX: Preserve existing AI suggestions and add regenerate button at the beginning
+                // This ensures we show: [Regenerate] [Suggestion 1] [Suggestion 2] [Suggestion 3]
                 let regenerateSuggestion = NetworkService.FollowUpSuggestion(
-                    key: "🔄 Regenerate Image",
+                    key: NSLocalizedString("chat.diagram.regenerate", value: "Regenerate Image", comment: ""),
                     value: "__REGENERATE_DIAGRAM__"  // Special marker
                 )
 
-                // Replace or add to suggestions
-                if !aiGeneratedSuggestions.contains(where: { $0.key.contains("Regenerate") }) {
-                    aiGeneratedSuggestions.insert(regenerateSuggestion, at: 0)  // Add at beginning
-                }
+                // Remove any existing regenerate suggestions to avoid duplicates
+                aiGeneratedSuggestions.removeAll { $0.value == "__REGENERATE_DIAGRAM__" }
+
+                // Insert regenerate button at the beginning, keeping other suggestions
+                aiGeneratedSuggestions.insert(regenerateSuggestion, at: 0)
 
                 print("✅ Diagram generated and added to conversation")
                 print("🎨 Title: \(response.diagramTitle ?? "No title")")
                 print("🎨 Type: \(response.diagramType ?? "Unknown")")
-                print("🔄 Added 'Regenerate Image' button to suggestions")
+                print("🔄 Added 'Regenerate Image' button (total suggestions: \(aiGeneratedSuggestions.count))")
             } else {
                 print("❌ Diagram generation failed: \(response.error ?? "Unknown error")")
 
@@ -632,7 +635,15 @@ class SessionChatViewModel: ObservableObject {
         }
 
         await MainActor.run {
+            // ✅ CRITICAL: Set regenerating state IMMEDIATELY
+            // This triggers UI to hide old diagram and show loading animation
+            regeneratingDiagramKey = diagramKey
             isGeneratingDiagram = true
+
+            // ✅ Remove old diagram from dictionary immediately
+            // This ensures old image disappears from view
+            generatedDiagrams.removeValue(forKey: diagramKey)
+            print("🔄 Removed old diagram from view - showing loading animation")
         }
 
         // ✅ CRITICAL: Force cache bypass by adding UUID to request
@@ -662,6 +673,9 @@ class SessionChatViewModel: ObservableObject {
                 // This ensures the UI updates the diagram in place
                 generatedDiagrams[diagramKey] = response
 
+                // ✅ Clear regenerating state to show new diagram
+                regeneratingDiagramKey = nil
+
                 print("✅ Diagram regenerated successfully")
                 print("🔄 Title: \(response.diagramTitle ?? "No title")")
                 print("🔄 Type: \(response.diagramType ?? "Unknown")")
@@ -679,6 +693,10 @@ class SessionChatViewModel: ObservableObject {
                 refreshTrigger = UUID()
             } else {
                 print("❌ Diagram regeneration failed: \(response.error ?? "Unknown error")")
+
+                // ✅ Clear regenerating state even on failure
+                regeneratingDiagramKey = nil
+
                 errorMessage = "Failed to regenerate diagram: \(response.error ?? "Please try again.")"
             }
         }
