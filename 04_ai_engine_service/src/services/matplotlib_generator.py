@@ -351,8 +351,12 @@ Generate the Python code. Only return rejection JSON if request is genuinely imp
             }
 
             # Execute with timeout
+            # ✅ FIX: Use same namespace for globals and locals so lambda functions can see variables
+            # When locals is empty {}, variables defined in code are isolated and lambdas can't capture them
+            print(f"🎨 [Matplotlib] Executing code in sandbox (timeout: {timeout_seconds}s)")
             with timeout(timeout_seconds):
-                exec(code, restricted_globals, {})
+                exec(code, restricted_globals, restricted_globals)
+            print(f"✅ [Matplotlib] Code execution successful")
 
             # Capture the figure
             fig = plt.gcf()
@@ -379,6 +383,7 @@ Generate the Python code. Only return rejection JSON if request is genuinely imp
 
         except TimeoutException as e:
             plt.close('all')
+            print(f"❌ [Matplotlib] Execution timeout after {timeout_seconds}s")
             return {
                 'success': False,
                 'error': f"Execution timeout: {str(e)}",
@@ -386,6 +391,9 @@ Generate the Python code. Only return rejection JSON if request is genuinely imp
             }
         except Exception as e:
             plt.close('all')
+            print(f"❌ [Matplotlib] Execution error: {type(e).__name__}: {str(e)}")
+            import traceback
+            print(f"🔍 [Matplotlib] Traceback:\n{traceback.format_exc()}")
             return {
                 'success': False,
                 'error': f"Execution error: {str(e)}",

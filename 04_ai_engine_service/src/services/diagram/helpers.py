@@ -179,15 +179,7 @@ Return JSON only - no preamble, no markdown, no extra text.
 
 Required keys (all must be present): type, content, title, explanation, width, height
 
-**⚠️ EMERGENCY FALLBACK**: If you cannot generate the diagram (conflicting constraints, impossible request), return EXACTLY this object:
-{{
-  "type": "svg",
-  "content": "<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 400 300\\"><text x=\\"200\\" y=\\"150\\" text-anchor=\\"middle\\">Diagram unavailable</text></svg>",
-  "title": "Error",
-  "explanation": "Cannot generate this diagram type",
-  "width": 400,
-  "height": 300
-}}"""
+Note: If a specific diagram type is truly impossible (e.g., 3D animation), choose the closest alternative tool."""
 
     try:
         # ✅ FIX: Define strict JSON schema WITHOUT reasoning field
