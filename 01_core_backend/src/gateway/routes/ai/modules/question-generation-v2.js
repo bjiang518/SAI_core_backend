@@ -183,27 +183,18 @@ module.exports = async function (fastify, opts) {
     let usedAssistantsAPI = false;
 
     try {
-      // MODE ROUTING: Modes 2 & 3 require Assistants API (need context support)
-      if (mode === 2 || mode === 3) {
-        fastify.log.info(`📋 Mode ${mode} requires Assistants API (context-based generation)`);
-        result = await generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, question_type, custom_message, mode, mistakes_data, conversation_data);
-        usedAssistantsAPI = true;
-      } else {
-        // MODE 1: Try AI Engine first (faster!), fallback to Assistants API
-        try {
-          fastify.log.info('⚡ Using AI Engine (primary - faster)...');
-          result = await generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, question_type, aiClient);
-        } catch (error) {
-          fastify.log.error('❌ AI Engine failed:', error);
+      // UNIFIED ROUTING: All modes now use AI Engine (fast path only)
+      fastify.log.info(`⚡ Using AI Engine for mode ${mode} (Assistants API disabled)...`);
 
-          if (AUTO_FALLBACK) {
-            fastify.log.info('🔄 Falling back to Assistants API...');
-            usedAssistantsAPI = true;
-            result = await generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, question_type, custom_message, mode, mistakes_data, conversation_data);
-          } else {
-            throw error;
-          }
-        }
+      if (mode === 2) {
+        // MODE 2: Mistake-based questions via AI Engine
+        result = await generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_data, difficulty, count, language, question_type, aiClient);
+      } else if (mode === 3) {
+        // MODE 3: Conversation-based questions via AI Engine
+        result = await generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, difficulty, count, language, question_type, aiClient);
+      } else {
+        // MODE 1: Random questions via AI Engine
+        result = await generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, question_type, aiClient);
       }
 
       const totalLatency = Date.now() - startTime;
@@ -812,6 +803,118 @@ async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty,
   } catch (error) {
     console.error('❌ AI Engine request failed:', error);
     throw new Error(`AI Engine fallback failed: ${error.message}`);
+  }
+}
+
+/**
+ * Generate mistake-based questions using AI Engine (MODE 2)
+ */
+async function generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_data, difficulty, count, language, questionType, aiClient) {
+  try {
+    console.log('🔄 Calling AI Engine /api/v1/generate-questions/mistakes...');
+    console.log('📊 Parameters:', { userId, subject, mistakesCount: mistakes_data?.length, difficulty, count, language, questionType });
+
+    const response = await aiClient.proxyRequest(
+      'POST',
+      '/api/v1/generate-questions/mistakes',
+      {
+        subject,
+        mistakes_data: mistakes_data || [],
+        config: {
+          question_count: count || 5,
+          difficulty: difficulty || 'intermediate',
+          question_type: questionType || 'any'
+        },
+        user_profile: {
+          grade: 'High School',
+          location: 'US',
+          subject_proficiency: {}
+        }
+      }
+    );
+
+    const aiEngineData = response.data || response;
+    console.log(`✅ AI Engine returned ${aiEngineData?.questions?.length || 0} mistake-based questions`);
+
+    if (!aiEngineData || !aiEngineData.questions) {
+      console.error('❌ AI Engine response invalid:', { response, aiEngineData });
+      throw new Error('AI Engine returned invalid response: missing questions array');
+    }
+
+    return {
+      questions: aiEngineData.questions || [],
+      metadata: {
+        total_questions: aiEngineData.questions?.length || 0,
+        language,
+        tokens_used: aiEngineData.tokens_used,
+        generation_type: aiEngineData.generation_type || 'mistake_based',
+        mistakes_analyzed: mistakes_data?.length || 0
+      },
+      model: aiEngineData.model || 'gpt-4o-mini',
+      tokens: {
+        input: aiEngineData.input_tokens || 0,
+        output: aiEngineData.output_tokens || 0
+      }
+    };
+  } catch (error) {
+    console.error('❌ AI Engine mistake questions failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate conversation-based questions using AI Engine (MODE 3)
+ */
+async function generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, difficulty, count, language, questionType, aiClient) {
+  try {
+    console.log('🔄 Calling AI Engine /api/v1/generate-questions/conversations...');
+    console.log('📊 Parameters:', { userId, subject, conversationsCount: conversation_data?.length, difficulty, count, language, questionType });
+
+    const response = await aiClient.proxyRequest(
+      'POST',
+      '/api/v1/generate-questions/conversations',
+      {
+        subject,
+        conversation_data: conversation_data || [],
+        config: {
+          question_count: count || 5,
+          difficulty: difficulty || 'intermediate',
+          question_type: questionType || 'any'
+        },
+        user_profile: {
+          grade: 'High School',
+          location: 'US',
+          subject_proficiency: {}
+        }
+      }
+    );
+
+    const aiEngineData = response.data || response;
+    console.log(`✅ AI Engine returned ${aiEngineData?.questions?.length || 0} conversation-based questions`);
+
+    if (!aiEngineData || !aiEngineData.questions) {
+      console.error('❌ AI Engine response invalid:', { response, aiEngineData });
+      throw new Error('AI Engine returned invalid response: missing questions array');
+    }
+
+    return {
+      questions: aiEngineData.questions || [],
+      metadata: {
+        total_questions: aiEngineData.questions?.length || 0,
+        language,
+        tokens_used: aiEngineData.tokens_used,
+        generation_type: aiEngineData.generation_type || 'conversation_based',
+        conversations_analyzed: conversation_data?.length || 0
+      },
+      model: aiEngineData.model || 'gpt-4o-mini',
+      tokens: {
+        input: aiEngineData.input_tokens || 0,
+        output: aiEngineData.output_tokens || 0
+      }
+    };
+  } catch (error) {
+    console.error('❌ AI Engine conversation questions failed:', error);
+    throw error;
   }
 }
 

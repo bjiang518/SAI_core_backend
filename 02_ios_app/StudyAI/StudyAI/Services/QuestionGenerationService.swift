@@ -9,6 +9,13 @@ import Foundation
 import Combine
 import SwiftUI
 
+// MARK: - Production Logging Safety
+// Disable debug print statements in production builds to prevent practice question exposure
+#if !DEBUG
+private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
+#endif
+
 /// Backend service for generating practice questions using AI
 class QuestionGenerationService: ObservableObject {
     static let shared = QuestionGenerationService()
@@ -344,7 +351,7 @@ class QuestionGenerationService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 90.0 // AI processing can take time
+        request.timeoutInterval = 150.0 // Increased for mistake/archive generation (was 90s)
 
         // Add authentication
         if let token = AuthenticationService.shared.getAuthToken() {
@@ -454,7 +461,7 @@ class QuestionGenerationService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 90.0
+        request.timeoutInterval = 150.0 // Increased for mistake/archive generation (was 90s)
 
         // Add authentication
         if let token = AuthenticationService.shared.getAuthToken() {
@@ -597,7 +604,7 @@ class QuestionGenerationService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 90.0
+        request.timeoutInterval = 150.0 // Increased for mistake/archive generation (was 90s)
 
         // Add authentication
         if let token = AuthenticationService.shared.getAuthToken() {
