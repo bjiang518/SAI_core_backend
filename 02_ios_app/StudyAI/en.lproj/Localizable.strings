@@ -1150,7 +1150,7 @@
 "privacy.changes.title" = "Changes to This Policy";
 "privacy.collect.content" = "We collect information you provide directly, including your name, email, age, and study data. We also automatically collect usage data, device information, and analytics to improve our service.";
 "privacy.collect.title" = "Information We Collect";
-"privacy.contact.content" = "If you have questions about this Privacy Policy or our privacy practices, please contact us at privacy@studymates.app";
+"privacy.contact.content" = "If you have questions about this Privacy Policy or our privacy practices, please contact us at service@study-mates.net";
 "privacy.contact.title" = "Contact Us";
 "privacy.coppa.content" = "We comply with the Children's Online Privacy Protection Act (COPPA). For users under 13, we require verifiable parental consent before collecting personal information.";
 "privacy.coppa.title" = "COPPA Compliance";
@@ -1180,7 +1180,7 @@
 "terms.accounts.title" = "User Accounts";
 "terms.changes.content" = "We reserve the right to modify these terms at any time. We will notify you of significant changes, and your continued use constitutes acceptance of the updated terms.";
 "terms.changes.title" = "Changes to Terms";
-"terms.contact.content" = "For questions about these Terms of Service, please contact us at support@studymates.app";
+"terms.contact.content" = "For questions about these Terms of Service, please contact us at service@study-mates.net";
 "terms.contact.title" = "Contact Information";
 "terms.disclaimer.content" = "StudyAI is provided \"as is\" without warranties of any kind. While we strive for accuracy, we do not guarantee that our AI-generated content is error-free or complete.";
 "terms.disclaimer.title" = "Disclaimer";
