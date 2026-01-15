@@ -92,6 +92,15 @@ fastify.register(require('@fastify/rate-limit'), {
 });
 fastify.log.info('✅ Rate limiting registered');
 
+// Register static file serving for privacy policy and legal documents
+const path = require('path');
+fastify.register(require('@fastify/static'), {
+  root: path.join(__dirname, '../../public'),
+  prefix: '/legal/',
+  decorateReply: false // Don't override reply.sendFile
+});
+fastify.log.info('✅ Static file serving registered (privacy policy at /legal/)');
+
 // Register CORS with strict origin whitelist for security
 fastify.register(require('@fastify/cors'), {
   origin: [
