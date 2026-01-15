@@ -214,7 +214,27 @@ async def generate_diagram(request: DiagramGenerationRequest):
                 if not MATPLOTLIB_AVAILABLE or matplotlib_generator is None:
                     result = error_svg('Matplotlib not available')
                 else:
-                    exec_result = matplotlib_generator.execute_code_safely(diagram_content, timeout_seconds=5)
+                    # ✅ CRITICAL FIX: Strip import statements before execution
+                    # The unified generation path bypasses matplotlib_generator.generate_diagram_code()
+                    # which normally strips imports. We must do it here.
+                    # plt and np are already provided in the sandbox environment.
+                    lines = diagram_content.split('\n')
+                    filtered_lines = []
+                    for line in lines:
+                        stripped = line.strip()
+                        # Skip import statements - plt and np already available in sandbox
+                        if stripped.startswith('import matplotlib') or \
+                           stripped.startswith('import numpy') or \
+                           stripped.startswith('from matplotlib') or \
+                           stripped.startswith('from numpy') or \
+                           stripped.startswith('import np') or \
+                           stripped.startswith('import plt'):
+                            print(f"🔧 [Matplotlib] Stripped import: {stripped}")
+                            continue
+                        filtered_lines.append(line)
+                    cleaned_code = '\n'.join(filtered_lines)
+
+                    exec_result = matplotlib_generator.execute_code_safely(cleaned_code, timeout_seconds=5)
                     result = {
                         'success': True,
                         'diagram_type': 'matplotlib' if exec_result['success'] else 'svg',
