@@ -356,38 +356,23 @@ Mistake #${i+1}:
 - Tags: ${(m.tags || []).join(', ')}
       `).join('\n');
 
-      const customMessage = `Generate ${questionCount} practice questions for ${subject}.
+      // Use AI Engine directly (fast path, no Assistants API)
+      fastify.log.info('⚡ Using AI Engine for mistake-based questions (fast path)...');
 
-PREVIOUS_MISTAKES (analyze these and create targeted remedial practice):
-${mistakesContext}
-
-Requirements:
-- Question Type: ${questionType}
-- Count: ${questionCount}
-- Language: ${language}
-- Difficulty: ${difficulty}
-- IMPORTANT: Use EXACTLY these tags: ${JSON.stringify(uniqueTags)}. Do NOT create new tags.
-
-Focus on helping the student overcome these specific error patterns. Generate questions that address the same concepts but with different contexts.`;
-
-      // Call generateQuestionsWithAssistant directly instead of using inject
-      const result = await generateQuestionsWithAssistant(
+      const result = await generateMistakeQuestionsWithAIEngine(
         userId,
         subject,
-        null, // topic
+        mistakes_data,
         difficulty,
         questionCount,
         language,
         questionType,
-        customMessage,
-        2, // mode = 2 (mistakes)
-        mistakes_data,
-        [] // conversation_data
+        aiClient
       );
 
       const totalLatency = Date.now() - startTime;
 
-      // Log metrics
+      // Log metrics (AI Engine, not Assistants API)
       await logMetrics({
         userId,
         assistantType: 'practice_generator',
@@ -397,10 +382,8 @@ Focus on helping the student overcome these specific error patterns. Generate qu
         outputTokens: result.tokens?.output || 0,
         model: result.model || 'gpt-4o-mini',
         wasSuccessful: true,
-        useAssistantsAPI: true,
-        experimentGroup: 'treatment',
-        threadId: result.thread_id,
-        runId: result.run_id
+        useAssistantsAPI: false, // Changed from true
+        experimentGroup: 'ai_engine_fast_path'
       });
 
       return {
@@ -408,7 +391,8 @@ Focus on helping the student overcome these specific error patterns. Generate qu
         questions: result.questions,
         metadata: {
           ...result.metadata,
-          using_assistants_api: true,
+          using_assistants_api: false, // Changed from true
+          using_ai_engine: true, // Added
           mode: 2,
           total_latency_ms: totalLatency
         }
@@ -538,24 +522,29 @@ Create personalized questions that:
 
 Generate questions that feel like a natural continuation of their learning journey.`;
 
-      // Call generateQuestionsWithAssistant directly
-      const result = await generateQuestionsWithAssistant(
+      // Use AI Engine directly (fast path, no Assistants API)
+      fastify.log.info('⚡ Using AI Engine for conversation/archive-based questions (fast path)...');
+
+      // Combine conversation_data and question_data for AI Engine
+      const combinedData = [
+        ...conversation_data.map(c => ({ type: 'conversation', ...c })),
+        ...question_data.map(q => ({ type: 'question', ...q }))
+      ];
+
+      const result = await generateConversationQuestionsWithAIEngine(
         userId,
         subject,
-        null, // topic
+        combinedData,
         difficulty,
         questionCount,
         language,
         questionType,
-        customMessage,
-        3, // mode = 3 (archives/conversations)
-        [], // mistakes_data
-        conversation_data // conversation_data (or combined)
+        aiClient
       );
 
       const totalLatency = Date.now() - startTime;
 
-      // Log metrics
+      // Log metrics (AI Engine, not Assistants API)
       await logMetrics({
         userId,
         assistantType: 'practice_generator',
@@ -565,10 +554,8 @@ Generate questions that feel like a natural continuation of their learning journ
         outputTokens: result.tokens?.output || 0,
         model: result.model || 'gpt-4o-mini',
         wasSuccessful: true,
-        useAssistantsAPI: true,
-        experimentGroup: 'treatment',
-        threadId: result.thread_id,
-        runId: result.run_id
+        useAssistantsAPI: false, // Changed from true
+        experimentGroup: 'ai_engine_fast_path'
       });
 
       return {
@@ -576,7 +563,8 @@ Generate questions that feel like a natural continuation of their learning journ
         questions: result.questions,
         metadata: {
           ...result.metadata,
-          using_assistants_api: true,
+          using_assistants_api: false, // Changed from true
+          using_ai_engine: true, // Added
           mode: 3,
           sources: {
             conversations: conversation_data.length,
