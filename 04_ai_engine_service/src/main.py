@@ -29,11 +29,18 @@ from src.services.ai_analytics_service import AIAnalyticsService
 from src.services.latex_converter import latex_converter
 from src.services.svg_utils import optimize_svg_for_display
 
+# Load environment variables
+load_dotenv()
+
+# PRODUCTION: Structured logging (MUST be initialized early)
+from src.services.logger import setup_logger
+logger = setup_logger(__name__)
+
 # Import matplotlib generator with graceful fallback
 try:
     from src.services.matplotlib_generator import matplotlib_generator, MATPLOTLIB_AVAILABLE
 except ImportError as e:
-    print(f"⚠️ Could not import matplotlib_generator: {e}")
+    logger.debug(f"⚠️ Could not import matplotlib_generator: {e}")
     matplotlib_generator = None
     MATPLOTLIB_AVAILABLE = False
 
@@ -41,7 +48,7 @@ except ImportError as e:
 try:
     from src.services.graphviz_generator import graphviz_generator, GRAPHVIZ_AVAILABLE
 except ImportError as e:
-    print(f"⚠️ Could not import graphviz_generator: {e}")
+    logger.debug(f"⚠️ Could not import graphviz_generator: {e}")
     graphviz_generator = None
     GRAPHVIZ_AVAILABLE = False
 
@@ -57,9 +64,6 @@ from src.middleware.service_auth import (
 # Import diagram generation routes
 from src.routes.diagram import router as diagram_router
 
-# Load environment variables
-load_dotenv()
-
 # Initialize Redis client (optional)
 redis_client = None
 try:
@@ -67,9 +71,9 @@ try:
     redis_url = os.getenv('REDIS_URL')
     if redis_url:
         redis_client = redis.from_url(redis_url)
-        print("✅ Redis connected for session storage")
+        logger.debug("✅ Redis connected for session storage")
 except ImportError:
-    print("⚠️ Redis not available, using in-memory session storage")
+    logger.debug("⚠️ Redis not available, using in-memory session storage")
 
 # Keep-alive mechanism for Railway
 import asyncio
@@ -89,14 +93,14 @@ async def keep_alive_task():
                     async with aiohttp.ClientSession() as session:
                         async with session.get('http://localhost:8000/health', timeout=aiohttp.ClientTimeout(total=10)) as resp:
                             if resp.status == 200:
-                                print(f"🔄 Keep-alive ping successful: {datetime.now().isoformat()}")
+                                logger.debug(f"🔄 Keep-alive ping successful: {datetime.now().isoformat()}")
                             else:
-                                print(f"⚠️ Keep-alive ping failed with status {resp.status}")
+                                logger.debug(f"⚠️ Keep-alive ping failed with status {resp.status}")
                 except Exception as req_error:
-                    print(f"⚠️ Keep-alive request error: {req_error}")
+                    logger.debug(f"⚠️ Keep-alive request error: {req_error}")
 
         except Exception as e:
-            print(f"⚠️ Keep-alive task error: {e}")
+            logger.debug(f"⚠️ Keep-alive task error: {e}")
             await asyncio.sleep(60)  # Wait 1 minute before retrying
 
 # Lifespan context manager to replace deprecated on_event
@@ -107,36 +111,36 @@ async def lifespan(app: FastAPI):
     # ============================================================================
     # STARTUP DIAGNOSTICS
     # ============================================================================
-    print("\n✅ StudyAI AI Engine started")
+    logger.debug("\n✅ StudyAI AI Engine started")
 
     # Quick LaTeX check for diagram generation
     import subprocess, shutil
     latex_available = bool(shutil.which('pdflatex') and shutil.which('pdf2svg'))
 
     if latex_available:
-        print("✅ LaTeX: Available")
+        logger.debug("✅ LaTeX: Available")
     else:
-        print("⚠️ LaTeX: Not available (SVG fallback enabled)")
+        logger.debug("⚠️ LaTeX: Not available (SVG fallback enabled)")
 
     # Quick matplotlib check
     try:
         from src.services.matplotlib_generator import MATPLOTLIB_AVAILABLE
         if MATPLOTLIB_AVAILABLE:
-            print("✅ Matplotlib: Available")
+            logger.debug("✅ Matplotlib: Available")
         else:
-            print("⚠️ Matplotlib: Not available")
+            logger.debug("⚠️ Matplotlib: Not available")
     except:
-        print("⚠️ Matplotlib: Not available")
+        logger.debug("⚠️ Matplotlib: Not available")
 
-    print("")  # Blank line for readability
+    logger.debug("")  # Blank line for readability
 
     # ✅ CRITICAL: Log OpenAI SDK version for debugging Responses API compatibility
     try:
         import openai
-        print(f"✅ OpenAI SDK version: {openai.__version__}")
-        print(f"   (Responses API with output_parsed requires >=1.50.0)")
+        logger.debug(f"✅ OpenAI SDK version: {openai.__version__}")
+        logger.debug(f"   (Responses API with output_parsed requires >=1.50.0)")
     except Exception as e:
-        print(f"⚠️ Could not check OpenAI SDK version: {e}")
+        logger.debug(f"⚠️ Could not check OpenAI SDK version: {e}")
 
     # Startup: Initialize background tasks
     if os.getenv('RAILWAY_KEEP_ALIVE') == 'true':
@@ -179,9 +183,9 @@ if os.getenv('ENABLE_RESPONSE_COMPRESSION', 'true').lower() == 'true':
         minimum_size=500,  # Only compress responses > 500 bytes
         compresslevel=6    # Balanced compression (1-9, 6 is optimal)
     )
-    print("✅ GZip compression enabled (60-70% payload reduction)")
+    logger.debug("✅ GZip compression enabled (60-70% payload reduction)")
 else:
-    print("ℹ️ GZip compression disabled via ENABLE_RESPONSE_COMPRESSION=false")
+    logger.debug("ℹ️ GZip compression disabled via ENABLE_RESPONSE_COMPRESSION=false")
 
 # Configure CORS for iOS app integration
 app.add_middleware(
@@ -480,12 +484,12 @@ async def process_question(request: QuestionRequest, service_info = optional_ser
             include_followups=request.include_followups
         )
         
-        print(f"🔍 AI Service Result: {result}")
+        logger.debug(f"🔍 AI Service Result: {result}")
         
         if not result["success"]:
             error_msg = result.get("error", "AI processing failed")
-            print(f"❌ AI Service Error: '{error_msg}'")
-            print(f"🔍 Full result: {result}")
+            logger.debug(f"❌ AI Service Error: '{error_msg}'")
+            logger.debug(f"🔍 Full result: {result}")
             raise HTTPException(status_code=500, detail=error_msg if error_msg else "AI processing failed")
         
         # Calculate processing time
@@ -536,7 +540,7 @@ async def process_question(request: QuestionRequest, service_info = optional_ser
             "error_message": str(e),
             "traceback": traceback.format_exc()
         }
-        print(f"❌ AI Engine Error: {error_details}")
+        logger.debug(f"❌ AI Engine Error: {error_details}")
         raise HTTPException(status_code=500, detail=f"AI Engine processing error: {str(e)} (Type: {type(e).__name__})")
 
 # Practice Question Generation
@@ -1011,9 +1015,9 @@ async def process_chat_image_stream(request: ChatImageRequest):
     except Exception as e:
         import traceback
         error_msg = f"Streaming chat image endpoint error: {str(e)}"
-        print(f"❌ === STREAMING CHAT IMAGE ENDPOINT ERROR ===")
-        print(f"💥 Error: {error_msg}")
-        print(f"📋 Traceback: {traceback.format_exc()}")
+        logger.debug(f"❌ === STREAMING CHAT IMAGE ENDPOINT ERROR ===")
+        logger.debug(f"💥 Error: {error_msg}")
+        logger.debug(f"📋 Traceback: {traceback.format_exc()}")
 
         # For errors, return a single SSE error event
         async def error_generator():
@@ -1134,7 +1138,7 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
         selected_service = gemini_service if request.model_provider == "gemini" else ai_service
         provider_name = request.model_provider.upper() if request.model_provider else "OPENAI"
 
-        print(f"🤖 === USING {provider_name} FOR HOMEWORK PARSING ===")
+        logger.debug(f"🤖 === USING {provider_name} FOR HOMEWORK PARSING ===")
 
         # Call selected AI service to parse questions with coordinates
         result = await selected_service.parse_homework_questions_with_coordinates(
@@ -1223,7 +1227,7 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
         selected_service = gemini_service if request.model_provider == "gemini" else ai_service
         provider_name = request.model_provider.upper() if request.model_provider else "OPENAI"
 
-        print(f"🤖 === USING {provider_name} FOR QUESTION GRADING ===")
+        logger.debug(f"🤖 === USING {provider_name} FOR QUESTION GRADING ===")
 
         # Call selected AI service for single question grading
         result = await selected_service.grade_single_question(
@@ -1428,7 +1432,7 @@ async def generate_mistake_based_questions(request: MistakeBasedQuestionsRequest
                 }
             )
         else:
-            print(f"❌ Mistake-based questions generation failed: {result.get('error')}")
+            logger.debug(f"❌ Mistake-based questions generation failed: {result.get('error')}")
             return QuestionGenerationResponse(
                 success=False,
                 generation_type="mistake_based",
@@ -1443,7 +1447,7 @@ async def generate_mistake_based_questions(request: MistakeBasedQuestionsRequest
             "error_message": str(e),
             "traceback": traceback.format_exc()
         }
-        print(f"❌ Mistake-Based Questions Generation Error: {error_details}")
+        logger.debug(f"❌ Mistake-Based Questions Generation Error: {error_details}")
 
         return QuestionGenerationResponse(
             success=False,
@@ -1515,7 +1519,7 @@ async def generate_conversation_based_questions(request: ConversationBasedQuesti
             "error_message": str(e),
             "traceback": traceback.format_exc()
         }
-        print(f"❌ Conversation-Based Questions Generation Error: {error_details}")
+        logger.debug(f"❌ Conversation-Based Questions Generation Error: {error_details}")
 
         return QuestionGenerationResponse(
             success=False,
@@ -1563,18 +1567,18 @@ async def send_session_message(
     🔍 DEBUG: This is the NON-STREAMING endpoint
     """
     try:
-        print(f"🔵 === SESSION MESSAGE (NON-STREAMING) ===")
-        print(f"📨 Session ID: {session_id}")
-        print(f"💬 Message: {request.message[:100]}...")
-        print(f"🌍 Language: {request.language}")
-        print(f"🎯 System prompt provided: {request.system_prompt is not None}")
-        print(f"🔍 Using NON-STREAMING endpoint")
-        print(f"💡 For streaming, use: /api/v1/sessions/{session_id}/message/stream")
+        logger.debug(f"🔵 === SESSION MESSAGE (NON-STREAMING) ===")
+        logger.debug(f"📨 Session ID: {session_id}")
+        logger.debug(f"💬 Message: {request.message[:100]}...")
+        logger.debug(f"🌍 Language: {request.language}")
+        logger.debug(f"🎯 System prompt provided: {request.system_prompt is not None}")
+        logger.debug(f"🔍 Using NON-STREAMING endpoint")
+        logger.debug(f"💡 For streaming, use: /api/v1/sessions/{session_id}/message/stream")
 
         # Get or create the session
         session = await session_service.get_session(session_id)
         if not session:
-            print(f"⚠️ Session {session_id} not found, creating new session...")
+            logger.debug(f"⚠️ Session {session_id} not found, creating new session...")
             # Auto-create session with default subject
             session = await session_service.create_session(
                 student_id="auto_created",
@@ -1583,7 +1587,7 @@ async def send_session_message(
             # Override the session ID to match the requested one
             session.session_id = session_id
             session_service.sessions[session_id] = session
-            print(f"✅ Auto-created session: {session_id}")
+            logger.debug(f"✅ Auto-created session: {session_id}")
 
         # Add user message to session
         await session_service.add_message_to_session(
@@ -1596,7 +1600,7 @@ async def send_session_message(
         if request.system_prompt:
             # Use the cached system prompt from gateway (saves ~200 tokens!)
             system_prompt = request.system_prompt
-            print(f"💰 Using cached system prompt from gateway ({len(system_prompt)} chars) - saves ~200 tokens!")
+            logger.debug(f"💰 Using cached system prompt from gateway ({len(system_prompt)} chars) - saves ~200 tokens!")
         else:
             # Fallback to creating system prompt (legacy behavior)
             system_prompt = prompt_service.create_enhanced_prompt(
@@ -1604,7 +1608,7 @@ async def send_session_message(
                 subject_string=request.subject or session.subject,
                 context={"student_id": session.student_id, "language": request.language}
             )
-            print(f"⚠️ Creating system prompt (legacy mode) - consider sending system_prompt from gateway")
+            logger.debug(f"⚠️ Creating system prompt (legacy mode) - consider sending system_prompt from gateway")
 
         # Get conversation context for AI
         context_messages = session.get_context_for_api(system_prompt)
@@ -1616,8 +1620,8 @@ async def send_session_message(
             conversation_length=len(session.messages)
         )
 
-        print(f"🤖 Calling OpenAI (NON-STREAMING) with {len(context_messages)} context messages...")
-        print(f"🚀 Selected model: {selected_model} (max_tokens: {max_tokens})")
+        logger.debug(f"🤖 Calling OpenAI (NON-STREAMING) with {len(context_messages)} context messages...")
+        logger.debug(f"🚀 Selected model: {selected_model} (max_tokens: {max_tokens})")
 
         # Call OpenAI with full conversation context and dynamic model selection
         response = await ai_service.client.chat.completions.create(
@@ -1631,8 +1635,8 @@ async def send_session_message(
         ai_response = response.choices[0].message.content
         tokens_used = response.usage.total_tokens
 
-        print(f"✅ OpenAI response received ({tokens_used} tokens)")
-        print(f"📝 Response length: {len(ai_response)} chars")
+        logger.debug(f"✅ OpenAI response received ({tokens_used} tokens)")
+        logger.debug(f"📝 Response length: {len(ai_response)} chars")
 
         # Generate AI follow-up suggestions
         suggestions = await generate_follow_up_suggestions(
@@ -1690,7 +1694,7 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0) 
 
     # Very short messages (likely greetings/acknowledgments)
     if msg_length < 30:
-        print(f"🚀 [MODEL ROUTING] Phase 1: Short message ({msg_length} chars) → gpt-3.5-turbo")
+        logger.debug(f"🚀 [MODEL ROUTING] Phase 1: Short message ({msg_length} chars) → gpt-3.5-turbo")
         return ("gpt-3.5-turbo", 500)
 
     # Greetings and acknowledgments (exact matches)
@@ -1699,7 +1703,7 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0) 
         'got it', 'i see', 'understood', 'yes', 'no', 'maybe'
     ]
     if msg in greeting_patterns or msg.startswith(tuple(greeting_patterns)):
-        print(f"🚀 [MODEL ROUTING] Phase 1: Greeting/acknowledgment → gpt-3.5-turbo")
+        logger.debug(f"🚀 [MODEL ROUTING] Phase 1: Greeting/acknowledgment → gpt-3.5-turbo")
         return ("gpt-3.5-turbo", 500)
 
     # ============================================================================
@@ -1721,8 +1725,8 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0) 
     ]
 
     if any(keyword in msg for keyword in complex_keywords):
-        print(f"🎓 [MODEL ROUTING] Phase 2: Complex educational query → gpt-4o-mini")
-        print(f"   Keywords detected: {[kw for kw in complex_keywords if kw in msg]}")
+        logger.debug(f"🎓 [MODEL ROUTING] Phase 2: Complex educational query → gpt-4o-mini")
+        logger.debug(f"   Keywords detected: {[kw for kw in complex_keywords if kw in msg]}")
         return ("gpt-4o-mini", 1500)
 
     # Medium complexity indicators → gpt-4o-mini for quality
@@ -1732,7 +1736,7 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0) 
     ]
 
     if any(keyword in msg for keyword in medium_keywords):
-        print(f"📚 [MODEL ROUTING] Phase 2: Educational explanation → gpt-4o-mini")
+        logger.debug(f"📚 [MODEL ROUTING] Phase 2: Educational explanation → gpt-4o-mini")
         return ("gpt-4o-mini", 1200)
 
     # ============================================================================
@@ -1742,7 +1746,7 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0) 
     # STEM subjects: Always use gpt-4o-mini for accuracy
     stem_subjects = ['mathematics', 'physics', 'chemistry', 'biology', 'computer science']
     if subject and subject.lower() in stem_subjects:
-        print(f"🔬 [MODEL ROUTING] STEM subject ({subject}) → gpt-4o-mini")
+        logger.debug(f"🔬 [MODEL ROUTING] STEM subject ({subject}) → gpt-4o-mini")
         return ("gpt-4o-mini", 1500)
 
     # ============================================================================
@@ -1751,14 +1755,14 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0) 
 
     # Long messages (>150 chars) likely need quality responses
     if msg_length > 150:
-        print(f"📝 [MODEL ROUTING] Long query ({msg_length} chars) → gpt-4o-mini")
+        logger.debug(f"📝 [MODEL ROUTING] Long query ({msg_length} chars) → gpt-4o-mini")
         return ("gpt-4o-mini", 1500)
 
     # ============================================================================
     # DEFAULT: Fast model for simple clarifications
     # ============================================================================
 
-    print(f"⚡ [MODEL ROUTING] Default: Simple clarification → gpt-3.5-turbo")
+    logger.debug(f"⚡ [MODEL ROUTING] Default: Simple clarification → gpt-3.5-turbo")
     return ("gpt-3.5-turbo", 800)
 
 
@@ -1784,18 +1788,18 @@ async def send_session_message_stream(
     🔍 DEBUG: This is the STREAMING endpoint
     """
     try:
-        print(f"🟢 === SESSION MESSAGE (STREAMING) ===")
-        print(f"📨 Session ID: {session_id}")
-        print(f"💬 Message: {request.message[:100]}...")
-        print(f"🌍 Language: {request.language}")
-        print(f"🎯 System prompt provided: {request.system_prompt is not None}")
-        print(f"📚 Question context provided: {request.question_context is not None}")
-        print(f"🔍 Using STREAMING endpoint")
+        logger.debug(f"🟢 === SESSION MESSAGE (STREAMING) ===")
+        logger.debug(f"📨 Session ID: {session_id}")
+        logger.debug(f"💬 Message: {request.message[:100]}...")
+        logger.debug(f"🌍 Language: {request.language}")
+        logger.debug(f"🎯 System prompt provided: {request.system_prompt is not None}")
+        logger.debug(f"📚 Question context provided: {request.question_context is not None}")
+        logger.debug(f"🔍 Using STREAMING endpoint")
 
         # Get or create the session
         session = await session_service.get_session(session_id)
         if not session:
-            print(f"⚠️ Session {session_id} not found, creating new session...")
+            logger.debug(f"⚠️ Session {session_id} not found, creating new session...")
             # Auto-create session with default subject
             session = await session_service.create_session(
                 student_id="auto_created",
@@ -1804,7 +1808,7 @@ async def send_session_message_stream(
             # Override the session ID to match the requested one
             session.session_id = session_id
             session_service.sessions[session_id] = session
-            print(f"✅ Auto-created session: {session_id}")
+            logger.debug(f"✅ Auto-created session: {session_id}")
 
         # Add user message to session
         await session_service.add_message_to_session(
@@ -1817,17 +1821,17 @@ async def send_session_message_stream(
         is_homework_followup = request.question_context is not None
 
         if is_homework_followup:
-            print(f"📚 === HOMEWORK FOLLOW-UP DETECTED (STREAMING) ===")
-            print(f"📚 Question context keys: {list(request.question_context.keys())}")
-            print(f"📚 Current grade: {request.question_context.get('current_grade')}")
-            print(f"📚 Student answer: {request.question_context.get('student_answer')}")
-            print(f"📚 Correct answer: {request.question_context.get('correct_answer')}")
+            logger.debug(f"📚 === HOMEWORK FOLLOW-UP DETECTED (STREAMING) ===")
+            logger.debug(f"📚 Question context keys: {list(request.question_context.keys())}")
+            logger.debug(f"📚 Current grade: {request.question_context.get('current_grade')}")
+            logger.debug(f"📚 Student answer: {request.question_context.get('student_answer')}")
+            logger.debug(f"📚 Correct answer: {request.question_context.get('correct_answer')}")
 
         # COST OPTIMIZATION: Use provided system prompt if available, otherwise create one
         if request.system_prompt:
             # Use the cached system prompt from gateway (saves ~200 tokens!)
             system_prompt = request.system_prompt
-            print(f"💰 Using cached system prompt from gateway ({len(system_prompt)} chars) - saves ~200 tokens!")
+            logger.debug(f"💰 Using cached system prompt from gateway ({len(system_prompt)} chars) - saves ~200 tokens!")
         elif is_homework_followup:
             # 🆕 HOMEWORK FOLLOWUP: Use specialized prompt with grade validation
             system_prompt = prompt_service.create_homework_followup_prompt(
@@ -1835,7 +1839,7 @@ async def send_session_message_stream(
                 student_message=request.message,
                 session_id=session_id
             )
-            print(f"📚 Created homework followup prompt with grade validation ({len(system_prompt)} chars)")
+            logger.debug(f"📚 Created homework followup prompt with grade validation ({len(system_prompt)} chars)")
         else:
             # Fallback to creating system prompt (legacy behavior)
             system_prompt = prompt_service.create_enhanced_prompt(
@@ -1843,16 +1847,16 @@ async def send_session_message_stream(
                 subject_string=request.subject or session.subject,
                 context={"student_id": session.student_id, "language": request.language}
             )
-            print(f"⚠️ Creating system prompt (legacy mode) - consider sending system_prompt from gateway")
+            logger.debug(f"⚠️ Creating system prompt (legacy mode) - consider sending system_prompt from gateway")
 
         # Get conversation context for API
         context_messages = session.get_context_for_api(system_prompt)
 
         # ✅ CRITICAL: Add image to context if provided (homework question with image)
         if request.image_data:
-            print(f"🖼️ === IMAGE DETECTED IN REQUEST ===")
-            print(f"🖼️ Image data length: {len(request.image_data)} chars")
-            print(f"🖼️ Adding image to latest user message in context")
+            logger.debug(f"🖼️ === IMAGE DETECTED IN REQUEST ===")
+            logger.debug(f"🖼️ Image data length: {len(request.image_data)} chars")
+            logger.debug(f"🖼️ Adding image to latest user message in context")
 
             # Find the last user message in context_messages and add image
             for i in range(len(context_messages) - 1, -1, -1):
@@ -1871,7 +1875,7 @@ async def send_session_message_stream(
                             }
                         }
                     ]
-                    print(f"✅ Successfully added image to user message at index {i}")
+                    logger.debug(f"✅ Successfully added image to user message at index {i}")
                     break
 
         # 🚀 INTELLIGENT MODEL ROUTING: Select optimal model
@@ -1879,7 +1883,7 @@ async def send_session_message_stream(
         if request.image_data:
             selected_model = "gpt-4o-mini"  # Vision-capable model
             max_tokens = 4096
-            print(f"🖼️ Image detected - forcing gpt-4o-mini (vision-capable)")
+            logger.debug(f"🖼️ Image detected - forcing gpt-4o-mini (vision-capable)")
         else:
             selected_model, max_tokens = select_chat_model(
                 message=request.message,
@@ -1887,8 +1891,8 @@ async def send_session_message_stream(
                 conversation_length=len(session.messages)
             )
 
-        print(f"🤖 Calling OpenAI with STREAMING enabled and {len(context_messages)} context messages...")
-        print(f"🚀 Selected model: {selected_model} (max_tokens: {max_tokens})")
+        logger.debug(f"🤖 Calling OpenAI with STREAMING enabled and {len(context_messages)} context messages...")
+        logger.debug(f"🚀 Selected model: {selected_model} (max_tokens: {max_tokens})")
 
         # Create streaming generator
         async def stream_generator():
@@ -1937,7 +1941,7 @@ async def send_session_message_stream(
                                 content=accumulated_content
                             )
 
-                            print(f"✅ Streaming complete: {len(accumulated_content)} chars")
+                            logger.debug(f"✅ Streaming complete: {len(accumulated_content)} chars")
 
                             # 🚀 OPTIMIZATION: Send end event IMMEDIATELY (don't wait for suggestions)
                             end_event = {
@@ -1947,10 +1951,10 @@ async def send_session_message_stream(
                                 'session_id': session_id
                             }
                             yield f"data: {_json.dumps(end_event)}\n\n"
-                            print(f"📤 Sent 'end' event (user sees completion immediately)")
+                            logger.debug(f"📤 Sent 'end' event (user sees completion immediately)")
 
                             # Generate AI follow-up suggestions in background (non-blocking perceived completion)
-                            print(f"⏳ Generating follow-up suggestions in background...")
+                            logger.debug(f"⏳ Generating follow-up suggestions in background...")
                             suggestions = await generate_follow_up_suggestions(
                                 ai_response=accumulated_content,
                                 user_message=request.message,
@@ -1970,7 +1974,7 @@ async def send_session_message_stream(
                                                 'value': str(sug.get('value', ''))
                                             })
                                         else:
-                                            print(f"⚠️ Skipping invalid suggestion: {type(sug)} - {sug}")
+                                            logger.debug(f"⚠️ Skipping invalid suggestion: {type(sug)} - {sug}")
 
                                     if serializable_suggestions:
                                         suggestions_event = {
@@ -1979,15 +1983,15 @@ async def send_session_message_stream(
                                             'session_id': session_id
                                         }
                                         yield f"data: {_json.dumps(suggestions_event)}\n\n"
-                                        print(f"💡 Sent {len(serializable_suggestions)} follow-up suggestions")
+                                        logger.debug(f"💡 Sent {len(serializable_suggestions)} follow-up suggestions")
                                     else:
-                                        print(f"ℹ️ No valid suggestions after filtering")
+                                        logger.debug(f"ℹ️ No valid suggestions after filtering")
                                 except Exception as sug_error:
-                                    print(f"❌ Error sending suggestions: {type(sug_error).__name__}: {sug_error}")
-                                    print(f"🔍 Suggestions type: {type(suggestions)}")
-                                    print(f"🔍 Suggestions content: {suggestions}")
+                                    logger.debug(f"❌ Error sending suggestions: {type(sug_error).__name__}: {sug_error}")
+                                    logger.debug(f"🔍 Suggestions type: {type(suggestions)}")
+                                    logger.debug(f"🔍 Suggestions content: {suggestions}")
                             else:
-                                print(f"ℹ️ No suggestions generated")
+                                logger.debug(f"ℹ️ No suggestions generated")
 
                             # 🆕 HOMEWORK FOLLOWUP: Detect grade correction after streaming completes
                             if is_homework_followup:
@@ -1995,10 +1999,10 @@ async def send_session_message_stream(
                                     grade_correction_data = _detect_grade_correction(accumulated_content)
 
                                     if grade_correction_data:
-                                        print(f"🎯 === GRADE CORRECTION DETECTED (STREAMING) ===")
-                                        print(f"🎯 Original Grade: {grade_correction_data['original_grade']}")
-                                        print(f"🎯 Corrected Grade: {grade_correction_data['corrected_grade']}")
-                                        print(f"🎯 Reason: {grade_correction_data['reason'][:100]}...")
+                                        logger.debug(f"🎯 === GRADE CORRECTION DETECTED (STREAMING) ===")
+                                        logger.debug(f"🎯 Original Grade: {grade_correction_data['original_grade']}")
+                                        logger.debug(f"🎯 Corrected Grade: {grade_correction_data['corrected_grade']}")
+                                        logger.debug(f"🎯 Reason: {grade_correction_data['reason'][:100]}...")
 
                                         # 🐛 FIX: Ensure grade_correction_data is JSON-serializable
                                         serializable_grade_data = {
@@ -2016,12 +2020,12 @@ async def send_session_message_stream(
                                             'grade_correction': serializable_grade_data
                                         }
                                         yield f"data: {_json.dumps(grade_event)}\n\n"
-                                        print(f"✅ Sent grade_correction SSE event")
+                                        logger.debug(f"✅ Sent grade_correction SSE event")
                                     else:
-                                        print(f"ℹ️ No grade correction detected in response")
+                                        logger.debug(f"ℹ️ No grade correction detected in response")
                                 except Exception as grade_error:
-                                    print(f"❌ Error processing grade correction: {type(grade_error).__name__}: {grade_error}")
-                                    print(f"🔍 Grade correction data: {grade_correction_data if 'grade_correction_data' in locals() else 'Not defined'}")
+                                    logger.debug(f"❌ Error processing grade correction: {type(grade_error).__name__}: {grade_error}")
+                                    logger.debug(f"🔍 Grade correction data: {grade_correction_data if 'grade_correction_data' in locals() else 'Not defined'}")
 
                             # Break after sending all events
                             break
@@ -2030,8 +2034,8 @@ async def send_session_message_stream(
                 import traceback
                 error_msg = f"Streaming error: {str(e) or 'Unknown error'}"
                 full_traceback = traceback.format_exc()
-                print(f"❌ {error_msg}")
-                print(f"📋 Full traceback:\n{full_traceback}")
+                logger.debug(f"❌ {error_msg}")
+                logger.debug(f"📋 Full traceback:\n{full_traceback}")
                 yield f"data: {_json.dumps({'type': 'error', 'error': error_msg, 'traceback': full_traceback[:500]})}\n\n"
 
         # Return streaming response
@@ -2049,8 +2053,8 @@ async def send_session_message_stream(
         import traceback
         error_msg = f"Session streaming error: {str(e) or 'Unknown error'}"
         full_traceback = traceback.format_exc()
-        print(f"❌ {error_msg}")
-        print(f"📋 Full traceback:\n{full_traceback}")
+        logger.debug(f"❌ {error_msg}")
+        logger.debug(f"📋 Full traceback:\n{full_traceback}")
 
         async def error_generator():
             yield f"data: {_json.dumps({'type': 'error', 'error': error_msg, 'traceback': full_traceback[:500]})}\n\n"
@@ -2195,11 +2199,11 @@ def check_if_diagram_helpful(ai_response: str, user_message: str, subject: str) 
     visual_request_count = sum(1 for keyword in visual_request_keywords if keyword in combined_text)
     educational_count = sum(1 for keyword in educational_keywords if keyword in combined_text)
 
-    print(f"🎨 [DiagramDetection] Keyword analysis:")
-    print(f"🎨 [DiagramDetection] - Math: {math_count}, Geometry: {geometry_count}")
-    print(f"🎨 [DiagramDetection] - Physics: {physics_count}, Chemistry: {chemistry_count}")
-    print(f"🎨 [DiagramDetection] - Biology: {biology_count}, Visual: {visual_request_count}")
-    print(f"🎨 [DiagramDetection] - Educational: {educational_count}")
+    logger.debug(f"🎨 [DiagramDetection] Keyword analysis:")
+    logger.debug(f"🎨 [DiagramDetection] - Math: {math_count}, Geometry: {geometry_count}")
+    logger.debug(f"🎨 [DiagramDetection] - Physics: {physics_count}, Chemistry: {chemistry_count}")
+    logger.debug(f"🎨 [DiagramDetection] - Biology: {biology_count}, Visual: {visual_request_count}")
+    logger.debug(f"🎨 [DiagramDetection] - Educational: {educational_count}")
 
     # ✅ OPTIMIZED: Much lower thresholds for diagram suggestions
 
@@ -2208,41 +2212,41 @@ def check_if_diagram_helpful(ai_response: str, user_message: str, subject: str) 
     if subject in ['mathematics', 'math', '数学', 'geometry', '几何']:
         # Always suggest for math - visual learning is critical
         if math_count >= 1 or geometry_count >= 1 or visual_request_count >= 1 or total_visual_keywords >= 1:
-            print(f"🎨 [DiagramDetection] ✅ MATH subject trigger: math={math_count}, geo={geometry_count}, visual={visual_request_count}")
+            logger.debug(f"🎨 [DiagramDetection] ✅ MATH subject trigger: math={math_count}, geo={geometry_count}, visual={visual_request_count}")
             return True
         # NEW: Default to True for any math conversation with explanation
         if len(ai_response) > 100:  # Any substantial math response
-            print(f"🎨 [DiagramDetection] ✅ MATH default: Substantial math response detected")
+            logger.debug(f"🎨 [DiagramDetection] ✅ MATH default: Substantial math response detected")
             return True
 
     elif subject in ['physics', '物理']:
         # Always suggest for physics - visual concepts are essential
         if physics_count >= 1 or geometry_count >= 1 or visual_request_count >= 1 or total_visual_keywords >= 1:
-            print(f"🎨 [DiagramDetection] ✅ PHYSICS subject trigger: physics={physics_count}, geo={geometry_count}, visual={visual_request_count}")
+            logger.debug(f"🎨 [DiagramDetection] ✅ PHYSICS subject trigger: physics={physics_count}, geo={geometry_count}, visual={visual_request_count}")
             return True
         # NEW: Default to True for any physics conversation
         if len(ai_response) > 100:
-            print(f"🎨 [DiagramDetection] ✅ PHYSICS default: Substantial physics response detected")
+            logger.debug(f"🎨 [DiagramDetection] ✅ PHYSICS default: Substantial physics response detected")
             return True
 
     elif subject in ['chemistry', '化学']:
         # Always suggest for chemistry - molecules and structures are visual
         if chemistry_count >= 1 or visual_request_count >= 1 or total_visual_keywords >= 1:
-            print(f"🎨 [DiagramDetection] ✅ CHEMISTRY subject trigger: chem={chemistry_count}, visual={visual_request_count}")
+            logger.debug(f"🎨 [DiagramDetection] ✅ CHEMISTRY subject trigger: chem={chemistry_count}, visual={visual_request_count}")
             return True
         # NEW: Default to True for chemistry
         if len(ai_response) > 100:
-            print(f"🎨 [DiagramDetection] ✅ CHEMISTRY default: Substantial chemistry response detected")
+            logger.debug(f"🎨 [DiagramDetection] ✅ CHEMISTRY default: Substantial chemistry response detected")
             return True
 
     elif subject in ['biology', '生物']:
         # Always suggest for biology - anatomy and systems are visual
         if biology_count >= 1 or visual_request_count >= 1 or total_visual_keywords >= 1:
-            print(f"🎨 [DiagramDetection] ✅ BIOLOGY subject trigger: bio={biology_count}, visual={visual_request_count}")
+            logger.debug(f"🎨 [DiagramDetection] ✅ BIOLOGY subject trigger: bio={biology_count}, visual={visual_request_count}")
             return True
         # NEW: Default to True for biology
         if len(ai_response) > 100:
-            print(f"🎨 [DiagramDetection] ✅ BIOLOGY default: Substantial biology response detected")
+            logger.debug(f"🎨 [DiagramDetection] ✅ BIOLOGY default: Substantial biology response detected")
             return True
 
     # ✅ GENERAL OPTIMIZED THRESHOLDS (any subject)
@@ -2250,52 +2254,52 @@ def check_if_diagram_helpful(ai_response: str, user_message: str, subject: str) 
 
     # 🔥 VERY HIGH confidence indicators (always suggest)
     if visual_request_count >= 1:  # Any visual request → IMMEDIATE diagram suggestion
-        print(f"🎨 [DiagramDetection] ✅ HIGH: Explicit visual request detected ({visual_request_count})")
+        logger.debug(f"🎨 [DiagramDetection] ✅ HIGH: Explicit visual request detected ({visual_request_count})")
         return True
 
     if total_visual_keywords >= 2:  # Lower threshold for technical content
-        print(f"🎨 [DiagramDetection] ✅ HIGH: Technical content density ({total_visual_keywords})")
+        logger.debug(f"🎨 [DiagramDetection] ✅ HIGH: Technical content density ({total_visual_keywords})")
         return True
 
     if geometry_count >= 1:  # Any geometric content benefits from diagrams
-        print(f"🎨 [DiagramDetection] ✅ HIGH: Geometric content detected ({geometry_count})")
+        logger.debug(f"🎨 [DiagramDetection] ✅ HIGH: Geometric content detected ({geometry_count})")
         return True
 
     # 🔥 MEDIUM confidence indicators (educational context)
     if educational_count >= 2 and total_visual_keywords >= 1:
-        print(f"🎨 [DiagramDetection] ✅ MEDIUM: Educational + technical content (edu={educational_count}, tech={total_visual_keywords})")
+        logger.debug(f"🎨 [DiagramDetection] ✅ MEDIUM: Educational + technical content (edu={educational_count}, tech={total_visual_keywords})")
         return True
 
     if math_count >= 1:  # Any mathematical content is visual
-        print(f"🎨 [DiagramDetection] ✅ MEDIUM: Mathematical content detected ({math_count})")
+        logger.debug(f"🎨 [DiagramDetection] ✅ MEDIUM: Mathematical content detected ({math_count})")
         return True
 
     # 🔥 NEW: Length-based heuristic (longer explanations often benefit from visuals)
     if len(ai_response) > 500 and total_visual_keywords >= 1:
-        print(f"🎨 [DiagramDetection] ✅ LENGTH: Long explanation + technical content (len={len(ai_response)}, tech={total_visual_keywords})")
+        logger.debug(f"🎨 [DiagramDetection] ✅ LENGTH: Long explanation + technical content (len={len(ai_response)}, tech={total_visual_keywords})")
         return True
 
     # 🔥 NEW: Cross-subject support (broader detection)
     if total_visual_keywords >= 1 and educational_count >= 1:
-        print(f"🎨 [DiagramDetection] ✅ CROSS: Any technical + educational content (tech={total_visual_keywords}, edu={educational_count})")
+        logger.debug(f"🎨 [DiagramDetection] ✅ CROSS: Any technical + educational content (tech={total_visual_keywords}, edu={educational_count})")
         return True
 
     # 🔥 NEW: ANY technical keyword is enough (ultra-aggressive)
     if total_visual_keywords >= 1:
-        print(f"🎨 [DiagramDetection] ✅ AGGRESSIVE: Any technical content detected ({total_visual_keywords})")
+        logger.debug(f"🎨 [DiagramDetection] ✅ AGGRESSIVE: Any technical content detected ({total_visual_keywords})")
         return True
 
     # 🔥 NEW: Default to True for any substantial educational response
     if educational_count >= 1 and len(ai_response) > 150:
-        print(f"🎨 [DiagramDetection] ✅ DEFAULT: Educational response with substantial content")
+        logger.debug(f"🎨 [DiagramDetection] ✅ DEFAULT: Educational response with substantial content")
         return True
 
     # 🔥 NEW: Even if no keywords, suggest for longer responses (assume complexity)
     if len(ai_response) > 300:
-        print(f"🎨 [DiagramDetection] ✅ FALLBACK: Long response likely benefits from visualization")
+        logger.debug(f"🎨 [DiagramDetection] ✅ FALLBACK: Long response likely benefits from visualization")
         return True
 
-    print(f"🎨 [DiagramDetection] ❌ No diagram triggers met")
+    logger.debug(f"🎨 [DiagramDetection] ❌ No diagram triggers met")
     return False
 
 
@@ -2312,10 +2316,10 @@ async def generate_follow_up_suggestions(ai_response: str, user_message: str, su
         {"key": "Explain simpler", "value": "Can you explain this in simpler terms?"}
     ]
     """
-    print(f"\n🎯 === GENERATE FOLLOW-UP SUGGESTIONS CALLED ===")
-    print(f"📝 User message length: {len(user_message)} chars")
-    print(f"💬 AI response length: {len(ai_response)} chars")
-    print(f"📚 Subject: {subject}")
+    logger.debug(f"\n🎯 === GENERATE FOLLOW-UP SUGGESTIONS CALLED ===")
+    logger.debug(f"📝 User message length: {len(user_message)} chars")
+    logger.debug(f"💬 AI response length: {len(ai_response)} chars")
+    logger.debug(f"📚 Subject: {subject}")
 
     try:
         # Detect language from AI response (checks for Chinese characters)
@@ -2330,7 +2334,7 @@ async def generate_follow_up_suggestions(ai_response: str, user_message: str, su
 
         is_chinese = detect_chinese(ai_response)
         detected_language = "Chinese (Simplified)" if is_chinese else "English"
-        print(f"🌐 Detected language: {detected_language}")
+        logger.debug(f"🌐 Detected language: {detected_language}")
 
         # Language-specific instructions
         if is_chinese:
@@ -2481,7 +2485,7 @@ IMPORTANT:
                         valid_suggestions.append(sug)
 
                 if valid_suggestions:
-                    print(f"💡 Generated {len(valid_suggestions)} suggestions")
+                    logger.debug(f"💡 Generated {len(valid_suggestions)} suggestions")
                     return valid_suggestions[:3]  # Limit to 3
                 else:
                     return []
@@ -2493,8 +2497,8 @@ IMPORTANT:
 
     except Exception as e:
         import traceback
-        print(f"❌ Error generating suggestions: {str(e)}")
-        print(f"📋 Traceback:\n{traceback.format_exc()}")
+        logger.debug(f"❌ Error generating suggestions: {str(e)}")
+        logger.debug(f"📋 Traceback:\n{traceback.format_exc()}")
         return []
 
 # MARK: - Homework Follow-up with Grade Correction
@@ -2592,11 +2596,11 @@ async def process_homework_followup(
     start_time = time.time()
 
     try:
-        print(f"📚 === HOMEWORK FOLLOW-UP REQUEST ===")
-        print(f"📨 Session ID: {session_id}")
-        print(f"💬 Student Message: {request.message[:100]}...")
-        print(f"📋 Question Context: Q#{request.question_context.get('question_number', 'N/A')}")
-        print(f"📊 Current Grade: {request.question_context.get('current_grade', 'N/A')}")
+        logger.debug(f"📚 === HOMEWORK FOLLOW-UP REQUEST ===")
+        logger.debug(f"📨 Session ID: {session_id}")
+        logger.debug(f"💬 Student Message: {request.message[:100]}...")
+        logger.debug(f"📋 Question Context: Q#{request.question_context.get('question_number', 'N/A')}")
+        logger.debug(f"📊 Current Grade: {request.question_context.get('current_grade', 'N/A')}")
 
         # Get or create session
         session = await session_service.get_session(session_id)
@@ -2607,7 +2611,7 @@ async def process_homework_followup(
                 student_id=request.question_context.get('student_id', 'anonymous'),
                 subject=subject
             )
-            print(f"✅ Created new session for homework follow-up: {session.session_id}")
+            logger.debug(f"✅ Created new session for homework follow-up: {session.session_id}")
 
         # Add user message to session
         await session_service.add_message_to_session(
@@ -2623,12 +2627,12 @@ async def process_homework_followup(
             session_id=session.session_id
         )
 
-        print(f"📝 Generated homework follow-up system prompt ({len(system_prompt)} chars)")
+        logger.debug(f"📝 Generated homework follow-up system prompt ({len(system_prompt)} chars)")
 
         # Get conversation context (includes system prompt + conversation history)
         context_messages = session.get_context_for_api(system_prompt)
 
-        print(f"🤖 Calling OpenAI for homework follow-up...")
+        logger.debug(f"🤖 Calling OpenAI for homework follow-up...")
 
         # Call OpenAI with homework-specific context
         response = await ai_service.client.chat.completions.create(
@@ -2642,18 +2646,18 @@ async def process_homework_followup(
         ai_response = response.choices[0].message.content
         tokens_used = response.usage.total_tokens
 
-        print(f"✅ OpenAI response received ({tokens_used} tokens)")
-        print(f"📝 Response length: {len(ai_response)} chars")
+        logger.debug(f"✅ OpenAI response received ({tokens_used} tokens)")
+        logger.debug(f"📝 Response length: {len(ai_response)} chars")
 
         # Detect grade correction in response
         grade_correction_data = _detect_grade_correction(ai_response)
 
         if grade_correction_data:
-            print(f"🔄 === GRADE CORRECTION DETECTED ===")
-            print(f"📊 Original Grade: {grade_correction_data['original_grade']}")
-            print(f"✅ Corrected Grade: {grade_correction_data['corrected_grade']}")
-            print(f"💡 Reason: {grade_correction_data['reason'][:100]}...")
-            print(f"🎯 New Points: {grade_correction_data['new_points_earned']}/{grade_correction_data['points_possible']}")
+            logger.debug(f"🔄 === GRADE CORRECTION DETECTED ===")
+            logger.debug(f"📊 Original Grade: {grade_correction_data['original_grade']}")
+            logger.debug(f"✅ Corrected Grade: {grade_correction_data['corrected_grade']}")
+            logger.debug(f"💡 Reason: {grade_correction_data['reason'][:100]}...")
+            logger.debug(f"🎯 New Points: {grade_correction_data['new_points_earned']}/{grade_correction_data['points_possible']}")
 
         # Add AI response to session
         updated_session = await session_service.add_message_to_session(
@@ -2663,7 +2667,7 @@ async def process_homework_followup(
         )
 
         processing_time = int((time.time() - start_time) * 1000)
-        print(f"⏱️ Total processing time: {processing_time}ms")
+        logger.debug(f"⏱️ Total processing time: {processing_time}ms")
 
         # Build response
         response_data = HomeworkFollowupResponse(
@@ -2685,7 +2689,7 @@ async def process_homework_followup(
             "error_message": str(e),
             "traceback": traceback.format_exc()
         }
-        print(f"❌ Homework Follow-up Error: {error_details}")
+        logger.debug(f"❌ Homework Follow-up Error: {error_details}")
         raise HTTPException(status_code=500, detail=f"Homework follow-up processing error: {str(e)}")
 
 @app.delete("/api/v1/sessions/{session_id}")
@@ -2803,11 +2807,11 @@ async def generate_narrative_report(request: NarrativeGenerationRequest, service
     import time
     start_time = time.time()
 
-    print(f"\n🎯 === NARRATIVE GENERATION REQUEST START ===")
-    print(f"📊 Request from service: {service_name or 'Unknown'}")
-    print(f"📏 Prompt length: {len(request.prompt)} characters")
-    print(f"📊 Analytics data keys: {list(request.analytics_data.keys()) if request.analytics_data else 'None'}")
-    print(f"🎨 Options: {request.options}")
+    logger.debug(f"\n🎯 === NARRATIVE GENERATION REQUEST START ===")
+    logger.debug(f"📊 Request from service: {service_name or 'Unknown'}")
+    logger.debug(f"📏 Prompt length: {len(request.prompt)} characters")
+    logger.debug(f"📊 Analytics data keys: {list(request.analytics_data.keys()) if request.analytics_data else 'None'}")
+    logger.debug(f"🎨 Options: {request.options}")
 
     try:
         # Extract key information from analytics data
@@ -2817,13 +2821,13 @@ async def generate_narrative_report(request: NarrativeGenerationRequest, service
         subjects = analytics.get('subjects', {})
         progress = analytics.get('progress', {})
 
-        print(f"🔍 === ANALYTICS DATA BREAKDOWN ===")
-        print(f"📚 Academic questions: {academic.get('totalQuestions', 0)}")
-        print(f"✅ Correct answers: {academic.get('correctAnswers', 0)}")
+        logger.debug(f"🔍 === ANALYTICS DATA BREAKDOWN ===")
+        logger.debug(f"📚 Academic questions: {academic.get('totalQuestions', 0)}")
+        logger.debug(f"✅ Correct answers: {academic.get('correctAnswers', 0)}")
 
         # Safe formatting with null checks
         accuracy = academic.get('accuracy', 0) or 0
-        print(f"📊 Accuracy: {accuracy:.2%}")
+        logger.debug(f"📊 Accuracy: {accuracy:.2%}")
 
         # Handle the ACTUAL data structure from backend
         # activity is flattened: {studyTime: number, activeDays: number, sessionsPerDay: number, totalConversations: number, engagementScore: number}
@@ -2950,8 +2954,8 @@ Format the response as JSON with fields: narrative, summary, keyInsights, recomm
         )
 
         openai_time = int((time.time() - openai_start) * 1000)
-        print(f"🤖 OpenAI response time: {openai_time}ms")
-        print(f"📝 Raw AI response length: {len(ai_response.get('answer', ''))} characters")
+        logger.debug(f"🤖 OpenAI response time: {openai_time}ms")
+        logger.debug(f"📝 Raw AI response length: {len(ai_response.get('answer', ''))} characters")
 
         # Parse the AI response to extract structured data
         narrative_content = ai_response.get('answer', '')
@@ -2968,7 +2972,7 @@ Format the response as JSON with fields: narrative, summary, keyInsights, recomm
                 summary = json_data.get('summary', 'Generated narrative report for student progress.')
                 key_insights = json_data.get('keyInsights', [])
                 recommendations = json_data.get('recommendations', [])
-                print(f"✅ Successfully parsed structured JSON response")
+                logger.debug(f"✅ Successfully parsed structured JSON response")
             else:
                 # Fallback: Use the full response as narrative
                 narrative = narrative_content
@@ -2984,7 +2988,7 @@ Format the response as JSON with fields: narrative, summary, keyInsights, recomm
                     "Celebrate learning achievements regularly",
                     "Provide encouragement during challenging topics"
                 ]
-                print(f"⚠️ Using fallback structured data extraction")
+                logger.debug(f"⚠️ Using fallback structured data extraction")
 
         except json.JSONDecodeError:
             # Complete fallback
@@ -2992,7 +2996,7 @@ Format the response as JSON with fields: narrative, summary, keyInsights, recomm
             summary = f"Student completed {academic.get('totalQuestions', 0)} questions with {accuracy:.0%} accuracy."
             key_insights = [f"Attempted {academic.get('totalQuestions', 0)} questions"]
             recommendations = ["Continue regular study practice"]
-            print(f"⚠️ JSON parsing failed, using complete fallback")
+            logger.debug(f"⚠️ JSON parsing failed, using complete fallback")
 
         processing_time = int((time.time() - start_time) * 1000)
 
