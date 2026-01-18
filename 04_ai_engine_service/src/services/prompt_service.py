@@ -1058,6 +1058,7 @@ Remember: Be honest about grading errors. If the student was right and the AI wa
         focus_notes = config.get('focus_notes', '')
         difficulty = config.get('difficulty', 'intermediate')
         question_count = config.get('question_count', 5)
+        question_types = config.get('question_types', ['multiple_choice', 'short_answer', 'calculation', 'fill_blank'])
 
         # Extract user profile
         grade_level = user_profile.get('grade', 'High School')
@@ -1074,6 +1075,16 @@ Remember: Be honest about grading errors. If the student was right and the AI wa
         math_note = "Math: Use \\(...\\) delimiters. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, \\alpha, \\leq (NOT double \\\\)" if is_math else ""
         focus_line = f"Focus: {focus_notes}" if focus_notes else ""
 
+        # Build question type instruction
+        if len(question_types) == 1:
+            # User selected a specific type - enforce it strictly
+            question_type_instruction = f'- ALL questions MUST be type "{question_types[0]}" ONLY'
+            allowed_types = question_types[0]
+        else:
+            # Mixed types allowed
+            question_type_instruction = f'- Mix question types from: {"|".join(question_types)}'
+            allowed_types = "|".join(question_types)
+
         prompt = f"""Generate {question_count} {difficulty} {subject} questions for {grade_level}.
 
 Topics: {', '.join(topics) if topics else 'general'}
@@ -1088,7 +1099,7 @@ Return your response as a JSON object with a "questions" array. Each question mu
     "questions": [
         {{
             "question": "Clear, well-formatted question text with proper mathematical notation",
-            "question_type": "multiple_choice|short_answer|calculation|fill_blank|true_false",
+            "question_type": "{allowed_types}",
             "multiple_choice_options": [
                 {{"label": "A", "text": "First option", "is_correct": true}},
                 {{"label": "B", "text": "Second option", "is_correct": false}},
@@ -1108,6 +1119,7 @@ CRITICAL:
 - Use "question_type" (not "type"), "multiple_choice_options" (not "options"), "estimated_time_minutes"
 - For MC: "multiple_choice_options" = [{{"label":"A","text":"...","is_correct":true/false}}]
 - For non-MC: set "multiple_choice_options" to null
+{question_type_instruction}
 - Generate EXACTLY {question_count} questions
 
 Generate now:"""
@@ -1128,6 +1140,12 @@ Generate now:"""
 
         # Extract configuration
         question_count = config.get('question_count', 5)
+        question_types = config.get('question_types', ['multiple_choice', 'short_answer', 'calculation', 'fill_blank'])
+        question_type = config.get('question_type', 'any')  # Also support singular form from backend
+
+        # If question_type (singular) is provided, use it
+        if question_type and question_type != 'any':
+            question_types = [question_type]
 
         # Extract user profile
         grade_level = user_profile.get('grade', 'High School')
@@ -1150,6 +1168,14 @@ Generate now:"""
         math_note = "Math: Use \\(...\\) delimiters. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, \\alpha, \\leq (NOT double \\\\)" if is_math else ""
         tags_note = f"TAGS: Use EXACTLY these tags: {str(unique_source_tags)} (copy exactly, no new tags)" if unique_source_tags else ""
 
+        # Build question type instruction
+        if len(question_types) == 1:
+            question_type_instruction = f'- ALL questions MUST be type "{question_types[0]}" ONLY'
+            allowed_types = question_types[0]
+        else:
+            question_type_instruction = f'- Mix question types from: {"|".join(question_types)}'
+            allowed_types = "|".join(question_types)
+
         prompt = f"""Generate {question_count} remedial {subject} questions targeting these mistakes:
 
 {chr(10).join(mistakes_summary)}
@@ -1164,7 +1190,7 @@ Return your response as a JSON object with a "questions" array. Each question mu
     "questions": [
         {{
             "question": "Question text that addresses the mistake pattern",
-            "question_type": "multiple_choice|short_answer|calculation|fill_blank|true_false",
+            "question_type": "{allowed_types}",
             "multiple_choice_options": [
                 {{"label": "A", "text": "First option", "is_correct": true}},
                 {{"label": "B", "text": "Second option", "is_correct": false}},
@@ -1186,6 +1212,7 @@ CRITICAL:
 - Use "question_type", "multiple_choice_options", "estimated_time_minutes"
 - For MC: "multiple_choice_options" = [{{"label":"A","text":"...","is_correct":true/false}}]
 - For non-MC: set "multiple_choice_options" to null
+{question_type_instruction}
 {tags_note if unique_source_tags else ""}
 - Generate EXACTLY {question_count} questions
 
@@ -1207,6 +1234,12 @@ Generate now:"""
 
         # Extract configuration
         question_count = config.get('question_count', 5)
+        question_types = config.get('question_types', ['multiple_choice', 'short_answer', 'calculation', 'fill_blank'])
+        question_type = config.get('question_type', 'any')  # Also support singular form from backend
+
+        # If question_type (singular) is provided, use it
+        if question_type and question_type != 'any':
+            question_types = [question_type]
 
         # Extract user profile
         grade_level = user_profile.get('grade', 'High School')
@@ -1226,6 +1259,14 @@ Generate now:"""
         # Build math note outside f-string (can't use backslashes in f-string)
         math_note = "Math: Use \\(...\\) delimiters. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, \\alpha, \\leq (NOT double \\\\)" if is_math else ""
 
+        # Build question type instruction
+        if len(question_types) == 1:
+            question_type_instruction = f'- ALL questions MUST be type "{question_types[0]}" ONLY'
+            allowed_types = question_types[0]
+        else:
+            question_type_instruction = f'- Mix question types from: {"|".join(question_types)}'
+            allowed_types = "|".join(question_types)
+
         prompt = f"""Generate {question_count} personalized {subject} questions based on conversation history:
 
 {chr(10).join(conv_summary)}
@@ -1240,7 +1281,7 @@ Return your response as a JSON object with a "questions" array. Each question mu
     "questions": [
         {{
             "question": "Personalized question text building on their conversation history",
-            "question_type": "multiple_choice|short_answer|calculation|fill_blank|true_false",
+            "question_type": "{allowed_types}",
             "multiple_choice_options": [
                 {{"label": "A", "text": "First option", "is_correct": true}},
                 {{"label": "B", "text": "Second option", "is_correct": false}},
@@ -1261,6 +1302,7 @@ CRITICAL:
 - Use "question_type", "multiple_choice_options", "estimated_time_minutes"
 - For MC: "multiple_choice_options" = [{{"label":"A","text":"...","is_correct":true/false}}]
 - For non-MC: set "multiple_choice_options" to null
+{question_type_instruction}
 - Generate EXACTLY {question_count} questions
 
 Generate now:"""
