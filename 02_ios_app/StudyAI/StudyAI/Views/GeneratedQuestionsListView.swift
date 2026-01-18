@@ -550,10 +550,8 @@ struct QuestionListCard: View {
                         .cornerRadius(6)
                 }
 
-                // Question text
-                Text(question.question)
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
+                // Question text - ✅ Use EnhancedMathText for LaTeX/math rendering
+                EnhancedMathText(question.question, fontSize: 14)
                     .multilineTextAlignment(.leading)
                     .lineLimit(3)
 
@@ -578,17 +576,19 @@ struct QuestionListCard: View {
                     }
                 }
 
-                // Preview of answer/explanation
+                // Preview of answer/explanation - ✅ Use EnhancedMathText for LaTeX support
                 if !question.explanation.isEmpty {
                     HStack(spacing: 8) {
                         Image(systemName: "lightbulb.fill")
                             .font(.caption)
                             .foregroundColor(.yellow)
 
-                        Text(question.explanation.prefix(80) + (question.explanation.count > 80 ? "..." : ""))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
+                        EnhancedMathText(
+                            String(question.explanation.prefix(80)) + (question.explanation.count > 80 ? "..." : ""),
+                            fontSize: 12
+                        )
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
                     }
                     .padding(.top, 4)
                 }
