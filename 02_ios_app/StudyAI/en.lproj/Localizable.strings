@@ -764,6 +764,8 @@
 "chat.alert.currentChatExists.message" = "You have an active chat session. Would you like to archive it first, or discard it and start a new session with this homework question?";
 "chat.alert.currentChatExists.archiveCurrent" = "Archive Current Chat";
 "chat.alert.currentChatExists.discardAndStart" = "Discard & Start New";
+"chat.alert.currentChatExists.continueCurrent" = "Continue with Previous Chat";
+"chat.alert.currentChatExists.startNew" = "Start New";
 "chat.alert.error.title" = "Error";
 "chat.alert.archiveSuccess.title" = "Archive Successful! 🎉";
 "chat.alert.archiveSuccess.message" = "%@ has been successfully archived and saved to your Study Library.";

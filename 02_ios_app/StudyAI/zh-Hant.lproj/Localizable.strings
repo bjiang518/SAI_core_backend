@@ -643,6 +643,8 @@
 "chat.alert.currentChatExists.message" = "您有一個活躍的聊天會話。您想先封存它，還是捨棄它並使用此作業題目開始新會話？";
 "chat.alert.currentChatExists.archiveCurrent" = "封存目前聊天";
 "chat.alert.currentChatExists.discardAndStart" = "捨棄並開始新會話";
+"chat.alert.currentChatExists.continueCurrent" = "繼續之前的對話";
+"chat.alert.currentChatExists.startNew" = "開始新會話";
 "chat.alert.error.title" = "錯誤";
 "chat.alert.archiveSuccess.title" = "封存成功！🎉";
 "chat.alert.archiveSuccess.message" = "%@ 已成功封存並儲存到您的學習資料庫。";

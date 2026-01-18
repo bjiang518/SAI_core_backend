@@ -693,6 +693,8 @@
 "chat.alert.currentChatExists.message" = "您有一个活跃的聊天会话。您想先归档它，还是丢弃它并使用此作业题目开始新会话？";
 "chat.alert.currentChatExists.archiveCurrent" = "归档当前聊天";
 "chat.alert.currentChatExists.discardAndStart" = "丢弃并开始新会话";
+"chat.alert.currentChatExists.continueCurrent" = "继续之前的对话";
+"chat.alert.currentChatExists.startNew" = "开始新会话";
 "chat.alert.error.title" = "错误";
 "chat.alert.archiveSuccess.title" = "归档成功！🎉";
 "chat.alert.archiveSuccess.message" = "%@ 已成功归档并保存到您的学习资料库。";
