@@ -25,8 +25,12 @@ import gzip
 import time
 # REMOVED: from tenacity import retry, stop_after_attempt, wait_exponential
 # (No longer needed - OpenAI client has built-in retry logic)
+from .logger import setup_logger  # PRODUCTION: Structured logging
 
 load_dotenv()
+
+# Initialize logger
+logger = setup_logger(__name__)
 
 
 # MARK: - Pydantic Models for Structured Output
@@ -74,14 +78,14 @@ class OptimizedEducationalAIService:
     """
     
     def __init__(self):
-        print("🔄 === INITIALIZING OPTIMIZED AI SERVICE ===")
+        logger.debug("🔄 === INITIALIZING OPTIMIZED AI SERVICE ===")
         
         # Check OpenAI API key first
         api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
-            print("❌ WARNING: OPENAI_API_KEY not found in environment")
+            logger.debug("❌ WARNING: OPENAI_API_KEY not found in environment")
         else:
-            print(f"✅ OpenAI API key found: {api_key[:10]}..." if len(api_key) > 10 else "✅ OpenAI API key found (short)")
+            logger.debug(f"✅ OpenAI API key found: {api_key[:10]}..." if len(api_key) > 10 else "✅ OpenAI API key found (short)")
         
         # OpenAI client with connection pooling
         try:
@@ -90,9 +94,9 @@ class OptimizedEducationalAIService:
                 max_retries=3,
                 timeout=120.0  # 2 minutes for complex homework parsing (was 60s)
             )
-            print(f"✅ OpenAI AsyncClient initialized with 120s timeout: {type(self.client)}")
+            logger.debug(f"✅ OpenAI AsyncClient initialized with 120s timeout: {type(self.client)}")
         except Exception as e:
-            print(f"❌ Failed to initialize OpenAI client: {e}")
+            logger.debug(f"❌ Failed to initialize OpenAI client: {e}")
             raise
         
         self.prompt_service = AdvancedPromptService()
@@ -110,10 +114,10 @@ class OptimizedEducationalAIService:
             "gpt-4o": {"calls": 0, "tokens": 0}
         }
 
-        print(f"✅ Models configured:")
-        print(f"   - Mini (default): {self.model_mini}")
-        print(f"   - Standard: {self.model_standard}")
-        print(f"   - Vision: {self.vision_model}")
+        logger.debug(f"✅ Models configured:")
+        logger.debug(f"   - Mini (default): {self.model_mini}")
+        logger.debug(f"   - Standard: {self.model_standard}")
+        logger.debug(f"   - Vision: {self.vision_model}")
         
         # In-memory cache (fallback if Redis not available)
         # OPTIMIZED: Increased from 1000 to 5000 entries for better hit rate
@@ -135,8 +139,8 @@ class OptimizedEducationalAIService:
         self.cache_misses = 0
         self.total_tokens_saved = 0  # Track OpenAI cost savings
         
-        print("✅ AI Service initialization complete")
-        print("================================================")
+        logger.debug("✅ AI Service initialization complete")
+        logger.debug("================================================")
     
     # MARK: - Caching System
     
@@ -178,7 +182,7 @@ class OptimizedEducationalAIService:
             for key in oldest_keys:
                 del self.memory_cache[key]
 
-            print(f"🧹 Cache eviction: Removed {len(oldest_keys)} oldest entries")
+            logger.debug(f"🧹 Cache eviction: Removed {len(oldest_keys)} oldest entries")
 
         self.memory_cache[cache_key] = {
             'response': response,
@@ -311,13 +315,13 @@ class OptimizedEducationalAIService:
 
         if image_size_kb < 500:  # Small image (< 500KB compressed)
             tokens = 4000
-            print(f"📊 Small image detected ({image_size_kb:.0f}KB) → allocating {tokens} tokens")
+            logger.debug(f"📊 Small image detected ({image_size_kb:.0f}KB) → allocating {tokens} tokens")
         elif image_size_kb < 1500:  # Medium image (500KB-1.5MB)
             tokens = 6000
-            print(f"📊 Medium image detected ({image_size_kb:.0f}KB) → allocating {tokens} tokens")
+            logger.debug(f"📊 Medium image detected ({image_size_kb:.0f}KB) → allocating {tokens} tokens")
         else:  # Large/complex image (> 1.5MB)
             tokens = 8000
-            print(f"📊 Large image detected ({image_size_kb:.0f}KB) → allocating {tokens} tokens")
+            logger.debug(f"📊 Large image detected ({image_size_kb:.0f}KB) → allocating {tokens} tokens")
 
         return tokens
 
@@ -328,8 +332,8 @@ class OptimizedEducationalAIService:
         Parse questions from text using robust delimiter-based approach.
         Much more reliable than JSON parsing for question generation.
         """
-        print(f"🔍 Starting robust text parsing for questions...")
-        print(f"📝 Raw response length: {len(raw_response)} characters")
+        logger.debug(f"🔍 Starting robust text parsing for questions...")
+        logger.debug(f"📝 Raw response length: {len(raw_response)} characters")
 
         questions = []
 
@@ -337,13 +341,13 @@ class OptimizedEducationalAIService:
         try:
             json_data = json.loads(raw_response)
             if isinstance(json_data, list):
-                print(f"✅ Successfully parsed as direct JSON array with {len(json_data)} questions")
+                logger.debug(f"✅ Successfully parsed as direct JSON array with {len(json_data)} questions")
                 return json_data
             elif isinstance(json_data, dict) and "questions" in json_data:
-                print(f"✅ Successfully parsed as JSON object with {len(json_data['questions'])} questions")
+                logger.debug(f"✅ Successfully parsed as JSON object with {len(json_data['questions'])} questions")
                 return json_data["questions"]
         except (json.JSONDecodeError, KeyError):
-            print(f"⚠️ JSON parsing failed, switching to text parsing...")
+            logger.debug(f"⚠️ JSON parsing failed, switching to text parsing...")
 
         # Text-based parsing with delimiters
         # Look for question patterns: "question": "...", "type": "...", etc.
@@ -416,14 +420,14 @@ class OptimizedEducationalAIService:
                     current_question['options'] = None
 
                 questions.append(current_question.copy())
-                print(f"✅ Parsed question {len(questions)}: {current_question['question'][:50]}...")
+                logger.debug(f"✅ Parsed question {len(questions)}: {current_question['question'][:50]}...")
                 current_question = {}
 
-        print(f"🎯 Text parsing completed: {len(questions)} questions extracted")
+        logger.debug(f"🎯 Text parsing completed: {len(questions)} questions extracted")
 
         # If text parsing failed, try even more aggressive parsing
         if len(questions) == 0:
-            print(f"⚠️ Text parsing found no questions, trying aggressive fallback...")
+            logger.debug(f"⚠️ Text parsing found no questions, trying aggressive fallback...")
             questions = self._aggressive_question_extraction(raw_response)
 
         return questions
@@ -457,7 +461,7 @@ class OptimizedEducationalAIService:
                     'options': None
                 })
 
-        print(f"🔍 Aggressive extraction found {len(questions)} question patterns")
+        logger.debug(f"🔍 Aggressive extraction found {len(questions)} question patterns")
         return questions[:5]  # Limit to 5 questions max
     
     # REMOVED: @retry decorator - causes excessive timeout (374s total)
@@ -501,7 +505,7 @@ class OptimizedEducationalAIService:
             image_hash = self._get_image_hash(base64_image, parsing_mode)
             cached_result = self._get_cached_image_result(image_hash)
             if cached_result:
-                print(f"✅ IMAGE CACHE HIT for parsing_mode={parsing_mode}")
+                logger.debug(f"✅ IMAGE CACHE HIT for parsing_mode={parsing_mode}")
                 return cached_result
 
             # Create the strict JSON schema prompt
@@ -518,22 +522,22 @@ class OptimizedEducationalAIService:
             # Baseline mode: "auto" detail for faster processing
             image_detail = "high" if parsing_mode == "hierarchical" else "auto"
 
-            print(f"🔍 Allocating {max_tokens} tokens for homework parsing")
-            print(f"🖼️ Image detail level: {image_detail} (parsing_mode={parsing_mode})")
+            logger.debug(f"🔍 Allocating {max_tokens} tokens for homework parsing")
+            logger.debug(f"🖼️ Image detail level: {image_detail} (parsing_mode={parsing_mode})")
 
             # Call OpenAI with structured output (guaranteed JSON)
             # Note: Structured outputs are only available in certain OpenAI SDK versions
             # For now, use regular chat completions with JSON mode
 
-            print(f"🚀 === CALLING OPENAI API ===")
-            print(f"📊 Model: {self.structured_output_model}")
-            print(f"🎯 Max tokens: {max_tokens}")
-            print(f"🔧 Parsing mode: {parsing_mode}")
-            print(f"🖼️ Image detail: {image_detail}")
-            print(f"📏 System prompt length: {len(system_prompt)} chars")
-            print(f"📸 Image size: {len(base64_image)} chars")
-            print(f"⏱️ Client timeout: 120s (for complex parsing)")
-            print(f"=====================================")
+            logger.debug(f"🚀 === CALLING OPENAI API ===")
+            logger.debug(f"📊 Model: {self.structured_output_model}")
+            logger.debug(f"🎯 Max tokens: {max_tokens}")
+            logger.debug(f"🔧 Parsing mode: {parsing_mode}")
+            logger.debug(f"🖼️ Image detail: {image_detail}")
+            logger.debug(f"📏 System prompt length: {len(system_prompt)} chars")
+            logger.debug(f"📸 Image size: {len(base64_image)} chars")
+            logger.debug(f"⏱️ Client timeout: 120s (for complex parsing)")
+            logger.debug(f"=====================================")
 
             import time
             api_call_start = time.time()
@@ -575,26 +579,26 @@ CRITICAL INSTRUCTIONS:
                 )
 
                 api_call_duration = time.time() - api_call_start
-                print(f"✅ === OPENAI API CALL COMPLETED ===")
-                print(f"⏱️ Duration: {api_call_duration:.2f}s")
-                print(f"=====================================")
+                logger.debug(f"✅ === OPENAI API CALL COMPLETED ===")
+                logger.debug(f"⏱️ Duration: {api_call_duration:.2f}s")
+                logger.debug(f"=====================================")
 
             except Exception as api_error:
                 api_call_duration = time.time() - api_call_start
-                print(f"❌ === OPENAI API CALL FAILED ===")
-                print(f"⏱️ Duration: {api_call_duration:.2f}s")
-                print(f"❌ Error type: {type(api_error).__name__}")
-                print(f"❌ Error message: {str(api_error)}")
-                print(f"=====================================")
+                logger.debug(f"❌ === OPENAI API CALL FAILED ===")
+                logger.debug(f"⏱️ Duration: {api_call_duration:.2f}s")
+                logger.debug(f"❌ Error type: {type(api_error).__name__}")
+                logger.debug(f"❌ Error message: {str(api_error)}")
+                logger.debug(f"=====================================")
                 raise
 
             # Parse JSON response manually
             raw_response = response.choices[0].message.content
 
-            print(f"✅ === OPENAI RESPONSE RECEIVED ===")
-            print(f"📊 Raw response length: {len(raw_response)} chars")
-            print(f"📄 Response preview: {raw_response[:200]}...")
-            print(f"=====================================")
+            logger.debug(f"✅ === OPENAI RESPONSE RECEIVED ===")
+            logger.debug(f"📊 Raw response length: {len(raw_response)} chars")
+            logger.debug(f"📄 Response preview: {raw_response[:200]}...")
+            logger.debug(f"=====================================")
 
             try:
                 # Parse JSON
@@ -607,23 +611,23 @@ CRITICAL INSTRUCTIONS:
                 # PHASE 1 OPTIMIZATION: Normalize optimized field names to full names
                 result_dict = self._normalize_field_names(result_dict)
 
-                print(f"✅ === JSON PARSED SUCCESSFULLY ===")
-                print(f"📊 Keys: {list(result_dict.keys())}")
-                print(f"📚 Subject: {result_dict.get('subject', 'Unknown')}")
-                print(f"📊 Total questions found: {result_dict.get('total_questions_found', 0)}")
-                print(f"📝 Questions array length: {len(result_dict.get('questions', []))}")
+                logger.debug(f"✅ === JSON PARSED SUCCESSFULLY ===")
+                logger.debug(f"📊 Keys: {list(result_dict.keys())}")
+                logger.debug(f"📚 Subject: {result_dict.get('subject', 'Unknown')}")
+                logger.debug(f"📊 Total questions found: {result_dict.get('total_questions_found', 0)}")
+                logger.debug(f"📝 Questions array length: {len(result_dict.get('questions', []))}")
 
                 # Validate JSON structure
                 if not self._validate_json_structure(result_dict):
-                    print(f"⚠️ JSON structure validation failed, attempting repair...")
+                    logger.debug(f"⚠️ JSON structure validation failed, attempting repair...")
                     result_dict = self._repair_json_structure(result_dict)
 
                 # Log full JSON for debugging
-                print(f"📄 === FULL JSON RESPONSE ===")
-                print(json.dumps(result_dict, indent=2))
-                print(f"=====================================")
+                logger.debug(f"📄 === FULL JSON RESPONSE ===")
+                logger.debug(json.dumps(result_dict, indent=2))
+                logger.debug(f"=====================================")
 
-                print(f"✅ JSON parsing complete - skipping legacy conversion (iOS uses direct JSON)")
+                logger.debug(f"✅ JSON parsing complete - skipping legacy conversion (iOS uses direct JSON)")
 
                 # OPTIMIZATION: Skip legacy format conversion since iOS parses JSON directly
                 # Legacy format only generated as fallback when JSON parsing fails
@@ -642,14 +646,14 @@ CRITICAL INSTRUCTIONS:
 
                 return result
             except json.JSONDecodeError as je:
-                print(f"⚠️ JSON decode error: {je}")
-                print(f"📄 Raw response: {raw_response[:500]}...")
+                logger.debug(f"⚠️ JSON decode error: {je}")
+                logger.debug(f"📄 Raw response: {raw_response[:500]}...")
                 # Fallback to text parsing
                 return await self._fallback_text_parsing(raw_response, custom_prompt)
 
         except Exception as e:
-            print(f"❌ Structured output parsing error: {e}")
-            print(f"❌ Error type: {type(e).__name__}")
+            logger.debug(f"❌ Structured output parsing error: {e}")
+            logger.debug(f"❌ Error type: {type(e).__name__}")
 
             # Fallback to old method if structured outputs fail
             return {
@@ -1055,7 +1059,7 @@ GENERAL GRADING RULES:
 
         # Special handling for Essay grading
         if subject and subject.lower() == "essay":
-            print(f"📝 Using Essay-specific grading prompt")
+            logger.debug(f"📝 Using Essay-specific grading prompt")
             return self._create_essay_grading_prompt()
 
         # Get subject-specific grading rules
@@ -1068,7 +1072,7 @@ GENERAL GRADING RULES:
         else:
             use_hierarchical = os.getenv('USE_HIERARCHICAL_PARSING', 'false').lower() == 'true'
 
-        print(f"🔧 Parsing mode: {'hierarchical' if use_hierarchical else 'baseline (fast)'}")
+        logger.debug(f"🔧 Parsing mode: {'hierarchical' if use_hierarchical else 'baseline (fast)'}")
 
         if use_hierarchical:
             # OPTIMIZED HIERARCHICAL PROMPT: Compact version with proper parent-child format
@@ -1366,7 +1370,7 @@ RULES:
 
             return cleaned
         except Exception as e:
-            print(f"⚠️ JSON cleaning error: {e}")
+            logger.debug(f"⚠️ JSON cleaning error: {e}")
             return raw_response
 
     def _repair_json_structure(self, json_data: Dict) -> Dict:
@@ -1433,7 +1437,7 @@ RULES:
         # Ensure processing_notes exists
         repaired.setdefault("processing_notes", "JSON structure repaired for consistency")
 
-        print(f"✅ JSON structure repaired: {len(repaired['questions'])} questions validated")
+        logger.debug(f"✅ JSON structure repaired: {len(repaired['questions'])} questions validated")
 
         return repaired
 
@@ -1545,7 +1549,7 @@ RULES:
     async def _fallback_text_parsing(self, raw_response: str, custom_prompt: Optional[str]) -> Dict[str, Any]:
         """Robust fallback parsing when JSON format fails."""
         
-        print("🔄 Using fallback text parsing...")
+        logger.debug("🔄 Using fallback text parsing...")
         
         try:
             # Try to extract structured information from text
@@ -1586,7 +1590,7 @@ RULES:
             }
             
         except Exception as fallback_error:
-            print(f"❌ Fallback parsing also failed: {fallback_error}")
+            logger.debug(f"❌ Fallback parsing also failed: {fallback_error}")
             return {
                 "success": False,
                 "structured_response": self._create_error_response(f"All parsing methods failed: {fallback_error}"),
@@ -1957,8 +1961,8 @@ class EducationalAIService:
         Parse questions from text using robust delimiter-based approach.
         Much more reliable than JSON parsing for question generation.
         """
-        print(f"🔍 Starting robust text parsing for questions...")
-        print(f"📝 Raw response length: {len(raw_response)} characters")
+        logger.debug(f"🔍 Starting robust text parsing for questions...")
+        logger.debug(f"📝 Raw response length: {len(raw_response)} characters")
 
         questions = []
 
@@ -1966,13 +1970,13 @@ class EducationalAIService:
         try:
             json_data = json.loads(raw_response)
             if isinstance(json_data, list):
-                print(f"✅ Successfully parsed as direct JSON array with {len(json_data)} questions")
+                logger.debug(f"✅ Successfully parsed as direct JSON array with {len(json_data)} questions")
                 return json_data
             elif isinstance(json_data, dict) and "questions" in json_data:
-                print(f"✅ Successfully parsed as JSON object with {len(json_data['questions'])} questions")
+                logger.debug(f"✅ Successfully parsed as JSON object with {len(json_data['questions'])} questions")
                 return json_data["questions"]
         except (json.JSONDecodeError, KeyError):
-            print(f"⚠️ JSON parsing failed, switching to text parsing...")
+            logger.debug(f"⚠️ JSON parsing failed, switching to text parsing...")
 
         # Text-based parsing with delimiters
         # Look for question patterns: "question": "...", "type": "...", etc.
@@ -2045,14 +2049,14 @@ class EducationalAIService:
                     current_question['options'] = None
 
                 questions.append(current_question.copy())
-                print(f"✅ Parsed question {len(questions)}: {current_question['question'][:50]}...")
+                logger.debug(f"✅ Parsed question {len(questions)}: {current_question['question'][:50]}...")
                 current_question = {}
 
-        print(f"🎯 Text parsing completed: {len(questions)} questions extracted")
+        logger.debug(f"🎯 Text parsing completed: {len(questions)} questions extracted")
 
         # If text parsing failed, try even more aggressive parsing
         if len(questions) == 0:
-            print(f"⚠️ Text parsing found no questions, trying aggressive fallback...")
+            logger.debug(f"⚠️ Text parsing found no questions, trying aggressive fallback...")
             questions = self._aggressive_question_extraction(raw_response)
 
         return questions
@@ -2086,7 +2090,7 @@ class EducationalAIService:
                     'options': None
                 })
 
-        print(f"🔍 Aggressive extraction found {len(questions)} question patterns")
+        logger.debug(f"🔍 Aggressive extraction found {len(questions)} question patterns")
         return questions[:5]  # Limit to 5 questions max
     
     def _identify_key_concepts(self, text: str, subject: str) -> List[str]:
@@ -2142,30 +2146,30 @@ class EducationalAIService:
         """
         
         try:
-            print(f"🔄 === AI SERVICE: CHAT IMAGE ANALYSIS START ===")
-            print(f"📝 User Prompt: {user_prompt}")
-            print(f"📚 Subject: {subject}")
-            print(f"🆔 Session: {session_id}")
-            print(f"📄 Image length: {len(base64_image)} chars")
+            logger.debug(f"🔄 === AI SERVICE: CHAT IMAGE ANALYSIS START ===")
+            logger.debug(f"📝 User Prompt: {user_prompt}")
+            logger.debug(f"📚 Subject: {subject}")
+            logger.debug(f"🆔 Session: {session_id}")
+            logger.debug(f"📄 Image length: {len(base64_image)} chars")
             
             # Check if OpenAI API key is available
             api_key = os.getenv('OPENAI_API_KEY')
             if not api_key:
                 raise Exception("OpenAI API key not configured")
-            print(f"✅ OpenAI API key verified: {api_key[:10]}..." if len(api_key) > 10 else "✅ API key verified")
+            logger.debug(f"✅ OpenAI API key verified: {api_key[:10]}..." if len(api_key) > 10 else "✅ API key verified")
             
             # Verify client is available
             if not self.client:
                 raise Exception("OpenAI client not initialized")
-            print(f"✅ OpenAI client available: {type(self.client)}")
+            logger.debug(f"✅ OpenAI client available: {type(self.client)}")
             
             # Create conversational prompt optimized for chat
-            print("🔄 Creating chat image prompt...")
+            logger.debug("🔄 Creating chat image prompt...")
             system_prompt = self._create_chat_image_prompt(user_prompt, subject, student_context)
-            print(f"✅ System prompt created: {len(system_prompt)} chars")
+            logger.debug(f"✅ System prompt created: {len(system_prompt)} chars")
             
             # Prepare image for OpenAI Vision API
-            print("🔄 Preparing image for OpenAI Vision API...")
+            logger.debug("🔄 Preparing image for OpenAI Vision API...")
             image_url = f"data:image/jpeg;base64,{base64_image}"
             
             messages = [
@@ -2190,14 +2194,14 @@ class EducationalAIService:
                     ]
                 }
             ]
-            print(f"✅ Messages prepared: {len(messages)} messages")
-            print(f"📊 System prompt length: {len(system_prompt)} chars")
-            print(f"📊 User prompt length: {len(user_prompt)} chars")
-            print(f"📊 Image URL length: {len(image_url)} chars")
+            logger.debug(f"✅ Messages prepared: {len(messages)} messages")
+            logger.debug(f"📊 System prompt length: {len(system_prompt)} chars")
+            logger.debug(f"📊 User prompt length: {len(user_prompt)} chars")
+            logger.debug(f"📊 Image URL length: {len(image_url)} chars")
             
-            print(f"📡 Calling OpenAI Vision API...")
-            print(f"🤖 Model: {self.vision_model}")
-            print(f"⚙️ Settings: max_tokens=800, temperature=0.7")
+            logger.debug(f"📡 Calling OpenAI Vision API...")
+            logger.debug(f"🤖 Model: {self.vision_model}")
+            logger.debug(f"⚙️ Settings: max_tokens=800, temperature=0.7")
             
             # Use vision model with optimized settings for chat
             response = await self.client.chat.completions.create(
@@ -2208,15 +2212,15 @@ class EducationalAIService:
                 stream=False
             )
             
-            print(f"✅ OpenAI API call completed successfully")
-            print(f"📊 Response type: {type(response)}")
+            logger.debug(f"✅ OpenAI API call completed successfully")
+            logger.debug(f"📊 Response type: {type(response)}")
             
             ai_response = response.choices[0].message.content.strip()
             tokens_used = response.usage.total_tokens if response.usage else 0
             
-            print(f"✅ === AI SERVICE: CHAT IMAGE ANALYSIS SUCCESS ===")
-            print(f"📝 Response length: {len(ai_response)} chars")
-            print(f"🎯 Tokens used: {tokens_used}")
+            logger.debug(f"✅ === AI SERVICE: CHAT IMAGE ANALYSIS SUCCESS ===")
+            logger.debug(f"📝 Response length: {len(ai_response)} chars")
+            logger.debug(f"🎯 Tokens used: {tokens_used}")
             
             return {
                 "success": True,
@@ -2232,17 +2236,17 @@ class EducationalAIService:
             error_msg = f"Chat image analysis failed: {str(e) if str(e) else 'Unknown error'}"
             full_traceback = traceback.format_exc()
             
-            print(f"❌ === AI SERVICE: CHAT IMAGE ANALYSIS ERROR ===")
-            print(f"💥 Error message: '{str(e)}'")
-            print(f"💥 Error repr: {repr(e)}")
-            print(f"🔧 Exception type: {type(e).__name__}")
-            print(f"🔧 Exception module: {type(e).__module__}")
-            print(f"🔧 Exception args: {e.args}")
-            print(f"📋 Full traceback:")
-            print(full_traceback)
-            print(f"🔍 OpenAI API key available: {bool(os.getenv('OPENAI_API_KEY'))}")
-            print(f"🔍 Client type: {type(self.client)}")
-            print(f"=====================================")
+            logger.debug(f"❌ === AI SERVICE: CHAT IMAGE ANALYSIS ERROR ===")
+            logger.debug(f"💥 Error message: '{str(e)}'")
+            logger.debug(f"💥 Error repr: {repr(e)}")
+            logger.debug(f"🔧 Exception type: {type(e).__name__}")
+            logger.debug(f"🔧 Exception module: {type(e).__module__}")
+            logger.debug(f"🔧 Exception args: {e.args}")
+            logger.debug(f"📋 Full traceback:")
+            logger.debug(full_traceback)
+            logger.debug(f"🔍 OpenAI API key available: {bool(os.getenv('OPENAI_API_KEY'))}")
+            logger.debug(f"🔍 Client type: {type(self.client)}")
+            logger.debug(f"=====================================")
             
             # Return more detailed error for debugging
             detailed_error = f"{error_msg} | Type: {type(e).__name__} | Args: {e.args} | Traceback: {full_traceback[:500]}"
@@ -2286,11 +2290,11 @@ class EducationalAIService:
         accumulated_content = ""
 
         try:
-            print(f"🔄 === AI SERVICE: STREAMING CHAT IMAGE ANALYSIS START ===")
-            print(f"📝 User Prompt: {user_prompt}")
-            print(f"📚 Subject: {subject}")
-            print(f"🆔 Session: {session_id}")
-            print(f"📄 Image length: {len(base64_image)} chars")
+            logger.debug(f"🔄 === AI SERVICE: STREAMING CHAT IMAGE ANALYSIS START ===")
+            logger.debug(f"📝 User Prompt: {user_prompt}")
+            logger.debug(f"📚 Subject: {subject}")
+            logger.debug(f"🆔 Session: {session_id}")
+            logger.debug(f"📄 Image length: {len(base64_image)} chars")
 
             # Check if OpenAI API key is available
             api_key = os.getenv('OPENAI_API_KEY')
@@ -2332,8 +2336,8 @@ class EducationalAIService:
                 }
             ]
 
-            print(f"📡 Calling OpenAI Vision API with STREAMING...")
-            print(f"🤖 Model: {self.vision_model}")
+            logger.debug(f"📡 Calling OpenAI Vision API with STREAMING...")
+            logger.debug(f"🤖 Model: {self.vision_model}")
 
             # Send start event
             yield json.dumps({
@@ -2372,9 +2376,9 @@ class EducationalAIService:
                         finish_reason = chunk.choices[0].finish_reason
                         processing_time = int((time.time() - start_time) * 1000)
 
-                        print(f"✅ === AI SERVICE: STREAMING CHAT IMAGE ANALYSIS COMPLETE ===")
-                        print(f"📝 Total response length: {len(accumulated_content)} chars")
-                        print(f"⏱️ Processing time: {processing_time}ms")
+                        logger.debug(f"✅ === AI SERVICE: STREAMING CHAT IMAGE ANALYSIS COMPLETE ===")
+                        logger.debug(f"📝 Total response length: {len(accumulated_content)} chars")
+                        logger.debug(f"⏱️ Processing time: {processing_time}ms")
 
                         # Send end event
                         yield json.dumps({
@@ -2391,10 +2395,10 @@ class EducationalAIService:
             error_msg = f"Streaming chat image analysis failed: {str(e)}"
             full_traceback = traceback.format_exc()
 
-            print(f"❌ === AI SERVICE: STREAMING CHAT IMAGE ANALYSIS ERROR ===")
-            print(f"💥 Error: {error_msg}")
-            print(f"📋 Full traceback:")
-            print(full_traceback)
+            logger.debug(f"❌ === AI SERVICE: STREAMING CHAT IMAGE ANALYSIS ERROR ===")
+            logger.debug(f"💥 Error: {error_msg}")
+            logger.debug(f"📋 Full traceback:")
+            logger.debug(full_traceback)
 
             # Send error event
             yield json.dumps({
@@ -2460,23 +2464,23 @@ Focus on being helpful and educational while maintaining a conversational tone."
         """
 
         try:
-            print(f"🎯 === AI SERVICE: RANDOM QUESTIONS GENERATION START ===")
-            print(f"📚 Subject: {subject}")
-            print(f"⚙️  Config: {config}")
-            print(f"👤 User Profile: {user_profile}")
+            logger.debug(f"🎯 === AI SERVICE: RANDOM QUESTIONS GENERATION START ===")
+            logger.debug(f"📚 Subject: {subject}")
+            logger.debug(f"⚙️  Config: {config}")
+            logger.debug(f"👤 User Profile: {user_profile}")
 
             # Generate the comprehensive prompt
             system_prompt = self.prompt_service.get_random_questions_prompt(subject, config, user_profile)
 
-            print(f"📝 === FULL INPUT PROMPT FOR RANDOM QUESTIONS ===")
-            print(f"📄 Prompt Length: {len(system_prompt)} characters")
-            print(f"📋 Full Prompt Content:")
-            print("=" * 80)
-            print(system_prompt)
-            print("=" * 80)
+            logger.debug(f"📝 === FULL INPUT PROMPT FOR RANDOM QUESTIONS ===")
+            logger.debug(f"📄 Prompt Length: {len(system_prompt)} characters")
+            logger.debug(f"📋 Full Prompt Content:")
+            logger.debug("=" * 80)
+            logger.debug(system_prompt)
+            logger.debug("=" * 80)
 
             # Call OpenAI with JSON response format enforcement
-            print(f"📡 Calling OpenAI API for question generation...")
+            logger.debug(f"📡 Calling OpenAI API for question generation...")
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -2491,10 +2495,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
             raw_response = response.choices[0].message.content
             tokens_used = response.usage.total_tokens if response.usage else 0
 
-            print(f"✅ OpenAI API call completed")
-            print(f"📊 Tokens used: {tokens_used}")
-            print(f"📝 Raw response length: {len(raw_response)} characters")
-            print(f"📋 Raw Response Preview: {raw_response[:200]}...")
+            logger.debug(f"✅ OpenAI API call completed")
+            logger.debug(f"📊 Tokens used: {tokens_used}")
+            logger.debug(f"📝 Raw response length: {len(raw_response)} characters")
+            logger.debug(f"📋 Raw Response Preview: {raw_response[:200]}...")
 
             # Use robust text parsing instead of fragile JSON parsing
             try:
@@ -2517,8 +2521,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")
 
-                print(f"✅ === AI SERVICE: RANDOM QUESTIONS GENERATION SUCCESS ===")
-                print(f"🎯 Generated {len(questions_json)} questions")
+                logger.debug(f"✅ === AI SERVICE: RANDOM QUESTIONS GENERATION SUCCESS ===")
+                logger.debug(f"🎯 Generated {len(questions_json)} questions")
 
                 return {
                     "success": True,
@@ -2537,8 +2541,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 }
 
             except (ValueError, Exception) as parse_error:
-                print(f"⚠️ Question parsing failed: {parse_error}")
-                print(f"📄 Raw response: {raw_response}")
+                logger.debug(f"⚠️ Question parsing failed: {parse_error}")
+                logger.debug(f"📄 Raw response: {raw_response}")
 
                 return {
                     "success": False,
@@ -2549,10 +2553,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 }
 
         except Exception as e:
-            print(f"❌ === AI SERVICE: RANDOM QUESTIONS GENERATION ERROR ===")
-            print(f"💥 Error: {str(e)}")
+            logger.debug(f"❌ === AI SERVICE: RANDOM QUESTIONS GENERATION ERROR ===")
+            logger.debug(f"💥 Error: {str(e)}")
             import traceback
-            print(f"📋 Full traceback: {traceback.format_exc()}")
+            logger.debug(f"📋 Full traceback: {traceback.format_exc()}")
 
             return {
                 "success": False,
@@ -2582,26 +2586,26 @@ Focus on being helpful and educational while maintaining a conversational tone."
         """
 
         try:
-            print(f"🎯 === AI SERVICE: MISTAKE-BASED QUESTIONS GENERATION START ===")
-            print(f"📚 Subject: {subject}")
-            print(f"❌ Mistakes Count: {len(mistakes_data)}")
-            print(f"⚙️  Config: {config}")
-            print(f"👤 User Profile: {user_profile}")
+            logger.debug(f"🎯 === AI SERVICE: MISTAKE-BASED QUESTIONS GENERATION START ===")
+            logger.debug(f"📚 Subject: {subject}")
+            logger.debug(f"❌ Mistakes Count: {len(mistakes_data)}")
+            logger.debug(f"⚙️  Config: {config}")
+            logger.debug(f"👤 User Profile: {user_profile}")
 
             # Generate the comprehensive prompt
             system_prompt = self.prompt_service.get_mistake_based_questions_prompt(
                 subject, mistakes_data, config, user_profile
             )
 
-            print(f"📝 === FULL INPUT PROMPT FOR MISTAKE-BASED QUESTIONS ===")
-            print(f"📄 Prompt Length: {len(system_prompt)} characters")
-            print(f"📋 Full Prompt Content:")
-            print("=" * 80)
-            print(system_prompt)
-            print("=" * 80)
+            logger.debug(f"📝 === FULL INPUT PROMPT FOR MISTAKE-BASED QUESTIONS ===")
+            logger.debug(f"📄 Prompt Length: {len(system_prompt)} characters")
+            logger.debug(f"📋 Full Prompt Content:")
+            logger.debug("=" * 80)
+            logger.debug(system_prompt)
+            logger.debug("=" * 80)
 
             # Call OpenAI with JSON response format enforcement
-            print(f"📡 Calling OpenAI API for mistake-based question generation...")
+            logger.debug(f"📡 Calling OpenAI API for mistake-based question generation...")
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -2616,10 +2620,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
             raw_response = response.choices[0].message.content
             tokens_used = response.usage.total_tokens if response.usage else 0
 
-            print(f"✅ OpenAI API call completed")
-            print(f"📊 Tokens used: {tokens_used}")
-            print(f"📝 Raw response length: {len(raw_response)} characters")
-            print(f"📋 Raw Response Preview: {raw_response[:200]}...")
+            logger.debug(f"✅ OpenAI API call completed")
+            logger.debug(f"📊 Tokens used: {tokens_used}")
+            logger.debug(f"📝 Raw response length: {len(raw_response)} characters")
+            logger.debug(f"📋 Raw Response Preview: {raw_response[:200]}...")
 
             # Use robust text parsing instead of fragile JSON parsing
             try:
@@ -2640,12 +2644,12 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 # ENFORCEMENT: Override all question tags with source tags
                 # This ensures tag inheritance even if AI doesn't follow instructions
                 if unique_source_tags:
-                    print(f"🏷️ Enforcing tag inheritance: {unique_source_tags}")
+                    logger.debug(f"🏷️ Enforcing tag inheritance: {unique_source_tags}")
                     for question in questions_json:
                         question['tags'] = unique_source_tags
-                        print(f"  ✓ Set tags for question: '{question.get('question', '')[:50]}...'")
+                        logger.debug(f"  ✓ Set tags for question: '{question.get('question', '')[:50]}...'")
                 else:
-                    print(f"⚠️ No source tags found in mistakes_data, generated questions will have no tags")
+                    logger.debug(f"⚠️ No source tags found in mistakes_data, generated questions will have no tags")
 
                 # Validate each question has required fields
                 required_fields = ["question", "question_type", "correct_answer", "explanation", "topic"]
@@ -2660,8 +2664,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")
 
-                print(f"✅ === AI SERVICE: MISTAKE-BASED QUESTIONS GENERATION SUCCESS ===")
-                print(f"🎯 Generated {len(questions_json)} remedial questions")
+                logger.debug(f"✅ === AI SERVICE: MISTAKE-BASED QUESTIONS GENERATION SUCCESS ===")
+                logger.debug(f"🎯 Generated {len(questions_json)} remedial questions")
 
                 return {
                     "success": True,
@@ -2682,8 +2686,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 }
 
             except (json.JSONDecodeError, ValueError) as parse_error:
-                print(f"⚠️ JSON parsing failed: {parse_error}")
-                print(f"📄 Raw response: {raw_response}")
+                logger.debug(f"⚠️ JSON parsing failed: {parse_error}")
+                logger.debug(f"📄 Raw response: {raw_response}")
 
                 return {
                     "success": False,
@@ -2694,10 +2698,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 }
 
         except Exception as e:
-            print(f"❌ === AI SERVICE: MISTAKE-BASED QUESTIONS GENERATION ERROR ===")
-            print(f"💥 Error: {str(e)}")
+            logger.debug(f"❌ === AI SERVICE: MISTAKE-BASED QUESTIONS GENERATION ERROR ===")
+            logger.debug(f"💥 Error: {str(e)}")
             import traceback
-            print(f"📋 Full traceback: {traceback.format_exc()}")
+            logger.debug(f"📋 Full traceback: {traceback.format_exc()}")
 
             return {
                 "success": False,
@@ -2727,26 +2731,26 @@ Focus on being helpful and educational while maintaining a conversational tone."
         """
 
         try:
-            print(f"🎯 === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION START ===")
-            print(f"📚 Subject: {subject}")
-            print(f"💬 Conversations Count: {len(conversation_data)}")
-            print(f"⚙️  Config: {config}")
-            print(f"👤 User Profile: {user_profile}")
+            logger.debug(f"🎯 === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION START ===")
+            logger.debug(f"📚 Subject: {subject}")
+            logger.debug(f"💬 Conversations Count: {len(conversation_data)}")
+            logger.debug(f"⚙️  Config: {config}")
+            logger.debug(f"👤 User Profile: {user_profile}")
 
             # Generate the comprehensive prompt
             system_prompt = self.prompt_service.get_conversation_based_questions_prompt(
                 subject, conversation_data, config, user_profile
             )
 
-            print(f"📝 === FULL INPUT PROMPT FOR CONVERSATION-BASED QUESTIONS ===")
-            print(f"📄 Prompt Length: {len(system_prompt)} characters")
-            print(f"📋 Full Prompt Content:")
-            print("=" * 80)
-            print(system_prompt)
-            print("=" * 80)
+            logger.debug(f"📝 === FULL INPUT PROMPT FOR CONVERSATION-BASED QUESTIONS ===")
+            logger.debug(f"📄 Prompt Length: {len(system_prompt)} characters")
+            logger.debug(f"📋 Full Prompt Content:")
+            logger.debug("=" * 80)
+            logger.debug(system_prompt)
+            logger.debug("=" * 80)
 
             # Call OpenAI with JSON response format enforcement
-            print(f"📡 Calling OpenAI API for conversation-based question generation...")
+            logger.debug(f"📡 Calling OpenAI API for conversation-based question generation...")
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -2761,10 +2765,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
             raw_response = response.choices[0].message.content
             tokens_used = response.usage.total_tokens if response.usage else 0
 
-            print(f"✅ OpenAI API call completed")
-            print(f"📊 Tokens used: {tokens_used}")
-            print(f"📝 Raw response length: {len(raw_response)} characters")
-            print(f"📋 Raw Response Preview: {raw_response[:200]}...")
+            logger.debug(f"✅ OpenAI API call completed")
+            logger.debug(f"📊 Tokens used: {tokens_used}")
+            logger.debug(f"📝 Raw response length: {len(raw_response)} characters")
+            logger.debug(f"📋 Raw Response Preview: {raw_response[:200]}...")
 
             # Use robust text parsing instead of fragile JSON parsing
             try:
@@ -2787,8 +2791,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")
 
-                print(f"✅ === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION SUCCESS ===")
-                print(f"🎯 Generated {len(questions_json)} personalized questions")
+                logger.debug(f"✅ === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION SUCCESS ===")
+                logger.debug(f"🎯 Generated {len(questions_json)} personalized questions")
 
                 return {
                     "success": True,
@@ -2809,8 +2813,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 }
 
             except (json.JSONDecodeError, ValueError) as parse_error:
-                print(f"⚠️ JSON parsing failed: {parse_error}")
-                print(f"📄 Raw response: {raw_response}")
+                logger.debug(f"⚠️ JSON parsing failed: {parse_error}")
+                logger.debug(f"📄 Raw response: {raw_response}")
 
                 return {
                     "success": False,
@@ -2821,10 +2825,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 }
 
         except Exception as e:
-            print(f"❌ === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION ERROR ===")
-            print(f"💥 Error: {str(e)}")
+            logger.debug(f"❌ === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION ERROR ===")
+            logger.debug(f"💥 Error: {str(e)}")
             import traceback
-            print(f"📋 Full traceback: {traceback.format_exc()}")
+            logger.debug(f"📋 Full traceback: {traceback.format_exc()}")
 
             return {
                 "success": False,
@@ -2869,10 +2873,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
             - questions: List of ParsedQuestion objects with coordinates
         """
 
-        print(f"📝 === PARSING HOMEWORK WITH COORDINATES ===")
-        print(f"🔧 Mode: {parsing_mode}")
+        logger.debug(f"📝 === PARSING HOMEWORK WITH COORDINATES ===")
+        logger.debug(f"🔧 Mode: {parsing_mode}")
         if skip_bbox_detection:
-            print(f"🎨 Pro Mode: Skip bbox detection, expected questions: {len(expected_questions) if expected_questions else 0}")
+            logger.debug(f"🎨 Pro Mode: Skip bbox detection, expected questions: {len(expected_questions) if expected_questions else 0}")
 
         try:
             # Build prompt for parsing with coordinates
@@ -2890,15 +2894,15 @@ Focus on being helpful and educational while maintaining a conversational tone."
             # "low" - 512x512 resolution (fastest, but may miss text)
             # "high" - Full resolution (slowest, most accurate)
             image_detail = "auto"
-            print(f"🖼️ Image detail mode: {image_detail} (smart resolution)")
+            logger.debug(f"🖼️ Image detail mode: {image_detail} (smart resolution)")
 
             # DEBUG: Log the system prompt being used
-            print(f"📋 === SYSTEM PROMPT (first 500 chars) ===")
-            print(system_prompt[:500])
-            print(f"... (total {len(system_prompt)} chars)")
+            logger.debug(f"📋 === SYSTEM PROMPT (first 500 chars) ===")
+            logger.debug(system_prompt[:500])
+            logger.debug(f"... (total {len(system_prompt)} chars)")
 
-            print(f"🚀 Calling OpenAI Vision API...")
-            print(f"🤖 Model: {self.model_mini} (gpt-4o-mini for 2-3x speed)")
+            logger.debug(f"🚀 Calling OpenAI Vision API...")
+            logger.debug(f"🤖 Model: {self.model_mini} (gpt-4o-mini for 2-3x speed)")
             start_time = time.time()
 
             # SPEED OPTIMIZATION: Use gpt-4o-mini for Phase 1 parsing
@@ -2936,13 +2940,13 @@ Focus on being helpful and educational while maintaining a conversational tone."
             )
 
             api_duration = time.time() - start_time
-            print(f"✅ OpenAI API completed in {api_duration:.2f}s")
+            logger.debug(f"✅ OpenAI API completed in {api_duration:.2f}s")
 
             # Parse JSON response
             raw_response = response.choices[0].message.content
             result = json.loads(raw_response)
 
-            print(f"✅ OpenAI parse: {result.get('total_questions', 0)} questions, Subject: {result.get('subject', 'Unknown')}")
+            logger.debug(f"✅ OpenAI parse: {result.get('total_questions', 0)} questions, Subject: {result.get('subject', 'Unknown')}")
 
             # VALIDATION: Fix total_questions counting bug
             questions_array = result.get("questions", [])
@@ -2950,10 +2954,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
             actual_total = len(questions_array)
 
             if ai_total != actual_total:
-                print(f"⚠️  WARNING: total_questions mismatch!")
-                print(f"   AI claimed: {ai_total}")
-                print(f"   Actual array length: {actual_total}")
-                print(f"   ✅ Using actual array length: {actual_total}")
+                logger.debug(f"⚠️  WARNING: total_questions mismatch!")
+                logger.debug(f"   AI claimed: {ai_total}")
+                logger.debug(f"   Actual array length: {actual_total}")
+                logger.debug(f"   ✅ Using actual array length: {actual_total}")
 
                 # Override with correct count
                 result["total_questions"] = actual_total
@@ -2967,13 +2971,13 @@ Focus on being helpful and educational while maintaining a conversational tone."
             }
 
         except json.JSONDecodeError as e:
-            print(f"❌ JSON parsing error: {e}")
+            logger.debug(f"❌ JSON parsing error: {e}")
             return {
                 "success": False,
                 "error": f"Failed to parse JSON response: {str(e)}"
             }
         except Exception as e:
-            print(f"❌ Parsing error: {e}")
+            logger.debug(f"❌ Parsing error: {e}")
             import traceback
             traceback.print_exc()
             return {
@@ -3025,11 +3029,32 @@ Focus on being helpful and educational while maintaining a conversational tone."
             selected_model = "gpt-4o" if context_image else "gpt-4o-mini"
             mode_label = "STANDARD"
 
-        print(f"📝 === GRADING SINGLE QUESTION (OPENAI) ===")
-        print(f"🤖 Model: {selected_model} (mode={mode_label}, deep_reasoning={use_deep_reasoning}, image={context_image is not None})")
-        print(f"📚 Subject: {subject or 'General'}")
-        print(f"❓ Question: {question_text[:50]}...")
-        print(f"✍️ Student Answer: {student_answer[:50]}...")
+        logger.debug(f"📝 === GRADING SINGLE QUESTION (OPENAI) ===")
+        logger.debug(f"🤖 Model: {selected_model} (mode={mode_label}, deep_reasoning={use_deep_reasoning}, image={context_image is not None})")
+        logger.debug(f"📚 Subject: {subject or 'General'}")
+        logger.debug(f"❓ Question: {question_text[:50]}...")
+        logger.debug(f"✍️ Student Answer: {student_answer[:50]}...")
+
+        # PRE-VALIDATION: Check for exact match before calling AI
+        # This prevents false negatives when answers are identical
+        if correct_answer:
+            normalized_student = self._normalize_answer(student_answer)
+            normalized_correct = self._normalize_answer(correct_answer)
+
+            if normalized_student == normalized_correct:
+                logger.debug(f"✅ EXACT MATCH DETECTED - Skipping AI grading")
+                logger.debug(f"   Student:  '{normalized_student[:50]}'")
+                logger.debug(f"   Correct:  '{normalized_correct[:50]}'")
+                return {
+                    "success": True,
+                    "grade": {
+                        "score": 1.0,
+                        "is_correct": True,
+                        "feedback": "Correct! Perfect match.",
+                        "confidence": 1.0,
+                        "correct_answer": correct_answer
+                    }
+                }
 
         try:
             # Build grading prompt
@@ -3127,7 +3152,7 @@ If expected answer not provided above, YOU MUST determine it from the question.
             else:
                 messages.append({"role": "user", "content": user_text})
 
-            print(f"🚀 Calling {selected_model}...")
+            logger.debug(f"🚀 Calling {selected_model}...")
             start_time = time.time()
 
             # Call selected model with mode-specific configuration
@@ -3154,38 +3179,38 @@ If expected answer not provided above, YOU MUST determine it from the question.
                 )
 
             api_duration = time.time() - start_time
-            print(f"✅ Grading completed in {api_duration:.2f}s")
+            logger.debug(f"✅ Grading completed in {api_duration:.2f}s")
 
             # Parse result
             raw_response = response.choices[0].message.content
             grade_data = json.loads(raw_response)
 
-            print(f"✅ Grade: score={grade_data.get('score', 0.0)}, correct={grade_data.get('is_correct', False)}, feedback={len(grade_data.get('feedback', ''))} chars")
+            logger.debug(f"✅ Grade: score={grade_data.get('score', 0.0)}, correct={grade_data.get('is_correct', False)}, feedback={len(grade_data.get('feedback', ''))} chars")
 
             # 🔍 CRITICAL DEBUG: Check if correct_answer is present in AI response
             if 'correct_answer' in grade_data:
                 correct_ans = grade_data['correct_answer']
-                print(f"✅ correct_answer present: '{correct_ans[:50] if correct_ans else 'EMPTY STRING'}'...")
+                logger.debug(f"✅ correct_answer present: '{correct_ans[:50] if correct_ans else 'EMPTY STRING'}'...")
             else:
-                print(f"⚠️ correct_answer MISSING in AI response! Keys: {list(grade_data.keys())}")
+                logger.debug(f"⚠️ correct_answer MISSING in AI response! Keys: {list(grade_data.keys())}")
 
             # 🛡️ FALLBACK: Ensure correct_answer always exists (fix for archive bug)
             if not grade_data.get('correct_answer'):
                 # Use provided correct_answer if available, otherwise derive from question
                 if correct_answer:
                     fallback_answer = correct_answer
-                    print(f"🛡️ Using provided correct_answer as fallback: '{fallback_answer[:50]}'...")
+                    logger.debug(f"🛡️ Using provided correct_answer as fallback: '{fallback_answer[:50]}'...")
                 elif grade_data.get('is_correct'):
                     # If student is correct, their answer is the correct answer
                     fallback_answer = student_answer
-                    print(f"🛡️ Student answer correct, using as correct_answer: '{fallback_answer[:50]}'...")
+                    logger.debug(f"🛡️ Student answer correct, using as correct_answer: '{fallback_answer[:50]}'...")
                 else:
                     # Last resort: use question text as placeholder
                     fallback_answer = f"See question: {question_text[:100]}"
-                    print(f"⚠️ No correct answer available, using placeholder: '{fallback_answer[:50]}'...")
+                    logger.debug(f"⚠️ No correct answer available, using placeholder: '{fallback_answer[:50]}'...")
 
                 grade_data['correct_answer'] = fallback_answer
-                print(f"✅ Fallback correct_answer set successfully")
+                logger.debug(f"✅ Fallback correct_answer set successfully")
 
             return {
                 "success": True,
@@ -3193,13 +3218,13 @@ If expected answer not provided above, YOU MUST determine it from the question.
             }
 
         except json.JSONDecodeError as e:
-            print(f"❌ JSON parsing error: {e}")
+            logger.debug(f"❌ JSON parsing error: {e}")
             return {
                 "success": False,
                 "error": f"Failed to parse grading response: {str(e)}"
             }
         except Exception as e:
-            print(f"❌ Grading error: {e}")
+            logger.debug(f"❌ Grading error: {e}")
             import traceback
             traceback.print_exc()
             return {
@@ -3300,6 +3325,46 @@ RULES:
 4. Use LaTeX for math: \\(...\\) for inline, \\[...\\] for display
 """
 
+    def _normalize_answer(self, answer: str) -> str:
+        """
+        Normalize an answer string for comparison.
+
+        Handles:
+        - Whitespace normalization (trim, collapse multiple spaces/newlines)
+        - Case normalization (lowercase)
+        - Punctuation removal (for short numeric/single-word answers)
+        - LaTeX math delimiters (standardize to no delimiters for comparison)
+
+        Args:
+            answer: Raw answer string to normalize
+
+        Returns:
+            Normalized string for comparison
+        """
+        import re
+
+        if not answer:
+            return ""
+
+        # Step 1: Trim whitespace
+        normalized = answer.strip()
+
+        # Step 2: Collapse multiple spaces and newlines into single spaces
+        normalized = re.sub(r'\s+', ' ', normalized)
+
+        # Step 3: Remove LaTeX math delimiters for comparison
+        # Remove \( ... \) and \[ ... \] delimiters
+        normalized = re.sub(r'\\\[|\\\]|\\\(|\\\)', '', normalized)
+
+        # Step 4: Convert to lowercase for case-insensitive comparison
+        normalized = normalized.lower()
+
+        # Step 5: For short answers (< 10 chars), remove punctuation
+        # This handles cases like "14" vs "14." or "yes" vs "yes!"
+        if len(normalized) < 10:
+            normalized = re.sub(r'[.,!?;:]', '', normalized)
+
+        return normalized.strip()
 
     def _build_grading_prompt(self, subject: Optional[str]) -> str:
         """Build prompt for grading individual questions."""
