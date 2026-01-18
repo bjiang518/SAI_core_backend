@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Gemini AI Service for Homework Image Processing
 
@@ -12,6 +13,14 @@ import time
 from typing import Dict, List, Optional, Any
 from dotenv import load_dotenv
 
+# PRODUCTION: Structured logging (MUST be before any logger.debug() calls)
+from .logger import setup_logger
+
+load_dotenv()
+
+# Initialize logger EARLY (before genai import)
+logger = setup_logger(__name__)
+
 # Import NEW Gemini API (google-ai-generativelanguage >= 0.6.0)
 try:
     from google import genai
@@ -23,14 +32,6 @@ except ImportError as e:
 
 # Import subject-specific prompt generator
 from .subject_prompts import get_subject_specific_rules
-
-# PRODUCTION: Structured logging
-from .logger import setup_logger
-
-load_dotenv()
-
-# Initialize logger
-logger = setup_logger(__name__)
 
 
 class GeminiEducationalAIService:
