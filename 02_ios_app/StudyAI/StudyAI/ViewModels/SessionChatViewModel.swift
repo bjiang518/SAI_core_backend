@@ -10,6 +10,13 @@ import Foundation
 import SwiftUI
 import Combine
 
+// MARK: - Production Logging Safety
+// Disable debug print statements in production builds to prevent chat message exposure
+#if !DEBUG
+private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
+#endif
+
 // MARK: - Failed Message Model (Phase 2.2)
 
 /// Represents a message that failed to send and can be retried
@@ -306,6 +313,60 @@ class SessionChatViewModel: ObservableObject {
                     errorMessage = NSLocalizedString("error.session.creation", comment: "")
                     appState.clearPendingChatMessage()
                 }
+            }
+        }
+    }
+
+    /// Start a completely new conversation with homework question (discard current session)
+    func startNewConversationWithHomeworkQuestion() {
+        print("🟢 ============================================")
+        print("🟢 === START NEW CONVERSATION WITH HOMEWORK ===")
+        print("🟢 ============================================")
+        print("🟢 Timestamp: \(Date())")
+        print("🟢 Selected Subject: \(selectedSubject)")
+        print("🟢 Pending Homework Question: \(pendingHomeworkQuestion)")
+
+        // ✅ CRITICAL FIX: Clear conversation history IMMEDIATELY (synchronously)
+        // This ensures old messages disappear from UI right away, before async session creation
+        networkService.conversationHistory.removeAll()
+        print("🟢 🔴 CLEARED conversation history synchronously to remove old messages from UI")
+
+        // Clear AI suggestions from previous session
+        aiGeneratedSuggestions = []
+        print("🟢 Cleared AI-generated suggestions before new conversation")
+
+        // Clear diagrams from previous session
+        generatedDiagrams.removeAll()
+        print("🟢 Cleared generated diagrams before new conversation")
+
+        // ✅ FIX: Clear last generated diagram key
+        lastGeneratedDiagramKey = nil
+        print("🟢 Cleared last diagram key")
+
+        // Set the subject
+        selectedSubject = pendingHomeworkSubject
+
+        // ✅ KEY FIX: Always start a new session regardless of existing session
+        print("🟢 Starting completely new session (discarding current if exists)")
+
+        Task {
+            // Start a brand new session
+            let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
+
+            if result.success {
+                print("🟢 ✅ New session created successfully!")
+                print("🟢 New session ID: \(networkService.currentSessionId ?? "unknown")")
+
+                // Send the message immediately
+                messageText = pendingHomeworkQuestion
+                print("🟢 🔴 Clearing pendingHomeworkQuestion to prevent reuse")
+                pendingHomeworkQuestion = ""
+
+                sendMessage()
+            } else {
+                print("🟢 ❌ Failed to create new session: \(result.message)")
+                errorMessage = NSLocalizedString("error.session.creation", comment: "")
+                appState.clearPendingChatMessage()
             }
         }
     }
