@@ -21,25 +21,36 @@ class MistakeReviewService: ObservableObject {
     /// Fetch subjects with mistake counts from LOCAL STORAGE ONLY
     func fetchSubjectsWithMistakes(timeRange: MistakeTimeRange? = nil) async {
         print("🔍 [MistakeReview] === FETCHING SUBJECTS FROM LOCAL STORAGE ===")
-        print("🔍 [MistakeReview] Time range: \(timeRange?.rawValue ?? "All Time") (ignored for local)")
+        print("🔍 [MistakeReview] Time range: \(timeRange?.rawValue ?? "All Time")")
 
         isLoading = true
         errorMessage = nil
 
         // ✅ Fetch from local storage only
-        let subjectData = questionLocalStorage.getSubjectsWithMistakes()
+        let allMistakes = questionLocalStorage.getMistakeQuestions()
 
-        // Convert to SubjectMistakeCount
-        let subjects = subjectData.map { item in
-            SubjectMistakeCount(
-                subject: item.subject,
-                mistakeCount: item.count,
-                icon: getSubjectIcon(item.subject)
-            )
+        // ✅ Filter by time range
+        let filteredMistakes = filterByTimeRange(allMistakes, timeRange: timeRange)
+
+        // Group by subject and count
+        var subjectCounts: [String: Int] = [:]
+        for mistake in filteredMistakes {
+            if let subject = mistake["subject"] as? String {
+                subjectCounts[subject, default: 0] += 1
+            }
         }
 
+        // Convert to SubjectMistakeCount
+        let subjects = subjectCounts.map { item in
+            SubjectMistakeCount(
+                subject: item.key,
+                mistakeCount: item.value,
+                icon: getSubjectIcon(item.key)
+            )
+        }.sorted { $0.mistakeCount > $1.mistakeCount } // Sort by count descending
+
         print("✅ [MistakeReview] Successfully fetched subjects from local storage")
-        print("📊 [MistakeReview] Found \(subjects.count) subjects with mistakes:")
+        print("📊 [MistakeReview] Found \(subjects.count) subjects with mistakes in time range:")
         for subject in subjects {
             print("   - \(subject.subject): \(subject.mistakeCount) mistakes")
         }
@@ -53,17 +64,20 @@ class MistakeReviewService: ObservableObject {
     func fetchMistakes(subject: String?, timeRange: MistakeTimeRange) async {
         print("🔍 [MistakeReview] === FETCHING MISTAKES FROM LOCAL STORAGE ===")
         print("🔍 [MistakeReview] Subject: \(subject ?? "All Subjects")")
-        print("🔍 [MistakeReview] Time range: \(timeRange.rawValue) (ignored for local)")
+        print("🔍 [MistakeReview] Time range: \(timeRange.rawValue)")
 
         isLoading = true
         errorMessage = nil
 
         // ✅ Fetch from local storage only
-        let mistakeData = questionLocalStorage.getMistakeQuestions(subject: subject)
+        let allMistakeData = questionLocalStorage.getMistakeQuestions(subject: subject)
+
+        // ✅ Filter by time range
+        let filteredMistakeData = filterByTimeRange(allMistakeData, timeRange: timeRange == .allTime ? nil : timeRange)
 
         // Convert to MistakeQuestion format
         var mistakes: [MistakeQuestion] = []
-        for data in mistakeData {
+        for data in filteredMistakeData {
             if let id = data["id"] as? String,
                let subject = data["subject"] as? String,
                let questionText = data["questionText"] as? String,
@@ -135,21 +149,71 @@ class MistakeReviewService: ObservableObject {
         let allMistakes = questionLocalStorage.getMistakeQuestions()
         let subjectData = questionLocalStorage.getSubjectsWithMistakes()
 
+        // ✅ Calculate time-based statistics with filtering
+        let mistakesLastWeek = filterByTimeRange(allMistakes, timeRange: .thisWeek).count
+        let mistakesLastMonth = filterByTimeRange(allMistakes, timeRange: .thisMonth).count
+
         let stats = MistakeStats(
             totalMistakes: allMistakes.count,
             subjectsWithMistakes: subjectData.count,
-            mistakesLastWeek: 0,  // Time filtering not implemented for local
-            mistakesLastMonth: 0  // Time filtering not implemented for local
+            mistakesLastWeek: mistakesLastWeek,
+            mistakesLastMonth: mistakesLastMonth
         )
 
         print("✅ [MistakeReview] Successfully calculated stats from local storage")
         print("📊 [MistakeReview] Stats summary:")
         print("   - Total mistakes: \(stats.totalMistakes)")
         print("   - Subjects with mistakes: \(stats.subjectsWithMistakes)")
-        print("   - Note: Time-based filtering not available for local storage")
+        print("   - Mistakes last week: \(stats.mistakesLastWeek)")
+        print("   - Mistakes last month: \(stats.mistakesLastMonth)")
 
         print("🔍 [MistakeReview] === FETCH STATS COMPLETE ===\n")
         return stats
+    }
+
+    /// Filter mistakes by time range
+    private func filterByTimeRange(_ mistakes: [[String: Any]], timeRange: MistakeTimeRange?) -> [[String: Any]] {
+        guard let timeRange = timeRange else {
+            // No time range specified, return all
+            return mistakes
+        }
+
+        let now = Date()
+        let calendar = Calendar.current
+
+        let cutoffDate: Date
+        switch timeRange {
+        case .thisWeek:
+            // Last 7 days
+            cutoffDate = calendar.date(byAdding: .day, value: -7, to: now)!
+        case .thisMonth:
+            // Last 30 days
+            cutoffDate = calendar.date(byAdding: .day, value: -30, to: now)!
+        case .allTime:
+            // Return all mistakes
+            return mistakes
+        }
+
+        // Filter mistakes by archived date
+        let filtered = mistakes.filter { mistake in
+            guard let archivedAtString = mistake["archivedAt"] as? String else {
+                return false
+            }
+
+            let dateFormatter = ISO8601DateFormatter()
+            guard let mistakeDate = dateFormatter.date(from: archivedAtString) else {
+                return false
+            }
+
+            return mistakeDate >= cutoffDate
+        }
+
+        print("🔍 [MistakeReview] Time filter: \(timeRange.rawValue)")
+        print("   - Total mistakes before filter: \(mistakes.count)")
+        print("   - Mistakes after filter: \(filtered.count)")
+        print("   - Cutoff date: \(cutoffDate)")
+
+        return filtered
     }
 
     /// Get icon for subject (uses SF Symbols compatible with Image(systemName:))
