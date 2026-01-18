@@ -15,16 +15,22 @@ from dotenv import load_dotenv
 # Import NEW Gemini API (google-ai-generativelanguage >= 0.6.0)
 try:
     from google import genai
-    print(f"✅ NEW Gemini API imported successfully")
+    logger.debug(f"✅ NEW Gemini API imported successfully")
 except ImportError as e:
-    print(f"❌ NEW Gemini API import failed: {e}")
-    print("⚠️ Please install: pip install --upgrade google-generativeai")
+    logger.debug(f"❌ NEW Gemini API import failed: {e}")
+    logger.debug("⚠️ Please install: pip install --upgrade google-generativeai")
     genai = None
 
 # Import subject-specific prompt generator
 from .subject_prompts import get_subject_specific_rules
 
+# PRODUCTION: Structured logging
+from .logger import setup_logger
+
 load_dotenv()
+
+# Initialize logger
+logger = setup_logger(__name__)
 
 
 class GeminiEducationalAIService:
@@ -48,21 +54,21 @@ class GeminiEducationalAIService:
     """
 
     def __init__(self):
-        print("🔄 === INITIALIZING GEMINI AI SERVICE ===")
+        logger.debug("🔄 === INITIALIZING GEMINI AI SERVICE ===")
 
         # Check Gemini API key
         api_key = os.getenv('GEMINI_API_KEY')
         if not api_key:
-            print("❌ WARNING: GEMINI_API_KEY not found in environment")
-            print("   Add GEMINI_API_KEY to Railway environment variables")
+            logger.debug("❌ WARNING: GEMINI_API_KEY not found in environment")
+            logger.debug("   Add GEMINI_API_KEY to Railway environment variables")
             self.client = None
             self.thinking_client = None
             self.grading_client = None
         else:
-            print(f"✅ Gemini API key found: {api_key[:10]}..." if len(api_key) > 10 else "✅ Gemini API key found")
+            logger.debug(f"✅ Gemini API key found: {api_key[:10]}..." if len(api_key) > 10 else "✅ Gemini API key found")
 
             if genai:
-                print("📱 Using NEW Gemini API: from google import genai")
+                logger.debug("📱 Using NEW Gemini API: from google import genai")
                 # Initialize client
                 self.gemini_client = genai.Client(api_key=api_key)
 
@@ -78,19 +84,19 @@ class GeminiEducationalAIService:
                 self.thinking_client = self.gemini_client
                 self.grading_client = self.gemini_client
 
-                print(f"✅ Gemini parsing model: {self.model_name} (Flash 2.5 - Fast parsing)")
-                print(f"✅ Gemini grading model: {self.grading_model_name} (Flash 2.5 - Fast grading)")
-                print(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 2.5 Pro - Deep Reasoning)")
-                print(f"📊 Pro Mode optimized: Fast parsing + Fast grading with timeout protection")
+                logger.debug(f"✅ Gemini parsing model: {self.model_name} (Flash 2.5 - Fast parsing)")
+                logger.debug(f"✅ Gemini grading model: {self.grading_model_name} (Flash 2.5 - Fast grading)")
+                logger.debug(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 2.5 Pro - Deep Reasoning)")
+                logger.debug(f"📊 Pro Mode optimized: Fast parsing + Fast grading with timeout protection")
             else:
-                print("❌ NEW Gemini API not available. Please upgrade google-generativeai package:")
-                print("   pip install --upgrade google-generativeai")
+                logger.debug("❌ NEW Gemini API not available. Please upgrade google-generativeai package:")
+                logger.debug("   pip install --upgrade google-generativeai")
                 self.client = None
                 self.thinking_client = None
                 self.grading_client = None
 
-        print("✅ Gemini AI Service initialization complete")
-        print("=" * 50)
+        logger.debug("✅ Gemini AI Service initialization complete")
+        logger.debug("=" * 50)
 
     async def parse_homework_questions_with_coordinates(
         self,
@@ -130,10 +136,10 @@ class GeminiEducationalAIService:
         if not self.client:
             raise Exception("Gemini client not initialized. Check GEMINI_API_KEY in environment.")
 
-        print(f"📝 === PARSING HOMEWORK WITH GEMINI ===")
-        print(f"🔧 Mode: {parsing_mode}")
-        print(f"📚 Subject: {subject or 'General (No specific rules)'}")
-        print(f"🤖 Model: {self.model_name}")
+        logger.debug(f"📝 === PARSING HOMEWORK WITH GEMINI ===")
+        logger.debug(f"🔧 Mode: {parsing_mode}")
+        logger.debug(f"📚 Subject: {subject or 'General (No specific rules)'}")
+        logger.debug(f"🤖 Model: {self.model_name}")
 
         try:
             # Build prompt with subject-specific rules
@@ -148,8 +154,8 @@ class GeminiEducationalAIService:
 
             # Store image dimensions for iOS coordinate scaling
             image_width, image_height = image.size
-            print(f"🖼️ Image loaded: {image.size} (width={image_width}, height={image_height})")
-            print(f"🚀 Calling Gemini Vision API...")
+            logger.debug(f"🖼️ Image loaded: {image.size} (width={image_width}, height={image_height})")
+            logger.debug(f"🚀 Calling Gemini Vision API...")
 
             import time
             start_time = time.time()
@@ -183,17 +189,17 @@ class GeminiEducationalAIService:
             )
 
             api_duration = time.time() - start_time
-            print(f"✅ Gemini API completed in {api_duration:.2f}s")
+            logger.debug(f"✅ Gemini API completed in {api_duration:.2f}s")
 
             # Check finish_reason for token limit issues
             if response.candidates and len(response.candidates) > 0:
                 finish_reason = response.candidates[0].finish_reason
-                print(f"🔍 Finish reason: {finish_reason}")
+                logger.debug(f"🔍 Finish reason: {finish_reason}")
 
                 if finish_reason == 3:  # MAX_TOKENS = 3 in FinishReason enum
-                    print(f"⚠️ WARNING: Response hit MAX_TOKENS limit!")
-                    print(f"   Consider: 1) Increase max_output_tokens")
-                    print(f"            2) Simplify prompt to reduce output")
+                    logger.debug(f"⚠️ WARNING: Response hit MAX_TOKENS limit!")
+                    logger.debug(f"   Consider: 1) Increase max_output_tokens")
+                    logger.debug(f"            2) Simplify prompt to reduce output")
                     return {
                         "success": False,
                         "error": "Gemini response exceeded token limit. Try uploading a smaller homework image or contact support."
@@ -205,14 +211,14 @@ class GeminiEducationalAIService:
             # Parse JSON
             result = self._extract_json_from_response(raw_response)
 
-            print(f"✅ Gemini parse: {result.get('total_questions', 0)} questions, Subject: {result.get('subject', 'Unknown')}")
+            logger.debug(f"✅ Gemini parse: {result.get('total_questions', 0)} questions, Subject: {result.get('subject', 'Unknown')}")
 
             # Validate and fix total_questions count
             questions_array = result.get("questions", [])
             actual_total = len(questions_array)
 
             if result.get("total_questions", 0) != actual_total:
-                print(f"⚠️ Fixed total_questions: {result.get('total_questions', 0)} → {actual_total}")
+                logger.debug(f"⚠️ Fixed total_questions: {result.get('total_questions', 0)} → {actual_total}")
                 result["total_questions"] = actual_total
 
             return {
@@ -228,7 +234,7 @@ class GeminiEducationalAIService:
             }
 
         except Exception as e:
-            print(f"❌ Gemini parsing error: {e}")
+            logger.debug(f"❌ Gemini parsing error: {e}")
             import traceback
             traceback.print_exc()
             return {
@@ -247,36 +253,34 @@ class GeminiEducationalAIService:
         use_deep_reasoning: bool = False
     ) -> Dict[str, Any]:
         """
-        Grade a single question using Gemini.
+        Grade a single question using Gemini with two-mode configuration.
 
-        Gemini advantages for grading:
-        - Gemini 3.0 (exp-1206): Advanced reasoning, better accuracy
-        - Deep reasoning (Thinking): Extended thinking process
-        - Good at understanding student work
-        - Multimodal support (text + image)
+        TWO MODES:
+        1. Standard Grading (use_deep_reasoning=False):
+           - Model: gemini-2.5-flash (Fast, 1.5-3s per question)
+           - temperature=0.2: Deterministic for math grading
+           - max_output_tokens=800: Brief feedback (<15 words)
+           - timeout=30s: Fast response
+           - Best for: Most homework questions (95% of cases)
 
-        Configuration:
-        - Gemini 3.0 mode (standard):
-          - temperature=0.4: Balanced for reasoning + consistency
-          - max_output_tokens=1024: Detailed feedback
-          - top_k=40, top_p=0.9: More exploration for accuracy
-          - timeout=45s: Handle longer processing
-        - Deep reasoning mode (Thinking):
-          - temperature=0.7: Higher for creative problem-solving
-          - max_output_tokens=2048: Extended reasoning explanation
-          - top_k=40, top_p=0.95: More exploration for complex problems
-          - timeout=60s: Extended timeout for deep thinking
+        2. Deep Reasoning (use_deep_reasoning=True):
+           - Model: gemini-2.5-pro (Slower but more accurate, 8-12s per question)
+           - temperature=0.7: Higher for creative problem-solving
+           - max_output_tokens=4096: Extended reasoning explanation (50-100 words)
+           - timeout=100s: Extended timeout for complex analysis
+           - Best for: Complex multi-step problems, proofs, essays
 
         Args:
             question_text: The question to grade
             student_answer: Student's written answer
-            correct_answer: Expected answer (optional)
-            subject: Subject for grading rules
-            context_image: Optional base64 image
-            use_deep_reasoning: Enable Gemini Thinking mode for complex questions
+            correct_answer: Expected answer (optional, AI will determine if not provided)
+            subject: Subject for grading rules (Math, Physics, etc.)
+            context_image: Optional base64 image for visual context
+            parent_content: Optional parent question context for subquestions
+            use_deep_reasoning: Enable Pro model for complex reasoning (default: False)
 
         Returns:
-            Same format as OpenAI service
+            Same format as OpenAI service: {success, grade: {score, is_correct, feedback, confidence, correct_answer}}
         """
 
         # Select model based on reasoning mode
@@ -284,20 +288,41 @@ class GeminiEducationalAIService:
             if not self.thinking_client:
                 raise Exception("Gemini Thinking client not initialized. Check GEMINI_API_KEY in environment.")
             selected_client = self.thinking_client
-            model_name = self.thinking_model_name
+            model_name = self.thinking_model_name  # gemini-2.5-pro
             mode_label = "DEEP REASONING"
         else:
-            # Use Gemini 3.0 grading client for standard grading (NEW)
+            # Use Gemini Flash for standard grading (fast mode)
             if not self.grading_client:
                 raise Exception("Gemini Grading client not initialized. Check GEMINI_API_KEY in environment.")
             selected_client = self.grading_client
-            model_name = self.grading_model_name
-            mode_label = "GEMINI 3.0 GRADING"
+            model_name = self.grading_model_name  # gemini-2.5-flash
+            mode_label = "STANDARD GRADING"
 
-        print(f"📝 === GRADING WITH GEMINI ({mode_label}) ===")
-        print(f"🤖 Model: {model_name}")
-        print(f"📚 Subject: {subject or 'General'}")
-        print(f"❓ Question: {question_text[:50]}...")
+        logger.debug(f"📝 === GRADING WITH GEMINI ({mode_label}) ===")
+        logger.debug(f"🤖 Model: {model_name}")
+        logger.debug(f"📚 Subject: {subject or 'General'}")
+        logger.debug(f"❓ Question: {question_text[:50]}...")
+
+        # PRE-VALIDATION: Check for exact match before calling AI
+        # This prevents false negatives when answers are identical
+        if correct_answer:
+            normalized_student = self._normalize_answer(student_answer)
+            normalized_correct = self._normalize_answer(correct_answer)
+
+            if normalized_student == normalized_correct:
+                logger.debug(f"✅ EXACT MATCH DETECTED - Skipping AI grading")
+                logger.debug(f"   Student:  '{normalized_student[:50]}'")
+                logger.debug(f"   Correct:  '{normalized_correct[:50]}'")
+                return {
+                    "success": True,
+                    "grade": {
+                        "score": 1.0,
+                        "is_correct": True,
+                        "feedback": "Correct! Perfect match.",
+                        "confidence": 1.0,
+                        "correct_answer": correct_answer
+                    }
+                }
 
         try:
             # Build grading prompt (different for deep reasoning)
@@ -311,7 +336,7 @@ class GeminiEducationalAIService:
                 has_context_image=bool(context_image)
             )
 
-            print(f"🚀 Calling Gemini for grading...")
+            logger.debug(f"🚀 Calling Gemini for grading...")
             import time
             start_time = time.time()
 
@@ -332,29 +357,27 @@ class GeminiEducationalAIService:
             timeout = 60  # Default timeout for standard grading
 
             if use_deep_reasoning:
-                # Deep reasoning mode: Higher temperature, optimized tokens
-                # OPTIMIZED: Reduced max_tokens 2048 → 1024 to match OpenAI (faster generation)
+                # Deep reasoning mode: Higher temperature, extended tokens for detailed analysis
+                # Uses gemini-2.5-pro model for complex reasoning
                 generation_config = {
                     "temperature": 0.7,
                     "top_p": 0.95,
                     "top_k": 40,
-                    "max_output_tokens": 1024,  # OPTIMIZED: 2048 → 1024 (match OpenAI)
+                    "max_output_tokens": 4096,  # Extended tokens for deep reasoning with Pro model
                     "candidate_count": 1
                 }
-                timeout = 100  # OPTIMIZED: 90 → 100 (safety margin with simplified prompt)
+                timeout = 100  # Extended timeout for Pro model processing
             else:
-                # OPTIMIZED: Match OpenAI's accuracy-focused configuration
-                # - temperature: 0.4 → 0.2 (match OpenAI for deterministic math grading)
-                # - max_output_tokens: 4096 → 800 (reduce generation time, still 2x safety margin vs 400 needed)
-                # - timeout: 60s → 30s (fail faster, improve UX)
+                # Normal grading mode: Fast and efficient
+                # Uses gemini-2.5-flash model for quick grading (1.5-3s per question)
                 generation_config = {
-                    "temperature": 0.2,     # OPTIMIZED: Match OpenAI (was 0.4)
+                    "temperature": 0.2,     # Low temperature for deterministic math grading
                     "top_p": 0.9,
                     "top_k": 40,
-                    "max_output_tokens": 800,  # OPTIMIZED: Reduce for speed (was 4096)
+                    "max_output_tokens": 800,  # Sufficient for brief feedback (<15 words)
                     "candidate_count": 1
                 }
-                timeout = 30  # OPTIMIZED: Fail faster for better UX (was 60)
+                timeout = 30  # Fast timeout for Flash model
 
             # Call Gemini API (NEW API only) with fallback on 503 errors
             response = None
@@ -382,7 +405,7 @@ class GeminiEducationalAIService:
             except Exception as e:
                 # Check if it's a 503 error (model overloaded/unavailable)
                 if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
-                    print(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
+                    logger.debug(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
                     fallback_attempted = True
 
                     # Fallback to gemini-2.5-flash (fast and reliable)
@@ -404,30 +427,30 @@ class GeminiEducationalAIService:
                             response = future.result(timeout=timeout)
                         except concurrent.futures.TimeoutError:
                             raise Exception(f"Gemini fallback API timeout after {timeout}s")
-                    print(f"✅ Fallback to {fallback_model} successful")
+                    logger.debug(f"✅ Fallback to {fallback_model} successful")
                 else:
                     # Re-raise other errors
                     raise
 
             api_duration = time.time() - start_time
             if fallback_attempted:
-                print(f"✅ Grading completed with fallback in {api_duration:.2f}s")
+                logger.debug(f"✅ Grading completed with fallback in {api_duration:.2f}s")
             else:
-                print(f"✅ Grading completed in {api_duration:.2f}s")
+                logger.debug(f"✅ Grading completed in {api_duration:.2f}s")
 
             # Check finish_reason for token limit issues BEFORE extracting text
             if response.candidates and len(response.candidates) > 0:
                 finish_reason = response.candidates[0].finish_reason
-                print(f"🔍 Grading finish reason: {finish_reason}")
+                logger.debug(f"🔍 Grading finish reason: {finish_reason}")
 
                 # Check for MAX_TOKENS error (NEW API uses enum, not int)
                 # Possible values: STOP, MAX_TOKENS, SAFETY, RECITATION, OTHER
                 finish_reason_str = str(finish_reason)
                 if "MAX_TOKENS" in finish_reason_str or finish_reason == 3:
-                    print(f"⚠️ WARNING: Grading response hit MAX_TOKENS limit!")
-                    print(f"   Current max_output_tokens: {generation_config.get('max_output_tokens', 'unknown')}")
-                    print(f"   Consider: 1) Increase max_output_tokens (currently {generation_config.get('max_output_tokens', 'N/A')})")
-                    print(f"            2) Simplify grading prompt")
+                    logger.debug(f"⚠️ WARNING: Grading response hit MAX_TOKENS limit!")
+                    logger.debug(f"   Current max_output_tokens: {generation_config.get('max_output_tokens', 'unknown')}")
+                    logger.debug(f"   Consider: 1) Increase max_output_tokens (currently {generation_config.get('max_output_tokens', 'N/A')})")
+                    logger.debug(f"            2) Simplify grading prompt")
                     return {
                         "success": False,
                         "error": "Grading response exceeded token limit. Try simpler questions or contact support."
@@ -437,32 +460,32 @@ class GeminiEducationalAIService:
             raw_response = self._extract_response_text(response)
             grade_data = self._extract_json_from_response(raw_response)
 
-            print(f"✅ Grade: score={grade_data.get('score', 0.0)}, correct={grade_data.get('is_correct', False)}, feedback={len(grade_data.get('feedback', ''))} chars")
+            logger.debug(f"✅ Grade: score={grade_data.get('score', 0.0)}, correct={grade_data.get('is_correct', False)}, feedback={len(grade_data.get('feedback', ''))} chars")
 
             # 🔍 CRITICAL DEBUG: Check if correct_answer is present in AI response
             if 'correct_answer' in grade_data:
                 correct_ans = grade_data['correct_answer']
-                print(f"✅ correct_answer present: '{correct_ans[:50] if correct_ans else 'EMPTY STRING'}'...")
+                logger.debug(f"✅ correct_answer present: '{correct_ans[:50] if correct_ans else 'EMPTY STRING'}'...")
             else:
-                print(f"⚠️ correct_answer MISSING in AI response! Keys: {list(grade_data.keys())}")
+                logger.debug(f"⚠️ correct_answer MISSING in AI response! Keys: {list(grade_data.keys())}")
 
             # 🛡️ FALLBACK: Ensure correct_answer always exists (fix for archive bug)
             if not grade_data.get('correct_answer'):
                 # Use provided correct_answer if available, otherwise derive from question
                 if correct_answer:
                     fallback_answer = correct_answer
-                    print(f"🛡️ Using provided correct_answer as fallback: '{fallback_answer[:50]}'...")
+                    logger.debug(f"🛡️ Using provided correct_answer as fallback: '{fallback_answer[:50]}'...")
                 elif grade_data.get('is_correct'):
                     # If student is correct, their answer is the correct answer
                     fallback_answer = student_answer
-                    print(f"🛡️ Student answer correct, using as correct_answer: '{fallback_answer[:50]}'...")
+                    logger.debug(f"🛡️ Student answer correct, using as correct_answer: '{fallback_answer[:50]}'...")
                 else:
                     # Last resort: use question text as placeholder
                     fallback_answer = f"See question: {question_text[:100]}"
-                    print(f"⚠️ No correct answer available, using placeholder: '{fallback_answer[:50]}'...")
+                    logger.debug(f"⚠️ No correct answer available, using placeholder: '{fallback_answer[:50]}'...")
 
                 grade_data['correct_answer'] = fallback_answer
-                print(f"✅ Fallback correct_answer set successfully")
+                logger.debug(f"✅ Fallback correct_answer set successfully")
 
             return {
                 "success": True,
@@ -470,7 +493,7 @@ class GeminiEducationalAIService:
             }
 
         except Exception as e:
-            print(f"❌ Gemini grading error: {e}")
+            logger.debug(f"❌ Gemini grading error: {e}")
             import traceback
             traceback.print_exc()
             return {
@@ -491,51 +514,51 @@ class GeminiEducationalAIService:
             return response.text
         except ValueError as e:
             # If simple accessor fails, use complex accessor
-            print(f"⚠️ Complex response detected, using parts accessor")
-            print(f"🔍 DEBUG: response type = {type(response)}")
-            print(f"🔍 DEBUG: response.candidates = {response.candidates if hasattr(response, 'candidates') else 'NO CANDIDATES'}")
+            logger.debug(f"⚠️ Complex response detected, using parts accessor")
+            logger.debug(f"🔍 DEBUG: response type = {type(response)}")
+            logger.debug(f"🔍 DEBUG: response.candidates = {response.candidates if hasattr(response, 'candidates') else 'NO CANDIDATES'}")
 
             if hasattr(response, 'candidates') and response.candidates and len(response.candidates) > 0:
                 candidate = response.candidates[0]
-                print(f"🔍 DEBUG: candidate type = {type(candidate)}")
-                print(f"🔍 DEBUG: candidate.content = {candidate.content if hasattr(candidate, 'content') else 'NO CONTENT'}")
+                logger.debug(f"🔍 DEBUG: candidate type = {type(candidate)}")
+                logger.debug(f"🔍 DEBUG: candidate.content = {candidate.content if hasattr(candidate, 'content') else 'NO CONTENT'}")
 
                 if hasattr(candidate, 'content') and candidate.content:
                     content = candidate.content
-                    print(f"🔍 DEBUG: content.parts = {content.parts if hasattr(content, 'parts') else 'NO PARTS'}")
+                    logger.debug(f"🔍 DEBUG: content.parts = {content.parts if hasattr(content, 'parts') else 'NO PARTS'}")
 
                     if hasattr(content, 'parts') and content.parts and len(content.parts) > 0:
-                        print(f"🔍 DEBUG: Number of parts = {len(content.parts)}")
+                        logger.debug(f"🔍 DEBUG: Number of parts = {len(content.parts)}")
 
                         # Concatenate all parts
                         text_parts = []
                         for i, part in enumerate(content.parts):
-                            print(f"🔍 DEBUG: Part {i} type = {type(part)}")
-                            print(f"🔍 DEBUG: Part {i} attributes = {dir(part)}")
+                            logger.debug(f"🔍 DEBUG: Part {i} type = {type(part)}")
+                            logger.debug(f"🔍 DEBUG: Part {i} attributes = {dir(part)}")
 
                             if hasattr(part, 'text'):
                                 part_text = part.text
-                                print(f"🔍 DEBUG: Part {i} text length = {len(part_text) if part_text else 0}")
+                                logger.debug(f"🔍 DEBUG: Part {i} text length = {len(part_text) if part_text else 0}")
                                 if part_text:
                                     text_parts.append(part_text)
                             else:
-                                print(f"⚠️ Part {i} has no 'text' attribute")
+                                logger.debug(f"⚠️ Part {i} has no 'text' attribute")
 
                         if text_parts:
                             full_text = ''.join(text_parts)
-                            print(f"✅ Extracted {len(full_text)} chars from {len(text_parts)} parts")
+                            logger.debug(f"✅ Extracted {len(full_text)} chars from {len(text_parts)} parts")
                             return full_text
                         else:
-                            print(f"❌ No text found in any parts")
+                            logger.debug(f"❌ No text found in any parts")
                     else:
-                        print(f"❌ content.parts is empty or missing")
+                        logger.debug(f"❌ content.parts is empty or missing")
                 else:
-                    print(f"❌ candidate.content is missing")
+                    logger.debug(f"❌ candidate.content is missing")
             else:
-                print(f"❌ response.candidates is empty or missing")
+                logger.debug(f"❌ response.candidates is empty or missing")
 
             # If all else fails, raise the original error with debug info
-            print(f"❌ Failed to extract text, raising original error")
+            logger.debug(f"❌ Failed to extract text, raising original error")
             raise e
 
     def _build_parse_prompt(self, subject: Optional[str] = None) -> str:
@@ -846,6 +869,47 @@ RULES:
 4. correct_answer must be the expected/correct answer for this question
 5. Return ONLY valid JSON, no markdown or extra text"""
 
+    def _normalize_answer(self, answer: str) -> str:
+        """
+        Normalize an answer string for comparison.
+
+        Handles:
+        - Whitespace normalization (trim, collapse multiple spaces/newlines)
+        - Case normalization (lowercase)
+        - Punctuation removal (for short numeric/single-word answers)
+        - LaTeX math delimiters (standardize to no delimiters for comparison)
+
+        Args:
+            answer: Raw answer string to normalize
+
+        Returns:
+            Normalized string for comparison
+        """
+        import re
+
+        if not answer:
+            return ""
+
+        # Step 1: Trim whitespace
+        normalized = answer.strip()
+
+        # Step 2: Collapse multiple spaces and newlines into single spaces
+        normalized = re.sub(r'\s+', ' ', normalized)
+
+        # Step 3: Remove LaTeX math delimiters for comparison
+        # Remove \( ... \) and \[ ... \] delimiters
+        normalized = re.sub(r'\\\[|\\\]|\\\(|\\\)', '', normalized)
+
+        # Step 4: Convert to lowercase for case-insensitive comparison
+        normalized = normalized.lower()
+
+        # Step 5: For short answers (< 10 chars), remove punctuation
+        # This handles cases like "14" vs "14." or "yes" vs "yes!"
+        if len(normalized) < 10:
+            normalized = re.sub(r'[.,!?;:]', '', normalized)
+
+        return normalized.strip()
+
     def _extract_json_from_response(self, response_text: str) -> Dict[str, Any]:
         """Extract JSON from Gemini response (may include markdown)."""
 
@@ -861,8 +925,8 @@ RULES:
             try:
                 return json.loads(json_match.group())
             except json.JSONDecodeError as e:
-                print(f"⚠️ JSON parsing error: {e}")
-                print(f"📄 Raw text: {response_text[:500]}")
+                logger.debug(f"⚠️ JSON parsing error: {e}")
+                logger.debug(f"📄 Raw text: {response_text[:500]}")
                 raise
         else:
             raise Exception(f"No JSON found in response: {response_text[:500]}")
