@@ -1,26 +1,18 @@
 /**
- * Question Generation Routes Module - WITH ASSISTANTS API SUPPORT
- * Handles AI-powered question generation with fallback to AI Engine
+ * Question Generation Routes Module - AI ENGINE ONLY
+ * Handles AI-powered question generation using AI Engine (fast path)
  *
  * Features:
- * - OpenAI Assistants API integration (Practice Generator)
- * - Automatic fallback to AI Engine on errors
- * - A/B testing support
+ * - Direct AI Engine integration
+ * - Support for random, mistake-based, and conversation-based generation
  * - Performance monitoring
  * - Cost tracking
  */
 
 const AIServiceClient = require('../../../services/ai-client');
-const { assistantsService } = require('../../../../services/openai-assistants-service');
 const { getUserId } = require('../utils/auth-helper');
 const { db } = require('../../../../utils/railway-database');
 const crypto = require('crypto');
-
-// Feature flags
-const USE_ASSISTANTS_API = process.env.USE_ASSISTANTS_API === 'true';
-const ROLLOUT_PERCENTAGE = parseInt(process.env.ASSISTANTS_ROLLOUT_PERCENTAGE || '0');
-const AB_TEST_ENABLED = process.env.AB_TEST_ENABLED === 'true';
-const AUTO_FALLBACK = process.env.AUTO_FALLBACK_ON_ERROR !== 'false';
 
 module.exports = async function (fastify, opts) {
   const aiClient = new AIServiceClient();
@@ -107,14 +99,6 @@ module.exports = async function (fastify, opts) {
                 engagement: { type: 'string' }
               }
             }
-          },
-          force_assistants_api: {
-            type: 'boolean',
-            description: 'Force use of Assistants API (for testing)'
-          },
-          force_ai_engine: {
-            type: 'boolean',
-            description: 'Force use of AI Engine (for testing)'
           }
         }
       },
@@ -142,7 +126,7 @@ module.exports = async function (fastify, opts) {
       });
     }
 
-    const { subject, topic, difficulty, count = 5, language = 'en', question_type = 'any', force_assistants_api, force_ai_engine, use_personalization = false, custom_message, mode = 1, mistakes_data = [], conversation_data = [] } = request.body;
+    const { subject, topic, difficulty, count = 5, language = 'en', question_type = 'any', use_personalization = false, custom_message, mode = 1, mistakes_data = [], conversation_data = [] } = request.body;
 
     // Validate mode-specific requirements
     if (mode === 2 && (!mistakes_data || mistakes_data.length === 0)) {
@@ -161,10 +145,6 @@ module.exports = async function (fastify, opts) {
       });
     }
 
-    // Determine which implementation to use
-    const useAssistantsAPI = shouldUseAssistantsAPI(userId, force_assistants_api, force_ai_engine);
-    const experimentGroup = AB_TEST_ENABLED ? (useAssistantsAPI ? 'treatment' : 'control') : null;
-
     fastify.log.info({
       msg: '🎲 Generating practice questions',
       userId,
@@ -174,17 +154,14 @@ module.exports = async function (fastify, opts) {
       questionType: question_type,
       difficulty,
       mode,
-      useAssistantsAPI,
-      hasCustomMessage: !!custom_message,
-      experimentGroup
+      hasCustomMessage: !!custom_message
     });
 
     let result;
-    let usedAssistantsAPI = false;
 
     try {
-      // UNIFIED ROUTING: All modes now use AI Engine (fast path only)
-      fastify.log.info(`⚡ Using AI Engine for mode ${mode} (Assistants API disabled)...`);
+      // UNIFIED ROUTING: All modes use AI Engine (fast path only)
+      fastify.log.info(`⚡ Using AI Engine for mode ${mode}...`);
 
       if (mode === 2) {
         // MODE 2: Mistake-based questions via AI Engine
@@ -209,7 +186,7 @@ module.exports = async function (fastify, opts) {
         msg: '✅ Questions generated successfully',
         questionCount: result.questions.length,
         mode,
-        implementation: usedAssistantsAPI ? 'assistants_api (fallback)' : 'ai_engine (primary)',
+        implementation: 'ai_engine',
         latency_ms: totalLatency
       });
 
@@ -223,10 +200,7 @@ module.exports = async function (fastify, opts) {
         outputTokens: result.tokens?.output || 0,
         model: result.model || 'gpt-4o-mini',
         wasSuccessful: true,
-        useAssistantsAPI: usedAssistantsAPI,
-        experimentGroup,
-        threadId: result.thread_id,
-        runId: result.run_id
+        useAssistantsAPI: false
       });
 
       return {
@@ -234,14 +208,13 @@ module.exports = async function (fastify, opts) {
         questions: result.questions,
         metadata: {
           ...result.metadata,
-          using_assistants_api: usedAssistantsAPI,
+          using_assistants_api: false,
           primary_engine: 'ai_engine',
-          experiment_group: experimentGroup,
           total_latency_ms: totalLatency
         },
         _performance: {
           latency_ms: totalLatency,
-          implementation: usedAssistantsAPI ? 'assistants_api (fallback)' : 'ai_engine (primary)'
+          implementation: 'ai_engine'
         }
       };
     } catch (error) {
@@ -257,12 +230,11 @@ module.exports = async function (fastify, opts) {
         totalLatency,
         inputTokens: 0,
         outputTokens: 0,
-        model: useAssistantsAPI ? 'gpt-4o-mini' : 'unknown',
+        model: 'gpt-4o-mini',
         wasSuccessful: false,
         errorCode: error.code || 'GENERATION_FAILED',
         errorMessage: error.message,
-        useAssistantsAPI,
-        experimentGroup
+        useAssistantsAPI: false
       });
 
       return reply.status(500).send({
@@ -590,141 +562,7 @@ Generate questions that feel like a natural continuation of their learning journ
 // ============================================
 
 /**
- * Generate questions using OpenAI Assistants API
- */
-async function generateQuestionsWithAssistant(userId, subject, topic, difficulty, count, language, questionType = 'any', customMessage = null, mode = 1, mistakesData = [], conversationData = []) {
-  const startTime = Date.now();
-
-  // Get Practice Generator assistant ID
-  const assistantId = await assistantsService.getAssistantId('practice_generator');
-
-  // Create ephemeral thread (will be deleted after use)
-  const thread = await assistantsService.createThread({
-    user_id: userId,
-    purpose: 'practice_generation',
-    subject,
-    topic,
-    is_ephemeral: true
-  });
-
-  try {
-    // Build request message based on mode
-    let requestMessage;
-
-    if (customMessage) {
-      // Custom message takes precedence (for backward compatibility)
-      requestMessage = customMessage;
-    } else if (mode === 2) {
-      // Mode 2: From Mistakes
-      const allTags = mistakesData.flatMap(m => m.tags || []);
-      const uniqueTags = [...new Set(allTags)];
-
-      const mistakesContext = mistakesData.map((m, i) => `
-Mistake #${i+1}:
-- Original Question: ${m.original_question}
-- Your Answer: ${m.user_answer}
-- Correct Answer: ${m.correct_answer}
-- Mistake Type: ${m.mistake_type || 'Unknown'}
-- Topic: ${m.topic}
-- Date: ${m.date}
-- Tags: ${(m.tags || []).join(', ')}
-      `).join('\n');
-
-      requestMessage = `Generate ${count} practice questions for ${subject}.
-
-PREVIOUS_MISTAKES (analyze these and create targeted remedial practice):
-${mistakesContext}
-
-Requirements:
-- Question Type: ${questionType}
-- Count: ${count}
-- Language: ${language}
-- Difficulty: ${difficulty || 'adaptive'}
-- IMPORTANT: Use EXACTLY these tags: ${JSON.stringify(uniqueTags)}. Do NOT create new tags.
-
-Focus on helping the student overcome these specific error patterns. Generate questions that address the same concepts but with different contexts.`;
-    } else if (mode === 3) {
-      // Mode 3: From Conversations
-      const conversationsContext = conversationData.map((c, i) => `
-Conversation #${i+1} (${c.date}):
-- Topics Discussed: ${Array.isArray(c.topics) ? c.topics.join(', ') : c.topics}
-- Student Questions: ${c.student_questions}
-- Difficulty Level: ${c.difficulty_level}
-- Strengths Observed: ${Array.isArray(c.strengths) ? c.strengths.join(', ') : c.strengths}
-- Areas for Improvement: ${Array.isArray(c.weaknesses) ? c.weaknesses.join(', ') : c.weaknesses}
-- Key Concepts: ${c.key_concepts}
-- Engagement Level: ${c.engagement}
-      `).join('\n');
-
-      requestMessage = `Generate ${count} practice questions for ${subject}.
-
-PREVIOUS_CONVERSATIONS (build upon these learning interactions):
-${conversationsContext}
-
-Requirements:
-- Question Type: ${questionType}
-- Count: ${count}
-- Language: ${language}
-- Difficulty: ${difficulty || 'adaptive'}
-
-Create personalized questions that:
-1. Build upon concepts the student has shown interest in
-2. Address knowledge gaps identified in conversations
-3. Match the student's demonstrated ability level
-4. Connect to topics they've previously engaged with successfully
-
-Generate questions that feel like a natural continuation of their learning journey.`;
-    } else {
-      // Mode 1: Random Practice (default)
-      requestMessage = buildPracticeRequestMessage(subject, topic, difficulty, count, language, questionType);
-    }
-
-    // Send message
-    await assistantsService.sendMessage(thread.id, requestMessage);
-
-    // Run assistant
-    const run = await assistantsService.runAssistant(thread.id, assistantId);
-
-    // Wait for completion with extended timeout for question generation (120 seconds)
-    // Question generation can take longer due to multiple questions being created
-    const result = await assistantsService.waitForCompletion(thread.id, run.id, 120000);
-
-    // Get generated questions (JSON response)
-    const messages = await assistantsService.getMessages(thread.id, 1);
-    const responseText = messages[0].content[0].text.value;
-
-    let parsedResponse;
-    try {
-      parsedResponse = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('❌ Failed to parse assistant response:', responseText);
-      throw new Error('Invalid JSON response from assistant');
-    }
-
-    // Check for error response
-    if (parsedResponse.error) {
-      throw new Error(parsedResponse.message || 'Assistant returned error');
-    }
-
-    return {
-      questions: parsedResponse.questions || [],
-      metadata: parsedResponse.metadata || {},
-      thread_id: thread.id,
-      run_id: run.id,
-      model: 'gpt-4o-mini',
-      tokens: {
-        input: result.run.usage?.prompt_tokens || 0,
-        output: result.run.usage?.completion_tokens || 0
-      }
-    };
-  } finally {
-    // Cleanup: Delete ephemeral thread
-    await assistantsService.deleteThread(thread.id);
-  }
-}
-
-/**
- * Generate questions using AI Engine (fallback/legacy)
+ * Generate random questions using AI Engine
  */
 async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, questionType, aiClient) {
   try {
@@ -904,53 +742,6 @@ async function generateConversationQuestionsWithAIEngine(userId, subject, conver
     console.error('❌ AI Engine conversation questions failed:', error);
     throw error;
   }
-}
-
-/**
- * Build request message for Practice Generator assistant (Mode 1: Random Practice)
- */
-function buildPracticeRequestMessage(subject, topic, difficulty, count, language, questionType = 'any') {
-  const languageMap = {
-    'en': 'English',
-    'zh-CN': 'Simplified Chinese',
-    'zh-TW': 'Traditional Chinese'
-  };
-
-  let message = `Generate ${count} practice questions for ${subject}.\n\n`;
-
-  message += `Requirements:\n`;
-  message += `- Subject: ${subject}\n`;
-  if (topic) message += `- Topic: ${topic}\n`;
-  if (difficulty) message += `- Difficulty: ${difficulty}/5\n`;
-  message += `- Question Type: ${questionType}\n`;
-  message += `- Language: ${languageMap[language] || 'English'}\n`;
-  message += `- Count: ${count}\n\n`;
-
-  message += `Generate diverse, high-quality practice questions that match these requirements. Return the questions in JSON format.`;
-
-  return message;
-}
-
-/**
- * Decide whether to use Assistants API
- */
-function shouldUseAssistantsAPI(userId, forceAssistants, forceAIEngine) {
-  // Explicit override for testing
-  if (forceAssistants) return true;
-  if (forceAIEngine) return false;
-
-  // Feature flag disabled
-  if (!USE_ASSISTANTS_API) return false;
-
-  // Gradual rollout based on user ID hash
-  if (ROLLOUT_PERCENTAGE < 100) {
-    const hash = crypto.createHash('md5').update(userId).digest('hex');
-    const hashInt = parseInt(hash.substring(0, 8), 16);
-    const bucket = hashInt % 100;
-    return bucket < ROLLOUT_PERCENTAGE;
-  }
-
-  return true;
 }
 
 /**
