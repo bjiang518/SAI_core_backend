@@ -1398,7 +1398,15 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     /// Export homework to PDF (local rendering, no AI/backend)
     func exportToPDF() async {
-        logger.info("Starting PDF export...")
+        logger.info("📄 [PDF Export] Starting PDF export...")
+
+        // Reset state
+        await MainActor.run {
+            isExportingPDF = true
+            pdfExportProgress = 0.0
+            exportedPDFDocument = nil
+            showPDFShareSheet = false
+        }
 
         // Update progress from exporter
         let cancellable = pdfExporter.$exportProgress.sink { [weak self] progress in
@@ -1417,12 +1425,22 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         cancellable.cancel()
 
+        await MainActor.run {
+            isExportingPDF = false
+        }
+
         if let pdfDocument = pdfDocument {
-            logger.info("PDF export succeeded - \(pdfDocument.pageCount) pages")
-            exportedPDFDocument = pdfDocument
-            showPDFShareSheet = true
+            logger.info("✅ [PDF Export] PDF export succeeded - \(pdfDocument.pageCount) pages")
+            await MainActor.run {
+                exportedPDFDocument = pdfDocument
+                // Show share sheet with a small delay to ensure state is updated
+                Task {
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
+                    showPDFShareSheet = true
+                }
+            }
         } else {
-            logger.error("PDF export failed")
+            logger.error("❌ [PDF Export] PDF export failed - nil document returned")
         }
     }
 

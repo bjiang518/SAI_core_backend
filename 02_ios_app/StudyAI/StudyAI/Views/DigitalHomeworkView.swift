@@ -28,6 +28,10 @@ struct DigitalHomeworkView: View {
     // ✅ NEW: Revert confirmation alert
     @State private var showRevertConfirmation = false
 
+    // ✅ PDF export alert
+    @State private var showPDFExportError = false
+    @State private var pdfExportErrorMessage = ""
+
     // MARK: - Body
 
     var body: some View {
@@ -626,6 +630,12 @@ struct DigitalHomeworkView: View {
         Button(action: {
             Task {
                 await viewModel.exportToPDF()
+
+                // Check if export succeeded
+                if viewModel.exportedPDFDocument == nil {
+                    pdfExportErrorMessage = "Failed to generate PDF. Please try again."
+                    showPDFExportError = true
+                }
             }
 
             // Haptic feedback
@@ -633,18 +643,27 @@ struct DigitalHomeworkView: View {
             generator.impactOccurred()
         }) {
             HStack(spacing: 8) {
-                Image(systemName: "doc.fill")
-                    .font(.headline)
-                Text("Export to PDF")
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                if viewModel.isExportingPDF {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.8)
+                    Text("Exporting... \(Int(viewModel.pdfExportProgress * 100))%")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                } else {
+                    Image(systemName: "doc.fill")
+                        .font(.headline)
+                    Text("Export to PDF")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                }
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(
                 LinearGradient(
-                    colors: [Color.blue, Color.blue.opacity(0.8)],
+                    colors: viewModel.isExportingPDF ? [Color.gray, Color.gray.opacity(0.8)] : [Color.blue, Color.blue.opacity(0.8)],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
@@ -653,12 +672,17 @@ struct DigitalHomeworkView: View {
             .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
         }
         .disabled(viewModel.isExportingPDF)
-        .opacity(viewModel.isExportingPDF ? 0.6 : 1.0)
+        .opacity(viewModel.isExportingPDF ? 0.8 : 1.0)
         .sheet(isPresented: $viewModel.showPDFShareSheet) {
             if let pdfDocument = viewModel.exportedPDFDocument,
                let pdfData = pdfDocument.dataRepresentation() {
                 ActivityViewController(activityItems: [pdfData])
             }
+        }
+        .alert("PDF Export Failed", isPresented: $showPDFExportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(pdfExportErrorMessage)
         }
     }
 
