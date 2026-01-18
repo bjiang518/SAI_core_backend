@@ -75,6 +75,9 @@ class ProModePDFExporter: ObservableObject {
 
         exportProgress = 0.2
 
+        // ✅ Start first content page (page 2) immediately after cover
+        pdfContext.beginPDFPage(nil)
+
         // ✅ UPDATED: Dynamic page management - add questions until page is full
         var currentY: CGFloat = margin  // Start with top margin
         var pageNumber = 2  // Page 2 (after cover)
@@ -120,17 +123,10 @@ class ProModePDFExporter: ObservableObject {
             )
 
             isFirstQuestionOnPage = false
-
-            // Start first page after cover if needed
-            if index == 0 && currentY == margin {
-                pdfContext.beginPDFPage(nil)
-            }
         }
 
-        // Close last page if it was started
-        if !isFirstQuestionOnPage {
-            pdfContext.endPDFPage()
-        }
+        // ✅ Close the last page
+        pdfContext.endPDFPage()
 
         pdfContext.closePDF()
 
