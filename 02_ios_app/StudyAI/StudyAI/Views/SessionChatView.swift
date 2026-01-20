@@ -832,7 +832,7 @@ struct SessionChatView: View {
                             Circle()
                                 .fill(
                                     RadialGradient(
-                                        colors: viewModel.isActivated ? [Color.gold, Color.purple] : [Color.purple.opacity(0.9), Color.blue.opacity(0.7)],
+                                        colors: viewModel.isActivated ? [Color.purple, Color.blue] : [Color.purple.opacity(0.9), Color.blue.opacity(0.7)],
                                         center: .center,
                                         startRadius: 10,
                                         endRadius: 30
