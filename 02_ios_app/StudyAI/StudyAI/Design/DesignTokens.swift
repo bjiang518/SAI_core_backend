@@ -43,9 +43,6 @@ struct DesignTokens {
         static let error = Color(hex: "EF4444")
         static let info = Color(hex: "3B82F6")
 
-        // Deep Mode Colors
-        static let gold = Color(hex: "FFD700") // Deep thinking mode activation
-
         // Archive-specific Colors
         static let archived = Color("Archived", bundle: .main) ?? Color.orange
         static let unarchived = Color("Unarchived", bundle: .main) ?? Color.green
@@ -376,10 +373,5 @@ extension Color {
             blue:  Double(b) / 255,
             opacity: Double(a) / 255
         )
-    }
-
-    // MARK: - Convenience Accessors for Deep Mode
-    static var gold: Color {
-        DesignTokens.Colors.gold
     }
 }

@@ -827,9 +827,32 @@ struct SessionChatView: View {
                             .stroke(Color.primary.opacity(0.15), lineWidth: 1)
                     )
                     .overlay(alignment: .trailing) {
-                        // ✅ Deep mode overlay with glowing path animation
+                        // ✅ Deep mode circle overlay - appears OUTSIDE clipped container
                         if viewModel.isHolding {
-                            deepModeOverlay
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: viewModel.isActivated ? [Color.gold, Color.purple] : [Color.purple.opacity(0.9), Color.blue.opacity(0.7)],
+                                        center: .center,
+                                        startRadius: 10,
+                                        endRadius: 30
+                                    )
+                                )
+                                .frame(width: 60, height: 60)
+                                .overlay(
+                                    VStack(spacing: 2) {
+                                        Image(systemName: "brain")
+                                            .font(.system(size: 20, weight: .semibold))
+                                        Text("DEEP")
+                                            .font(.system(size: 10, weight: .bold))
+                                    }
+                                    .foregroundColor(.white)
+                                )
+                                .shadow(color: viewModel.isActivated ? Color.purple.opacity(0.8) : Color.purple.opacity(0.3), radius: 10)
+                                .scaleEffect(viewModel.isActivated ? 1.2 : 1.0)
+                                .offset(x: -22, y: -80)  // Position above send button
+                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.isActivated)
+                                .transition(.scale.combined(with: .opacity))
                         }
                     }
                 }
@@ -1051,71 +1074,6 @@ struct SessionChatView: View {
         return text.unicodeScalars.contains { scalar in
             chineseRange.contains(Int(scalar.value))
         }
-    }
-
-    // MARK: - Deep Mode Overlay
-
-    private var deepModeOverlay: some View {
-        ZStack(alignment: .topTrailing) {
-            // ✨ Glowing path connecting send button to brain icon
-            DeepModePathEffect(isActivated: viewModel.isActivated)
-                .offset(x: -22, y: -80)
-
-            // Brain icon with enhanced effects
-            deepModeBrainIcon
-        }
-    }
-
-    private var deepModeBrainIcon: some View {
-        Circle()
-            .fill(brainIconGradient)
-            .frame(width: 60, height: 60)
-            .overlay(pulsingGlowRing)
-            .overlay(brainIconContent)
-            .shadow(color: viewModel.isActivated ? Color.gold.opacity(0.8) : Color.purple.opacity(0.5), radius: 15)
-            .shadow(color: viewModel.isActivated ? Color.purple.opacity(0.6) : Color.blue.opacity(0.3), radius: 25)
-            .scaleEffect(viewModel.isActivated ? 1.2 : 1.0)
-            .offset(x: -22, y: -80)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.isActivated)
-            .transition(.scale.combined(with: .opacity))
-    }
-
-    private var brainIconGradient: RadialGradient {
-        RadialGradient(
-            colors: viewModel.isActivated ?
-                [Color.gold, Color.purple, Color.blue.opacity(0.5)] :
-                [Color.purple.opacity(0.9), Color.blue.opacity(0.7), Color.purple.opacity(0.3)],
-            center: .center,
-            startRadius: 5,
-            endRadius: 35
-        )
-    }
-
-    private var pulsingGlowRing: some View {
-        Circle()
-            .stroke(
-                viewModel.isActivated ? Color.gold.opacity(0.6) : Color.clear,
-                lineWidth: 2
-            )
-            .scaleEffect(viewModel.isActivated ? 1.3 : 1.0)
-            .opacity(viewModel.isActivated ? 0.0 : 1.0)
-            .animation(
-                viewModel.isActivated ?
-                    .easeOut(duration: 1.0).repeatForever(autoreverses: false) :
-                    .default,
-                value: viewModel.isActivated
-            )
-    }
-
-    private var brainIconContent: some View {
-        VStack(spacing: 2) {
-            Image(systemName: "brain")
-                .font(.system(size: 20, weight: .semibold))
-            Text("DEEP")
-                .font(.system(size: 10, weight: .bold))
-        }
-        .foregroundColor(.white)
-        .shadow(color: .black.opacity(0.3), radius: 2)
     }
 
     private var modernEmptyStateView: some View {
@@ -2308,95 +2266,6 @@ struct WeChatStyleVoiceInput: View {
 extension CGSize {
     var magnitude: CGFloat {
         return sqrt(width * width + height * height)
-    }
-}
-
-// MARK: - Deep Mode Glowing Path Effect
-
-/// Animated glowing path that connects the send button to the deep mode brain icon
-struct DeepModePathEffect: View {
-    let isActivated: Bool
-    @State private var animationProgress: CGFloat = 0
-
-    var body: some View {
-        ZStack {
-            // Multiple layered paths for depth effect
-            pathShape
-                .stroke(
-                    LinearGradient(
-                        colors: isActivated ?
-                            [Color.gold.opacity(0.8), Color.purple.opacity(0.6), Color.blue.opacity(0.3)] :
-                            [Color.purple.opacity(0.6), Color.blue.opacity(0.4), Color.purple.opacity(0.2)],
-                        startPoint: .bottom,
-                        endPoint: .top
-                    ),
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                )
-                .shadow(color: isActivated ? Color.gold.opacity(0.8) : Color.purple.opacity(0.5), radius: 8)
-                .shadow(color: isActivated ? Color.purple.opacity(0.6) : Color.blue.opacity(0.3), radius: 15)
-
-            // Animated flowing particles along the path
-            if isActivated {
-                ForEach(0..<5, id: \.self) { index in
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.white, Color.gold.opacity(0.8), Color.clear],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: 4
-                            )
-                        )
-                        .frame(width: 8, height: 8)
-                        .offset(y: particleOffset(for: index))
-                        .opacity(particleOpacity(for: index))
-                        .animation(
-                            .linear(duration: 1.5)
-                                .repeatForever(autoreverses: false)
-                                .delay(Double(index) * 0.3),
-                            value: animationProgress
-                        )
-                }
-            }
-        }
-        .frame(width: 80, height: 100)
-        .onAppear {
-            animationProgress = 1
-        }
-    }
-
-    private var pathShape: Path {
-        Path { path in
-            // Start point (send button position)
-            let startPoint = CGPoint(x: 40, y: 100)
-            // End point (brain icon position)
-            let endPoint = CGPoint(x: 40, y: 20)
-
-            // Create elegant curved path
-            path.move(to: startPoint)
-
-            let controlPoint1 = CGPoint(x: 20, y: 75)
-            let controlPoint2 = CGPoint(x: 60, y: 45)
-
-            path.addCurve(to: endPoint, control1: controlPoint1, control2: controlPoint2)
-        }
-    }
-
-    private func particleOffset(for index: Int) -> CGFloat {
-        // Animate particles from bottom to top along the path
-        let progress = (animationProgress + CGFloat(index) * 0.2).truncatingRemainder(dividingBy: 1.0)
-        return 100 - (progress * 80) // Move from y=100 to y=20
-    }
-
-    private func particleOpacity(for index: Int) -> Double {
-        let progress = (animationProgress + CGFloat(index) * 0.2).truncatingRemainder(dividingBy: 1.0)
-        // Fade in and out
-        if progress < 0.2 {
-            return Double(progress / 0.2)
-        } else if progress > 0.8 {
-            return Double((1.0 - progress) / 0.2)
-        }
-        return 1.0
     }
 }
 
