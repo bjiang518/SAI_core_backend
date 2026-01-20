@@ -1008,6 +1008,8 @@
 "mistakeReview.noAnswer" = "未作答";
 "mistakeReview.correctAnswerLabel" = "正確答案：";
 "mistakeReview.showExplanation" = "顯示解析";
+"mistakeReview.instructions.title" = "如何使用錯題複習";
+"mistakeReview.instructions.message" = "1. 選擇時間範圍（本週、本月或全部時間）來篩選錯題\n\n2. 選擇科目查看做錯的題目\n\n3. 點擊「開始複習」查看你的錯題\n\n4. 使用「讓我們再做一遍」選擇題目並生成PDF進行練習\n\n5. 查看正確答案和解析以提高理解";
 
 // Parent Mode - Face ID
 "parentAuth.useFaceID" = "使用 Face ID";
@@ -1032,6 +1034,29 @@
 "voicePreview.confidence.high" = "高可信度 - 轉寫看起來不錯";
 "voicePreview.confidence.medium" = "中等可信度 - 請仔細檢查";
 "voicePreview.confidence.low" = "低可信度 - 轉寫可能不準確";
+
+// Learning Goals
+"goals.learningGoalsTitle" = "學習目標";
+"goals.currentPoints" = "目前積分";
+"goals.streak" = "連續天數";
+"goals.days" = "天";
+"goals.dailyQuestions" = "每日答題";
+"goals.dailyQuestionsDescription" = "每天回答問題以養成持續學習的習慣";
+"goals.target" = "目標：";
+"goals.questionsPerDay" = "題/天";
+"goals.accuracyGoal" = "正確率目標";
+"goals.accuracyGoalDescription" = "在答題中保持高正確率以獲得最高分數";
+"goals.percentAccuracy" = "% 正確率";
+"goals.weeklyStreak" = "每週連續";
+"goals.weeklyStreakDescription" = "保持 7 天的學習連續以獲得豐厚的獎勵積分";
+"goals.dailyStreak" = "每日連續";
+"goals.dailyStreakDescription" = "通過每日活動保持學習動力";
+"goals.studyTime" = "學習時長";
+"goals.subjectMastery" = "科目掌握";
+"goals.studyConsistency" = "學習一致性";
+"goals.studyConsistencyDescription" = "保持規律的學習習慣以實現持續進步";
+"goals.daysPerWeek" = "天/週";
+"goals.saveToDatabase" = "儲存到資料庫";
 
 // Voice Input Controls
 "voice.pressToTalk" = "按住說話";
@@ -1356,3 +1381,9 @@
 "proMode.grading.grading" = "🤖 批改 Q%@...";
 "proMode.grading.progress" = "✅ 已完成 %d/%d (%d%%)";
 "proMode.grading.complete" = "🎉 批改完成！";
+
+// PDF Preview
+"pdfPreview.title" = "PDF 預覽";
+"pdfPreview.print" = "列印";
+"pdfPreview.email" = "郵件";
+"pdfPreview.share" = "分享";

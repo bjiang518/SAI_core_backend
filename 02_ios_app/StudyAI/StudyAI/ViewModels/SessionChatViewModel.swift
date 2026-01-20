@@ -105,6 +105,10 @@ class SessionChatViewModel: ObservableObject {
     // UI refresh
     @Published var refreshTrigger = UUID()
 
+    // Deep thinking mode gesture state
+    @Published var isHolding = false
+    @Published var isActivated = false
+
     // MARK: - Dependencies
 
     private let networkService = NetworkService.shared
@@ -161,13 +165,15 @@ class SessionChatViewModel: ObservableObject {
     // MARK: - Public API
 
     /// Send a message in the current chat session
-    func sendMessage() {
+    /// - Parameter deepMode: If true, uses o4 model for deeper reasoning (default: false)
+    func sendMessage(deepMode: Bool = false) {
         print("🟢 ============================================")
         print("🟢 === SEND MESSAGE CALLED ===")
         print("🟢 ============================================")
         print("🟢 Timestamp: \(Date())")
         print("🟢 Thread: \(Thread.current)")
         print("🟢 Message Text: \(messageText)")
+        print("🟢 Deep Mode: \(deepMode ? "YES (o4 model)" : "NO (gpt-4o-mini)")")
         print("🟢 Current Session ID: \(networkService.currentSessionId ?? "nil")")
 
         guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -218,27 +224,28 @@ class SessionChatViewModel: ObservableObject {
                     "role": "user",
                     "content": message,
                     "hasImage": "true",
-                    "messageId": messageId
+                    "messageId": messageId,
+                    "deepMode": deepMode ? "true" : "false"
                 ])
                 print("✅ Added user message to history WITH image marker")
             } else {
                 // For existing session: Add user message immediately (no image)
-                persistMessage(role: "user", content: message)
+                persistMessage(role: "user", content: message, deepMode: deepMode)
             }
 
             // Show typing indicator
             showTypingIndicator = true
 
-            sendMessageToExistingSession(sessionId: sessionId, message: message)
+            sendMessageToExistingSession(sessionId: sessionId, message: message, deepMode: deepMode)
         } else {
             print("🟢 ➡️ Routing to FIRST MESSAGE path (new session)")
             // For first message: Create session and add user message immediately
-            networkService.addUserMessageToHistory(message)
+            networkService.addUserMessageToHistory(message, deepMode: deepMode)
 
             // Show typing indicator
             showTypingIndicator = true
 
-            sendFirstMessage(message: message)
+            sendFirstMessage(message: message, deepMode: deepMode)
         }
     }
 
@@ -535,11 +542,11 @@ class SessionChatViewModel: ObservableObject {
     }
 
     /// Handle voice input from WeChat-style voice interface
-    func handleVoiceInput(_ recognizedText: String) {
+    func handleVoiceInput(_ recognizedText: String, deepMode: Bool = false) {
         guard !recognizedText.isEmpty else { return }
 
         messageText = recognizedText
-        sendMessage()
+        sendMessage(deepMode: deepMode)
     }
 
     // MARK: - Diagram Generation
@@ -812,20 +819,22 @@ class SessionChatViewModel: ObservableObject {
 
     // MARK: - Private Methods
 
-    private func sendMessageToExistingSession(sessionId: String, message: String) {
+    private func sendMessageToExistingSession(sessionId: String, message: String, deepMode: Bool = false) {
         Task {
             print("🟡 === SEND MESSAGE TO EXISTING SESSION (START) ===")
             print("🟡 Session ID: \(sessionId)")
             print("🟡 Message: \(message)")
+            print("🟡 Deep Mode: \(deepMode)")
 
             // Check for homework context
             let homeworkContext = appState.pendingHomeworkContext
 
             if useStreaming {
-                // Use STREAMING endpoint
+                // Use STREAMING endpoint (with deep mode flag)
                 _ = await networkService.sendSessionMessageStreaming(
                     sessionId: sessionId,
                     message: message,
+                    deepMode: deepMode, // ✅ NEW: Pass deep mode flag
                     questionContext: homeworkContext?.toDictionary(),
                     onChunk: { [weak self] accumulatedText in
                         Task { @MainActor in
@@ -955,7 +964,7 @@ class SessionChatViewModel: ObservableObject {
         }
     }
 
-    private func sendFirstMessage(message: String) {
+    private func sendFirstMessage(message: String, deepMode: Bool = false) {
         Task {
             // First create a session
             let sessionResult = await networkService.startNewSession(subject: selectedSubject.lowercased())
@@ -985,12 +994,13 @@ class SessionChatViewModel: ObservableObject {
                         "role": "user",
                         "content": message,
                         "hasImage": "true",
-                        "messageId": msgId
+                        "messageId": msgId,
+                        "deepMode": deepMode ? "true" : "false"
                     ])
                     print("✅ Added user message to history WITH image marker")
                 } else {
                     // Regular message without image
-                    persistMessage(role: "user", content: message, addToHistory: false)
+                    persistMessage(role: "user", content: message, addToHistory: false, deepMode: deepMode)
                 }
 
                 if useStreaming {
@@ -1220,11 +1230,11 @@ class SessionChatViewModel: ObservableObject {
         }
     }
 
-    private func persistMessage(role: String, content: String, hasImage: Bool = false, imageData: Data? = nil, addToHistory: Bool = true) {
+    private func persistMessage(role: String, content: String, hasImage: Bool = false, imageData: Data? = nil, addToHistory: Bool = true, deepMode: Bool = false) {
         guard let sessionId = networkService.currentSessionId else { return }
 
         if addToHistory {
-            networkService.addToConversationHistory(role: role, content: content)
+            networkService.addToConversationHistory(role: role, content: content, deepMode: deepMode)
         }
 
         let messageIndex = networkService.conversationHistory.count - 1

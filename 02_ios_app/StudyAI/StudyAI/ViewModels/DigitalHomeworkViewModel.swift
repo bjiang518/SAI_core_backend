@@ -989,11 +989,20 @@ class DigitalHomeworkViewModel: ObservableObject {
         Task {
             await archiveSubquestions(parentQuestionId: parentQuestionId, subquestionIds: [subquestionId])
 
-            // Mark the subquestion as archived (visual feedback)
+            // ✅ Mark the subquestion as archived (visual feedback with green border)
             await MainActor.run {
-                logger.debug("Marked subquestion \(subquestionId) of Q\(parentQuestionId) as archived")
-                // Note: No UI state change needed currently, as subquestions don't have individual archived state
-                // If needed in future, add isArchived flag to ProgressiveSubquestion
+                var updatedQuestions = questions
+                if let index = updatedQuestions.firstIndex(where: { $0.question.id == parentQuestionId }) {
+                    // ✅ FIX: Explicitly notify observers before updating
+                    objectWillChange.send()
+
+                    // ✅ FIX: Add subquestion ID to archived set with animation
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        updatedQuestions[index].archivedSubquestions.insert(subquestionId)
+                        stateManager.updateHomework(questions: updatedQuestions)
+                    }
+                    logger.debug("Marked subquestion \(subquestionId) of Q\(parentQuestionId) as archived (green border applied)")
+                }
             }
         }
     }
@@ -1046,9 +1055,9 @@ class DigitalHomeworkViewModel: ObservableObject {
                 "id": UUID().uuidString,
                 "userId": userId,
                 "subject": subject,
-                "questionText": "\(parentContent)\n\nSubquestion (\(subquestionId)): \(subquestion.questionText)",  // Include parent context
-                "rawQuestionText": subquestion.questionText,
-                "answerText": subquestion.studentAnswer,
+                "questionText": subquestion.questionText,  // ✅ FIX: Use just subquestion text for library card preview
+                "rawQuestionText": "\(parentContent)\n\nSubquestion (\(subquestionId)): \(subquestion.questionText)",  // Full context with parent
+                "answerText": grade?.correctAnswer ?? "",  // ✅ FIX: Use correct answer, not student answer
                 "confidence": 0.95,
                 "hasVisualElements": imagePath != nil,
                 "questionImageUrl": imagePath ?? "",  // Share parent's cropped image
@@ -1167,7 +1176,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 "subject": subject,
                 "questionText": question.displayText,
                 "rawQuestionText": question.displayText,  // Use same as questionText for Pro Mode
-                "answerText": question.displayStudentAnswer,
+                "answerText": questionWithGrade.grade?.correctAnswer ?? "",  // ✅ FIX: Use correct answer, not student answer
                 "confidence": 0.95,  // High confidence for Pro Mode
                 "hasVisualElements": imagePath != nil,
                 "questionImageUrl": imagePath ?? "",  // File path to cropped image
@@ -1392,7 +1401,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     @Published var isExportingPDF = false
     @Published var pdfExportProgress: Double = 0.0
     @Published var exportedPDFDocument: PDFDocument?
-    @Published var showPDFShareSheet = false
+    @Published var showPDFPreview = false
 
     private let pdfExporter = ProModePDFExporter()
 
@@ -1405,7 +1414,7 @@ class DigitalHomeworkViewModel: ObservableObject {
             isExportingPDF = true
             pdfExportProgress = 0.0
             exportedPDFDocument = nil
-            showPDFShareSheet = false
+            showPDFPreview = false
         }
 
         // Update progress from exporter
@@ -1433,10 +1442,10 @@ class DigitalHomeworkViewModel: ObservableObject {
             logger.info("✅ [PDF Export] PDF export succeeded - \(pdfDocument.pageCount) pages")
             await MainActor.run {
                 exportedPDFDocument = pdfDocument
-                // Show share sheet with a small delay to ensure state is updated
+                // Show preview with a small delay to ensure state is updated
                 Task {
                     try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
-                    showPDFShareSheet = true
+                    showPDFPreview = true
                 }
             }
         } else {

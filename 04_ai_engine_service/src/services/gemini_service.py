@@ -39,19 +39,20 @@ class GeminiEducationalAIService:
     Gemini-powered AI service for educational content processing.
 
     Uses NEW Gemini API (google-ai-generativelanguage >= 0.6.0):
-    - gemini-2.5-flash: Fast parsing AND grading (optimized for speed, 1.5-3s per question)
-    - gemini-2.5-pro: Deep reasoning mode (slower but more accurate for complex problems)
+    - gemini-2.5-flash: Fast parsing AND standard grading (optimized for speed, 1.5-3s per question)
+    - gemini-3-flash-preview: Gemini 3 Flash with advanced reasoning (deep mode)
 
     Features:
-    - Fast homework image parsing with optimized OCR (5-10s vs 30-60s for Pro)
+    - Fast homework image parsing with optimized OCR (5-10s)
     - Multimodal understanding (native image + text)
-    - Cost-effective processing
+    - Cost-effective processing ($0.50/$3 per 1M tokens for Gemini 3 Flash)
     - Structured JSON output
+    - Advanced reasoning capabilities (Gemini 3)
 
     Configuration optimized for:
-    - OCR accuracy: temperature=0.0, top_k=32
+    - OCR accuracy: temperature=0.0, top_k=32 (Gemini 2.5)
     - Large homework: max_output_tokens=8192
-    - Grading reasoning: temperature=0.2-0.4
+    - Deep reasoning: temperature=1.0 default, extended tokens (Gemini 3)
     """
 
     def __init__(self):
@@ -74,10 +75,10 @@ class GeminiEducationalAIService:
                 self.gemini_client = genai.Client(api_key=api_key)
 
                 # Model names (NEW API uses different naming)
-                # - gemini-2.5-flash: Fast parsing AND grading (optimized for speed)
-                # - gemini-2.5-pro: Deep reasoning mode (slower but more accurate)
+                # - gemini-2.5-flash: Fast parsing AND standard grading (optimized for speed)
+                # - gemini-3-flash-preview: Gemini 3 Flash with advanced reasoning capabilities
                 self.model_name = "gemini-2.5-flash"  # UPGRADED: 2.0 → 2.5 for better parsing
-                self.thinking_model_name = "gemini-2.5-pro"  # UPDATED: Deep reasoning with Pro model
+                self.thinking_model_name = "gemini-3-flash-preview"  # Gemini 3 Flash for deep reasoning
                 self.grading_model_name = "gemini-2.5-flash"  # Fast grading (1.5-3s per question)
 
                 # Set client references (for compatibility)
@@ -87,8 +88,8 @@ class GeminiEducationalAIService:
 
                 logger.debug(f"✅ Gemini parsing model: {self.model_name} (Flash 2.5 - Fast parsing)")
                 logger.debug(f"✅ Gemini grading model: {self.grading_model_name} (Flash 2.5 - Fast grading)")
-                logger.debug(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 2.5 Pro - Deep Reasoning)")
-                logger.debug(f"📊 Pro Mode optimized: Fast parsing + Fast grading with timeout protection")
+                logger.debug(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 3 Flash - Advanced Reasoning)")
+                logger.debug(f"📊 Gemini 3 optimized: Default temperature 1.0, extended tokens")
             else:
                 logger.debug("❌ NEW Gemini API not available. Please upgrade google-generativeai package:")
                 logger.debug("   pip install --upgrade google-generativeai")
@@ -259,17 +260,18 @@ class GeminiEducationalAIService:
         TWO MODES:
         1. Standard Grading (use_deep_reasoning=False):
            - Model: gemini-2.5-flash (Fast, 1.5-3s per question)
-           - temperature=0.2: Deterministic for math grading
+           - Configuration: temperature=0.2, top_p=0.9, top_k=40
            - max_output_tokens=800: Brief feedback (<15 words)
            - timeout=30s: Fast response
            - Best for: Most homework questions (95% of cases)
 
         2. Deep Reasoning (use_deep_reasoning=True):
-           - Model: gemini-2.5-pro (Slower but more accurate, 8-12s per question)
-           - temperature=0.7: Higher for creative problem-solving
+           - Model: gemini-3-flash-preview (Gemini 3 Flash, 3-6s per question)
+           - Configuration: Default temperature (1.0 recommended by Gemini 3)
            - max_output_tokens=4096: Extended reasoning explanation (50-100 words)
            - timeout=100s: Extended timeout for complex analysis
            - Best for: Complex multi-step problems, proofs, essays
+           - Structured process: AI solves problem first, then compares to student
 
         Args:
             question_text: The question to grade
@@ -278,7 +280,7 @@ class GeminiEducationalAIService:
             subject: Subject for grading rules (Math, Physics, etc.)
             context_image: Optional base64 image for visual context
             parent_content: Optional parent question context for subquestions
-            use_deep_reasoning: Enable Pro model for complex reasoning (default: False)
+            use_deep_reasoning: Enable Gemini 3 Flash for advanced reasoning (default: False)
 
         Returns:
             Same format as OpenAI service: {success, grade: {score, is_correct, feedback, confidence, correct_answer}}
@@ -289,15 +291,15 @@ class GeminiEducationalAIService:
             if not self.thinking_client:
                 raise Exception("Gemini Thinking client not initialized. Check GEMINI_API_KEY in environment.")
             selected_client = self.thinking_client
-            model_name = self.thinking_model_name  # gemini-2.5-pro
-            mode_label = "DEEP REASONING"
+            model_name = self.thinking_model_name  # gemini-3-flash-preview
+            mode_label = "DEEP REASONING (GEMINI 3 FLASH)"
         else:
-            # Use Gemini Flash for standard grading (fast mode)
+            # Use Gemini 2.5 Flash for standard grading (fast mode)
             if not self.grading_client:
                 raise Exception("Gemini Grading client not initialized. Check GEMINI_API_KEY in environment.")
             selected_client = self.grading_client
             model_name = self.grading_model_name  # gemini-2.5-flash
-            mode_label = "STANDARD GRADING"
+            mode_label = "STANDARD GRADING (GEMINI 2.5 FLASH)"
 
         logger.debug(f"📝 === GRADING WITH GEMINI ({mode_label}) ===")
         logger.debug(f"🤖 Model: {model_name}")
@@ -358,21 +360,22 @@ class GeminiEducationalAIService:
             timeout = 60  # Default timeout for standard grading
 
             if use_deep_reasoning:
-                # Deep reasoning mode: Higher temperature, extended tokens for detailed analysis
-                # Uses gemini-2.5-pro model for complex reasoning
+                # GEMINI 3 DEEP REASONING MODE
+                # Uses gemini-3-flash-preview for advanced reasoning
+                # CRITICAL: Gemini 3 docs recommend using default temperature (1.0) for reasoning
+                # NOTE: thinking_level parameter requires v1alpha API, not available in stable SDK yet
                 generation_config = {
-                    "temperature": 0.7,
-                    "top_p": 0.95,
-                    "top_k": 40,
-                    "max_output_tokens": 4096,  # Extended tokens for deep reasoning with Pro model
+                    "max_output_tokens": 4096,  # Extended tokens for deep reasoning with step-by-step solution
                     "candidate_count": 1
+                    # NO temperature - Gemini 3 uses default 1.0 for optimal reasoning
+                    # thinking_level not supported in current SDK version
                 }
-                timeout = 100  # Extended timeout for Pro model processing
+                timeout = 100  # Extended timeout for Gemini 3 thinking model processing
             else:
-                # Normal grading mode: Fast and efficient
+                # GEMINI 2.5 STANDARD GRADING MODE
                 # Uses gemini-2.5-flash model for quick grading (1.5-3s per question)
                 generation_config = {
-                    "temperature": 0.2,     # Low temperature for deterministic math grading
+                    "temperature": 0.2,     # Low temperature for deterministic math grading (Gemini 2.5)
                     "top_p": 0.9,
                     "top_k": 40,
                     "max_output_tokens": 800,  # Sufficient for brief feedback (<15 words)
@@ -782,54 +785,42 @@ The subquestion you are grading is part of this larger question. Consider:
 """
 
         if use_deep_reasoning:
-            # Deep reasoning mode: Concise guidance for efficient processing
-            # OPTIMIZED: Simplified from 65 lines to ~35 lines (match OpenAI approach)
-            return f"""You are an expert educational grading assistant with deep reasoning capabilities.
+            # GEMINI 3 OPTIMIZED: Simplified prompt for advanced reasoning
+            # Gemini 3 docs: "Be concise. It responds best to direct, clear instructions.
+            # It may over-analyze verbose or overly complex prompt engineering."
+            return f"""Grade this student's answer with deep reasoning.
 
 Question: {question_text}
-
-Student's Answer: {student_answer}
-
-{f'Expected Answer: {correct_answer}' if correct_answer else ''}
-
+Student Answer: {student_answer}
+{f'Expected Answer: {correct_answer}' if correct_answer else 'Expected Answer: Determine from question'}
 Subject: {subject or 'General'}
 {parent_instructions}
 {image_instructions}
-DEEP REASONING INSTRUCTIONS:
-Think deeply about this question before grading. Consider:
-1. What concept is being tested?
-2. What approach did the student take?
-3. Where (if anywhere) did they make mistakes?
-4. How significant are the errors?
 
-Provide detailed analysis with educational feedback (50-100 words).
+Task:
+1. Solve the problem yourself to determine the correct approach
+2. Compare the student's answer to your solution
+3. Identify specific errors (if any)
+4. Provide actionable feedback using:
+   ✓ = correct parts
+   ✗ = errors found
+   → = concrete next step to fix it
 
-Return JSON in this exact format:
+Return JSON:
 {{
   "score": 0.95,
   "is_correct": true,
-  "feedback": "Your reasoning is excellent. You correctly identified X and applied method Y. The calculation is accurate. Well done!",
+  "feedback": "✓ Correct formula. ✗ Unit error: forgot to convert minutes to hours. → Action: Convert 20 min = 1/3 hour, then recalculate.",
   "confidence": 0.95,
-  "reasoning_steps": "Student used the correct formula. Calculation steps were accurate.",
-  "correct_answer": "REQUIRED: What is the correct/expected answer to this question?"
+  "ai_solution_steps": "Step 1: Formula v=d/t. Step 2: Convert units: 20min = 1/3hr. Step 3: Calculate: v=100/(1/3) = 300 km/h.",
+  "student_errors": ["Did not convert time units", "Used minutes directly with km"],
+  "correct_answer": "300 km/h"
 }}
 
-CRITICAL: The "correct_answer" field is REQUIRED and must ALWAYS be included in your response.
-If an expected answer was not provided above, YOU MUST determine the correct answer based on the question.
+Scoring: 1.0=fully correct, 0.7-0.9=minor errors, 0.5-0.7=partial, 0.0-0.5=incorrect
+Rules: is_correct=(score>=0.9), feedback 50-100 words, correct_answer always required
 
-GRADING SCALE:
-- 1.0: Completely correct (concept + execution)
-- 0.8-0.9: Minor errors (missing units, small arithmetic mistake)
-- 0.6-0.7: Correct concept but execution errors
-- 0.3-0.5: Partial understanding, significant gaps
-- 0.0-0.3: Incorrect or missing critical understanding
-
-RULES:
-1. is_correct = (score >= 0.9)
-2. Feedback: detailed and educational (50-100 words)
-3. Include reasoning_steps if complex problem
-4. correct_answer must be the expected/correct answer
-5. Return ONLY valid JSON, no markdown or extra text"""
+Return valid JSON only."""
 
         else:
             # Standard mode: Quick concise grading with minimal feedback
@@ -872,13 +863,17 @@ RULES:
 
     def _normalize_answer(self, answer: str) -> str:
         """
-        Normalize an answer string for comparison.
+        Normalize an answer string for comparison across all question types.
 
         Handles:
-        - Whitespace normalization (trim, collapse multiple spaces/newlines)
-        - Case normalization (lowercase)
-        - Punctuation removal (for short numeric/single-word answers)
-        - LaTeX math delimiters (standardize to no delimiters for comparison)
+        - Multiple choice option prefix removal (A., B., a), etc.)
+        - True/False abbreviations (T/F → true/false)
+        - Mathematical expressions (spacing, operators)
+        - Fractions and unicode symbols (½ → 1/2)
+        - Units normalization (5 km → 5km)
+        - Filler phrase removal ("the answer is", etc.)
+        - Whitespace and case normalization
+        - LaTeX math delimiters
 
         Args:
             answer: Raw answer string to normalize
@@ -894,21 +889,54 @@ RULES:
         # Step 1: Trim whitespace
         normalized = answer.strip()
 
-        # Step 2: Collapse multiple spaces and newlines into single spaces
-        normalized = re.sub(r'\s+', ' ', normalized)
+        # Step 2: Remove multiple choice option prefixes (BEFORE lowercasing)
+        # Patterns: "A.", "A)", "(A)", "a.", "a)", "(a)", etc.
+        # This fixes bug where "A.x=1" was marked wrong when correct answer is "x=1"
+        normalized = re.sub(r'^[(]?[A-Za-z][.)\]]?\s*', '', normalized)
 
-        # Step 3: Remove LaTeX math delimiters for comparison
+        # Step 3: Lowercase for case-insensitive comparison
+        normalized = normalized.lower()
+
+        # Step 4: True/False normalization - expand abbreviations
+        # "t" → "true", "f" → "false" (after lowercasing)
+        if normalized == "t":
+            normalized = "true"
+        elif normalized == "f":
+            normalized = "false"
+
+        # Step 5: Remove common filler words and phrases
+        filler_phrases = ["the answer is", "answer:", "result:", "solution:", "equals"]
+        for phrase in filler_phrases:
+            normalized = normalized.replace(phrase, "")
+
+        # Step 6: Normalize mathematical expressions - remove spaces around operators
+        normalized = normalized.replace(" + ", "+")
+        normalized = normalized.replace(" - ", "-")
+        normalized = normalized.replace(" * ", "*")
+        normalized = normalized.replace(" / ", "/")
+        normalized = normalized.replace(" = ", "=")
+
+        # Step 7: Normalize fractions and unicode symbols
+        fraction_map = {
+            "½": "1/2", "⅓": "1/3", "⅔": "2/3", "¼": "1/4", "¾": "3/4",
+            "⅕": "1/5", "⅖": "2/5", "⅗": "3/5", "⅘": "4/5", "⅙": "1/6", "⅚": "5/6",
+            "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8"
+        }
+        for unicode_char, fraction in fraction_map.items():
+            normalized = normalized.replace(unicode_char, fraction)
+
+        # Step 8: Normalize units - remove spaces between number and unit
+        # "5 km" → "5km", "10 m/s" → "10m/s"
+        normalized = re.sub(r'(\d)\s+(km|m|cm|mm|kg|g|mg|l|ml|s|min|h|mph|km/h|m/s|°c|°f)', r'\1\2', normalized, flags=re.IGNORECASE)
+
+        # Step 9: Remove LaTeX math delimiters for comparison
         # Remove \( ... \) and \[ ... \] delimiters
         normalized = re.sub(r'\\\[|\\\]|\\\(|\\\)', '', normalized)
 
-        # Step 4: Convert to lowercase for case-insensitive comparison
-        normalized = normalized.lower()
+        # Step 10: Collapse multiple spaces and newlines into single spaces
+        normalized = re.sub(r'\s+', ' ', normalized)
 
-        # Step 5: For short answers (< 10 chars), remove punctuation
-        # This handles cases like "14" vs "14." or "yes" vs "yes!"
-        if len(normalized) < 10:
-            normalized = re.sub(r'[.,!?;:]', '', normalized)
-
+        # Step 11: Final trim
         return normalized.strip()
 
     def _extract_json_from_response(self, response_text: str) -> Dict[str, Any]:

@@ -1058,6 +1058,8 @@
 "mistakeReview.noAnswer" = "No answer provided";
 "mistakeReview.correctAnswerLabel" = "Correct Answer:";
 "mistakeReview.showExplanation" = "Show Explanation";
+"mistakeReview.instructions.title" = "How to Use Mistake Review";
+"mistakeReview.instructions.message" = "1. Select a time range (This Week, This Month, or All Time) to filter your mistakes\n\n2. Choose a subject to review incorrect answers\n\n3. Tap 'Start Review' to see your mistakes\n\n4. Use 'Let's do them again' to select questions and generate a PDF for practice\n\n5. Review the correct answers and explanations to improve your understanding";
 
 // Parent Mode - Face ID
 "parentAuth.useFaceID" = "Use Face ID";
@@ -1082,6 +1084,29 @@
 "voicePreview.confidence.high" = "High confidence - transcription looks good";
 "voicePreview.confidence.medium" = "Medium confidence - please review carefully";
 "voicePreview.confidence.low" = "Low confidence - transcription may be inaccurate";
+
+// Learning Goals
+"goals.learningGoalsTitle" = "Learning Goals";
+"goals.currentPoints" = "Current Points";
+"goals.streak" = "Streak";
+"goals.days" = "days";
+"goals.dailyQuestions" = "Daily Questions";
+"goals.dailyQuestionsDescription" = "Answer questions daily to build consistent learning habits";
+"goals.target" = "Target:";
+"goals.questionsPerDay" = "questions per day";
+"goals.accuracyGoal" = "Accuracy Goal";
+"goals.accuracyGoalDescription" = "Maintain high accuracy in your answers to earn maximum points";
+"goals.percentAccuracy" = "% accuracy";
+"goals.weeklyStreak" = "Weekly Streak";
+"goals.weeklyStreakDescription" = "Maintain a 7-day learning streak to earn bonus points";
+"goals.dailyStreak" = "Daily Streak";
+"goals.dailyStreakDescription" = "Keep your learning momentum through daily activity";
+"goals.studyTime" = "Study Time";
+"goals.subjectMastery" = "Subject Mastery";
+"goals.studyConsistency" = "Study Consistency";
+"goals.studyConsistencyDescription" = "Maintain regular study habits for consistent progress";
+"goals.daysPerWeek" = "days per week";
+"goals.saveToDatabase" = "Save to Database";
 
 // Voice Input Controls
 "voice.pressToTalk" = "Press to Talk";
@@ -1385,3 +1410,9 @@
 "proMode.grading.grading" = "Grading Q%@...";
 "proMode.grading.progress" = "Completed %d/%d (%d%%)";
 "proMode.grading.complete" = "Grading complete!";
+
+// PDF Preview
+"pdfPreview.title" = "PDF Preview";
+"pdfPreview.print" = "Print";
+"pdfPreview.email" = "Email";
+"pdfPreview.share" = "Share";

@@ -1084,6 +1084,29 @@
 "voicePreview.confidence.medium" = "中等可信度 - 请仔细检查";
 "voicePreview.confidence.low" = "低可信度 - 转写可能不准确";
 
+// Learning Goals
+"goals.learningGoalsTitle" = "学习目标";
+"goals.currentPoints" = "当前积分";
+"goals.streak" = "连续天数";
+"goals.days" = "天";
+"goals.dailyQuestions" = "每日答题";
+"goals.dailyQuestionsDescription" = "每天回答问题以养成持续学习的习惯";
+"goals.target" = "目标：";
+"goals.questionsPerDay" = "题/天";
+"goals.accuracyGoal" = "正确率目标";
+"goals.accuracyGoalDescription" = "在答题中保持高正确率以获得最高分数";
+"goals.percentAccuracy" = "% 正确率";
+"goals.weeklyStreak" = "每周连续";
+"goals.weeklyStreakDescription" = "保持 7 天的学习连续以获得丰厚的奖励积分";
+"goals.dailyStreak" = "每日连续";
+"goals.dailyStreakDescription" = "通过每日活动保持学习动力";
+"goals.studyTime" = "学习时长";
+"goals.subjectMastery" = "科目掌握";
+"goals.studyConsistency" = "学习一致性";
+"goals.studyConsistencyDescription" = "保持规律的学习习惯以实现持续进步";
+"goals.daysPerWeek" = "天/周";
+"goals.saveToDatabase" = "保存到数据库";
+
 // Voice Input Controls
 "voice.pressToTalk" = "按住说话";
 "voice.slideUpToCancel" = "上滑取消";
@@ -1406,3 +1429,9 @@
 "proMode.grading.grading" = "🤖 批改 Q%@...";
 "proMode.grading.progress" = "✅ 已完成 %d/%d (%d%%)";
 "proMode.grading.complete" = "🎉 批改完成！";
+
+// PDF Preview
+"pdfPreview.title" = "PDF 预览";
+"pdfPreview.print" = "打印";
+"pdfPreview.email" = "邮件";
+"pdfPreview.share" = "分享";

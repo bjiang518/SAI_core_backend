@@ -283,6 +283,7 @@ class SessionMessageRequest(BaseModel):
     subject: Optional[str] = None  # Subject for context
     context: Optional[Dict[str, Any]] = None  # Additional context
     question_context: Optional[Dict[str, Any]] = None  # NEW: Homework question context for grade correction
+    deep_mode: Optional[bool] = False  # NEW: Deep thinking mode flag (uses o4-mini for complex reasoning)
 
 class SessionMessageResponse(BaseModel):
     session_id: str
@@ -1794,6 +1795,7 @@ async def send_session_message_stream(
         logger.debug(f"🌍 Language: {request.language}")
         logger.debug(f"🎯 System prompt provided: {request.system_prompt is not None}")
         logger.debug(f"📚 Question context provided: {request.question_context is not None}")
+        logger.debug(f"🧠 Deep Mode: {request.deep_mode} ({'o4-mini' if request.deep_mode else 'intelligent routing'})")  # ✅ NEW: Log deep mode
         logger.debug(f"🔍 Using STREAMING endpoint")
 
         # Get or create the session
@@ -1879,8 +1881,14 @@ async def send_session_message_stream(
                     break
 
         # 🚀 INTELLIGENT MODEL ROUTING: Select optimal model
-        # ✅ CRITICAL: Use Vision model (gpt-4o-mini) if image is present
-        if request.image_data:
+        # ✅ PRIORITY 1: Check for deep thinking mode (o4-mini for complex reasoning)
+        # ✅ PRIORITY 2: Check for images (gpt-4o-mini for vision capability)
+        # ✅ PRIORITY 3: Use intelligent routing for standard queries
+        if request.deep_mode:
+            selected_model = "o4-mini"  # Deep reasoning model
+            max_tokens = 4000  # More tokens for complex reasoning
+            logger.debug(f"🧠 Deep mode enabled - using o4-mini (complex reasoning)")
+        elif request.image_data:
             selected_model = "gpt-4o-mini"  # Vision-capable model
             max_tokens = 4096
             logger.debug(f"🖼️ Image detected - forcing gpt-4o-mini (vision-capable)")

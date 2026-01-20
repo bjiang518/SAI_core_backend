@@ -104,6 +104,7 @@ struct DiagramMessageView: View {
                     }
 
                     MarkdownLaTeXText(explanation, fontSize: 15, isStreaming: false)
+                        .textSelection(.enabled)
                         .foregroundColor(.primary.opacity(0.9))
                 }
             }
@@ -225,6 +226,7 @@ struct EnhancedAIMessageView: View {
             // Regular text content (if any)
             if !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 MarkdownLaTeXText(message, fontSize: 17, isStreaming: isStreaming)
+                    .textSelection(.enabled)
                     .foregroundColor(.primary.opacity(0.95))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

@@ -12,6 +12,13 @@ import Network
 import UIKit
 import os.log
 
+// MARK: - Production Logging Safety
+// Disable debug print statements in production builds to prevent user data exposure
+#if !DEBUG
+private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
+#endif
+
 class NetworkService: ObservableObject {
     static let shared = NetworkService()
 
@@ -83,12 +90,19 @@ class NetworkService: ObservableObject {
     @Published var conversationHistory: [[String: String]] = []
     
     // Internal conversation management
-    internal func addToConversationHistory(role: String, content: String) {
+    internal func addToConversationHistory(role: String, content: String, deepMode: Bool = false) {
         let message = ConversationMessage(role: role, content: content, timestamp: Date())
         internalConversationHistory.append(message)
 
         // Update published dictionary format for backward compatibility
-        conversationHistory.append(["role": role, "content": content])
+        var messageDict: [String: String] = ["role": role, "content": content]
+
+        // ✅ Add deep mode flag for user messages sent with deep thinking mode
+        if deepMode && role == "user" {
+            messageDict["deepMode"] = "true"
+        }
+
+        conversationHistory.append(messageDict)
 
         // Limit history size to prevent memory issues
         if internalConversationHistory.count > maxHistorySize {
@@ -96,12 +110,12 @@ class NetworkService: ObservableObject {
             conversationHistory.removeFirst(conversationHistory.count - maxHistorySize)
         }
     }
-    
+
     // MARK: - Public Conversation Management (for SessionChatView)
-    
+
     /// Add user message to conversation history immediately (for optimistic UI updates)
-    func addUserMessageToHistory(_ message: String) {
-        addToConversationHistory(role: "user", content: message)
+    func addUserMessageToHistory(_ message: String, deepMode: Bool = false) {
+        addToConversationHistory(role: "user", content: message, deepMode: deepMode)
     }
     
     /// Remove the last message from conversation history (for error recovery)
@@ -1060,6 +1074,7 @@ class NetworkService: ObservableObject {
     func sendSessionMessageStreaming(
         sessionId: String,
         message: String,
+        deepMode: Bool = false,  // NEW: Deep thinking mode flag
         questionContext: [String: Any]? = nil,  // NEW: Optional homework context
         onChunk: @escaping (String) -> Void,  // Called with accumulated text
         onSuggestions: @escaping ([FollowUpSuggestion]) -> Void,  // Called when suggestions arrive
@@ -1074,6 +1089,7 @@ class NetworkService: ObservableObject {
         // print("🟢 Thread: \(Thread.current)")
         print("🟢 Session ID: \(sessionId)")
         print("🟢 Message: \(message)")
+        print("🟢 Deep Mode: \(deepMode ? "YES (o4-mini)" : "NO (intelligent routing)")")  // ✅ NEW: Log deep mode
         print("🟢 Language: \(appLanguage)")
         print("🟢 ============================================")
         print("🟢 === QUESTION CONTEXT CHECK ===")
@@ -1130,6 +1146,7 @@ class NetworkService: ObservableObject {
 
         var messageData: [String: Any] = [
             "message": message,
+            "deep_mode": deepMode,  // ✅ NEW: Pass deep mode flag to backend
             "language": appLanguage
         ]
 

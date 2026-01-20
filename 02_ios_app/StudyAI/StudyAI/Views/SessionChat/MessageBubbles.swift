@@ -86,6 +86,16 @@ struct MessageBubbleView: View {
 struct ModernUserMessageView: View {
     let message: [String: String]
 
+    // ✅ Check if message was sent with deep mode
+    private var isDeepMode: Bool {
+        message["deepMode"] == "true"
+    }
+
+    // ✅ Colors based on deep mode status
+    private var bubbleColor: Color {
+        isDeepMode ? Color.purple : Color.green
+    }
+
     var body: some View {
         HStack {
             Spacer(minLength: 60)
@@ -93,13 +103,14 @@ struct ModernUserMessageView: View {
             Text(message["content"] ?? "")
                 .font(.system(size: 18))
                 .foregroundColor(.primary.opacity(0.95))
+                .textSelection(.enabled)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(Color.green.opacity(0.15))
+                .background(bubbleColor.opacity(0.15))
                 .cornerRadius(18)
                 .overlay(
                     RoundedRectangle(cornerRadius: 18)
-                        .stroke(Color.green.opacity(0.3), lineWidth: 0.5)
+                        .stroke(bubbleColor.opacity(0.3), lineWidth: 0.5)
                 )
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -118,6 +129,8 @@ struct ModernAIMessageView: View {
     @StateObject private var voiceService = VoiceInteractionService.shared
     @State private var animationState: AIAvatarState = .idle
     @State private var isCurrentlyPlaying = false
+    // NOTE: hasAutoSpoken flag reserved for future auto-play feature
+    // Currently, auto-play is disabled - messages only play when user taps the floating avatar
     @State private var hasAutoSpoken = false
 
     var body: some View {
@@ -125,6 +138,7 @@ struct ModernAIMessageView: View {
         VStack(alignment: .leading, spacing: 0) {
             // 消息内容 - full screen (no audio player UI during streaming)
             MarkdownLaTeXText(message, fontSize: 17, isStreaming: isStreaming)
+                .textSelection(.enabled)
                 .foregroundColor(.primary.opacity(0.95))
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)

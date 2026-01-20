@@ -3,74 +3,55 @@
 //  StudyAI
 //
 //  Created by Claude Code on 9/2/25.
+//  REFACTORED: Extracted components for better maintainability
 //
 
 import SwiftUI
 import Combine
 
-// MARK: - Session Chat View
+// MARK: - Session Chat View (Refactored)
 
 struct SessionChatView: View {
+    // Services
     @StateObject private var networkService = NetworkService.shared
     @StateObject private var voiceService = VoiceInteractionService.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @StateObject private var messageManager = ChatMessageManager.shared
-    @StateObject private var actionsHandler = MessageActionsHandler()
     @StateObject private var streamingService = StreamingMessageService.shared
     @StateObject private var ttsQueueService = TTSQueueService.shared
     @StateObject private var viewModel = SessionChatViewModel()
     @ObservedObject private var appState = AppState.shared
+
+    // UI State
     @State private var showingSubjectPicker = false
     @State private var showingSessionInfo = false
     @State private var showingArchiveDialog = false
     @State private var showingArchiveSuccess = false
-    @State private var showingArchiveInfo = false
-    
-    // Image upload functionality
-    @State private var showingCamera = false
-    @State private var showingImagePicker = false
-    @State private var showingPermissionAlert = false
-    
-    // iOS Messages-style image input
-    @State private var showingImageInputSheet = false
-    
-    // Image message storage for display
-    
-    // Voice functionality - WeChat style
     @State private var showingVoiceSettings = false
+    @State private var showingCamera = false
+    @State private var showingImageInputSheet = false
+    @State private var showingExistingSessionAlert = false
+    @State private var showingGradeCorrectionAlert = false
     @State private var isVoiceMode = false
-
-    // Focus state for message input
-    @FocusState private var isMessageInputFocused: Bool
-
-    // Track if first message sent (for toolbar display)
     @State private var hasConversationStarted = false
+    @State private var showingPermissionAlert = false
+    @State private var showingArchiveInfo = false
+    @State private var exampleCardScale: CGFloat = 0.8
 
-    // AI Avatar state for floating display at top
+    // Avatar and TTS State
     @State private var topAvatarState: AIAvatarState = .idle
     @State private var latestAIMessageId: String?
     @State private var latestAIMessage: String = ""
-    @State private var latestAIVoiceType: VoiceType = .eva
+    @State private var latestAIVoiceType: VoiceType = .adam
 
-    // Animation state for central example card
-    @State private var exampleCardScale: CGFloat = 0.8
+    // ✅ FIX: Track which messages have been spoken to prevent duplicates
+    @State private var spokenMessageIds: Set<String> = []
 
-    // Streaming UI update control (debounce for Chinese text stability)
+    // Focus state
+    @FocusState private var isMessageInputFocused: Bool
 
-    // Alert for existing chat session when "Ask AI for help" is clicked
-    @State private var showingExistingSessionAlert = false
-
-    // Grade correction detection and confirmation
-    @State private var showingGradeCorrectionAlert = false
-
-    // AI-generated follow-up suggestions
-
-    // TTS queue management for sequential playback
-
-    // Dark mode detection
+    // Environment
     @Environment(\.colorScheme) var colorScheme
-
-    // App lifecycle monitoring to stop audio when app backgrounds
     @Environment(\.scenePhase) var scenePhase
 
     private var subjects: [String] {
@@ -229,21 +210,37 @@ struct SessionChatView: View {
             } message: {
                 Text(NSLocalizedString("chat.alert.cameraPermission.message", comment: ""))
             }
-            .alert(NSLocalizedString("chat.alert.currentChatExists.title", comment: ""), isPresented: $showingExistingSessionAlert) {
-                Button(NSLocalizedString("chat.alert.currentChatExists.archiveCurrent", comment: "")) {
+            .confirmationDialog(
+                NSLocalizedString("chat.alert.currentChatExists.title", comment: "Current Chat Exists"),
+                isPresented: $showingExistingSessionAlert,
+                titleVisibility: .visible
+            ) {
+                Button(NSLocalizedString("chat.alert.currentChatExists.archiveCurrent", comment: "Archive Current")) {
+                    // Archive current conversation and clear pending question
+                    viewModel.archiveTopic = viewModel.selectedSubject
+                    showingArchiveDialog = true
                     appState.clearPendingChatMessage()
                     showingExistingSessionAlert = false
                 }
-                Button(NSLocalizedString("chat.alert.currentChatExists.discardAndStart", comment: ""), role: .destructive) {
+
+                Button(NSLocalizedString("chat.alert.currentChatExists.continueCurrent", comment: "Continue Current")) {
+                    // Continue with existing conversation (send question to current session)
                     viewModel.proceedWithHomeworkQuestion()
                     showingExistingSessionAlert = false
                 }
-                Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
+
+                Button(NSLocalizedString("chat.alert.currentChatExists.startNew", comment: "Start New"), role: .destructive) {
+                    // Start completely new conversation (discard current)
+                    viewModel.startNewConversationWithHomeworkQuestion()
+                    showingExistingSessionAlert = false
+                }
+
+                Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {
                     appState.clearPendingChatMessage()
                     showingExistingSessionAlert = false
                 }
             } message: {
-                Text(NSLocalizedString("chat.alert.currentChatExists.message", comment: ""))
+                Text(NSLocalizedString("chat.alert.currentChatExists.message", comment: "You have an active conversation. What would you like to do?"))
             }
             .alert(NSLocalizedString("chat.alert.error.title", comment: ""), isPresented: .constant(!viewModel.errorMessage.isEmpty)) {
                 Button(NSLocalizedString("common.ok", comment: "")) {
@@ -381,6 +378,13 @@ struct SessionChatView: View {
                     }
                     // If archivedSessionTitle is empty, it means error occurred
                     // Error is already handled by viewModel.errorMessage alert
+                }
+            }
+            .onChange(of: networkService.currentSessionId) { oldSessionId, newSessionId in
+                // ✅ FIX: Clear spoken messages when session changes (new session started)
+                if oldSessionId != newSessionId {
+                    spokenMessageIds.removeAll()
+                    print("🔄 [TTS] Cleared spoken messages for new session (old: \(oldSessionId ?? "nil"), new: \(newSessionId ?? "nil"))")
                 }
             }
     }
@@ -748,9 +752,9 @@ struct SessionChatView: View {
                 // WeChat-style voice interface
                 WeChatStyleVoiceInput(
                     isVoiceMode: $isVoiceMode,
-                    onVoiceInput: { recognizedText in
+                    onVoiceInput: { recognizedText, deepMode in
                         isMessageInputFocused = false  // Ensure keyboard is dismissed
-                        viewModel.handleVoiceInput(recognizedText)
+                        viewModel.handleVoiceInput(recognizedText, deepMode: deepMode)
                     },
                     onModeToggle: {
                         withAnimation(.easeInOut(duration: 0.3)) {
@@ -786,30 +790,34 @@ struct SessionChatView: View {
                             .focused($isMessageInputFocused)
                             .lineLimit(1...4)
                             .padding(.leading, 16)
-                            .padding(.vertical, 12)
+                            .padding(.vertical, 8)
 
-                        // Microphone/Send button (inside input box, right side)
-                        Button(action: {
-                            if viewModel.messageText.isEmpty {
-                                // Microphone action: toggle to voice mode
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    isVoiceMode = true
+                        // Deep Thinking Gesture Handler (hold & slide for deep mode)
+                        DeepThinkingGestureHandler(
+                            messageText: $viewModel.messageText,
+                            isDeepMode: .constant(false),
+                            onSend: { deepMode in
+                                if viewModel.messageText.isEmpty {
+                                    // Microphone action: toggle to voice mode
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        isVoiceMode = true
+                                        isMessageInputFocused = false
+                                    }
+                                } else {
+                                    // Send action - dismiss keyboard after send (standard behavior)
+                                    viewModel.sendMessage(deepMode: deepMode)  // ✅ Pass deep mode flag
+                                    // ✅ Dismiss keyboard after sending
                                     isMessageInputFocused = false
                                 }
-                            } else {
-                                // Send action - dismiss keyboard first
-                                isMessageInputFocused = false
-                                viewModel.sendMessage()
+                            },
+                            onStateChange: { isHolding, isActivated in
+                                // ✅ Update ViewModel state so overlay can react
+                                viewModel.isHolding = isHolding
+                                viewModel.isActivated = isActivated
+                                print("🔵 [SessionChatView] State changed: holding=\(isHolding), activated=\(isActivated)")
                             }
-                        }) {
-                            Image(systemName: viewModel.messageText.isEmpty ? "mic.fill" : "arrow.up.circle.fill")
-                                .font(.system(size: viewModel.messageText.isEmpty ? 22 : 28))
-                                .foregroundColor(viewModel.messageText.isEmpty ? .primary.opacity(0.6) : .blue)
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
-                        }
+                        )
                         .disabled(viewModel.isSubmitting && !viewModel.messageText.isEmpty)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.messageText.isEmpty)
                         .padding(.trailing, 4)
                     }
                     .background(Color.primary.opacity(0.08))
@@ -818,6 +826,35 @@ struct SessionChatView: View {
                         RoundedRectangle(cornerRadius: 25)
                             .stroke(Color.primary.opacity(0.15), lineWidth: 1)
                     )
+                    .overlay(alignment: .trailing) {
+                        // ✅ Deep mode circle overlay - appears OUTSIDE clipped container
+                        if viewModel.isHolding {
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: viewModel.isActivated ? [Color.gold, Color.purple] : [Color.purple.opacity(0.9), Color.blue.opacity(0.7)],
+                                        center: .center,
+                                        startRadius: 10,
+                                        endRadius: 30
+                                    )
+                                )
+                                .frame(width: 60, height: 60)
+                                .overlay(
+                                    VStack(spacing: 2) {
+                                        Image(systemName: "brain")
+                                            .font(.system(size: 20, weight: .semibold))
+                                        Text("DEEP")
+                                            .font(.system(size: 10, weight: .bold))
+                                    }
+                                    .foregroundColor(.white)
+                                )
+                                .shadow(color: viewModel.isActivated ? Color.purple.opacity(0.8) : Color.purple.opacity(0.3), radius: 10)
+                                .scaleEffect(viewModel.isActivated ? 1.2 : 1.0)
+                                .offset(x: -22, y: -80)  // Position above send button
+                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.isActivated)
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
@@ -1648,7 +1685,18 @@ struct SessionChatView: View {
             ttsQueueService.stopAllTTS()  // Stop any queued TTS as well
             topAvatarState = .idle
         } else {
-            // No audio playing - start playing the latest message
+            // ✅ FIX: Check if this message has already been spoken
+            if let messageId = latestAIMessageId, spokenMessageIds.contains(messageId) {
+                print("⏭️ [Avatar] Message already spoken - skipping TTS (ID: \(messageId))")
+                print("⏭️ [Avatar] Already spoken count: \(spokenMessageIds.count)")
+
+                // Provide different haptic feedback to indicate it was already spoken
+                let notificationFeedback = UINotificationFeedbackGenerator()
+                notificationFeedback.notificationOccurred(.warning)
+                return
+            }
+
+            // No audio playing and not yet spoken - start playing the latest message
             print("▶️ [Avatar] Starting playback of latest message")
 
             // Success haptic feedback for starting playback
@@ -1677,6 +1725,13 @@ struct SessionChatView: View {
         // Set this message as the current speaking message
         print("🎬 [Avatar] Setting current speaking message")
         voiceService.setCurrentSpeakingMessage(latestAIMessageId ?? "")
+
+        // ✅ FIX: Mark this message as spoken
+        if let messageId = latestAIMessageId {
+            spokenMessageIds.insert(messageId)
+            print("✅ [Avatar] Marked message as spoken (ID: \(messageId))")
+            print("✅ [Avatar] Total spoken messages: \(spokenMessageIds.count)")
+        }
 
         // Start TTS - state will update to .speaking via onReceive when audio actually starts
         print("🎬 [Avatar] Calling speakText with autoSpeak=false")
@@ -1775,7 +1830,7 @@ extension View {
 
 struct WeChatStyleVoiceInput: View {
     @Binding var isVoiceMode: Bool
-    let onVoiceInput: (String) -> Void
+    let onVoiceInput: (String, Bool) -> Void  // ✅ Added deepMode parameter: (text, deepMode)
     let onModeToggle: () -> Void
     let onCameraAction: () -> Void
     let isCameraDisabled: Bool
@@ -1783,6 +1838,7 @@ struct WeChatStyleVoiceInput: View {
     @StateObject private var speechService = SpeechRecognitionService()
     @State private var isRecording = false
     @State private var isDraggedToCancel = false
+    @State private var isDeepModeActivated = false  // ✅ Track deep mode activation
     @State private var recordingStartTime: Date?
     @State private var recordingDuration: TimeInterval = 0
     @State private var dragOffset: CGSize = .zero
@@ -1790,6 +1846,10 @@ struct WeChatStyleVoiceInput: View {
 
     // Timer for recording duration
     @State private var recordingTimer: Timer?
+
+    // ✅ Gesture zones
+    private let deepModeThreshold: CGFloat = -60  // Start of deep mode zone
+    private let cancelThreshold: CGFloat = -120   // Start of cancel zone (beyond deep mode)
     
     var body: some View {
         if isVoiceMode {
@@ -1824,9 +1884,9 @@ struct WeChatStyleVoiceInput: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            // Cancel area (appears when recording)
+            // Deep mode + Cancel area (appears when recording)
             if isRecording {
-                cancelArea
+                gestureIndicatorArea
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
             
@@ -1893,35 +1953,65 @@ struct WeChatStyleVoiceInput: View {
         }
     }
     
-    private var cancelArea: some View {
+    private var gestureIndicatorArea: some View {
         VStack(spacing: 12) {
-            // Red cancel icon with enhanced animations
+            // Icon changes based on zone: Deep mode (brain) or Cancel (X)
             ZStack {
-                // Pulsing background circle when in cancel zone
-                if isDraggedToCancel {
+                // Pulsing background
+                if isDraggedToCancel || isDeepModeActivated {
                     Circle()
-                        .fill(Color.red.opacity(0.3))
+                        .fill((isDraggedToCancel ? Color.red : Color.purple).opacity(0.3))
                         .frame(width: 80, height: 80)
-                        .scaleEffect(isDraggedToCancel ? 1.2 : 0.8)
-                        .opacity(isDraggedToCancel ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: isDraggedToCancel)
+                        .scaleEffect(isDraggedToCancel || isDeepModeActivated ? 1.2 : 0.8)
+                        .opacity(isDraggedToCancel || isDeepModeActivated ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: isDraggedToCancel || isDeepModeActivated)
                 }
 
-                // Main cancel icon
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 50))
-                    .foregroundColor(isDraggedToCancel ? .red : .red.opacity(0.6))
-                    .scaleEffect(isDraggedToCancel ? 1.3 : 1.0)
-                    .rotationEffect(.degrees(isDraggedToCancel ? 90 : 0))
-                    .animation(.spring(response: 0.4, dampingFraction: 0.6), value: isDraggedToCancel)
+                // Icon
+                if isDraggedToCancel {
+                    // Cancel zone - Red X
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.red)
+                        .scaleEffect(isDraggedToCancel ? 1.3 : 1.0)
+                        .rotationEffect(.degrees(isDraggedToCancel ? 90 : 0))
+                        .animation(.spring(response: 0.4, dampingFraction: 0.6), value: isDraggedToCancel)
+                } else if isDeepModeActivated {
+                    // Deep mode zone - Purple/Gold brain
+                    Image(systemName: "brain")
+                        .font(.system(size: 40, weight: .semibold))
+                        .foregroundColor(Color.gold)
+                        .scaleEffect(isDeepModeActivated ? 1.2 : 1.0)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isDeepModeActivated)
+                } else {
+                    // Default - Show slide up hint
+                    VStack(spacing: 4) {
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 30))
+                            .foregroundColor(.white.opacity(0.5))
+                        Text("Slide up")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                }
             }
 
-            Text(isDraggedToCancel ? NSLocalizedString("voice.releaseToCancel", comment: "") : NSLocalizedString("voice.slideUpToCancel", comment: ""))
-                .font(.system(size: 14, weight: isDraggedToCancel ? .bold : .medium))
-                .foregroundColor(.white)
-                .opacity(isDraggedToCancel ? 1.0 : 0.7)
-                .scaleEffect(isDraggedToCancel ? 1.1 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDraggedToCancel)
+            // Text instruction
+            if isDraggedToCancel {
+                Text(NSLocalizedString("voice.releaseToCancel", comment: ""))
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .scaleEffect(1.1)
+            } else if isDeepModeActivated {
+                Text("Deep Thinking Mode")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .scaleEffect(1.05)
+            } else {
+                Text(NSLocalizedString("voice.slideUpToCancel", comment: ""))
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white.opacity(0.7))
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 30)
@@ -1930,17 +2020,21 @@ struct WeChatStyleVoiceInput: View {
                 // Base background
                 Color.black.opacity(0.4)
 
-                // Red overlay when in cancel zone
+                // Zone-specific overlay
                 if isDraggedToCancel {
                     Color.red.opacity(0.2)
+                        .transition(.opacity)
+                } else if isDeepModeActivated {
+                    Color.purple.opacity(0.2)
                         .transition(.opacity)
                 }
             }
         )
         .cornerRadius(20)
         .padding(.horizontal, 20)
-        .shadow(color: isDraggedToCancel ? .red.opacity(0.5) : .clear, radius: 20, x: 0, y: 0)
+        .shadow(color: isDraggedToCancel ? .red.opacity(0.5) : (isDeepModeActivated ? .purple.opacity(0.5) : .clear), radius: 20, x: 0, y: 0)
         .animation(.easeInOut(duration: 0.3), value: isDraggedToCancel)
+        .animation(.easeInOut(duration: 0.3), value: isDeepModeActivated)
     }
     
     private var weChatVoiceButton: some View {
@@ -2016,26 +2110,43 @@ struct WeChatStyleVoiceInput: View {
     private func handleDragChanged(_ value: DragGesture.Value) {
         dragOffset = value.translation
 
-        // Check if dragged up to cancel area (threshold: -80 points)
+        // ✅ THREE-ZONE DETECTION: Normal (0 to -60), Deep Mode (-60 to -120), Cancel (beyond -120)
+        let wasDeepModeActivated = isDeepModeActivated
         let wasDraggedToCancel = isDraggedToCancel
-        isDraggedToCancel = value.translation.height < -80
+
+        // Detect which zone user is in based on vertical drag distance
+        if value.translation.height <= cancelThreshold {
+            // Beyond -120px = Cancel zone (red)
+            isDeepModeActivated = false
+            isDraggedToCancel = true
+        } else if value.translation.height <= deepModeThreshold {
+            // Between -60px and -120px = Deep mode zone (purple/gold)
+            isDeepModeActivated = true
+            isDraggedToCancel = false
+        } else {
+            // Between 0 and -60px = Normal zone
+            isDeepModeActivated = false
+            isDraggedToCancel = false
+        }
 
         // Start recording on initial press
         if !isRecording && value.translation.magnitude < 10 {
             startRecording()
         }
 
-        // Enhanced haptic feedback when entering/leaving cancel zone
-        if wasDraggedToCancel != isDraggedToCancel {
-            if isDraggedToCancel {
-                // Stronger feedback when entering cancel zone
-                let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
-                impactFeedback.impactOccurred()
-            } else {
-                // Lighter feedback when leaving cancel zone
-                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                impactFeedback.impactOccurred()
-            }
+        // ✅ Enhanced haptic feedback for zone transitions
+        if wasDeepModeActivated != isDeepModeActivated && isDeepModeActivated {
+            // Entering deep mode zone - medium haptic
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+        } else if wasDraggedToCancel != isDraggedToCancel && isDraggedToCancel {
+            // Entering cancel zone - heavy haptic
+            let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
+            impactFeedback.impactOccurred()
+        } else if (wasDeepModeActivated && !isDeepModeActivated) || (wasDraggedToCancel && !isDraggedToCancel) {
+            // Leaving activated zones - light haptic
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
         }
     }
     
@@ -2044,18 +2155,21 @@ struct WeChatStyleVoiceInput: View {
         withAnimation(.spring()) {
             dragOffset = .zero
         }
-        
+
         if isRecording {
             if isDraggedToCancel {
-                // Cancel recording
+                // Cancel recording (beyond -120px)
                 cancelRecording()
             } else {
-                // Send recording
-                stopRecordingAndSend()
+                // ✅ Send recording with deep mode flag if in deep mode zone
+                let sendWithDeepMode = isDeepModeActivated
+                stopRecordingAndSend(deepMode: sendWithDeepMode)
             }
         }
-        
+
+        // ✅ Reset all states after handling
         isDraggedToCancel = false
+        isDeepModeActivated = false
     }
     
     private func startRecording() {
@@ -2086,7 +2200,7 @@ struct WeChatStyleVoiceInput: View {
         }
     }
 
-    private func stopRecordingAndSend() {
+    private func stopRecordingAndSend(deepMode: Bool = false) {
         guard isRecording else { return }
 
         // Stop recording
@@ -2108,9 +2222,9 @@ struct WeChatStyleVoiceInput: View {
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
 
-        // Send directly instead of showing preview
+        // ✅ Send with deep mode flag
         if !recognizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            onVoiceInput(recognizedText)
+            onVoiceInput(recognizedText, deepMode)
         }
     }
 

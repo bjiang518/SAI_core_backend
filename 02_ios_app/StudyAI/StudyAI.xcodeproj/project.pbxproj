@@ -95,6 +95,12 @@
 		7B1ED8452E829DBE00E5E57D /* ReportDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8442E829DBE00E5E57D /* ReportDetailView.swift */; };
 		7B1ED8472E829DE900E5E57D /* ReportExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8462E829DE900E5E57D /* ReportExportView.swift */; };
 		7B1ED8492E829E5B00E5E57D /* ReportExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1ED8482E829E5B00E5E57D /* ReportExportService.swift */; };
+		7B2248152F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */; };
+		7B2248162F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */; };
+		7B2248172F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */; };
+		7B2248212F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */; };
+		7B2248222F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */; };
+		7B2248232F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */; };
 		7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
@@ -341,6 +347,7 @@
 		E256D35586004F19A4722977 /* ReportGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C137BECD88E403C95DB4167 /* ReportGenerator.swift */; };
 		E4B6564CD270402684D59645 /* Focus_Flow_2025-10-30T054503.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FF8D738B30F14BBAA20BE7A0 /* Focus_Flow_2025-10-30T054503.mp3 */; };
 		E50F5FB6D0B84192B07AC6D4 /* SessionChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C25B8960EFF470BBE31F73A /* SessionChatView.swift */; };
+		DEEP98765432109876FEDCBA /* DeepThinkingGestureHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEEP12345678901234ABCDEF /* DeepThinkingGestureHandler.swift */; };
 		E892C474DD7F4C22968FF06B /* ModernLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 377AB348C798453AB804B3A9 /* ModernLoginView.swift */; };
 		EA2306D761BC495DBE05D2EA /* TomatoGardenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14D61577468E4AD883A55881 /* TomatoGardenService.swift */; };
 		EBF42CC5063E45B7A36A22FD /* StorageControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 298792E8091D453F913E76C5 /* StorageControlView.swift */; };
@@ -435,6 +442,7 @@
 		69D668B7833B4B1D9DF8653A /* SubjectBreakdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SubjectBreakdownView.swift; path = StudyAI/Views/SubjectBreakdownView.swift; sourceTree = SOURCE_ROOT; };
 		6C137BECD88E403C95DB4167 /* ReportGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportGenerator.swift; path = StudyAI/Services/ReportGenerator.swift; sourceTree = SOURCE_ROOT; };
 		6C25B8960EFF470BBE31F73A /* SessionChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionChatView.swift; path = StudyAI/Views/SessionChatView.swift; sourceTree = SOURCE_ROOT; };
+		DEEP12345678901234ABCDEF /* DeepThinkingGestureHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/DeepThinkingGestureHandler.swift; sourceTree = SOURCE_ROOT; };
 		7328FFA07B1244DE /* PlaylistEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaylistEditorView.swift; path = StudyAI/Views/PlaylistEditorView.swift; sourceTree = SOURCE_ROOT; };
 		740D132F82A14ABAA94D79CC /* VoiceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceModels.swift; path = StudyAI/Models/VoiceModels.swift; sourceTree = SOURCE_ROOT; };
 		7432D8F68917426DB11C0528 /* StudyAI/Services/ProModeImageStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/ProModeImageStorage.swift; sourceTree = SOURCE_ROOT; };
@@ -458,6 +466,8 @@
 		7B1ED8442E829DBE00E5E57D /* ReportDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportDetailView.swift; path = StudyAI/Views/ReportDetailView.swift; sourceTree = SOURCE_ROOT; };
 		7B1ED8462E829DE900E5E57D /* ReportExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportExportView.swift; path = StudyAI/Views/ReportExportView.swift; sourceTree = SOURCE_ROOT; };
 		7B1ED8482E829E5B00E5E57D /* ReportExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportExportService.swift; path = StudyAI/Services/ReportExportService.swift; sourceTree = SOURCE_ROOT; };
+		7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkPDFPreviewView.swift; path = StudyAI/Views/DigitalHomeworkPDFPreviewView.swift; sourceTree = SOURCE_ROOT; };
 		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCropper.swift; sourceTree = "<group>"; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
 		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
@@ -703,6 +713,7 @@
 		7B9EC4642E61663B005E4BFB = {
 			isa = PBXGroup;
 			children = (
+				7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */,
 				7B8353672EA80C7000199AC3 /* Assets.xcassets */,
 				7B8353322EA6F0DA00199AC3 /* utils */,
 				7B1961D72E94D96A0024317A /* en.lproj */,
@@ -829,6 +840,8 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				DEEP12345678901234ABCDEF /* DeepThinkingGestureHandler.swift */,
+				7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */,
 				7BD668C72EE6A7F000E09E55 /* DiagramMessageView.swift */,
 				7BD668C82EE6A7F000E09E55 /* DiagramRendererView.swift */,
 				7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */,
@@ -1107,6 +1120,7 @@
 				7B19619B2E9285F20024317A /* Sandy_Loading.json in Resources */,
 				99A9AEB85CBC4129878F84F8 /* AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3 in Resources */,
 				7B74A2072EB18078002DBE2B /* Fire.json in Resources */,
+				7B2248172F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */,
 				7B74A2082EB18078002DBE2B /* Foriday.json in Resources */,
 				7B19619C2E9285F20024317A /* Customised_report.json in Resources */,
 				7B9045202E8FB42E00E5DDFA /* Checklist.json in Resources */,
@@ -1131,6 +1145,7 @@
 				7B83536A2EA80C7000199AC3 /* Assets.xcassets in Resources */,
 				7B1961E02E94D96A0024317A /* Localizable.strings in Resources */,
 				7BEEB62C2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
+				7B2248152F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */,
 				7BEEB61E2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */,
 				7B19619F2E9285F20024317A /* Sandy_Loading.json in Resources */,
@@ -1159,6 +1174,7 @@
 				7B8353692EA80C7000199AC3 /* Assets.xcassets in Resources */,
 				7B1961E32E94D96A0024317A /* Localizable.strings in Resources */,
 				7BEEB62D2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
+				7B2248162F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */,
 				7BEEB61D2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */,
 				7B19619D2E9285F20024317A /* Sandy_Loading.json in Resources */,
@@ -1247,6 +1263,7 @@
 				7B1ED83B2E829AA600E5E57D /* ParentReportsView.swift in Sources */,
 				B67097AEC09C4CA4B5C82F10 /* TextToSpeechService.swift in Sources */,
 				9FF8A1F6F34E4BF786B5EAC3 /* VoiceInteractionService.swift in Sources */,
+				7B2248212F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */,
 				12345678901234567890ABCD /* UserSessionManager.swift in Sources */,
 				23456789012345678901BCDE /* LibraryDataService.swift in Sources */,
 				PRFS678901234567CDEF9012 /* ProfileService.swift in Sources */,
@@ -1299,6 +1316,7 @@
 				7B1ED8472E829DE900E5E57D /* ReportExportView.swift in Sources */,
 				7BDE565F2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */,
 				E50F5FB6D0B84192B07AC6D4 /* SessionChatView.swift in Sources */,
+				DEEP98765432109876FEDCBA /* DeepThinkingGestureHandler.swift in Sources */,
 				A6AAD8B3B1CF457696752650 /* SessionDetailView.swift in Sources */,
 				8F1EBFF4298743058E934595 /* SessionHistoryView.swift in Sources */,
 				7BDE56642EC1C617004A8629 /* PomodoroDeepLinkHandler.swift in Sources */,
@@ -1387,6 +1405,7 @@
 				7BDE567B2EC1C6C4004A8629 /* PomodoroCalendarView.swift in Sources */,
 				7BDE56762EC1C6A3004A8629 /* PomodoroNotificationService.swift in Sources */,
 				7BFC71312EC5A91D00DB95A7 /* AssistantLogger.swift in Sources */,
+				7B2248232F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */,
 				7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */,
 				7BFC71322EC5A91D00DB95A7 /* NetworkService+PracticeGenerator.swift in Sources */,
 				7BD668A22ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */,
@@ -1462,6 +1481,7 @@
 				7BDE56692EC1C64D004A8629 /* StreamingMessageService.swift in Sources */,
 				7BDE566A2EC1C64D004A8629 /* TTSQueueService.swift in Sources */,
 				7B8E9EB12EAF38D000E83DA8 /* SessionManager.swift in Sources */,
+				7B2248222F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */,
 				7B8E9E922EAB50F400E83DA8 /* HomeworkAlbumView.swift in Sources */,
 				7BDE56832EC1C718004A8629 /* PomodoroCalendarEvent.swift in Sources */,
 				7BDE565E2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */,

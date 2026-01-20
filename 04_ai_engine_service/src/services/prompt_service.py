@@ -1068,11 +1068,10 @@ Remember: Be honest about grading errors. If the student was right and the AI wa
         detected_subject = self.detect_subject(subject)
         template = self.prompt_templates.get(detected_subject, self.prompt_templates[Subject.GENERAL])
 
-        # Simplified prompt - only include LaTeX rules for math subjects
-        is_math = detected_subject in {Subject.MATHEMATICS, Subject.PHYSICS, Subject.CHEMISTRY}
-
+        # ALWAYS include LaTeX formatting instructions for ALL question types
+        # True/false, multiple choice, etc. can all contain mathematical notation
         # Build math formatting instruction (can't use backslashes in f-string)
-        math_note = "Math: Use \\(...\\) delimiters. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, \\alpha, \\leq (NOT double \\\\)" if is_math else ""
+        math_note = "FORMATTING: Use \\(...\\) delimiters for ANY math symbols or equations. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, x^2, \\alpha, \\leq (NOT double \\\\)"
         focus_line = f"Focus: {focus_notes}" if focus_notes else ""
 
         # Build question type instruction
@@ -1160,12 +1159,10 @@ Generate now:"""
 
         unique_source_tags = list(set(all_source_tags))
 
-        # Get subject-specific formatting
-        detected_subject = self.detect_subject(subject)
-        is_math = detected_subject in {Subject.MATHEMATICS, Subject.PHYSICS, Subject.CHEMISTRY}
-
-        # Build notes outside f-string (can't use backslashes in f-string)
-        math_note = "Math: Use \\(...\\) delimiters. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, \\alpha, \\leq (NOT double \\\\)" if is_math else ""
+        # ALWAYS include LaTeX formatting instructions for ALL question types
+        # True/false, multiple choice, etc. can all contain mathematical notation
+        # Build math formatting instruction (can't use backslashes in f-string)
+        math_note = "FORMATTING: Use \\(...\\) delimiters for ANY math symbols or equations. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, x^2, \\alpha, \\leq (NOT double \\\\)"
         tags_note = f"TAGS: Use EXACTLY these tags: {str(unique_source_tags)} (copy exactly, no new tags)" if unique_source_tags else ""
 
         # Build question type instruction
@@ -1252,12 +1249,10 @@ Generate now:"""
             weaknesses = ', '.join(c.get('weaknesses', [])) if c.get('weaknesses') else 'N/A'
             conv_summary.append(f"#{i} ({c.get('date', 'N/A')}): Topics: {topics[:50]}, Strengths: {strengths[:40]}, Gaps: {weaknesses[:40]}")
 
-        # Get subject-specific formatting
-        detected_subject = self.detect_subject(subject)
-        is_math = detected_subject in {Subject.MATHEMATICS, Subject.PHYSICS, Subject.CHEMISTRY}
-
+        # ALWAYS include LaTeX formatting instructions for ALL question types
+        # True/false, multiple choice, etc. can all contain mathematical notation
         # Build math note outside f-string (can't use backslashes in f-string)
-        math_note = "Math: Use \\(...\\) delimiters. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, \\alpha, \\leq (NOT double \\\\)" if is_math else ""
+        math_note = "FORMATTING: Use \\(...\\) delimiters for ANY math symbols or equations. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, x^2, \\alpha, \\leq (NOT double \\\\)"
 
         # Build question type instruction
         if len(question_types) == 1:

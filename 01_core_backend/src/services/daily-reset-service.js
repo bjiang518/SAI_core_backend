@@ -5,6 +5,7 @@
 
 const cron = require('node-cron');
 const { db } = require('../utils/railway-database');
+const logger = require('../utils/logger');  // PRODUCTION: Structured logging
 
 class DailyResetService {
     constructor() {
@@ -19,12 +20,12 @@ class DailyResetService {
      */
     async initialize() {
         if (this.isInitialized) {
-            console.log('⚠️ Daily Reset Service already initialized');
+            logger.debug('⚠️ Daily Reset Service already initialized');
             return;
         }
 
         try {
-            console.log('🕒 Initializing Daily Reset Service...');
+            logger.debug('🕒 Initializing Daily Reset Service...');
 
             // Setup midnight reset cron job (runs at 12:00 AM UTC every day)
             this.setupMidnightResetJob();
@@ -36,10 +37,10 @@ class DailyResetService {
             await this.checkStartupReset();
 
             this.isInitialized = true;
-            console.log('✅ Daily Reset Service initialized successfully');
+            logger.debug('✅ Daily Reset Service initialized successfully');
 
         } catch (error) {
-            console.error('❌ Failed to initialize Daily Reset Service:', error);
+            logger.error('❌ Failed to initialize Daily Reset Service:', error);
             throw error;
         }
     }
@@ -57,7 +58,7 @@ class DailyResetService {
         });
 
         this.cronJobs.set('midnight-reset', midnightJob);
-        console.log('🕛 Scheduled daily reset for 12:00 AM UTC');
+        logger.debug('🕛 Scheduled daily reset for 12:00 AM UTC');
     }
 
     /**
@@ -72,7 +73,7 @@ class DailyResetService {
         });
 
         this.cronJobs.set('health-check', healthCheckJob);
-        console.log('🏥 Scheduled health check every 6 hours');
+        logger.debug('🏥 Scheduled health check every 6 hours');
     }
 
     /**
@@ -95,10 +96,10 @@ class DailyResetService {
             const hasActivity = todayActivityCheck.rows[0]?.has_activity || false;
 
             if (hasActivity) {
-                console.log(`📊 Found daily activities for today - no startup reset needed`);
+                logger.debug(`📊 Found daily activities for today - no startup reset needed`);
                 this.lastResetDate = today;
             } else {
-                console.log('🔄 No daily activities found for today - checking if reset is needed');
+                logger.debug('🔄 No daily activities found for today - checking if reset is needed');
 
                 // Check the last recorded activity date
                 const lastActivityCheck = await db.query(`
@@ -111,15 +112,15 @@ class DailyResetService {
                 if (lastDate) {
                     const lastDateString = lastDate.toISOString().split('T')[0];
                     if (lastDateString < today) {
-                        console.log(`🕒 Last activity was on ${lastDateString}, performing startup reset for ${today}`);
+                        logger.debug(`🕒 Last activity was on ${lastDateString}, performing startup reset for ${today}`);
                         await this.performDailyReset();
                     }
                 } else {
-                    console.log('📝 No previous activity found - fresh database state');
+                    logger.debug('📝 No previous activity found - fresh database state');
                 }
             }
         } catch (error) {
-            console.error('❌ Error checking startup reset:', error);
+            logger.error('❌ Error checking startup reset:', error);
         }
     }
 
@@ -128,7 +129,7 @@ class DailyResetService {
      */
     async performDailyReset(force = false) {
         if (this.resetInProgress) {
-            console.log('⚠️ Daily reset already in progress, skipping...');
+            logger.debug('⚠️ Daily reset already in progress, skipping...');
             return;
         }
 
@@ -137,19 +138,19 @@ class DailyResetService {
         const today = new Date().toISOString().split('T')[0];
 
         try {
-            console.log('🔄 ==> DAILY RESET STARTING <==');
-            console.log(`📅 Reset date: ${today}`);
-            console.log(`🕒 Reset time: ${new Date().toISOString()}`);
-            console.log(`🔧 Force reset: ${force}`);
+            logger.debug('🔄 ==> DAILY RESET STARTING <==');
+            logger.debug(`📅 Reset date: ${today}`);
+            logger.debug(`🕒 Reset time: ${new Date().toISOString()}`);
+            logger.debug(`🔧 Force reset: ${force}`);
 
             // Check if we've already reset today (unless forced)
             if (!force && this.lastResetDate === today) {
-                console.log('✅ Daily reset already performed today, skipping');
+                logger.debug('✅ Daily reset already performed today, skipping');
                 return;
             }
 
             if (force && this.lastResetDate === today) {
-                console.log('🔧 Forcing reset even though already performed today');
+                logger.debug('🔧 Forcing reset even though already performed today');
             }
 
             const resetStats = {
@@ -160,7 +161,7 @@ class DailyResetService {
             };
 
             await db.transaction(async (client) => {
-                console.log('📊 Starting daily reset transaction...');
+                logger.debug('📊 Starting daily reset transaction...');
 
                 // Step 1: Get all users who had activity yesterday
                 const usersWithActivityQuery = `
@@ -173,7 +174,7 @@ class DailyResetService {
                 const usersResult = await client.query(usersWithActivityQuery, [today]);
                 resetStats.usersAffected = usersResult.rows.length;
 
-                console.log(`👥 Found ${resetStats.usersAffected} users with previous activity`);
+                logger.debug(`👥 Found ${resetStats.usersAffected} users with previous activity`);
 
                 // Step 2: Archive/backup previous day's data (optional - for analytics)
                 const yesterday = new Date();
@@ -184,7 +185,7 @@ class DailyResetService {
                 // We need to reset today's activities to zero for all users
                 // This ensures each user has a fresh start for daily tracking
 
-                console.log('🔄 Resetting daily subject activities...');
+                logger.debug('🔄 Resetting daily subject activities...');
 
                 // First, reset TODAY's activities to zero for all users
                 const resetTodayQuery = `
@@ -196,7 +197,7 @@ class DailyResetService {
                     WHERE activity_date = $1
                 `;
                 const resetTodayResult = await client.query(resetTodayQuery, [today]);
-                console.log(`🔄 Reset today's activities for ${resetTodayResult.rowCount} user-subject combinations`);
+                logger.debug(`🔄 Reset today's activities for ${resetTodayResult.rowCount} user-subject combinations`);
 
                 // Alternatively, delete today's records entirely (cleaner approach)
                 const deleteTodayQuery = `
@@ -204,7 +205,7 @@ class DailyResetService {
                     WHERE activity_date = $1
                 `;
                 const deleteTodayResult = await client.query(deleteTodayQuery, [today]);
-                console.log(`🗑️ Deleted ${deleteTodayResult.rowCount} today's activity records for fresh start`);
+                logger.debug(`🗑️ Deleted ${deleteTodayResult.rowCount} today's activity records for fresh start`);
 
                 // Clear out old daily activities (keep last 30 days for analytics)
                 const cleanupQuery = `
@@ -215,10 +216,10 @@ class DailyResetService {
                 thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
                 const cleanupResult = await client.query(cleanupQuery, [thirtyDaysAgo.toISOString().split('T')[0]]);
 
-                console.log(`🗑️ Cleaned up ${cleanupResult.rowCount} old daily activity records`);
+                logger.debug(`🗑️ Cleaned up ${cleanupResult.rowCount} old daily activity records`);
 
                 // Step 4: Update subject progress for streak calculations
-                console.log('📈 Updating subject progress streaks...');
+                logger.debug('📈 Updating subject progress streaks...');
 
                 // For each user, update their streak based on yesterday's activity
                 for (const userRow of usersResult.rows) {
@@ -259,19 +260,19 @@ class DailyResetService {
                         resetStats.subjectProgressUpdated++;
 
                     } catch (userError) {
-                        console.error(`❌ Error updating streaks for user ${userId}:`, userError);
+                        logger.error(`❌ Error updating streaks for user ${userId}:`, userError);
                         resetStats.errorsEncountered++;
                     }
                 }
 
                 // Step 5: Reset any other daily counters if needed
                 // This could include daily goals, achievements, etc.
-                console.log('🎯 Resetting daily goals and achievements...');
+                logger.debug('🎯 Resetting daily goals and achievements...');
 
                 // If we have additional daily reset tables, we would handle them here
                 // For now, we focus on the core progress tracking
 
-                console.log('✅ Daily reset transaction completed successfully');
+                logger.debug('✅ Daily reset transaction completed successfully');
             });
 
             // Update reset tracking
@@ -279,19 +280,19 @@ class DailyResetService {
             const duration = Date.now() - startTime;
 
             // Log reset summary
-            console.log('📊 ==> DAILY RESET SUMMARY <==');
-            console.log(`✅ Reset completed successfully in ${duration}ms`);
-            console.log(`👥 Users affected: ${resetStats.usersAffected}`);
-            console.log(`📈 Subject progress updated: ${resetStats.subjectProgressUpdated}`);
-            console.log(`❌ Errors encountered: ${resetStats.errorsEncountered}`);
-            console.log(`📅 Next reset: Tomorrow at 12:00 AM UTC`);
-            console.log('🔄 ==> DAILY RESET COMPLETED <==');
+            logger.debug('📊 ==> DAILY RESET SUMMARY <==');
+            logger.debug(`✅ Reset completed successfully in ${duration}ms`);
+            logger.debug(`👥 Users affected: ${resetStats.usersAffected}`);
+            logger.debug(`📈 Subject progress updated: ${resetStats.subjectProgressUpdated}`);
+            logger.debug(`❌ Errors encountered: ${resetStats.errorsEncountered}`);
+            logger.debug(`📅 Next reset: Tomorrow at 12:00 AM UTC`);
+            logger.debug('🔄 ==> DAILY RESET COMPLETED <==');
 
         } catch (error) {
             const duration = Date.now() - startTime;
-            console.error('❌ ==> DAILY RESET FAILED <==');
-            console.error(`❌ Reset failed after ${duration}ms:`, error);
-            console.error(`📅 Will retry tomorrow at 12:00 AM UTC`);
+            logger.error('❌ ==> DAILY RESET FAILED <==');
+            logger.error(`❌ Reset failed after ${duration}ms:`, error);
+            logger.error(`📅 Will retry tomorrow at 12:00 AM UTC`);
 
             // Don't throw - let the service continue running
         } finally {
@@ -304,7 +305,7 @@ class DailyResetService {
      */
     async performHealthCheck() {
         try {
-            console.log('🏥 Daily Reset Service health check starting...');
+            logger.debug('🏥 Daily Reset Service health check starting...');
 
             const healthStatus = {
                 isRunning: this.isInitialized,
@@ -321,7 +322,7 @@ class DailyResetService {
             // Check if we're missing a reset (should reset daily)
             const today = new Date().toISOString().split('T')[0];
             if (this.lastResetDate && this.lastResetDate < today) {
-                console.log('⚠️ Daily reset appears to be behind schedule');
+                logger.debug('⚠️ Daily reset appears to be behind schedule');
                 healthStatus.resetBehind = true;
 
                 // Trigger a manual reset
@@ -330,10 +331,10 @@ class DailyResetService {
                 healthStatus.resetBehind = false;
             }
 
-            console.log('✅ Daily Reset Service health check completed:', healthStatus);
+            logger.debug('✅ Daily Reset Service health check completed:', healthStatus);
 
         } catch (error) {
-            console.error('❌ Daily Reset Service health check failed:', error);
+            logger.error('❌ Daily Reset Service health check failed:', error);
         }
     }
 
@@ -341,7 +342,7 @@ class DailyResetService {
      * Manual trigger for daily reset (for testing/admin purposes)
      */
     async triggerManualReset() {
-        console.log('🔧 Manual daily reset triggered');
+        logger.debug('🔧 Manual daily reset triggered');
         await this.performDailyReset(true); // Force reset even if already done today
     }
 
@@ -362,18 +363,18 @@ class DailyResetService {
      * Stop the daily reset service
      */
     stop() {
-        console.log('🛑 Stopping Daily Reset Service...');
+        logger.debug('🛑 Stopping Daily Reset Service...');
 
         for (const [name, job] of this.cronJobs) {
             job.stop();
             job.destroy();
-            console.log(`⏹️ Stopped cron job: ${name}`);
+            logger.debug(`⏹️ Stopped cron job: ${name}`);
         }
 
         this.cronJobs.clear();
         this.isInitialized = false;
 
-        console.log('✅ Daily Reset Service stopped');
+        logger.debug('✅ Daily Reset Service stopped');
     }
 }
 

@@ -9,6 +9,13 @@ import Foundation
 import AVFoundation
 import Combine
 
+// MARK: - Production Logging Safety
+// Disable debug print statements in production builds to prevent AI response exposure
+#if !DEBUG
+private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
+#endif
+
 class TextToSpeechService: NSObject, ObservableObject {
     
     // MARK: - Published Properties
