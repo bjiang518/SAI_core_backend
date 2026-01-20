@@ -9,6 +9,7 @@ const NodeCache = require('node-cache');
 const { promisify } = require('util');
 const InputValidation = require('./input-validation');  // SECURITY: Input validation
 const encryptionService = require('./encryption-service');  // PRIVACY: Encryption at rest
+const logger = require('./logger');  // PRODUCTION: Structured logging with environment-aware levels
 
 // PHASE 1 OPTIMIZATION: Enhanced connection pool configuration
 // Optimized for Railway's PostgreSQL limits (20 connections max)
@@ -67,14 +68,14 @@ let queryMetrics = {
 
 // PHASE 1 OPTIMIZATION: Improved connection monitoring (less verbose)
 pool.on('connect', (client) => {
-  console.log('✅ PostgreSQL client connected - Pool: total=' + pool.totalCount + ', idle=' + pool.idleCount);
+  logger.debug('✅ PostgreSQL client connected - Pool: total=' + pool.totalCount + ', idle=' + pool.idleCount);
 });
 
 pool.on('acquire', (client) => {
   // OPTIMIZED: Only log if pool is getting full (potential bottleneck)
   const activeConnections = pool.totalCount - pool.idleCount;
   if (activeConnections > 15) {  // Alert when > 75% of pool is active
-    console.warn(`⚠️ High pool usage: ${activeConnections}/20 active, ${pool.waitingCount} waiting`);
+    logger.warn(`⚠️ High pool usage: ${activeConnections}/20 active, ${pool.waitingCount} waiting`);
   }
 
   // Track pool exhaustion for metrics
@@ -84,11 +85,11 @@ pool.on('acquire', (client) => {
 });
 
 pool.on('error', (err, client) => {
-  console.error('❌ Unexpected PostgreSQL error:', err.message);
+  logger.error('❌ Unexpected PostgreSQL error:', err.message);
   // Log connection timeouts separately
   if (err.message && err.message.includes('timeout')) {
     queryMetrics.connectionTimeouts++;
-    console.error('⚠️ Connection timeout count:', queryMetrics.connectionTimeouts);
+    logger.error('⚠️ Connection timeout count:', queryMetrics.connectionTimeouts);
   }
   // Don't exit - let the pool handle reconnection
 });
@@ -136,9 +137,9 @@ class BatchProcessor {
         }
       });
       
-      console.log(`📦 Flushed batch of ${batch.length} ${operation} operations`);
+      logger.debug(`📦 Flushed batch of ${batch.length} ${operation} operations`);
     } catch (error) {
-      console.error(`❌ Batch flush error for ${operation}:`, error);
+      logger.error(`❌ Batch flush error for ${operation}:`, error);
     }
   }
   
@@ -168,7 +169,7 @@ const db = {
       if (cached) {
         queryMetrics.cacheHits++;
         const duration = Date.now() - start;
-        console.log(`⚡ Cache hit in ${duration}ms: ${text.substring(0, 50)}...`);
+        logger.debug(`⚡ Cache hit in ${duration}ms: ${text.substring(0, 50)}...`);
         return cached;
       }
       queryMetrics.cacheMisses++;
@@ -198,9 +199,9 @@ const db = {
           queryMetrics.slowQueries.push(slowQuery);
 
           // Log slow queries immediately for monitoring
-          console.warn(`⚠️ SLOW QUERY (${duration}ms): ${slowQuery.query}...`);
+          logger.warn(`⚠️ SLOW QUERY (${duration}ms): ${slowQuery.query}...`);
           if (params?.length > 0) {
-            console.warn(`   Parameters: ${slowQuery.params}`);
+            logger.warn(`   Parameters: ${slowQuery.params}`);
           }
 
           // Keep only last 100 slow queries
@@ -211,10 +212,10 @@ const db = {
 
         // OPTIMIZED: Log all queries in development for debugging
         if (process.env.NODE_ENV !== 'production') {
-          console.log(`📊 Query executed in ${duration}ms: ${text.substring(0, 80)}...`);
+          logger.debug(`📊 Query executed in ${duration}ms: ${text.substring(0, 80)}...`);
         } else if (duration > 200) {
           // In production, only log queries taking >200ms
-          console.log(`📊 Query executed in ${duration}ms: ${text.substring(0, 80)}...`);
+          logger.debug(`📊 Query executed in ${duration}ms: ${text.substring(0, 80)}...`);
         }
 
         // Cache SELECT results
@@ -232,9 +233,9 @@ const db = {
         const shouldRetry = attempt < maxRetries && isRetryable;
 
         if (shouldRetry) {
-          console.warn(`⚠️ Database query failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${retryDelay}ms...`);
-          console.warn(`   Error: ${error.message}`);
-          console.warn(`   Query: ${text.substring(0, 100)}...`);
+          logger.warn(`⚠️ Database query failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${retryDelay}ms...`);
+          logger.warn(`   Error: ${error.message}`);
+          logger.warn(`   Query: ${text.substring(0, 100)}...`);
 
           // Wait before retrying with exponential backoff
           await new Promise(resolve => setTimeout(resolve, retryDelay * Math.pow(2, attempt)));
@@ -242,9 +243,9 @@ const db = {
         }
 
         // Not retryable or max retries exceeded
-        console.error('❌ Database query error:', error);
-        console.error('Query:', text.substring(0, 200));
-        console.error('Params:', params);
+        logger.error('❌ Database query error:', error);
+        logger.error('Query:', text.substring(0, 200));
+        logger.error('Params:', params);
         throw error;
       }
     }
@@ -416,20 +417,20 @@ const db = {
           AND u.is_active = true
       `;
 
-      console.log(`🔍 Starting token verification for hash: ${tokenHash.substring(0, 8)}...`);
+      logger.debug(`🔍 Starting token verification for hash: ${tokenHash.substring(0, 8)}...`);
       const result = await this.query(query, [tokenHash]);
       const duration = Date.now() - startTime;
       
       if (result.rows.length > 0) {
-        console.log(`✅ Token verification successful in ${duration}ms for user: ${result.rows[0].user_id}`);
+        logger.debug(`✅ Token verification successful in ${duration}ms for user: ${result.rows[0].user_id}`);
         return result.rows[0];
       } else {
-        console.log(`❌ Token verification failed in ${duration}ms - no matching session found`);
+        logger.debug(`❌ Token verification failed in ${duration}ms - no matching session found`);
         return null;
       }
     } catch (error) {
       const duration = Date.now() - startTime;
-      console.error(`❌ Token verification error after ${duration}ms:`, error);
+      logger.error(`❌ Token verification error after ${duration}ms:`, error);
       throw error;
     }
   },
@@ -935,7 +936,7 @@ const db = {
         values.push(`%${sanitizedSearch}%`);
         paramIndex++;
       } catch (error) {
-        console.error('Invalid search term:', error.message);
+        logger.error('Invalid search term:', error.message);
         // Skip search if invalid - don't include in query
       }
     }
@@ -1011,49 +1012,49 @@ const db = {
     const startTime = Date.now();
     
     try {
-      console.log(`🔍 [DB] getConversationDetails called with ID: ${conversationId}, userId: ${userId}`);
+      logger.debug(`🔍 [DB] getConversationDetails called with ID: ${conversationId}, userId: ${userId}`);
       
       if (!conversationId) {
-        console.error(`❌ [DB] Missing conversationId parameter`);
+        logger.error(`❌ [DB] Missing conversationId parameter`);
         throw new Error('Conversation ID is required');
       }
       
       if (!userId) {
-        console.error(`❌ [DB] Missing userId parameter`);
+        logger.error(`❌ [DB] Missing userId parameter`);
         throw new Error('User ID is required');
       }
       
       // Step 1: Debug - Get all sessions for this user
-      console.log(`🔍 [DB] Step 1: Getting all sessions for user ${userId}`);
+      logger.debug(`🔍 [DB] Step 1: Getting all sessions for user ${userId}`);
       const userSessionsQuery = `SELECT id FROM sessions WHERE user_id = $1`;
       const userSessionsResult = await this.query(userSessionsQuery, [userId]);
-      console.log(`📋 [DB] Found ${userSessionsResult.rows.length} sessions for user:`);
+      logger.debug(`📋 [DB] Found ${userSessionsResult.rows.length} sessions for user:`);
       userSessionsResult.rows.forEach((row, i) => {
-        console.log(`📋 [DB] Session ${i+1}: ${row.id}`);
+        logger.debug(`📋 [DB] Session ${i+1}: ${row.id}`);
       });
       
       // Step 2: Check if the requested ID is one of the user's sessions
       const isUserSession = userSessionsResult.rows.some(row => row.id === conversationId);
-      console.log(`📋 [DB] Is ${conversationId} a user session? ${isUserSession}`);
+      logger.debug(`📋 [DB] Is ${conversationId} a user session? ${isUserSession}`);
       
       if (isUserSession) {
         // Step 3: Get conversations for this specific session
-        console.log(`🔍 [DB] Step 3: Getting conversations for session ${conversationId}`);
+        logger.debug(`🔍 [DB] Step 3: Getting conversations for session ${conversationId}`);
         const conversationsQuery = `SELECT * FROM conversations WHERE session_id = $1`;
         const conversationsResult = await this.query(conversationsQuery, [conversationId]);
-        console.log(`📋 [DB] Found ${conversationsResult.rows.length} conversation messages for session ${conversationId}`);
+        logger.debug(`📋 [DB] Found ${conversationsResult.rows.length} conversation messages for session ${conversationId}`);
         
         if (conversationsResult.rows.length > 0) {
           conversationsResult.rows.forEach((row, i) => {
-            console.log(`📋 [DB] Message ${i+1}: Type=${row.message_type}, Text="${row.message_text.substring(0, 50)}..."`);
+            logger.debug(`📋 [DB] Message ${i+1}: Type=${row.message_type}, Text="${row.message_text.substring(0, 50)}..."`);
           });
         } else {
-          console.log(`⚠️ [DB] No conversation messages found for session ${conversationId}`);
+          logger.debug(`⚠️ [DB] No conversation messages found for session ${conversationId}`);
         }
       }
       
       // Step 4: Also check all conversations for this user to see what's available
-      console.log(`🔍 [DB] Step 4: Getting all conversations for user ${userId}`);
+      logger.debug(`🔍 [DB] Step 4: Getting all conversations for user ${userId}`);
       const allConversationsQuery = `
         SELECT session_id, COUNT(*) as message_count, MIN(created_at) as first_message, MAX(created_at) as last_message
         FROM conversations 
@@ -1062,9 +1063,9 @@ const db = {
         ORDER BY last_message DESC
       `;
       const allConversationsResult = await this.query(allConversationsQuery, [userId]);
-      console.log(`📋 [DB] Found conversations for ${allConversationsResult.rows.length} different sessions:`);
+      logger.debug(`📋 [DB] Found conversations for ${allConversationsResult.rows.length} different sessions:`);
       allConversationsResult.rows.forEach((row, i) => {
-        console.log(`📋 [DB] Conversation ${i+1}: Session=${row.session_id}, Messages=${row.message_count}, Last=${row.last_message}`);
+        logger.debug(`📋 [DB] Conversation ${i+1}: Session=${row.session_id}, Messages=${row.message_count}, Last=${row.last_message}`);
       });
       
       // Now implement the actual conversation retrieval logic
@@ -1079,14 +1080,14 @@ const db = {
         ORDER BY c.created_at ASC
       `;
       
-      console.log(`📋 [DB] Final Query: ${query}`);
-      console.log(`📋 [DB] Parameters: [${conversationId}, ${userId}]`);
+      logger.debug(`📋 [DB] Final Query: ${query}`);
+      logger.debug(`📋 [DB] Parameters: [${conversationId}, ${userId}]`);
       
       const result = await this.query(query, [conversationId, userId]);
       const duration = Date.now() - startTime;
       
-      console.log(`📊 [DB] Query completed in ${duration}ms`);
-      console.log(`📊 [DB] Result rows count: ${result.rows.length}`);
+      logger.debug(`📊 [DB] Query completed in ${duration}ms`);
+      logger.debug(`📊 [DB] Result rows count: ${result.rows.length}`);
       
       if (result.rows.length > 0) {
         // Combine all conversation messages into a single conversation object
@@ -1112,21 +1113,21 @@ const db = {
           created_at: firstMessage.created_at
         };
         
-        console.log(`✅ [DB] Conversation found in ${duration}ms - Session ID: ${conversationId}, Messages: ${messages.length}`);
-        console.log(`✅ [DB] Subject: ${conversation.subject}, Content length: ${conversationContent.length} characters`);
+        logger.debug(`✅ [DB] Conversation found in ${duration}ms - Session ID: ${conversationId}, Messages: ${messages.length}`);
+        logger.debug(`✅ [DB] Subject: ${conversation.subject}, Content length: ${conversationContent.length} characters`);
         return conversation;
       } else {
-        console.log(`❌ [DB] No conversation found for session ID: ${conversationId}, User: ${userId}`);
+        logger.debug(`❌ [DB] No conversation found for session ID: ${conversationId}, User: ${userId}`);
         
         // Check if this conversation exists in archived_conversations_new table
-        console.log(`🔍 [DB] Checking archived_conversations_new for session ${conversationId}`);
+        logger.debug(`🔍 [DB] Checking archived_conversations_new for session ${conversationId}`);
         const archivedQuery = `SELECT * FROM archived_conversations_new WHERE user_id = $2 AND (id = $1 OR id IN (SELECT id FROM sessions WHERE id = $1 AND user_id = $2))`;
         const archivedResult = await this.query(archivedQuery, [conversationId, userId]);
         
         if (archivedResult.rows.length > 0) {
           const archived = archivedResult.rows[0];
-          console.log(`✅ [DB] Found archived conversation: ID=${archived.id}, Subject=${archived.subject}`);
-          console.log(`✅ [DB] Content length: ${archived.conversation_content?.length || 0} characters`);
+          logger.debug(`✅ [DB] Found archived conversation: ID=${archived.id}, Subject=${archived.subject}`);
+          logger.debug(`✅ [DB] Content length: ${archived.conversation_content?.length || 0} characters`);
           
           return {
             id: archived.id,
@@ -1146,10 +1147,10 @@ const db = {
         const sessionCheckResult = await this.query(sessionCheckQuery, [conversationId, userId]);
         if (sessionCheckResult.rows.length > 0) {
           const session = sessionCheckResult.rows[0];
-          console.log(`📋 [DB] Session exists but has no conversations:`);
-          console.log(`📋 [DB] Session Type: ${session.session_type}, Subject: ${session.subject}, Created: ${session.created_at}`);
+          logger.debug(`📋 [DB] Session exists but has no conversations:`);
+          logger.debug(`📋 [DB] Session Type: ${session.session_type}, Subject: ${session.subject}, Created: ${session.created_at}`);
         } else {
-          console.log(`📋 [DB] Session ${conversationId} does not exist for user ${userId}`);
+          logger.debug(`📋 [DB] Session ${conversationId} does not exist for user ${userId}`);
         }
         
         return null;
@@ -1157,8 +1158,8 @@ const db = {
       
     } catch (error) {
       const duration = Date.now() - startTime;
-      console.error(`🚨 [DB] getConversationDetails error after ${duration}ms:`, error);
-      console.error(`🚨 [DB] Error stack:`, error.stack);
+      logger.error(`🚨 [DB] getConversationDetails error after ${duration}ms:`, error);
+      logger.error(`🚨 [DB] Error stack:`, error.stack);
       throw error;
     }
   },
@@ -1297,7 +1298,7 @@ const db = {
         values.push(`%${sanitizedSearch}%`);
         paramIndex++;
       } catch (error) {
-        console.error('Invalid search term:', error.message);
+        logger.error('Invalid search term:', error.message);
         // Skip search if invalid - don't include in query
       }
     }
@@ -1553,12 +1554,12 @@ const db = {
 
       // Validate based on type
       if (fieldType === 'string' && normalized !== null && typeof normalized !== 'string') {
-        console.warn(`⚠️ Field ${fieldName} expected string, got ${typeof normalized}. Converting to string.`);
+        logger.warn(`⚠️ Field ${fieldName} expected string, got ${typeof normalized}. Converting to string.`);
         return String(normalized);
       }
 
       if (fieldType === 'array' && normalized !== null && !Array.isArray(normalized)) {
-        console.warn(`⚠️ Field ${fieldName} expected array, got ${typeof normalized}. Converting to array.`);
+        logger.warn(`⚠️ Field ${fieldName} expected array, got ${typeof normalized}. Converting to array.`);
         return Array.isArray(normalized) ? normalized : [normalized];
       }
 
@@ -1690,7 +1691,7 @@ const db = {
 
     // If no fields to update, just return existing profile
     if (updates.length === 1) { // Only updated_at
-      console.log(`⚠️ No fields to update for ${userEmail}`);
+      logger.debug(`⚠️ No fields to update for ${userEmail}`);
       return existingProfile;
     }
 
@@ -1754,13 +1755,13 @@ const db = {
 
     try {
       // Log the query and values for debugging
-      console.log(`\n📝 === PROFILE UPDATE DEBUG ===`);
-      console.log(`User: ${userEmail}`);
-      console.log(`Operation: ${existingProfile && existingProfile.email ? 'UPDATE' : 'INSERT'}`);
-      console.log(`Fields provided:`, Object.keys(profileData).filter(k => profileData[k] !== undefined));
-      console.log(`Fields with values:`, Object.entries(processedFields).filter(([k, v]) => v !== null).map(([k]) => k));
-      console.log(`SQL Query: ${query.replace(/\s+/g, ' ').trim().substring(0, 200)}...`);
-      console.log(`Values: [${values.map(v => {
+      logger.debug(`\n📝 === PROFILE UPDATE DEBUG ===`);
+      logger.debug(`User: ${userEmail}`);
+      logger.debug(`Operation: ${existingProfile && existingProfile.email ? 'UPDATE' : 'INSERT'}`);
+      logger.debug(`Fields provided:`, Object.keys(profileData).filter(k => profileData[k] !== undefined));
+      logger.debug(`Fields with values:`, Object.entries(processedFields).filter(([k, v]) => v !== null).map(([k]) => k));
+      logger.debug(`SQL Query: ${query.replace(/\s+/g, ' ').trim().substring(0, 200)}...`);
+      logger.debug(`Values: [${values.map(v => {
         if (Array.isArray(v)) return `[${v.join(', ')}]`;
         if (v === null) return 'NULL';
         if (typeof v === 'string') return `"${v.substring(0, 50)}"`;
@@ -1768,9 +1769,9 @@ const db = {
       }).join(', ')}]`);
 
       const result = await this.query(query, values);
-      console.log(`✅ === UPDATE USER PROFILE ===`);
-      console.log(`✅ Profile updated successfully for: ${userEmail}`);
-      console.log(`✅ Fields updated: ${Object.keys(profileData).join(', ')}`);
+      logger.debug(`✅ === UPDATE USER PROFILE ===`);
+      logger.debug(`✅ Profile updated successfully for: ${userEmail}`);
+      logger.debug(`✅ Fields updated: ${Object.keys(profileData).join(', ')}`);
 
       // Calculate and update profile completion percentage
       const profile = result.rows[0];
@@ -1784,14 +1785,14 @@ const db = {
 
       // Update the returned profile with the calculated percentage
       profile.profile_completion_percentage = completionPercentage;
-      console.log(`📊 Profile completion calculated: ${completionPercentage}%`);
+      logger.debug(`📊 Profile completion calculated: ${completionPercentage}%`);
 
       return profile;
 
     } catch (error) {
       // Check if error is related to integer type conversion for grade_level
       if (error.message.includes('invalid input syntax for type integer') && profileData.gradeLevel) {
-        console.log(`⚠️ Retrying with integer grade level mapping...`);
+        logger.debug(`⚠️ Retrying with integer grade level mapping...`);
 
         // Find the grade_level parameter and replace it with integer
         const gradeIndex = updates.findIndex(u => u.includes('grade_level'));
@@ -1802,7 +1803,7 @@ const db = {
           values[valueIndex] = integerGradeLevel;
 
           const result = await this.query(query, values);
-          console.log(`✅ Profile updated successfully for: ${userEmail} (with integer grade)`);
+          logger.debug(`✅ Profile updated successfully for: ${userEmail} (with integer grade)`);
 
           // Calculate and update profile completion percentage
           const profile = result.rows[0];
@@ -1814,22 +1815,22 @@ const db = {
           );
 
           profile.profile_completion_percentage = completionPercentage;
-          console.log(`📊 Profile completion calculated: ${completionPercentage}%`);
+          logger.debug(`📊 Profile completion calculated: ${completionPercentage}%`);
 
           return profile;
         }
       }
 
       // Re-throw other errors with detailed context
-      console.error(`\n❌ === PROFILE UPDATE FAILED ===`);
-      console.error(`❌ User: ${userEmail}`);
-      console.error(`❌ Operation: ${existingProfile && existingProfile.email ? 'UPDATE' : 'INSERT'}`);
-      console.error(`❌ Fields attempted:`, Object.keys(profileData).filter(k => profileData[k] !== undefined));
-      console.error(`❌ Processed values:`, Object.entries(processedFields).filter(([k, v]) => v !== null).map(([k, v]) => `${k}=${JSON.stringify(v)}`));
-      console.error(`❌ SQL Query:`, query.replace(/\s+/g, ' ').trim());
-      console.error(`❌ Values:`, values);
-      console.error(`❌ Error:`, error.message);
-      console.error(`❌ Error code:`, error.code);
+      logger.error(`\n❌ === PROFILE UPDATE FAILED ===`);
+      logger.error(`❌ User: ${userEmail}`);
+      logger.error(`❌ Operation: ${existingProfile && existingProfile.email ? 'UPDATE' : 'INSERT'}`);
+      logger.error(`❌ Fields attempted:`, Object.keys(profileData).filter(k => profileData[k] !== undefined));
+      logger.error(`❌ Processed values:`, Object.entries(processedFields).filter(([k, v]) => v !== null).map(([k, v]) => `${k}=${JSON.stringify(v)}`));
+      logger.error(`❌ SQL Query:`, query.replace(/\s+/g, ' ').trim());
+      logger.error(`❌ Values:`, values);
+      logger.error(`❌ Error:`, error.message);
+      logger.error(`❌ Error code:`, error.code);
       throw error;
     }
   },
@@ -1921,16 +1922,16 @@ const db = {
     // Log profile fetch for debugging
     if (result.rows.length > 0) {
       const profile = result.rows[0];
-      console.log(`\n📖 === FETCH USER PROFILE ===`);
-      console.log(`User ID: ${userId}`);
-      console.log(`Email: ${profile.user_email}`);
-      console.log(`Profile exists: ${profile.id ? 'YES' : 'NO'}`);
+      logger.debug(`\n📖 === FETCH USER PROFILE ===`);
+      logger.debug(`User ID: ${userId}`);
+      logger.debug(`Email: ${profile.user_email}`);
+      logger.debug(`Profile exists: ${profile.id ? 'YES' : 'NO'}`);
       if (profile.id) {
-        console.log(`Profile fields: firstName="${profile.first_name}", lastName="${profile.last_name}", displayName="${profile.display_name}"`);
-        console.log(`Location: city="${profile.city}", state="${profile.state_province}", country="${profile.country}"`);
+        logger.debug(`Profile fields: firstName="${profile.first_name}", lastName="${profile.last_name}", displayName="${profile.display_name}"`);
+        logger.debug(`Location: city="${profile.city}", state="${profile.state_province}", country="${profile.country}"`);
       }
     } else {
-      console.log(`\n⚠️ No user found for ID: ${userId}`);
+      logger.debug(`\n⚠️ No user found for ID: ${userId}`);
     }
 
     return result.rows[0];
@@ -2247,7 +2248,7 @@ const db = {
 // Initialize database tables on startup
 async function initializeDatabase() {
   try {
-    console.log('🔄 Initializing Railway PostgreSQL database...');
+    logger.debug('🔄 Initializing Railway PostgreSQL database...');
     
     // Check if critical tables exist (users table is required for authentication)
     const tableCheck = await db.query(`
@@ -2256,7 +2257,7 @@ async function initializeDatabase() {
     `);
     
     if (tableCheck.rows.length === 0) {
-      console.log('📋 Creating database tables...');
+      logger.debug('📋 Creating database tables...');
       
       // Read and execute schema from file
       const fs = require('fs');
@@ -2266,13 +2267,13 @@ async function initializeDatabase() {
       if (fs.existsSync(schemaPath)) {
         const schema = fs.readFileSync(schemaPath, 'utf8');
         await db.query(schema);
-        console.log('✅ Database tables created successfully');
+        logger.debug('✅ Database tables created successfully');
       } else {
-        console.log('⚠️ Schema file not found, using inline schema');
+        logger.debug('⚠️ Schema file not found, using inline schema');
         await createInlineSchema();
       }
     } else {
-      console.log(`✅ Found ${tableCheck.rows.length} existing tables: ${tableCheck.rows.map(r => r.tablename).join(', ')}`);
+      logger.debug(`✅ Found ${tableCheck.rows.length} existing tables: ${tableCheck.rows.map(r => r.tablename).join(', ')}`);
       
       // Check if we need to add missing tables
       const existingTables = tableCheck.rows.map(r => r.tablename);
@@ -2280,7 +2281,7 @@ async function initializeDatabase() {
       const missingTables = requiredTables.filter(table => !existingTables.includes(table));
       
       if (missingTables.length > 0) {
-        console.log(`📋 Adding missing tables: ${missingTables.join(', ')}`);
+        logger.debug(`📋 Adding missing tables: ${missingTables.join(', ')}`);
         const fs = require('fs');
         const path = require('path');
         const schemaPath = path.join(__dirname, '../database/railway-schema.sql');
@@ -2288,7 +2289,7 @@ async function initializeDatabase() {
         if (fs.existsSync(schemaPath)) {
           const schema = fs.readFileSync(schemaPath, 'utf8');
           await db.query(schema);
-          console.log('✅ Missing database tables added successfully');
+          logger.debug('✅ Missing database tables added successfully');
         }
       }
       
@@ -2296,14 +2297,14 @@ async function initializeDatabase() {
       await runDatabaseMigrations();
     }
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
+    logger.error('❌ Database initialization failed:', error);
     throw error;
   }
 }
 
 async function runDatabaseMigrations() {
   try {
-    console.log('🔄 Checking for database migrations...');
+    logger.debug('🔄 Checking for database migrations...');
     
     // Create a migrations tracking table if it doesn't exist
     await db.query(`
@@ -2322,7 +2323,7 @@ async function runDatabaseMigrations() {
     `);
 
     if (emailVerificationTableCheck.rows.length === 0) {
-      console.log('📋 Creating email_verifications table...');
+      logger.debug('📋 Creating email_verifications table...');
 
       try {
         await db.query(`
@@ -2341,7 +2342,7 @@ async function runDatabaseMigrations() {
           CREATE INDEX idx_email_verifications_email ON email_verifications(email);
           CREATE INDEX idx_email_verifications_expires ON email_verifications(expires_at);
         `);
-        console.log('✅ email_verifications table created successfully');
+        logger.debug('✅ email_verifications table created successfully');
 
         // Record this migration
         await db.query(`
@@ -2352,13 +2353,13 @@ async function runDatabaseMigrations() {
       } catch (tableError) {
         // If table already exists, ignore the error
         if (tableError.code === '23505' || tableError.code === '42P07') {
-          console.log('⚠️ email_verifications table already exists, skipping creation');
+          logger.debug('⚠️ email_verifications table already exists, skipping creation');
         } else {
           throw tableError;
         }
       }
     } else {
-      console.log('✅ email_verifications table already exists');
+      logger.debug('✅ email_verifications table already exists');
     }
 
     // Check if grading fields migration has been applied
@@ -2401,7 +2402,7 @@ async function runDatabaseMigrations() {
     `);
     
     if (gradeFieldsCheck.rows.length < 6) {
-      console.log('📋 Applying grading fields migration...');
+      logger.debug('📋 Applying grading fields migration...');
       
       // Run the grading fields migration
       await db.query(`
@@ -2481,15 +2482,15 @@ async function runDatabaseMigrations() {
         ON CONFLICT (migration_name) DO NOTHING;
       `);
       
-      console.log('✅ Grading fields migration completed successfully!');
-      console.log('📊 Database now supports:');
-      console.log('   - Student answers from homework images');
-      console.log('   - Grading results (CORRECT/INCORRECT/EMPTY/PARTIAL_CREDIT)');
-      console.log('   - Points earned and maximum points');
-      console.log('   - AI-generated feedback for students');
-      console.log('   - Graded vs non-graded question tracking');
+      logger.debug('✅ Grading fields migration completed successfully!');
+      logger.debug('📊 Database now supports:');
+      logger.debug('   - Student answers from homework images');
+      logger.debug('   - Grading results (CORRECT/INCORRECT/EMPTY/PARTIAL_CREDIT)');
+      logger.debug('   - Points earned and maximum points');
+      logger.debug('   - AI-generated feedback for students');
+      logger.debug('   - Graded vs non-graded question tracking');
     } else {
-      console.log('✅ Grading fields migration already applied');
+      logger.debug('✅ Grading fields migration already applied');
     }
 
     // ============================================
@@ -2500,8 +2501,8 @@ async function runDatabaseMigrations() {
     `);
 
     if (perfIndexCheck.rows.length === 0) {
-      console.log('🚀 Applying performance indexes migration...');
-      console.log('📊 This will add 40+ indexes for 50-80% faster queries');
+      logger.debug('🚀 Applying performance indexes migration...');
+      logger.debug('📊 This will add 40+ indexes for 50-80% faster queries');
 
       try {
         // Core user indexes
@@ -2589,24 +2590,24 @@ async function runDatabaseMigrations() {
           ON CONFLICT (migration_name) DO NOTHING;
         `);
 
-        console.log('✅ Performance indexes migration completed successfully!');
-        console.log('📊 Database performance improvements:');
-        console.log('   - User queries: 50-80% faster');
-        console.log('   - Archive listings: 10x faster');
-        console.log('   - Progress analytics: 10x faster');
-        console.log('   - Authentication: 5x faster');
+        logger.debug('✅ Performance indexes migration completed successfully!');
+        logger.debug('📊 Database performance improvements:');
+        logger.debug('   - User queries: 50-80% faster');
+        logger.debug('   - Archive listings: 10x faster');
+        logger.debug('   - Progress analytics: 10x faster');
+        logger.debug('   - Authentication: 5x faster');
       } catch (indexError) {
-        console.warn('⚠️ Index creation warning (migration will continue):', indexError.message);
+        logger.warn('⚠️ Index creation warning (migration will continue):', indexError.message);
         // Record migration as complete to prevent retry loops
         await db.query(`
           INSERT INTO migration_history (migration_name)
           VALUES ('002_add_performance_indexes')
           ON CONFLICT (migration_name) DO NOTHING;
         `);
-        console.log('✅ Performance indexes migration marked as complete');
+        logger.debug('✅ Performance indexes migration marked as complete');
       }
     } else {
-      console.log('✅ Performance indexes migration already applied');
+      logger.debug('✅ Performance indexes migration already applied');
     }
     
     // DEPRECATED: Legacy table cleanup moved to migration 005_cleanup_unused_tables
@@ -2650,45 +2651,45 @@ async function runDatabaseMigrations() {
     // Add missing columns if they don't exist
     try {
       await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS archived_date DATE DEFAULT CURRENT_DATE');
-      console.log('✅ Added archived_date column to questions table');
+      logger.debug('✅ Added archived_date column to questions table');
     } catch (error) {
-      console.log(`⚠️ Could not add archived_date to questions: ${error.message}`);
+      logger.debug(`⚠️ Could not add archived_date to questions: ${error.message}`);
     }
     
     try {
       await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS archived_date DATE DEFAULT CURRENT_DATE');
-      console.log('✅ Added archived_date column to archived_conversations_new table');
+      logger.debug('✅ Added archived_date column to archived_conversations_new table');
     } catch (error) {
-      console.log(`⚠️ Could not add archived_date to archived_conversations_new: ${error.message}`);
+      logger.debug(`⚠️ Could not add archived_date to archived_conversations_new: ${error.message}`);
     }
     
     // Create indexes with proper error handling
     try {
       await db.query('CREATE INDEX IF NOT EXISTS idx_archived_conversations_new_user_date ON archived_conversations_new(user_id, archived_date DESC)');
-      console.log('✅ Created index: idx_archived_conversations_new_user_date');
+      logger.debug('✅ Created index: idx_archived_conversations_new_user_date');
     } catch (error) {
-      console.log(`⚠️ Could not create index idx_archived_conversations_new_user_date: ${error.message}`);
+      logger.debug(`⚠️ Could not create index idx_archived_conversations_new_user_date: ${error.message}`);
     }
     
     try {
       await db.query('CREATE INDEX IF NOT EXISTS idx_archived_conversations_new_subject ON archived_conversations_new(user_id, subject)');
-      console.log('✅ Created index: idx_archived_conversations_new_subject');
+      logger.debug('✅ Created index: idx_archived_conversations_new_subject');
     } catch (error) {
-      console.log(`⚠️ Could not create index idx_archived_conversations_new_subject: ${error.message}`);
+      logger.debug(`⚠️ Could not create index idx_archived_conversations_new_subject: ${error.message}`);
     }
     
     try {
       await db.query('CREATE INDEX IF NOT EXISTS idx_questions_user_date ON questions(user_id, archived_date DESC)');
-      console.log('✅ Created index: idx_questions_user_date');
+      logger.debug('✅ Created index: idx_questions_user_date');
     } catch (error) {
-      console.log(`⚠️ Could not create index idx_questions_user_date: ${error.message}`);
+      logger.debug(`⚠️ Could not create index idx_questions_user_date: ${error.message}`);
     }
     
     try {
       await db.query('CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(user_id, subject)');
-      console.log('✅ Created index: idx_questions_subject');
+      logger.debug('✅ Created index: idx_questions_subject');
     } catch (error) {
-      console.log(`⚠️ Could not create index idx_questions_subject: ${error.message}`);
+      logger.debug(`⚠️ Could not create index idx_questions_subject: ${error.message}`);
     }
     
     // Ensure sessions table exists for AI proxy functionality
@@ -2711,11 +2712,11 @@ async function runDatabaseMigrations() {
     
     // Conversations table already created in railway-schema.sql
     // Skipping duplicate creation to avoid PostgreSQL type conflicts
-    console.log('✅ Conversations table handled by railway-schema.sql');
+    logger.debug('✅ Conversations table handled by railway-schema.sql');
     
     // Ensure progress tracking tables exist for subject breakdown functionality
     try {
-      console.log('🔍 Checking current database schema for progress tables...');
+      logger.debug('🔍 Checking current database schema for progress tables...');
       
       // Check what tables already exist
       const existingTables = await db.query(`
@@ -2725,7 +2726,7 @@ async function runDatabaseMigrations() {
         AND table_name IN ('subject_progress', 'daily_subject_activities', 'question_sessions', 'subject_insights')
       `);
       
-      console.log(`📋 Found existing tables: ${existingTables.rows.map(r => r.table_name).join(', ') || 'none'}`);
+      logger.debug(`📋 Found existing tables: ${existingTables.rows.map(r => r.table_name).join(', ') || 'none'}`);
       
       // Check what types already exist that might conflict
       const existingTypes = await db.query(`
@@ -2735,7 +2736,7 @@ async function runDatabaseMigrations() {
         AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
       `);
       
-      console.log(`🏷️ Found existing types: ${existingTypes.rows.map(r => r.typname).join(', ') || 'none'}`);
+      logger.debug(`🏷️ Found existing types: ${existingTypes.rows.map(r => r.typname).join(', ') || 'none'}`);
       
       // Only create tables that don't exist and don't conflict with types
       const tablesToCreate = [
@@ -2816,15 +2817,15 @@ async function runDatabaseMigrations() {
         const existsAsType = existingTypes.rows.some(row => row.typname === table.name);
         
         if (existsAsTable) {
-          console.log(`✅ Table ${table.name} already exists`);
+          logger.debug(`✅ Table ${table.name} already exists`);
         } else if (existsAsType) {
-          console.log(`⚠️ Skipping ${table.name} - conflicts with existing type`);
+          logger.debug(`⚠️ Skipping ${table.name} - conflicts with existing type`);
         } else {
           try {
             await db.query(table.sql);
-            console.log(`✅ Created ${table.name} table`);
+            logger.debug(`✅ Created ${table.name} table`);
           } catch (error) {
-            console.log(`❌ Failed to create ${table.name}: ${error.message}`);
+            logger.debug(`❌ Failed to create ${table.name}: ${error.message}`);
           }
         }
       }
@@ -2858,15 +2859,15 @@ async function runDatabaseMigrations() {
           
           if (tableExists.rows.length > 0) {
             await db.query(index.sql);
-            console.log(`✅ Created index ${index.name}`);
+            logger.debug(`✅ Created index ${index.name}`);
           }
         } catch (error) {
-          console.log(`⚠️ Index ${index.name} creation skipped: ${error.message}`);
+          logger.debug(`⚠️ Index ${index.name} creation skipped: ${error.message}`);
         }
       }
       
     } catch (error) {
-      console.log(`⚠️ Progress tables migration issue: ${error.message}`);
+      logger.debug(`⚠️ Progress tables migration issue: ${error.message}`);
     }
     
     // Check if complete profile enhancement migration has been applied
@@ -2878,7 +2879,7 @@ async function runDatabaseMigrations() {
     `);
 
     if (profileFieldsCheck.rows.length < 7) {
-      console.log('📋 Applying profile enhancement migration...');
+      logger.debug('📋 Applying profile enhancement migration...');
 
       // Add new profile fields for comprehensive user profile management
       await db.query(`
@@ -2935,19 +2936,19 @@ async function runDatabaseMigrations() {
         ON CONFLICT (migration_name) DO NOTHING;
       `);
 
-      console.log('✅ Profile enhancement migration completed successfully!');
-      console.log('📊 Profiles table now supports:');
-      console.log('   - Display name (optional preferred name)');
-      console.log('   - Date of birth for age-appropriate content');
-      console.log('   - Children ages for parent accounts');
-      console.log('   - Gender identification (optional)');
-      console.log('   - Location information (city, state, country)');
-      console.log('   - Favorite subjects array');
-      console.log('   - Learning style preference');
-      console.log('   - Timezone and language preferences');
-      console.log('   - Profile completion tracking');
+      logger.debug('✅ Profile enhancement migration completed successfully!');
+      logger.debug('📊 Profiles table now supports:');
+      logger.debug('   - Display name (optional preferred name)');
+      logger.debug('   - Date of birth for age-appropriate content');
+      logger.debug('   - Children ages for parent accounts');
+      logger.debug('   - Gender identification (optional)');
+      logger.debug('   - Location information (city, state, country)');
+      logger.debug('   - Favorite subjects array');
+      logger.debug('   - Learning style preference');
+      logger.debug('   - Timezone and language preferences');
+      logger.debug('   - Profile completion tracking');
     } else {
-      console.log('✅ Profile enhancement migration already applied');
+      logger.debug('✅ Profile enhancement migration already applied');
     }
 
     // Check if progress enhancement migration has been applied
@@ -2959,7 +2960,7 @@ async function runDatabaseMigrations() {
     `);
 
     if (progressEnhancementCheck.rows.length < 3) {
-      console.log('📋 Applying progress enhancement migration...');
+      logger.debug('📋 Applying progress enhancement migration...');
       
       // Create enhanced progress tracking tables
       await db.query(`
@@ -3089,16 +3090,16 @@ async function runDatabaseMigrations() {
         ON CONFLICT (migration_name) DO NOTHING;
       `);
       
-      console.log('✅ Progress enhancement migration completed successfully!');
-      console.log('📊 Enhanced progress system now supports:');
-      console.log('   - Daily progress tracking with XP and streaks');
-      console.log('   - Achievement system with badges and rewards');
-      console.log('   - User levels and XP progression');
-      console.log('   - Study streak tracking and bonuses');
-      console.log('   - Adaptive daily goals and challenges');
-      console.log('   - Weekly/monthly milestone tracking');
+      logger.debug('✅ Progress enhancement migration completed successfully!');
+      logger.debug('📊 Enhanced progress system now supports:');
+      logger.debug('   - Daily progress tracking with XP and streaks');
+      logger.debug('   - Achievement system with badges and rewards');
+      logger.debug('   - User levels and XP progression');
+      logger.debug('   - Study streak tracking and bonuses');
+      logger.debug('   - Adaptive daily goals and challenges');
+      logger.debug('   - Weekly/monthly milestone tracking');
     } else {
-      console.log('✅ Progress enhancement migration already applied');
+      logger.debug('✅ Progress enhancement migration already applied');
     }
 
     // Check if parent report narratives migration has been applied
@@ -3110,7 +3111,7 @@ async function runDatabaseMigrations() {
     `);
 
     if (parentReportNarrativesCheck.rows.length === 0) {
-      console.log('📋 Applying parent report narratives migration...');
+      logger.debug('📋 Applying parent report narratives migration...');
 
       // Create parent report narratives table for human-readable reports
       await db.query(`
@@ -3160,16 +3161,16 @@ async function runDatabaseMigrations() {
         ON CONFLICT (migration_name) DO NOTHING;
       `);
 
-      console.log('✅ Parent report narratives migration completed successfully!');
-      console.log('📊 Parent report narratives table now supports:');
-      console.log('   - Human-readable narrative content');
-      console.log('   - Executive summaries for busy parents');
-      console.log('   - Key insights and recommendations');
-      console.log('   - Multiple tone styles and languages');
-      console.log('   - Reading level optimization');
-      console.log('   - Performance tracking and analytics');
+      logger.debug('✅ Parent report narratives migration completed successfully!');
+      logger.debug('📊 Parent report narratives table now supports:');
+      logger.debug('   - Human-readable narrative content');
+      logger.debug('   - Executive summaries for busy parents');
+      logger.debug('   - Key insights and recommendations');
+      logger.debug('   - Multiple tone styles and languages');
+      logger.debug('   - Reading level optimization');
+      logger.debug('   - Performance tracking and analytics');
     } else {
-      console.log('✅ Parent report narratives migration already applied');
+      logger.debug('✅ Parent report narratives migration already applied');
     }
 
     // ============================================
@@ -3180,8 +3181,8 @@ async function runDatabaseMigrations() {
     `);
 
     if (cleanupCheck.rows.length === 0) {
-      console.log('🧹 Applying database cleanup migration...');
-      console.log('📊 Removing 6 unused tables to simplify schema by 26%');
+      logger.debug('🧹 Applying database cleanup migration...');
+      logger.debug('📊 Removing 6 unused tables to simplify schema by 26%');
 
       try {
         // Drop unused parent reports system tables (not implemented)
@@ -3206,12 +3207,12 @@ async function runDatabaseMigrations() {
             if (tableExists.rows.length > 0) {
               await db.query(`DROP TABLE IF EXISTS ${tableName} CASCADE`);
               droppedCount++;
-              console.log(`   ✅ Dropped unused table: ${tableName}`);
+              logger.debug(`   ✅ Dropped unused table: ${tableName}`);
             } else {
-              console.log(`   ⏭️  Table ${tableName} does not exist (skipped)`);
+              logger.debug(`   ⏭️  Table ${tableName} does not exist (skipped)`);
             }
           } catch (tableError) {
-            console.log(`   ⚠️  Could not drop ${tableName}: ${tableError.message}`);
+            logger.debug(`   ⚠️  Could not drop ${tableName}: ${tableError.message}`);
           }
         }
 
@@ -3222,30 +3223,30 @@ async function runDatabaseMigrations() {
           ON CONFLICT (migration_name) DO NOTHING;
         `);
 
-        console.log('✅ Database cleanup migration completed successfully!');
-        console.log(`📊 Cleanup results:`);
-        console.log(`   - Tables dropped: ${droppedCount}/6`);
-        console.log(`   - Schema complexity reduced by ~26%`);
-        console.log(`   - Maintenance overhead reduced`);
-        console.log('📋 Removed tables:');
-        console.log('   - mental_health_indicators (not implemented)');
-        console.log('   - report_metrics (use app logging instead)');
-        console.log('   - student_progress_history (superseded by time-series queries)');
-        console.log('   - evaluations (feature not implemented)');
-        console.log('   - sessions_summaries (calculated on-demand)');
-        console.log('   - progress (superseded by subject_progress + daily_subject_activities)');
+        logger.debug('✅ Database cleanup migration completed successfully!');
+        logger.debug(`📊 Cleanup results:`);
+        logger.debug(`   - Tables dropped: ${droppedCount}/6`);
+        logger.debug(`   - Schema complexity reduced by ~26%`);
+        logger.debug(`   - Maintenance overhead reduced`);
+        logger.debug('📋 Removed tables:');
+        logger.debug('   - mental_health_indicators (not implemented)');
+        logger.debug('   - report_metrics (use app logging instead)');
+        logger.debug('   - student_progress_history (superseded by time-series queries)');
+        logger.debug('   - evaluations (feature not implemented)');
+        logger.debug('   - sessions_summaries (calculated on-demand)');
+        logger.debug('   - progress (superseded by subject_progress + daily_subject_activities)');
       } catch (cleanupError) {
-        console.warn('⚠️ Cleanup migration warning (migration will continue):', cleanupError.message);
+        logger.warn('⚠️ Cleanup migration warning (migration will continue):', cleanupError.message);
         // Record migration as complete to prevent retry loops
         await db.query(`
           INSERT INTO migration_history (migration_name)
           VALUES ('005_cleanup_unused_tables')
           ON CONFLICT (migration_name) DO NOTHING;
         `);
-        console.log('✅ Database cleanup migration marked as complete');
+        logger.debug('✅ Database cleanup migration marked as complete');
       }
     } else {
-      console.log('✅ Database cleanup migration already applied');
+      logger.debug('✅ Database cleanup migration already applied');
     }
 
     // ============================================
@@ -3256,8 +3257,8 @@ async function runDatabaseMigrations() {
     `);
 
     if (rawQuestionTextCheck.rows.length === 0) {
-      console.log('📋 Applying raw_question_text migration...');
-      console.log('📊 Adding raw_question_text column for full original question storage');
+      logger.debug('📋 Applying raw_question_text migration...');
+      logger.debug('📊 Adding raw_question_text column for full original question storage');
 
       try {
         // Add raw_question_text column (allows NULL for backward compatibility)
@@ -3286,9 +3287,9 @@ async function runDatabaseMigrations() {
             CREATE INDEX idx_archived_questions_raw_text
             ON archived_questions USING gin(to_tsvector('english', raw_question_text));
           `);
-          console.log('✅ Created full-text search index on raw_question_text');
+          logger.debug('✅ Created full-text search index on raw_question_text');
         } else {
-          console.log('✅ Index idx_archived_questions_raw_text already exists');
+          logger.debug('✅ Index idx_archived_questions_raw_text already exists');
         }
 
         // Add comment to document the column
@@ -3303,23 +3304,23 @@ async function runDatabaseMigrations() {
           ON CONFLICT (migration_name) DO NOTHING;
         `);
 
-        console.log('✅ raw_question_text migration completed successfully!');
-        console.log('📊 archived_questions table now supports:');
-        console.log('   - Full original question text from homework images');
-        console.log('   - Preserves complete context and wording');
-        console.log('   - Full-text search on raw question content');
+        logger.debug('✅ raw_question_text migration completed successfully!');
+        logger.debug('📊 archived_questions table now supports:');
+        logger.debug('   - Full original question text from homework images');
+        logger.debug('   - Preserves complete context and wording');
+        logger.debug('   - Full-text search on raw question content');
       } catch (rawQuestionError) {
-        console.warn('⚠️ raw_question_text migration warning (migration will continue):', rawQuestionError.message);
+        logger.warn('⚠️ raw_question_text migration warning (migration will continue):', rawQuestionError.message);
         // Record migration as complete to prevent retry loops
         await db.query(`
           INSERT INTO migration_history (migration_name)
           VALUES ('006_add_raw_question_text')
           ON CONFLICT (migration_name) DO NOTHING;
         `);
-        console.log('✅ raw_question_text migration marked as complete');
+        logger.debug('✅ raw_question_text migration marked as complete');
       }
     } else {
-      console.log('✅ raw_question_text migration already applied');
+      logger.debug('✅ raw_question_text migration already applied');
     }
 
     // ============================================
@@ -3330,8 +3331,8 @@ async function runDatabaseMigrations() {
     `);
 
     if (sessionsMetadataCheck.rows.length === 0) {
-      console.log('📋 Applying sessions metadata migration...');
-      console.log('📊 Adding metadata JSONB column to sessions table');
+      logger.debug('📋 Applying sessions metadata migration...');
+      logger.debug('📊 Adding metadata JSONB column to sessions table');
 
       try {
         // Check if sessions table exists first
@@ -3365,14 +3366,14 @@ async function runDatabaseMigrations() {
               CREATE INDEX idx_sessions_metadata
               ON sessions USING gin(metadata);
             `);
-            console.log('✅ Created GIN index on sessions.metadata');
+            logger.debug('✅ Created GIN index on sessions.metadata');
           } else {
-            console.log('✅ Index idx_sessions_metadata already exists');
+            logger.debug('✅ Index idx_sessions_metadata already exists');
           }
 
-          console.log('✅ sessions.metadata column added successfully');
+          logger.debug('✅ sessions.metadata column added successfully');
         } else {
-          console.log('⚠️ sessions table does not exist yet, skipping metadata migration');
+          logger.debug('⚠️ sessions table does not exist yet, skipping metadata migration');
         }
 
         // Record the migration as completed
@@ -3382,23 +3383,23 @@ async function runDatabaseMigrations() {
           ON CONFLICT (migration_name) DO NOTHING;
         `);
 
-        console.log('✅ sessions metadata migration completed successfully!');
-        console.log('📊 sessions table now supports:');
-        console.log('   - Flexible metadata storage (JSONB)');
-        console.log('   - Language preferences per session');
-        console.log('   - Future-proof extensibility for session context');
+        logger.debug('✅ sessions metadata migration completed successfully!');
+        logger.debug('📊 sessions table now supports:');
+        logger.debug('   - Flexible metadata storage (JSONB)');
+        logger.debug('   - Language preferences per session');
+        logger.debug('   - Future-proof extensibility for session context');
       } catch (sessionsMetadataError) {
-        console.warn('⚠️ sessions metadata migration warning (migration will continue):', sessionsMetadataError.message);
+        logger.warn('⚠️ sessions metadata migration warning (migration will continue):', sessionsMetadataError.message);
         // Record migration as complete to prevent retry loops
         await db.query(`
           INSERT INTO migration_history (migration_name)
           VALUES ('007_add_sessions_metadata_column')
           ON CONFLICT (migration_name) DO NOTHING;
         `);
-        console.log('✅ sessions metadata migration marked as complete');
+        logger.debug('✅ sessions metadata migration marked as complete');
       }
     } else {
-      console.log('✅ sessions metadata migration already applied');
+      logger.debug('✅ sessions metadata migration already applied');
     }
 
     // ============================================
@@ -3409,8 +3410,8 @@ async function runDatabaseMigrations() {
     `);
 
     if (coppaConsentCheck.rows.length === 0) {
-      console.log('📋 Applying COPPA consent management migration...');
-      console.log('📊 Adding parental consent tracking for COPPA compliance (users under 13)');
+      logger.debug('📋 Applying COPPA consent management migration...');
+      logger.debug('📊 Adding parental consent tracking for COPPA compliance (users under 13)');
 
       try {
         // Create parental consents table
@@ -3614,7 +3615,7 @@ async function runDatabaseMigrations() {
               FOR EACH ROW
               EXECUTE FUNCTION update_parental_consent_requirement();
           `);
-          console.log('✅ Created trigger on profiles table for auto-updating consent requirements');
+          logger.debug('✅ Created trigger on profiles table for auto-updating consent requirements');
         }
 
         // Create function to auto-expire consents
@@ -3661,27 +3662,27 @@ async function runDatabaseMigrations() {
           ON CONFLICT (migration_name) DO NOTHING;
         `);
 
-        console.log('✅ COPPA consent management migration completed successfully!');
-        console.log('📊 COPPA consent system now supports:');
-        console.log('   - Parental consent requests with email verification');
-        console.log('   - Age verification and COPPA protection (users under 13)');
-        console.log('   - 6-digit verification codes with 24-hour expiration');
-        console.log('   - Complete audit trail of all consent actions');
-        console.log('   - Account restrictions for users without consent');
-        console.log('   - Annual consent renewal (COPPA best practice)');
-        console.log('   - Automatic consent expiration and account locking');
+        logger.debug('✅ COPPA consent management migration completed successfully!');
+        logger.debug('📊 COPPA consent system now supports:');
+        logger.debug('   - Parental consent requests with email verification');
+        logger.debug('   - Age verification and COPPA protection (users under 13)');
+        logger.debug('   - 6-digit verification codes with 24-hour expiration');
+        logger.debug('   - Complete audit trail of all consent actions');
+        logger.debug('   - Account restrictions for users without consent');
+        logger.debug('   - Annual consent renewal (COPPA best practice)');
+        logger.debug('   - Automatic consent expiration and account locking');
       } catch (coppaConsentError) {
-        console.warn('⚠️ COPPA consent management migration warning (migration will continue):', coppaConsentError.message);
+        logger.warn('⚠️ COPPA consent management migration warning (migration will continue):', coppaConsentError.message);
         // Record migration as complete to prevent retry loops
         await db.query(`
           INSERT INTO migration_history (migration_name)
           VALUES ('008_add_coppa_consent_management')
           ON CONFLICT (migration_name) DO NOTHING;
         `);
-        console.log('✅ COPPA consent management migration marked as complete');
+        logger.debug('✅ COPPA consent management migration marked as complete');
       }
     } else {
-      console.log('✅ COPPA consent management migration already applied');
+      logger.debug('✅ COPPA consent management migration already applied');
     }
 
     // ============================================
@@ -3692,7 +3693,7 @@ async function runDatabaseMigrations() {
     `);
 
     if (avatarIdFixCheck.rows.length === 0) {
-      console.log('📋 Applying avatar_id and enum types fix migration...');
+      logger.debug('📋 Applying avatar_id and enum types fix migration...');
 
       try {
         // Add avatar_id column to profiles table if it doesn't exist
@@ -3708,7 +3709,7 @@ async function runDatabaseMigrations() {
             END IF;
           END $$;
         `);
-        console.log('✅ Added avatar_id column to profiles table');
+        logger.debug('✅ Added avatar_id column to profiles table');
 
         // Create enum types with proper error handling to avoid duplicate errors
         await db.query(`
@@ -3742,7 +3743,7 @@ async function runDatabaseMigrations() {
             END IF;
           END $$;
         `);
-        console.log('✅ Created enum types (subject_category, difficulty_level)');
+        logger.debug('✅ Created enum types (subject_category, difficulty_level)');
 
         // Record migration completion
         await db.query(`
@@ -3750,13 +3751,13 @@ async function runDatabaseMigrations() {
           VALUES ('009_fix_avatar_id_and_enums')
           ON CONFLICT (migration_name) DO NOTHING;
         `);
-        console.log('✅ Avatar_id and enum types fix migration marked as complete');
+        logger.debug('✅ Avatar_id and enum types fix migration marked as complete');
       } catch (migrationError) {
-        console.error('❌ Error in avatar_id and enum types fix migration:', migrationError.message);
+        logger.error('❌ Error in avatar_id and enum types fix migration:', migrationError.message);
         // Continue even if this fails - non-critical migration
       }
     } else {
-      console.log('✅ Avatar_id and enum types fix migration already applied');
+      logger.debug('✅ Avatar_id and enum types fix migration already applied');
     }
 
     // ============================================
@@ -3767,7 +3768,7 @@ async function runDatabaseMigrations() {
     `);
 
     if (profilesUserIdCheck.rows.length === 0) {
-      console.log('📋 Applying profiles user_id fix migration...');
+      logger.debug('📋 Applying profiles user_id fix migration...');
 
       try {
         // Check if profiles table exists
@@ -3821,9 +3822,9 @@ async function runDatabaseMigrations() {
 
             END $$;
           `);
-          console.log('✅ Profiles user_id column verified/added');
+          logger.debug('✅ Profiles user_id column verified/added');
         } else {
-          console.log('ℹ️ Profiles table does not exist yet - will be created with correct schema');
+          logger.debug('ℹ️ Profiles table does not exist yet - will be created with correct schema');
         }
 
         // Record migration completion
@@ -3832,14 +3833,14 @@ async function runDatabaseMigrations() {
           VALUES ('010_fix_profiles_user_id')
           ON CONFLICT (migration_name) DO NOTHING;
         `);
-        console.log('✅ Profiles user_id fix migration marked as complete');
+        logger.debug('✅ Profiles user_id fix migration marked as complete');
       } catch (migrationError) {
-        console.error('❌ Error in profiles user_id fix migration:', migrationError.message);
+        logger.error('❌ Error in profiles user_id fix migration:', migrationError.message);
         // Migration is idempotent with exception handling, so errors are unexpected
         // Continue - migration will retry on next deployment if needed
       }
     } else {
-      console.log('✅ Profiles user_id fix migration already applied');
+      logger.debug('✅ Profiles user_id fix migration already applied');
     }
 
     // ============================================
@@ -3850,7 +3851,7 @@ async function runDatabaseMigrations() {
     `);
 
     if (dataRetentionCheck.rows.length === 0) {
-      console.log('📋 Applying data retention policy migration...');
+      logger.debug('📋 Applying data retention policy migration...');
 
       try {
         // Step 1: Add deleted_at and retention_expires_at columns to archived_conversations_new
@@ -3869,7 +3870,7 @@ async function runDatabaseMigrations() {
           `);
         } catch (indexError) {
           if (indexError.code !== '42P07') { // Ignore "already exists" errors
-            console.warn('⚠️ Index idx_archived_conversations_retention creation warning:', indexError.message);
+            logger.warn('⚠️ Index idx_archived_conversations_retention creation warning:', indexError.message);
           }
         }
 
@@ -3881,7 +3882,7 @@ async function runDatabaseMigrations() {
           `);
         } catch (indexError) {
           if (indexError.code !== '42P07') {
-            console.warn('⚠️ Index idx_archived_conversations_deleted creation warning:', indexError.message);
+            logger.warn('⚠️ Index idx_archived_conversations_deleted creation warning:', indexError.message);
           }
         }
 
@@ -3908,7 +3909,7 @@ async function runDatabaseMigrations() {
             `);
           } catch (indexError) {
             if (indexError.code !== '42P07') {
-              console.warn('⚠️ Index idx_question_sessions_retention creation warning:', indexError.message);
+              logger.warn('⚠️ Index idx_question_sessions_retention creation warning:', indexError.message);
             }
           }
         }
@@ -3928,7 +3929,7 @@ async function runDatabaseMigrations() {
           `);
         } catch (indexError) {
           if (indexError.code !== '42P07') {
-            console.warn('⚠️ Index idx_sessions_retention creation warning:', indexError.message);
+            logger.warn('⚠️ Index idx_sessions_retention creation warning:', indexError.message);
           }
         }
 
@@ -4076,18 +4077,18 @@ async function runDatabaseMigrations() {
           ON CONFLICT (migration_name) DO NOTHING;
         `);
 
-        console.log('✅ Data retention policy migration completed successfully!');
+        logger.debug('✅ Data retention policy migration completed successfully!');
       } catch (migrationError) {
-        console.error('❌ Error in data retention policy migration:', migrationError.message);
-        console.error(migrationError);
+        logger.error('❌ Error in data retention policy migration:', migrationError.message);
+        logger.error(migrationError);
         // Don't throw - allow app to continue, will retry on next restart
       }
     } else {
-      console.log('✅ Data retention policy migration already applied');
+      logger.debug('✅ Data retention policy migration already applied');
     }
 
   } catch (error) {
-    console.error('❌ Database migration failed:', error);
+    logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has
   }
 }
@@ -4710,9 +4711,9 @@ db.checkUserNeedsParentalConsent = async function(userId) {
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('🔄 Closing PostgreSQL connection pool...');
+  logger.debug('🔄 Closing PostgreSQL connection pool...');
   await pool.end();
-  console.log('✅ PostgreSQL connection pool closed');
+  logger.debug('✅ PostgreSQL connection pool closed');
   process.exit(0);
 });
 

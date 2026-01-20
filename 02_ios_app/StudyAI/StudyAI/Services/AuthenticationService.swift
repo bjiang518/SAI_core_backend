@@ -15,6 +15,13 @@ import UIKit
 import GoogleSignIn
 import os.log
 
+// MARK: - Production Logging Safety
+// Disable debug print statements in production builds to prevent auth token/password exposure
+#if !DEBUG
+private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
+#endif
+
 // MARK: - Authentication Models
 
 struct User: Codable {

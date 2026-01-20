@@ -175,6 +175,7 @@ class MistakeReviewService: ObservableObject {
     private func filterByTimeRange(_ mistakes: [[String: Any]], timeRange: MistakeTimeRange?) -> [[String: Any]] {
         guard let timeRange = timeRange else {
             // No time range specified, return all
+            print("🔍 [MistakeReview] No time range filter - returning all \(mistakes.count) mistakes")
             return mistakes
         }
 
@@ -186,32 +187,70 @@ class MistakeReviewService: ObservableObject {
         case .thisWeek:
             // Last 7 days
             cutoffDate = calendar.date(byAdding: .day, value: -7, to: now)!
+            print("🔍 [MistakeReview] Filtering for THIS WEEK (last 7 days)")
         case .thisMonth:
             // Last 30 days
             cutoffDate = calendar.date(byAdding: .day, value: -30, to: now)!
+            print("🔍 [MistakeReview] Filtering for THIS MONTH (last 30 days)")
         case .allTime:
             // Return all mistakes
+            print("🔍 [MistakeReview] ALL TIME selected - returning all \(mistakes.count) mistakes")
             return mistakes
         }
 
+        print("🔍 [MistakeReview] Now: \(now)")
+        print("🔍 [MistakeReview] Cutoff date: \(cutoffDate)")
+        print("🔍 [MistakeReview] Total mistakes to check: \(mistakes.count)")
+
         // Filter mistakes by archived date
+        var parsedDatesCount = 0
+        var failedParseCount = 0
+        var matchingCount = 0
+
         let filtered = mistakes.filter { mistake in
+            // Debug: Print first few mistakes in detail
+            if parsedDatesCount + failedParseCount < 5 {
+                print("🔍 [MistakeReview] Checking mistake: subject=\(mistake["subject"] as? String ?? "N/A"), archivedAt=\(mistake["archivedAt"] as? String ?? "MISSING")")
+            }
+
             guard let archivedAtString = mistake["archivedAt"] as? String else {
+                failedParseCount += 1
+                if failedParseCount <= 3 {
+                    print("⚠️ [MistakeReview] Missing archivedAt field in mistake")
+                }
                 return false
             }
 
             let dateFormatter = ISO8601DateFormatter()
             guard let mistakeDate = dateFormatter.date(from: archivedAtString) else {
+                failedParseCount += 1
+                if failedParseCount <= 3 {
+                    print("⚠️ [MistakeReview] Failed to parse date: \(archivedAtString)")
+                }
                 return false
             }
 
-            return mistakeDate >= cutoffDate
+            parsedDatesCount += 1
+            let matches = mistakeDate >= cutoffDate
+            if matches {
+                matchingCount += 1
+            }
+
+            // Log first few comparisons
+            if parsedDatesCount <= 5 {
+                print("🔍 [MistakeReview] Mistake date: \(mistakeDate), matches: \(matches)")
+            }
+
+            return matches
         }
 
-        print("🔍 [MistakeReview] Time filter: \(timeRange.rawValue)")
-        print("   - Total mistakes before filter: \(mistakes.count)")
-        print("   - Mistakes after filter: \(filtered.count)")
-        print("   - Cutoff date: \(cutoffDate)")
+        print("📊 [MistakeReview] Time filter results:")
+        print("   - Time range: \(timeRange.rawValue)")
+        print("   - Total mistakes checked: \(mistakes.count)")
+        print("   - Successfully parsed dates: \(parsedDatesCount)")
+        print("   - Failed to parse: \(failedParseCount)")
+        print("   - Matching date range: \(matchingCount)")
+        print("   - Final filtered count: \(filtered.count)")
 
         return filtered
     }

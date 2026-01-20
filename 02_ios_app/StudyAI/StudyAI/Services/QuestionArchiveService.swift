@@ -8,6 +8,13 @@
 import Foundation
 import Combine
 
+// MARK: - Production Logging Safety
+// Disable debug print statements in production builds to prevent archived Q&A data exposure
+#if !DEBUG
+private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
+#endif
+
 class QuestionArchiveService: ObservableObject {
     static let shared = QuestionArchiveService()
     

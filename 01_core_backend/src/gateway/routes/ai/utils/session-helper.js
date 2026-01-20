@@ -56,9 +56,15 @@ class SessionHelper {
    * @param {string} userMessage - User's message
    * @param {Object} aiResponse - AI response object with response, tokensUsed, service
    */
-  async storeConversation(sessionId, userId, userMessage, aiResponse) {
+  async storeConversation(sessionId, userId, userMessage, aiResponse, imageData = null) {
     try {
       const { db } = require('../../../../utils/railway-database');
+
+      // ✅ NEW: Prepare user message data (include image if present)
+      const userMessageData = imageData ? {
+        hasImage: true,
+        image_data: imageData
+      } : null;
 
       // Store user message
       await db.addConversationMessage({
@@ -67,7 +73,7 @@ class SessionHelper {
         sessionId: sessionId,
         messageType: 'user',
         messageText: userMessage,
-        messageData: null,
+        messageData: userMessageData,  // ✅ NEW: Store image data if present
         tokensUsed: 0
       });
 
@@ -86,7 +92,8 @@ class SessionHelper {
         tokensUsed: aiResponse.tokensUsed || 0
       });
 
-      this.fastify.log.info(`💾 Conversation stored for session: ${PIIMasking.maskUserId(sessionId)}`);
+      const imageIndicator = imageData ? ' (with image)' : '';
+      this.fastify.log.info(`💾 Conversation stored for session: ${PIIMasking.maskUserId(sessionId)}${imageIndicator}`);
     } catch (error) {
       this.fastify.log.error('Error storing conversation:', error);
       // Don't fail the request if storage fails

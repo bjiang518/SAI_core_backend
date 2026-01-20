@@ -104,6 +104,7 @@ class OptimizedEducationalAIService:
         # PHASE 2 OPTIMIZATION: Smart Model Selection (30-40% cost reduction)
         self.model_mini = "gpt-4o-mini"  # Fast & cheap for simple tasks
         self.model_standard = "gpt-4o"    # Full model for complex tasks
+        self.model_reasoning = "o4-mini"  # Deep reasoning model for complex problem-solving
         self.model = self.model_mini  # Default to mini
         self.vision_model = "gpt-4o-2024-08-06"  # Required for structured outputs
         self.structured_output_model = "gpt-4o-2024-08-06"  # For structured outputs
@@ -111,12 +112,14 @@ class OptimizedEducationalAIService:
         # Track model usage for cost monitoring
         self.model_usage_stats = {
             "gpt-4o-mini": {"calls": 0, "tokens": 0},
-            "gpt-4o": {"calls": 0, "tokens": 0}
+            "gpt-4o": {"calls": 0, "tokens": 0},
+            "o4-mini": {"calls": 0, "tokens": 0}
         }
 
         logger.debug(f"✅ Models configured:")
         logger.debug(f"   - Mini (default): {self.model_mini}")
         logger.debug(f"   - Standard: {self.model_standard}")
+        logger.debug(f"   - Reasoning (deep mode): {self.model_reasoning}")
         logger.debug(f"   - Vision: {self.vision_model}")
         
         # In-memory cache (fallback if Redis not available)
@@ -354,6 +357,10 @@ class OptimizedEducationalAIService:
         lines = raw_response.split('\n')
         current_question = {}
 
+        # ✅ FIX: Track multiline arrays for options
+        in_options_array = False
+        options_buffer = []
+
         for line in lines:
             line = line.strip()
             if not line:
@@ -393,16 +400,82 @@ class OptimizedEducationalAIService:
                     current_question['difficulty'] = difficulty_match.group(1)
 
             elif ('"multiple_choice_options"' in line or '"options"' in line) and '[' in line:
-                # Support both "multiple_choice_options" (new format) and "options" (old format)
-                # Extract options array - can be simple strings or objects with {label, text, is_correct}
+                # ✅ FIX: Support both single-line and multiline arrays
+                # Try single-line match first (fast path)
                 options_match = re.search(r'"(?:multiple_choice_options|options)":\s*\[(.*?)\]', line)
                 if options_match:
+                    # Single-line array - extract immediately
                     options_str = options_match.group(1)
-                    # Parse individual options
                     options = []
-                    for opt in re.findall(r'"([^"]*)"', options_str):
-                        options.append(opt)
+
+                    # Try parsing as JSON objects first (new format with {label, text, is_correct})
+                    try:
+                        options_json = json.loads(f'[{options_str}]')
+                        if isinstance(options_json, list) and len(options_json) > 0:
+                            # Extract text from option objects
+                            for opt in options_json:
+                                if isinstance(opt, dict) and 'text' in opt:
+                                    label = opt.get('label', '')
+                                    text = opt.get('text', '')
+                                    options.append(f"{label}. {text}" if label else text)
+                                elif isinstance(opt, str):
+                                    options.append(opt)
+                        else:
+                            # Fallback: extract quoted strings
+                            for opt in re.findall(r'"([^"]*)"', options_str):
+                                options.append(opt)
+                    except:
+                        # Fallback: extract quoted strings
+                        for opt in re.findall(r'"([^"]*)"', options_str):
+                            options.append(opt)
+
                     current_question['multiple_choice_options'] = options
+                else:
+                    # Multiline array detected - start buffering
+                    in_options_array = True
+                    options_buffer = [line]
+
+            elif in_options_array:
+                # ✅ FIX: Collect multiline array content
+                options_buffer.append(line)
+
+                # Check if array is complete (found closing ])
+                if ']' in line:
+                    in_options_array = False
+
+                    # Parse collected buffer
+                    full_array_text = '\n'.join(options_buffer)
+
+                    # Extract array content between [ and ]
+                    array_match = re.search(r'\[([\s\S]*?)\]', full_array_text)
+                    if array_match:
+                        array_content = array_match.group(1)
+                        options = []
+
+                        # Try parsing as JSON objects first
+                        try:
+                            options_json = json.loads(f'[{array_content}]')
+                            if isinstance(options_json, list) and len(options_json) > 0:
+                                for opt in options_json:
+                                    if isinstance(opt, dict) and 'text' in opt:
+                                        label = opt.get('label', '')
+                                        text = opt.get('text', '')
+                                        options.append(f"{label}. {text}" if label else text)
+                                    elif isinstance(opt, str):
+                                        options.append(opt)
+                            else:
+                                # Fallback: extract quoted strings
+                                for opt in re.findall(r'"([^"]*)"', array_content):
+                                    options.append(opt)
+                        except:
+                            # Fallback: extract quoted strings
+                            for opt in re.findall(r'"([^"]*)"', array_content):
+                                options.append(opt)
+
+                        current_question['multiple_choice_options'] = options
+                        logger.debug(f"✅ Parsed multiline options array: {len(options)} options")
+
+                    options_buffer = []
 
             # Check if we have a complete question
             if (len(current_question) >= 4 and
@@ -1763,8 +1836,16 @@ class EducationalAIService:
         self.prompt_service = AdvancedPromptService()
         self.model = "gpt-4o-mini"
         self.model_mini = "gpt-4o-mini"  # Alias for compatibility with parse_homework_questions_with_coordinates
+        self.model_reasoning = "o4-mini"  # Deep reasoning model for complex problem-solving
         self.vision_model = "gpt-4o"  # Full model for vision tasks
         self.structured_output_model = "gpt-4o-2024-08-06"  # For structured outputs (progressive grading)
+
+        # Track model usage for cost monitoring
+        self.model_usage_stats = {
+            "gpt-4o-mini": {"calls": 0, "tokens": 0},
+            "gpt-4o": {"calls": 0, "tokens": 0},
+            "o4-mini": {"calls": 0, "tokens": 0}
+        }
 
         # Add the improved service for homework parsing
         self.improved_service = OptimizedEducationalAIService()
@@ -1983,6 +2064,10 @@ class EducationalAIService:
         lines = raw_response.split('\n')
         current_question = {}
 
+        # ✅ FIX: Track multiline arrays for options
+        in_options_array = False
+        options_buffer = []
+
         for line in lines:
             line = line.strip()
             if not line:
@@ -2022,16 +2107,82 @@ class EducationalAIService:
                     current_question['difficulty'] = difficulty_match.group(1)
 
             elif ('"multiple_choice_options"' in line or '"options"' in line) and '[' in line:
-                # Support both "multiple_choice_options" (new format) and "options" (old format)
-                # Extract options array - can be simple strings or objects with {label, text, is_correct}
+                # ✅ FIX: Support both single-line and multiline arrays
+                # Try single-line match first (fast path)
                 options_match = re.search(r'"(?:multiple_choice_options|options)":\s*\[(.*?)\]', line)
                 if options_match:
+                    # Single-line array - extract immediately
                     options_str = options_match.group(1)
-                    # Parse individual options
                     options = []
-                    for opt in re.findall(r'"([^"]*)"', options_str):
-                        options.append(opt)
+
+                    # Try parsing as JSON objects first (new format with {label, text, is_correct})
+                    try:
+                        options_json = json.loads(f'[{options_str}]')
+                        if isinstance(options_json, list) and len(options_json) > 0:
+                            # Extract text from option objects
+                            for opt in options_json:
+                                if isinstance(opt, dict) and 'text' in opt:
+                                    label = opt.get('label', '')
+                                    text = opt.get('text', '')
+                                    options.append(f"{label}. {text}" if label else text)
+                                elif isinstance(opt, str):
+                                    options.append(opt)
+                        else:
+                            # Fallback: extract quoted strings
+                            for opt in re.findall(r'"([^"]*)"', options_str):
+                                options.append(opt)
+                    except:
+                        # Fallback: extract quoted strings
+                        for opt in re.findall(r'"([^"]*)"', options_str):
+                            options.append(opt)
+
                     current_question['multiple_choice_options'] = options
+                else:
+                    # Multiline array detected - start buffering
+                    in_options_array = True
+                    options_buffer = [line]
+
+            elif in_options_array:
+                # ✅ FIX: Collect multiline array content
+                options_buffer.append(line)
+
+                # Check if array is complete (found closing ])
+                if ']' in line:
+                    in_options_array = False
+
+                    # Parse collected buffer
+                    full_array_text = '\n'.join(options_buffer)
+
+                    # Extract array content between [ and ]
+                    array_match = re.search(r'\[([\s\S]*?)\]', full_array_text)
+                    if array_match:
+                        array_content = array_match.group(1)
+                        options = []
+
+                        # Try parsing as JSON objects first
+                        try:
+                            options_json = json.loads(f'[{array_content}]')
+                            if isinstance(options_json, list) and len(options_json) > 0:
+                                for opt in options_json:
+                                    if isinstance(opt, dict) and 'text' in opt:
+                                        label = opt.get('label', '')
+                                        text = opt.get('text', '')
+                                        options.append(f"{label}. {text}" if label else text)
+                                    elif isinstance(opt, str):
+                                        options.append(opt)
+                            else:
+                                # Fallback: extract quoted strings
+                                for opt in re.findall(r'"([^"]*)"', array_content):
+                                    options.append(opt)
+                        except:
+                            # Fallback: extract quoted strings
+                            for opt in re.findall(r'"([^"]*)"', array_content):
+                                options.append(opt)
+
+                        current_question['multiple_choice_options'] = options
+                        logger.debug(f"✅ Parsed multiline options array: {len(options)} options")
+
+                    options_buffer = []
 
             # Check if we have a complete question
             if (len(current_question) >= 4 and
@@ -3023,8 +3174,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
         # Smart model selection based on deep reasoning flag and image context
         if use_deep_reasoning:
-            selected_model = "gpt-4o"  # Always use gpt-4o for deep reasoning
-            mode_label = "DEEP REASONING"
+            selected_model = self.model_reasoning  # o4-mini for deep reasoning
+            mode_label = "DEEP REASONING (O4-MINI)"
         else:
             selected_model = "gpt-4o" if context_image else "gpt-4o-mini"
             mode_label = "STANDARD"
@@ -3062,7 +3213,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
             # Prepare user message (different for deep reasoning vs standard)
             if use_deep_reasoning:
-                # Deep reasoning: Detailed feedback, step-by-step analysis
+                # Deep reasoning: Structured step-by-step approach
                 parent_context = ""
                 if parent_content:
                     parent_context = f"""
@@ -3081,25 +3232,49 @@ Student's Answer: {student_answer}
 
 {f'Expected Answer: {correct_answer}' if correct_answer else ''}
 {parent_context}
-DEEP REASONING INSTRUCTIONS:
-Think deeply about this question before grading. Consider:
-1. What concept is being tested?
-2. What approach did the student take?
-3. Where (if anywhere) did they make mistakes?
-4. How significant are the errors?
 
-Grade this answer with detailed analysis. Return JSON with:
+DEEP REASONING MODE - STRUCTURED GRADING PROCESS:
+
+STEP 1: SOLVE THE PROBLEM YOURSELF
+First, generate YOUR OWN step-by-step solution to this problem:
+- Break down what needs to be done
+- Show each calculation or reasoning step
+- Arrive at the correct answer with full working
+
+STEP 2: ANALYZE STUDENT'S APPROACH
+Compare the student's answer to your solution:
+- What approach did they take?
+- Which steps did they get correct?
+- Where exactly did they make mistakes?
+- Is their final answer correct?
+
+STEP 3: EVALUATE & SCORE
+- Calculate score (0.0-1.0) based on correctness and method
+- Determine if answer is correct (score >= 0.9)
+- Assign confidence level
+
+STEP 4: PROVIDE ACTIONABLE FEEDBACK
+Give the student concrete next steps:
+- What they did well (be specific)
+- What they got wrong (identify the exact error)
+- How to fix it (concrete action: "Try using formula X", "Check your calculation in step 2")
+- One key learning point to remember
+
+Return JSON with:
 {{
   "score": 0.95,  // 0.0-1.0
   "is_correct": true,  // score >= 0.9
-  "feedback": "Your reasoning is excellent. You correctly identified X and applied method Y...",  // 50-100 words with detailed explanation
+  "feedback": "✓ You correctly identified the formula (v=d/t). ✗ Calculation error: 100/20 = 5, not 50. → Action: Double-check your division. Remember: always verify calculations with a second pass.",  // 50-100 words with ✓/✗ markers
   "confidence": 0.95,  // 0.0-1.0
-  "reasoning_steps": "Student used correct formula. Calculation steps were accurate...",  // Optional reasoning trace
-  "correct_answer": "REQUIRED: What is the correct/expected answer to this question?"  // MANDATORY - determine from question context
+  "ai_solution_steps": "Step 1: Identify formula v=d/t. Step 2: Substitute values: v=100km/20min. Step 3: Convert units: 20min = 1/3 hour. Step 4: Calculate: v=100/(1/3) = 300 km/h.",  // YOUR step-by-step solution
+  "student_errors": ["Forgot to convert minutes to hours", "Division error: wrote 50 instead of 5"],  // List of specific errors (if any)
+  "correct_answer": "300 km/h"  // MANDATORY - the right answer
 }}
 
-CRITICAL: The "correct_answer" field is REQUIRED and must ALWAYS be included in your response.
-If an expected answer was not provided above, YOU MUST determine the correct answer based on the question.
+CRITICAL: The feedback must include:
+- ✓ for what's correct
+- ✗ for what's wrong
+- → for concrete action to take
 """
             else:
                 # Standard mode: Brief concise feedback
@@ -3156,15 +3331,21 @@ If expected answer not provided above, YOU MUST determine it from the question.
             start_time = time.time()
 
             # Call selected model with mode-specific configuration
-            # Deep reasoning: Higher temperature (0.7), more tokens (1024)
-            # Standard: Lower temperature (0.3), fewer tokens (300)
             if use_deep_reasoning:
+                # O4-MINI DEEP REASONING MODE
+                # - Uses o4-mini reasoning model (step-by-step thinking)
+                # - No temperature parameter (reasoning models use fixed temperature)
+                # - Uses max_completion_tokens instead of max_tokens
+                # - Messages: user role only (no system message for reasoning models)
+
+                # Combine system prompt and user text for reasoning model
+                combined_prompt = f"{system_prompt}\n\n{user_text}"
+
                 response = await self.client.chat.completions.create(
-                    model=selected_model,
-                    messages=messages,
+                    model=selected_model,  # o4-mini
+                    messages=[{"role": "user", "content": combined_prompt}],
                     response_format={"type": "json_object"},
-                    temperature=0.7,  # Higher for creative reasoning
-                    max_tokens=1024  # More tokens for detailed feedback
+                    max_completion_tokens=2048  # Extended tokens for deep reasoning with solution steps
                 )
             else:
                 # OPTIMIZED: Improved accuracy for simple math problems
@@ -3327,13 +3508,17 @@ RULES:
 
     def _normalize_answer(self, answer: str) -> str:
         """
-        Normalize an answer string for comparison.
+        Normalize an answer string for comparison across all question types.
 
         Handles:
-        - Whitespace normalization (trim, collapse multiple spaces/newlines)
-        - Case normalization (lowercase)
-        - Punctuation removal (for short numeric/single-word answers)
-        - LaTeX math delimiters (standardize to no delimiters for comparison)
+        - Multiple choice option prefix removal (A., B., a), etc.)
+        - True/False abbreviations (T/F → true/false)
+        - Mathematical expressions (spacing, operators)
+        - Fractions and unicode symbols (½ → 1/2)
+        - Units normalization (5 km → 5km)
+        - Filler phrase removal ("the answer is", etc.)
+        - Whitespace and case normalization
+        - LaTeX math delimiters
 
         Args:
             answer: Raw answer string to normalize
@@ -3349,21 +3534,54 @@ RULES:
         # Step 1: Trim whitespace
         normalized = answer.strip()
 
-        # Step 2: Collapse multiple spaces and newlines into single spaces
-        normalized = re.sub(r'\s+', ' ', normalized)
+        # Step 2: Remove multiple choice option prefixes (BEFORE lowercasing)
+        # Patterns: "A.", "A)", "(A)", "a.", "a)", "(a)", etc.
+        # This fixes bug where "A.x=1" was marked wrong when correct answer is "x=1"
+        normalized = re.sub(r'^[(]?[A-Za-z][.)\]]?\s*', '', normalized)
 
-        # Step 3: Remove LaTeX math delimiters for comparison
+        # Step 3: Lowercase for case-insensitive comparison
+        normalized = normalized.lower()
+
+        # Step 4: True/False normalization - expand abbreviations
+        # "t" → "true", "f" → "false" (after lowercasing)
+        if normalized == "t":
+            normalized = "true"
+        elif normalized == "f":
+            normalized = "false"
+
+        # Step 5: Remove common filler words and phrases
+        filler_phrases = ["the answer is", "answer:", "result:", "solution:", "equals"]
+        for phrase in filler_phrases:
+            normalized = normalized.replace(phrase, "")
+
+        # Step 6: Normalize mathematical expressions - remove spaces around operators
+        normalized = normalized.replace(" + ", "+")
+        normalized = normalized.replace(" - ", "-")
+        normalized = normalized.replace(" * ", "*")
+        normalized = normalized.replace(" / ", "/")
+        normalized = normalized.replace(" = ", "=")
+
+        # Step 7: Normalize fractions and unicode symbols
+        fraction_map = {
+            "½": "1/2", "⅓": "1/3", "⅔": "2/3", "¼": "1/4", "¾": "3/4",
+            "⅕": "1/5", "⅖": "2/5", "⅗": "3/5", "⅘": "4/5", "⅙": "1/6", "⅚": "5/6",
+            "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8"
+        }
+        for unicode_char, fraction in fraction_map.items():
+            normalized = normalized.replace(unicode_char, fraction)
+
+        # Step 8: Normalize units - remove spaces between number and unit
+        # "5 km" → "5km", "10 m/s" → "10m/s"
+        normalized = re.sub(r'(\d)\s+(km|m|cm|mm|kg|g|mg|l|ml|s|min|h|mph|km/h|m/s|°c|°f)', r'\1\2', normalized, flags=re.IGNORECASE)
+
+        # Step 9: Remove LaTeX math delimiters for comparison
         # Remove \( ... \) and \[ ... \] delimiters
         normalized = re.sub(r'\\\[|\\\]|\\\(|\\\)', '', normalized)
 
-        # Step 4: Convert to lowercase for case-insensitive comparison
-        normalized = normalized.lower()
+        # Step 10: Collapse multiple spaces and newlines into single spaces
+        normalized = re.sub(r'\s+', ' ', normalized)
 
-        # Step 5: For short answers (< 10 chars), remove punctuation
-        # This handles cases like "14" vs "14." or "yes" vs "yes!"
-        if len(normalized) < 10:
-            normalized = re.sub(r'[.,!?;:]', '', normalized)
-
+        # Step 11: Final trim
         return normalized.strip()
 
     def _build_grading_prompt(self, subject: Optional[str]) -> str:

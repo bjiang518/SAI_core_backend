@@ -64,27 +64,36 @@ class ProModePDFExporter: ObservableObject {
         print("📄 [PDF Export] Starting PDF generation...")
         print("   Subject: \(subject)")
         print("   Total questions: \(totalQuestions)")
+        print("   Questions array count: \(questions.count)")
 
         // Filter out archived questions (only export non-archived)
         let questionsToExport = questions.filter { !$0.isArchived }
 
+        print("   Questions to export (non-archived): \(questionsToExport.count)")
+
+        // If no non-archived questions, export ALL questions instead
+        let finalQuestionsToExport = questionsToExport.isEmpty ? questions : questionsToExport
+
+        print("   Final questions to export: \(finalQuestionsToExport.count)")
+
         exportProgress = 0.1
 
         // Render cover page
-        renderCoverPage(context: pdfContext, pageRect: pageRect, subject: subject, questionCount: questionsToExport.count)
+        renderCoverPage(context: pdfContext, pageRect: pageRect, subject: subject, questionCount: finalQuestionsToExport.count)
 
         exportProgress = 0.2
 
         // ✅ Start first content page (page 2) immediately after cover
         pdfContext.beginPDFPage(nil)
+        drawWhiteBackground(context: pdfContext, rect: pageRect)
 
         // ✅ UPDATED: Dynamic page management - add questions until page is full
         var currentY: CGFloat = margin  // Start with top margin
         var pageNumber = 2  // Page 2 (after cover)
         var isFirstQuestionOnPage = true
 
-        for (index, questionWithGrade) in questionsToExport.enumerated() {
-            let progress = 0.2 + (Double(index) / Double(questionsToExport.count)) * 0.7
+        for (index, questionWithGrade) in finalQuestionsToExport.enumerated() {
+            let progress = 0.2 + (Double(index) / Double(finalQuestionsToExport.count)) * 0.7
             exportProgress = progress
 
             // Calculate how much space this question needs
@@ -102,6 +111,7 @@ class ProModePDFExporter: ObservableObject {
                 // Question doesn't fit - start new page
                 pdfContext.endPDFPage()
                 pdfContext.beginPDFPage(nil)
+                drawWhiteBackground(context: pdfContext, rect: pageRect)
                 currentY = margin
                 pageNumber += 1
                 isFirstQuestionOnPage = true
@@ -149,8 +159,29 @@ class ProModePDFExporter: ObservableObject {
 
     // MARK: - Cover Page Rendering
 
+    /// Draw white background for PDF pages
+    private func drawWhiteBackground(context: CGContext, rect: CGRect) {
+        context.setFillColor(UIColor.white.cgColor)
+        context.fill(rect)
+    }
+
     private func renderCoverPage(context: CGContext, pageRect: CGRect, subject: String, questionCount: Int) {
         context.beginPDFPage(nil)
+
+        // Draw white background
+        drawWhiteBackground(context: context, rect: pageRect)
+
+        // ✅ FIX: Save graphics state to prevent coordinate transformation accumulation
+        context.saveGState()
+        defer { context.restoreGState() }
+
+        // Push context for UIKit drawing
+        UIGraphicsPushContext(context)
+        defer { UIGraphicsPopContext() }
+
+        // Flip coordinate system for UIKit (PDF uses bottom-left origin, UIKit uses top-left)
+        context.translateBy(x: 0, y: pageRect.height)
+        context.scaleBy(x: 1.0, y: -1.0)
 
         let centerX = pageRect.width / 2
         var y: CGFloat = 200
@@ -158,9 +189,9 @@ class ProModePDFExporter: ObservableObject {
         // App title
         let titleAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 36, weight: .bold),
-            .foregroundColor: UIColor.systemBlue
+            .foregroundColor: UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0) // Explicit blue
         ]
-        let titleString = NSAttributedString(string: "StudyAI", attributes: titleAttributes)
+        let titleString = NSAttributedString(string: "StudyMates", attributes: titleAttributes)
         let titleSize = titleString.size()
         titleString.draw(at: CGPoint(x: centerX - titleSize.width / 2, y: y))
 
@@ -169,7 +200,7 @@ class ProModePDFExporter: ObservableObject {
         // Subtitle
         let subtitleAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 24, weight: .medium),
-            .foregroundColor: UIColor.label
+            .foregroundColor: UIColor.black // Explicit black
         ]
         let subtitleString = NSAttributedString(string: "Digital Homework Export", attributes: subtitleAttributes)
         let subtitleSize = subtitleString.size()
@@ -180,7 +211,7 @@ class ProModePDFExporter: ObservableObject {
         // Subject
         let subjectAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 20, weight: .semibold),
-            .foregroundColor: UIColor.label
+            .foregroundColor: UIColor.black // Explicit black
         ]
         let subjectString = NSAttributedString(string: "Subject: \(subject)", attributes: subjectAttributes)
         let subjectSize = subjectString.size()
@@ -191,7 +222,7 @@ class ProModePDFExporter: ObservableObject {
         // Question count
         let countAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 18, weight: .regular),
-            .foregroundColor: UIColor.secondaryLabel
+            .foregroundColor: UIColor.darkGray // Explicit dark gray
         ]
         let countString = NSAttributedString(string: "Total Questions: \(questionCount)", attributes: countAttributes)
         let countSize = countString.size()
@@ -207,7 +238,7 @@ class ProModePDFExporter: ObservableObject {
 
         let dateAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 16, weight: .regular),
-            .foregroundColor: UIColor.tertiaryLabel
+            .foregroundColor: UIColor.gray // Explicit gray
         ]
         let dateAttrString = NSAttributedString(string: dateString, attributes: dateAttributes)
         let dateSize = dateAttrString.size()
@@ -234,7 +265,7 @@ class ProModePDFExporter: ObservableObject {
         // Question header
         let headerAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 18, weight: .bold),
-            .foregroundColor: UIColor.systemBlue
+            .foregroundColor: UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0) // Explicit blue
         ]
         let headerString = NSAttributedString(
             string: "Question \(questionWithGrade.question.questionNumber ?? "?")",
@@ -242,102 +273,75 @@ class ProModePDFExporter: ObservableObject {
         )
         totalHeight += headerString.size().height + 15
 
-        // Cropped image (if available) - ✅ PROPORTIONAL SIZING
+        // Cropped image (if available) - ✅ TRUE PROPORTIONAL SIZING (same as rendering)
         if let image = croppedImage {
-            let maxImageHeight: CGFloat = 200
+            let maxImageWidth: CGFloat = contentWidth
+            let maxImageHeight: CGFloat = 300
             let imageAspect = image.size.width / image.size.height
-            let imageWidth = contentWidth
-            let imageHeight = min(imageWidth / imageAspect, maxImageHeight)
+
+            var imageHeight: CGFloat
+            if imageAspect > 1 {
+                // Wide image
+                imageHeight = maxImageWidth / imageAspect
+                if imageHeight > maxImageHeight {
+                    imageHeight = maxImageHeight
+                }
+            } else {
+                // Tall image
+                imageHeight = min(maxImageWidth / imageAspect, maxImageHeight)
+            }
+
             totalHeight += imageHeight + 15
         }
 
         // Question text
         let questionTextAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 14, weight: .regular),
-            .foregroundColor: UIColor.label
+            .foregroundColor: UIColor.black
         ]
         let questionText = questionWithGrade.question.displayText
-        let questionTextSize = (questionText as NSString).boundingRect(
-            with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: questionTextAttributes,
-            context: nil
-        ).size
-        totalHeight += questionTextSize.height + 15
 
-        // Student answer (if available)
-        let studentAnswer = questionWithGrade.question.displayStudentAnswer
-        if !studentAnswer.isEmpty {
-            let answerLabelAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 12, weight: .semibold),
-                .foregroundColor: UIColor.systemBlue
-            ]
-            let answerLabel = NSAttributedString(string: "Student Answer:", attributes: answerLabelAttributes)
-            totalHeight += answerLabel.size().height + 5
-
-            let answerTextAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 12, weight: .regular),
-                .foregroundColor: UIColor.label
-            ]
-            let answerSize = (studentAnswer as NSString).boundingRect(
+        if !questionText.isEmpty {
+            let questionTextSize = (questionText as NSString).boundingRect(
                 with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude),
                 options: [.usesLineFragmentOrigin, .usesFontLeading],
-                attributes: answerTextAttributes,
+                attributes: questionTextAttributes,
                 context: nil
             ).size
-            totalHeight += answerSize.height + 15
+            totalHeight += questionTextSize.height + 15
+        } else {
+            // Placeholder text height
+            totalHeight += 30
         }
 
-        // Grade badge and feedback (if graded)
-        if let grade = questionWithGrade.grade {
-            totalHeight += 10
+        // ✅ NEW: Add subquestions height
+        if let subquestions = questionWithGrade.question.subquestions, !subquestions.isEmpty {
+            let subquestionIndent: CGFloat = 20
+            let subquestionHeaderAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 14, weight: .semibold),
+                .foregroundColor: UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)
+            ]
 
-            // Badge
-            let badgeHeight: CGFloat = 30
-            totalHeight += badgeHeight + 15
+            for subquestion in subquestions {
+                totalHeight += 10  // Space before subquestion
 
-            // Correct answer (if available)
-            if let correctAnswer = grade.correctAnswer, !correctAnswer.isEmpty {
-                let correctLabelAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 12, weight: .semibold),
-                    .foregroundColor: UIColor.systemGreen
-                ]
-                let correctLabel = NSAttributedString(string: "Correct Answer:", attributes: correctLabelAttributes)
-                totalHeight += correctLabel.size().height + 5
+                // Subquestion header height
+                let subHeaderString = NSAttributedString(
+                    string: "  (\(subquestion.id)) ",
+                    attributes: subquestionHeaderAttributes
+                )
+                totalHeight += subHeaderString.size().height + 5
 
-                let correctTextAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 12, weight: .regular),
-                    .foregroundColor: UIColor.label
-                ]
-                let correctSize = (correctAnswer as NSString).boundingRect(
-                    with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude),
-                    options: [.usesLineFragmentOrigin, .usesFontLeading],
-                    attributes: correctTextAttributes,
-                    context: nil
-                ).size
-                totalHeight += correctSize.height + 15
-            }
-
-            // Feedback
-            if !grade.feedback.isEmpty {
-                let feedbackLabelAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 12, weight: .semibold),
-                    .foregroundColor: UIColor.secondaryLabel
-                ]
-                let feedbackLabel = NSAttributedString(string: "Feedback:", attributes: feedbackLabelAttributes)
-                totalHeight += feedbackLabel.size().height + 5
-
-                let feedbackTextAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 11, weight: .regular),
-                    .foregroundColor: UIColor.secondaryLabel
-                ]
-                let feedbackSize = (grade.feedback as NSString).boundingRect(
-                    with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude),
-                    options: [.usesLineFragmentOrigin, .usesFontLeading],
-                    attributes: feedbackTextAttributes,
-                    context: nil
-                ).size
-                totalHeight += feedbackSize.height + 20
+                // Subquestion text height
+                if !subquestion.questionText.isEmpty {
+                    let subTextSize = (subquestion.questionText as NSString).boundingRect(
+                        with: CGSize(width: contentWidth - subquestionIndent - 20, height: CGFloat.greatestFiniteMagnitude),
+                        options: [.usesLineFragmentOrigin, .usesFontLeading],
+                        attributes: questionTextAttributes,
+                        context: nil
+                    ).size
+                    totalHeight += subTextSize.height + 10
+                }
             }
         }
 
@@ -358,162 +362,143 @@ class ProModePDFExporter: ObservableObject {
     ) -> CGFloat {
         var y = startY
 
+        print("   [PDF] Rendering question: \(questionWithGrade.question.questionNumber ?? "?")")
+        print("   [PDF] Question text: \(questionWithGrade.question.displayText.prefix(50))...")
+        print("   [PDF] Has cropped image: \(croppedImage != nil)")
+        print("   [PDF] Has subquestions: \(questionWithGrade.question.isParentQuestion)")
+
+        // ✅ FIX: Save graphics state to prevent coordinate transformation accumulation
+        context.saveGState()
+        defer { context.restoreGState() }
+
+        // Push context for UIKit drawing
+        UIGraphicsPushContext(context)
+        defer { UIGraphicsPopContext() }
+
+        // Flip coordinate system for UIKit (PDF uses bottom-left origin, UIKit uses top-left)
+        context.translateBy(x: 0, y: pageRect.height)
+        context.scaleBy(x: 1.0, y: -1.0)
+
         // Question number header
         let headerAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 18, weight: .bold),
-            .foregroundColor: UIColor.systemBlue
+            .foregroundColor: UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)
         ]
+        let questionNumberText = questionWithGrade.question.questionNumber ?? "\(questionWithGrade.id)"
         let headerString = NSAttributedString(
-            string: "Question \(questionWithGrade.question.questionNumber ?? "?")",
+            string: "Question \(questionNumberText)",
             attributes: headerAttributes
         )
         headerString.draw(at: CGPoint(x: margin, y: y))
         y += headerString.size().height + 15
 
-        // Cropped image (if available) - ✅ PROPORTIONAL SIZING
+        // Cropped image (if available) - ✅ TRUE PROPORTIONAL SIZING
         if let image = croppedImage {
-            let maxImageHeight: CGFloat = 200
+            let maxImageWidth: CGFloat = contentWidth
+            let maxImageHeight: CGFloat = 300
             let imageAspect = image.size.width / image.size.height
-            let imageWidth = contentWidth
-            // ✅ Respect aspect ratio: calculate height based on width and aspect
-            let imageHeight = min(imageWidth / imageAspect, maxImageHeight)
+
+            // Calculate dimensions that fit within max bounds while maintaining aspect ratio
+            var imageWidth: CGFloat
+            var imageHeight: CGFloat
+
+            if imageAspect > 1 {
+                // Wide image: fit to width
+                imageWidth = maxImageWidth
+                imageHeight = imageWidth / imageAspect
+
+                // If height exceeds max, scale down proportionally
+                if imageHeight > maxImageHeight {
+                    imageHeight = maxImageHeight
+                    imageWidth = imageHeight * imageAspect
+                }
+            } else {
+                // Tall image: fit to height
+                imageHeight = min(maxImageWidth / imageAspect, maxImageHeight)
+                imageWidth = imageHeight * imageAspect
+            }
 
             let imageRect = CGRect(x: margin, y: y, width: imageWidth, height: imageHeight)
             image.draw(in: imageRect)
             y += imageHeight + 15
+
+            print("   [PDF] Image rendered: \(imageWidth)x\(imageHeight) (aspect: \(imageAspect))")
         }
 
-        // Question text
+        // Question text (for parent questions, this is the main question text)
         let questionTextAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 14, weight: .regular),
-            .foregroundColor: UIColor.label
+            .foregroundColor: UIColor.black
         ]
 
         let questionText = questionWithGrade.question.displayText
-        let questionTextSize = (questionText as NSString).boundingRect(
-            with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: questionTextAttributes,
-            context: nil
-        ).size
 
-        (questionText as NSString).draw(
-            in: CGRect(x: margin, y: y, width: contentWidth, height: questionTextSize.height),
-            withAttributes: questionTextAttributes
-        )
-        y += questionTextSize.height + 15
+        print("   [PDF] Question text length: \(questionText.count)")
 
-        // Student answer (if available)
-        let studentAnswer = questionWithGrade.question.displayStudentAnswer
-        if !studentAnswer.isEmpty {
-            let answerLabelAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 12, weight: .semibold),
-                .foregroundColor: UIColor.systemBlue
-            ]
-            let answerLabel = NSAttributedString(string: "Student Answer:", attributes: answerLabelAttributes)
-            answerLabel.draw(at: CGPoint(x: margin, y: y))
-            y += answerLabel.size().height + 5
-
-            let answerTextAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 12, weight: .regular),
-                .foregroundColor: UIColor.label
-            ]
-            let answerSize = (studentAnswer as NSString).boundingRect(
+        if !questionText.isEmpty {
+            let questionTextSize = (questionText as NSString).boundingRect(
                 with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude),
                 options: [.usesLineFragmentOrigin, .usesFontLeading],
-                attributes: answerTextAttributes,
+                attributes: questionTextAttributes,
                 context: nil
             ).size
 
-            (studentAnswer as NSString).draw(
-                in: CGRect(x: margin, y: y, width: contentWidth, height: answerSize.height),
-                withAttributes: answerTextAttributes
+            (questionText as NSString).draw(
+                in: CGRect(x: margin, y: y, width: contentWidth, height: questionTextSize.height),
+                withAttributes: questionTextAttributes
             )
-            y += answerSize.height + 15
+            y += questionTextSize.height + 15
+        } else {
+            // If no question text, show a placeholder
+            let placeholderText = "[Question text not available]"
+            let placeholderFont = UIFont.italicSystemFont(ofSize: 14)
+            let placeholderAttributes: [NSAttributedString.Key: Any] = [
+                .font: placeholderFont,
+                .foregroundColor: UIColor.gray
+            ]
+            (placeholderText as NSString).draw(
+                at: CGPoint(x: margin, y: y),
+                withAttributes: placeholderAttributes
+            )
+            y += 30
         }
 
-        // Grade badge (if graded)
-        if let grade = questionWithGrade.grade {
-            y += 10
+        // ✅ NEW: Render subquestions if this is a parent question
+        if let subquestions = questionWithGrade.question.subquestions, !subquestions.isEmpty {
+            print("   [PDF] Rendering \(subquestions.count) subquestions")
 
-            // Draw colored background box
-            let badgeWidth: CGFloat = 120
-            let badgeHeight: CGFloat = 30
-            let badgeRect = CGRect(x: margin, y: y, width: badgeWidth, height: badgeHeight)
-
-            let gradeColor: UIColor = grade.isCorrect ? .systemGreen : (grade.score == 0 ? .systemRed : .systemOrange)
-            context.setFillColor(gradeColor.withAlphaComponent(0.2).cgColor)
-            context.fill(badgeRect)
-
-            // Draw grade text
-            let gradeText = String(format: "%.0f%%", grade.score * 100)
-            let gradeAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 16, weight: .bold),
-                .foregroundColor: gradeColor
+            let subquestionIndent: CGFloat = 20
+            let subquestionHeaderAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 14, weight: .semibold),
+                .foregroundColor: UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)
             ]
-            let gradeString = NSAttributedString(string: gradeText, attributes: gradeAttributes)
-            let gradeSize = gradeString.size()
-            gradeString.draw(at: CGPoint(
-                x: margin + (badgeWidth - gradeSize.width) / 2,
-                y: y + (badgeHeight - gradeSize.height) / 2
-            ))
 
-            y += badgeHeight + 15
+            for (index, subquestion) in subquestions.enumerated() {
+                y += 10  // Space before subquestion
 
-            // Correct answer (if available)
-            if let correctAnswer = grade.correctAnswer, !correctAnswer.isEmpty {
-                let correctLabelAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 12, weight: .semibold),
-                    .foregroundColor: UIColor.systemGreen
-                ]
-                let correctLabel = NSAttributedString(string: "Correct Answer:", attributes: correctLabelAttributes)
-                correctLabel.draw(at: CGPoint(x: margin, y: y))
-                y += correctLabel.size().height + 5
-
-                let correctTextAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 12, weight: .regular),
-                    .foregroundColor: UIColor.label
-                ]
-                let correctSize = (correctAnswer as NSString).boundingRect(
-                    with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude),
-                    options: [.usesLineFragmentOrigin, .usesFontLeading],
-                    attributes: correctTextAttributes,
-                    context: nil
-                ).size
-
-                (correctAnswer as NSString).draw(
-                    in: CGRect(x: margin, y: y, width: contentWidth, height: correctSize.height),
-                    withAttributes: correctTextAttributes
+                // Subquestion header (e.g., "(a)" or "(1)")
+                let subHeaderString = NSAttributedString(
+                    string: "  (\(subquestion.id)) ",
+                    attributes: subquestionHeaderAttributes
                 )
-                y += correctSize.height + 15
-            }
+                subHeaderString.draw(at: CGPoint(x: margin + subquestionIndent, y: y))
+                y += subHeaderString.size().height + 5
 
-            // Feedback
-            if !grade.feedback.isEmpty {
-                let feedbackLabelAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 12, weight: .semibold),
-                    .foregroundColor: UIColor.secondaryLabel
-                ]
-                let feedbackLabel = NSAttributedString(string: "Feedback:", attributes: feedbackLabelAttributes)
-                feedbackLabel.draw(at: CGPoint(x: margin, y: y))
-                y += feedbackLabel.size().height + 5
+                // Subquestion text
+                if !subquestion.questionText.isEmpty {
+                    let subTextSize = (subquestion.questionText as NSString).boundingRect(
+                        with: CGSize(width: contentWidth - subquestionIndent - 20, height: CGFloat.greatestFiniteMagnitude),
+                        options: [.usesLineFragmentOrigin, .usesFontLeading],
+                        attributes: questionTextAttributes,
+                        context: nil
+                    ).size
 
-                let feedbackTextAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 11, weight: .regular),
-                    .foregroundColor: UIColor.secondaryLabel
-                ]
-                let feedbackSize = (grade.feedback as NSString).boundingRect(
-                    with: CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude),
-                    options: [.usesLineFragmentOrigin, .usesFontLeading],
-                    attributes: feedbackTextAttributes,
-                    context: nil
-                ).size
-
-                (grade.feedback as NSString).draw(
-                    in: CGRect(x: margin, y: y, width: contentWidth, height: feedbackSize.height),
-                    withAttributes: feedbackTextAttributes
-                )
-                y += feedbackSize.height + 20
+                    (subquestion.questionText as NSString).draw(
+                        in: CGRect(x: margin + subquestionIndent + 20, y: y, width: contentWidth - subquestionIndent - 20, height: subTextSize.height),
+                        withAttributes: questionTextAttributes
+                    )
+                    y += subTextSize.height + 10
+                }
             }
         }
 

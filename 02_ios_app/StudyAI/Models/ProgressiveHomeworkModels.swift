@@ -177,6 +177,9 @@ struct ProgressiveQuestionWithGrade: Identifiable, Codable {
     // ✅ NEW: Archive status (questions remain visible after archiving)
     var isArchived: Bool = false
 
+    // ✅ NEW: Track which subquestions are archived (for parent questions)
+    var archivedSubquestions: Set<String> = []  // Set of subquestion IDs that have been archived
+
     /// Check if this question is a parent with subquestions
     var isParentQuestion: Bool {
         return question.isParentQuestion

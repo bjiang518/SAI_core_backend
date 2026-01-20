@@ -4,6 +4,7 @@
  */
 
 const { db } = require('../utils/railway-database');
+const logger = require('../utils/logger');  // PRODUCTION: Structured logging
 
 class ReportNarrativeService {
     constructor() {
@@ -22,14 +23,14 @@ class ReportNarrativeService {
         const startTime = Date.now();
 
         try {
-            console.log('📝 === NARRATIVE GENERATION STARTED ===');
-            console.log(`🆔 Parent Report ID: ${parentReportId}`);
-            console.log(`📊 Analytics data size: ${JSON.stringify(analyticsData).length} characters`);
+            logger.debug('📝 === NARRATIVE GENERATION STARTED ===');
+            logger.debug(`🆔 Parent Report ID: ${parentReportId}`);
+            logger.debug(`📊 Analytics data size: ${JSON.stringify(analyticsData).length} characters`);
 
             // Check if narrative already exists
             const existingNarrative = await this.findExistingNarrative(parentReportId);
             if (existingNarrative && !options.forceRegenerate) {
-                console.log(`📋 Found existing narrative: ${existingNarrative.id}`);
+                logger.debug(`📋 Found existing narrative: ${existingNarrative.id}`);
                 return existingNarrative;
             }
 
@@ -48,17 +49,17 @@ class ReportNarrativeService {
                 aiModelVersion: aiResult.modelVersion || 'claude-3.5-sonnet'
             });
 
-            console.log(`✅ Narrative generated successfully in ${Date.now() - startTime}ms`);
-            console.log(`📝 Word count: ${narrativeData.wordCount}`);
-            console.log(`🆔 Narrative ID: ${storedNarrative.id}`);
+            logger.debug(`✅ Narrative generated successfully in ${Date.now() - startTime}ms`);
+            logger.debug(`📝 Word count: ${narrativeData.wordCount}`);
+            logger.debug(`🆔 Narrative ID: ${storedNarrative.id}`);
 
             return storedNarrative;
 
         } catch (error) {
-            console.error('❌ Narrative generation error:', error);
+            logger.error('❌ Narrative generation error:', error);
 
             // Generate fallback narrative if AI fails
-            console.log('🔄 Generating fallback narrative...');
+            logger.debug('🔄 Generating fallback narrative...');
             const fallbackNarrative = this.generateFallbackNarrative(analyticsData);
 
             const storedFallback = await this.storeNarrative(parentReportId, fallbackNarrative, {
@@ -142,12 +143,12 @@ class ReportNarrativeService {
         const prompt = this.buildAIPrompt(promptData, options);
 
         try {
-            console.log('🧠 === AI ENGINE CALL START ===');
-            console.log(`🔗 URL: ${this.AI_ENGINE_URL}/api/v1/reports/generate-narrative`);
-            console.log(`🔑 Using secret: ${this.AI_ENGINE_SECRET ? this.AI_ENGINE_SECRET.substring(0, 10) + '...' : 'NOT SET'}`);
-            console.log(`📏 Prompt length: ${prompt.length} characters`);
-            console.log(`📊 Analytics data keys: ${Object.keys(promptData)}`);
-            console.log(`🎨 Options: ${JSON.stringify(options, null, 2)}`);
+            logger.debug('🧠 === AI ENGINE CALL START ===');
+            logger.debug(`🔗 URL: ${this.AI_ENGINE_URL}/api/v1/reports/generate-narrative`);
+            logger.debug(`🔑 Using secret: ${this.AI_ENGINE_SECRET ? this.AI_ENGINE_SECRET.substring(0, 10) + '...' : 'NOT SET'}`);
+            logger.debug(`📏 Prompt length: ${prompt.length} characters`);
+            logger.debug(`📊 Analytics data keys: ${Object.keys(promptData)}`);
+            logger.debug(`🎨 Options: ${JSON.stringify(options, null, 2)}`);
 
             const requestPayload = {
                 prompt,
@@ -162,15 +163,15 @@ class ReportNarrativeService {
                 }
             };
 
-            console.log(`📦 Request payload size: ${JSON.stringify(requestPayload).length} characters`);
-            console.log(`📦 Request structure: ${JSON.stringify({
+            logger.debug(`📦 Request payload size: ${JSON.stringify(requestPayload).length} characters`);
+            logger.debug(`📦 Request structure: ${JSON.stringify({
                 prompt: `${prompt.substring(0, 100)}...`,
                 analytics_data: Object.keys(promptData),
                 options: requestPayload.options
             }, null, 2)}`);
 
             const fetchStart = Date.now();
-            console.log(`🚀 Making fetch request at ${new Date().toISOString()}`);
+            logger.debug(`🚀 Making fetch request at ${new Date().toISOString()}`);
 
             const response = await fetch(`${this.AI_ENGINE_URL}/api/v1/reports/generate-narrative`, {
                 method: 'POST',
@@ -183,44 +184,44 @@ class ReportNarrativeService {
             });
 
             const fetchTime = Date.now() - fetchStart;
-            console.log(`📡 Fetch completed in ${fetchTime}ms`);
-            console.log(`📊 Response status: ${response.status} ${response.statusText}`);
-            console.log(`📋 Response headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}`);
+            logger.debug(`📡 Fetch completed in ${fetchTime}ms`);
+            logger.debug(`📊 Response status: ${response.status} ${response.statusText}`);
+            logger.debug(`📋 Response headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}`);
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.log(`❌ Error response body: ${errorText}`);
+                logger.debug(`❌ Error response body: ${errorText}`);
                 throw new Error(`AI Engine responded with status: ${response.status}, body: ${errorText}`);
             }
 
             const result = await response.json();
-            console.log(`✅ Response parsing successful`);
-            console.log(`📊 Response size: ${JSON.stringify(result).length} characters`);
-            console.log(`🎯 Response success: ${result.success}`);
-            console.log(`⏱️ AI processing time: ${result.processing_time_ms}ms`);
-            console.log(`🤖 Model version: ${result.modelVersion}`);
+            logger.debug(`✅ Response parsing successful`);
+            logger.debug(`📊 Response size: ${JSON.stringify(result).length} characters`);
+            logger.debug(`🎯 Response success: ${result.success}`);
+            logger.debug(`⏱️ AI processing time: ${result.processing_time_ms}ms`);
+            logger.debug(`🤖 Model version: ${result.modelVersion}`);
 
             if (result.success && result.data) {
-                console.log(`📝 Generated narrative length: ${result.data.narrative?.length || 0} characters`);
-                console.log(`📊 Word count: ${result.data.wordCount || 0}`);
-                console.log(`🔍 Key insights: ${result.data.keyInsights?.length || 0} items`);
-                console.log(`💡 Recommendations: ${result.data.recommendations?.length || 0} items`);
-                console.log(`✅ === AI ENGINE CALL SUCCESS ===`);
+                logger.debug(`📝 Generated narrative length: ${result.data.narrative?.length || 0} characters`);
+                logger.debug(`📊 Word count: ${result.data.wordCount || 0}`);
+                logger.debug(`🔍 Key insights: ${result.data.keyInsights?.length || 0} items`);
+                logger.debug(`💡 Recommendations: ${result.data.recommendations?.length || 0} items`);
+                logger.debug(`✅ === AI ENGINE CALL SUCCESS ===`);
                 return result;
             } else {
-                console.log(`❌ AI Engine returned unsuccessful response: ${result.error || 'Unknown error'}`);
+                logger.debug(`❌ AI Engine returned unsuccessful response: ${result.error || 'Unknown error'}`);
                 throw new Error(`AI Engine error: ${result.error || 'Unknown error'}`);
             }
 
         } catch (error) {
-            console.error('❌ === AI ENGINE CALL ERROR ===');
-            console.error(`🚨 Error type: ${error.constructor.name}`);
-            console.error(`💥 Error message: ${error.message}`);
+            logger.error('❌ === AI ENGINE CALL ERROR ===');
+            logger.error(`🚨 Error type: ${error.constructor.name}`);
+            logger.error(`💥 Error message: ${error.message}`);
             if (error.cause) {
-                console.error(`🔗 Error cause: ${error.cause}`);
+                logger.error(`🔗 Error cause: ${error.cause}`);
             }
-            console.error(`📚 Full error:`, error);
-            console.error('🏁 === AI ENGINE CALL ERROR END ===');
+            logger.error(`📚 Full error:`, error);
+            logger.error('🏁 === AI ENGINE CALL ERROR END ===');
             throw error;
         }
     }
@@ -295,7 +296,7 @@ Format as JSON with fields: narrative, summary, keyInsights, recommendations`;
             };
 
         } catch (error) {
-            console.error('❌ Failed to process AI response:', error);
+            logger.error('❌ Failed to process AI response:', error);
             throw new Error('Invalid AI response format');
         }
     }
@@ -512,7 +513,7 @@ StudyAI Learning Team`;
         `;
 
         const result = await db.query(query);
-        console.log(`🗑️ Cleaned up ${result.rows.length} old narratives`);
+        logger.debug(`🗑️ Cleaned up ${result.rows.length} old narratives`);
         return result.rows.length;
     }
 }

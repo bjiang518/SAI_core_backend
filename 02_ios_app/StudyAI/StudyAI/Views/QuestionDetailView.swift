@@ -667,18 +667,67 @@ struct GeneratedQuestionDetailView: View {
         onAnswerSubmitted?(isCorrect, earnedPoints)
     }
 
-    /// Normalize an answer by removing "A)" prefix and trimming whitespace
+    /// Normalize an answer by removing option prefixes and standardizing format across all question types
     private func normalizeAnswer(_ answer: String) -> String {
-        var normalized = answer.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        var normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Remove "A)" or similar prefixes (A), B), C), etc.)
-        let prefixPattern = "^[a-z]\\)\\s*"
+        // Step 1: Remove multiple choice option prefixes BEFORE lowercasing
+        // Patterns: "A.", "A)", "(A)", "a.", "a)", "(a)", etc.
+        // This must be done BEFORE lowercasing to match uppercase letters
+        let prefixPattern = "^[(]?[A-Za-z][.\\)\\]]?\\s*"
         if let regex = try? NSRegularExpression(pattern: prefixPattern, options: []) {
             let range = NSRange(normalized.startIndex..., in: normalized)
             normalized = regex.stringByReplacingMatches(in: normalized, options: [], range: range, withTemplate: "")
         }
 
-        return normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Step 2: Lowercase for case-insensitive comparison
+        normalized = normalized.lowercased()
+
+        // Step 3: True/False normalization - expand abbreviations
+        // "t" or "T" → "true", "f" or "F" → "false"
+        if normalized == "t" {
+            normalized = "true"
+        } else if normalized == "f" {
+            normalized = "false"
+        }
+
+        // Step 4: Remove common filler words and phrases
+        let fillerPhrases = ["the answer is", "answer:", "result:", "solution:", "equals"]
+        for phrase in fillerPhrases {
+            normalized = normalized.replacingOccurrences(of: phrase, with: "")
+        }
+
+        // Step 5: Normalize mathematical expressions
+        // Remove spaces around operators for consistent comparison
+        normalized = normalized.replacingOccurrences(of: " + ", with: "+")
+        normalized = normalized.replacingOccurrences(of: " - ", with: "-")
+        normalized = normalized.replacingOccurrences(of: " * ", with: "*")
+        normalized = normalized.replacingOccurrences(of: " / ", with: "/")
+        normalized = normalized.replacingOccurrences(of: " = ", with: "=")
+
+        // Step 6: Normalize fractions (1/2, ½) and common unicode symbols
+        let fractionMap: [String: String] = [
+            "½": "1/2", "⅓": "1/3", "⅔": "2/3", "¼": "1/4", "¾": "3/4",
+            "⅕": "1/5", "⅖": "2/5", "⅗": "3/5", "⅘": "4/5", "⅙": "1/6", "⅚": "5/6",
+            "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8"
+        ]
+        for (unicode, fraction) in fractionMap {
+            normalized = normalized.replacingOccurrences(of: unicode, with: fraction)
+        }
+
+        // Step 7: Normalize units - remove spaces between number and unit
+        // "5 km" → "5km", "10 m/s" → "10m/s"
+        let unitPattern = "(\\d)\\s+(km|m|cm|mm|kg|g|mg|l|ml|s|min|h|mph|km/h|m/s|°c|°f)"
+        if let regex = try? NSRegularExpression(pattern: unitPattern, options: .caseInsensitive) {
+            let range = NSRange(normalized.startIndex..., in: normalized)
+            normalized = regex.stringByReplacingMatches(in: normalized, options: [], range: range, withTemplate: "$1$2")
+        }
+
+        // Step 8: Final cleanup - trim and collapse multiple spaces
+        normalized = normalized.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        normalized = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return normalized
     }
 
     // MARK: - Flexible Grading System

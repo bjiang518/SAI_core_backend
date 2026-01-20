@@ -17,6 +17,13 @@ import SwiftUI
 import UIKit
 import Combine
 
+// MARK: - Production Logging Safety
+// Disable debug print statements in production builds to prevent homework data exposure
+#if !DEBUG
+private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
+#endif
+
 @MainActor
 class ProgressiveHomeworkViewModel: ObservableObject {
 
@@ -37,7 +44,14 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let networkService = NetworkService.shared
-    private let concurrentLimit = 5  // Maximum concurrent grading requests
+    private var selectedModelProvider: String = "openai"  // Track which AI model is being used
+
+    // IMPORTANT: Gemini has lower concurrent request limits than OpenAI
+    // - OpenAI: Can handle 5-10 concurrent requests reliably
+    // - Gemini: Should limit to 2 to avoid 503/rate limit errors (questions 4+ often skip)
+    private var concurrentLimit: Int {
+        return selectedModelProvider == "gemini" ? 2 : 5
+    }
 
     // MARK: - Phase Enum
 
@@ -61,6 +75,11 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     func processHomework(originalImage: UIImage, base64Image: String, preParsedQuestions: ParseHomeworkQuestionsResponse? = nil, modelProvider: String = "openai") async {
         print("🚀 === STARTING PROGRESSIVE HOMEWORK GRADING ===")
         print("🤖 AI Model: \(modelProvider)")
+
+        // Store model provider for concurrentLimit calculation
+        await MainActor.run {
+            self.selectedModelProvider = modelProvider
+        }
 
         do {
             // Phase 1: Parse questions (skip if Pro Mode already parsed)
@@ -386,6 +405,8 @@ class ProgressiveHomeworkViewModel: ObservableObject {
 
     private func gradeAllQuestions() async {
         print("🚀 === PHASE 2: GRADING QUESTIONS ===")
+        print("🤖 AI Model: \(selectedModelProvider)")
+        print("⚡ Concurrent Limit: \(concurrentLimit) (optimized for \(selectedModelProvider.uppercased()))")
 
         self.currentPhase = .grading
         self.loadingMessage = "Grading questions..."

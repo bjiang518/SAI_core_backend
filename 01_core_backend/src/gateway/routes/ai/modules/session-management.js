@@ -236,7 +236,7 @@ class SessionManagementRoutes {
   async sendSessionMessage(request, reply) {
     const startTime = Date.now();
     const { sessionId } = request.params;
-    const { message, context, language } = request.body;
+    const { message, context, language, deep_mode = false } = request.body; // ✅ NEW: Accept deep_mode
 
     try {
       // Authenticate user
@@ -244,6 +244,7 @@ class SessionManagementRoutes {
       if (!authenticatedUserId) return;
 
       this.fastify.log.info(`💬 Processing session message: ${sessionId.substring(0, 8)}...`);
+      this.fastify.log.info(`💬 Deep Mode: ${deep_mode ? 'YES (o4-mini)' : 'NO (gpt-4o-mini)'}`); // ✅ NEW: Log deep mode
 
       // Get and verify session
       const { db } = require('../../../../utils/railway-database');
@@ -287,15 +288,78 @@ class SessionManagementRoutes {
 
       const languageInstruction = languageInstructions[userLanguage] || languageInstructions['en'];
 
-      // Get conversation history (last 3 messages for cost optimization)
-      const rawConversationHistory = await db.getConversationHistory(sessionId, 10);
-      const conversationHistory = (rawConversationHistory || [])
-        .slice(-3)
-        .map(msg => ({
-          role: msg.message_type === 'user' ? 'user' : 'assistant',
-          content: msg.message_text || ''
-        }))
+      // ✅ ENHANCED: Dynamic context window based on image presence
+      // - Text-only: 50 messages (excellent context retention)
+      // - With images: 10 messages (images consume ~500-700 tokens each)
+      // Note: GPT-4o-mini supports 128K tokens
+
+      // First, retrieve a larger set to detect images
+      const initialHistory = await db.getConversationHistory(sessionId, 60);
+      const allMessages = initialHistory || [];
+
+      // ✅ CRITICAL: Detect if any messages contain images (stored in message_data)
+      const hasImages = allMessages.some(msg => {
+        try {
+          if (msg.message_data) {
+            const data = typeof msg.message_data === 'string'
+              ? JSON.parse(msg.message_data)
+              : msg.message_data;
+            return !!(data.hasImage || data.image_data || data.question_image_base64);
+          }
+          return false;
+        } catch (e) {
+          return false;
+        }
+      });
+
+      // Dynamic context window: 10 with images, 50 without
+      const contextLimit = hasImages ? 10 : 50;
+
+      this.fastify.log.info(`📊 Context window: ${contextLimit} messages (images detected: ${hasImages})`);
+
+      // Split into recent and older messages based on dynamic limit
+      const recentMessages = allMessages.slice(-contextLimit);
+      const olderMessages = allMessages.slice(0, -contextLimit);
+
+      // Format recent messages for AI context (include images if present)
+      const conversationHistory = recentMessages
+        .map(msg => {
+          const baseMessage = {
+            role: msg.message_type === 'user' ? 'user' : 'assistant',
+            content: msg.message_text || ''
+          };
+
+          // ✅ NEW: Include image data if present in message_data
+          try {
+            if (msg.message_data) {
+              const data = typeof msg.message_data === 'string'
+                ? JSON.parse(msg.message_data)
+                : msg.message_data;
+
+              // If message contains image, add it to the message object
+              if (data.image_data || data.question_image_base64 || data.hasImage) {
+                baseMessage.image_data = data.image_data || data.question_image_base64;
+                this.fastify.log.info(`📸 Including image in context from message: ${msg.id?.substring(0, 8)}...`);
+              }
+            }
+          } catch (e) {
+            this.fastify.log.warn(`⚠️ Failed to parse message_data for image: ${e.message}`);
+          }
+
+          return baseMessage;
+        })
         .filter(msg => msg.content && msg.content.trim().length > 0);
+
+      // Generate summary of older conversation if exists (for multi-turn complex problem solving)
+      let conversationSummary = '';
+      if (olderMessages.length > 0) {
+        // Create concise summary: "Previously discussed: [topic 1], [topic 2], ..."
+        const olderTopics = olderMessages
+          .filter(msg => msg.message_type === 'user')
+          .map(msg => (msg.message_text || '').substring(0, 100))
+          .join('; ');
+        conversationSummary = `[Earlier conversation context: ${olderTopics.substring(0, 300)}...]`;
+      }
 
       // Build system prompt with math formatting if needed
       const subject = (sessionInfo.subject || '').toLowerCase();
@@ -306,15 +370,25 @@ class SessionManagementRoutes {
         systemPrompt += '\n' + MATH_FORMATTING_SYSTEM_PROMPT;
       }
 
-      // Build user message with context
+      // Build user message with enhanced context
       let userMessage = message;
-      if (conversationHistory.length > 0) {
-        const conversationContext = conversationHistory
-          .map(msg => `${msg.role === 'user' ? 'Student' : 'AI Tutor'}: ${msg.content}`)
-          .join('\n\n');
+      if (conversationHistory.length > 0 || conversationSummary) {
+        let contextParts = [];
 
-        userMessage = `Previous conversation:
-${conversationContext}
+        // Add summary of older messages if available
+        if (conversationSummary) {
+          contextParts.push(conversationSummary);
+        }
+
+        // Add recent conversation history
+        if (conversationHistory.length > 0) {
+          const conversationContext = conversationHistory
+            .map(msg => `${msg.role === 'user' ? 'Student' : 'AI Tutor'}: ${msg.content}`)
+            .join('\n\n');
+          contextParts.push(`Recent conversation:\n${conversationContext}`);
+        }
+
+        userMessage = `${contextParts.join('\n\n')}
 
 Current question: ${message}
 
@@ -332,6 +406,7 @@ LANGUAGE: ${languageInstruction}`;
         subject: sessionInfo.subject || 'general',
         student_id: authenticatedUserId,
         language: userLanguage,
+        deep_mode: deep_mode, // ✅ NEW: Pass deep mode flag to AI Engine
         context: {
           session_id: sessionId,
           session_type: 'conversation',
@@ -349,7 +424,14 @@ LANGUAGE: ${languageInstruction}`;
       if (result.success) {
         const duration = Date.now() - startTime;
 
-        // Store conversation in database
+        // ✅ NEW: Extract image data if present in request
+        let imageData = null;
+        if (question_context?.question_image_base64) {
+          imageData = question_context.question_image_base64;
+          this.fastify.log.info(`💾 Storing message with image data (${imageData.length} chars)`);
+        }
+
+        // Store conversation in database (including image if present)
         await this.sessionHelper.storeConversation(
           sessionId,
           authenticatedUserId,
@@ -359,7 +441,8 @@ LANGUAGE: ${languageInstruction}`;
             tokensUsed: result.data.tokens_used,
             service: 'ai-engine',
             compressed: result.data.compressed
-          }
+          },
+          imageData  // ✅ NEW: Pass image data to be stored
         );
 
         return reply.send({
@@ -520,6 +603,9 @@ LANGUAGE: ${languageInstruction}`;
         // 🚀 OPTIMIZATION: Send end event BEFORE database write (async fire-and-forget)
         reply.raw.end();
 
+        // ✅ NEW: Extract image data if present
+        const imageData = question_context?.question_image_base64 || null;
+
         // Store conversation in background (non-blocking)
         this.sessionHelper.storeConversation(
           sessionId,
@@ -530,7 +616,8 @@ LANGUAGE: ${languageInstruction}`;
             tokensUsed: 0, // Token count not available in streaming
             service: 'ai-engine-stream',
             compressed: false
-          }
+          },
+          imageData  // ✅ NEW: Pass image data to be stored
         ).catch(storeError => {
           this.fastify.log.error('❌ Background DB write failed:', storeError);
         });

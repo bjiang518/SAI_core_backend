@@ -29,11 +29,11 @@ struct LearningGoalsSettingsView: View {
                 saveButton
             }
             .padding()
-            .navigationTitle("Learning Goals")
+            .navigationTitle(NSLocalizedString("goals.learningGoalsTitle", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                 }
@@ -55,7 +55,7 @@ struct LearningGoalsSettingsView: View {
         VStack(spacing: 16) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Current Points")
+                    Text(NSLocalizedString("goals.currentPoints", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text("\(pointsManager.currentPoints)")
@@ -63,14 +63,14 @@ struct LearningGoalsSettingsView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.blue)
                 }
-                
+
                 Spacer()
-                
+
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text("Streak")
+                    Text(NSLocalizedString("goals.streak", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    Text("\(pointsManager.currentStreak) days")
+                    Text("\(pointsManager.currentStreak) \(NSLocalizedString("goals.days", comment: ""))")
                         .font(.title2)
                         .fontWeight(.semibold)
                         .foregroundColor(.orange)
@@ -113,7 +113,7 @@ struct LearningGoalsSettingsView: View {
                         .font(.headline)
                         .fontWeight(.bold)
                         .foregroundColor(.blue)
-                    Text("questions per day")
+                    Text(NSLocalizedString("goals.questionsPerDay", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Spacer()
@@ -153,7 +153,7 @@ struct LearningGoalsSettingsView: View {
                         .font(.headline)
                         .fontWeight(.bold)
                         .foregroundColor(.green)
-                    Text("% accuracy")
+                    Text(NSLocalizedString("goals.percentAccuracy", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Spacer()
@@ -174,10 +174,10 @@ struct LearningGoalsSettingsView: View {
                         .font(.title2)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Study Consistency")
+                        Text(NSLocalizedString("goals.studyConsistency", comment: ""))
                             .font(.headline)
                             .fontWeight(.semibold)
-                        Text("Maintain regular study habits for consistent progress")
+                        Text(NSLocalizedString("goals.studyConsistencyDescription", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -193,7 +193,7 @@ struct LearningGoalsSettingsView: View {
                         .font(.headline)
                         .fontWeight(.bold)
                         .foregroundColor(.orange)
-                    Text("days per week")
+                    Text(NSLocalizedString("goals.daysPerWeek", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Spacer()
@@ -214,7 +214,7 @@ struct LearningGoalsSettingsView: View {
         Button(action: saveGoals) {
             HStack {
                 Image(systemName: "icloud.and.arrow.up.fill")
-                Text("Save to Database")
+                Text(NSLocalizedString("goals.saveToDatabase", comment: ""))
             }
             .font(.headline)
             .foregroundColor(.white)

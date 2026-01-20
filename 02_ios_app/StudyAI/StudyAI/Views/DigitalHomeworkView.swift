@@ -673,10 +673,13 @@ struct DigitalHomeworkView: View {
         }
         .disabled(viewModel.isExportingPDF)
         .opacity(viewModel.isExportingPDF ? 0.8 : 1.0)
-        .sheet(isPresented: $viewModel.showPDFShareSheet) {
-            if let pdfDocument = viewModel.exportedPDFDocument,
-               let pdfData = pdfDocument.dataRepresentation() {
-                ActivityViewController(activityItems: [pdfData])
+        .fullScreenCover(isPresented: $viewModel.showPDFPreview) {
+            if let pdfDocument = viewModel.exportedPDFDocument {
+                DigitalHomeworkPDFPreviewView(
+                    pdfDocument: pdfDocument,
+                    subject: viewModel.subject,
+                    questionCount: viewModel.totalQuestions
+                )
             }
         }
         .alert("PDF Export Failed", isPresented: $showPDFExportError) {
@@ -1357,6 +1360,7 @@ struct QuestionCard: View {
                                 grade: questionWithGrade.subquestionGrades[subquestion.id],
                                 isGrading: questionWithGrade.subquestionGradingStatus[subquestion.id] ?? false,
                                 modelType: modelType,
+                                isArchived: questionWithGrade.archivedSubquestions.contains(subquestion.id),  // ✅ NEW: Check if archived
                                 onAskAI: {
                                     // ✅ FIXED: Pass subquestion to parent callback
                                     print("💬 Ask AI for subquestion \(subquestion.id)")
@@ -1507,6 +1511,7 @@ struct SubquestionRow: View {
     let grade: ProgressiveGradeResult?
     let isGrading: Bool  // ✅ NEW: Track grading status
     let modelType: String  // ✅ NEW: Track AI model for loading indicator
+    let isArchived: Bool  // ✅ NEW: Track if this subquestion is archived
     let onAskAI: () -> Void
     let onArchive: () -> Void  // This archives the parent question
     let onArchiveSubquestion: () -> Void  // ✅ NEW: Archive this subquestion only
@@ -1553,9 +1558,27 @@ struct SubquestionRow: View {
                     .foregroundColor(.secondary)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(subquestion.questionText)
-                        .font(.caption)
-                        .foregroundColor(.primary)
+                    HStack(spacing: 6) {
+                        Text(subquestion.questionText)
+                            .font(.caption)
+                            .foregroundColor(.primary)
+
+                        // ✅ NEW: Archived badge (if archived)
+                        if isArchived {
+                            HStack(spacing: 2) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption2)
+                                Text("Archived")
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green)
+                            .cornerRadius(6)
+                        }
+                    }
 
                     if !subquestion.studentAnswer.isEmpty {
                         Text(String(format: NSLocalizedString("proMode.subquestionAnswer", comment: "Answer: X"), subquestion.studentAnswer))
@@ -1633,15 +1656,17 @@ struct SubquestionRow: View {
                                         .font(.caption)
                                 }
                                 .buttonStyle(.bordered)
+                                .disabled(isArchived)  // ✅ NEW: Disable for archived subquestions
 
                                 // ✅ NEW: Archive button with action sheet
                                 Button(action: {
                                     showArchiveOptions = true
                                 }) {
-                                    Label(NSLocalizedString("proMode.archive", comment: "Archive"), systemImage: "archivebox")
+                                    Label(isArchived ? "Archived" : NSLocalizedString("proMode.archive", comment: "Archive"), systemImage: isArchived ? "checkmark.circle" : "archivebox")
                                         .font(.caption)
                                 }
                                 .buttonStyle(.bordered)
+                                .disabled(isArchived)  // ✅ NEW: Disable for archived subquestions
                             }
                         }
                     }
@@ -1650,6 +1675,17 @@ struct SubquestionRow: View {
             }
         }
         .padding(.leading, 16)
+        .padding(8)  // ✅ NEW: Add padding for background
+        .background(
+            // ✅ NEW: Different background for archived subquestions
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isArchived ? Color.green.opacity(0.05) : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isArchived ? Color.green.opacity(0.4) : Color.clear, lineWidth: 2)
+                )
+        )
+        .opacity(isArchived ? 0.8 : 1.0)  // ✅ NEW: Slightly transparent for archived
         .confirmationDialog(
             "Archive Options",
             isPresented: $showArchiveOptions,

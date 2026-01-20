@@ -9,6 +9,7 @@
 
 const { db } = require('../utils/railway-database');
 const cron = require('node-cron');
+const logger = require('../utils/logger');  // PRODUCTION: Structured logging
 
 class DataRetentionService {
   constructor() {
@@ -28,15 +29,15 @@ class DataRetentionService {
    * Schedules daily cleanup at midnight
    */
   async initialize() {
-    console.log('📅 Initializing Data Retention Policy Service...');
+    logger.debug('📅 Initializing Data Retention Policy Service...');
 
     // Schedule daily cleanup at midnight (00:00)
     this.cronJob = cron.schedule('0 0 * * *', async () => {
       await this.runRetentionPolicy();
     });
 
-    console.log('✅ Data Retention Policy Service initialized');
-    console.log('📅 Scheduled to run daily at midnight (00:00)');
+    logger.debug('✅ Data Retention Policy Service initialized');
+    logger.debug('📅 Scheduled to run daily at midnight (00:00)');
 
     // Run once immediately on startup (optional - comment out if not needed)
     // await this.runRetentionPolicy();
@@ -51,15 +52,15 @@ class DataRetentionService {
    */
   async runRetentionPolicy() {
     if (this.isRunning) {
-      console.log('⚠️ Retention policy already running, skipping...');
+      logger.debug('⚠️ Retention policy already running, skipping...');
       return;
     }
 
     this.isRunning = true;
     const startTime = Date.now();
 
-    console.log('🗑️  === DATA RETENTION POLICY EXECUTION ===');
-    console.log(`📅 Started at: ${new Date().toISOString()}`);
+    logger.debug('🗑️  === DATA RETENTION POLICY EXECUTION ===');
+    logger.debug(`📅 Started at: ${new Date().toISOString()}`);
 
     try {
       // Step 1: Soft delete expired data (> 90 days)
@@ -74,10 +75,10 @@ class DataRetentionService {
       this.stats.lastHardDelete = hardDeleteResults;
 
       const duration = Date.now() - startTime;
-      console.log(`✅ Retention policy completed in ${duration}ms`);
-      console.log(`📊 Soft deleted: ${JSON.stringify(softDeleteResults)}`);
-      console.log(`📊 Hard deleted: ${JSON.stringify(hardDeleteResults)}`);
-      console.log('====================================');
+      logger.debug(`✅ Retention policy completed in ${duration}ms`);
+      logger.debug(`📊 Soft deleted: ${JSON.stringify(softDeleteResults)}`);
+      logger.debug(`📊 Hard deleted: ${JSON.stringify(hardDeleteResults)}`);
+      logger.debug('====================================');
 
       return {
         success: true,
@@ -87,7 +88,7 @@ class DataRetentionService {
       };
 
     } catch (error) {
-      console.error('❌ Error running retention policy:', error);
+      logger.error('❌ Error running retention policy:', error);
       return {
         success: false,
         error: error.message
@@ -102,7 +103,7 @@ class DataRetentionService {
    * Sets deleted_at timestamp but keeps data for 30-day recovery period
    */
   async softDeleteExpiredData() {
-    console.log('🔄 Step 1: Soft deleting expired data (> 90 days)...');
+    logger.debug('🔄 Step 1: Soft deleting expired data (> 90 days)...');
 
     try {
       const result = await db.query('SELECT * FROM soft_delete_expired_data()');
@@ -113,11 +114,11 @@ class DataRetentionService {
         this.stats.totalSoftDeleted += parseInt(row.deleted_count);
       });
 
-      console.log(`✅ Soft delete completed: ${JSON.stringify(stats)}`);
+      logger.debug(`✅ Soft delete completed: ${JSON.stringify(stats)}`);
       return stats;
 
     } catch (error) {
-      console.error('❌ Error in soft delete:', error);
+      logger.error('❌ Error in soft delete:', error);
       throw error;
     }
   }
@@ -127,7 +128,7 @@ class DataRetentionService {
    * Permanent deletion for GDPR "right to be forgotten"
    */
   async hardDeleteOldData() {
-    console.log('🔄 Step 2: Hard deleting old soft-deleted data (> 30 days)...');
+    logger.debug('🔄 Step 2: Hard deleting old soft-deleted data (> 30 days)...');
 
     try {
       const result = await db.query('SELECT * FROM hard_delete_old_soft_deleted()');
@@ -138,11 +139,11 @@ class DataRetentionService {
         this.stats.totalHardDeleted += parseInt(row.purged_count);
       });
 
-      console.log(`✅ Hard delete completed: ${JSON.stringify(stats)}`);
+      logger.debug(`✅ Hard delete completed: ${JSON.stringify(stats)}`);
       return stats;
 
     } catch (error) {
-      console.error('❌ Error in hard delete:', error);
+      logger.error('❌ Error in hard delete:', error);
       throw error;
     }
   }
@@ -152,7 +153,7 @@ class DataRetentionService {
    * @param {string} userId - User ID to delete all data for
    */
   async deleteUserData(userId) {
-    console.log(`🗑️  Deleting all data for user: ${userId}`);
+    logger.debug(`🗑️  Deleting all data for user: ${userId}`);
 
     try {
       // Soft delete all user data immediately
@@ -174,8 +175,8 @@ class DataRetentionService {
         WHERE user_id = $1 AND deleted_at IS NULL
       `, [userId]);
 
-      console.log(`✅ User data marked for deletion: ${userId}`);
-      console.log(`ℹ️  Data will be permanently deleted in 30 days`);
+      logger.debug(`✅ User data marked for deletion: ${userId}`);
+      logger.debug(`ℹ️  Data will be permanently deleted in 30 days`);
 
       return {
         success: true,
@@ -184,7 +185,7 @@ class DataRetentionService {
       };
 
     } catch (error) {
-      console.error('❌ Error deleting user data:', error);
+      logger.error('❌ Error deleting user data:', error);
       throw error;
     }
   }
@@ -207,7 +208,7 @@ class DataRetentionService {
   stop() {
     if (this.cronJob) {
       this.cronJob.stop();
-      console.log('🛑 Data Retention Policy Service stopped');
+      logger.debug('🛑 Data Retention Policy Service stopped');
     }
   }
 
@@ -215,7 +216,7 @@ class DataRetentionService {
    * Trigger manual retention policy run (for testing or admin)
    */
   async triggerManual() {
-    console.log('🔧 Manual retention policy trigger requested');
+    logger.debug('🔧 Manual retention policy trigger requested');
     return await this.runRetentionPolicy();
   }
 }

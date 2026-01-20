@@ -10,6 +10,13 @@ import Speech
 import AVFoundation
 import Combine
 
+// MARK: - Production Logging Safety
+// Disable debug print statements in production builds to prevent voice input text exposure
+#if !DEBUG
+private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
+#endif
+
 class SpeechRecognitionService: NSObject, ObservableObject {
     
     // MARK: - Published Properties

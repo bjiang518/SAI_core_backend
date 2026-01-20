@@ -13,6 +13,7 @@
 const OpenAI = require('openai');
 const crypto = require('crypto');
 const { db } = require('../utils/railway-database');
+const logger = require('../utils/logger');  // PRODUCTION: Structured logging
 
 class AssistantsService {
   constructor() {
@@ -28,7 +29,7 @@ class AssistantsService {
     this.consecutiveErrors = 0;
     this.errorThreshold = parseInt(process.env.FALLBACK_ERROR_THRESHOLD || '5');
 
-    console.log('✅ AssistantsService initialized');
+    logger.debug('✅ AssistantsService initialized');
   }
 
   // ============================================
@@ -56,10 +57,10 @@ class AssistantsService {
       // Store thread metadata in database (original values)
       await this.storeThreadMetadata(thread.id, metadata);
 
-      console.log(`📝 Created thread: ${thread.id}`);
+      logger.debug(`📝 Created thread: ${thread.id}`);
       return thread;
     } catch (error) {
-      console.error('❌ Failed to create thread:', error);
+      logger.error('❌ Failed to create thread:', error);
       this.consecutiveErrors++;
       throw this.formatError(error, 'CREATE_THREAD_FAILED');
     }
@@ -75,7 +76,7 @@ class AssistantsService {
       const thread = await this.client.beta.threads.retrieve(threadId);
       return thread;
     } catch (error) {
-      console.error(`❌ Failed to retrieve thread ${threadId}:`, error);
+      logger.error(`❌ Failed to retrieve thread ${threadId}:`, error);
       throw this.formatError(error, 'GET_THREAD_FAILED');
     }
   }
@@ -94,9 +95,9 @@ class AssistantsService {
         [threadId]
       );
 
-      console.log(`🗑️  Deleted thread: ${threadId}`);
+      logger.debug(`🗑️  Deleted thread: ${threadId}`);
     } catch (error) {
-      console.error(`❌ Failed to delete thread ${threadId}:`, error);
+      logger.error(`❌ Failed to delete thread ${threadId}:`, error);
       // Non-critical error, don't throw
     }
   }
@@ -142,10 +143,10 @@ class AssistantsService {
       // Update message count
       await this.incrementMessageCount(threadId);
 
-      console.log(`💬 Sent message to thread ${threadId}`);
+      logger.debug(`💬 Sent message to thread ${threadId}`);
       return message;
     } catch (error) {
-      console.error(`❌ Failed to send message to thread ${threadId}:`, error);
+      logger.error(`❌ Failed to send message to thread ${threadId}:`, error);
       this.consecutiveErrors++;
       throw this.formatError(error, 'SEND_MESSAGE_FAILED');
     }
@@ -165,7 +166,7 @@ class AssistantsService {
       });
       return messages.data;
     } catch (error) {
-      console.error(`❌ Failed to get messages from thread ${threadId}:`, error);
+      logger.error(`❌ Failed to get messages from thread ${threadId}:`, error);
       throw this.formatError(error, 'GET_MESSAGES_FAILED');
     }
   }
@@ -193,10 +194,10 @@ class AssistantsService {
 
       const run = await this.client.beta.threads.runs.create(threadId, runParams);
 
-      console.log(`🏃 Started run ${run.id} on thread ${threadId}`);
+      logger.debug(`🏃 Started run ${run.id} on thread ${threadId}`);
       return run;
     } catch (error) {
-      console.error(`❌ Failed to run assistant ${assistantId}:`, error);
+      logger.error(`❌ Failed to run assistant ${assistantId}:`, error);
       this.consecutiveErrors++;
       throw this.formatError(error, 'RUN_ASSISTANT_FAILED');
     }
@@ -215,7 +216,7 @@ class AssistantsService {
     while (Date.now() - startTime < timeout) {
       const run = await this.client.beta.threads.runs.retrieve(threadId, runId);
 
-      console.log(`🔄 Run ${runId} status: ${run.status}`);
+      logger.debug(`🔄 Run ${runId} status: ${run.status}`);
 
       // Success
       if (run.status === 'completed') {
@@ -226,7 +227,7 @@ class AssistantsService {
       // Failed
       if (run.status === 'failed') {
         const errorMsg = run.last_error?.message || 'Unknown error';
-        console.error(`❌ Run ${runId} failed: ${errorMsg}`);
+        logger.error(`❌ Run ${runId} failed: ${errorMsg}`);
         this.consecutiveErrors++;
         throw new Error(`Run failed: ${errorMsg}`);
       }
@@ -238,7 +239,7 @@ class AssistantsService {
 
       // Requires action (function calling)
       if (run.status === 'requires_action') {
-        console.log('📞 Run requires function calling');
+        logger.debug('📞 Run requires function calling');
         await this.handleFunctionCalling(threadId, runId, run);
         continue; // Continue polling
       }
@@ -266,7 +267,7 @@ class AssistantsService {
 
       return stream;
     } catch (error) {
-      console.error(`❌ Failed to stream assistant run:`, error);
+      logger.error(`❌ Failed to stream assistant run:`, error);
       this.consecutiveErrors++;
       throw this.formatError(error, 'STREAM_RUN_FAILED');
     }
@@ -285,14 +286,14 @@ class AssistantsService {
   async handleFunctionCalling(threadId, runId, run) {
     const toolCalls = run.required_action.submit_tool_outputs.tool_calls;
 
-    console.log(`📞 Handling ${toolCalls.length} function calls`);
+    logger.debug(`📞 Handling ${toolCalls.length} function calls`);
 
     const toolOutputs = await Promise.all(
       toolCalls.map(async (toolCall) => {
         const functionName = toolCall.function.name;
         const functionArgs = JSON.parse(toolCall.function.arguments);
 
-        console.log(`  → Calling ${functionName} with args:`, functionArgs);
+        logger.debug(`  → Calling ${functionName} with args:`, functionArgs);
 
         let output;
 
@@ -302,7 +303,7 @@ class AssistantsService {
           const cachedResult = await this.getCachedFunctionResult(cacheKey);
 
           if (cachedResult) {
-            console.log(`  ✅ Cache hit for ${functionName}`);
+            logger.debug(`  ✅ Cache hit for ${functionName}`);
             output = cachedResult;
           } else {
             // Execute function
@@ -312,7 +313,7 @@ class AssistantsService {
             await this.cacheFunctionResult(cacheKey, functionName, functionArgs, output);
           }
         } catch (error) {
-          console.error(`❌ Function ${functionName} failed:`, error);
+          logger.error(`❌ Function ${functionName} failed:`, error);
           output = {
             error: error.message,
             function: functionName
@@ -331,7 +332,7 @@ class AssistantsService {
       tool_outputs: toolOutputs
     });
 
-    console.log(`✅ Submitted ${toolOutputs.length} tool outputs`);
+    logger.debug(`✅ Submitted ${toolOutputs.length} tool outputs`);
   }
 
   /**
@@ -446,8 +447,8 @@ class AssistantsService {
       `;
     } else {
       // Fallback query - get questions without filtering by correctness
-      console.warn('⚠️ Questions table missing columns: student_answer, is_correct, or ai_answer');
-      console.warn('⚠️ Returning all questions for this subject instead of just incorrect ones');
+      logger.warn('⚠️ Questions table missing columns: student_answer, is_correct, or ai_answer');
+      logger.warn('⚠️ Returning all questions for this subject instead of just incorrect ones');
       query = `
         SELECT
           question_text,
@@ -480,7 +481,7 @@ class AssistantsService {
         _schema_warning: !hasStudentAnswer ? 'Questions table is missing required columns. Please run database migration.' : undefined
       };
     } catch (error) {
-      console.error('❌ Error in getCommonMistakes:', error);
+      logger.error('❌ Error in getCommonMistakes:', error);
       // Return empty result instead of throwing
       return {
         user_id,
