@@ -101,6 +101,18 @@
 		7B2248212F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */; };
 		7B2248222F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */; };
 		7B2248232F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */; };
+		7B2248512F20212C006ADD93 /* PassiveReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248502F20212C006ADD93 /* PassiveReportsView.swift */; };
+		7B2248522F20212C006ADD93 /* ParentReportsContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B22484E2F20212C006ADD93 /* ParentReportsContainerView.swift */; };
+		7B2248532F20212C006ADD93 /* PassiveReportDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B22484F2F20212C006ADD93 /* PassiveReportDetailView.swift */; };
+		7B2248542F20212C006ADD93 /* PassiveReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248502F20212C006ADD93 /* PassiveReportsView.swift */; };
+		7B2248552F20212C006ADD93 /* ParentReportsContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B22484E2F20212C006ADD93 /* ParentReportsContainerView.swift */; };
+		7B2248562F20212C006ADD93 /* PassiveReportDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B22484F2F20212C006ADD93 /* PassiveReportDetailView.swift */; };
+		7B2248572F20212C006ADD93 /* PassiveReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248502F20212C006ADD93 /* PassiveReportsView.swift */; };
+		7B2248582F20212C006ADD93 /* ParentReportsContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B22484E2F20212C006ADD93 /* ParentReportsContainerView.swift */; };
+		7B2248592F20212C006ADD93 /* PassiveReportDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B22484F2F20212C006ADD93 /* PassiveReportDetailView.swift */; };
+		7B22485B2F202156006ADD93 /* PassiveReportsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B22485A2F202156006ADD93 /* PassiveReportsViewModel.swift */; };
+		7B22485C2F202156006ADD93 /* PassiveReportsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B22485A2F202156006ADD93 /* PassiveReportsViewModel.swift */; };
+		7B22485D2F202156006ADD93 /* PassiveReportsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B22485A2F202156006ADD93 /* PassiveReportsViewModel.swift */; };
 		7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
@@ -344,10 +356,10 @@
 		D87DBC4B66CF4F958C156B26 /* QuestionArchiveModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E2AD38EF0CF492393C1C87D /* QuestionArchiveModels.swift */; };
 		DB5CF3C197754361B71BF918 /* QuestionSegmenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8357641D6957415C8C814D59 /* QuestionSegmenter.swift */; };
 		DCHK890123456789FGHI1234 /* DailyCheckoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCHK567890123456FGHI1234 /* DailyCheckoutView.swift */; };
+		DEEP98765432109876FEDCBA /* StudyAI/Views/DeepThinkingGestureHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEEP12345678901234ABCDEF /* StudyAI/Views/DeepThinkingGestureHandler.swift */; };
 		E256D35586004F19A4722977 /* ReportGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C137BECD88E403C95DB4167 /* ReportGenerator.swift */; };
 		E4B6564CD270402684D59645 /* Focus_Flow_2025-10-30T054503.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FF8D738B30F14BBAA20BE7A0 /* Focus_Flow_2025-10-30T054503.mp3 */; };
 		E50F5FB6D0B84192B07AC6D4 /* SessionChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C25B8960EFF470BBE31F73A /* SessionChatView.swift */; };
-		DEEP98765432109876FEDCBA /* DeepThinkingGestureHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEEP12345678901234ABCDEF /* DeepThinkingGestureHandler.swift */; };
 		E892C474DD7F4C22968FF06B /* ModernLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 377AB348C798453AB804B3A9 /* ModernLoginView.swift */; };
 		EA2306D761BC495DBE05D2EA /* TomatoGardenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14D61577468E4AD883A55881 /* TomatoGardenService.swift */; };
 		EBF42CC5063E45B7A36A22FD /* StorageControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 298792E8091D453F913E76C5 /* StorageControlView.swift */; };
@@ -442,7 +454,6 @@
 		69D668B7833B4B1D9DF8653A /* SubjectBreakdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SubjectBreakdownView.swift; path = StudyAI/Views/SubjectBreakdownView.swift; sourceTree = SOURCE_ROOT; };
 		6C137BECD88E403C95DB4167 /* ReportGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportGenerator.swift; path = StudyAI/Services/ReportGenerator.swift; sourceTree = SOURCE_ROOT; };
 		6C25B8960EFF470BBE31F73A /* SessionChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionChatView.swift; path = StudyAI/Views/SessionChatView.swift; sourceTree = SOURCE_ROOT; };
-		DEEP12345678901234ABCDEF /* DeepThinkingGestureHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/DeepThinkingGestureHandler.swift; sourceTree = SOURCE_ROOT; };
 		7328FFA07B1244DE /* PlaylistEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaylistEditorView.swift; path = StudyAI/Views/PlaylistEditorView.swift; sourceTree = SOURCE_ROOT; };
 		740D132F82A14ABAA94D79CC /* VoiceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceModels.swift; path = StudyAI/Models/VoiceModels.swift; sourceTree = SOURCE_ROOT; };
 		7432D8F68917426DB11C0528 /* StudyAI/Services/ProModeImageStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Services/ProModeImageStorage.swift; sourceTree = SOURCE_ROOT; };
@@ -468,6 +479,10 @@
 		7B1ED8482E829E5B00E5E57D /* ReportExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportExportService.swift; path = StudyAI/Services/ReportExportService.swift; sourceTree = SOURCE_ROOT; };
 		7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkPDFPreviewView.swift; path = StudyAI/Views/DigitalHomeworkPDFPreviewView.swift; sourceTree = SOURCE_ROOT; };
+		7B22484E2F20212C006ADD93 /* ParentReportsContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentReportsContainerView.swift; path = StudyAI/Views/ParentReportsContainerView.swift; sourceTree = SOURCE_ROOT; };
+		7B22484F2F20212C006ADD93 /* PassiveReportDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PassiveReportDetailView.swift; path = StudyAI/Views/PassiveReportDetailView.swift; sourceTree = SOURCE_ROOT; };
+		7B2248502F20212C006ADD93 /* PassiveReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PassiveReportsView.swift; path = StudyAI/Views/PassiveReportsView.swift; sourceTree = SOURCE_ROOT; };
+		7B22485A2F202156006ADD93 /* PassiveReportsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PassiveReportsViewModel.swift; path = StudyAI/ViewModels/PassiveReportsViewModel.swift; sourceTree = SOURCE_ROOT; };
 		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCropper.swift; sourceTree = "<group>"; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
 		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
@@ -583,6 +598,7 @@
 		DBB6C78FB23E45A9AF19ECC9 /* AuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AuthenticationService.swift; path = StudyAI/Services/AuthenticationService.swift; sourceTree = SOURCE_ROOT; };
 		DCHK567890123456FGHI1234 /* DailyCheckoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyCheckoutView.swift; path = StudyAI/Views/DailyCheckoutView.swift; sourceTree = SOURCE_ROOT; };
 		DDEF456789012345HIJK6789 /* CameraViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraViewModel.swift; path = StudyAI/ViewModels/CameraViewModel.swift; sourceTree = SOURCE_ROOT; };
+		DEEP12345678901234ABCDEF /* StudyAI/Views/DeepThinkingGestureHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyAI/Views/DeepThinkingGestureHandler.swift; sourceTree = SOURCE_ROOT; };
 		E13D4A8943284F528CD3C3C1 /* SessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionDetailView.swift; path = StudyAI/Views/SessionDetailView.swift; sourceTree = SOURCE_ROOT; };
 		E2A9A6742CCE4F3DB87AA7FD /* RailwayArchiveService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RailwayArchiveService.swift; path = StudyAI/Services/RailwayArchiveService.swift; sourceTree = SOURCE_ROOT; };
 		E5DB8369296B47A1A5BC7BF1 /* ImageEnhancer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageEnhancer.swift; path = StudyAI/Services/ImageEnhancer.swift; sourceTree = SOURCE_ROOT; };
@@ -754,6 +770,7 @@
 		7BEDA5F72E7EB8C500D57B15 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				7B22485A2F202156006ADD93 /* PassiveReportsViewModel.swift */,
 				7BD668A52ED6F36300E09E55 /* DigitalHomeworkViewModel.swift */,
 				7BD668A12ED6F27300E09E55 /* DigitalHomeworkStateManager.swift */,
 				7BD664D92ECAB9D200E09E55 /* ProgressiveSubquestionModel.swift */,
@@ -840,7 +857,10 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				DEEP12345678901234ABCDEF /* DeepThinkingGestureHandler.swift */,
+				7B22484E2F20212C006ADD93 /* ParentReportsContainerView.swift */,
+				7B22484F2F20212C006ADD93 /* PassiveReportDetailView.swift */,
+				7B2248502F20212C006ADD93 /* PassiveReportsView.swift */,
+				DEEP12345678901234ABCDEF /* StudyAI/Views/DeepThinkingGestureHandler.swift */,
 				7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */,
 				7BD668C72EE6A7F000E09E55 /* DiagramMessageView.swift */,
 				7BD668C82EE6A7F000E09E55 /* DiagramRendererView.swift */,
@@ -1302,6 +1322,7 @@
 				IMGPREPBUILD123456789ABCD /* ImagePreprocessingView.swift in Sources */,
 				E892C474DD7F4C22968FF06B /* ModernLoginView.swift in Sources */,
 				EMAILVER901234567890ABCD /* EmailVerificationView.swift in Sources */,
+				7B22485D2F202156006ADD93 /* PassiveReportsViewModel.swift in Sources */,
 				PRNCSNT901234567890ABCD /* ParentalConsentView.swift in Sources */,
 				PRVSTGS901234567890ABCD /* PrivacySettingsView.swift in Sources */,
 				PRVPLCY901234567890ABCD /* PrivacyPolicyView.swift in Sources */,
@@ -1316,11 +1337,14 @@
 				7B1ED8472E829DE900E5E57D /* ReportExportView.swift in Sources */,
 				7BDE565F2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */,
 				E50F5FB6D0B84192B07AC6D4 /* SessionChatView.swift in Sources */,
-				DEEP98765432109876FEDCBA /* DeepThinkingGestureHandler.swift in Sources */,
+				DEEP98765432109876FEDCBA /* StudyAI/Views/DeepThinkingGestureHandler.swift in Sources */,
 				A6AAD8B3B1CF457696752650 /* SessionDetailView.swift in Sources */,
 				8F1EBFF4298743058E934595 /* SessionHistoryView.swift in Sources */,
 				7BDE56642EC1C617004A8629 /* PomodoroDeepLinkHandler.swift in Sources */,
 				7BDE567A2EC1C6C4004A8629 /* PomodoroCalendarView.swift in Sources */,
+				7B2248512F20212C006ADD93 /* PassiveReportsView.swift in Sources */,
+				7B2248522F20212C006ADD93 /* ParentReportsContainerView.swift in Sources */,
+				7B2248532F20212C006ADD93 /* PassiveReportDetailView.swift in Sources */,
 				7DCD4D51FBF64F74AEA6A5C3 /* VoiceSettingsView.swift in Sources */,
 				EBF42CC5063E45B7A36A22FD /* StorageControlView.swift in Sources */,
 				SYNC1234567890123456ABCD /* StorageSyncService.swift in Sources */,
@@ -1388,6 +1412,7 @@
 				7BDE56F02EC31AD7004A8629 /* EssayResultsView.swift in Sources */,
 				7B8E9E9D2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				7B1961EC2E94E2740024317A /* ParentAuthenticationView.swift in Sources */,
+				7B22485B2F202156006ADD93 /* PassiveReportsViewModel.swift in Sources */,
 				7B8E9EB72EAF395200E83DA8 /* FaceIDReauthView.swift in Sources */,
 				7B8353452EA6F4F400199AC3 /* LocalReportDataAggregator.swift in Sources */,
 				7B1961F02E94E31A0024317A /* ParentModeManager.swift in Sources */,
@@ -1400,6 +1425,9 @@
 				25FC77CE76E748A797D68F8C /* ViewModifiers.swift in Sources */,
 				7B8E9EA12EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */,
 				7B83533F2EA6F11400199AC3 /* AppLogger.swift in Sources */,
+				7B2248572F20212C006ADD93 /* PassiveReportsView.swift in Sources */,
+				7B2248582F20212C006ADD93 /* ParentReportsContainerView.swift in Sources */,
+				7B2248592F20212C006ADD93 /* PassiveReportDetailView.swift in Sources */,
 				7BDE56822EC1C718004A8629 /* PomodoroCalendarEvent.swift in Sources */,
 				7BD664CF2ECA8B2E00E09E55 /* ProgressiveHomeworkView.swift in Sources */,
 				7BDE567B2EC1C6C4004A8629 /* PomodoroCalendarView.swift in Sources */,
@@ -1441,6 +1469,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				7BD664DA2ECAB9D200E09E55 /* ProgressiveSubquestionModel.swift in Sources */,
+				7B2248542F20212C006ADD93 /* PassiveReportsView.swift in Sources */,
+				7B2248552F20212C006ADD93 /* ParentReportsContainerView.swift in Sources */,
+				7B2248562F20212C006ADD93 /* PassiveReportDetailView.swift in Sources */,
 				7BDE56F12EC31AD7004A8629 /* EssayResultsView.swift in Sources */,
 				7BDE56912EC1CA4D004A8629 /* UIComponents.swift in Sources */,
 				7BDE56922EC1CA4D004A8629 /* MessageBubbles.swift in Sources */,
@@ -1494,6 +1525,7 @@
 				7B8E9E9E2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				7BDE56E62EC31A8B004A8629 /* LaTeXToHTMLConverter.swift in Sources */,
 				7BD6687D2ED05FD400E09E55 /* ZoomableImageView.swift in Sources */,
+				7B22485C2F202156006ADD93 /* PassiveReportsViewModel.swift in Sources */,
 				7B83533E2EA6F11400199AC3 /* RateLimitManager.swift in Sources */,
 				7B8E9E992EAB516C00E83DA8 /* HomeworkImageModels.swift in Sources */,
 				7B8E9EA22EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */,

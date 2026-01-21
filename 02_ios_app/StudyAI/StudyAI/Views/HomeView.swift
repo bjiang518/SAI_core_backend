@@ -121,7 +121,9 @@ struct HomeView: View {
                 QuestionGenerationView()
             }
             .sheet(isPresented: $showingParentReports) {
-                ParentReportsView()
+                NavigationView {
+                    ParentReportsContainerView()
+                }
             }
             .sheet(isPresented: $showingHomeworkAlbum) {
                 HomeworkAlbumView()
