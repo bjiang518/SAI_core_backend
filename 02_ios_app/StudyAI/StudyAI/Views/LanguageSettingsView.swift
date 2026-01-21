@@ -69,10 +69,11 @@ struct LanguageSettingsView: View {
             }
             .alert("Restart Required", isPresented: $showRestartAlert) {
                 Button("OK") {
-                    // User acknowledged the restart requirement
+                    // ✅ Automatically close the app to apply language change
+                    exit(0)
                 }
             } message: {
-                Text("Please close and reopen the app for the language change to take full effect.")
+                Text("The app will close now. Please reopen it to see the language change.")
             }
         }
     }
