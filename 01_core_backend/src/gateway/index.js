@@ -423,6 +423,9 @@ if (features.useGateway) {
   // Parent Reports routes - NEW
   new ParentReportsRoutes(fastify);
 
+  // Passive Reports routes - NEW: Scheduled weekly/monthly reports
+  fastify.register(require('./routes/passive-reports'));
+
   // AI Engine proxy routes - NEW: Use modular routes with Assistants API support
   fastify.register(AIModularRoutes);
 
