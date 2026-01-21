@@ -1327,6 +1327,10 @@
 "pomodoro.deepFocusReady" = "Deep focus mode is ready";
 "pomodoro.deepFocusActive" = "Deep Focus Mode Active";
 "pomodoro.deepFocusStatus" = "Focus environment optimized · Fully protected";
+"pomodoro.deepFocusAlertTitle" = "Deep Focus Mode";
+"pomodoro.gotIt" = "Got It";
+"pomodoro.viewSetupGuide" = "View Setup Guide";
+"pomodoro.powerSaving" = "Power Saving";
 
 
 // Subject Names
