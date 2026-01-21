@@ -592,6 +592,9 @@
 "library.contentType.conversationsOnly" = "Conversations Only";
 
 // Quick Filters
+"library.filter.allTime" = "All Time";
+"library.filter.allSubjects" = "All Subjects";
+"library.filter.allTypes" = "All Types";
 "library.filter.thisWeek" = "This Week";
 "library.filter.thisMonth" = "This Month";
 "library.filter.withImages" = "With Images";

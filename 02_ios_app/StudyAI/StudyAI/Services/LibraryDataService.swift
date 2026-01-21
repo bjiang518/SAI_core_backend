@@ -1178,22 +1178,32 @@ class QuestionLocalStorage {
                 continue
             }
 
+            // ✅ NORMALIZE SUBJECT before storing
+            var normalizedQuestion = question
+            if let subject = question["subject"] as? String {
+                let normalizedSubject = Subject.normalizeWithFallback(subject).rawValue
+                normalizedQuestion["subject"] = normalizedSubject
+                if subject != normalizedSubject {
+                    print("   🔄 Normalized subject: '\(subject)' → '\(normalizedSubject)'")
+                }
+            }
+
             // Check if this question content already exists
-            if isDuplicateQuestion(question, in: existingQuestions) {
-                print("   🔄 Skipping duplicate question: \(String(describing: question["questionText"] as? String ?? "").prefix(50))...")
+            if isDuplicateQuestion(normalizedQuestion, in: existingQuestions) {
+                print("   🔄 Skipping duplicate question: \(String(describing: normalizedQuestion["questionText"] as? String ?? "").prefix(50))...")
                 skippedCount += 1
                 continue
             }
 
             // Not a duplicate, add it
-            existingQuestions.insert(question, at: 0)
+            existingQuestions.insert(normalizedQuestion, at: 0)
             addedCount += 1
-            print("   ✅ Added new question: \(String(describing: question["questionText"] as? String ?? "").prefix(50))...")
+            print("   ✅ Added new question: \(String(describing: normalizedQuestion["questionText"] as? String ?? "").prefix(50))...")
 
             // 🔍 DEBUG: Log Pro Mode image info
-            if let proMode = question["proMode"] as? Bool, proMode == true {
+            if let proMode = normalizedQuestion["proMode"] as? Bool, proMode == true {
                 print("   🌟 Pro Mode question detected")
-                if let imagePath = question["questionImageUrl"] as? String {
+                if let imagePath = normalizedQuestion["questionImageUrl"] as? String {
                     print("   🖼️ questionImageUrl: \(imagePath)")
                     print("   🖼️ File exists: \(FileManager.default.fileExists(atPath: imagePath))")
                 } else {

@@ -318,31 +318,9 @@ struct QuestionSummary: Codable, Identifiable {
     }
 
     /// Normalize subject names to merge common variants
+    /// Uses Subject enum to enforce standard 13-subject list
     static func normalizeSubject(_ subject: String) -> String {
-        let lowercased = subject.lowercased().trimmingCharacters(in: .whitespaces)
-
-        switch lowercased {
-        case "mathematics", "maths":
-            return "Math"
-        case "english", "english language", "english literature":
-            return "English"
-        case "science", "general science":
-            return "Science"
-        case "physics":
-            return "Physics"
-        case "chemistry":
-            return "Chemistry"
-        case "biology":
-            return "Biology"
-        case "history":
-            return "History"
-        case "geography":
-            return "Geography"
-        case "computer science", "cs", "computing":
-            return "Computer Science"
-        default:
-            // Capitalize first letter for any other subject
-            return subject.prefix(1).uppercased() + subject.dropFirst()
-        }
+        // Use Subject enum normalization with fallback
+        return Subject.normalizeWithFallback(subject).rawValue
     }
 }

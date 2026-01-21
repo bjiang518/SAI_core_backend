@@ -472,6 +472,9 @@
 "library.contentType.conversationsOnly" = "僅對話";
 
 // Quick Filters
+"library.filter.allTime" = "全部時間";
+"library.filter.allSubjects" = "全部科目";
+"library.filter.allTypes" = "全部題型";
 "library.filter.thisWeek" = "本週";
 "library.filter.thisMonth" = "本月";
 "library.filter.withImages" = "含圖片";

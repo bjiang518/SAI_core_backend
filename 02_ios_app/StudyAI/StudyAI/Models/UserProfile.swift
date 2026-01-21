@@ -345,9 +345,144 @@ enum Subject: String, CaseIterable {
     case art = "Art"
     case music = "Music"
     case physicalEducation = "Physical Education"
-    
+
     var displayName: String {
         return self.rawValue
+    }
+
+    /// Icon name (SF Symbol)
+    var icon: String {
+        switch self {
+        case .math:
+            return "function"
+        case .physics:
+            return "atom"
+        case .chemistry:
+            return "flask.fill"
+        case .biology:
+            return "leaf.fill"
+        case .science:
+            return "lightbulb.fill"
+        case .computerScience:
+            return "desktopcomputer"
+        case .english:
+            return "book.fill"
+        case .foreignLanguage:
+            return "globe.americas.fill"
+        case .history:
+            return "clock.fill"
+        case .geography:
+            return "globe"
+        case .art:
+            return "paintbrush.fill"
+        case .music:
+            return "music.note"
+        case .physicalEducation:
+            return "figure.run"
+        }
+    }
+
+    /// Normalize arbitrary subject string to standard Subject enum
+    /// Maps common variations and typos to the correct subject
+    /// Returns nil if subject cannot be mapped to a known subject
+    static func normalize(_ subjectString: String) -> Subject? {
+        let lowercased = subjectString.lowercased().trimmingCharacters(in: .whitespaces)
+
+        switch lowercased {
+        // Math variants
+        case "math", "mathematics", "maths", "arithmetic":
+            return .math
+
+        // Physics variants
+        case "physics":
+            return .physics
+
+        // Chemistry variants
+        case "chemistry", "chem":
+            return .chemistry
+
+        // Biology variants
+        case "biology", "bio", "life science":
+            return .biology
+
+        // Science variants (general)
+        case "science", "general science":
+            return .science
+
+        // Computer Science variants
+        case "computer science", "cs", "computing", "programming", "coding":
+            return .computerScience
+
+        // English variants
+        case "english", "english language", "english literature", "ela", "language arts":
+            return .english
+
+        // Foreign Language variants
+        case "foreign language", "spanish", "french", "german", "chinese", "japanese",
+             "mandarin", "language", "world language", "second language":
+            return .foreignLanguage
+
+        // History variants
+        case "history", "world history", "us history", "american history", "social studies":
+            return .history
+
+        // Geography variants
+        case "geography", "geo":
+            return .geography
+
+        // Art variants
+        case "art", "arts", "visual art", "drawing", "painting":
+            return .art
+
+        // Music variants
+        case "music", "band", "orchestra", "choir":
+            return .music
+
+        // Physical Education variants
+        case "physical education", "pe", "p.e.", "gym", "sports", "athletics", "fitness":
+            return .physicalEducation
+
+        // Special handling for specific topics that map to subjects
+        case "patterns and sequences", "patterns", "sequences":
+            return .math  // Math topic
+
+        case "general", "unknown", "other", "miscellaneous", "misc":
+            return .science  // Default to general science
+
+        default:
+            // Try exact match with rawValue
+            if let subject = Subject(rawValue: subjectString) {
+                return subject
+            }
+
+            // Try case-insensitive match with rawValue
+            for subject in Subject.allCases {
+                if subject.rawValue.lowercased() == lowercased {
+                    return subject
+                }
+            }
+
+            // Cannot map - return nil
+            return nil
+        }
+    }
+
+    /// Normalize subject string with fallback to Science if unknown
+    /// This ensures we always return a valid Subject for storage
+    static func normalizeWithFallback(_ subjectString: String) -> Subject {
+        return normalize(subjectString) ?? .science
+    }
+
+    /// Get subject from string (legacy compatibility)
+    /// Returns the subject as-is if it matches, otherwise normalizes
+    static func fromString(_ subjectString: String) -> Subject {
+        // First try exact match
+        if let subject = Subject(rawValue: subjectString) {
+            return subject
+        }
+
+        // Otherwise normalize
+        return normalizeWithFallback(subjectString)
     }
 }
 
