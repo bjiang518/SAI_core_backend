@@ -337,7 +337,7 @@ struct UnifiedLibraryView: View {
                         isUsingAdvancedSearch = false
                         advancedFilteredQuestions = []
                     } label: {
-                        Label("All Time", systemImage: "clock")
+                        Label(NSLocalizedString("library.filter.allTime", comment: ""), systemImage: "clock")
                     }
 
                     Button {
@@ -367,7 +367,7 @@ struct UnifiedLibraryView: View {
                     VStack(spacing: 2) {
                         Image(systemName: "clock")
                             .font(.caption)
-                        Text(activeQuickDateFilter?.displayName ?? "All Time")
+                        Text(activeQuickDateFilter?.displayName ?? NSLocalizedString("library.filter.allTime", comment: ""))
                             .font(.caption2)
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
@@ -389,7 +389,7 @@ struct UnifiedLibraryView: View {
                     Button {
                         selectedSubject = nil
                     } label: {
-                        Label("All Subjects", systemImage: "books.vertical")
+                        Label(NSLocalizedString("library.filter.allSubjects", comment: ""), systemImage: "books.vertical")
                     }
 
                     ForEach(availableSubjects, id: \.self) { subject in
@@ -403,7 +403,7 @@ struct UnifiedLibraryView: View {
                     VStack(spacing: 2) {
                         Image(systemName: "book.fill")
                             .font(.caption)
-                        Text(selectedSubject ?? "All Subjects")
+                        Text(selectedSubject ?? NSLocalizedString("library.filter.allSubjects", comment: ""))
                             .font(.caption2)
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
@@ -425,7 +425,7 @@ struct UnifiedLibraryView: View {
                     Button {
                         selectedQuestionType = nil
                     } label: {
-                        Label("All Types", systemImage: "square.grid.2x2")
+                        Label(NSLocalizedString("library.filter.allTypes", comment: ""), systemImage: "square.grid.2x2")
                     }
 
                     ForEach(availableQuestionTypes, id: \.self) { questionType in
@@ -439,7 +439,7 @@ struct UnifiedLibraryView: View {
                     VStack(spacing: 2) {
                         Image(systemName: "square.grid.2x2")
                             .font(.caption)
-                        Text(selectedQuestionType?.displayName ?? "All Types")
+                        Text(selectedQuestionType?.displayName ?? NSLocalizedString("library.filter.allTypes", comment: ""))
                             .font(.caption2)
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
@@ -515,7 +515,7 @@ struct UnifiedLibraryView: View {
                                 await deleteLibraryItem(item)
                             }
                         } label: {
-                            Label("Delete", systemImage: "trash.fill")
+                            Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash.fill")
                         }
                     }
                 }
@@ -703,7 +703,8 @@ struct LibraryItemRow: View {
             // Header with type indicator
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(item.title)
+                    // Display title with subject prefix
+                    Text("\(item.subject) • \(item.title)")
                         .font(.headline)
                         .lineLimit(2)
 
@@ -885,11 +886,11 @@ struct UnifiedAuthenticationRequiredView: View {
                 .foregroundColor(.secondary)
 
             VStack(spacing: 8) {
-                Text("library.empty.signInRequired")
+                Text(NSLocalizedString("library.empty.signInRequired", comment: ""))
                     .font(.title2)
                     .fontWeight(.bold)
 
-                Text("library.empty.signInMessage")
+                Text(NSLocalizedString("library.empty.signInMessage", comment: ""))
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -908,11 +909,11 @@ struct UnifiedEmptyLibraryView: View {
                 .foregroundColor(.secondary)
 
             VStack(spacing: 8) {
-                Text("library.empty.libraryEmpty")
+                Text(NSLocalizedString("library.empty.libraryEmpty", comment: ""))
                     .font(.title2)
                     .fontWeight(.bold)
 
-                Text("library.empty.libraryEmptyMessage")
+                Text(NSLocalizedString("library.empty.libraryEmptyMessage", comment: ""))
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -929,7 +930,7 @@ struct UnifiedLoadingView: View {
             ProgressView()
                 .scaleEffect(1.2)
 
-            Text("library.empty.loading")
+            Text(NSLocalizedString("library.empty.loading", comment: ""))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -947,12 +948,12 @@ struct NoResultsView: View {
                 .font(.system(size: 50))
                 .foregroundColor(.secondary)
 
-            Text("library.noResults.title")
+            Text(NSLocalizedString("library.noResults.title", comment: ""))
                 .font(.title3)
                 .fontWeight(.medium)
 
             if hasFilters {
-                Text("library.noResults.adjustFilters")
+                Text(NSLocalizedString("library.noResults.adjustFilters", comment: ""))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
@@ -961,7 +962,7 @@ struct NoResultsView: View {
                 }
                 .buttonStyle(.borderedProminent)
             } else {
-                Text("library.noResults.noMatch")
+                Text(NSLocalizedString("library.noResults.noMatch", comment: ""))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }

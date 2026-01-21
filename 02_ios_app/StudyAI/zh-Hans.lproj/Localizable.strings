@@ -521,6 +521,9 @@
 "library.contentType.conversationsOnly" = "仅对话";
 
 // Quick Filters
+"library.filter.allTime" = "全部时间";
+"library.filter.allSubjects" = "全部科目";
+"library.filter.allTypes" = "全部题型";
 "library.filter.thisWeek" = "本周";
 "library.filter.thisMonth" = "本月";
 "library.filter.withImages" = "含图片";
