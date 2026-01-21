@@ -1380,18 +1380,8 @@ struct QuestionCard: View {
                         }
                     }
                 } else {
-                    // Regular question
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(questionWithGrade.question.questionText ?? "")
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
-
-                        if let answer = questionWithGrade.question.studentAnswer, !answer.isEmpty {
-                            Text(String(format: NSLocalizedString("proMode.studentAnswerLabel", comment: "Student Answer: X"), answer))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
+                    // Regular question - TYPE-SPECIFIC RENDERING
+                    renderQuestionByType(questionWithGrade: questionWithGrade)
                 }
 
                 // Correct Answer (if graded and available) - shown BEFORE feedback
@@ -1457,6 +1447,275 @@ struct QuestionCard: View {
                 onToggleSelection()
             }
         }
+    }
+
+    // MARK: - Type-Specific Question Rendering
+
+    /// Render question based on its type (multiple_choice, fill_blank, calculation, etc.)
+    @ViewBuilder
+    private func renderQuestionByType(questionWithGrade: ProgressiveQuestionWithGrade) -> some View {
+        let questionType = questionWithGrade.question.questionType ?? "unknown"
+        let questionText = questionWithGrade.question.questionText ?? ""
+        let studentAnswer = questionWithGrade.question.studentAnswer ?? ""
+
+        VStack(alignment: .leading, spacing: 8) {
+            switch questionType {
+            case "multiple_choice":
+                renderMultipleChoice(questionText: questionText, studentAnswer: studentAnswer)
+
+            case "fill_blank":
+                renderFillInBlank(questionText: questionText, studentAnswer: studentAnswer)
+
+            case "calculation":
+                renderCalculation(questionText: questionText, studentAnswer: studentAnswer)
+
+            case "true_false":
+                renderTrueFalse(questionText: questionText, studentAnswer: studentAnswer)
+
+            default:
+                // Generic rendering for other types
+                renderGenericQuestion(questionText: questionText, studentAnswer: studentAnswer)
+            }
+        }
+    }
+
+    // MARK: - Multiple Choice Rendering
+
+    @ViewBuilder
+    private func renderMultipleChoice(questionText: String, studentAnswer: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Parse question text to extract stem and options
+            let components = parseMultipleChoiceQuestion(questionText)
+
+            // Question stem
+            Text(components.stem)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+
+            // Options (A, B, C, D)
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(components.options, id: \.letter) { option in
+                    HStack(spacing: 8) {
+                        // Radio button indicator
+                        Image(systemName: isStudentChoice(option.letter, answer: studentAnswer) ? "checkmark.circle.fill" : "circle")
+                            .font(.caption)
+                            .foregroundColor(isStudentChoice(option.letter, answer: studentAnswer) ? .blue : .gray)
+
+                        // Option text
+                        Text("\(option.letter)) \(option.text)")
+                            .font(.caption)
+                            .foregroundColor(isStudentChoice(option.letter, answer: studentAnswer) ? .primary : .secondary)
+                    }
+                    .padding(.leading, 12)
+                }
+            }
+
+            // Student selection label
+            if !studentAnswer.isEmpty {
+                Text(String(format: NSLocalizedString("proMode.studentAnswerLabel", comment: "Student Answer: X"), studentAnswer))
+                    .font(.caption2)
+                    .foregroundColor(.blue)
+                    .padding(.top, 2)
+            }
+        }
+    }
+
+    // MARK: - Fill in Blank Rendering
+
+    @ViewBuilder
+    private func renderFillInBlank(questionText: String, studentAnswer: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Question text with blanks
+            Text(questionText)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+
+            // Parse multi-blank answers (separated by " | ")
+            let answers = studentAnswer.components(separatedBy: " | ")
+
+            if answers.count > 1 {
+                // Multiple blanks
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(answers.indices, id: \.self) { index in
+                        HStack(spacing: 4) {
+                            Text("Blank \(index + 1):")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            Text(answers[index])
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.1))
+                                .cornerRadius(4)
+                        }
+                    }
+                }
+                .padding(.leading, 12)
+            } else {
+                // Single blank
+                HStack(spacing: 4) {
+                    Text(NSLocalizedString("proMode.studentAnswerLabel", comment: "Student Answer:"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Text(studentAnswer)
+                        .font(.caption)
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(4)
+                }
+            }
+        }
+    }
+
+    // MARK: - Calculation Rendering
+
+    @ViewBuilder
+    private func renderCalculation(questionText: String, studentAnswer: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Question text
+            Text(questionText)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+
+            // Work shown (prominently displayed)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Work Shown:")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+
+                // Display student's calculation steps
+                Text(studentAnswer)
+                    .font(.caption)
+                    .foregroundColor(.primary)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(6)
+            }
+        }
+    }
+
+    // MARK: - True/False Rendering
+
+    @ViewBuilder
+    private func renderTrueFalse(questionText: String, studentAnswer: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Question text
+            Text(questionText)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+
+            // True/False options
+            HStack(spacing: 16) {
+                HStack(spacing: 6) {
+                    Image(systemName: isTrue(studentAnswer) ? "checkmark.circle.fill" : "circle")
+                        .font(.caption)
+                        .foregroundColor(isTrue(studentAnswer) ? .blue : .gray)
+                    Text("True")
+                        .font(.caption)
+                        .foregroundColor(isTrue(studentAnswer) ? .primary : .secondary)
+                }
+
+                HStack(spacing: 6) {
+                    Image(systemName: isFalse(studentAnswer) ? "checkmark.circle.fill" : "circle")
+                        .font(.caption)
+                        .foregroundColor(isFalse(studentAnswer) ? .blue : .gray)
+                    Text("False")
+                        .font(.caption)
+                        .foregroundColor(isFalse(studentAnswer) ? .primary : .secondary)
+                }
+            }
+            .padding(.leading, 12)
+
+            // Student answer label
+            if !studentAnswer.isEmpty {
+                Text(String(format: NSLocalizedString("proMode.studentAnswerLabel", comment: "Student Answer: X"), studentAnswer))
+                    .font(.caption2)
+                    .foregroundColor(.blue)
+                    .padding(.top, 2)
+            }
+        }
+    }
+
+    // MARK: - Generic Question Rendering (Fallback)
+
+    @ViewBuilder
+    private func renderGenericQuestion(questionText: String, studentAnswer: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(questionText)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+
+            if !studentAnswer.isEmpty {
+                Text(String(format: NSLocalizedString("proMode.studentAnswerLabel", comment: "Student Answer: X"), studentAnswer))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Helper Functions
+
+    /// Parse multiple choice question to extract stem and options
+    private func parseMultipleChoiceQuestion(_ questionText: String) -> (stem: String, options: [(letter: String, text: String)]) {
+        var stem = questionText
+        var options: [(letter: String, text: String)] = []
+
+        // Pattern to match options like "A) text" or "A. text"
+        let pattern = "([A-D])[).]\\s*([^\\n]+)"
+
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            let nsString = questionText as NSString
+            let matches = regex.matches(in: questionText, options: [], range: NSRange(location: 0, length: nsString.length))
+
+            if !matches.isEmpty {
+                // Extract stem (text before first option)
+                if let firstMatch = matches.first {
+                    stem = nsString.substring(to: firstMatch.range.location).trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+
+                // Extract options
+                for match in matches {
+                    if match.numberOfRanges >= 3 {
+                        let letter = nsString.substring(with: match.range(at: 1))
+                        let text = nsString.substring(with: match.range(at: 2)).trimmingCharacters(in: .whitespacesAndNewlines)
+                        options.append((letter: letter, text: text))
+                    }
+                }
+            }
+        }
+
+        // If no options found, treat entire text as stem
+        if options.isEmpty {
+            stem = questionText
+        }
+
+        return (stem: stem, options: options)
+    }
+
+    /// Check if the given letter matches the student's answer
+    private func isStudentChoice(_ letter: String, answer: String) -> Bool {
+        let normalizedAnswer = answer.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        // Match "A", "A)", "(A)", "A.", "Option A", etc.
+        return normalizedAnswer.contains(letter.uppercased())
+    }
+
+    /// Check if answer is True
+    private func isTrue(_ answer: String) -> Bool {
+        let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized == "true" || normalized == "t" || normalized == "yes" || normalized == "y"
+    }
+
+    /// Check if answer is False
+    private func isFalse(_ answer: String) -> Bool {
+        let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized == "false" || normalized == "f" || normalized == "no" || normalized == "n"
     }
 }
 
@@ -1558,32 +1817,23 @@ struct SubquestionRow: View {
                     .foregroundColor(.secondary)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text(subquestion.questionText)
-                            .font(.caption)
-                            .foregroundColor(.primary)
+                    // ✅ TYPE-SPECIFIC RENDERING for subquestions
+                    renderSubquestionByType(subquestion: subquestion)
 
-                        // ✅ NEW: Archived badge (if archived)
-                        if isArchived {
-                            HStack(spacing: 2) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.caption2)
-                                Text("Archived")
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.green)
-                            .cornerRadius(6)
+                    // ✅ NEW: Archived badge (if archived)
+                    if isArchived {
+                        HStack(spacing: 2) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption2)
+                            Text("Archived")
+                                .font(.caption2)
+                                .fontWeight(.medium)
                         }
-                    }
-
-                    if !subquestion.studentAnswer.isEmpty {
-                        Text(String(format: NSLocalizedString("proMode.subquestionAnswer", comment: "Answer: X"), subquestion.studentAnswer))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.green)
+                        .cornerRadius(6)
                     }
                 }
 
@@ -1705,6 +1955,225 @@ struct SubquestionRow: View {
         } message: {
             Text("Choose what to archive:")
         }
+    }
+
+    // MARK: - Type-Specific Subquestion Rendering
+
+    /// Render subquestion based on its type
+    @ViewBuilder
+    private func renderSubquestionByType(subquestion: ProgressiveSubquestion) -> some View {
+        let questionType = subquestion.questionType ?? "unknown"
+        let questionText = subquestion.questionText
+        let studentAnswer = subquestion.studentAnswer
+
+        VStack(alignment: .leading, spacing: 4) {
+            switch questionType {
+            case "multiple_choice":
+                renderSubquestionMultipleChoice(questionText: questionText, studentAnswer: studentAnswer)
+
+            case "fill_blank":
+                renderSubquestionFillInBlank(questionText: questionText, studentAnswer: studentAnswer)
+
+            case "calculation":
+                renderSubquestionCalculation(questionText: questionText, studentAnswer: studentAnswer)
+
+            case "true_false":
+                renderSubquestionTrueFalse(questionText: questionText, studentAnswer: studentAnswer)
+
+            default:
+                // Generic rendering for other types
+                renderSubquestionGeneric(questionText: questionText, studentAnswer: studentAnswer)
+            }
+        }
+    }
+
+    // MARK: - Multiple Choice (Subquestion)
+
+    @ViewBuilder
+    private func renderSubquestionMultipleChoice(questionText: String, studentAnswer: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            let components = parseMultipleChoiceQuestion(questionText)
+
+            // Question stem
+            Text(components.stem)
+                .font(.caption)
+                .foregroundColor(.primary)
+
+            // Options (compact for subquestions)
+            if !components.options.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(components.options, id: \.letter) { option in
+                        HStack(spacing: 4) {
+                            Image(systemName: isStudentChoice(option.letter, answer: studentAnswer) ? "checkmark.circle.fill" : "circle")
+                                .font(.caption2)
+                                .foregroundColor(isStudentChoice(option.letter, answer: studentAnswer) ? .blue : .gray)
+
+                            Text("\(option.letter)) \(option.text)")
+                                .font(.caption2)
+                                .foregroundColor(isStudentChoice(option.letter, answer: studentAnswer) ? .primary : .secondary)
+                        }
+                        .padding(.leading, 8)
+                    }
+                }
+            }
+
+            // Student selection
+            if !studentAnswer.isEmpty {
+                Text(String(format: NSLocalizedString("proMode.subquestionAnswer", comment: "Answer: X"), studentAnswer))
+                    .font(.caption2)
+                    .foregroundColor(.blue)
+            }
+        }
+    }
+
+    // MARK: - Fill in Blank (Subquestion)
+
+    @ViewBuilder
+    private func renderSubquestionFillInBlank(questionText: String, studentAnswer: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(questionText)
+                .font(.caption)
+                .foregroundColor(.primary)
+
+            let answers = studentAnswer.components(separatedBy: " | ")
+
+            if answers.count > 1 {
+                // Multiple blanks (compact)
+                HStack(spacing: 4) {
+                    ForEach(answers.indices, id: \.self) { index in
+                        Text(answers[index])
+                            .font(.caption2)
+                            .foregroundColor(.primary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(3)
+                    }
+                }
+            } else {
+                // Single blank
+                Text(String(format: NSLocalizedString("proMode.subquestionAnswer", comment: "Answer: X"), studentAnswer))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Calculation (Subquestion)
+
+    @ViewBuilder
+    private func renderSubquestionCalculation(questionText: String, studentAnswer: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(questionText)
+                .font(.caption)
+                .foregroundColor(.primary)
+
+            // Work shown (compact)
+            Text(studentAnswer)
+                .font(.caption2)
+                .foregroundColor(.primary)
+                .padding(4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(4)
+        }
+    }
+
+    // MARK: - True/False (Subquestion)
+
+    @ViewBuilder
+    private func renderSubquestionTrueFalse(questionText: String, studentAnswer: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(questionText)
+                .font(.caption)
+                .foregroundColor(.primary)
+
+            // True/False options (compact)
+            HStack(spacing: 12) {
+                HStack(spacing: 4) {
+                    Image(systemName: isTrue(studentAnswer) ? "checkmark.circle.fill" : "circle")
+                        .font(.caption2)
+                        .foregroundColor(isTrue(studentAnswer) ? .blue : .gray)
+                    Text("T")
+                        .font(.caption2)
+                }
+
+                HStack(spacing: 4) {
+                    Image(systemName: isFalse(studentAnswer) ? "checkmark.circle.fill" : "circle")
+                        .font(.caption2)
+                        .foregroundColor(isFalse(studentAnswer) ? .blue : .gray)
+                    Text("F")
+                        .font(.caption2)
+                }
+            }
+            .padding(.leading, 8)
+        }
+    }
+
+    // MARK: - Generic (Subquestion)
+
+    @ViewBuilder
+    private func renderSubquestionGeneric(questionText: String, studentAnswer: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(questionText)
+                .font(.caption)
+                .foregroundColor(.primary)
+
+            if !studentAnswer.isEmpty {
+                Text(String(format: NSLocalizedString("proMode.subquestionAnswer", comment: "Answer: X"), studentAnswer))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Helper Functions (Shared with QuestionCard)
+
+    private func parseMultipleChoiceQuestion(_ questionText: String) -> (stem: String, options: [(letter: String, text: String)]) {
+        var stem = questionText
+        var options: [(letter: String, text: String)] = []
+
+        let pattern = "([A-D])[).]\\s*([^\\n]+)"
+
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            let nsString = questionText as NSString
+            let matches = regex.matches(in: questionText, options: [], range: NSRange(location: 0, length: nsString.length))
+
+            if !matches.isEmpty {
+                if let firstMatch = matches.first {
+                    stem = nsString.substring(to: firstMatch.range.location).trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+
+                for match in matches {
+                    if match.numberOfRanges >= 3 {
+                        let letter = nsString.substring(with: match.range(at: 1))
+                        let text = nsString.substring(with: match.range(at: 2)).trimmingCharacters(in: .whitespacesAndNewlines)
+                        options.append((letter: letter, text: text))
+                    }
+                }
+            }
+        }
+
+        if options.isEmpty {
+            stem = questionText
+        }
+
+        return (stem: stem, options: options)
+    }
+
+    private func isStudentChoice(_ letter: String, answer: String) -> Bool {
+        let normalizedAnswer = answer.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        return normalizedAnswer.contains(letter.uppercased())
+    }
+
+    private func isTrue(_ answer: String) -> Bool {
+        let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized == "true" || normalized == "t" || normalized == "yes" || normalized == "y"
+    }
+
+    private func isFalse(_ answer: String) -> Bool {
+        let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized == "false" || normalized == "f" || normalized == "no" || normalized == "n"
     }
 }
 

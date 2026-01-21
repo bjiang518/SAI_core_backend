@@ -99,9 +99,9 @@ struct FocusView: View {
         .sheet(isPresented: $showCalendar) {
             PomodoroCalendarView()
         }
-        .alert("深度专注模式", isPresented: $showDeepFocusInfo) {
-            Button("知道了", role: .cancel) {}
-            Button("查看设置指南") {
+        .alert(NSLocalizedString("pomodoro.deepFocusAlertTitle", comment: ""), isPresented: $showDeepFocusInfo) {
+            Button(NSLocalizedString("pomodoro.gotIt", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("pomodoro.viewSetupGuide", comment: "")) {
                 // 显示系统设置指南
             }
         } message: {
@@ -140,7 +140,7 @@ struct FocusView: View {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: 12))
                         .foregroundColor(.green)
-                    Text("省电")
+                    Text(NSLocalizedString("pomodoro.powerSaving", comment: ""))
                         .font(.caption2)
                         .foregroundColor(.green)
                 }

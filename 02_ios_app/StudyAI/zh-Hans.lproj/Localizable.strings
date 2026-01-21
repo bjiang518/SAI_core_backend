@@ -1356,6 +1356,10 @@
 "pomodoro.deepFocusReady" = "深度专注模式已准备就绪";
 "pomodoro.deepFocusActive" = "深度专注模式已启用";
 "pomodoro.deepFocusStatus" = "已优化专注环境 · 全面保护中";
+"pomodoro.deepFocusAlertTitle" = "深度专注模式";
+"pomodoro.gotIt" = "知道了";
+"pomodoro.viewSetupGuide" = "查看设置指南";
+"pomodoro.powerSaving" = "省电";
 
 // Pro Mode - Digital Homework
 "proMode.title" = "数字作业本";
