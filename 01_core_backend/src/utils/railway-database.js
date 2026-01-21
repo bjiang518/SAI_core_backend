@@ -4424,6 +4424,81 @@ async function createInlineSchema() {
     CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_parent_report_id ON parent_report_narratives(parent_report_id);
     CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_generated_at ON parent_report_narratives(generated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_tone_language ON parent_report_narratives(tone_style, language);
+
+    -- PASSIVE REPORTS SCHEMA (Scheduled Weekly/Monthly Reports)
+    -- Added for automated parent report generation system
+    CREATE TABLE IF NOT EXISTS parent_report_batches (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL,
+        period VARCHAR(20) NOT NULL, -- 'weekly' | 'monthly'
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+        generated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        status VARCHAR(20) DEFAULT 'completed', -- 'pending' | 'processing' | 'completed' | 'failed'
+        generation_time_ms INTEGER,
+
+        -- Quick metrics for card display
+        overall_grade VARCHAR(2), -- 'A+', 'B', etc.
+        overall_accuracy FLOAT,
+        question_count INTEGER,
+        study_time_minutes INTEGER,
+        current_streak INTEGER,
+
+        -- Trends
+        accuracy_trend VARCHAR(20), -- 'improving' | 'stable' | 'declining'
+        activity_trend VARCHAR(20), -- 'increasing' | 'stable' | 'decreasing'
+
+        -- Summary text
+        one_line_summary TEXT,
+
+        -- Metadata
+        metadata JSONB,
+
+        CONSTRAINT unique_user_period_date UNIQUE (user_id, period, start_date)
+    );
+
+    -- Indexes for efficient querying
+    CREATE INDEX IF NOT EXISTS idx_report_batches_user_date ON parent_report_batches(user_id, start_date DESC);
+    CREATE INDEX IF NOT EXISTS idx_report_batches_status ON parent_report_batches(status) WHERE status != 'completed';
+    CREATE INDEX IF NOT EXISTS idx_report_batches_generated ON parent_report_batches(generated_at DESC);
+
+    -- Individual reports within a batch
+    CREATE TABLE IF NOT EXISTS passive_reports (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        batch_id UUID NOT NULL REFERENCES parent_report_batches(id) ON DELETE CASCADE,
+        report_type VARCHAR(50) NOT NULL, -- 'academic_performance', 'learning_behavior', etc.
+
+        -- Report content
+        narrative_content TEXT NOT NULL,
+        key_insights JSONB, -- Array of insight objects
+        recommendations JSONB, -- Array of recommendation objects
+        visual_data JSONB, -- Chart data for rendering
+
+        -- Metadata
+        word_count INTEGER,
+        generation_time_ms INTEGER,
+        ai_model_used VARCHAR(50) DEFAULT 'gpt-4o-mini',
+
+        generated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+        CONSTRAINT unique_batch_type UNIQUE (batch_id, report_type)
+    );
+
+    -- Indexes for passive_reports
+    CREATE INDEX IF NOT EXISTS idx_passive_reports_batch ON passive_reports(batch_id);
+    CREATE INDEX IF NOT EXISTS idx_passive_reports_type ON passive_reports(report_type);
+
+    -- User notification preferences for reports
+    CREATE TABLE IF NOT EXISTS report_notification_preferences (
+        user_id UUID PRIMARY KEY,
+        weekly_reports_enabled BOOLEAN DEFAULT true,
+        monthly_reports_enabled BOOLEAN DEFAULT true,
+        push_notifications_enabled BOOLEAN DEFAULT true,
+        email_digest_enabled BOOLEAN DEFAULT false,
+        email_address VARCHAR(255),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
   `;
 
   await db.query(schema);
