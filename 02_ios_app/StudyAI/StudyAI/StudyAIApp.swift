@@ -42,9 +42,17 @@ struct StudyAIApp: App {
     }
 
     private func setupLanguage() {
-        // Apply the selected language preference
-        UserDefaults.standard.set([appLanguage], forKey: "AppleLanguages")
+        // ✅ FIX: Read the persisted language preference and apply it
+        // This ensures the language is loaded fresh from UserDefaults on every app launch
+        let savedLanguage = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
+
+        print("🌐 [Language] Loading language preference: \(savedLanguage)")
+
+        // Apply the selected language preference to system
+        UserDefaults.standard.set([savedLanguage], forKey: "AppleLanguages")
         UserDefaults.standard.synchronize()
+
+        print("🌐 [Language] Language applied successfully")
     }
 
     private func setupGoogleSignIn() {

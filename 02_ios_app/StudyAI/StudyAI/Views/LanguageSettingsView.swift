@@ -20,6 +20,12 @@ struct LanguageSettingsView: View {
                         Button(action: {
                             if selectedLanguage != language.code {
                                 selectedLanguage = language.code
+
+                                // ✅ FIX: Force immediate synchronization to UserDefaults
+                                UserDefaults.standard.set(language.code, forKey: "appLanguage")
+                                UserDefaults.standard.set([language.code], forKey: "AppleLanguages")
+                                UserDefaults.standard.synchronize()
+
                                 showRestartAlert = true
                             }
                         }) {
