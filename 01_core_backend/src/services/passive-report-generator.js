@@ -169,9 +169,13 @@ class PassiveReportGenerator {
 
     /**
      * Aggregate data from database for a user and date range
+     * Enhanced to collect richer insights for comprehensive reports
      */
     async aggregateDataFromDatabase(userId, startDate, endDate) {
-        // Query questions
+        logger.info(`📊 Aggregating data for user ${userId.substring(0, 8)}...`);
+        logger.info(`   Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+
+        // Query questions with all fields
         const questionsQuery = `
             SELECT * FROM questions
             WHERE user_id = $1
@@ -179,8 +183,17 @@ class PassiveReportGenerator {
             ORDER BY archived_at DESC
         `;
         const questionsResult = await db.query(questionsQuery, [userId, startDate, endDate]);
+        logger.info(`   ✅ Questions found: ${questionsResult.rows.length}`);
 
-        // Query conversations
+        // DEBUG: Check if ANY questions exist for this user (without date filter)
+        if (questionsResult.rows.length === 0) {
+            const anyQuestionsQuery = `SELECT COUNT(*) as total, MIN(archived_at) as earliest, MAX(archived_at) as latest FROM questions WHERE user_id = $1`;
+            const anyQuestionsResult = await db.query(anyQuestionsQuery, [userId]);
+            const total = anyQuestionsResult.rows[0]?.total || 0;
+            logger.warn(`   ⚠️ No questions in date range! Total for user: ${total}`);
+        }
+
+        // Query conversations with content analysis
         const conversationsQuery = `
             SELECT * FROM archived_conversations_new
             WHERE user_id = $1
@@ -188,6 +201,7 @@ class PassiveReportGenerator {
             ORDER BY archived_date DESC
         `;
         const conversationsResult = await db.query(conversationsQuery, [userId, startDate, endDate]);
+        logger.info(`   ✅ Conversations found: ${conversationsResult.rows.length}`);
 
         const questions = questionsResult.rows;
         const conversations = conversationsResult.rows;
@@ -200,6 +214,13 @@ class PassiveReportGenerator {
         const mistakes = this.analyzeMistakePatterns(questions);
         const streakInfo = await this.calculateStreakInfo(userId);
 
+        // NEW: Enhanced insights
+        const questionAnalysis = this.analyzeQuestionTypes(questions);
+        const conversationAnalysis = this.analyzeConversationPatterns(conversations);
+        const emotionalIndicators = this.detectEmotionalPatterns(conversations, questions);
+
+        logger.info(`📊 Aggregation complete with enhanced insights`);
+
         return {
             questions,
             conversations,
@@ -208,7 +229,10 @@ class PassiveReportGenerator {
             subjects,
             progress,
             mistakes,
-            streakInfo
+            streakInfo,
+            questionAnalysis,
+            conversationAnalysis,
+            emotionalIndicators
         };
     }
 
@@ -707,6 +731,148 @@ Your next ${data.questions.length >= 30 ? 'weekly' : 'monthly'} report will be g
         });
 
         return strongest.name;
+    }
+
+    // ===== NEW: ENHANCED ANALYSIS METHODS =====
+
+    /**
+     * Analyze question types and difficulty distribution
+     */
+    analyzeQuestionTypes(questions) {
+        const analysis = {
+            by_type: {},
+            by_difficulty: {},
+            mistake_by_type: {},
+            total_questions: questions.length
+        };
+
+        questions.forEach(q => {
+            // Detect question type from fields
+            const type = q.has_visual_elements ? 'homework_image' : 'text_question';
+
+            if (!analysis.by_type[type]) {
+                analysis.by_type[type] = { count: 0, correct: 0, incorrect: 0 };
+                analysis.mistake_by_type[type] = 0;
+            }
+
+            analysis.by_type[type].count++;
+            if (q.grade === 'CORRECT' || q.is_correct) {
+                analysis.by_type[type].correct++;
+            } else if (q.grade === 'INCORRECT') {
+                analysis.by_type[type].incorrect++;
+                analysis.mistake_by_type[type]++;
+            }
+        });
+
+        // Calculate accuracy by type
+        Object.keys(analysis.by_type).forEach(type => {
+            const metrics = analysis.by_type[type];
+            metrics.accuracy = metrics.count > 0 ? (metrics.correct / metrics.count * 100).toFixed(1) : 0;
+        });
+
+        return analysis;
+    }
+
+    /**
+     * Analyze conversation patterns and engagement
+     */
+    analyzeConversationPatterns(conversations) {
+        if (conversations.length === 0) {
+            return {
+                total_conversations: 0,
+                avg_conversation_length: 0,
+                curiosity_indicators: 0,
+                avg_depth: 0
+            };
+        }
+
+        let totalTurns = 0;
+        let curiosityCount = 0;
+
+        conversations.forEach(conv => {
+            const content = conv.conversation_content || '';
+
+            // Count conversation turns (rough estimate)
+            const turns = content.split(/Q:|A:|Question:|Answer:/).length;
+            totalTurns += turns;
+
+            // Detect curiosity indicators
+            if (/why|how|what if|curious|wondering/i.test(content)) {
+                curiosityCount++;
+            }
+        });
+
+        return {
+            total_conversations: conversations.length,
+            avg_conversation_depth: (totalTurns / conversations.length).toFixed(1),
+            curiosity_indicators: curiosityCount,
+            curiosity_ratio: (curiosityCount / conversations.length * 100).toFixed(1),
+            avg_depth_turns: Math.round(totalTurns / conversations.length)
+        };
+    }
+
+    /**
+     * Detect emotional patterns from conversation and behavior
+     */
+    detectEmotionalPatterns(conversations, questions) {
+        const indicators = {
+            frustration_index: 0,
+            engagement_level: 0,
+            confidence_level: 0,
+            burnout_risk: 0,
+            mental_health_score: 0
+        };
+
+        // Frustration detection
+        let frustrationMarkers = 0;
+        conversations.forEach(conv => {
+            const content = (conv.conversation_content || '').toLowerCase();
+            if (/don't understand|confused|stuck|difficult|struggle|hard/i.test(content)) {
+                frustrationMarkers++;
+            }
+            if (/again\?|once more|retry/i.test(content)) {
+                frustrationMarkers++;
+            }
+        });
+        indicators.frustration_index = Math.min(1, frustrationMarkers / Math.max(1, conversations.length) * 0.5);
+
+        // Engagement level (based on conversation frequency and question volume)
+        const totalInteractions = conversations.length + questions.length;
+        indicators.engagement_level = Math.min(1, totalInteractions / 50); // 50 is reference point
+
+        // Confidence level (based on correct answers and quick responses)
+        let correctCount = 0;
+        questions.forEach(q => {
+            if (q.grade === 'CORRECT' || q.is_correct) {
+                correctCount++;
+            }
+        });
+        const overallAccuracy = questions.length > 0 ? correctCount / questions.length : 0;
+        indicators.confidence_level = overallAccuracy;
+
+        // Burnout risk (declining pattern)
+        if (questions.length >= 5) {
+            const firstHalf = questions.slice(0, Math.floor(questions.length / 2));
+            const secondHalf = questions.slice(Math.floor(questions.length / 2));
+
+            const firstAccuracy = firstHalf.filter(q => q.is_correct || q.grade === 'CORRECT').length / firstHalf.length;
+            const secondAccuracy = secondHalf.filter(q => q.is_correct || q.grade === 'CORRECT').length / secondHalf.length;
+
+            // If accuracy declining and fewer questions in second half
+            if (secondAccuracy < firstAccuracy - 0.1 && secondHalf.length < firstHalf.length * 0.8) {
+                indicators.burnout_risk = Math.min(1, 0.3);
+            }
+        }
+
+        // Mental health score (composite: high engagement, confidence, low frustration, no burnout)
+        indicators.mental_health_score = (
+            (indicators.engagement_level * 0.3) +
+            (indicators.confidence_level * 0.4) +
+            ((1 - indicators.frustration_index) * 0.2) +
+            ((1 - indicators.burnout_risk) * 0.1)
+        ).toFixed(2);
+
+        return indicators;
     }
 }
 

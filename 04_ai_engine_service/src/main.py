@@ -882,6 +882,7 @@ class GradeSingleQuestionRequest(BaseModel):
     student_answer: str
     correct_answer: Optional[str] = None  # Optional - AI will determine if not provided
     subject: Optional[str] = None  # For subject-specific grading rules
+    question_type: Optional[str] = None  # NEW: Question type for type-specific grading (multiple_choice, fill_blank, calculation, etc.)
     context_image_base64: Optional[str] = None  # Optional image if question needs visual context
     parent_question_content: Optional[str] = None  # NEW: Parent question context for subquestions
     model_provider: Optional[str] = "openai"  # "openai" or "gemini"
@@ -1236,6 +1237,7 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
             student_answer=request.student_answer,
             correct_answer=request.correct_answer,
             subject=request.subject,
+            question_type=request.question_type,  # NEW: Pass question type for specialized grading
             context_image=request.context_image_base64,
             parent_content=request.parent_question_content,  # NEW: Pass parent question context
             use_deep_reasoning=request.use_deep_reasoning  # Pass deep reasoning flag

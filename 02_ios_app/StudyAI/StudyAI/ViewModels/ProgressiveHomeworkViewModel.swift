@@ -607,6 +607,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                     questionText: question.displayText,
                     studentAnswer: question.displayStudentAnswer,
                     subject: state.subject,
+                    questionType: question.questionType,  // Pass question type for specialized grading
                     contextImageBase64: contextImage
                 )
 
@@ -655,6 +656,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                 questionText: subquestion.questionText,
                 studentAnswer: subquestion.studentAnswer,
                 subject: state.subject,
+                questionType: subquestion.questionType,  // Pass question type for specialized grading
                 contextImageBase64: contextImage
             )
 

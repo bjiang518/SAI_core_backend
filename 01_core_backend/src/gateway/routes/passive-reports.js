@@ -71,12 +71,42 @@ module.exports = async function (fastify, opts) {
 
       logger.info(`   Date range: ${dateRange.startDate.toISOString().split('T')[0]} - ${dateRange.endDate.toISOString().split('T')[0]}`);
 
+      // DEBUG: Check if questions exist for user
+      const { db } = require('../../utils/railway-database');
+      const countQuery = `
+        SELECT
+          COUNT(*) as question_count,
+          COUNT(DISTINCT subject) as subject_count,
+          MIN(archived_at) as earliest_date,
+          MAX(archived_at) as latest_date
+        FROM questions
+        WHERE user_id = $1
+      `;
+      const countResult = await db.query(countQuery, [userId]);
+      const stats = countResult.rows[0];
+      logger.info(`📊 [DEBUG] Database check for user ${userId.substring(0, 8)}...`);
+      logger.info(`   Total questions in DB: ${stats.question_count}`);
+      logger.info(`   Subjects in DB: ${stats.subject_count}`);
+      logger.info(`   Date range in DB: ${stats.earliest_date} to ${stats.latest_date}`);
+
+      // DEBUG: Check conversations
+      const convCountQuery = `
+        SELECT COUNT(*) as conversation_count FROM archived_conversations_new WHERE user_id = $1
+      `;
+      const convResult = await db.query(convCountQuery, [userId]);
+      logger.info(`   Total conversations in DB: ${convResult.rows[0].conversation_count}`);
+
       // Generate reports
+      logger.info(`🚀 [DEBUG] Starting report generation...`);
       const result = await reportGenerator.generateAllReports(userId, period, dateRange);
 
       const duration = Date.now() - startTime;
 
       if (result) {
+        logger.info(`✅ [TESTING] Report generation SUCCESS`);
+        logger.info(`   Batch ID: ${result.id}`);
+        logger.info(`   Reports: ${result.report_count}`);
+        logger.info(`   Time: ${result.generation_time_ms}ms`);
         return reply.send({
           success: true,
           message: 'Reports generated successfully',
@@ -90,15 +120,25 @@ module.exports = async function (fastify, opts) {
           }
         });
       } else {
+        logger.warn(`⚠️ [TESTING] Report generation FAILED - No data available`);
+        logger.warn(`   This means PassiveReportGenerator found 0 questions in the database`);
+        logger.warn(`   Check database manually: SELECT COUNT(*) FROM questions WHERE user_id = '${userId}'`);
         return reply.status(400).send({
           success: false,
           error: 'No data available for report generation',
-          code: 'INSUFFICIENT_DATA'
+          code: 'INSUFFICIENT_DATA',
+          debug: {
+            questions_in_db: stats.question_count,
+            conversations_in_db: convResult.rows[0].conversation_count,
+            date_range_start: dateRange.startDate.toISOString(),
+            date_range_end: dateRange.endDate.toISOString()
+          }
         });
       }
 
     } catch (error) {
       logger.error('❌ Manual report generation failed:', error);
+      logger.error(`   Error stack: ${error.stack}`);
       return reply.status(500).send({
         success: false,
         error: 'Failed to generate reports',
@@ -148,6 +188,21 @@ module.exports = async function (fastify, opts) {
 
       const { db } = require('../../utils/railway-database');
 
+      // DEBUG: Check total batches in database
+      const totalBatchQuery = `SELECT COUNT(*) as total FROM parent_report_batches WHERE user_id = $1`;
+      const totalBatchResult = await db.query(totalBatchQuery, [userId]);
+      const totalBatches = totalBatchResult.rows[0]?.total || 0;
+      logger.info(`📊 [DEBUG] Total batches in DB for user: ${totalBatches}`);
+
+      if (totalBatches === 0) {
+        logger.warn(`⚠️ [DEBUG] No batches found for user ${userId.substring(0, 8)}...`);
+        logger.warn(`   This likely means report generation hasn't been called or failed`);
+        // Check if there are ANY batches in the database at all
+        const anyBatchQuery = `SELECT COUNT(*) as total FROM parent_report_batches`;
+        const anyBatchResult = await db.query(anyBatchQuery);
+        logger.warn(`   Total batches in entire DB: ${anyBatchResult.rows[0]?.total || 0}`);
+      }
+
       // Build query with optional period filter
       let query = `
         SELECT
@@ -188,8 +243,13 @@ module.exports = async function (fastify, opts) {
       query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       queryParams.push(limit, offset);
 
+      logger.info(`📊 [DEBUG] Query: ${query.substring(0, 100)}...`);
+      logger.info(`📊 [DEBUG] Query params: [${queryParams[0].substring(0, 8)}..., ${queryParams.slice(1).join(', ')}]`);
+
       // Execute query
       const result = await db.query(query, queryParams);
+
+      logger.info(`✅ [DEBUG] Query returned ${result.rows.length} batches`);
 
       // Get total count for pagination
       let countQuery = `
@@ -234,6 +294,10 @@ module.exports = async function (fastify, opts) {
           limit: limit,
           offset: offset,
           has_more: offset + result.rows.length < totalCount
+        },
+        _debug: {
+          total_batches_in_db: totalBatches,
+          returned_count: result.rows.length
         }
       });
 

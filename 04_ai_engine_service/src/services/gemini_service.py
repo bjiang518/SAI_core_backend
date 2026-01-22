@@ -250,6 +250,7 @@ class GeminiEducationalAIService:
         student_answer: str,
         correct_answer: Optional[str] = None,
         subject: Optional[str] = None,
+        question_type: Optional[str] = None,  # NEW: Question type for specialized grading
         context_image: Optional[str] = None,
         parent_content: Optional[str] = None,  # NEW: Parent question context
         use_deep_reasoning: bool = False
@@ -304,6 +305,7 @@ class GeminiEducationalAIService:
         logger.debug(f"📝 === GRADING WITH GEMINI ({mode_label}) ===")
         logger.debug(f"🤖 Model: {model_name}")
         logger.debug(f"📚 Subject: {subject or 'General'}")
+        logger.debug(f"📝 Question Type: {question_type or 'unknown'}")
         logger.debug(f"❓ Question: {question_text[:50]}...")
 
         # PRE-VALIDATION: Check for exact match before calling AI
@@ -334,6 +336,7 @@ class GeminiEducationalAIService:
                 student_answer=student_answer,
                 correct_answer=correct_answer,
                 subject=subject,
+                question_type=question_type,  # NEW: Pass question type for specialized grading
                 parent_content=parent_content,  # NEW: Pass parent context
                 use_deep_reasoning=use_deep_reasoning,
                 has_context_image=bool(context_image)
@@ -613,6 +616,16 @@ JSON SCHEMA
   ]
 }}
 
+================================================================================
+🌐 LANGUAGE PRESERVATION (CRITICAL)
+================================================================================
+⚠️ PRESERVE the original language of the homework in ALL text fields:
+- If homework is in Chinese (Simplified/Traditional) → question_text, student_answer, parent_content MUST be in Chinese
+- If homework is in English → question_text, student_answer, parent_content MUST be in English
+- DO NOT translate or change the language
+- Extract text exactly as it appears in the image
+- Keep mathematical symbols, LaTeX, and numbers unchanged
+
 FIELD RULES:
 - id: ALWAYS string ("1", "2", "1a", "1b")
 - Regular questions: MUST have question_text, student_answer, question_type
@@ -740,126 +753,30 @@ OUTPUT CHECKLIST
         student_answer: str,
         correct_answer: Optional[str],
         subject: Optional[str],
+        question_type: Optional[str],  # NEW: Question type for specialized prompts
         parent_content: Optional[str],  # NEW: Parent question context
         use_deep_reasoning: bool = False,
         has_context_image: bool = False
     ) -> str:
-        """Build grading prompt with optional parent question context, deep reasoning mode, and image context awareness."""
+        """
+        Build grading prompt using specialized type × subject instructions.
 
-        # Image-aware instructions to add when context image is provided
-        image_instructions = ""
-        if has_context_image:
-            image_instructions = """
+        Uses the new grading_prompts module for specialized instructions based on
+        question type and subject combinations (91 total combinations).
+        """
+        from src.services.grading_prompts import build_complete_grading_prompt
 
-IMPORTANT - IMAGE CONTEXT PROVIDED:
-An image of the student's work is attached. This image may contain:
-- Handwritten calculations and work shown
-- Student edits, corrections, or annotations
-- Diagrams, graphs, or visual solutions
-- Additional work not captured in the text above
-
-YOU MUST:
-1. Carefully examine the image for student handwriting and edits
-2. Give priority to handwritten work visible in the image
-3. The student's handwritten answer may differ from the typed text
-4. Grade based on what you see in the image AND the text combined
-5. If there's a discrepancy, trust the visual evidence in the image
-"""
-
-        # Parent question context instructions (for subquestions)
-        parent_instructions = ""
-        if parent_content:
-            parent_instructions = f"""
-
-IMPORTANT - PARENT QUESTION CONTEXT PROVIDED:
-This is a subquestion that belongs to a larger multi-part question.
-
-Parent Question:
-{parent_content}
-
-The subquestion you are grading is part of this larger question. Consider:
-1. The parent question provides important context, setup, or definitions
-2. The student may refer to concepts introduced in the parent question
-3. Grade the subquestion within the context of the parent question
-4. The parent question's instructions apply to this subquestion
-"""
-
-        if use_deep_reasoning:
-            # GEMINI 3 OPTIMIZED: Simplified prompt for advanced reasoning
-            # Gemini 3 docs: "Be concise. It responds best to direct, clear instructions.
-            # It may over-analyze verbose or overly complex prompt engineering."
-            return f"""Grade this student's answer with deep reasoning.
-
-Question: {question_text}
-Student Answer: {student_answer}
-{f'Expected Answer: {correct_answer}' if correct_answer else 'Expected Answer: Determine from question'}
-Subject: {subject or 'General'}
-{parent_instructions}
-{image_instructions}
-
-Task:
-1. Solve the problem yourself to determine the correct approach
-2. Compare the student's answer to your solution
-3. Identify specific errors (if any)
-4. Provide actionable feedback using:
-   ✓ = correct parts
-   ✗ = errors found
-   → = concrete next step to fix it
-
-Return JSON:
-{{
-  "score": 0.95,
-  "is_correct": true,
-  "feedback": "✓ Correct formula. ✗ Unit error: forgot to convert minutes to hours. → Action: Convert 20 min = 1/3 hour, then recalculate.",
-  "confidence": 0.95,
-  "ai_solution_steps": "Step 1: Formula v=d/t. Step 2: Convert units: 20min = 1/3hr. Step 3: Calculate: v=100/(1/3) = 300 km/h.",
-  "student_errors": ["Did not convert time units", "Used minutes directly with km"],
-  "correct_answer": "300 km/h"
-}}
-
-Scoring: 1.0=fully correct, 0.7-0.9=minor errors, 0.5-0.7=partial, 0.0-0.5=incorrect
-Rules: is_correct=(score>=0.9), feedback 50-100 words, correct_answer always required
-
-Return valid JSON only."""
-
-        else:
-            # Standard mode: Quick concise grading with minimal feedback
-            # OPTIMIZATION: Reduced feedback from <30 words to <15 words for faster response
-            return f"""Grade this student answer. Return JSON only.
-
-Question: {question_text}
-
-Student's Answer: {student_answer}
-
-{f'Expected Answer: {correct_answer}' if correct_answer else ''}
-
-Subject: {subject or 'General'}
-{parent_instructions}
-{image_instructions}
-Return JSON in this exact format:
-{{
-  "score": 0.95,
-  "is_correct": true,
-  "feedback": "Correct! Good work.",
-  "confidence": 0.95,
-  "correct_answer": "REQUIRED: What is the correct/expected answer?"
-}}
-
-CRITICAL: The "correct_answer" field is REQUIRED and must ALWAYS be included.
-If expected answer not provided above, YOU MUST determine it from the question.
-
-GRADING SCALE:
-- score = 1.0: Completely correct
-- score = 0.7-0.9: Minor errors (missing units, small mistake)
-- score = 0.5-0.7: Partial understanding, significant errors
-- score = 0.0-0.5: Incorrect or empty
-
-RULES:
-1. is_correct = (score >= 0.9)
-2. Feedback must be VERY brief (<15 words, ideally 5-10 words)
-3. If incorrect, state ONE key error only
-4. correct_answer must be the expected/correct answer for this question
-5. Return ONLY valid JSON, no markdown or extra text"""
+        # Use the new prompt builder with type × subject specialization
+        return build_complete_grading_prompt(
+            question_type=question_type,
+            subject=subject,
+            question_text=question_text,
+            student_answer=student_answer,
+            correct_answer=correct_answer,
+            parent_content=parent_content,
+            has_context_image=has_context_image,
+            use_deep_reasoning=use_deep_reasoning
+        )
 
     def _normalize_answer(self, answer: str) -> str:
         """

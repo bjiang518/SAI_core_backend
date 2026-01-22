@@ -196,6 +196,36 @@ class ArchiveRoutes {
       }
     }, this.archiveQuestions.bind(this));
 
+    // Archive a single question (for iOS storage sync)
+    this.fastify.post('/api/archived-questions/sync', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Archive a single question from iOS storage sync',
+        tags: ['Archived Questions'],
+        body: {
+          type: 'object',
+          required: ['subject', 'grade', 'isCorrect'],
+          properties: {
+            subject: { type: 'string' },
+            questionText: { type: 'string' },
+            rawQuestionText: { type: 'string' },
+            answerText: { type: 'string' },
+            studentAnswer: { type: 'string' },
+            confidence: { type: 'number' },
+            hasVisualElements: { type: 'boolean' },
+            tags: { type: 'array', items: { type: 'string' } },
+            notes: { type: 'string' },
+            grade: { type: 'string' },
+            points: { type: 'number' },
+            maxPoints: { type: 'number' },
+            feedback: { type: 'string' },
+            isCorrect: { type: 'boolean' },
+            archivedAt: { type: 'string' }
+          }
+        }
+      }
+    }, this.archiveQuestionSync.bind(this));
+
     // Get user's archived questions with pagination and filtering
     this.fastify.get('/api/archived-questions', {
       preHandler: authPreHandler,
@@ -810,6 +840,82 @@ class ArchiveRoutes {
       return reply.status(500).send({
         success: false,
         error: 'Failed to archive questions',
+        message: error.message
+      });
+    }
+  }
+
+  // Archive a single question from iOS storage sync
+  async archiveQuestionSync(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+      const {
+        subject,
+        questionText = '',
+        rawQuestionText = '',
+        answerText = '',
+        studentAnswer = '',
+        confidence = 0,
+        hasVisualElements = false,
+        tags = [],
+        notes = '',
+        grade = 'EMPTY',
+        points = 0,
+        maxPoints = 1,
+        feedback = '',
+        isCorrect = false,
+        archivedAt = new Date().toISOString()
+      } = request.body;
+
+      this.fastify.log.info(`📝 [Sync] Archiving single question for user: ${PIIMasking.maskUserId(userId)}, subject: ${subject}, grade: ${grade}`);
+
+      // Insert into database
+      const query = `
+        INSERT INTO questions (
+          user_id, subject, question_text, raw_question_text, answer_text, confidence, has_visual_elements,
+          tags, notes, student_answer, grade, points, max_points, feedback, is_correct, archived_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        RETURNING id, subject, question_text, grade, is_correct, archived_at
+      `;
+
+      const values = [
+        userId,
+        subject,
+        questionText,
+        rawQuestionText || questionText,
+        answerText,
+        confidence,
+        hasVisualElements,
+        tags,  // Keep as array - PostgreSQL JSONB will handle it
+        notes,
+        studentAnswer,
+        grade.toUpperCase(),
+        points,
+        maxPoints,
+        feedback,
+        isCorrect,
+        archivedAt
+      ];
+
+      const result = await db.query(query, values);
+      const archivedQuestion = result.rows[0];
+
+      this.fastify.log.info(`✅ [Sync] Question archived successfully (ID: ${archivedQuestion.id})`);
+
+      return reply.status(201).send({
+        success: true,
+        message: 'Question archived successfully',
+        id: archivedQuestion.id,
+        subject: archivedQuestion.subject,
+        grade: archivedQuestion.grade,
+        isCorrect: archivedQuestion.is_correct,
+        archivedAt: archivedQuestion.archived_at
+      });
+    } catch (error) {
+      this.fastify.log.error('❌ [Sync] Error archiving question:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to archive question',
         message: error.message
       });
     }

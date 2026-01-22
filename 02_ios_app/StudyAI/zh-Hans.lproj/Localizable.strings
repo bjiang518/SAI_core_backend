@@ -191,6 +191,16 @@
 "aiHomework.selectOneImageMessage" = "请一次只选择1张图片进行编辑。";
 "aiHomework.selectSubject" = "选择科目";
 "aiHomework.parsingMode.title" = "解析模式";
+"aiHomework.parsingMode.progressive" = "专业";
+"aiHomework.parsingMode.hierarchical" = "详细";
+"aiHomework.parsingMode.baseline" = "快速";
+"aiHomework.parsingMode.progressive.description" = "智能数字作业本，按需评分。灵活且互动。";
+"aiHomework.parsingMode.hierarchical.description" = "准确解析题目及子题关系。最适合结构化作业。";
+"aiHomework.parsingMode.baseline.description" = "快速解析，平面题目结构。适合简单作业。";
+"aiHomework.subject" = "科目";
+"aiHomework.model" = "模型";
+"aiHomework.mode" = "模式";
+"aiHomework.digitalHomework" = "AI数字作业本";
 "aiHomework.scannedDocument.single" = "已扫描文档";
 "aiHomework.scannedDocument.multiple" = "已扫描多个文档";
 "aiHomework.results.complete" = "分析完成！";

@@ -2647,7 +2647,7 @@ async function runDatabaseMigrations() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
-    
+
     // Add missing columns if they don't exist
     try {
       await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS archived_date DATE DEFAULT CURRENT_DATE');
@@ -2655,7 +2655,99 @@ async function runDatabaseMigrations() {
     } catch (error) {
       logger.debug(`⚠️ Could not add archived_date to questions: ${error.message}`);
     }
-    
+
+    // Add columns needed for passive reports system
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS raw_question_text TEXT');
+      logger.debug('✅ Added raw_question_text column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add raw_question_text to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS answer_text TEXT');
+      logger.debug('✅ Added answer_text column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add answer_text to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS student_answer TEXT');
+      logger.debug('✅ Added student_answer column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add student_answer to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS grade VARCHAR(50)');
+      logger.debug('✅ Added grade column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add grade to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS points FLOAT DEFAULT 0');
+      logger.debug('✅ Added points column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add points to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS max_points FLOAT DEFAULT 1');
+      logger.debug('✅ Added max_points column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add max_points to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS feedback TEXT');
+      logger.debug('✅ Added feedback column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add feedback to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS is_correct BOOLEAN DEFAULT false');
+      logger.debug('✅ Added is_correct column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add is_correct to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS confidence FLOAT DEFAULT 0');
+      logger.debug('✅ Added confidence column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add confidence to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS has_visual_elements BOOLEAN DEFAULT false');
+      logger.debug('✅ Added has_visual_elements column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add has_visual_elements to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS tags JSONB');
+      logger.debug('✅ Added tags column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add tags to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS notes TEXT');
+      logger.debug('✅ Added notes column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add notes to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()');
+      logger.debug('✅ Added archived_at column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add archived_at to questions: ${error.message}`);
+    }
+
     try {
       await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS archived_date DATE DEFAULT CURRENT_DATE');
       logger.debug('✅ Added archived_date column to archived_conversations_new table');
