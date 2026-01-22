@@ -46,7 +46,7 @@ class ReportNarrativeService {
             // Store narrative in database
             const storedNarrative = await this.storeNarrative(parentReportId, narrativeData, {
                 generationTimeMs: Date.now() - startTime,
-                aiModelVersion: aiResult.modelVersion || 'claude-3.5-sonnet'
+                aiModelVersion: aiResult.modelVersion || 'gpt-4o'
             });
 
             logger.debug(`✅ Narrative generated successfully in ${Date.now() - startTime}ms`);
