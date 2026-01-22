@@ -1090,12 +1090,11 @@ Your next ${data.questions.length >= 30 ? 'weekly' : 'monthly'} report will be g
         logger.info(`📊 Aggregating data with student context for ${userId.substring(0, 8)}...`);
 
         try {
-            // Fetch student profile
+            // Fetch student profile (only essential columns that are guaranteed to exist)
             const profileQuery = `
                 SELECT
                     grade_level, date_of_birth, learning_style,
-                    favorite_subjects, difficulty_preference,
-                    school, academic_year, language_preference
+                    favorite_subjects
                 FROM profiles
                 WHERE user_id = $1
             `;
@@ -1147,10 +1146,6 @@ Your next ${data.questions.length >= 30 ? 'weekly' : 'monthly'} report will be g
                     gradeLevel: profile.grade_level,
                     learningStyle: profile.learning_style,
                     favoriteSubjects: profile.favorite_subjects,
-                    difficultyPreference: profile.difficulty_preference,
-                    school: profile.school,
-                    academicYear: profile.academic_year,
-                    languagePreference: profile.language_preference,
                     ageGroupKey
                 },
                 ...aggregatedData,
