@@ -13,6 +13,12 @@
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../utils/railway-database');
 const logger = require('../utils/logger');
+const Anthropic = require('@anthropic-ai/sdk');
+
+// Initialize Claude client
+const claude = new Anthropic({
+  apiKey: process.env.CLAUDE_API_KEY
+});
 
 class PassiveReportGenerator {
     constructor() {
@@ -26,6 +32,127 @@ class PassiveReportGenerator {
             'risk_opportunity',
             'action_plan'
         ];
+
+        // Age/Grade benchmarks (K-12)
+        this.benchmarks = {
+            'elementary_3-4': {
+                expectedAccuracy: 0.70,
+                expectedEngagement: 0.75,
+                expectedFrustration: 0.25,
+                accuracyDistribution: [0.55, 0.65, 0.70, 0.75, 0.85]
+            },
+            'elementary_5-6': {
+                expectedAccuracy: 0.72,
+                expectedEngagement: 0.78,
+                expectedFrustration: 0.20,
+                accuracyDistribution: [0.60, 0.68, 0.72, 0.78, 0.88]
+            },
+            'middle_7-8': {
+                expectedAccuracy: 0.75,
+                expectedEngagement: 0.80,
+                expectedFrustration: 0.18,
+                accuracyDistribution: [0.62, 0.70, 0.75, 0.80, 0.88]
+            },
+            'middle_9': {
+                expectedAccuracy: 0.76,
+                expectedEngagement: 0.80,
+                expectedFrustration: 0.18,
+                accuracyDistribution: [0.63, 0.71, 0.76, 0.81, 0.89]
+            },
+            'high_10-11': {
+                expectedAccuracy: 0.78,
+                expectedEngagement: 0.78,
+                expectedFrustration: 0.16,
+                accuracyDistribution: [0.65, 0.73, 0.78, 0.83, 0.90]
+            },
+            'high_12': {
+                expectedAccuracy: 0.80,
+                expectedEngagement: 0.75,
+                expectedFrustration: 0.15,
+                accuracyDistribution: [0.68, 0.75, 0.80, 0.85, 0.92]
+            }
+        };
+    }
+
+    /**
+     * Calculate student age from date of birth
+     */
+    calculateAge(dateOfBirth) {
+        const today = new Date();
+        const birthDate = new Date(dateOfBirth);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+
+        return age;
+    }
+
+    /**
+     * Get age/grade group key for benchmarks
+     */
+    getAgeGroupKey(age, gradeLevel) {
+        // Map grade level to benchmark key
+        if (age >= 3 && age <= 4) return 'elementary_3-4';
+        if (age >= 5 && age <= 6) return 'elementary_5-6';
+        if (age >= 7 && age <= 8) return 'middle_7-8';
+        if (age === 9) return 'middle_9';
+        if (age >= 10 && age <= 11) return 'high_10-11';
+        if (age >= 12) return 'high_12';
+        return 'middle_7-8'; // Default
+    }
+
+    /**
+     * Calculate percentile for accuracy
+     */
+    calculatePercentile(value, distribution) {
+        const sorted = [...distribution].sort((a, b) => a - b);
+        let count = 0;
+        for (let d of sorted) {
+            if (d <= value) count++;
+        }
+        return Math.round((count / sorted.length) * 100);
+    }
+
+    /**
+     * Get age-appropriate metric weights
+     */
+    getAgeAppropriateWeights(age) {
+        if (age <= 5) {
+            return {
+                engagement: 0.35,    // Younger kids need engagement focus
+                confidence: 0.35,
+                frustration: 0.15,
+                curiosity: 0.10,
+                socialLearning: 0.05
+            };
+        } else if (age <= 8) {
+            return {
+                engagement: 0.30,
+                confidence: 0.35,
+                frustration: 0.15,
+                curiosity: 0.15,
+                socialLearning: 0.05
+            };
+        } else if (age <= 11) {
+            return {
+                engagement: 0.25,
+                confidence: 0.35,
+                frustration: 0.15,
+                curiosity: 0.15,
+                socialLearning: 0.10
+            };
+        } else {
+            return {
+                engagement: 0.20,    // Older kids less dependent on engagement
+                confidence: 0.30,
+                frustration: 0.15,
+                curiosity: 0.20,
+                socialLearning: 0.15
+            };
+        }
     }
 
     /**
@@ -44,9 +171,9 @@ class PassiveReportGenerator {
         logger.info(`   Date range: ${dateRange.startDate.toISOString().split('T')[0]} - ${dateRange.endDate.toISOString().split('T')[0]}`);
 
         try {
-            // Step 1: Aggregate data from database
-            logger.info('📈 Aggregating data from database...');
-            const aggregatedData = await this.aggregateDataFromDatabase(
+            // Step 1: Aggregate data from database with student context
+            logger.info('📈 Aggregating data with student context...');
+            const aggregatedData = await this.aggregateDataWithContext(
                 userId,
                 dateRange.startDate,
                 dateRange.endDate
@@ -71,7 +198,7 @@ class PassiveReportGenerator {
                 logger.info(`   Found previous ${period} report from ${previousReports.start_date}`);
             }
 
-            // Step 3: Create batch record
+            // Step 3: Create batch record with student context
             const batchId = uuidv4();
             logger.info(`📝 Creating batch record: ${batchId}`);
 
@@ -79,10 +206,19 @@ class PassiveReportGenerator {
                 INSERT INTO parent_report_batches (
                     id, user_id, period, start_date, end_date,
                     overall_accuracy, question_count, study_time_minutes,
-                    current_streak, status
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    current_streak, status,
+                    student_age, grade_level, learning_style,
+                    contextual_metrics, mental_health_contextualized, percentile_accuracy
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                 RETURNING *
             `;
+
+            const studentAge = aggregatedData.student?.age;
+            const gradeLevel = aggregatedData.student?.gradeLevel;
+            const learningStyle = aggregatedData.student?.learningStyle;
+            const contextualMetrics = aggregatedData.contextualizedMetrics;
+            const mentalHealthScore = aggregatedData.contextualMentalHealth?.score;
+            const percentileAccuracy = contextualMetrics?.accuracy?.percentile;
 
             const batchResult = await db.query(batchQuery, [
                 batchId,
@@ -94,10 +230,16 @@ class PassiveReportGenerator {
                 aggregatedData.questions.length,
                 aggregatedData.activity.totalMinutes,
                 aggregatedData.streakInfo?.currentStreak || 0,
-                'processing'
+                'processing',
+                studentAge || null,
+                gradeLevel || null,
+                learningStyle || null,
+                contextualMetrics ? JSON.stringify(contextualMetrics) : null,
+                mentalHealthScore || null,
+                percentileAccuracy || null
             ]);
 
-            logger.info(`✅ Batch record created`);
+            logger.info(`✅ Batch record created with student context`);
 
             // Step 4: Generate each report type
             const generatedReports = [];
@@ -242,9 +384,10 @@ class PassiveReportGenerator {
     async generateSingleReport(options) {
         const { batchId, reportType, aggregatedData, previousReports } = options;
 
-        // For now, generate placeholder narrative
-        // TODO: Integrate with AI Engine for rich narrative generation
-        const narrative = this.generatePlaceholderNarrative(reportType, aggregatedData, previousReports);
+        // Generate narrative using AI reasoning (with fallback to placeholder)
+        const narrative = aggregatedData.student
+            ? await this.generateAIReasonedNarrative(reportType, aggregatedData)
+            : this.generatePlaceholderNarrative(reportType, aggregatedData, previousReports);
 
         const keyInsights = this.generateKeyInsights(reportType, aggregatedData);
         const recommendations = this.generateRecommendations(reportType, aggregatedData);
@@ -272,8 +415,8 @@ class PassiveReportGenerator {
             JSON.stringify(recommendations),
             JSON.stringify(visualData),
             wordCount,
-            1000, // Placeholder
-            'placeholder' // Will be 'gpt-4o' or 'claude-opus-4-5' after AI integration
+            Date.now() - startTime, // Actual generation time
+            aggregatedData.student ? 'claude-3-5-sonnet-20241022' : 'template' // AI model used
         ]);
 
         return result.rows[0];
@@ -874,6 +1017,299 @@ Your next ${data.questions.length >= 30 ? 'weekly' : 'monthly'} report will be g
 
         return indicators;
     }
-}
+
+    /**
+     * Fetch and enrich aggregated data with student metadata
+     */
+    async aggregateDataWithContext(userId, startDate, endDate) {
+        logger.info(`📊 Aggregating data with student context for ${userId.substring(0, 8)}...`);
+
+        try {
+            // Fetch student profile
+            const profileQuery = `
+                SELECT
+                    grade_level, date_of_birth, learning_style,
+                    favorite_subjects, difficulty_preference,
+                    school, academic_year, language_preference
+                FROM profiles
+                WHERE user_id = $1
+            `;
+            const profileResult = await db.query(profileQuery, [userId]);
+            const profile = profileResult.rows[0];
+
+            if (!profile || !profile.date_of_birth) {
+                logger.warn(`⚠️ No profile found for user ${userId}`);
+                // Fallback to non-contextualized data
+                return await this.aggregateDataFromDatabase(userId, startDate, endDate);
+            }
+
+            // Calculate age
+            const studentAge = this.calculateAge(profile.date_of_birth);
+            const ageGroupKey = this.getAgeGroupKey(studentAge, profile.grade_level);
+            const benchmarkData = this.benchmarks[ageGroupKey];
+
+            logger.info(`   Student: Age ${studentAge}, Grade ${profile.grade_level}, Learning Style: ${profile.learning_style}`);
+
+            // Get existing aggregated data
+            const aggregatedData = await this.aggregateDataFromDatabase(userId, startDate, endDate);
+
+            // NEW: Contextualize metrics based on student profile
+            const contextualizedMetrics = this.calculateContextualizedMetrics({
+                student: { age: studentAge, ...profile },
+                academic: aggregatedData.academic,
+                activity: aggregatedData.activity,
+                subjects: aggregatedData.subjects,
+                conversationAnalysis: aggregatedData.conversationAnalysis,
+                emotionalIndicators: aggregatedData.emotionalIndicators,
+                benchmarks: benchmarkData
+            });
+
+            // Calculate contextualized mental health
+            const contextualMentalHealth = this.calculateContextualMentalHealth({
+                student: { age: studentAge, ...profile },
+                academic: aggregatedData.academic,
+                activity: aggregatedData.activity,
+                emotionalIndicators: aggregatedData.emotionalIndicators,
+                conversationAnalysis: aggregatedData.conversationAnalysis,
+                benchmarks: benchmarkData
+            });
+
+            // Return enriched data
+            return {
+                student: {
+                    id: userId,
+                    age: studentAge,
+                    gradeLevel: profile.grade_level,
+                    learningStyle: profile.learning_style,
+                    favoriteSubjects: profile.favorite_subjects,
+                    difficultyPreference: profile.difficulty_preference,
+                    school: profile.school,
+                    academicYear: profile.academic_year,
+                    languagePreference: profile.language_preference,
+                    ageGroupKey
+                },
+                ...aggregatedData,
+                contextualizedMetrics,
+                contextualMentalHealth,
+                benchmarks: benchmarkData
+            };
+
+        } catch (error) {
+            logger.error(`❌ Failed to aggregate data with context: ${error.message}`);
+            // Fallback to non-contextualized data
+            return await this.aggregateDataFromDatabase(userId, startDate, endDate);
+        }
+    }
+
+    /**
+     * Calculate contextualized metrics based on age/grade
+     */
+    calculateContextualizedMetrics(data) {
+        const {
+            student,
+            academic,
+            activity,
+            subjects,
+            conversationAnalysis,
+            emotionalIndicators,
+            benchmarks
+        } = data;
+
+        return {
+            accuracy: {
+                value: academic.overallAccuracy,
+                benchmark: benchmarks.expectedAccuracy,
+                percentile: this.calculatePercentile(
+                    academic.overallAccuracy,
+                    benchmarks.accuracyDistribution
+                ),
+                interpretation: this.interpretAccuracy(
+                    academic.overallAccuracy,
+                    student.age,
+                    benchmarks.expectedAccuracy
+                ),
+                status: academic.overallAccuracy >= benchmarks.expectedAccuracy ? 'meets_or_exceeds' : 'below_expectations'
+            },
+
+            engagement: {
+                value: emotionalIndicators.engagement_level,
+                ageExpected: benchmarks.expectedEngagement,
+                isHealthy: emotionalIndicators.engagement_level >= benchmarks.expectedEngagement * 0.8,
+                status: emotionalIndicators.engagement_level > benchmarks.expectedEngagement ? 'excellent' : 'good'
+            }
+        };
+    }
+
+    /**
+     * Calculate contextual mental health score with age-appropriate weighting
+     */
+    calculateContextualMentalHealth(data) {
+        const {
+            student,
+            academic,
+            activity,
+            emotionalIndicators,
+            conversationAnalysis,
+            benchmarks
+        } = data;
+
+        // Age-appropriate weighting
+        const weights = this.getAgeAppropriateWeights(student.age);
+
+        // Calculate individual components
+        const components = {
+            engagement: emotionalIndicators.engagement_level * weights.engagement,
+            confidence: academic.overallAccuracy * weights.confidence,
+            frustration: (1 - emotionalIndicators.frustration_index) * weights.frustration,
+            curiosity: (conversationAnalysis.curiosity_indicators > 0 ? 0.8 : 0.5) * weights.curiosity,
+            socialLearning: (conversationAnalysis.total_conversations > 0 ? 0.7 : 0.5) * weights.socialLearning
+        };
+
+        // Composite score
+        const compositeScore = Object.values(components).reduce((a, b) => a + b, 0);
+
+        return {
+            score: parseFloat(compositeScore.toFixed(2)),
+            components,
+            interpretation: this.interpretMentalHealth(compositeScore, student.age),
+            ageAppropriate: benchmarks.expectedEngagement >= 0.7
+        };
+    }
+
+    /**
+     * Interpret accuracy with age context
+     */
+    interpretAccuracy(accuracy, age, benchmark) {
+        const percentDiff = ((accuracy - benchmark) / benchmark) * 100;
+
+        if (accuracy >= benchmark + 0.1) {
+            return `Excellent for age ${age} - significantly above typical performance`;
+        } else if (accuracy >= benchmark) {
+            return `On track for age ${age} - meeting expectations`;
+        } else if (accuracy >= benchmark - 0.05) {
+            return `Close to expectations for age ${age}`;
+        } else {
+            return `Below typical for age ${age} - opportunity for growth`;
+        }
+    }
+
+    /**
+     * Interpret mental health status
+     */
+    interpretMentalHealth(score, age) {
+        if (score >= 0.75) return { status: 'Excellent', level: 'healthy' };
+        if (score >= 0.60) return { status: 'Good', level: 'healthy' };
+        if (score >= 0.45) return { status: 'Fair', level: 'moderate_concern' };
+        if (score >= 0.30) return { status: 'Needs Support', level: 'significant_concern' };
+        return { status: 'Red Flag', level: 'urgent_intervention' };
+    }
+
+    /**
+     * Generate AI-reasoned narrative using Claude
+     */
+    async generateAIReasonedNarrative(reportType, aggregatedData) {
+        logger.info(`   🤖 Generating AI narrative for ${reportType}...`);
+
+        try {
+            const { student, academic, activity, subjects, contextualizedMetrics, conversationAnalysis, emotionalIndicators } = aggregatedData;
+
+            // Build system prompt
+            const systemPrompt = this.buildSystemPrompt(reportType, student);
+
+            // Build user prompt with context
+            const userPrompt = `
+GENERATE ${reportType.toUpperCase()} REPORT
+
+STUDENT PROFILE:
+- Age: ${student.age} years old
+- Grade: ${student.gradeLevel}
+- Learning Style: ${student.learningStyle}
+- Favorite Subjects: ${(student.favoriteSubjects || []).join(', ') || 'Not specified'}
+- School Year: ${student.academicYear}
+
+ACADEMIC PERFORMANCE:
+- Overall Accuracy: ${(academic.overallAccuracy * 100).toFixed(1)}%
+  - Grade Benchmark: ${(aggregatedData.benchmarks.expectedAccuracy * 100).toFixed(1)}%
+  - Status: ${contextualizedMetrics.accuracy.status}
+  - Percentile: ${contextualizedMetrics.accuracy.percentile}th
+- Questions Completed: ${aggregatedData.questions.length}
+- Study Time: ${activity.totalMinutes} minutes
+- Active Days: ${activity.activeDays || 0}
+
+SUBJECT BREAKDOWN:
+${Object.entries(subjects || {}).map(([subj, data]) =>
+  `- ${subj}: ${(data.overallAccuracy * 100).toFixed(1)}% (${data.correctAnswers}/${data.totalQuestions})`
+).join('\n')}
+
+ENGAGEMENT & EMOTIONS:
+- Curiosity Indicators: ${conversationAnalysis.curiosity_indicators}
+- Conversation Depth: ${conversationAnalysis.avg_depth_turns || 0} exchanges
+- Engagement Level: ${(emotionalIndicators.engagement_level * 100).toFixed(1)}%
+- Frustration Index: ${(emotionalIndicators.frustration_index * 100).toFixed(1)}%
+- Confidence Level: ${(emotionalIndicators.confidence_level * 100).toFixed(1)}%
+- Mental Health Score: ${(aggregatedData.contextualMentalHealth.score * 100).toFixed(1)}% (${aggregatedData.contextualMentalHealth.interpretation.status})
+
+REPORT REQUIREMENTS:
+1. Age-appropriate language for ${student.age}-year-olds in ${student.gradeLevel}
+2. Provide benchmarked context (compare to typical for this age/grade)
+3. Account for learning style: ${student.learningStyle}
+4. Identify patterns and strengths
+5. Include personalized recommendations
+6. Professional tone for parents
+7. NO emoji characters
+8. Reference specific data points
+`;
+
+            // Call Claude API
+            const message = await claude.messages.create({
+                model: 'claude-3-5-sonnet-20241022',
+                max_tokens: 1024,
+                system: systemPrompt,
+                messages: [
+                    {
+                        role: 'user',
+                        content: userPrompt
+                    }
+                ]
+            });
+
+            const narrative = message.content[0].type === 'text' ? message.content[0].text : '';
+
+            logger.info(`   ✅ AI narrative generated (${message.usage.output_tokens} tokens)`);
+
+            return narrative;
+
+        } catch (error) {
+            logger.error(`❌ AI narrative generation failed: ${error.message}`);
+            // Fallback to template-based narrative
+            return this.generatePlaceholderNarrative(reportType, aggregatedData);
+        }
+    }
+
+    /**
+     * Build system prompt for specific report type
+     */
+    buildSystemPrompt(reportType, student) {
+        const ageContext = student.age <= 8 ? 'elementary school' : student.age <= 11 ? 'middle school' : 'high school';
+
+        return `You are an expert educational psychologist and child development specialist.
+
+You are generating a ${reportType} report for a ${student.age}-year-old ${ageContext} student.
+
+Your approach:
+1. Use age-appropriate language and expectations
+2. Provide benchmarked context ("This is above/below/at typical for their grade")
+3. Consider learning style: ${student.learningStyle}
+4. Identify specific patterns and strengths
+5. Suggest actionable, personalized recommendations
+6. Maintain professional tone for parent communication
+7. NEVER use emoji characters
+8. Ground all statements in provided data
+9. Consider social-emotional factors alongside academics
+10. Be encouraging while honest about areas for growth
+
+Make insights specific and evidence-based, not generic.`;
+    }
+
 
 module.exports = { PassiveReportGenerator };

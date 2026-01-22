@@ -4307,6 +4307,50 @@ async function runDatabaseMigrations() {
       logger.debug('✅ Passive reports tables migration already applied');
     }
 
+    // NEW: Add contextual metrics columns to parent_report_batches
+    try {
+      const contextualColumnsCheck = await db.query(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'parent_report_batches'
+        AND column_name IN ('student_age', 'grade_level', 'learning_style', 'contextual_metrics', 'mental_health_contextualized', 'percentile_accuracy')
+      `);
+
+      if (contextualColumnsCheck.rows.length < 6) {
+        logger.debug('📋 Adding contextual metrics columns to parent_report_batches...');
+
+        await db.query(`
+          -- Add student context and contextual metrics columns
+          ALTER TABLE parent_report_batches
+          ADD COLUMN IF NOT EXISTS student_age INTEGER,
+          ADD COLUMN IF NOT EXISTS grade_level VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS learning_style VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS contextual_metrics JSONB,
+          ADD COLUMN IF NOT EXISTS mental_health_contextualized FLOAT,
+          ADD COLUMN IF NOT EXISTS percentile_accuracy INTEGER;
+
+          -- Update migration history
+          INSERT INTO migration_history (migration_name)
+          VALUES ('013_add_contextual_metrics_to_reports')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+
+        logger.debug('✅ Contextual metrics columns added successfully!');
+        logger.debug('📊 Added columns:');
+        logger.debug('   - student_age (age of student from DOB)');
+        logger.debug('   - grade_level (student grade level)');
+        logger.debug('   - learning_style (student learning preference)');
+        logger.debug('   - contextual_metrics (benchmarked metrics JSONB)');
+        logger.debug('   - mental_health_contextualized (age-appropriate mental health score)');
+        logger.debug('   - percentile_accuracy (percentile compared to peers)');
+      } else {
+        logger.debug('✅ Contextual metrics columns already exist');
+      }
+    } catch (contextualError) {
+      logger.error('⚠️ Error adding contextual metrics columns:', contextualError.message);
+      // Don't throw - allow app to continue
+    }
+
   } catch (error) {
     logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has
