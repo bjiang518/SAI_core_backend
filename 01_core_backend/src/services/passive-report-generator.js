@@ -13,11 +13,11 @@
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../utils/railway-database');
 const logger = require('../utils/logger');
-const Anthropic = require('@anthropic-ai/sdk');
+const OpenAI = require('openai');
 
-// Initialize Claude client
-const claude = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY
+// Initialize OpenAI client with GPT-4o
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 class PassiveReportGenerator {
@@ -416,7 +416,7 @@ class PassiveReportGenerator {
             JSON.stringify(visualData),
             wordCount,
             Date.now() - startTime, // Actual generation time
-            aggregatedData.student ? 'claude-3-5-sonnet-20241022' : 'template' // AI model used
+            aggregatedData.student ? 'gpt-4o' : 'template' // AI model used
         ]);
 
         return result.rows[0];
@@ -1205,10 +1205,10 @@ Your next ${data.questions.length >= 30 ? 'weekly' : 'monthly'} report will be g
     }
 
     /**
-     * Generate AI-reasoned narrative using Claude
+     * Generate AI-reasoned narrative using OpenAI GPT-4o
      */
     async generateAIReasonedNarrative(reportType, aggregatedData) {
-        logger.info(`   🤖 Generating AI narrative for ${reportType}...`);
+        logger.info(`   🤖 Generating AI narrative for ${reportType} using GPT-4o...`);
 
         try {
             const { student, academic, activity, subjects, contextualizedMetrics, conversationAnalysis, emotionalIndicators } = aggregatedData;
@@ -1260,12 +1260,16 @@ REPORT REQUIREMENTS:
 8. Reference specific data points
 `;
 
-            // Call Claude API
-            const message = await claude.messages.create({
-                model: 'claude-3-5-sonnet-20241022',
+            // Call OpenAI GPT-4o API
+            const message = await openai.chat.completions.create({
+                model: 'gpt-4o',
                 max_tokens: 1024,
-                system: systemPrompt,
+                temperature: 0.7,
                 messages: [
+                    {
+                        role: 'system',
+                        content: systemPrompt
+                    },
                     {
                         role: 'user',
                         content: userPrompt
@@ -1273,9 +1277,9 @@ REPORT REQUIREMENTS:
                 ]
             });
 
-            const narrative = message.content[0].type === 'text' ? message.content[0].text : '';
+            const narrative = message.choices[0].message.content;
 
-            logger.info(`   ✅ AI narrative generated (${message.usage.output_tokens} tokens)`);
+            logger.info(`   ✅ AI narrative generated (${message.usage.completion_tokens} tokens)`);
 
             return narrative;
 
