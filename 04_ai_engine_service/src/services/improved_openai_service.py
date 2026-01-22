@@ -3143,6 +3143,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
         student_answer: str,
         correct_answer: Optional[str] = None,
         subject: Optional[str] = None,
+        question_type: Optional[str] = None,  # NEW: Question type for specialized grading
         context_image: Optional[str] = None,
         parent_content: Optional[str] = None,  # NEW: Parent question context
         use_deep_reasoning: bool = False
@@ -3163,6 +3164,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
             student_answer: What the student wrote
             correct_answer: Optional expected answer (AI will determine if not provided)
             subject: Optional subject for subject-specific grading rules
+            question_type: Optional question type for type-specific grading rules
             context_image: Optional base64 image if question needs visual context
             use_deep_reasoning: Enable deep reasoning mode (always uses gpt-4o)
 
@@ -3183,6 +3185,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
         logger.debug(f"📝 === GRADING SINGLE QUESTION (OPENAI) ===")
         logger.debug(f"🤖 Model: {selected_model} (mode={mode_label}, deep_reasoning={use_deep_reasoning}, image={context_image is not None})")
         logger.debug(f"📚 Subject: {subject or 'General'}")
+        logger.debug(f"📝 Question Type: {question_type or 'unknown'}")
         logger.debug(f"❓ Question: {question_text[:50]}...")
         logger.debug(f"✍️ Student Answer: {student_answer[:50]}...")
 
@@ -3208,124 +3211,40 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 }
 
         try:
-            # Build grading prompt
-            system_prompt = self._build_grading_prompt(subject)
+            # Use new specialized prompt builder with type × subject combinations
+            from src.services.grading_prompts import build_complete_grading_prompt
 
-            # Prepare user message (different for deep reasoning vs standard)
-            if use_deep_reasoning:
-                # Deep reasoning: Structured step-by-step approach
-                parent_context = ""
-                if parent_content:
-                    parent_context = f"""
+            # Build specialized grading prompt
+            full_prompt = build_complete_grading_prompt(
+                question_type=question_type,
+                subject=subject,
+                question_text=question_text,
+                student_answer=student_answer,
+                correct_answer=correct_answer,
+                parent_content=parent_content,
+                has_context_image=bool(context_image),
+                use_deep_reasoning=use_deep_reasoning
+            )
 
-PARENT QUESTION CONTEXT:
-This is a subquestion that belongs to a larger multi-part question.
-Parent Question: {parent_content}
-
-Consider the parent question's context when grading this subquestion.
-"""
-
-                user_text = f"""
-Question: {question_text}
-
-Student's Answer: {student_answer}
-
-{f'Expected Answer: {correct_answer}' if correct_answer else ''}
-{parent_context}
-
-DEEP REASONING MODE - STRUCTURED GRADING PROCESS:
-
-STEP 1: SOLVE THE PROBLEM YOURSELF
-First, generate YOUR OWN step-by-step solution to this problem:
-- Break down what needs to be done
-- Show each calculation or reasoning step
-- Arrive at the correct answer with full working
-
-STEP 2: ANALYZE STUDENT'S APPROACH
-Compare the student's answer to your solution:
-- What approach did they take?
-- Which steps did they get correct?
-- Where exactly did they make mistakes?
-- Is their final answer correct?
-
-STEP 3: EVALUATE & SCORE
-- Calculate score (0.0-1.0) based on correctness and method
-- Determine if answer is correct (score >= 0.9)
-- Assign confidence level
-
-STEP 4: PROVIDE ACTIONABLE FEEDBACK
-Give the student concrete next steps:
-- What they did well (be specific)
-- What they got wrong (identify the exact error)
-- How to fix it (concrete action: "Try using formula X", "Check your calculation in step 2")
-- One key learning point to remember
-
-Return JSON with:
-{{
-  "score": 0.95,  // 0.0-1.0
-  "is_correct": true,  // score >= 0.9
-  "feedback": "✓ You correctly identified the formula (v=d/t). ✗ Calculation error: 100/20 = 5, not 50. → Action: Double-check your division. Remember: always verify calculations with a second pass.",  // 50-100 words with ✓/✗ markers
-  "confidence": 0.95,  // 0.0-1.0
-  "ai_solution_steps": "Step 1: Identify formula v=d/t. Step 2: Substitute values: v=100km/20min. Step 3: Convert units: 20min = 1/3 hour. Step 4: Calculate: v=100/(1/3) = 300 km/h.",  // YOUR step-by-step solution
-  "student_errors": ["Forgot to convert minutes to hours", "Division error: wrote 50 instead of 5"],  // List of specific errors (if any)
-  "correct_answer": "300 km/h"  // MANDATORY - the right answer
-}}
-
-CRITICAL: The feedback must include:
-- ✓ for what's correct
-- ✗ for what's wrong
-- → for concrete action to take
-"""
-            else:
-                # Standard mode: Brief concise feedback
-                parent_context = ""
-                if parent_content:
-                    parent_context = f"""
-
-PARENT QUESTION CONTEXT:
-This is a subquestion that belongs to a larger multi-part question.
-Parent Question: {parent_content}
-"""
-
-                user_text = f"""
-Question: {question_text}
-
-Student's Answer: {student_answer}
-
-{f'Expected Answer: {correct_answer}' if correct_answer else ''}
-{parent_context}
-Grade this answer. Return JSON with:
-{{
-  "score": 0.95,  // 0.0-1.0
-  "is_correct": true,  // score >= 0.9
-  "feedback": "Correct! Good work.",  // VERY brief, <15 words
-  "confidence": 0.95,  // 0.0-1.0
-  "correct_answer": "REQUIRED: What is the correct/expected answer?"  // MANDATORY - determine from question context
-}}
-
-CRITICAL: The "correct_answer" field is REQUIRED and must ALWAYS be included.
-If expected answer not provided above, YOU MUST determine it from the question.
-"""
-
-            messages = [{"role": "system", "content": system_prompt}]
-
-            # Add image if provided
+            # Prepare messages based on image context
             if context_image:
-                messages.append({
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": user_text},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{context_image}",
-                                "detail": "low"  # Low detail for cropped images (save cost)
+                messages = [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": full_prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{context_image}",
+                                    "detail": "low"  # Low detail for cropped images (save cost)
+                                }
                             }
-                        }
-                    ]
-                })
+                        ]
+                    }
+                ]
             else:
-                messages.append({"role": "user", "content": user_text})
+                messages = [{"role": "user", "content": full_prompt}]
 
             logger.debug(f"🚀 Calling {selected_model}...")
             start_time = time.time()
@@ -3338,12 +3257,9 @@ If expected answer not provided above, YOU MUST determine it from the question.
                 # - Uses max_completion_tokens instead of max_tokens
                 # - Messages: user role only (no system message for reasoning models)
 
-                # Combine system prompt and user text for reasoning model
-                combined_prompt = f"{system_prompt}\n\n{user_text}"
-
                 response = await self.client.chat.completions.create(
                     model=selected_model,  # o4-mini
-                    messages=[{"role": "user", "content": combined_prompt}],
+                    messages=messages,  # Already formatted with full prompt
                     response_format={"type": "json_object"},
                     max_completion_tokens=2048  # Extended tokens for deep reasoning with solution steps
                 )
@@ -3426,6 +3342,14 @@ If expected answer not provided above, YOU MUST determine it from the question.
         """
 
         return f"""Extract all questions from the homework image. Return JSON only.
+
+🌐 LANGUAGE PRESERVATION RULE (CRITICAL):
+PRESERVE the original language of the homework in ALL text fields:
+- If homework is in Chinese (Simplified/Traditional) → question_text, student_answer, parent_content MUST be in Chinese
+- If homework is in English → question_text, student_answer, parent_content MUST be in English
+- DO NOT translate or change the language
+- Extract text exactly as it appears in the image
+- Keep mathematical symbols, LaTeX, and numbers unchanged
 
 OUTPUT FORMAT:
 {{

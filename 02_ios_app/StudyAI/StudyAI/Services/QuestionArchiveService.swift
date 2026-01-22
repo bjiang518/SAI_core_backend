@@ -233,7 +233,7 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.notAuthenticated
         }
 
-        guard let url = URL(string: "\(baseURL)/api/archived-questions") else {
+        guard let url = URL(string: "\(baseURL)/api/archived-questions/sync") else {
             throw QuestionArchiveError.invalidURL
         }
 

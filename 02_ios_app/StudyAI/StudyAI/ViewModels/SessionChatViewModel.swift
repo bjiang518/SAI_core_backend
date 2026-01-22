@@ -294,7 +294,16 @@ class SessionChatViewModel: ObservableObject {
             print("🟣 🔴 Clearing pendingHomeworkQuestion to prevent reuse")
             pendingHomeworkQuestion = ""
 
-            sendMessage()
+            // ✅ NEW: Check if we should use deep mode for "Ask AI for Help"
+            let shouldUseDeepMode = appState.shouldUseDeepModeForFirstMessage
+            print("🧠 Deep Mode for first message: \(shouldUseDeepMode ? "YES (o4)" : "NO (gpt-4o-mini)")")
+
+            // ✅ NEW: Clear the flag immediately after reading it
+            if shouldUseDeepMode {
+                appState.clearDeepModeFlag()
+            }
+
+            sendMessage(deepMode: shouldUseDeepMode)  // ✅ MODIFIED: Pass deep mode flag
         } else {
             // No existing session - create new one
             print("🟣 No existing session - creating new one")
@@ -314,7 +323,16 @@ class SessionChatViewModel: ObservableObject {
                     print("🟣 🔴 Clearing pendingHomeworkQuestion to prevent reuse")
                     pendingHomeworkQuestion = ""
 
-                    sendMessage()
+                    // ✅ NEW: Check if we should use deep mode for "Ask AI for Help"
+                    let shouldUseDeepMode = appState.shouldUseDeepModeForFirstMessage
+                    print("🧠 Deep Mode for first message (new session): \(shouldUseDeepMode ? "YES (o4)" : "NO (gpt-4o-mini)")")
+
+                    // ✅ NEW: Clear the flag immediately after reading it
+                    if shouldUseDeepMode {
+                        appState.clearDeepModeFlag()
+                    }
+
+                    sendMessage(deepMode: shouldUseDeepMode)  // ✅ MODIFIED: Pass deep mode flag
                 } else {
                     print("🟣 ❌ Failed to create new session: \(result.message)")
                     errorMessage = NSLocalizedString("error.session.creation", comment: "")

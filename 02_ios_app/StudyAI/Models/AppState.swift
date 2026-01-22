@@ -78,6 +78,10 @@ class AppState: ObservableObject {
     /// Pending homework question context for AI follow-up
     @Published var pendingHomeworkContext: HomeworkQuestionContext?
 
+    /// Flag to indicate if the first message should use deep mode (o4)
+    /// This is set when "Ask AI for Help" is triggered from practice questions
+    @Published var shouldUseDeepModeForFirstMessage: Bool = false
+
     /// Selected tab
     @Published var selectedTab: MainTab = .home
 
@@ -94,10 +98,15 @@ class AppState: ObservableObject {
     }
 
     /// Set a pending chat message and navigate to chat tab
-    func navigateToChatWithMessage(_ message: String, subject: String? = nil) {
+    /// - Parameters:
+    ///   - message: The message to send
+    ///   - subject: Optional subject for the message
+    ///   - useDeepMode: If true, the first message will use o4 deep thinking mode (default: false)
+    func navigateToChatWithMessage(_ message: String, subject: String? = nil, useDeepMode: Bool = false) {
         pendingChatMessage = message
         pendingChatSubject = subject
         pendingHomeworkContext = nil  // Clear homework context for regular chat
+        shouldUseDeepModeForFirstMessage = useDeepMode  // ✅ Set deep mode flag
         selectedTab = .chat
     }
 
@@ -151,9 +160,16 @@ class AppState: ObservableObject {
         pendingChatMessage = nil
         pendingChatSubject = nil
         pendingHomeworkContext = nil
+        shouldUseDeepModeForFirstMessage = false  // ✅ Also clear deep mode flag
 
         print("🔴 APPSTATE: All pending data CLEARED")
         print("🔴 pendingHomeworkContext is now: \(pendingHomeworkContext != nil ? "SET ✓" : "NIL ✗")")
         print("🔴 ============================================")
+    }
+
+    /// Clear the deep mode flag (called after first message is sent with deep mode)
+    func clearDeepModeFlag() {
+        print("🧠 APPSTATE: Clearing deep mode flag")
+        shouldUseDeepModeForFirstMessage = false
     }
 }

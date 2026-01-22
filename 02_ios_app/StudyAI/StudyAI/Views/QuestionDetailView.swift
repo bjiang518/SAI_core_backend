@@ -920,8 +920,9 @@ Question: \(question.question)
 \(hasSubmitted ? "My answer was: \(getCurrentAnswer())\n\n" : "")Can you help me understand this better and explain the solution?
 """
 
-            // Navigate to chat with question context
-            appState.navigateToChatWithMessage(userMessage, subject: question.topic)
+            // ✅ Navigate to chat with question context AND deep mode enabled for first message
+            // User can use fast mode for follow-up messages, or activate deep mode manually via long-press
+            appState.navigateToChatWithMessage(userMessage, subject: question.topic, useDeepMode: true)
 
             // Haptic feedback
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)

@@ -3,7 +3,7 @@
 //  StudyAI
 //
 //  Passive Reports List View
-//  Shows scheduled weekly/monthly reports with hidden testing trigger
+//  Shows scheduled weekly/monthly reports with visible button to manually trigger generation
 //
 
 import SwiftUI
@@ -11,8 +11,6 @@ import SwiftUI
 struct PassiveReportsView: View {
     @StateObject private var viewModel = PassiveReportsViewModel()
     @State private var selectedPeriod: ReportPeriod = .weekly
-    @State private var tapCount = 0
-    @State private var tapTimer: Timer?
     @State private var showTestingAlert = false
 
     enum ReportPeriod: String, CaseIterable {
@@ -48,14 +46,20 @@ struct PassiveReportsView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    // Hidden testing button (triple-tap on navigation title area)
-                    Button(action: {}) {
-                        Image(systemName: "info.circle")
+                    Button(action: { showTestingAlert = true }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "sparkles")
+                            Text("Generate")
+                        }
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.blue)
+                        .cornerRadius(6)
                     }
-                    .opacity(0.0001) // Nearly invisible
-                    .onTapGesture(count: 3) {
-                        showTestingAlert = true
-                    }
+                    .disabled(viewModel.isGenerating)
+                    .opacity(viewModel.isGenerating ? 0.6 : 1.0)
                 }
             }
             .alert("Testing Mode", isPresented: $showTestingAlert) {

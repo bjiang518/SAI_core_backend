@@ -765,6 +765,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                     questionText: question.displayText,
                     studentAnswer: question.displayStudentAnswer,
                     subject: subject,
+                    questionType: question.questionType,  // Pass question type for specialized grading
                     contextImageBase64: contextImage,
                     useDeepReasoning: useDeepReasoning,
                     modelProvider: selectedAIModel
@@ -827,6 +828,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 questionText: subquestion.questionText,
                 studentAnswer: subquestion.studentAnswer,
                 subject: subject,
+                questionType: subquestion.questionType,  // Pass question type for specialized grading
                 contextImageBase64: contextImage,
                 parentQuestionContent: parentContent,  // ✅ NEW: Pass parent question content
                 useDeepReasoning: useDeepReasoning,  // Pass deep reasoning mode

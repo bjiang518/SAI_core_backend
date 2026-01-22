@@ -191,6 +191,16 @@
 "aiHomework.selectOneImageMessage" = "Please select 1 image at a time to edit.";
 "aiHomework.selectSubject" = "Select Subject";
 "aiHomework.parsingMode.title" = "Parsing Mode";
+"aiHomework.parsingMode.progressive" = "Pro";
+"aiHomework.parsingMode.hierarchical" = "Detail";
+"aiHomework.parsingMode.baseline" = "Fast";
+"aiHomework.parsingMode.progressive.description" = "Smart digital homework with on-demand grading. Flexible and interactive.";
+"aiHomework.parsingMode.hierarchical.description" = "Accurate parsing with parent-child question relationships. Best for structured homework.";
+"aiHomework.parsingMode.baseline.description" = "Faster parsing with flat question structure. Good for simple homework.";
+"aiHomework.subject" = "Subject";
+"aiHomework.model" = "Model";
+"aiHomework.mode" = "Mode";
+"aiHomework.digitalHomework" = "AI Digital Homework";
 "aiHomework.scannedDocument.single" = "Scanned Document";
 "aiHomework.scannedDocument.multiple" = "Scanned Documents";
 "aiHomework.results.complete" = "Analysis Complete!";

@@ -191,6 +191,16 @@
 "aiHomework.selectOneImageMessage" = "請一次只選擇1張圖片進行編輯。";
 "aiHomework.selectSubject" = "選擇科目";
 "aiHomework.parsingMode.title" = "解析模式";
+"aiHomework.parsingMode.progressive" = "專業";
+"aiHomework.parsingMode.hierarchical" = "詳細";
+"aiHomework.parsingMode.baseline" = "快速";
+"aiHomework.parsingMode.progressive.description" = "智慧數位作業本，按需評分。靈活且互動。";
+"aiHomework.parsingMode.hierarchical.description" = "準確解析題目及子題關係。最適合結構化作業。";
+"aiHomework.parsingMode.baseline.description" = "快速解析，平面題目結構。適合簡單作業。";
+"aiHomework.subject" = "科目";
+"aiHomework.model" = "模型";
+"aiHomework.mode" = "模式";
+"aiHomework.digitalHomework" = "AI數位作業本";
 "aiHomework.scannedDocument.single" = "已掃描文件";
 "aiHomework.scannedDocument.multiple" = "已掃描多個文件";
 "aiHomework.results.complete" = "分析完成！";

@@ -28,6 +28,9 @@ struct PassiveReportBatch: Identifiable, Codable {
     let activityTrend: String?
     let oneLineSummary: String?
     let reportCount: Int?
+    let mentalHealthScore: Double?
+    let engagementLevel: Double?
+    let confidenceLevel: Double?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -46,6 +49,9 @@ struct PassiveReportBatch: Identifiable, Codable {
         case activityTrend = "activity_trend"
         case oneLineSummary = "one_line_summary"
         case reportCount = "report_count"
+        case mentalHealthScore = "mental_health_score"
+        case engagementLevel = "engagement_level"
+        case confidenceLevel = "confidence_level"
     }
 }
 
@@ -330,14 +336,19 @@ class PassiveReportsViewModel: ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             // Add authentication
-            if let token = AuthenticationService.shared.getAuthToken() {
-                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            let token = AuthenticationService.shared.getAuthToken()
+            if let authToken = token {
+                request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
             }
 
             let requestBody: [String: Any] = [
                 "period": period
             ]
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+            print("🧪 [PassiveReports] Triggering report generation for period: \(period)")
+            print("🧪 [PassiveReports] Endpoint: \(endpoint)")
+            print("🧪 [PassiveReports] Auth token: \(token != nil ? "✅ Present" : "❌ Missing")")
 
             let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -346,7 +357,18 @@ class PassiveReportsViewModel: ObservableObject {
                              userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
             }
 
+            print("🧪 [PassiveReports] Response status: \(httpResponse.statusCode)")
+
+            // Print full response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("🧪 [PassiveReports] Response body: \(responseString.prefix(500))...")
+            }
+
             guard httpResponse.statusCode == 200 else {
+                print("❌ [PassiveReports] Generation failed with status \(httpResponse.statusCode)")
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("❌ [PassiveReports] Error details: \(responseString)")
+                }
                 throw NSError(domain: "PassiveReportsViewModel", code: httpResponse.statusCode,
                              userInfo: [NSLocalizedDescriptionKey: "Server returned status \(httpResponse.statusCode)"])
             }
@@ -356,6 +378,8 @@ class PassiveReportsViewModel: ObservableObject {
             isGenerating = false
 
             print("✅ [PassiveReports] Manual generation complete: \(result.reportCount) reports in \(result.generationTimeMs)ms")
+            print("✅ [PassiveReports] Batch ID: \(result.batchId)")
+            print("🔄 [PassiveReports] Reloading batches to show new report...")
 
             // Reload batches to show new report
             await loadAllBatches()
@@ -365,6 +389,7 @@ class PassiveReportsViewModel: ObservableObject {
             errorMessage = error.localizedDescription
             showError = true
             print("❌ [PassiveReports] Manual generation failed: \(error)")
+            print("❌ [PassiveReports] Error details: \(error.localizedDescription)")
         }
     }
 }

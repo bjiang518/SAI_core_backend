@@ -224,14 +224,25 @@ struct DirectAIHomeworkView: View {
         case hierarchical = "Detail"
         case baseline = "Fast"
 
+        var displayName: String {
+            switch self {
+            case .progressive:
+                return NSLocalizedString("aiHomework.parsingMode.progressive", comment: "")
+            case .hierarchical:
+                return NSLocalizedString("aiHomework.parsingMode.hierarchical", comment: "")
+            case .baseline:
+                return NSLocalizedString("aiHomework.parsingMode.baseline", comment: "")
+            }
+        }
+
         var description: String {
             switch self {
             case .progressive:
-                return "Generate digital homework first, grade according to your need"
+                return NSLocalizedString("aiHomework.parsingMode.progressive.description", comment: "")
             case .hierarchical:
-                return "More accurate parsing with sections, parent-child questions, and detailed structure. Best for complex homework."
+                return NSLocalizedString("aiHomework.parsingMode.hierarchical.description", comment: "")
             case .baseline:
-                return "Faster parsing with flat question structure. Best for simple homework or when speed is priority."
+                return NSLocalizedString("aiHomework.parsingMode.baseline.description", comment: "")
             }
         }
 
@@ -819,7 +830,7 @@ struct DirectAIHomeworkView: View {
     private var subjectSelectionCard: some View {
         HStack(spacing: 12) {
             // Label on left
-            Text("Subject")
+            Text(NSLocalizedString("aiHomework.subject", comment: ""))
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundColor(.secondary)
@@ -872,7 +883,7 @@ struct DirectAIHomeworkView: View {
     private var aiModelSelectionCard: some View {
         HStack(spacing: 12) {
             // Label on left
-            Text("Model")
+            Text(NSLocalizedString("aiHomework.model", comment: ""))
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundColor(.secondary)
@@ -958,7 +969,7 @@ struct DirectAIHomeworkView: View {
             HStack(spacing: 12) {
                 // Label on left
                 HStack(spacing: 4) {
-                    Text("Mode")
+                    Text(NSLocalizedString("aiHomework.mode", comment: ""))
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundColor(.secondary)
@@ -1034,7 +1045,7 @@ struct DirectAIHomeworkView: View {
                 Image(systemName: mode.icon)
                     .font(.body)
                     .frame(height: 20)  // Fixed height for consistent text alignment
-                Text(mode.rawValue)
+                Text(mode.displayName)
                     .font(.caption)
                     .fontWeight(.medium)
             }
@@ -1057,7 +1068,7 @@ struct DirectAIHomeworkView: View {
                         .frame(width: 20)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(mode.rawValue)
+                        Text(mode.displayName)
                             .font(.caption)
                             .fontWeight(.semibold)
                         Text(mode.description)
@@ -1081,7 +1092,7 @@ struct DirectAIHomeworkView: View {
         let buttonTitle: String
         if parsingMode == .progressive {
             // Pro Mode: "AI Digital Homework"
-            buttonTitle = "AI Digital Homework"
+            buttonTitle = NSLocalizedString("aiHomework.digitalHomework", comment: "")
         } else {
             // Detail/Fast Mode: "Ask AI for analysis" or "Analyze N images"
             buttonTitle = stateManager.selectedImageIndices.count > 1 ?

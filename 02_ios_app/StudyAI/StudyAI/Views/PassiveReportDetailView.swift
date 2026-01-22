@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import Charts
 
 struct PassiveReportDetailView: View {
     let batch: PassiveReportBatch
@@ -16,25 +17,53 @@ struct PassiveReportDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                // Batch summary header
-                batchSummaryHeader
-
+            VStack(spacing: 20) {
                 // Loading state
                 if viewModel.isLoadingDetails {
                     ProgressView()
                         .scaleEffect(1.5)
                         .padding(.top, 40)
-                }
+                } else {
+                    // Executive Summary (Primary - shown first)
+                    if let executiveSummary = viewModel.detailedReports.first(where: { $0.reportType == "executive_summary" }) {
+                        VStack(spacing: 16) {
+                            ExecutiveSummaryCard(batch: batch)
 
-                // Report cards
-                if !viewModel.detailedReports.isEmpty {
-                    LazyVStack(spacing: 16) {
-                        ForEach(viewModel.detailedReports) { report in
-                            ReportCard(report: report)
-                                .onTapGesture {
-                                    selectedReport = report
-                                }
+                            // Executive Summary Narrative
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("PROFESSIONAL ASSESSMENT")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.secondary)
+
+                                MarkdownView(markdown: executiveSummary.narrativeContent)
+                                    .font(.subheadline)
+                                    .lineLimit(nil)
+                            }
+                            .padding()
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(12)
+
+                            Divider()
+                                .padding(.vertical, 8)
+                        }
+                    }
+
+                    // Other Report Cards (Secondary)
+                    if viewModel.detailedReports.count > 1 {
+                        VStack(spacing: 8) {
+                            Text("DETAILED REPORTS")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            ForEach(viewModel.detailedReports.filter { $0.reportType != "executive_summary" }) { report in
+                                ProfessionalReportCard(report: report)
+                                    .onTapGesture {
+                                        selectedReport = report
+                                    }
+                            }
                         }
                     }
                 }
@@ -51,160 +80,10 @@ struct PassiveReportDetailView: View {
         }
     }
 
-    // MARK: - Subviews
-
-    private var batchSummaryHeader: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Date range
-            HStack {
-                Image(systemName: "calendar")
-                    .foregroundColor(.blue)
-                Text(dateRangeText)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-
-            // Overall grade
-            if let grade = batch.overallGrade {
-                HStack(spacing: 8) {
-                    Text("Overall Grade:")
-                        .font(.headline)
-                    Text(grade)
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(gradeColor(grade))
-                }
-            }
-
-            // Quick metrics
-            HStack(spacing: 20) {
-                if let accuracy = batch.overallAccuracy {
-                    quickMetric(title: "Accuracy", value: "\(Int(accuracy * 100))%", color: .blue)
-                }
-
-                if let questions = batch.questionCount {
-                    quickMetric(title: "Questions", value: "\(questions)", color: .green)
-                }
-
-                if let time = batch.studyTimeMinutes {
-                    quickMetric(title: "Time", value: "\(time)m", color: .orange)
-                }
-            }
-
-            // Summary text
-            if let summary = batch.oneLineSummary {
-                Text(summary)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 8)
-            }
-
-            Divider()
-                .padding(.top, 8)
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(16)
-    }
-
-    private func quickMetric(title: String, value: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
-            Text(value)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(color)
-        }
-    }
-
     // MARK: - Helpers
 
     private var periodTitle: String {
         "\(batch.period.capitalized) Report"
-    }
-
-    private var dateRangeText: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        let start = formatter.string(from: batch.startDate)
-        let end = formatter.string(from: batch.endDate)
-        return "\(start) - \(end)"
-    }
-
-    private func gradeColor(_ grade: String) -> Color {
-        let firstChar = grade.first?.uppercased() ?? "C"
-        switch firstChar {
-        case "A": return .green
-        case "B": return .blue
-        case "C": return .orange
-        default: return .red
-        }
-    }
-}
-
-// MARK: - Report Card Component
-
-struct ReportCard: View {
-    let report: PassiveReport
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with icon and title
-            HStack {
-                Image(systemName: report.icon)
-                    .font(.title2)
-                    .foregroundColor(report.color)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(report.displayName)
-                        .font(.headline)
-                    if let wordCount = report.wordCount {
-                        Text("\(wordCount) words")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .foregroundColor(.secondary)
-            }
-
-            // Preview of narrative content (first 200 characters)
-            Text(narrativePreview)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .lineLimit(3)
-
-            // Insights count (if available)
-            if let insights = report.keyInsights {
-                HStack(spacing: 4) {
-                    Image(systemName: "lightbulb.fill")
-                        .font(.caption)
-                    Text("\(insights.count) key insights")
-                        .font(.caption)
-                }
-                .foregroundColor(.orange)
-            }
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
-    }
-
-    private var narrativePreview: String {
-        // Remove markdown formatting for preview
-        let cleaned = report.narrativeContent
-            .replacingOccurrences(of: "#", with: "")
-            .replacingOccurrences(of: "*", with: "")
-            .replacingOccurrences(of: "_", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if cleaned.count > 200 {
-            return String(cleaned.prefix(200)) + "..."
-        }
-        return cleaned
     }
 }
 
@@ -430,8 +309,282 @@ struct MarkdownView: View {
         accuracyTrend: "improving",
         activityTrend: "increasing",
         oneLineSummary: "Strong performance with consistent effort",
-        reportCount: 8
+        reportCount: 8,
+        mentalHealthScore: 0.82,
+        engagementLevel: 0.85,
+        confidenceLevel: 0.87
     )
 
     PassiveReportDetailView(batch: sampleBatch)
+}
+
+// MARK: - Executive Summary Card (Primary Report)
+
+struct ExecutiveSummaryCard: View {
+    let batch: PassiveReportBatch
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with grade and trend
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("LEARNING PROGRESS")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+
+                    if let grade = batch.overallGrade {
+                        HStack(alignment: .center, spacing: 12) {
+                            Text(grade)
+                                .font(.system(size: 44, weight: .bold))
+                                .foregroundColor(gradeColor(grade))
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Overall Grade")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+
+                                if let trend = batch.accuracyTrend {
+                                    trendBadge(trend)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer()
+
+                // Mental Health Indicator (right side)
+                if let score = batch.mentalHealthScore {
+                    mentalHealthIndicator(score)
+                }
+            }
+            .padding(16)
+
+            Divider()
+
+            // Key Metrics Grid
+            VStack(spacing: 12) {
+                metricsRow(
+                    left: ("Accuracy", batch.overallAccuracy.map { "\(Int($0 * 100))%" } ?? "-", .blue),
+                    right: ("Questions", batch.questionCount.map { "\($0)" } ?? "-", .green)
+                )
+
+                metricsRow(
+                    left: ("Study Time", batch.studyTimeMinutes.map { "\($0)m" } ?? "-", .orange),
+                    right: ("Streak", batch.currentStreak.map { "\($0)d" } ?? "-", .red)
+                )
+
+                if let engagement = batch.engagementLevel, let confidence = batch.confidenceLevel {
+                    metricsRow(
+                        left: ("Engagement", String(format: "%.1f", engagement), .purple),
+                        right: ("Confidence", String(format: "%.1f", confidence), .cyan)
+                    )
+                }
+            }
+            .padding(16)
+
+            // Summary text
+            if let summary = batch.oneLineSummary {
+                VStack(alignment: .leading, spacing: 8) {
+                    Divider()
+
+                    Text(summary)
+                        .font(.subheadline)
+                        .lineLimit(3)
+                        .foregroundColor(.secondary)
+                        .padding(16)
+                }
+            }
+        }
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private func metricsRow(
+        left: (String, String, Color),
+        right: (String, String, Color)
+    ) -> some View {
+        HStack(spacing: 16) {
+            metricBox(label: left.0, value: left.1, color: left.2)
+            metricBox(label: right.0, value: right.1, color: right.2)
+        }
+    }
+
+    private func metricBox(label: String, value: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(Color(color).opacity(0.1))
+        .cornerRadius(8)
+    }
+
+    private func trendBadge(_ trend: String) -> some View {
+        HStack(spacing: 4) {
+            switch trend.lowercased() {
+            case "improving":
+                Image(systemName: "arrow.up.right")
+                    .font(.caption2)
+                    .foregroundColor(.green)
+                Text("Improving")
+                    .font(.caption2)
+                    .foregroundColor(.green)
+            case "stable":
+                Image(systemName: "minus")
+                    .font(.caption2)
+                    .foregroundColor(.blue)
+                Text("Stable")
+                    .font(.caption2)
+                    .foregroundColor(.blue)
+            case "declining":
+                Image(systemName: "arrow.down.right")
+                    .font(.caption2)
+                    .foregroundColor(.red)
+                Text("Declining")
+                    .font(.caption2)
+                    .foregroundColor(.red)
+            default:
+                Text(trend)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(4)
+    }
+
+    private func mentalHealthIndicator(_ score: Double) -> some View {
+        VStack(alignment: .center, spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(Color.gray.opacity(0.1))
+                    .frame(width: 80, height: 80)
+
+                Circle()
+                    .trim(from: 0, to: min(score, 1.0))
+                    .stroke(mentalHealthColor(score), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .frame(width: 80, height: 80)
+                    .rotationEffect(.degrees(-90))
+
+                VStack(spacing: 2) {
+                    Text(String(format: "%.0f", score * 100))
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(mentalHealthColor(score))
+                    Text("Mental")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Text(mentalHealthLabel(score))
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(mentalHealthColor(score))
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    private func mentalHealthColor(_ score: Double) -> Color {
+        switch score {
+        case 0.75...1.0: return .green
+        case 0.5..<0.75: return .blue
+        case 0.25..<0.5: return .orange
+        default: return .red
+        }
+    }
+
+    private func mentalHealthLabel(_ score: Double) -> String {
+        switch score {
+        case 0.75...1.0: return "Excellent"
+        case 0.5..<0.75: return "Good"
+        case 0.25..<0.5: return "Fair"
+        default: return "Low"
+        }
+    }
+
+    private func gradeColor(_ grade: String) -> Color {
+        let firstChar = grade.first?.uppercased() ?? "C"
+        switch firstChar {
+        case "A": return .green
+        case "B": return .blue
+        case "C": return .orange
+        default: return .red
+        }
+    }
+}
+
+// MARK: - Professional Report Card (Other Reports)
+
+struct ProfessionalReportCard: View {
+    let report: PassiveReport
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header with icon and title
+            HStack(spacing: 12) {
+                Image(systemName: report.icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(report.color)
+                    .frame(width: 36, height: 36)
+                    .background(report.color.opacity(0.1))
+                    .cornerRadius(8)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(report.displayName)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    if let wordCount = report.wordCount {
+                        Text("\(wordCount) words")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            // Narrative preview (clean, no formatting)
+            Text(narrativePreview)
+                .font(.caption)
+                .lineLimit(3)
+                .foregroundColor(.secondary)
+
+            Divider()
+                .opacity(0.5)
+        }
+        .padding(12)
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(10)
+    }
+
+    private var narrativePreview: String {
+        let cleaned = report.narrativeContent
+            .replacingOccurrences(of: "#", with: "")
+            .replacingOccurrences(of: "*", with: "")
+            .replacingOccurrences(of: "_", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if cleaned.count > 150 {
+            return String(cleaned.prefix(150)) + "..."
+        }
+        return cleaned
+    }
 }

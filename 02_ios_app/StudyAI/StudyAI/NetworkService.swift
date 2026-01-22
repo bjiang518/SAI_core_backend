@@ -2450,6 +2450,7 @@ class NetworkService: ObservableObject {
         questionText: String,
         studentAnswer: String,
         subject: String?,
+        questionType: String? = nil,  // NEW: Question type for specialized grading (e.g., "multiple_choice", "calculation")
         contextImageBase64: String? = nil,
         parentQuestionContent: String? = nil,  // NEW: Parent question context for subquestions
         useDeepReasoning: Bool = false,
@@ -2485,6 +2486,10 @@ class NetworkService: ObservableObject {
 
         if let subject = subject {
             requestData["subject"] = subject
+        }
+
+        if let questionType = questionType {
+            requestData["question_type"] = questionType  // NEW: Pass question type for specialized grading
         }
 
         if let contextImage = contextImageBase64 {
