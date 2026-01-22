@@ -1310,6 +1310,6 @@ Your approach:
 
 Make insights specific and evidence-based, not generic.`;
     }
-
+}
 
 module.exports = { PassiveReportGenerator };
