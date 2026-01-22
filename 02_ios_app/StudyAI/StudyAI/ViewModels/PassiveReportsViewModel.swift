@@ -346,9 +346,13 @@ class PassiveReportsViewModel: ObservableObject {
             ]
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
+            // Extended timeout for report generation (can take 100+ seconds)
+            request.timeoutInterval = 180.0  // 3 minutes
+
             print("🧪 [PassiveReports] Triggering report generation for period: \(period)")
             print("🧪 [PassiveReports] Endpoint: \(endpoint)")
             print("🧪 [PassiveReports] Auth token: \(token != nil ? "✅ Present" : "❌ Missing")")
+            print("🧪 [PassiveReports] Timeout: 180 seconds")
 
             let (data, response) = try await URLSession.shared.data(for: request)
 
