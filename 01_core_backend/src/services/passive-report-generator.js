@@ -198,48 +198,112 @@ class PassiveReportGenerator {
                 logger.info(`   Found previous ${period} report from ${previousReports.start_date}`);
             }
 
-            // Step 3: Create batch record with student context
-            const batchId = uuidv4();
-            logger.info(`📝 Creating batch record: ${batchId}`);
+            // Step 3: Check for existing batch (avoid duplicates)
+            const existingBatchCheck = await db.query(`
+                SELECT id, status FROM parent_report_batches
+                WHERE user_id = $1 AND period = $2 AND start_date = $3
+                LIMIT 1
+            `, [userId, period, dateRange.startDate]);
 
-            const batchQuery = `
-                INSERT INTO parent_report_batches (
-                    id, user_id, period, start_date, end_date,
-                    overall_accuracy, question_count, study_time_minutes,
-                    current_streak, status,
-                    student_age, grade_level, learning_style,
-                    contextual_metrics, mental_health_contextualized, percentile_accuracy
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-                RETURNING *
-            `;
+            let batchId;
+            let batchResult;
 
-            const studentAge = aggregatedData.student?.age;
-            const gradeLevel = aggregatedData.student?.gradeLevel;
-            const learningStyle = aggregatedData.student?.learningStyle;
-            const contextualMetrics = aggregatedData.contextualizedMetrics;
-            const mentalHealthScore = aggregatedData.contextualMentalHealth?.score;
-            const percentileAccuracy = contextualMetrics?.accuracy?.percentile;
+            if (existingBatchCheck.rows.length > 0) {
+                // Batch already exists
+                const existingBatch = existingBatchCheck.rows[0];
+                batchId = existingBatch.id;
+                logger.warn(`⚠️ Batch already exists for this period (ID: ${batchId}, Status: ${existingBatch.status})`);
+                logger.info(`📝 Updating existing batch record: ${batchId}`);
 
-            const batchResult = await db.query(batchQuery, [
-                batchId,
-                userId,
-                period,
-                dateRange.startDate,
-                dateRange.endDate,
-                aggregatedData.academic.overallAccuracy,
-                aggregatedData.questions.length,
-                aggregatedData.activity.totalMinutes,
-                aggregatedData.streakInfo?.currentStreak || 0,
-                'processing',
-                studentAge || null,
-                gradeLevel || null,
-                learningStyle || null,
-                contextualMetrics ? JSON.stringify(contextualMetrics) : null,
-                mentalHealthScore || null,
-                percentileAccuracy || null
-            ]);
+                // Update status to processing and refresh the batch data
+                const updateQuery = `
+                    UPDATE parent_report_batches SET
+                        status = $2,
+                        overall_accuracy = $3,
+                        question_count = $4,
+                        study_time_minutes = $5,
+                        current_streak = $6,
+                        student_age = $7,
+                        grade_level = $8,
+                        learning_style = $9,
+                        contextual_metrics = $10,
+                        mental_health_contextualized = $11,
+                        percentile_accuracy = $12
+                    WHERE id = $1
+                    RETURNING *
+                `;
 
-            logger.info(`✅ Batch record created with student context`);
+                const studentAge = aggregatedData.student?.age;
+                const gradeLevel = aggregatedData.student?.gradeLevel;
+                const learningStyle = aggregatedData.student?.learningStyle;
+                const contextualMetrics = aggregatedData.contextualizedMetrics;
+                const mentalHealthScore = aggregatedData.contextualMentalHealth?.score;
+                const percentileAccuracy = contextualMetrics?.accuracy?.percentile;
+
+                batchResult = await db.query(updateQuery, [
+                    batchId,
+                    'processing',
+                    aggregatedData.academic.overallAccuracy,
+                    aggregatedData.questions.length,
+                    aggregatedData.activity.totalMinutes,
+                    aggregatedData.streakInfo?.currentStreak || 0,
+                    studentAge || null,
+                    gradeLevel || null,
+                    learningStyle || null,
+                    contextualMetrics ? JSON.stringify(contextualMetrics) : null,
+                    mentalHealthScore || null,
+                    percentileAccuracy || null
+                ]);
+            } else {
+                // New batch, create it
+                batchId = uuidv4();
+                logger.info(`📝 Creating batch record: ${batchId}`);
+
+                const batchQuery = `
+                    INSERT INTO parent_report_batches (
+                        id, user_id, period, start_date, end_date,
+                        overall_accuracy, question_count, study_time_minutes,
+                        current_streak, status,
+                        student_age, grade_level, learning_style,
+                        contextual_metrics, mental_health_contextualized, percentile_accuracy
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                    RETURNING *
+                `;
+
+                const studentAge = aggregatedData.student?.age;
+                const gradeLevel = aggregatedData.student?.gradeLevel;
+                const learningStyle = aggregatedData.student?.learningStyle;
+                const contextualMetrics = aggregatedData.contextualizedMetrics;
+                const mentalHealthScore = aggregatedData.contextualMentalHealth?.score;
+                const percentileAccuracy = contextualMetrics?.accuracy?.percentile;
+
+                batchResult = await db.query(batchQuery, [
+                    batchId,
+                    userId,
+                    period,
+                    dateRange.startDate,
+                    dateRange.endDate,
+                    aggregatedData.academic.overallAccuracy,
+                    aggregatedData.questions.length,
+                    aggregatedData.activity.totalMinutes,
+                    aggregatedData.streakInfo?.currentStreak || 0,
+                    'processing',
+                    studentAge || null,
+                    gradeLevel || null,
+                    learningStyle || null,
+                    contextualMetrics ? JSON.stringify(contextualMetrics) : null,
+                    mentalHealthScore || null,
+                    percentileAccuracy || null
+                ]);
+            }
+
+            logger.info(`✅ Batch record ${existingBatchCheck.rows.length > 0 ? 'updated' : 'created'} with student context`);
+
+            // If updating existing batch, delete old reports to regenerate them
+            if (existingBatchCheck.rows.length > 0) {
+                logger.info(`🗑️ Deleting old reports for batch ${batchId} to regenerate...`);
+                await db.query(`DELETE FROM passive_reports WHERE batch_id = $1`, [batchId]);
+            }
 
             // Step 4: Generate each report type
             const generatedReports = [];
