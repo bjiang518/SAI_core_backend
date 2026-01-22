@@ -16,6 +16,74 @@ module.exports = async function (fastify, opts) {
   const reportGenerator = new PassiveReportGenerator();
 
   /**
+   * Check generation status without waiting for completion
+   * Returns batch status and progress
+   *
+   * GET /api/reports/passive/status/:batchId
+   */
+  fastify.get('/api/reports/passive/status/:batchId', {
+    schema: {
+      description: 'Check passive report generation status',
+      tags: ['Reports', 'Passive'],
+      params: {
+        type: 'object',
+        required: ['batchId'],
+        properties: {
+          batchId: { type: 'string', format: 'uuid' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { batchId } = request.params;
+
+    try {
+      const userId = await requireAuth(request, reply);
+      if (!userId) return;
+
+      const { db } = require('../../utils/railway-database');
+
+      // Get batch status
+      const batchQuery = `
+        SELECT
+          id,
+          status,
+          generation_time_ms,
+          (SELECT COUNT(*) FROM passive_reports WHERE batch_id = $1) as report_count
+        FROM parent_report_batches
+        WHERE id = $1 AND user_id = $2
+      `;
+      const batchResult = await db.query(batchQuery, [batchId, userId]);
+
+      if (batchResult.rows.length === 0) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Batch not found',
+          code: 'BATCH_NOT_FOUND'
+        });
+      }
+
+      const batch = batchResult.rows[0];
+
+      return reply.send({
+        success: true,
+        batch_id: batchId,
+        status: batch.status,
+        report_count: parseInt(batch.report_count),
+        generation_time_ms: batch.generation_time_ms,
+        is_complete: batch.status === 'completed' && parseInt(batch.report_count) === 8
+      });
+
+    } catch (error) {
+      logger.error('❌ Failed to check status:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to check status',
+        details: error.message
+      });
+    }
+  });
+
+  /**
    * Manual trigger for passive report generation (TESTING ONLY)
    * Will be removed after validation - use cron scheduler in production
    *
