@@ -446,6 +446,7 @@ class PassiveReportGenerator {
      * Generate a single report using AI
      */
     async generateSingleReport(options) {
+        const startTime = Date.now(); // Track time for THIS report
         const { batchId, reportType, aggregatedData, previousReports } = options;
 
         // Generate narrative using AI reasoning (with fallback to placeholder)
@@ -479,7 +480,7 @@ class PassiveReportGenerator {
             JSON.stringify(recommendations),
             JSON.stringify(visualData),
             wordCount,
-            Date.now() - startTime, // Actual generation time
+            Date.now() - startTime, // Time for THIS report generation
             aggregatedData.student ? 'gpt-4o' : 'template' // AI model used
         ]);
 
