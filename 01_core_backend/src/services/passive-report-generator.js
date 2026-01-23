@@ -339,13 +339,17 @@ class PassiveReportGenerator {
 
     /**
      * Store a report in the database
+     * Uses narrative_content field to store HTML (TEXT field can hold HTML)
      */
     async storeReport(batchId, reportType, htmlContent, title) {
         const reportId = uuidv4();
+        const wordCount = htmlContent.split(/\s+/).length;
+
         const insertQuery = `
             INSERT INTO passive_reports (
-                id, batch_id, report_type, html_content, title, generated_at
-            ) VALUES ($1, $2, $3, $4, $5, NOW())
+                id, batch_id, report_type,
+                narrative_content, word_count, ai_model_used
+            ) VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *
         `;
 
@@ -354,7 +358,8 @@ class PassiveReportGenerator {
             batchId,
             reportType,
             htmlContent,
-            title
+            wordCount,
+            'html-generator'
         ]);
 
         return result.rows[0];
