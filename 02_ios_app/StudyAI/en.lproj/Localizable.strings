@@ -3,6 +3,14 @@
   StudyAI
 */
 
+// Biometric Authentication (NEW - no existing alternatives)
+"login.enableBiometric" = "Enable %@?";
+"login.enable" = "Enable";
+"login.notNow" = "Not Now";
+"login.biometricMessage" = "Sign in faster next time with %@. You can change this later in Settings.";
+"login.signInWithBiometric" = "Sign in with %@";
+"login.continueWithApple" = "Continue with Apple";
+
 // Main Tabs
 "tab.home" = "Home";
 "tab.grader" = "Grader";
@@ -253,6 +261,87 @@
 // Authentication
 "auth.error.title" = "Authentication Error";
 "auth.error.unknown" = "An unknown error occurred";
+
+// Email Verification
+"emailVerification.error.title" = "Verification Error";
+"emailVerification.title" = "Verify Your Email";
+"emailVerification.codeSentMessage" = "We've sent a 6-digit verification code to";
+"emailVerification.enterCode" = "Enter the 6-digit code";
+"emailVerification.verifying" = "Verifying...";
+"emailVerification.verifyButton" = "Verify Email";
+"emailVerification.resendCode" = "Resend Code";
+"emailVerification.resendCountdown" = "Resend code in %ds";
+"emailVerification.checkSpam" = "Didn't receive the code? Check your spam folder";
+"emailVerification.wrongEmail" = "Wrong email?";
+"emailVerification.change" = "Change";
+
+// Account Password Management
+"accountPassword.title" = "Account Password";
+"accountPassword.subtitle" = "Change your account login password";
+"accountPassword.sectionHeader" = "Account Security";
+"accountPassword.sectionFooter" = "Your account password is used to sign in to your account";
+"accountPassword.current" = "Current Password";
+"accountPassword.new" = "New Password";
+"accountPassword.confirm" = "Confirm Password";
+"accountPassword.changeHeader" = "Change Account Password";
+"accountPassword.requirementFooter" = "Password must be at least 6 characters";
+"accountPassword.button" = "Change Password";
+"accountPassword.comingSoon" = "Account password change will be available in a future update";
+
+// Parent Password Management
+"parentPassword.title" = "Parent Mode Password";
+"parentPassword.statusEnabled" = "Enabled";
+"parentPassword.statusNotSet" = "Not set";
+"parentPassword.set" = "Set Parent Password";
+"parentPassword.setSubtitle" = "Create a PIN to protect parent mode";
+"parentPassword.change" = "Change Parent Password";
+"parentPassword.changeSubtitle" = "Update your parent mode PIN";
+"parentPassword.remove" = "Remove Parent Password";
+"parentPassword.removeSubtitle" = "Disable parent mode protection";
+"parentPassword.controlsHeader" = "Parent Mode Controls";
+"parentPassword.controlsFooter" = "Parent mode allows you to control app features and set restrictions";
+"parentPassword.featureAccessHeader" = "Protected Features";
+"parentPassword.featureAccessFooter" = "Enable protection for features that require parent authorization";
+
+// Parent Password - Set Password
+"parentPasswordSet.title" = "Set Parent Password";
+"parentPasswordSet.description" = "Create a 6-digit PIN to protect parent mode features and settings";
+"parentPasswordSet.pinPlaceholder" = "Enter PIN (6 digits)";
+"parentPasswordSet.confirmPlaceholder" = "Confirm PIN";
+"parentPasswordSet.header" = "Create Your PIN";
+"parentPasswordSet.footer" = "This PIN will be required to access parent mode features";
+"parentPasswordSet.button" = "Set Password";
+"parentPasswordSet.mismatch" = "PINs do not match. Please try again.";
+"parentPasswordSet.invalid" = "PIN must be exactly 6 digits";
+"parentPasswordSet.success" = "✅ Parent password set successfully";
+"parentPasswordSet.failed" = "❌ Failed to set password. Please try again.";
+
+// Parent Password - Change Password
+"parentPasswordChange.title" = "Change Parent Password";
+"parentPasswordChange.currentPlaceholder" = "Enter Current PIN";
+"parentPasswordChange.currentHeader" = "Current Password";
+"parentPasswordChange.newPlaceholder" = "Enter New PIN (6 digits)";
+"parentPasswordChange.confirmPlaceholder" = "Confirm New PIN";
+"parentPasswordChange.newHeader" = "New Password";
+"parentPasswordChange.footer" = "Enter a new 6-digit PIN to change your parent mode password";
+"parentPasswordChange.button" = "Change Password";
+"parentPasswordChange.mismatch" = "PINs do not match. Please try again.";
+"parentPasswordChange.success" = "✅ Parent password changed successfully";
+"parentPasswordChange.failed" = "❌ Failed to change password. Please check your current PIN.";
+
+// Parent Password - Remove Password
+"parentPasswordRemove.title" = "Remove Parent Mode";
+"parentPasswordRemove.description" = "This will disable parent mode and remove all restrictions";
+"parentPasswordRemove.pinPlaceholder" = "Enter Current PIN";
+"parentPasswordRemove.header" = "Verify Password";
+"parentPasswordRemove.footer" = "Enter your current parent PIN to confirm removal";
+"parentPasswordRemove.button" = "Remove Parent Mode";
+"parentPasswordRemove.navigationTitle" = "Remove Parent Mode";
+"parentPasswordRemove.alertTitle" = "Remove Parent Mode";
+"parentPasswordRemove.success" = "✅ Parent mode has been removed";
+"parentPasswordRemove.incorrectPin" = "❌ Incorrect PIN. Please try again.";
+
+
 "app.name" = "StudyAI";
 "app.tagline" = "Your AI-Powered Learning Companion";
 "auth.login.welcome" = "Welcome Back!";

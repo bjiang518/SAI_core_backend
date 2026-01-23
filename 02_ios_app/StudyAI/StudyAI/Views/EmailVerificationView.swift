@@ -56,7 +56,7 @@ struct EmailVerificationView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         dismiss()
                     }
                     .font(.headline)
@@ -67,8 +67,8 @@ struct EmailVerificationView: View {
                 hideKeyboard()
             }
         }
-        .alert("Verification Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert(NSLocalizedString("emailVerification.error.title", comment: ""), isPresented: $showingError) {
+            Button(NSLocalizedString("common.ok", comment: "")) { }
         } message: {
             Text(errorMessage)
         }
@@ -104,12 +104,12 @@ struct EmailVerificationView: View {
 
             // Title and description
             VStack(spacing: 8) {
-                Text("Verify Your Email")
+                Text(NSLocalizedString("emailVerification.title", comment: ""))
                     .font(.title)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
 
-                Text("We've sent a 6-digit verification code to")
+                Text(NSLocalizedString("emailVerification.codeSentMessage", comment: ""))
                     .font(.body)
                     .foregroundColor(.gray)
                     .multilineTextAlignment(.center)
@@ -161,7 +161,7 @@ struct EmailVerificationView: View {
                 }
 
             // Hint text
-            Text("Enter the 6-digit code")
+            Text(NSLocalizedString("emailVerification.enterCode", comment: ""))
                 .font(.caption)
                 .foregroundColor(.gray)
         }
@@ -180,7 +180,7 @@ struct EmailVerificationView: View {
                         .scaleEffect(0.8)
                 }
 
-                Text(isVerifying ? "Verifying..." : "Verify Email")
+                Text(isVerifying ? NSLocalizedString("emailVerification.verifying", comment: "") : NSLocalizedString("emailVerification.verifyButton", comment: ""))
                     .font(.headline)
             }
             .frame(maxWidth: .infinity)
@@ -206,7 +206,7 @@ struct EmailVerificationView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.clockwise")
                             .font(.caption)
-                        Text("Resend Code")
+                        Text(NSLocalizedString("emailVerification.resendCode", comment: ""))
                             .font(.headline)
                     }
                     .foregroundColor(.blue)
@@ -216,13 +216,13 @@ struct EmailVerificationView: View {
                     Image(systemName: "clock.fill")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    Text("Resend code in \(resendCountdown)s")
+                    Text(String(format: NSLocalizedString("emailVerification.resendCountdown", comment: ""), resendCountdown))
                         .font(.subheadline)
                         .foregroundColor(.gray)
                 }
             }
 
-            Text("Didn't receive the code? Check your spam folder")
+            Text(NSLocalizedString("emailVerification.checkSpam", comment: ""))
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -237,11 +237,11 @@ struct EmailVerificationView: View {
                 .padding(.vertical, 8)
 
             HStack {
-                Text("Wrong email?")
+                Text(NSLocalizedString("emailVerification.wrongEmail", comment: ""))
                     .font(.caption)
                     .foregroundColor(.gray)
 
-                Button("Change") {
+                Button(NSLocalizedString("emailVerification.change", comment: "")) {
                     dismiss()
                 }
                 .font(.caption)

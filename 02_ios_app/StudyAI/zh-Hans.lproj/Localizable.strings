@@ -3,6 +3,14 @@
   StudyAI
 */
 
+// Biometric Authentication (NEW - no existing alternatives)
+"login.enableBiometric" = "启用%@？";
+"login.enable" = "启用";
+"login.notNow" = "稍后";
+"login.biometricMessage" = "下次使用%@更快登录。您可以稍后在设置中更改。";
+"login.signInWithBiometric" = "使用%@登录";
+"login.continueWithApple" = "使用 Apple 继续";
+
 // Main Tabs
 "tab.home" = "首页";
 "tab.grader" = "评分器";
@@ -255,6 +263,87 @@
 // Authentication
 "auth.error.title" = "认证错误";
 "auth.error.unknown" = "发生未知错误";
+
+// Email Verification
+"emailVerification.error.title" = "验证错误";
+"emailVerification.title" = "验证您的邮箱";
+"emailVerification.codeSentMessage" = "我们已向您发送了一个6位验证码";
+"emailVerification.enterCode" = "输入6位验证码";
+"emailVerification.verifying" = "验证中...";
+"emailVerification.verifyButton" = "验证邮箱";
+"emailVerification.resendCode" = "重新发送验证码";
+"emailVerification.resendCountdown" = "%d秒后可重新发送";
+"emailVerification.checkSpam" = "没有收到验证码？请检查您的垃圾邮件文件夹";
+"emailVerification.wrongEmail" = "邮箱错误？";
+"emailVerification.change" = "更改";
+
+// Account Password Management
+"accountPassword.title" = "账户密码";
+"accountPassword.subtitle" = "更改您的账户登录密码";
+"accountPassword.sectionHeader" = "账户安全";
+"accountPassword.sectionFooter" = "您的账户密码用于登录您的账户";
+"accountPassword.current" = "当前密码";
+"accountPassword.new" = "新密码";
+"accountPassword.confirm" = "确认密码";
+"accountPassword.changeHeader" = "更改账户密码";
+"accountPassword.requirementFooter" = "密码必须至少6个字符";
+"accountPassword.button" = "更改密码";
+"accountPassword.comingSoon" = "账户密码更改功能将在未来更新中提供";
+
+// Parent Password Management
+"parentPassword.title" = "家长模式密码";
+"parentPassword.statusEnabled" = "已启用";
+"parentPassword.statusNotSet" = "未设置";
+"parentPassword.set" = "设置家长密码";
+"parentPassword.setSubtitle" = "创建PIN以保护家长模式";
+"parentPassword.change" = "更改家长密码";
+"parentPassword.changeSubtitle" = "更新您的家长模式PIN";
+"parentPassword.remove" = "移除家长密码";
+"parentPassword.removeSubtitle" = "禁用家长模式保护";
+"parentPassword.controlsHeader" = "家长模式控制";
+"parentPassword.controlsFooter" = "家长模式允许您控制应用功能并设置限制";
+"parentPassword.featureAccessHeader" = "受保护功能";
+"parentPassword.featureAccessFooter" = "为需要家长授权的功能启用保护";
+
+// Parent Password - Set Password
+"parentPasswordSet.title" = "设置家长密码";
+"parentPasswordSet.description" = "创建一个6位PIN以保护家长模式功能和设置";
+"parentPasswordSet.pinPlaceholder" = "输入PIN（6位数字）";
+"parentPasswordSet.confirmPlaceholder" = "确认PIN";
+"parentPasswordSet.header" = "创建您的PIN";
+"parentPasswordSet.footer" = "访问家长模式功能时需要此PIN";
+"parentPasswordSet.button" = "设置密码";
+"parentPasswordSet.mismatch" = "PIN不匹配。请重试。";
+"parentPasswordSet.invalid" = "PIN必须恰好为6位数字";
+"parentPasswordSet.success" = "✅ 家长密码设置成功";
+"parentPasswordSet.failed" = "❌ 设置密码失败。请重试。";
+
+// Parent Password - Change Password
+"parentPasswordChange.title" = "更改家长密码";
+"parentPasswordChange.currentPlaceholder" = "输入当前PIN";
+"parentPasswordChange.currentHeader" = "当前密码";
+"parentPasswordChange.newPlaceholder" = "输入新PIN（6位数字）";
+"parentPasswordChange.confirmPlaceholder" = "确认新PIN";
+"parentPasswordChange.newHeader" = "新密码";
+"parentPasswordChange.footer" = "输入新的6位PIN以更改您的家长模式密码";
+"parentPasswordChange.button" = "更改密码";
+"parentPasswordChange.mismatch" = "PIN不匹配。请重试。";
+"parentPasswordChange.success" = "✅ 家长密码更改成功";
+"parentPasswordChange.failed" = "❌ 更改密码失败。请检查您的当前PIN。";
+
+// Parent Password - Remove Password
+"parentPasswordRemove.title" = "移除家长模式";
+"parentPasswordRemove.description" = "这将禁用家长模式并移除所有限制";
+"parentPasswordRemove.pinPlaceholder" = "输入当前PIN";
+"parentPasswordRemove.header" = "验证密码";
+"parentPasswordRemove.footer" = "输入您当前的家长PIN以确认移除";
+"parentPasswordRemove.button" = "移除家长模式";
+"parentPasswordRemove.navigationTitle" = "移除家长模式";
+"parentPasswordRemove.alertTitle" = "移除家长模式";
+"parentPasswordRemove.success" = "✅ 家长模式已移除";
+"parentPasswordRemove.incorrectPin" = "❌ PIN错误。请重试。";
+
+
 "app.name" = "StudyAI";
 "app.tagline" = "您的AI驱动学习伙伴";
 "auth.login.welcome" = "欢迎回来！";

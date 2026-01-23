@@ -63,11 +63,11 @@ struct PasswordManagementView: View {
                                 .frame(width: 24)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Change Account Password")
+                                Text(NSLocalizedString("accountPassword.title", comment: ""))
                                     .font(.body)
                                     .foregroundColor(.primary)
 
-                                Text("Update your login password")
+                                Text(NSLocalizedString("accountPassword.subtitle", comment: ""))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -81,9 +81,9 @@ struct PasswordManagementView: View {
                     }
                     .buttonStyle(.plain)
                 } header: {
-                    Text("Account Security")
+                    Text(NSLocalizedString("accountPassword.sectionHeader", comment: ""))
                 } footer: {
-                    Text("Manage your StudyMates account password for login")
+                    Text(NSLocalizedString("accountPassword.sectionFooter", comment: ""))
                 }
 
                 // Parent Mode Section
@@ -95,11 +95,11 @@ struct PasswordManagementView: View {
                             .frame(width: 24)
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Parent Mode")
+                            Text(NSLocalizedString("parentPassword.title", comment: ""))
                                 .font(.body)
                                 .foregroundColor(.primary)
 
-                            Text(parentModeManager.isParentModeEnabled ? "Enabled" : "Not Set")
+                            Text(parentModeManager.isParentModeEnabled ? NSLocalizedString("parentPassword.statusEnabled", comment: "") : NSLocalizedString("parentPassword.statusNotSet", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(parentModeManager.isParentModeEnabled ? .green : .secondary)
                         }
@@ -123,11 +123,11 @@ struct PasswordManagementView: View {
                                     .frame(width: 24)
 
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Set Parent Password")
+                                    Text(NSLocalizedString("parentPassword.set", comment: ""))
                                         .font(.body)
                                         .foregroundColor(.primary)
 
-                                    Text("Create a 6-digit PIN")
+                                    Text(NSLocalizedString("parentPassword.setSubtitle", comment: ""))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -151,11 +151,11 @@ struct PasswordManagementView: View {
                                     .frame(width: 24)
 
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Change Parent Password")
+                                    Text(NSLocalizedString("parentPassword.change", comment: ""))
                                         .font(.body)
                                         .foregroundColor(.primary)
 
-                                    Text("Update your 6-digit PIN")
+                                    Text(NSLocalizedString("parentPassword.changeSubtitle", comment: ""))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -179,11 +179,11 @@ struct PasswordManagementView: View {
                                     .frame(width: 24)
 
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Remove Parent Password")
+                                    Text(NSLocalizedString("parentPassword.remove", comment: ""))
                                         .font(.body)
                                         .foregroundColor(.red)
 
-                                    Text("Disable parent mode")
+                                    Text(NSLocalizedString("parentPassword.removeSubtitle", comment: ""))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -231,9 +231,9 @@ struct PasswordManagementView: View {
                         }
                     }
                 } header: {
-                    Text("Parent Controls")
+                    Text(NSLocalizedString("parentPassword.controlsHeader", comment: ""))
                 } footer: {
-                    Text("Parent mode restricts access to sensitive features with a 6-digit PIN. Once enabled, certain features will require parent authentication.")
+                    Text(NSLocalizedString("parentPassword.controlsFooter", comment: ""))
                 }
 
                 // Access Control Section
@@ -263,17 +263,17 @@ struct PasswordManagementView: View {
                             .tint(.purple)
                         }
                     } header: {
-                        Text("Feature Access Control")
+                        Text(NSLocalizedString("parentPassword.featureAccessHeader", comment: ""))
                     } footer: {
-                        Text("Select which features require parent password to access. When enabled, parent authentication will be required each time.")
+                        Text(NSLocalizedString("parentPassword.featureAccessFooter", comment: ""))
                     }
                 }
             }
-            .navigationTitle("Password Manager")
+            .navigationTitle(NSLocalizedString("settings.passwordManager", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                 }
@@ -321,44 +321,44 @@ struct ChangeAccountPasswordView: View {
         NavigationView {
             Form {
                 Section {
-                    SecureField("Current Password", text: $currentPassword)
+                    SecureField(NSLocalizedString("accountPassword.current", comment: ""), text: $currentPassword)
                         .textContentType(.password)
 
-                    SecureField("New Password", text: $newPassword)
+                    SecureField(NSLocalizedString("accountPassword.new", comment: ""), text: $newPassword)
                         .textContentType(.newPassword)
 
-                    SecureField("Confirm New Password", text: $confirmPassword)
+                    SecureField(NSLocalizedString("accountPassword.confirm", comment: ""), text: $confirmPassword)
                         .textContentType(.newPassword)
                 } header: {
-                    Text("Change Password")
+                    Text(NSLocalizedString("accountPassword.changeHeader", comment: ""))
                 } footer: {
-                    Text("Password must be at least 8 characters")
+                    Text(NSLocalizedString("accountPassword.requirementFooter", comment: ""))
                 }
 
                 Section {
                     Button(action: {
                         // Placeholder - will implement actual password change
-                        alertMessage = "Password change functionality will be implemented soon"
+                        alertMessage = NSLocalizedString("accountPassword.comingSoon", comment: "")
                         showingAlert = true
                     }) {
-                        Text("Change Password")
+                        Text(NSLocalizedString("accountPassword.button", comment: ""))
                             .frame(maxWidth: .infinity)
                             .foregroundColor(.white)
                     }
                     .listRowBackground(Color.blue)
                 }
             }
-            .navigationTitle("Change Password")
+            .navigationTitle(NSLocalizedString("accountPassword.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         dismiss()
                     }
                 }
             }
-            .alert("Change Password", isPresented: $showingAlert) {
-                Button("OK", role: .cancel) {
+            .alert(NSLocalizedString("accountPassword.changeHeader", comment: ""), isPresented: $showingAlert) {
+                Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) {
                     dismiss()
                 }
             } message: {
@@ -386,11 +386,11 @@ struct SetParentPasswordView: View {
                             .font(.system(size: 60))
                             .foregroundColor(.purple)
 
-                        Text("Set Parent Password")
+                        Text(NSLocalizedString("parentPasswordSet.title", comment: ""))
                             .font(.title2)
                             .fontWeight(.bold)
 
-                        Text("Create a 6-digit PIN to protect sensitive features")
+                        Text(NSLocalizedString("parentPasswordSet.description", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -401,30 +401,30 @@ struct SetParentPasswordView: View {
                 .listRowBackground(Color.clear)
 
                 Section {
-                    SecurePINField(placeholder: "6-Digit PIN", text: $password)
+                    SecurePINField(placeholder: NSLocalizedString("parentPasswordSet.pinPlaceholder", comment: ""), text: $password)
                         .onChange(of: password) { _, newValue in
                             if newValue.count > 6 {
                                 password = String(newValue.prefix(6))
                             }
                         }
 
-                    SecurePINField(placeholder: "Confirm PIN", text: $confirmPassword)
+                    SecurePINField(placeholder: NSLocalizedString("parentPasswordSet.confirmPlaceholder", comment: ""), text: $confirmPassword)
                         .onChange(of: confirmPassword) { _, newValue in
                             if newValue.count > 6 {
                                 confirmPassword = String(newValue.prefix(6))
                             }
                         }
                 } header: {
-                    Text("Create PIN")
+                    Text(NSLocalizedString("parentPasswordSet.header", comment: ""))
                 } footer: {
-                    Text("Enter a 6-digit number that only parents/guardians know")
+                    Text(NSLocalizedString("parentPasswordSet.footer", comment: ""))
                 }
 
                 Section {
                     Button(action: {
                         setParentPassword()
                     }) {
-                        Text("Set Parent Password")
+                        Text(NSLocalizedString("parentPasswordSet.button", comment: ""))
                             .frame(maxWidth: .infinity)
                             .foregroundColor(.white)
                     }
@@ -432,17 +432,17 @@ struct SetParentPasswordView: View {
                     .disabled(password.count != 6 || confirmPassword.count != 6)
                 }
             }
-            .navigationTitle("Parent Mode")
+            .navigationTitle(NSLocalizedString("parentPassword.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         dismiss()
                     }
                 }
             }
-            .alert("Parent Mode", isPresented: $showingAlert) {
-                Button("OK", role: .cancel) {
+            .alert(NSLocalizedString("parentPassword.title", comment: ""), isPresented: $showingAlert) {
+                Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) {
                     if alertMessage.contains("success") {
                         dismiss()
                     }
@@ -455,22 +455,22 @@ struct SetParentPasswordView: View {
 
     private func setParentPassword() {
         guard password == confirmPassword else {
-            alertMessage = "PINs do not match. Please try again."
+            alertMessage = NSLocalizedString("parentPasswordSet.mismatch", comment: "")
             showingAlert = true
             return
         }
 
         guard password.count == 6, password.allSatisfy({ $0.isNumber }) else {
-            alertMessage = "PIN must be exactly 6 digits."
+            alertMessage = NSLocalizedString("parentPasswordSet.invalid", comment: "")
             showingAlert = true
             return
         }
 
         if parentModeManager.setParentPassword(password) {
-            alertMessage = "✅ Parent password set successfully!"
+            alertMessage = NSLocalizedString("parentPasswordSet.success", comment: "")
             showingAlert = true
         } else {
-            alertMessage = "Failed to set parent password. Please try again."
+            alertMessage = NSLocalizedString("parentPasswordSet.failed", comment: "")
             showingAlert = true
         }
     }
@@ -490,41 +490,41 @@ struct ChangeParentPasswordView: View {
         NavigationView {
             Form {
                 Section {
-                    SecurePINField(placeholder: "Current PIN", text: $currentPassword)
+                    SecurePINField(placeholder: NSLocalizedString("parentPasswordChange.currentPlaceholder", comment: ""), text: $currentPassword)
                         .onChange(of: currentPassword) { _, newValue in
                             if newValue.count > 6 {
                                 currentPassword = String(newValue.prefix(6))
                             }
                         }
                 } header: {
-                    Text("Current Password")
+                    Text(NSLocalizedString("parentPasswordChange.currentHeader", comment: ""))
                 }
 
                 Section {
-                    SecurePINField(placeholder: "New 6-Digit PIN", text: $newPassword)
+                    SecurePINField(placeholder: NSLocalizedString("parentPasswordChange.newPlaceholder", comment: ""), text: $newPassword)
                         .onChange(of: newPassword) { _, newValue in
                             if newValue.count > 6 {
                                 newPassword = String(newValue.prefix(6))
                             }
                         }
 
-                    SecurePINField(placeholder: "Confirm New PIN", text: $confirmPassword)
+                    SecurePINField(placeholder: NSLocalizedString("parentPasswordChange.confirmPlaceholder", comment: ""), text: $confirmPassword)
                         .onChange(of: confirmPassword) { _, newValue in
                             if newValue.count > 6 {
                                 confirmPassword = String(newValue.prefix(6))
                             }
                         }
                 } header: {
-                    Text("New Password")
+                    Text(NSLocalizedString("parentPasswordChange.newHeader", comment: ""))
                 } footer: {
-                    Text("Enter a new 6-digit PIN")
+                    Text(NSLocalizedString("parentPasswordChange.footer", comment: ""))
                 }
 
                 Section {
                     Button(action: {
                         changeParentPassword()
                     }) {
-                        Text("Change Password")
+                        Text(NSLocalizedString("parentPasswordChange.button", comment: ""))
                             .frame(maxWidth: .infinity)
                             .foregroundColor(.white)
                     }
@@ -532,17 +532,17 @@ struct ChangeParentPasswordView: View {
                     .disabled(currentPassword.count != 6 || newPassword.count != 6 || confirmPassword.count != 6)
                 }
             }
-            .navigationTitle("Change Parent Password")
+            .navigationTitle(NSLocalizedString("parentPasswordChange.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         dismiss()
                     }
                 }
             }
-            .alert("Change Password", isPresented: $showingAlert) {
-                Button("OK", role: .cancel) {
+            .alert(NSLocalizedString("parentPasswordChange.title", comment: ""), isPresented: $showingAlert) {
+                Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) {
                     if alertMessage.contains("success") {
                         dismiss()
                     }
@@ -555,7 +555,7 @@ struct ChangeParentPasswordView: View {
 
     private func changeParentPassword() {
         guard newPassword == confirmPassword else {
-            alertMessage = "New PINs do not match. Please try again."
+            alertMessage = NSLocalizedString("parentPasswordChange.mismatch", comment: "")
             showingAlert = true
             return
         }
@@ -566,10 +566,10 @@ struct ChangeParentPasswordView: View {
         )
 
         if result.success {
-            alertMessage = "✅ Parent password changed successfully!"
+            alertMessage = NSLocalizedString("parentPasswordChange.success", comment: "")
             showingAlert = true
         } else {
-            alertMessage = result.error ?? "Failed to change password"
+            alertMessage = result.error ?? NSLocalizedString("parentPasswordChange.failed", comment: "")
             showingAlert = true
         }
     }
@@ -592,11 +592,11 @@ struct RemoveParentPasswordView: View {
                             .font(.system(size: 60))
                             .foregroundColor(.red)
 
-                        Text("Remove Parent Mode")
+                        Text(NSLocalizedString("parentPasswordRemove.title", comment: ""))
                             .font(.title2)
                             .fontWeight(.bold)
 
-                        Text("This will disable parent mode and remove all restrictions")
+                        Text(NSLocalizedString("parentPasswordRemove.description", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -607,23 +607,23 @@ struct RemoveParentPasswordView: View {
                 .listRowBackground(Color.clear)
 
                 Section {
-                    SecurePINField(placeholder: "Enter Current PIN", text: $password)
+                    SecurePINField(placeholder: NSLocalizedString("parentPasswordRemove.pinPlaceholder", comment: ""), text: $password)
                         .onChange(of: password) { _, newValue in
                             if newValue.count > 6 {
                                 password = String(newValue.prefix(6))
                             }
                         }
                 } header: {
-                    Text("Verify Password")
+                    Text(NSLocalizedString("parentPasswordRemove.header", comment: ""))
                 } footer: {
-                    Text("Enter your current parent PIN to confirm removal")
+                    Text(NSLocalizedString("parentPasswordRemove.footer", comment: ""))
                 }
 
                 Section {
                     Button(action: {
                         removeParentPassword()
                     }) {
-                        Text("Remove Parent Mode")
+                        Text(NSLocalizedString("parentPasswordRemove.button", comment: ""))
                             .frame(maxWidth: .infinity)
                             .foregroundColor(.white)
                     }
@@ -631,17 +631,17 @@ struct RemoveParentPasswordView: View {
                     .disabled(password.count != 6)
                 }
             }
-            .navigationTitle("Remove Parent Mode")
+            .navigationTitle(NSLocalizedString("parentPasswordRemove.navigationTitle", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         dismiss()
                     }
                 }
             }
-            .alert("Remove Parent Mode", isPresented: $showingAlert) {
-                Button("OK", role: .cancel) {
+            .alert(NSLocalizedString("parentPasswordRemove.alertTitle", comment: ""), isPresented: $showingAlert) {
+                Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) {
                     if alertMessage.contains("success") {
                         dismiss()
                     }
@@ -654,10 +654,10 @@ struct RemoveParentPasswordView: View {
 
     private func removeParentPassword() {
         if parentModeManager.removeParentPassword(password: password) {
-            alertMessage = "✅ Parent mode has been removed"
+            alertMessage = NSLocalizedString("parentPasswordRemove.success", comment: "")
             showingAlert = true
         } else {
-            alertMessage = "❌ Incorrect PIN. Please try again."
+            alertMessage = NSLocalizedString("parentPasswordRemove.incorrectPin", comment: "")
             showingAlert = true
         }
     }
