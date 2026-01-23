@@ -1106,6 +1106,47 @@ async def process_homework_image(request: HomeworkParsingRequest):
 # Phase 2: Grade individual questions
 # ======================================================================
 
+def clean_student_answer(answer: str) -> str:
+    """
+    Clean up student answer by removing common prefixes and normalizing formatting.
+
+    Fixes inconsistencies where AI sometimes includes "Answer:", "Student Answer:", etc.
+    This ensures consistent display in the iOS app.
+
+    Examples:
+        "Answer: 35 ducklings" → "35 ducklings"
+        "Student Answer: 12" → "12"
+        "Work shown: 5 + 3 = 8" → "5 + 3 = 8"
+        "15" → "15" (unchanged)
+    """
+    if not answer:
+        return answer
+
+    import re
+
+    # Common prefixes to strip (case-insensitive)
+    prefixes = [
+        r'^Answer:\s*',
+        r'^Student Answer:\s*',
+        r'^Student\'s Answer:\s*',
+        r'^Work shown:\s*',
+        r'^Work Shown:\s*',
+        r'^Solution:\s*',
+        r'^Response:\s*',
+        r'^My answer:\s*',
+        r'^A:\s*',  # Short form
+        r'^Ans:\s*',  # Abbreviation
+    ]
+
+    cleaned = answer.strip()
+
+    # Try to match and remove each prefix
+    for prefix_pattern in prefixes:
+        cleaned = re.sub(prefix_pattern, '', cleaned, flags=re.IGNORECASE)
+
+    return cleaned.strip()
+
+
 @app.post("/api/v1/parse-homework-questions", response_model=ParseHomeworkQuestionsResponse)
 async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
     """
@@ -1154,6 +1195,21 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
             error_msg = result.get("error", "Question parsing failed")
             raise HTTPException(status_code=500, detail=error_msg)
 
+        # ✅ CONSISTENCY FIX: Clean up student answers to remove inconsistent prefixes
+        # Some questions have "Answer: ...", others have "Student Answer: ...", others just the answer
+        # Strip all common prefixes for consistent display
+        questions = result.get("questions", [])
+        for question in questions:
+            # Clean regular question student answer
+            if question.student_answer:
+                question.student_answer = clean_student_answer(question.student_answer)
+
+            # Clean subquestion student answers
+            if question.subquestions:
+                for subq in question.subquestions:
+                    if subq.student_answer:
+                        subq.student_answer = clean_student_answer(subq.student_answer)
+
         processing_time = int((time.time() - start_time) * 1000)
 
         return ParseHomeworkQuestionsResponse(
@@ -1161,7 +1217,7 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
             subject=result.get("subject", "Unknown"),
             subject_confidence=result.get("subject_confidence", 0.5),
             total_questions=result.get("total_questions", 0),
-            questions=result.get("questions", []),
+            questions=questions,  # Use cleaned questions
             processing_time_ms=processing_time,
             error=None
         )
