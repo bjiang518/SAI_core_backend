@@ -369,7 +369,8 @@ class GeminiEducationalAIService:
                 # NOTE: thinking_level parameter requires v1alpha API, not available in stable SDK yet
                 generation_config = {
                     "max_output_tokens": 4096,  # Extended tokens for deep reasoning with step-by-step solution
-                    "candidate_count": 1
+                    "candidate_count": 1,
+                    "response_mime_type": "application/json"  # Force JSON output
                     # NO temperature - Gemini 3 uses default 1.0 for optimal reasoning
                     # thinking_level not supported in current SDK version
                 }
@@ -382,7 +383,8 @@ class GeminiEducationalAIService:
                     "top_p": 0.9,
                     "top_k": 40,
                     "max_output_tokens": 800,  # Sufficient for brief feedback (<15 words)
-                    "candidate_count": 1
+                    "candidate_count": 1,
+                    "response_mime_type": "application/json"  # Force JSON output
                 }
                 timeout = 30  # Fast timeout for Flash model
 
@@ -857,7 +859,7 @@ OUTPUT CHECKLIST
         return normalized.strip()
 
     def _extract_json_from_response(self, response_text: str) -> Dict[str, Any]:
-        """Extract JSON from Gemini response (may include markdown)."""
+        """Extract JSON from Gemini response (may include markdown or labeled format)."""
 
         import re
 
@@ -865,17 +867,64 @@ OUTPUT CHECKLIST
         cleaned = re.sub(r'```json\n?', '', response_text)
         cleaned = re.sub(r'```\n?', '', cleaned)
 
-        # Extract JSON object
+        # Try to extract JSON object (standard format)
         json_match = re.search(r'\{.*\}', cleaned, re.DOTALL)
         if json_match:
             try:
                 return json.loads(json_match.group())
             except json.JSONDecodeError as e:
                 logger.debug(f"⚠️ JSON parsing error: {e}")
-                logger.debug(f"📄 Raw text: {response_text[:500]}")
-                raise
-        else:
-            raise Exception(f"No JSON found in response: {response_text[:500]}")
+                # Fall through to labeled format parser
+
+        # FALLBACK: Parse labeled text format (SCORE: 1.0, IS_CORRECT: true, etc.)
+        # This handles cases where Gemini returns labeled text instead of JSON
+        logger.debug(f"⚠️ No valid JSON found, trying labeled format parser...")
+
+        try:
+            result = {}
+
+            # Extract SCORE
+            score_match = re.search(r'SCORE:\s*([\d.]+)', response_text, re.IGNORECASE)
+            if score_match:
+                result['score'] = float(score_match.group(1))
+            else:
+                result['score'] = 0.0
+
+            # Extract IS_CORRECT
+            is_correct_match = re.search(r'IS_CORRECT:\s*(true|false)', response_text, re.IGNORECASE)
+            if is_correct_match:
+                result['is_correct'] = is_correct_match.group(1).lower() == 'true'
+            else:
+                result['is_correct'] = result['score'] >= 0.9
+
+            # Extract FEEDBACK
+            feedback_match = re.search(r'FEEDBACK:\s*(.+?)(?=\n(?:CONFIDENCE|CORRECT_ANSWER)|$)', response_text, re.IGNORECASE | re.DOTALL)
+            if feedback_match:
+                result['feedback'] = feedback_match.group(1).strip()
+            else:
+                result['feedback'] = ""
+
+            # Extract CONFIDENCE
+            confidence_match = re.search(r'CONFIDENCE:\s*([\d.]+)', response_text, re.IGNORECASE)
+            if confidence_match:
+                result['confidence'] = float(confidence_match.group(1))
+            else:
+                result['confidence'] = 0.8
+
+            # Extract CORRECT_ANSWER
+            correct_answer_match = re.search(r'CORRECT_ANSWER:\s*(.+?)(?=$)', response_text, re.IGNORECASE | re.DOTALL)
+            if correct_answer_match:
+                result['correct_answer'] = correct_answer_match.group(1).strip()
+            else:
+                result['correct_answer'] = ""
+
+            logger.debug(f"✅ Parsed labeled format: score={result.get('score')}, is_correct={result.get('is_correct')}")
+            return result
+
+        except Exception as e:
+            logger.debug(f"❌ Labeled format parsing failed: {e}")
+            logger.debug(f"📄 Raw text: {response_text[:500]}")
+            raise Exception(f"No JSON or valid labeled format found in response: {response_text[:500]}")
 
 
 # Create singleton instance
