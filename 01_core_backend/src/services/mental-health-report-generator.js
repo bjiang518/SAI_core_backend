@@ -22,30 +22,41 @@ class MentalHealthReportGenerator {
 
         try {
             // Step 1: Get questions for this period
-            const questions = await this.getQuestionsForPeriod(userId, startDate, endDate);
+            let questions = await this.getQuestionsForPeriod(userId, startDate, endDate);
+            questions = questions || [];
 
             // Step 2: Get conversations for this period
-            const conversations = await this.getConversationsForPeriod(userId, startDate, endDate);
+            let conversations = await this.getConversationsForPeriod(userId, startDate, endDate);
+            conversations = conversations || [];
 
             // Step 3: Get previous period data for comparison
             const previousStart = new Date(startDate);
             previousStart.setDate(previousStart.getDate() - 7);
             const previousEnd = new Date(startDate);
             previousEnd.setDate(previousEnd.getDate() - 1);
-            const previousQuestions = await this.getQuestionsForPeriod(userId, previousStart, previousEnd);
+            let previousQuestions = await this.getQuestionsForPeriod(userId, previousStart, previousEnd);
+            previousQuestions = previousQuestions || [];
 
             // Step 4: Analyze indicators
-            const analysis = this.analyzeWellbeing(
+            let analysis = this.analyzeWellbeing(
                 questions,
                 conversations,
                 previousQuestions,
                 studentAge
             );
 
+            // Ensure analysis has required properties
+            if (!analysis) {
+                throw new Error('Analysis returned null/undefined');
+            }
+            if (!analysis.redFlags) {
+                analysis.redFlags = [];
+            }
+
             // Step 5: Generate HTML
             const html = this.generateMentalHealthHTML(analysis);
 
-            logger.info(`✅ Mental Health Report generated: ${analysis.redFlags.length} flags detected`);
+            logger.info(`✅ Mental Health Report generated: ${(analysis.redFlags || []).length} flags detected`);
 
             return html;
 
@@ -272,7 +283,7 @@ class MentalHealthReportGenerator {
         }
 
         // Effort seeking (conversations)
-        if (conversations.length >= 2) {
+        if (conversations && conversations.length >= 2) {
             learningAttitudeScore += 0.2;
             attitudeIndicators.push({
                 type: 'effort_seeking',
