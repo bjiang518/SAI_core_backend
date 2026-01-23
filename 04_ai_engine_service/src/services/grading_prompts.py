@@ -525,7 +525,7 @@ STUDENT ANSWER: {student_answer}
     # Output format instructions
     if use_deep_reasoning:
         output_format = """
-DEEP REASONING MODE - Follow this structured process:
+DEEP REASONING MODE - Follow this structured process and return JSON:
 
 STEP 1 - SOLVE THE PROBLEM:
 First, work through the problem yourself to determine the correct answer.
@@ -549,11 +549,13 @@ Write feedback (50-100 words) that:
 - Explains what the student did correctly
 - Points out specific errors or misconceptions
 - Guides student toward correct understanding
+
+Return your response in JSON format with score, is_correct, feedback, confidence, and correct_answer fields.
 """
     else:
         output_format = """
 GRADING OUTPUT:
-Provide your grading in this format:
+Return your response as JSON with the following fields:
 
 SCORE: [0.0 to 1.0]
 IS_CORRECT: [true if score >= 0.9, false otherwise]
@@ -562,6 +564,7 @@ CONFIDENCE: [Your confidence in this grading, 0.0 to 1.0]
 CORRECT_ANSWER: [The correct answer if not already provided]
 
 Keep feedback concise but specific. Focus on what matters most.
+Respond in JSON format.
 """
 
     prompt_parts.append(output_format)
