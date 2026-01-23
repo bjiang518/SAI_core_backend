@@ -46,13 +46,13 @@ struct ModernLoginView: View {
             .ignoresSafeArea(.container, edges: .top)
             .background(Color(.systemBackground))  // ✅ Adaptive background for dark mode
         }
-        .alert("Authentication Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert(NSLocalizedString("auth.error.title", comment: "Authentication error alert title"), isPresented: $showingError) {
+            Button(NSLocalizedString("common.ok", comment: "OK button")) { }
         } message: {
-            Text(authService.errorMessage ?? "An unknown error occurred")
+            Text(authService.errorMessage ?? NSLocalizedString("auth.error.unknown", comment: "Unknown error message"))
         }
-        .alert("Enable \(authService.getBiometricType())?", isPresented: $showingFaceIDPrompt) {
-            Button("Enable") {
+        .alert(String(format: NSLocalizedString("login.enableBiometric", comment: "Enable biometric prompt"), authService.getBiometricType()), isPresented: $showingFaceIDPrompt) {
+            Button(NSLocalizedString("login.enable", comment: "Enable button")) {
                 Task {
                     do {
                         try await authService.enableFaceID()
@@ -65,12 +65,12 @@ struct ModernLoginView: View {
                     }
                 }
             }
-            Button("Not Now", role: .cancel) {
+            Button(NSLocalizedString("login.notNow", comment: "Not now button"), role: .cancel) {
                 // Navigate to main app without enabling Face ID
                 onLoginSuccess()
             }
         } message: {
-            Text("Sign in faster next time with \(authService.getBiometricType()). You can change this later in Settings.")
+            Text(String(format: NSLocalizedString("login.biometricMessage", comment: "Biometric signin message"), authService.getBiometricType()))
         }
         .sheet(isPresented: $showingSignUp) {
             ModernSignUpView(onSignUpSuccess: onLoginSuccess)
@@ -164,12 +164,12 @@ struct ModernLoginView: View {
                     Image(systemName: "sparkles")
                         .font(.system(size: 60))
                         .foregroundColor(.white)
-                    
-                    Text("Study Mates")
+
+                    Text(NSLocalizedString("app.name", comment: "App name"))
                         .font(.largeTitle)
                         .foregroundColor(.white)
 
-                    Text("Your AI-Powered Learning Companion")
+                    Text(NSLocalizedString("app.tagline", comment: "App tagline"))
                         .font(.title2)
                         .foregroundColor(.white.opacity(0.9))
                         .multilineTextAlignment(.center)
@@ -187,11 +187,11 @@ struct ModernLoginView: View {
             VStack(spacing: 20) {
                 // Welcome text
                 VStack(spacing: 8) {
-                    Text("Welcome Back!")
+                    Text(NSLocalizedString("auth.login.welcome", comment: "Welcome back title"))
                         .font(.title)
                         .foregroundColor(.primary)
 
-                    Text("Sign in to continue your learning journey.")
+                    Text(NSLocalizedString("auth.login.subtitle", comment: "Welcome message"))
                         .font(.body)
                         .foregroundColor(.secondary)  // ✅ Adaptive for dark mode
                         .multilineTextAlignment(.center)
@@ -207,7 +207,7 @@ struct ModernLoginView: View {
                 socialAuthButtons
 
                 // Divider
-                dividerWithText("or continue with email")
+                dividerWithText(NSLocalizedString("auth.login.orContinueWithEmail", comment: "Or continue with email divider text"))
 
                 // Email authentication form
                 emailAuthForm
@@ -241,8 +241,8 @@ struct ModernLoginView: View {
             HStack(spacing: 12) {
                 Image(systemName: authService.getBiometricType() == "Face ID" ? "faceid" : "touchid")
                     .font(.title2)
-                
-                Text("Sign in with \(authService.getBiometricType())")
+
+                Text(String(format: NSLocalizedString("login.signInWithBiometric", comment: "Sign in with biometric"), authService.getBiometricType()))
                     .font(.headline)
             }
             .frame(maxWidth: .infinity)
@@ -272,7 +272,7 @@ struct ModernLoginView: View {
                         .foregroundColor(.white)
                         .frame(width: 20, height: 20)
 
-                    Text("Continue with Apple")
+                    Text(NSLocalizedString("login.continueWithApple", comment: "Continue with Apple button"))
                         .font(.headline)
                         .foregroundColor(.white)
                 }
@@ -303,7 +303,7 @@ struct ModernLoginView: View {
                     GoogleLogoView()
                         .frame(width: 20, height: 20)
 
-                    Text("Continue with Google")
+                    Text(NSLocalizedString("auth.continueWithGoogle", comment: "Continue with Google button"))
                         .font(.headline)
                         .foregroundColor(.primary)  // ✅ Adaptive text color
                 }
@@ -327,11 +327,11 @@ struct ModernLoginView: View {
         VStack(spacing: 16) {
             // Email field
             VStack(alignment: .leading, spacing: 8) {
-                Text("Email Address")
+                Text(NSLocalizedString("auth.emailAddress", comment: "Email address label"))
                     .font(.caption)
                     .foregroundColor(.secondary)  // ✅ Adaptive
 
-                TextField("Enter your email", text: $email)
+                TextField(NSLocalizedString("auth.enterEmail", comment: "Enter email placeholder"), text: $email)
                     .textFieldStyle(PlayfulTextFieldStyle())
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
@@ -345,13 +345,13 @@ struct ModernLoginView: View {
 
             // Password field
             VStack(alignment: .leading, spacing: 8) {
-                Text("Password")
+                Text(NSLocalizedString("auth.password", comment: "Password label"))
                     .font(.caption)
                     .foregroundColor(.secondary)  // ✅ Adaptive
 
                 HStack {
                     if isPasswordVisible {
-                        TextField("Enter your password", text: $password)
+                        TextField(NSLocalizedString("auth.enterPassword", comment: "Enter password placeholder"), text: $password)
                             .textContentType(.password)
                             .focused($focusedField, equals: .password)
                             .submitLabel(.go)
@@ -359,7 +359,7 @@ struct ModernLoginView: View {
                                 signInWithEmail()
                             }
                     } else {
-                        SecureField("Enter your password", text: $password)
+                        SecureField(NSLocalizedString("auth.enterPassword", comment: "Enter password placeholder"), text: $password)
                             .textContentType(.password)
                             .focused($focusedField, equals: .password)
                             .submitLabel(.go)
@@ -392,7 +392,7 @@ struct ModernLoginView: View {
                             .scaleEffect(0.8)
                     }
 
-                    Text("Sign In")
+                    Text(NSLocalizedString("auth.signIn", comment: "Sign in button"))
                         .font(.headline)
                 }
                 .frame(maxWidth: .infinity)
@@ -412,11 +412,11 @@ struct ModernLoginView: View {
     
     private var signUpPrompt: some View {
         HStack {
-            Text("Don't have an account?")
+            Text(NSLocalizedString("auth.dontHaveAccount", comment: "Don't have account text"))
                 .font(.caption)
                 .foregroundColor(.secondary)  // ✅ Adaptive
 
-            Button("Sign Up") {
+            Button(NSLocalizedString("auth.signUp", comment: "Sign up button")) {
                 showingSignUp = true
             }
             .font(.headline)
