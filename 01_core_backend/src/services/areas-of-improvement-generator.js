@@ -60,7 +60,7 @@ class AreasOfImprovementGenerator {
                 subject,
                 question_text,
                 student_answer,
-                ai_answer,
+                COALESCE(ai_answer, 'N/A') as ai_answer,
                 grade,
                 archived_at
             FROM questions
@@ -70,8 +70,33 @@ class AreasOfImprovementGenerator {
             ORDER BY subject, archived_at ASC
         `;
 
-        const result = await db.query(query, [userId, startDate, endDate]);
-        return result.rows;
+        try {
+            const result = await db.query(query, [userId, startDate, endDate]);
+            return result.rows;
+        } catch (error) {
+            // Fallback query without ai_answer if column doesn't exist
+            if (error.message.includes('ai_answer')) {
+                logger.warn(`⚠️ ai_answer column not found, using fallback query`);
+                const fallbackQuery = `
+                    SELECT
+                        id,
+                        subject,
+                        question_text,
+                        student_answer,
+                        'N/A' as ai_answer,
+                        grade,
+                        archived_at
+                    FROM questions
+                    WHERE user_id = $1
+                        AND archived_at BETWEEN $2 AND $3
+                        AND (grade = 'INCORRECT' OR grade = 'PARTIAL_CREDIT')
+                    ORDER BY subject, archived_at ASC
+                `;
+                const result = await db.query(fallbackQuery, [userId, startDate, endDate]);
+                return result.rows;
+            }
+            throw error;
+        }
     }
 
     /**

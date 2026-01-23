@@ -213,6 +213,11 @@ class MentalHealthReportGenerator {
      * Analyze wellbeing indicators
      */
     analyzeWellbeing(questions, conversations, previousQuestions, studentAge) {
+        // Ensure we have arrays, not undefined
+        questions = questions || [];
+        conversations = conversations || [];
+        previousQuestions = previousQuestions || [];
+
         const thresholds = this.getAgeThresholds(studentAge);
 
         // === LEARNING ATTITUDE ===
@@ -236,9 +241,13 @@ class MentalHealthReportGenerator {
 
         // Curiosity
         let totalCuriosity = 0;
-        conversations.forEach(c => {
-            totalCuriosity += this.detectCuriosity(c.conversation_content);
-        });
+        if (conversations && conversations.length > 0) {
+            conversations.forEach(c => {
+                if (c && c.conversation_content) {
+                    totalCuriosity += this.detectCuriosity(c.conversation_content);
+                }
+            });
+        }
 
         if (totalCuriosity >= 3) {
             learningAttitudeScore += 0.3;
@@ -274,7 +283,11 @@ class MentalHealthReportGenerator {
         }
 
         // === FOCUS CAPABILITY ===
-        const activeDays = new Set(questions.map(q => q.archived_at.toISOString().split('T')[0])).size;
+        const activeDays = new Set(
+            questions
+                .filter(q => q && q.archived_at)
+                .map(q => new Date(q.archived_at).toISOString().split('T')[0])
+        ).size;
         const focusConsistency = activeDays / 7;
         const focusStatus = focusConsistency >= thresholds.focusConsistency ? 'healthy' :
                            focusConsistency >= thresholds.focusConsistency * 0.7 ? 'moderate' :
@@ -325,12 +338,16 @@ class MentalHealthReportGenerator {
         // Frustration detection
         let totalFrustration = 0;
         let totalEffort = 0;
-        conversations.forEach(c => {
-            totalFrustration += this.detectFrustration(c.conversation_content);
-            totalEffort += this.detectEffort(c.conversation_content);
-        });
+        if (conversations && conversations.length > 0) {
+            conversations.forEach(c => {
+                if (c && c.conversation_content) {
+                    totalFrustration += this.detectFrustration(c.conversation_content);
+                    totalEffort += this.detectEffort(c.conversation_content);
+                }
+            });
+        }
 
-        if (totalFrustration > conversations.length) {
+        if (totalFrustration > (conversations ? conversations.length : 0)) {
             redFlags.push({
                 level: 'warning',
                 title: 'High Frustration Indicators',
@@ -344,10 +361,14 @@ class MentalHealthReportGenerator {
 
         // Harmful language detection
         let harmfulLanguageDetected = [];
-        conversations.forEach(c => {
-            const harmful = this.detectHarmfulLanguage(c.conversation_content);
-            harmfulLanguageDetected = harmfulLanguageDetected.concat(harmful);
-        });
+        if (conversations && conversations.length > 0) {
+            conversations.forEach(c => {
+                if (c && c.conversation_content) {
+                    const harmful = this.detectHarmfulLanguage(c.conversation_content);
+                    harmfulLanguageDetected = harmfulLanguageDetected.concat(harmful);
+                }
+            });
+        }
 
         if (harmfulLanguageDetected.length > 0) {
             redFlags.push({
