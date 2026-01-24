@@ -17,8 +17,8 @@ class MentalHealthReportGenerator {
     /**
      * Generate mental health report HTML
      */
-    async generateMentalHealthReport(userId, startDate, endDate, studentAge = 7) {
-        logger.info(`💭 Generating Mental Health Report for ${userId.substring(0, 8)}... (Age: ${studentAge})`);
+    async generateMentalHealthReport(userId, startDate, endDate, studentAge = 7, studentName = '[Student]') {
+        logger.info(`💭 Generating Mental Health Report for ${userId.substring(0, 8)}... (${studentName}, Age: ${studentAge})`);
 
         try {
             // Step 1: Get questions for this period
@@ -671,7 +671,7 @@ class MentalHealthReportGenerator {
 <body>
     <div class="container">
         <div class="header">
-            <h1>💭 Mental Health & Wellbeing Report</h1>
+            <h1>💭 ${studentName}'s Mental Health & Wellbeing Report</h1>
             <p>Learning Attitude, Focus, and Emotional Assessment</p>
         </div>
 

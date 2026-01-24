@@ -199,13 +199,18 @@ class PassiveReportGenerator {
             const generatedReports = [];
             const reportDetails = [];
 
+            // Get student name to pass to all report generators
+            const studentName = studentProfile.name || '[Student]';
+
             // Report 1: Activity Report
             try {
                 logger.info(`   • Generating Activity Report...`);
                 const activityHTML = await this.activityGenerator.generateActivityReport(
                     userId,
                     dateRange.startDate,
-                    dateRange.endDate
+                    dateRange.endDate,
+                    studentName,
+                    studentAge
                 );
 
                 if (activityHTML) {
@@ -229,7 +234,9 @@ class PassiveReportGenerator {
                 const improvementHTML = await this.improvementGenerator.generateAreasOfImprovementReport(
                     userId,
                     dateRange.startDate,
-                    dateRange.endDate
+                    dateRange.endDate,
+                    studentName,
+                    studentAge
                 );
 
                 if (improvementHTML) {
@@ -254,7 +261,8 @@ class PassiveReportGenerator {
                     userId,
                     dateRange.startDate,
                     dateRange.endDate,
-                    studentAge
+                    studentAge,
+                    studentName
                 );
 
                 if (mentalHealthHTML) {
@@ -280,7 +288,6 @@ class PassiveReportGenerator {
                 const questions = await this.fetchQuestionsForPeriod(userId, dateRange.startDate, dateRange.endDate);
                 const conversations = await this.fetchConversationsForPeriod(userId, dateRange.startDate, dateRange.endDate);
 
-                const studentName = studentProfile.name || '[Student]';
                 const summaryHTML = await this.generateSummaryReport(
                     questions,
                     conversations,
