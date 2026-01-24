@@ -1582,13 +1582,8 @@ struct QuestionCard: View {
                 .font(.subheadline)
                 .foregroundColor(.primary)
 
-            // Work shown (prominently displayed)
+            // Work shown (prominently displayed without label for consistency)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Work Shown:")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-
                 // Display student's calculation steps
                 Text(studentAnswer)
                     .font(.caption)
@@ -1653,9 +1648,14 @@ struct QuestionCard: View {
                 .foregroundColor(.primary)
 
             if !studentAnswer.isEmpty {
-                Text(String(format: NSLocalizedString("proMode.studentAnswerLabel", comment: "Student Answer: X"), studentAnswer))
+                // Just show the answer without label for consistency
+                Text(studentAnswer)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary)
+                    .padding(6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(4)
             }
         }
     }
@@ -2051,10 +2051,14 @@ struct SubquestionRow: View {
                     }
                 }
             } else {
-                // Single blank
-                Text(String(format: NSLocalizedString("proMode.subquestionAnswer", comment: "Answer: X"), studentAnswer))
+                // Single blank (no label for consistency)
+                Text(studentAnswer)
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(3)
             }
         }
     }
@@ -2120,9 +2124,14 @@ struct SubquestionRow: View {
                 .foregroundColor(.primary)
 
             if !studentAnswer.isEmpty {
-                Text(String(format: NSLocalizedString("proMode.subquestionAnswer", comment: "Answer: X"), studentAnswer))
+                // Just show the answer without label for consistency
+                Text(studentAnswer)
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary)
+                    .padding(4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(3)
             }
         }
     }
