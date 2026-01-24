@@ -3287,20 +3287,25 @@ Focus on being helpful and educational while maintaining a conversational tone."
             # 🔍 CRITICAL DEBUG: Check if correct_answer is present in AI response
             if 'correct_answer' in grade_data:
                 correct_ans = grade_data['correct_answer']
-                logger.debug(f"✅ correct_answer present: '{correct_ans[:50] if correct_ans else 'EMPTY STRING'}'...")
+                # Convert to string if it's a number (AI sometimes returns integers like 5, 12)
+                correct_ans_str = str(correct_ans) if correct_ans is not None else 'EMPTY STRING'
+                logger.debug(f"✅ correct_answer present: '{correct_ans_str[:50] if len(correct_ans_str) > 50 else correct_ans_str}'...")
             else:
                 logger.debug(f"⚠️ correct_answer MISSING in AI response! Keys: {list(grade_data.keys())}")
 
             # 🛡️ FALLBACK: Ensure correct_answer always exists (fix for archive bug)
+            # Also ensure it's always a string (AI sometimes returns numbers)
             if not grade_data.get('correct_answer'):
                 # Use provided correct_answer if available, otherwise derive from question
                 if correct_answer:
-                    fallback_answer = correct_answer
-                    logger.debug(f"🛡️ Using provided correct_answer as fallback: '{fallback_answer[:50]}'...")
+                    fallback_answer = str(correct_answer)
+                    fallback_preview = fallback_answer[:50] if len(fallback_answer) > 50 else fallback_answer
+                    logger.debug(f"🛡️ Using provided correct_answer as fallback: '{fallback_preview}'...")
                 elif grade_data.get('is_correct'):
                     # If student is correct, their answer is the correct answer
-                    fallback_answer = student_answer
-                    logger.debug(f"🛡️ Student answer correct, using as correct_answer: '{fallback_answer[:50]}'...")
+                    fallback_answer = str(student_answer)
+                    fallback_preview = fallback_answer[:50] if len(fallback_answer) > 50 else fallback_answer
+                    logger.debug(f"🛡️ Student answer correct, using as correct_answer: '{fallback_preview}'...")
                 else:
                     # Last resort: use question text as placeholder
                     fallback_answer = f"See question: {question_text[:100]}"
@@ -3308,6 +3313,11 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
                 grade_data['correct_answer'] = fallback_answer
                 logger.debug(f"✅ Fallback correct_answer set successfully")
+            else:
+                # Ensure correct_answer is a string (convert if it's a number)
+                if not isinstance(grade_data['correct_answer'], str):
+                    grade_data['correct_answer'] = str(grade_data['correct_answer'])
+                    logger.debug(f"✅ Converted correct_answer to string: '{grade_data['correct_answer']}'")
 
             return {
                 "success": True,
