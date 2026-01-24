@@ -382,7 +382,7 @@ class GeminiEducationalAIService:
                     "temperature": 0.2,     # Low temperature for deterministic math grading (Gemini 2.5)
                     "top_p": 0.9,
                     "top_k": 40,
-                    "max_output_tokens": 800,  # Sufficient for brief feedback (<15 words)
+                    "max_output_tokens": 2048,  # INCREASED: 800 → 2048 for specialized type × subject grading prompts
                     "candidate_count": 1,
                     "response_mime_type": "application/json"  # Force JSON output
                 }
