@@ -1200,15 +1200,26 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
         # Strip all common prefixes for consistent display
         questions = result.get("questions", [])
         for question in questions:
+            # Questions are dicts at this point (before Pydantic validation)
             # Clean regular question student answer
-            if question.student_answer:
-                question.student_answer = clean_student_answer(question.student_answer)
+            if isinstance(question, dict):
+                if question.get('student_answer'):
+                    question['student_answer'] = clean_student_answer(question['student_answer'])
 
-            # Clean subquestion student answers
-            if question.subquestions:
-                for subq in question.subquestions:
-                    if subq.student_answer:
-                        subq.student_answer = clean_student_answer(subq.student_answer)
+                # Clean subquestion student answers
+                if question.get('subquestions'):
+                    for subq in question['subquestions']:
+                        if isinstance(subq, dict) and subq.get('student_answer'):
+                            subq['student_answer'] = clean_student_answer(subq['student_answer'])
+            else:
+                # Fallback for Pydantic objects (shouldn't happen at this stage)
+                if hasattr(question, 'student_answer') and question.student_answer:
+                    question.student_answer = clean_student_answer(question.student_answer)
+
+                if hasattr(question, 'subquestions') and question.subquestions:
+                    for subq in question.subquestions:
+                        if hasattr(subq, 'student_answer') and subq.student_answer:
+                            subq.student_answer = clean_student_answer(subq.student_answer)
 
         processing_time = int((time.time() - start_time) * 1000)
 
