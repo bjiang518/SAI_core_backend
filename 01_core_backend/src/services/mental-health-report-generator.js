@@ -54,7 +54,7 @@ class MentalHealthReportGenerator {
             }
 
             // Step 5: Generate HTML
-            const html = this.generateMentalHealthHTML(analysis);
+            const html = this.generateMentalHealthHTML(analysis, studentName);
 
             logger.info(`✅ Mental Health Report generated: ${(analysis.redFlags || []).length} flags detected`);
 
@@ -433,7 +433,7 @@ class MentalHealthReportGenerator {
     /**
      * Generate HTML for mental health report
      */
-    generateMentalHealthHTML(analysis) {
+    generateMentalHealthHTML(analysis, studentName) {
         const redFlagLevelColors = {
             urgent: '#DC3545',
             warning: '#FFC107',

@@ -38,7 +38,7 @@ class AreasOfImprovementGenerator {
             const analysis = this.analyzeErrorPatterns(mistakesThisWeek, mistakesLastWeek, helpConversations);
 
             // Step 5: Generate HTML
-            const html = this.generateImprovementHTML(analysis);
+            const html = this.generateImprovementHTML(analysis, studentName);
 
             logger.info(`✅ Areas of Improvement Report generated: ${Object.keys(analysis.bySubject).length} subjects analyzed`);
 
@@ -308,7 +308,7 @@ class AreasOfImprovementGenerator {
     /**
      * Generate HTML for areas of improvement report
      */
-    generateImprovementHTML(analysis) {
+    generateImprovementHTML(analysis, studentName) {
         const subjects = Object.values(analysis.bySubject)
             .filter(s => s.totalMistakes > 0)
             .sort((a, b) => b.totalMistakes - a.totalMistakes);
