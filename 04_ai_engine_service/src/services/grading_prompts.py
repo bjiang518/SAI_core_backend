@@ -554,17 +554,25 @@ Return your response in JSON format with score, is_correct, feedback, confidence
 """
     else:
         output_format = """
-GRADING OUTPUT:
-Return your response as JSON with the following fields:
+GRADING INSTRUCTIONS:
+1. Evaluate the student's answer against the correct answer
+2. Assign a score from 0.0 (completely wrong) to 1.0 (perfect)
+3. Provide brief, specific feedback (15-30 words)
 
-SCORE: [0.0 to 1.0]
-IS_CORRECT: [true if score >= 0.9, false otherwise]
-FEEDBACK: [Brief, specific feedback in 15-30 words explaining the grade]
-CONFIDENCE: [Your confidence in this grading, 0.0 to 1.0]
-CORRECT_ANSWER: [The correct answer if not already provided]
+Return ONLY a valid JSON object with this exact structure:
+{
+  "score": 0.85,
+  "is_correct": false,
+  "feedback": "Your approach is correct but you made a calculation error in step 2.",
+  "confidence": 0.9,
+  "correct_answer": "42"
+}
 
-Keep feedback concise but specific. Focus on what matters most.
-Respond in JSON format.
+IMPORTANT:
+- Return ONLY the JSON object, no other text
+- is_correct should be true only if score >= 0.9
+- Keep feedback concise (15-30 words)
+- Always include correct_answer field
 """
 
     prompt_parts.append(output_format)
