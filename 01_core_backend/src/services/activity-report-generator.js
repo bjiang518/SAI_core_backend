@@ -19,10 +19,12 @@ class ActivityReportGenerator {
      * @param {String} userId - User ID
      * @param {Date} startDate - Week start date
      * @param {Date} endDate - Week end date
+     * @param {String} studentName - Student's name (for personalization)
+     * @param {Number} studentAge - Student's age (for age-appropriate content)
      * @returns {Promise<String>} HTML report
      */
-    async generateActivityReport(userId, startDate, endDate) {
-        logger.info(`📊 Generating Activity Report for ${userId.substring(0, 8)}...`);
+    async generateActivityReport(userId, startDate, endDate, studentName, studentAge) {
+        logger.info(`📊 Generating Activity Report for ${userId.substring(0, 8)}... (${studentName}, Age: ${studentAge})`);
 
         try {
             // Step 1: Aggregate questions data
@@ -515,7 +517,7 @@ class ActivityReportGenerator {
 <body>
     <div class="container">
         <div class="header">
-            <h1>📊 Student Activity Report</h1>
+            <h1>📊 ${studentName}'s Activity Report</h1>
             <p>Weekly Learning Summary</p>
         </div>
 

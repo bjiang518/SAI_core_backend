@@ -17,8 +17,8 @@ class AreasOfImprovementGenerator {
     /**
      * Generate areas of improvement report HTML
      */
-    async generateAreasOfImprovementReport(userId, startDate, endDate) {
-        logger.info(`🎯 Generating Areas of Improvement Report for ${userId.substring(0, 8)}...`);
+    async generateAreasOfImprovementReport(userId, startDate, endDate, studentName, studentAge) {
+        logger.info(`🎯 Generating Areas of Improvement Report for ${userId.substring(0, 8)}... (${studentName}, Age: ${studentAge})`);
 
         try {
             // Step 1: Get all mistakes this week
@@ -544,7 +544,7 @@ class AreasOfImprovementGenerator {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎯 Areas for Improvement</h1>
+            <h1>🎯 ${studentName}'s Areas for Improvement</h1>
             <p>Subject-Specific Weakness Analysis</p>
         </div>
 
