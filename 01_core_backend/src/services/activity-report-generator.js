@@ -40,7 +40,7 @@ class ActivityReportGenerator {
             const metrics = this.calculateActivityMetrics(questionsData, conversationsData, previousWeekData);
 
             // Step 5: Generate HTML
-            const html = this.generateActivityHTML(metrics);
+            const html = this.generateActivityHTML(metrics, studentName);
 
             logger.info(`✅ Activity Report generated: ${metrics.totalQuestions} questions, ${metrics.totalChats} chats`);
 
@@ -228,7 +228,7 @@ class ActivityReportGenerator {
     /**
      * Generate HTML for activity report
      */
-    generateActivityHTML(metrics) {
+    generateActivityHTML(metrics, studentName) {
         const subjectArray = Object.entries(metrics.subjectBreakdown)
             .map(([name, data]) => ({
                 name,

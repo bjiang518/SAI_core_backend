@@ -333,6 +333,7 @@ struct ModernProfileView: View {
                                     .aspectRatio(contentMode: .fill)
                                     .frame(width: 60, height: 60)
                                     .clipShape(Circle())
+                                    .id(avatarId)  // Force refresh when avatar changes
                             } else {
                                 // Fallback to gradient circle with initial
                                 ZStack {
@@ -355,6 +356,7 @@ struct ModernProfileView: View {
                                             .foregroundColor(.white)
                                     }
                                 }
+                                .id("no-avatar")  // Stable ID for fallback state
                             }
 
                             VStack(alignment: .leading, spacing: 4) {
