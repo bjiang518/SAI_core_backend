@@ -177,8 +177,8 @@ class PassiveReportGenerator {
                 const batchQuery = `
                     INSERT INTO parent_report_batches (
                         id, user_id, period, start_date, end_date, status,
-                        student_age, grade_level, learning_style, student_name
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                        student_age, grade_level, learning_style
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                     RETURNING *
                 `;
 
@@ -191,8 +191,7 @@ class PassiveReportGenerator {
                     'processing',
                     studentAge,
                     studentProfile.grade_level || null,
-                    studentProfile.learning_style || null,
-                    studentProfile.name || null
+                    studentProfile.learning_style || null
                 ]);
             }
 
