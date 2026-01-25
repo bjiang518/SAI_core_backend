@@ -689,7 +689,10 @@ struct EditProfileView: View {
                 print("⚠️ [EditProfileView] No profile in ProfileService after reload!")
             }
 
+            // Force UI update by posting notification
             await MainActor.run {
+                NotificationCenter.default.post(name: NSNotification.Name("ProfileUpdated"), object: nil)
+                print("📢 [EditProfileView] Posted ProfileUpdated notification")
                 showingSaveSuccess = true
             }
         } catch {
@@ -888,6 +891,7 @@ struct ImageCropperView: View {
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
+    @State private var rotation: Angle = .zero  // Track rotation in degrees
 
     private let cropSize: CGFloat = 300
 
@@ -905,6 +909,7 @@ struct ImageCropperView: View {
                             .resizable()
                             .scaledToFit()
                             .scaleEffect(scale)
+                            .rotationEffect(rotation)  // Apply rotation
                             .offset(offset)
                             .gesture(
                                 MagnificationGesture()
@@ -952,25 +957,93 @@ struct ImageCropperView: View {
 
                     Spacer()
 
-                    // Instructions
-                    VStack(spacing: 8) {
+                    // Control buttons
+                    VStack(spacing: 16) {
                         Text("Pinch to zoom, drag to adjust")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.8))
 
-                        HStack(spacing: 20) {
+                        // Zoom controls
+                        HStack(spacing: 24) {
                             Button(action: {
-                                // Reset
+                                withAnimation {
+                                    scale = max(scale - 0.2, 1.0)
+                                }
+                            }) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "minus.magnifyingglass")
+                                        .font(.title2)
+                                    Text("Zoom Out")
+                                        .font(.caption2)
+                                }
+                                .foregroundColor(.white)
+                                .padding(12)
+                            }
+
+                            Button(action: {
+                                withAnimation {
+                                    scale = min(scale + 0.2, 5.0)
+                                }
+                            }) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "plus.magnifyingglass")
+                                        .font(.title2)
+                                    Text("Zoom In")
+                                        .font(.caption2)
+                                }
+                                .foregroundColor(.white)
+                                .padding(12)
+                            }
+                        }
+
+                        // Rotation controls
+                        HStack(spacing: 24) {
+                            Button(action: {
+                                withAnimation {
+                                    rotation = Angle(degrees: rotation.degrees - 90)
+                                }
+                            }) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "rotate.left")
+                                        .font(.title2)
+                                    Text("Rotate Left")
+                                        .font(.caption2)
+                                }
+                                .foregroundColor(.white)
+                                .padding(12)
+                            }
+
+                            Button(action: {
+                                withAnimation {
+                                    rotation = Angle(degrees: rotation.degrees + 90)
+                                }
+                            }) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "rotate.right")
+                                        .font(.title2)
+                                    Text("Rotate Right")
+                                        .font(.caption2)
+                                }
+                                .foregroundColor(.white)
+                                .padding(12)
+                            }
+
+                            Button(action: {
                                 withAnimation {
                                     scale = 1.0
                                     offset = .zero
                                     lastOffset = .zero
+                                    rotation = .zero
                                 }
                             }) {
-                                Image(systemName: "arrow.counterclockwise")
-                                    .font(.title2)
-                                    .foregroundColor(.white)
-                                    .padding()
+                                VStack(spacing: 4) {
+                                    Image(systemName: "arrow.counterclockwise")
+                                        .font(.title2)
+                                    Text("Reset")
+                                        .font(.caption2)
+                                }
+                                .foregroundColor(.white)
+                                .padding(12)
                             }
                         }
                     }
@@ -997,18 +1070,25 @@ struct ImageCropperView: View {
     }
 
     private func cropImage() {
-        print("✂️ [ImageCropper] Starting crop with scale: \(scale), offset: \(offset)")
+        print("✂️ [ImageCropper] Starting crop with scale: \(scale), offset: \(offset), rotation: \(rotation.degrees)°")
+
+        // Step 1: Apply rotation to the image if needed
+        var workingImage = image
+        if rotation.degrees != 0 {
+            workingImage = rotateImage(image, by: rotation) ?? image
+            print("✂️ [ImageCropper] Applied rotation: \(rotation.degrees)°")
+        }
 
         // Output size for the final avatar
         let outputSize: CGFloat = 200
 
-        // Step 1: Create a rendering context
+        // Step 2: Create a rendering context
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: outputSize, height: outputSize))
 
         let croppedImage = renderer.image { context in
-            // Step 2: Calculate the source rect from the original image
-            let imageSize = image.size
-            print("✂️ [ImageCropper] Original image size: \(imageSize)")
+            // Step 3: Calculate the source rect from the working image
+            let imageSize = workingImage.size
+            print("✂️ [ImageCropper] Working image size: \(imageSize)")
 
             // The crop circle is 300 points in UI
             // We need to find what 300 UI points represents in the scaled/offset image
@@ -1063,9 +1143,9 @@ struct ImageCropperView: View {
 
             print("✂️ [ImageCropper] Crop rect: \(cropRect)")
 
-            // Step 3: Crop the image
-            if let cgImage = image.cgImage?.cropping(to: cropRect) {
-                let croppedUIImage = UIImage(cgImage: cgImage, scale: 1.0, orientation: image.imageOrientation)
+            // Step 4: Crop the image
+            if let cgImage = workingImage.cgImage?.cropping(to: cropRect) {
+                let croppedUIImage = UIImage(cgImage: cgImage, scale: 1.0, orientation: workingImage.imageOrientation)
                 // Draw the cropped image into the output size
                 croppedUIImage.draw(in: CGRect(origin: .zero, size: CGSize(width: outputSize, height: outputSize)))
                 print("✅ [ImageCropper] Crop successful")
@@ -1076,6 +1156,46 @@ struct ImageCropperView: View {
 
         onCrop(croppedImage)
         dismiss()
+    }
+
+    // Helper function to rotate UIImage
+    private func rotateImage(_ image: UIImage, by angle: Angle) -> UIImage? {
+        guard angle.degrees != 0 else { return image }
+
+        let radians = CGFloat(angle.radians)
+
+        // Calculate the size of the rotated image
+        var newSize = CGRect(origin: .zero, size: image.size)
+            .applying(CGAffineTransform(rotationAngle: radians))
+            .integral.size
+
+        // Ensure size is positive
+        newSize.width = abs(newSize.width)
+        newSize.height = abs(newSize.height)
+
+        // Create the drawing context
+        UIGraphicsBeginImageContextWithOptions(newSize, false, image.scale)
+        guard let context = UIGraphicsGetCurrentContext() else {
+            UIGraphicsEndImageContext()
+            return nil
+        }
+
+        // Move origin to middle
+        context.translateBy(x: newSize.width / 2, y: newSize.height / 2)
+        // Rotate
+        context.rotate(by: radians)
+        // Draw image centered
+        image.draw(in: CGRect(
+            x: -image.size.width / 2,
+            y: -image.size.height / 2,
+            width: image.size.width,
+            height: image.size.height
+        ))
+
+        let rotatedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+
+        return rotatedImage
     }
 }
 
