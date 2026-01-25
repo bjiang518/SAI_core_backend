@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 import sys
 import os
@@ -12,11 +12,15 @@ router = APIRouter(prefix="/api/v1/error-analysis", tags=["error-analysis"])
 error_service = ErrorAnalysisService()
 
 class ErrorAnalysisRequest(BaseModel):
-    question_text: str
-    student_answer: str
-    correct_answer: str
+    # Accept camelCase from iOS but map to snake_case internally
+    questionText: str = Field(..., alias="question_text")
+    studentAnswer: str = Field(..., alias="student_answer")
+    correctAnswer: str = Field(..., alias="correct_answer")
     subject: Optional[str] = "General"
-    question_id: Optional[str] = None
+    questionId: Optional[str] = Field(None, alias="question_id")
+
+    class Config:
+        populate_by_name = True  # Allow both camelCase and snake_case
 
 class BatchErrorAnalysisRequest(BaseModel):
     questions: List[ErrorAnalysisRequest]
@@ -33,7 +37,15 @@ async def analyze_single_error(request: ErrorAnalysisRequest):
     """
     Analyze a single wrong answer to determine error type
     """
-    result = await error_service.analyze_error(request.dict())
+    # Convert camelCase to snake_case for service
+    question_data = {
+        "question_text": request.questionText,
+        "student_answer": request.studentAnswer,
+        "correct_answer": request.correctAnswer,
+        "subject": request.subject,
+        "question_id": request.questionId
+    }
+    result = await error_service.analyze_error(question_data)
     return result
 
 @router.post("/analyze-batch", response_model=List[ErrorAnalysisResponse])
@@ -41,6 +53,16 @@ async def analyze_batch_errors(request: BatchErrorAnalysisRequest):
     """
     Analyze multiple wrong answers in parallel
     """
-    questions_data = [q.dict() for q in request.questions]
+    # Convert each question from camelCase to snake_case
+    questions_data = [
+        {
+            "question_text": q.questionText,
+            "student_answer": q.studentAnswer,
+            "correct_answer": q.correctAnswer,
+            "subject": q.subject,
+            "question_id": q.questionId
+        }
+        for q in request.questions
+    ]
     results = await error_service.analyze_batch(questions_data)
     return results
