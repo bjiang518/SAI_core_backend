@@ -450,20 +450,46 @@ class GeminiEducationalAIService:
             # Check finish_reason for token limit issues BEFORE extracting text
             if response.candidates and len(response.candidates) > 0:
                 finish_reason = response.candidates[0].finish_reason
-                logger.debug(f"🔍 Grading finish reason: {finish_reason}")
+                finish_reason_str = str(finish_reason)
+                logger.debug(f"🔍 Grading finish reason: {finish_reason} (string: '{finish_reason_str}')")
+
+                # Log response metadata for debugging
+                logger.debug(f"   📊 Model used: {model_name}")
+                logger.debug(f"   📊 Max output tokens configured: {generation_config.get('max_output_tokens', 'unknown')}")
+                logger.debug(f"   📊 Response candidates count: {len(response.candidates)}")
 
                 # Check for MAX_TOKENS error (NEW API uses enum, not int)
                 # Possible values: STOP, MAX_TOKENS, SAFETY, RECITATION, OTHER
-                finish_reason_str = str(finish_reason)
-                if "MAX_TOKENS" in finish_reason_str or finish_reason == 3:
+                # FinishReason enum: FINISH_REASON_UNSPECIFIED=0, STOP=1, MAX_TOKENS=2, SAFETY=3, RECITATION=4, OTHER=5
+                if "MAX_TOKENS" in finish_reason_str or finish_reason == 2:  # ⚠️ FIXED: MAX_TOKENS = 2, not 3
                     logger.debug(f"⚠️ WARNING: Grading response hit MAX_TOKENS limit!")
                     logger.debug(f"   Current max_output_tokens: {generation_config.get('max_output_tokens', 'unknown')}")
+                    logger.debug(f"   Question text length: {len(question_text)} chars")
+                    logger.debug(f"   Student answer length: {len(student_answer)} chars")
+                    logger.debug(f"   Finish reason: {finish_reason} / {finish_reason_str}")
                     logger.debug(f"   Consider: 1) Increase max_output_tokens (currently {generation_config.get('max_output_tokens', 'N/A')})")
                     logger.debug(f"            2) Simplify grading prompt")
+
+                    # Try to extract partial response for debugging
+                    try:
+                        partial_response = self._extract_response_text(response)
+                        logger.debug(f"   📄 Partial response (first 200 chars): {partial_response[:200]}")
+                    except Exception as e:
+                        logger.debug(f"   ⚠️ Could not extract partial response: {e}")
+
                     return {
                         "success": False,
                         "error": "Grading response exceeded token limit. Try simpler questions or contact support."
                     }
+                elif finish_reason == 3:  # SAFETY
+                    logger.debug(f"⚠️ Response blocked by SAFETY filter")
+                    return {
+                        "success": False,
+                        "error": "Response blocked by safety filter. Please check question content."
+                    }
+                elif finish_reason != 1 and "STOP" not in finish_reason_str:  # Not normal completion
+                    logger.debug(f"⚠️ Unexpected finish reason: {finish_reason} / {finish_reason_str}")
+
 
             # Parse JSON response (safely handle complex responses)
             raw_response = self._extract_response_text(response)
