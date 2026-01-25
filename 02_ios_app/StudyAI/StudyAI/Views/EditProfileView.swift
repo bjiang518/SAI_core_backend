@@ -665,6 +665,9 @@ struct EditProfileView: View {
         do {
             _ = try await profileService.updateUserProfile(updatedProfile)
 
+            // Reload profile to get the updated data including custom avatar URL
+            try? await profileService.getUserProfile()
+
             await MainActor.run {
                 showingSaveSuccess = true
             }
