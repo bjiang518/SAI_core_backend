@@ -586,9 +586,10 @@ struct EditProfileView: View {
                         print("⚠️ [EditProfileView] Failed to load custom avatar from local file")
                     }
                 } else {
-                    // Legacy: Load from server URL (data URL or HTTP URL)
+                    // MIGRATION: Convert data URL or HTTP URL to local file
+                    print("🔄 [EditProfileView] Migrating avatar from data/HTTP URL to local file...")
                     Task {
-                        await loadCustomAvatarFromUrl(customAvatarUrl)
+                        await migrateAvatarToLocalStorage(from: customAvatarUrl)
                     }
                 }
             }
@@ -915,6 +916,106 @@ struct EditProfileView: View {
             }
         } catch {
             print("❌ [EditProfileView] Failed to load custom avatar: \(error)")
+        }
+    }
+
+    /// Migrate existing data URL or HTTP URL avatar to local file storage
+    private func migrateAvatarToLocalStorage(from urlString: String) async {
+        print("🔄 [EditProfileView] Starting avatar migration...")
+        print("📦 [EditProfileView] Source URL type: \(urlString.hasPrefix("data:") ? "data URL" : "HTTP URL")")
+
+        // Load image from data URL or HTTP URL
+        var image: UIImage?
+
+        if urlString.hasPrefix("data:image/") {
+            // Extract base64 data from data URL
+            if let base64Data = urlString.components(separatedBy: ",").last,
+               let imageData = Data(base64Encoded: base64Data) {
+                image = UIImage(data: imageData)
+                print("✅ [EditProfileView] Decoded image from data URL")
+            } else {
+                print("❌ [EditProfileView] Failed to decode data URL")
+                return
+            }
+        } else {
+            // Load from HTTP URL
+            await loadCustomAvatarFromUrl(urlString)
+            await MainActor.run {
+                image = customAvatarImage
+            }
+        }
+
+        guard let avatarImage = image else {
+            print("❌ [EditProfileView] No image to migrate")
+            return
+        }
+
+        // Save to local file
+        guard let localFileURL = saveAvatarLocally(avatarImage) else {
+            print("❌ [EditProfileView] Failed to save migrated avatar locally")
+            return
+        }
+
+        let localURLString = localFileURL.absoluteString
+        print("✅ [EditProfileView] Avatar migrated to local file: \(localURLString)")
+
+        // Update UI
+        await MainActor.run {
+            customAvatarImage = avatarImage
+        }
+
+        // Update profile on server with new local file URL
+        if let currentProfile = profileService.currentProfile {
+            let updatedProfile = UserProfile(
+                id: currentProfile.id,
+                email: currentProfile.email,
+                name: currentProfile.name,
+                profileImageUrl: currentProfile.profileImageUrl,
+                authProvider: currentProfile.authProvider,
+                firstName: currentProfile.firstName,
+                lastName: currentProfile.lastName,
+                displayName: currentProfile.displayName,
+                gradeLevel: currentProfile.gradeLevel,
+                dateOfBirth: currentProfile.dateOfBirth,
+                kidsAges: currentProfile.kidsAges,
+                gender: currentProfile.gender,
+                city: currentProfile.city,
+                stateProvince: currentProfile.stateProvince,
+                country: currentProfile.country,
+                favoriteSubjects: currentProfile.favoriteSubjects,
+                learningStyle: currentProfile.learningStyle,
+                timezone: currentProfile.timezone ?? "UTC",
+                languagePreference: currentProfile.languagePreference ?? "en",
+                profileCompletionPercentage: currentProfile.profileCompletionPercentage,
+                lastUpdated: currentProfile.lastUpdated,
+                avatarId: nil,  // Clear preset avatar
+                customAvatarUrl: localURLString  // Set new local file URL
+            )
+
+            do {
+                _ = try await profileService.updateUserProfile(updatedProfile)
+                print("✅ [EditProfileView] Profile updated with local file URL")
+
+                // Post notification to refresh UI
+                await MainActor.run {
+                    NotificationCenter.default.post(name: NSNotification.Name("ProfileUpdated"), object: nil)
+                    print("📢 [EditProfileView] Posted ProfileUpdated notification after migration")
+                }
+            } catch {
+                print("❌ [EditProfileView] Failed to update profile with local URL: \(error)")
+            }
+        }
+
+        // Upload to server in background for backup
+        Task {
+            do {
+                guard let imageData = avatarImage.jpegData(compressionQuality: 0.6) else { return }
+                let base64String = imageData.base64EncodedString()
+                let result = await NetworkService.shared.uploadCustomAvatar(base64Image: base64String)
+                if result.success {
+                    print("✅ [EditProfileView] Migrated avatar backed up to server")
+                }
+            }
         }
     }
 }
