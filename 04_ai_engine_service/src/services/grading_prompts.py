@@ -565,6 +565,9 @@ GRADING INSTRUCTIONS:
 1. Evaluate the student's answer against the correct answer
 2. Assign a score from 0.0 (completely wrong) to 1.0 (perfect)
 3. Provide brief, specific feedback (15-30 words)
+4. For calculation questions: Distinguish simple mental math from complex problems
+   - Simple (1-2 steps): Give full credit if answer is correct
+   - Complex (multi-step/formulas): Cap score if no work shown
 
 Return ONLY a valid JSON object with this exact structure:
 {
