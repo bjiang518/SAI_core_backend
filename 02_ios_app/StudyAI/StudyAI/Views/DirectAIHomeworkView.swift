@@ -2649,36 +2649,26 @@ struct CameraPickerView: UIViewControllerRepresentable {
 
         // Mirror image horizontally for front camera
         private func mirrorImage(_ image: UIImage) -> UIImage {
-            // Step 1: Normalize the orientation by drawing the image
-            // This "bakes in" the EXIF orientation metadata and fixes rotation issues
-            UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
-            image.draw(in: CGRect(origin: .zero, size: image.size))
-            guard let normalizedImage = UIGraphicsGetImageFromCurrentImageContext() else {
-                UIGraphicsEndImageContext()
-                return image
-            }
+            // Use UIImage's orientation system to handle both rotation and mirroring
+            // This avoids coordinate system conflicts between UIKit and Core Graphics
+            guard let cgImage = image.cgImage else { return image }
+
+            // Create a mirrored version using .upMirrored orientation
+            // This handles the EXIF orientation data and applies horizontal flip
+            let mirroredImage = UIImage(
+                cgImage: cgImage,
+                scale: image.scale,
+                orientation: .upMirrored
+            )
+
+            // Now "bake in" the orientation by rendering to a new context
+            // This creates a new image with .up orientation containing the mirrored pixels
+            UIGraphicsBeginImageContextWithOptions(mirroredImage.size, false, mirroredImage.scale)
+            mirroredImage.draw(in: CGRect(origin: .zero, size: mirroredImage.size))
+            let finalImage = UIGraphicsGetImageFromCurrentImageContext()
             UIGraphicsEndImageContext()
 
-            // Step 2: Apply horizontal flip for mirror effect
-            guard let cgImage = normalizedImage.cgImage else { return normalizedImage }
-
-            let width = normalizedImage.size.width
-            let height = normalizedImage.size.height
-
-            UIGraphicsBeginImageContextWithOptions(CGSize(width: width, height: height), false, normalizedImage.scale)
-            guard let context = UIGraphicsGetCurrentContext() else { return normalizedImage }
-
-            // Flip horizontally
-            context.translateBy(x: width, y: 0)
-            context.scaleBy(x: -1.0, y: 1.0)
-
-            // Draw the normalized image
-            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-
-            let flippedImage = UIGraphicsGetImageFromCurrentImageContext()
-            UIGraphicsEndImageContext()
-
-            return flippedImage ?? normalizedImage
+            return finalImage ?? image
         }
     }
 }

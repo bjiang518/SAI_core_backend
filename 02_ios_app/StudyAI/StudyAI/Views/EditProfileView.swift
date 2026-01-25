@@ -210,46 +210,49 @@ struct EditProfileView: View {
                 .disabled(isUploadingAvatar)
 
                 // Divider
-                if customAvatarImage == nil {
-                    HStack {
-                        VStack { Divider() }
-                        Text("OR")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 8)
-                        VStack { Divider() }
-                    }
-                    .padding(.vertical, 8)
-
-                    // Preset Avatar Grid
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 16) {
-                        ForEach(ProfileAvatar.allCases, id: \.self) { avatar in
-                            Button(action: {
-                                selectedAvatarId = avatar.rawValue
-                                customAvatarImage = nil  // Clear custom avatar when selecting preset
-                            }) {
-                                Image(avatar.imageName)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 70, height: 70)
-                                    .clipShape(Circle())
-                                    .overlay(
-                                        Circle()
-                                            .stroke(
-                                                selectedAvatarId == avatar.rawValue ? Color.blue : Color.clear,
-                                                lineWidth: 3
-                                            )
-                                    )
-                                    .shadow(
-                                        color: selectedAvatarId == avatar.rawValue ? .blue.opacity(0.3) : .clear,
-                                        radius: 5
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.top, 8)
+                HStack {
+                    VStack { Divider() }
+                    Text("OR")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 8)
+                    VStack { Divider() }
                 }
+                .padding(.vertical, 8)
+
+                // Preset Avatar Grid (always visible)
+                Text(customAvatarImage != nil ? "Or choose a preset avatar" : "Choose a preset avatar")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.bottom, 4)
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 16) {
+                    ForEach(ProfileAvatar.allCases, id: \.self) { avatar in
+                        Button(action: {
+                            selectedAvatarId = avatar.rawValue
+                            customAvatarImage = nil  // Clear custom avatar when selecting preset
+                        }) {
+                            Image(avatar.imageName)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 70, height: 70)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            selectedAvatarId == avatar.rawValue && customAvatarImage == nil ? Color.blue : Color.clear,
+                                            lineWidth: 3
+                                        )
+                                )
+                                .shadow(
+                                    color: selectedAvatarId == avatar.rawValue && customAvatarImage == nil ? .blue.opacity(0.3) : .clear,
+                                    radius: 5
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 8)
             }
         }
         .sheet(item: $activeSheet) { sheetType in
