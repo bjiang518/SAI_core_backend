@@ -144,10 +144,8 @@ def _get_type_specific_instructions(question_type: str) -> str:
   * Correct final answer (25%): numerical result with units
 - Check units! Wrong units = incorrect even with right number
 - Rounding: Accept answers within reasonable precision (±2% or within 1 significant figure)
-- **Show work requirement depends on complexity**:
-  * Simple mental math (1-2 steps, no formulas): Full credit if answer is correct
-  * Multi-step calculations: No work shown = maximum 50% credit even if answer is correct
-  * Examples of simple mental math: "What is 5+3?", "One less than 17?", "10% of 50?"
+- Show work is important for complex problems requiring multiple steps or formulas
+- For simple single-operation arithmetic, correct answer demonstrates understanding
 - Accept equivalent forms (fractions = decimals = percentages)
 """,
 
@@ -385,19 +383,16 @@ def _get_combined_instructions(question_type: str, subject: str) -> str:
 
         ("calculation", "Math"): """
 🎯 CALCULATION × MATH COMBINATION:
-- **Show work requirement depends on complexity**:
-  * Simple mental math (1-2 steps): Full credit if answer is correct
-  * Multi-step problems: No work = maximum 30% credit even with correct answer
-  * Examples of simple: "17-1", "5+3", "What's one more than 11?"
-  * Examples of multi-step: Solving equations, word problems, multi-operation
 - Accept multiple solution methods (algebraic, graphical, numerical)
 - Notation: π is acceptable for answers, exact vs decimal specified in problem
-- Partial credit structure (for multi-step):
+- Partial credit structure:
   * Correct approach/method: 30%
   * Correct calculation process: 40%
   * Correct final answer: 30%
 - Rounding: Unless specified, round to 2 decimal places or keep exact form
 - Common errors: Sign errors, distributing negatives, order of operations
+- Award full credit for correct answers to basic arithmetic operations
+- For complex multi-step problems, work shown is necessary for full credit
 """,
 
         ("short_answer", "Science"): """
@@ -565,9 +560,7 @@ GRADING INSTRUCTIONS:
 1. Evaluate the student's answer against the correct answer
 2. Assign a score from 0.0 (completely wrong) to 1.0 (perfect)
 3. Provide brief, specific feedback (15-30 words)
-4. For calculation questions: Distinguish simple mental math from complex problems
-   - Simple (1-2 steps): Give full credit if answer is correct
-   - Complex (multi-step/formulas): Cap score if no work shown
+4. Consider question complexity when evaluating completeness of response
 
 Return ONLY a valid JSON object with this exact structure:
 {
