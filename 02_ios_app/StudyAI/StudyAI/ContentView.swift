@@ -327,25 +327,25 @@ struct ModernProfileView: View {
                             // Profile Image / Avatar
                             if let profile = profileService.currentProfile,
                                let customAvatarUrl = profile.customAvatarUrl, !customAvatarUrl.isEmpty {
-                                // Display custom uploaded avatar
+                                // Display custom avatar from LOCAL FILE (instant loading)
                                 let _ = print("🖼️ [ContentView] Displaying CUSTOM avatar")
                                 let _ = print("🖼️ [ContentView] Custom avatar URL: \(customAvatarUrl.prefix(100))...")
-                                AsyncImage(url: URL(string: customAvatarUrl)) { phase in
-                                    switch phase {
-                                    case .empty:
-                                        let _ = print("🖼️ [ContentView] AsyncImage: Loading...")
-                                        ProgressView()
-                                            .frame(width: 60, height: 60)
-                                    case .success(let image):
-                                        let _ = print("✅ [ContentView] AsyncImage: SUCCESS")
-                                        image
+
+                                // Load from local file URL (file://)
+                                if customAvatarUrl.hasPrefix("file://"), let url = URL(string: customAvatarUrl) {
+                                    let _ = print("📁 [ContentView] Loading from LOCAL file")
+                                    if let imageData = try? Data(contentsOf: url),
+                                       let uiImage = UIImage(data: imageData) {
+                                        let _ = print("✅ [ContentView] Local file loaded successfully")
+                                        Image(uiImage: uiImage)
                                             .resizable()
                                             .aspectRatio(contentMode: .fill)
                                             .frame(width: 60, height: 60)
                                             .clipShape(Circle())
-                                    case .failure(let error):
-                                        // Fallback to gradient circle on failure
-                                        let _ = print("❌ [ContentView] AsyncImage: FAILED - \(error.localizedDescription)")
+                                            .id("\(customAvatarUrl)-\(refreshID)")  // Force refresh when avatar URL or refreshID changes
+                                    } else {
+                                        // Fallback if local file fails
+                                        let _ = print("❌ [ContentView] Failed to load local file, showing fallback")
                                         ZStack {
                                             Circle()
                                                 .fill(LinearGradient(
@@ -359,11 +359,45 @@ struct ModernProfileView: View {
                                                 .font(.title)
                                                 .foregroundColor(.white)
                                         }
-                                    @unknown default:
-                                        EmptyView()
                                     }
+                                } else {
+                                    // Legacy: data URL or HTTP URL - use AsyncImage
+                                    let _ = print("🌐 [ContentView] Loading from SERVER URL (legacy)")
+                                    AsyncImage(url: URL(string: customAvatarUrl)) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            let _ = print("🖼️ [ContentView] AsyncImage: Loading...")
+                                            ProgressView()
+                                                .frame(width: 60, height: 60)
+                                        case .success(let image):
+                                            let _ = print("✅ [ContentView] AsyncImage: SUCCESS")
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                                .frame(width: 60, height: 60)
+                                                .clipShape(Circle())
+                                        case .failure(let error):
+                                            // Fallback to gradient circle on failure
+                                            let _ = print("❌ [ContentView] AsyncImage: FAILED - \(error.localizedDescription)")
+                                            ZStack {
+                                                Circle()
+                                                    .fill(LinearGradient(
+                                                        colors: [.blue, .purple],
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    ))
+                                                    .frame(width: 60, height: 60)
+
+                                                Image(systemName: "person.fill")
+                                                    .font(.title)
+                                                    .foregroundColor(.white)
+                                            }
+                                        @unknown default:
+                                            EmptyView()
+                                        }
+                                    }
+                                    .id("\(customAvatarUrl)-\(refreshID)")  // Force refresh when avatar URL or refreshID changes
                                 }
-                                .id("\(customAvatarUrl)-\(refreshID)")  // Force refresh when avatar URL or refreshID changes
                             } else if let profile = profileService.currentProfile,
                                let avatarId = profile.avatarId,
                                let avatar = ProfileAvatar.from(id: avatarId) {
