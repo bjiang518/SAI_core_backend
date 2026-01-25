@@ -396,6 +396,53 @@ class PassiveReportsViewModel: ObservableObject {
             print("❌ [PassiveReports] Error details: \(error.localizedDescription)")
         }
     }
+
+    /// Delete a report batch
+    func deleteBatch(_ batch: PassiveReportBatch) async {
+        do {
+            let endpoint = "/api/reports/passive/batches/\(batch.id)"
+
+            guard let url = URL(string: "\(networkService.apiBaseURL)\(endpoint)") else {
+                throw NSError(domain: "PassiveReportsViewModel", code: -1,
+                             userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "DELETE"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            // Add authentication
+            if let token = AuthenticationService.shared.getAuthToken() {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NSError(domain: "PassiveReportsViewModel", code: -1,
+                             userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                throw NSError(domain: "PassiveReportsViewModel", code: httpResponse.statusCode,
+                             userInfo: [NSLocalizedDescriptionKey: "Failed to delete report"])
+            }
+
+            // Remove from local arrays
+            if batch.period.lowercased() == "weekly" {
+                weeklyBatches.removeAll { $0.id == batch.id }
+            } else {
+                monthlyBatches.removeAll { $0.id == batch.id }
+            }
+
+            print("✅ [PassiveReports] Successfully deleted batch \(batch.id)")
+
+        } catch {
+            errorMessage = "Failed to delete report: \(error.localizedDescription)"
+            showError = true
+            print("❌ [PassiveReports] Failed to delete batch: \(error)")
+        }
+    }
 }
 
 // MARK: - Response Models

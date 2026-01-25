@@ -12,6 +12,8 @@ struct PassiveReportsView: View {
     @StateObject private var viewModel = PassiveReportsViewModel()
     @State private var selectedPeriod: ReportPeriod = .weekly
     @State private var showTestingAlert = false
+    @State private var batchToDelete: PassiveReportBatch?
+    @State private var showDeleteConfirmation = false
 
     enum ReportPeriod: String, CaseIterable {
         case weekly = "Weekly"
@@ -108,16 +110,44 @@ struct PassiveReportsView: View {
     }
 
     private var batchListView: some View {
-        ScrollView {
-            LazyVStack(spacing: 16) {
-                ForEach(batches) { batch in
-                    NavigationLink(destination: PassiveReportDetailView(batch: batch)) {
-                        PassiveReportBatchCard(batch: batch)
-                    }
-                    .buttonStyle(PlainButtonStyle())
+        List {
+            ForEach(batches) { batch in
+                NavigationLink(destination: PassiveReportDetailView(batch: batch)) {
+                    PassiveReportBatchCard(batch: batch)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+            .onDelete(perform: { indexSet in
+                for index in indexSet {
+                    let batch = batches[index]
+                    batchToDelete = batch
+                    showDeleteConfirmation = true
+                }
+            })
+        }
+        .listStyle(.plain)
+        .confirmationDialog(
+            "Delete Report",
+            isPresented: $showDeleteConfirmation,
+            presenting: batchToDelete
+        ) { batch in
+            Button("Delete", role: .destructive) {
+                Task {
+                    await viewModel.deleteBatch(batch)
+                    batchToDelete = nil
                 }
             }
-            .padding()
+        } message: { batch in
+            let periodText = batch.period.capitalized
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "MMM d"
+            let startDate = dateFormatter.string(from: batch.startDate)
+            let endDate = dateFormatter.string(from: batch.endDate)
+
+            return Text("Are you sure you want to delete the \(periodText) report for \(startDate) - \(endDate)? This action cannot be undone.")
         }
     }
 

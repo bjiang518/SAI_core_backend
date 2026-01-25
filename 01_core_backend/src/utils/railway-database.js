@@ -1607,7 +1607,8 @@ const db = {
       learningStyle: processField('learningStyle', profileData.learningStyle, 'string'),
       timezone: processField('timezone', profileData.timezone, 'string'),
       languagePreference: processField('languagePreference', profileData.languagePreference, 'string'),
-      avatarId: processField('avatarId', profileData.avatarId, 'number')
+      avatarId: processField('avatarId', profileData.avatarId, 'number'),
+      customAvatarUrl: processField('customAvatarUrl', profileData.customAvatarUrl, 'string')
     };
 
     // Only update fields that are explicitly provided (not undefined)
@@ -1684,6 +1685,11 @@ const db = {
     if (processedFields.avatarId !== null && profileData.avatarId !== undefined) {
       updates.push(`avatar_id = $${paramIndex++}`);
       values.push(processedFields.avatarId);
+    }
+
+    if (processedFields.customAvatarUrl !== null && profileData.customAvatarUrl !== undefined) {
+      updates.push(`custom_avatar_url = $${paramIndex++}`);
+      values.push(processedFields.customAvatarUrl);
     }
 
     // Always update the updated_at timestamp
@@ -1906,6 +1912,7 @@ const db = {
         p.language_preference,
         p.profile_completion_percentage,
         p.avatar_id,
+        p.custom_avatar_url,
         p.created_at,
         p.updated_at,
         u.name as user_name,
@@ -3803,6 +3810,21 @@ async function runDatabaseMigrations() {
         `);
         logger.debug('✅ Added avatar_id column to profiles table');
 
+        // Add custom_avatar_url column if it doesn't exist
+        await db.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'profiles' AND column_name = 'custom_avatar_url'
+            ) THEN
+              ALTER TABLE profiles ADD COLUMN custom_avatar_url TEXT;
+              COMMENT ON COLUMN profiles.custom_avatar_url IS 'URL for custom uploaded avatar image';
+            END IF;
+          END $$;
+        `);
+        logger.debug('✅ Added custom_avatar_url column to profiles table');
+
         // Create enum types with proper error handling to avoid duplicate errors
         await db.query(`
           DO $$
@@ -4415,6 +4437,7 @@ async function createInlineSchema() {
       last_name VARCHAR(255),
       display_name VARCHAR(255), -- Optional custom display name
       avatar_id VARCHAR(50), -- Reference to selected avatar (e.g., avatar_1, avatar_2, etc.)
+      custom_avatar_url TEXT, -- URL for custom uploaded avatar image
       
       -- Academic Information
       grade_level VARCHAR(50),

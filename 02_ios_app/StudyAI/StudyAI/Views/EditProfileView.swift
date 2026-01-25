@@ -30,6 +30,25 @@ struct EditProfileView: View {
     @State private var languagePreference: String = "en"
     @State private var selectedAvatarId: Int? = nil
 
+    // Custom avatar states
+    @State private var customAvatarImage: UIImage? = nil
+    @State private var isUploadingAvatar = false
+    @State private var imageToEdit: UIImage? = nil
+
+    // Sheet presentation
+    enum SheetType: Identifiable {
+        case camera
+        case editor
+
+        var id: String {
+            switch self {
+            case .camera: return "camera"
+            case .editor: return "editor"
+            }
+        }
+    }
+    @State private var activeSheet: SheetType? = nil
+
     // UI state
     @State private var isLoading = false
     @State private var showingError = false
@@ -114,33 +133,154 @@ struct EditProfileView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                // Avatar Grid
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 16) {
-                    ForEach(ProfileAvatar.allCases, id: \.self) { avatar in
-                        Button(action: {
-                            selectedAvatarId = avatar.rawValue
-                        }) {
-                            Image(avatar.imageName)
+                // Custom Avatar Preview (if uploaded)
+                if let customAvatar = customAvatarImage {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            Image(uiImage: customAvatar)
                                 .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 70, height: 70)
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 100, height: 100)
                                 .clipShape(Circle())
                                 .overlay(
                                     Circle()
-                                        .stroke(
-                                            selectedAvatarId == avatar.rawValue ? Color.blue : Color.clear,
-                                            lineWidth: 3
-                                        )
+                                        .stroke(Color.green, lineWidth: 3)
                                 )
-                                .shadow(
-                                    color: selectedAvatarId == avatar.rawValue ? .blue.opacity(0.3) : .clear,
-                                    radius: 5
-                                )
+                                .shadow(color: .green.opacity(0.3), radius: 5)
+
+                            Text("Custom Avatar")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                                .fontWeight(.semibold)
+
+                            HStack(spacing: 12) {
+                                Button(action: {
+                                    print("🎨 [EditProfileView] Edit button tapped")
+                                    imageToEdit = customAvatarImage
+                                    activeSheet = .editor
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "crop.rotate")
+                                            .font(.caption)
+                                        Text("Edit")
+                                            .font(.caption)
+                                    }
+                                    .foregroundColor(.blue)
+                                }
+
+                                Button(action: {
+                                    print("🗑️ [EditProfileView] Remove button tapped")
+                                    customAvatarImage = nil
+                                    selectedAvatarId = nil
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "trash")
+                                            .font(.caption)
+                                        Text("Remove")
+                                            .font(.caption)
+                                    }
+                                    .foregroundColor(.red)
+                                }
+                            }
                         }
-                        .buttonStyle(.plain)
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                // Take Selfie Button (only option for custom avatar)
+                Button(action: {
+                    print("📷 [EditProfileView] Take Selfie button tapped")
+                    activeSheet = .camera
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 16))
+                        Text("Take Selfie")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.blue.opacity(0.1))
+                    .foregroundColor(.blue)
+                    .cornerRadius(12)
+                }
+                .disabled(isUploadingAvatar)
+
+                // Divider
+                if customAvatarImage == nil {
+                    HStack {
+                        VStack { Divider() }
+                        Text("OR")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                        VStack { Divider() }
+                    }
+                    .padding(.vertical, 8)
+
+                    // Preset Avatar Grid
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 16) {
+                        ForEach(ProfileAvatar.allCases, id: \.self) { avatar in
+                            Button(action: {
+                                selectedAvatarId = avatar.rawValue
+                                customAvatarImage = nil  // Clear custom avatar when selecting preset
+                            }) {
+                                Image(avatar.imageName)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 70, height: 70)
+                                    .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(
+                                                selectedAvatarId == avatar.rawValue ? Color.blue : Color.clear,
+                                                lineWidth: 3
+                                            )
+                                    )
+                                    .shadow(
+                                        color: selectedAvatarId == avatar.rawValue ? .blue.opacity(0.3) : .clear,
+                                        radius: 5
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+            }
+        }
+        .sheet(item: $activeSheet) { sheetType in
+            switch sheetType {
+            case .camera:
+                CameraPickerView(
+                    selectedImage: $imageToEdit,
+                    isPresented: Binding(
+                        get: { activeSheet == .camera },
+                        set: { if !$0 { activeSheet = nil } }
+                    ),
+                    useFrontCamera: true  // Use front camera for selfies with mirroring
+                )
+                .onDisappear {
+                    print("📷 [EditProfileView] Camera dismissed")
+                    // After camera dismisses, show editor if we have an image
+                    if let _ = imageToEdit {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            activeSheet = .editor
+                        }
                     }
                 }
-                .padding(.top, 8)
+            case .editor:
+                if let image = imageToEdit {
+                    ImageCropperView(image: image) { croppedImage in
+                        print("✅ [EditProfileView] Image cropped successfully")
+                        customAvatarImage = croppedImage
+                        imageToEdit = nil
+                        activeSheet = nil
+                    }
+                }
             }
         }
     }
@@ -431,6 +571,13 @@ struct EditProfileView: View {
             languagePreference = profile.languagePreference ?? "en"
             selectedAvatarId = profile.avatarId
 
+            // Load custom avatar image if exists
+            if let customAvatarUrl = profile.customAvatarUrl, !customAvatarUrl.isEmpty {
+                Task {
+                    await loadCustomAvatarFromUrl(customAvatarUrl)
+                }
+            }
+
             print("✅ [EditProfileView] Profile loaded into @State variables")
             print("   - @State city: \(city)")
             print("   - @State stateProvince: \(stateProvince)")
@@ -452,13 +599,13 @@ struct EditProfileView: View {
         await MainActor.run {
             isLoading = true
         }
-        
+
         defer {
             Task { @MainActor in
                 isLoading = false
             }
         }
-        
+
         // Validate required fields
         guard !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -467,6 +614,19 @@ struct EditProfileView: View {
                 showingError = true
             }
             return
+        }
+
+        // Upload custom avatar if exists
+        var customAvatarUrl: String? = nil
+        if customAvatarImage != nil {
+            customAvatarUrl = await uploadCustomAvatar()
+            if customAvatarUrl == nil {
+                await MainActor.run {
+                    errorMessage = "Failed to upload custom avatar. Please try again."
+                    showingError = true
+                }
+                return
+            }
         }
 
         // Convert child age to array (empty or single element)
@@ -498,12 +658,13 @@ struct EditProfileView: View {
             languagePreference: languagePreference,
             profileCompletionPercentage: 0, // Will be calculated by server
             lastUpdated: Date(),
-            avatarId: selectedAvatarId
+            avatarId: customAvatarUrl != nil ? nil : selectedAvatarId,  // Clear avatarId if custom avatar uploaded
+            customAvatarUrl: customAvatarUrl
         )
-        
+
         do {
             _ = try await profileService.updateUserProfile(updatedProfile)
-            
+
             await MainActor.run {
                 showingSaveSuccess = true
             }
@@ -522,6 +683,104 @@ struct EditProfileView: View {
     private func extractLastName(from fullName: String) -> String {
         let components = fullName.components(separatedBy: " ")
         return components.count > 1 ? components.dropFirst().joined(separator: " ") : ""
+    }
+
+    // MARK: - Custom Avatar Handling
+
+    /// Process and compress custom avatar image
+    private func processCustomAvatar(_ image: UIImage) {
+        // Resize image to 200x200 for avatar
+        let targetSize = CGSize(width: 200, height: 200)
+
+        // Create square crop from center
+        let croppedImage = cropToSquare(image: image)
+
+        // Resize to target size
+        let resizedImage = resizeImage(image: croppedImage, targetSize: targetSize)
+
+        // Update state with processed image
+        customAvatarImage = resizedImage
+        selectedAvatarId = nil  // Clear preset avatar selection
+
+        print("✅ [EditProfileView] Custom avatar processed: \(targetSize)")
+    }
+
+    /// Crop image to square from center
+    private func cropToSquare(image: UIImage) -> UIImage {
+        let imageSize = image.size
+        let dimension = min(imageSize.width, imageSize.height)
+
+        let xOffset = (imageSize.width - dimension) / 2
+        let yOffset = (imageSize.height - dimension) / 2
+
+        let cropRect = CGRect(x: xOffset, y: yOffset, width: dimension, height: dimension)
+
+        guard let cgImage = image.cgImage?.cropping(to: cropRect) else {
+            return image
+        }
+
+        return UIImage(cgImage: cgImage, scale: image.scale, orientation: image.imageOrientation)
+    }
+
+    /// Resize image to target size
+    private func resizeImage(image: UIImage, targetSize: CGSize) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+    }
+
+    /// Upload custom avatar to server and get URL
+    private func uploadCustomAvatar() async -> String? {
+        guard let avatarImage = customAvatarImage else {
+            print("❌ [EditProfileView] No avatar image to upload")
+            return nil
+        }
+
+        print("📸 [EditProfileView] Avatar image size: \(avatarImage.size)")
+
+        // Compress image to JPEG with 0.6 quality (more compression)
+        guard let imageData = avatarImage.jpegData(compressionQuality: 0.6) else {
+            print("❌ [EditProfileView] Failed to convert image to JPEG")
+            return nil
+        }
+
+        print("📸 [EditProfileView] JPEG data size: \(imageData.count) bytes (\(imageData.count / 1024) KB)")
+
+        // Convert to base64 for upload
+        let base64String = imageData.base64EncodedString()
+        print("📸 [EditProfileView] Base64 string length: \(base64String.count) characters")
+
+        // Upload via NetworkService
+        let result = await NetworkService.shared.uploadCustomAvatar(base64Image: base64String)
+
+        if result.success, let avatarUrl = result.avatarUrl {
+            print("✅ [EditProfileView] Custom avatar uploaded: \(avatarUrl.prefix(100))...")
+            return avatarUrl
+        } else {
+            print("❌ [EditProfileView] Upload failed: \(result.message)")
+            return nil
+        }
+    }
+
+    /// Load custom avatar from URL
+    private func loadCustomAvatarFromUrl(_ urlString: String) async {
+        guard let url = URL(string: urlString) else {
+            print("❌ [EditProfileView] Invalid custom avatar URL: \(urlString)")
+            return
+        }
+
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let image = UIImage(data: data) {
+                await MainActor.run {
+                    customAvatarImage = image
+                    print("✅ [EditProfileView] Custom avatar loaded from URL")
+                }
+            }
+        } catch {
+            print("❌ [EditProfileView] Failed to load custom avatar: \(error)")
+        }
     }
 }
 
@@ -591,6 +850,208 @@ struct LoadingOverlay: View {
             .cornerRadius(16)
             .shadow(radius: 10)
         }
+    }
+}
+
+// MARK: - Image Cropper View
+
+struct ImageCropperView: View {
+    let image: UIImage
+    let onCrop: (UIImage) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
+    private let cropSize: CGFloat = 300
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color.black.ignoresSafeArea()
+
+                VStack {
+                    Spacer()
+
+                    // Image with crop overlay
+                    ZStack {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .scaleEffect(scale)
+                            .offset(offset)
+                            .gesture(
+                                MagnificationGesture()
+                                    .onChanged { value in
+                                        let delta = value / lastScale
+                                        lastScale = value
+                                        scale = min(max(scale * delta, 1), 5)
+                                    }
+                                    .onEnded { _ in
+                                        lastScale = 1.0
+                                    }
+                            )
+                            .simultaneousGesture(
+                                DragGesture()
+                                    .onChanged { value in
+                                        offset = CGSize(
+                                            width: lastOffset.width + value.translation.width,
+                                            height: lastOffset.height + value.translation.height
+                                        )
+                                    }
+                                    .onEnded { _ in
+                                        lastOffset = offset
+                                    }
+                            )
+
+                        // Crop circle overlay
+                        Circle()
+                            .strokeBorder(Color.white, lineWidth: 3)
+                            .frame(width: cropSize, height: cropSize)
+
+                        // Dimmed overlay
+                        Rectangle()
+                            .fill(Color.black.opacity(0.5))
+                            .mask(
+                                Rectangle()
+                                    .overlay(
+                                        Circle()
+                                            .frame(width: cropSize, height: cropSize)
+                                            .blendMode(.destinationOut)
+                                    )
+                            )
+                            .allowsHitTesting(false)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    Spacer()
+
+                    // Instructions
+                    VStack(spacing: 8) {
+                        Text("Pinch to zoom, drag to adjust")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+
+                        HStack(spacing: 20) {
+                            Button(action: {
+                                // Reset
+                                withAnimation {
+                                    scale = 1.0
+                                    offset = .zero
+                                    lastOffset = .zero
+                                }
+                            }) {
+                                Image(systemName: "arrow.counterclockwise")
+                                    .font(.title2)
+                                    .foregroundColor(.white)
+                                    .padding()
+                            }
+                        }
+                    }
+                    .padding(.bottom, 30)
+                }
+            }
+            .navigationTitle("Adjust Avatar")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        cropImage()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    private func cropImage() {
+        print("✂️ [ImageCropper] Starting crop with scale: \(scale), offset: \(offset)")
+
+        // Output size for the final avatar
+        let outputSize: CGFloat = 200
+
+        // Step 1: Create a rendering context
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: outputSize, height: outputSize))
+
+        let croppedImage = renderer.image { context in
+            // Step 2: Calculate the source rect from the original image
+            let imageSize = image.size
+            print("✂️ [ImageCropper] Original image size: \(imageSize)")
+
+            // The crop circle is 300 points in UI
+            // We need to find what 300 UI points represents in the scaled/offset image
+
+            // Calculate how much of the original image fits in the visible area
+            // assuming the image is fitted to screen width or height
+            let screenBounds = UIScreen.main.bounds
+            let availableSize = CGSize(width: screenBounds.width, height: screenBounds.height * 0.6)
+
+            let imageAspect = imageSize.width / imageSize.height
+            let containerAspect = availableSize.width / availableSize.height
+
+            var displaySize: CGSize
+            if imageAspect > containerAspect {
+                // Image is wider - fit to width
+                displaySize = CGSize(width: availableSize.width, height: availableSize.width / imageAspect)
+            } else {
+                // Image is taller - fit to height
+                displaySize = CGSize(width: availableSize.height * imageAspect, height: availableSize.height)
+            }
+
+            print("✂️ [ImageCropper] Display size (before scale): \(displaySize)")
+
+            // Apply user's scale
+            displaySize = CGSize(width: displaySize.width * scale, height: displaySize.height * scale)
+            print("✂️ [ImageCropper] Display size (after scale): \(displaySize)")
+
+            // The crop circle is 300 points in the center of the screen
+            // Calculate what portion of the image this represents
+            let pointsToImageRatio = imageSize.width / displaySize.width
+            let cropDimensionInImage = cropSize * pointsToImageRatio
+
+            print("✂️ [ImageCropper] Crop dimension in image coordinates: \(cropDimensionInImage)")
+
+            // Calculate center position accounting for offset
+            // Offset is in display points, convert to image coordinates
+            let offsetInImageX = -offset.width * pointsToImageRatio
+            let offsetInImageY = -offset.height * pointsToImageRatio
+
+            let centerX = imageSize.width / 2 + offsetInImageX
+            let centerY = imageSize.height / 2 + offsetInImageY
+
+            print("✂️ [ImageCropper] Center in image coordinates: (\(centerX), \(centerY))")
+
+            // Create crop rect
+            let cropRect = CGRect(
+                x: max(0, centerX - cropDimensionInImage / 2),
+                y: max(0, centerY - cropDimensionInImage / 2),
+                width: min(cropDimensionInImage, imageSize.width),
+                height: min(cropDimensionInImage, imageSize.height)
+            )
+
+            print("✂️ [ImageCropper] Crop rect: \(cropRect)")
+
+            // Step 3: Crop the image
+            if let cgImage = image.cgImage?.cropping(to: cropRect) {
+                let croppedUIImage = UIImage(cgImage: cgImage, scale: 1.0, orientation: image.imageOrientation)
+                // Draw the cropped image into the output size
+                croppedUIImage.draw(in: CGRect(origin: .zero, size: CGSize(width: outputSize, height: outputSize)))
+                print("✅ [ImageCropper] Crop successful")
+            } else {
+                print("❌ [ImageCropper] Failed to crop CGImage")
+            }
+        }
+
+        onCrop(croppedImage)
+        dismiss()
     }
 }
 

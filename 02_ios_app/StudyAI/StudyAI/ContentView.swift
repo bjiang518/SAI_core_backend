@@ -325,9 +325,43 @@ struct ModernProfileView: View {
                         HStack(spacing: 16) {
                             // Profile Image / Avatar
                             if let profile = profileService.currentProfile,
+                               let customAvatarUrl = profile.customAvatarUrl, !customAvatarUrl.isEmpty {
+                                // Display custom uploaded avatar
+                                AsyncImage(url: URL(string: customAvatarUrl)) { phase in
+                                    switch phase {
+                                    case .empty:
+                                        ProgressView()
+                                            .frame(width: 60, height: 60)
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                            .frame(width: 60, height: 60)
+                                            .clipShape(Circle())
+                                    case .failure:
+                                        // Fallback to gradient circle on failure
+                                        ZStack {
+                                            Circle()
+                                                .fill(LinearGradient(
+                                                    colors: [.blue, .purple],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ))
+                                                .frame(width: 60, height: 60)
+
+                                            Image(systemName: "person.fill")
+                                                .font(.title)
+                                                .foregroundColor(.white)
+                                        }
+                                    @unknown default:
+                                        EmptyView()
+                                    }
+                                }
+                                .id(customAvatarUrl)  // Force refresh when custom avatar URL changes
+                            } else if let profile = profileService.currentProfile,
                                let avatarId = profile.avatarId,
                                let avatar = ProfileAvatar.from(id: avatarId) {
-                                // Display selected avatar
+                                // Display selected preset avatar
                                 Image(avatar.imageName)
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
