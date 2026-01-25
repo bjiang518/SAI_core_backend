@@ -1547,7 +1547,7 @@ struct QuestionCard: View {
                                 .foregroundColor(.primary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2)
-                                .background(Color.blue.opacity(0.1))
+                                .background(Color(.secondarySystemGroupedBackground))
                                 .cornerRadius(4)
                         }
                     }
@@ -1565,7 +1565,7 @@ struct QuestionCard: View {
                         .foregroundColor(.primary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
-                        .background(Color.blue.opacity(0.1))
+                        .background(Color(.secondarySystemGroupedBackground))
                         .cornerRadius(4)
                 }
             }
@@ -1590,7 +1590,7 @@ struct QuestionCard: View {
                     .foregroundColor(.primary)
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.orange.opacity(0.1))
+                    .background(Color(.secondarySystemGroupedBackground))
                     .cornerRadius(6)
             }
         }
@@ -1654,7 +1654,7 @@ struct QuestionCard: View {
                     .foregroundColor(.primary)
                     .padding(6)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.gray.opacity(0.1))
+                    .background(Color(.secondarySystemGroupedBackground))
                     .cornerRadius(4)
             }
         }
@@ -2016,7 +2016,7 @@ struct SubquestionRow: View {
                             .foregroundColor(.primary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 1)
-                            .background(Color.blue.opacity(0.1))
+                            .background(Color(.secondarySystemGroupedBackground))
                             .cornerRadius(3)
                     }
                 }
@@ -2027,7 +2027,7 @@ struct SubquestionRow: View {
                     .foregroundColor(.primary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 1)
-                    .background(Color.blue.opacity(0.1))
+                    .background(Color(.secondarySystemGroupedBackground))
                     .cornerRadius(3)
             }
         }
@@ -2048,7 +2048,7 @@ struct SubquestionRow: View {
                 .foregroundColor(.primary)
                 .padding(4)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.orange.opacity(0.1))
+                .background(Color(.secondarySystemGroupedBackground))
                 .cornerRadius(4)
         }
     }
@@ -2100,7 +2100,7 @@ struct SubquestionRow: View {
                     .foregroundColor(.primary)
                     .padding(4)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.gray.opacity(0.1))
+                    .background(Color(.secondarySystemGroupedBackground))
                     .cornerRadius(3)
             }
         }
