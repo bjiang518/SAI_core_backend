@@ -8,6 +8,7 @@
 
 import SwiftUI
 import Charts
+import WebKit
 
 struct PassiveReportDetailView: View {
     let batch: PassiveReportBatch
@@ -36,9 +37,8 @@ struct PassiveReportDetailView: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.secondary)
 
-                                MarkdownView(markdown: executiveSummary.narrativeContent)
-                                    .font(.subheadline)
-                                    .lineLimit(nil)
+                                HTMLView(htmlContent: executiveSummary.narrativeContent)
+                                    .frame(minHeight: 200)
                             }
                             .padding()
                             .background(Color(.secondarySystemBackground))
@@ -122,8 +122,9 @@ struct ReportDetailSheet: View {
 
                     Divider()
 
-                    // Full narrative content with markdown rendering
-                    MarkdownView(markdown: report.narrativeContent)
+                    // Full narrative content with HTML rendering
+                    HTMLView(htmlContent: report.narrativeContent)
+                        .frame(minHeight: 400)
                         .padding(.horizontal)
 
                     // Key Insights section
@@ -287,6 +288,83 @@ struct MarkdownView: View {
             Text(markdown)
                 .font(.body)
         }
+    }
+}
+
+// MARK: - HTML Rendering
+
+/// WebView renderer for HTML content (reports from backend)
+struct HTMLView: UIViewRepresentable {
+    let htmlContent: String
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.navigationDelegate = context.coordinator
+
+        // Load HTML with proper viewport settings for mobile
+        let htmlString = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {
+                    margin: 0;
+                    padding: 16px;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+                    background-color: #f5f5f5;
+                }
+                * {
+                    box-sizing: border-box;
+                }
+            </style>
+        </head>
+        <body>
+            \(htmlContent)
+        </body>
+        </html>
+        """
+
+        webView.loadHTMLString(htmlString, baseURL: nil)
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        // Update HTML content when it changes
+        let htmlString = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {
+                    margin: 0;
+                    padding: 16px;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+                    background-color: #f5f5f5;
+                }
+                * {
+                    box-sizing: border-box;
+                }
+            </style>
+        </head>
+        <body>
+            \(htmlContent)
+        </body>
+        </html>
+        """
+
+        webView.loadHTMLString(htmlString, baseURL: nil)
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    class Coordinator: NSObject, WKNavigationDelegate {
+        // Handle any web view navigation if needed
     }
 }
 

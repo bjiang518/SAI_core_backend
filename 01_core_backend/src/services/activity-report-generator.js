@@ -277,140 +277,147 @@ class ActivityReportGenerator {
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
+            background: #f8f9fa;
+            padding: 24px 16px;
             min-height: 100vh;
+            color: #1a1a1a;
+            line-height: 1.6;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 900px;
             margin: 0 auto;
             background: white;
-            border-radius: 16px;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px 30px;
+            background: white;
+            color: #1a1a1a;
+            padding: 32px 24px;
             text-align: center;
+            border-bottom: 1px solid #e5e7eb;
         }
 
         .header h1 {
-            font-size: 32px;
-            margin-bottom: 8px;
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #1a1a1a;
         }
 
         .header p {
-            font-size: 16px;
-            opacity: 0.9;
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 500;
         }
 
         .content {
-            padding: 40px 30px;
+            padding: 32px 24px;
         }
 
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 32px;
         }
 
         .metric-card {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            padding: 20px;
-            border-radius: 12px;
+            background: #f9fafb;
+            padding: 16px 12px;
+            border-radius: 8px;
             text-align: center;
-            border-left: 4px solid #667eea;
+            border: 1px solid #e5e7eb;
         }
 
         .metric-card.questions {
-            border-left-color: #FF6B6B;
-            background: linear-gradient(135deg, #FFE5E5 0%, #FFD1D1 100%);
+            border-left: 3px solid #dc2626;
+            background: #fef2f2;
         }
 
         .metric-card.chats {
-            border-left-color: #4ECDC4;
-            background: linear-gradient(135deg, #E0F7F6 0%, #C5F1F0 100%);
+            border-left: 3px solid #0d9488;
+            background: #f0fdf9;
         }
 
         .metric-card.days {
-            border-left-color: #45B7D1;
-            background: linear-gradient(135deg, #E0F3F7 0%, #C5E8F3 100%);
+            border-left: 3px solid #2563eb;
+            background: #eff6ff;
         }
 
         .metric-card.time {
-            border-left-color: #FFA07A;
-            background: linear-gradient(135deg, #FFE5D9 0%, #FFD9C8 100%);
+            border-left: 3px solid #ea580c;
+            background: #fffbf0;
         }
 
         .metric-value {
-            font-size: 32px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 5px;
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 2px;
         }
 
         .metric-label {
-            font-size: 14px;
-            color: #666;
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 600;
         }
 
         .section {
-            margin-bottom: 40px;
+            margin-bottom: 32px;
         }
 
         .section-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f3f4f6;
         }
 
         .charts-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
         }
 
         .chart-container {
-            background: #f9f9f9;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
         }
 
         .chart-title {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 600;
-            color: #333;
-            margin-bottom: 15px;
+            color: #1a1a1a;
+            margin-bottom: 12px;
             text-align: center;
         }
 
         canvas {
-            max-height: 300px;
+            max-height: 240px;
         }
 
         .subject-list {
             display: grid;
-            gap: 12px;
+            gap: 8px;
         }
 
         .subject-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px;
-            background: #f9f9f9;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
         }
 
         .subject-info {
@@ -419,14 +426,14 @@ class ActivityReportGenerator {
 
         .subject-name {
             font-weight: 600;
-            color: #333;
-            font-size: 15px;
+            color: #1a1a1a;
+            font-size: 13px;
         }
 
         .subject-stats {
-            font-size: 13px;
-            color: #666;
-            margin-top: 4px;
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
         }
 
         .subject-accuracy {
@@ -435,82 +442,92 @@ class ActivityReportGenerator {
 
         .accuracy-badge {
             display: inline-block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
+            background: #f3f4f6;
+            color: #1a1a1a;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
         }
 
         .trend-indicator {
             display: inline-block;
-            margin-left: 10px;
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 12px;
+            margin-left: 6px;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
             font-weight: 600;
         }
 
         .trend-increasing {
-            background: #D4EDDA;
-            color: #155724;
+            background: #dcfce7;
+            color: #166534;
         }
 
         .trend-decreasing {
-            background: #F8D7DA;
-            color: #721C24;
+            background: #fee2e2;
+            color: #991b1b;
         }
 
         .trend-stable {
-            background: #E2E3E5;
-            color: #383D41;
+            background: #f3f4f6;
+            color: #374151;
         }
 
         .week-comparison {
-            background: #f0f4ff;
-            padding: 20px;
-            border-radius: 12px;
-            margin-top: 20px;
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            margin-top: 16px;
         }
 
         .week-comparison-title {
             font-weight: 600;
-            color: #333;
-            margin-bottom: 10px;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+            font-size: 13px;
         }
 
         .week-comparison-item {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
-            font-size: 14px;
+            padding: 6px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .week-comparison-item:last-child {
+            border-bottom: none;
         }
 
         .week-comparison-label {
-            color: #666;
+            color: #6b7280;
+            font-weight: 500;
         }
 
         .week-comparison-value {
             font-weight: 600;
-            color: #333;
+            color: #1a1a1a;
         }
 
         .summary-text {
-            background: #f9f9f9;
-            padding: 20px;
-            border-radius: 12px;
-            line-height: 1.6;
-            color: #555;
-            font-size: 15px;
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            line-height: 1.7;
+            color: #374151;
+            font-size: 13px;
         }
 
         footer {
-            background: #f0f2f5;
-            padding: 20px;
+            background: #f3f4f6;
+            padding: 16px;
             text-align: center;
-            font-size: 12px;
-            color: #666;
+            font-size: 11px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
         }
     </style>
 </head>

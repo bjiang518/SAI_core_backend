@@ -213,6 +213,28 @@ class AuthRoutes {
       }
     }, this.updateUserProfile.bind(this));
 
+    // Upload custom avatar
+    this.fastify.post('/api/user/upload-avatar', {
+      schema: {
+        description: 'Upload custom avatar image',
+        tags: ['User', 'Profile'],
+        headers: {
+          type: 'object',
+          properties: {
+            authorization: { type: 'string' }
+          },
+          required: ['authorization']
+        },
+        body: {
+          type: 'object',
+          required: ['image'],
+          properties: {
+            image: { type: 'string' }  // Base64 encoded image
+          }
+        }
+      }
+    }, this.uploadCustomAvatar.bind(this));
+
     // Get profile completion status
     this.fastify.get('/api/user/profile-completion', {
       schema: {
@@ -854,6 +876,111 @@ class AuthRoutes {
         success: false,
         message: 'Failed to update profile',
         code: 'PROFILE_UPDATE_ERROR',
+        error: error.message
+      });
+    }
+  }
+
+  async uploadCustomAvatar(request, reply) {
+    try {
+      const authHeader = request.headers.authorization;
+
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Authentication required',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
+      }
+
+      const token = authHeader.substring(7);
+      const sessionData = await db.verifyUserSession(token);
+
+      if (!sessionData) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid or expired token',
+          code: 'TOKEN_EXPIRED'
+        });
+      }
+
+      const { image } = request.body;
+
+      if (!image) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Image data required',
+          code: 'MISSING_IMAGE'
+        });
+      }
+
+      this.fastify.log.info(`📸 === UPLOAD CUSTOM AVATAR ===`);
+      this.fastify.log.info(`📸 User ID: ${PIIMasking.maskUserId(sessionData.user_id)}`);
+      this.fastify.log.info(`📸 Image size: ${image.length} bytes`);
+      this.fastify.log.info(`📸 Base64 preview: ${image.substring(0, 50)}...`);
+
+      // For now, store as data URL (in production, upload to S3/CloudFlare/etc)
+      // Format: data:image/jpeg;base64,{base64data}
+      const avatarUrl = `data:image/jpeg;base64,${image}`;
+      this.fastify.log.info(`📸 Avatar URL length: ${avatarUrl.length} characters`);
+
+      // Ensure column exists (add if missing)
+      try {
+        this.fastify.log.info(`📸 Checking if custom_avatar_url column exists...`);
+        await db.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'profiles' AND column_name = 'custom_avatar_url'
+            ) THEN
+              ALTER TABLE profiles ADD COLUMN custom_avatar_url TEXT;
+              RAISE NOTICE 'Added custom_avatar_url column';
+            END IF;
+          END $$;
+        `);
+        this.fastify.log.info(`📸 Column check completed`);
+      } catch (colError) {
+        this.fastify.log.warn(`⚠️ Column check error (continuing anyway): ${colError.message}`);
+      }
+
+      // Update user profile with custom avatar URL
+      this.fastify.log.info(`📸 Updating profile for user: ${PIIMasking.maskUserId(sessionData.user_id)}`);
+
+      const result = await db.query(
+        `UPDATE profiles
+         SET custom_avatar_url = $1
+         WHERE user_id = $2
+         RETURNING user_id, custom_avatar_url IS NOT NULL as has_avatar`,
+        [avatarUrl, sessionData.user_id]
+      );
+
+      this.fastify.log.info(`📸 Database update result: ${JSON.stringify(result.rows)}`);
+      this.fastify.log.info(`📸 Rows affected: ${result.rowCount}`);
+
+      if (result.rowCount === 0) {
+        this.fastify.log.warn(`⚠️ No profile found for user: ${PIIMasking.maskUserId(sessionData.user_id)}`);
+        return reply.status(404).send({
+          success: false,
+          message: 'User profile not found',
+          code: 'PROFILE_NOT_FOUND'
+        });
+      }
+
+      this.fastify.log.info(`✅ Custom avatar uploaded successfully`);
+
+      return reply.send({
+        success: true,
+        avatarUrl: avatarUrl,
+        message: 'Avatar uploaded successfully'
+      });
+
+    } catch (error) {
+      this.fastify.log.error('❌ Upload avatar error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to upload avatar',
+        code: 'AVATAR_UPLOAD_ERROR',
         error: error.message
       });
     }

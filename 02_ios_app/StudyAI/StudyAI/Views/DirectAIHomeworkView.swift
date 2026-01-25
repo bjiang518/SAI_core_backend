@@ -2602,12 +2602,19 @@ struct ImageSourceOption: View {
 struct CameraPickerView: UIViewControllerRepresentable {
     @Binding var selectedImage: UIImage?
     @Binding var isPresented: Bool
+    var useFrontCamera: Bool = false  // Option to use front camera for selfies
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
         picker.delegate = context.coordinator
         picker.allowsEditing = false
         picker.sourceType = .camera
+
+        // Use front camera for selfies if requested
+        if useFrontCamera && UIImagePickerController.isCameraDeviceAvailable(.front) {
+            picker.cameraDevice = .front
+        }
+
         return picker
     }
 
@@ -2626,13 +2633,27 @@ struct CameraPickerView: UIViewControllerRepresentable {
 
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
             if let image = info[.originalImage] as? UIImage {
-                parent.selectedImage = image
+                // Mirror the image if front camera was used (selfie mode)
+                if parent.useFrontCamera {
+                    parent.selectedImage = mirrorImage(image)
+                } else {
+                    parent.selectedImage = image
+                }
             }
             parent.isPresented = false
         }
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             parent.isPresented = false
+        }
+
+        // Mirror image horizontally for front camera
+        private func mirrorImage(_ image: UIImage) -> UIImage {
+            guard let cgImage = image.cgImage else { return image }
+
+            return UIImage(cgImage: cgImage,
+                          scale: image.scale,
+                          orientation: .upMirrored)
         }
     }
 }

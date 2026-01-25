@@ -456,215 +456,229 @@ class MentalHealthReportGenerator {
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
+            background: #f8f9fa;
+            padding: 24px 16px;
             min-height: 100vh;
+            color: #1a1a1a;
+            line-height: 1.6;
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 900px;
             margin: 0 auto;
             background: white;
-            border-radius: 16px;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px 30px;
+            background: white;
+            color: #1a1a1a;
+            padding: 32px 24px;
             text-align: center;
+            border-bottom: 1px solid #e5e7eb;
         }
 
         .header h1 {
-            font-size: 32px;
-            margin-bottom: 8px;
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #1a1a1a;
         }
 
         .header p {
-            font-size: 16px;
-            opacity: 0.9;
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 500;
         }
 
         .content {
-            padding: 40px 30px;
+            padding: 32px 24px;
         }
 
         .section {
-            margin-bottom: 30px;
+            margin-bottom: 24px;
         }
 
         .section-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 12px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
+            border-bottom: 2px solid #f3f4f6;
         }
 
         .status-badge {
             display: inline-block;
-            padding: 8px 16px;
-            border-radius: 20px;
+            padding: 6px 12px;
+            border-radius: 6px;
             font-weight: 600;
-            font-size: 14px;
-            margin-bottom: 15px;
+            font-size: 12px;
+            margin-bottom: 12px;
+            border: 1px solid #e5e7eb;
         }
 
         .status-positive {
-            background: #D4EDDA;
-            color: #155724;
+            background: #f0fdf4;
+            color: #166534;
         }
 
         .status-moderate {
-            background: #E2E3E5;
-            color: #383D41;
+            background: #f3f4f6;
+            color: #374151;
         }
 
         .status-warning {
-            background: #FFF3CD;
-            color: #856404;
+            background: #fffbf0;
+            color: #92400e;
         }
 
         .status-needs-attention {
-            background: #F8D7DA;
-            color: #721C24;
+            background: #fef2f2;
+            color: #dc2626;
         }
 
         .status-urgent-concern {
-            background: #DC3545;
-            color: white;
+            background: #fef2f2;
+            color: #dc2626;
         }
 
         .indicators {
             display: grid;
-            gap: 12px;
-            margin-bottom: 15px;
+            gap: 8px;
+            margin-bottom: 12px;
         }
 
         .indicator {
-            background: #f9f9f9;
-            padding: 12px;
-            border-radius: 8px;
-            border-left: 3px solid #667eea;
+            background: #f9fafb;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #2563eb;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border: 1px solid #e5e7eb;
         }
 
         .indicator-text {
             flex: 1;
-            color: #555;
-            font-size: 14px;
+            color: #6b7280;
+            font-size: 13px;
         }
 
         .indicator-value {
-            background: #667eea;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 12px;
+            background: #eff6ff;
+            color: #1e40af;
+            padding: 3px 10px;
+            border-radius: 4px;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 12px;
+            border: 1px solid #bfdbfe;
         }
 
         .red-flag {
             background: white;
-            border: 2px solid;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
         }
 
         .red-flag-urgent {
-            border-color: #DC3545;
+            border-left: 3px solid #dc2626;
         }
 
         .red-flag-warning {
-            border-color: #FFC107;
+            border-left: 3px solid #ea580c;
         }
 
         .red-flag-title {
             font-weight: 600;
-            font-size: 16px;
-            margin-bottom: 8px;
+            font-size: 13px;
+            margin-bottom: 6px;
         }
 
         .red-flag-urgent .red-flag-title {
-            color: #DC3545;
+            color: #dc2626;
         }
 
         .red-flag-warning .red-flag-title {
-            color: #856404;
+            color: #92400e;
         }
 
         .red-flag-description {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 10px;
+            color: #6b7280;
+            font-size: 12px;
+            margin-bottom: 8px;
             line-height: 1.5;
         }
 
         .red-flag-action {
-            background: #F8F9FA;
-            padding: 10px;
-            border-radius: 6px;
-            border-left: 2px solid #DC3545;
-            font-size: 13px;
-            color: #333;
+            background: #f3f4f6;
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 2px solid #dc2626;
+            font-size: 12px;
+            color: #1a1a1a;
         }
 
         .positive-section {
-            background: #D4EDDA;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 3px solid #28A745;
+            background: #f0fdf4;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #16a34a;
+            border: 1px solid #bbf7d0;
         }
 
         .positive-title {
-            color: #155724;
+            color: #166534;
             font-weight: 600;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
+            font-size: 13px;
         }
 
         .positive-list {
             list-style: none;
-            color: #155724;
+            color: #166534;
         }
 
         .positive-list li {
-            padding: 5px 0;
-            font-size: 14px;
+            padding: 4px 0;
+            font-size: 12px;
         }
 
         .positive-list li:before {
             content: "✓ ";
             font-weight: 600;
-            margin-right: 5px;
+            margin-right: 4px;
         }
 
         footer {
-            background: #f0f2f5;
-            padding: 20px;
+            background: #f3f4f6;
+            padding: 16px;
             text-align: center;
-            font-size: 12px;
-            color: #666;
+            font-size: 11px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
         }
 
         .parent-note {
-            background: #E3F2FD;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 3px solid #2196F3;
-            margin-top: 20px;
-            color: #1565C0;
+            background: #eff6ff;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #2563eb;
+            margin-top: 12px;
+            color: #1e40af;
             line-height: 1.6;
+            border: 1px solid #bfdbfe;
         }
 
         .parent-note-title {
             font-weight: 600;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
+            font-size: 13px;
         }
     </style>
 </head>

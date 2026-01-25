@@ -341,192 +341,215 @@ class AreasOfImprovementGenerator {
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            padding: 20px;
+            background: #f8f9fa;
+            padding: 24px 16px;
             min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-
-        .header {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            padding: 40px 30px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 32px;
-            margin-bottom: 8px;
-        }
-
-        .header p {
-            font-size: 16px;
-            opacity: 0.9;
-        }
-
-        .content {
-            padding: 40px 30px;
-        }
-
-        .overview {
-            background: #f0f4ff;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            border-left: 4px solid #f5576c;
-        }
-
-        .overview p {
-            font-size: 15px;
-            color: #555;
+            color: #1a1a1a;
             line-height: 1.6;
         }
 
-        .subject-section {
-            background: #f9f9f9;
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
             border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-left: 4px solid #f5576c;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .header {
+            background: white;
+            color: #1a1a1a;
+            padding: 32px 24px;
+            text-align: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .header h1 {
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #1a1a1a;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .content {
+            padding: 32px 24px;
+        }
+
+        .overview {
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            border-left: 3px solid #dc2626;
+        }
+
+        .overview p {
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.7;
+        }
+
+        .subject-section {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid #dc2626;
         }
 
         .subject-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         .subject-title {
-            font-size: 22px;
-            font-weight: 600;
-            color: #333;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a1a1a;
         }
 
         .mistake-count {
-            background: #f5576c;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 6px 12px;
+            border-radius: 6px;
             font-weight: 600;
+            font-size: 12px;
+            border: 1px solid #fecaca;
         }
 
         .trend-badge {
-            margin-left: 10px;
-            padding: 8px 16px;
-            border-radius: 20px;
+            margin-left: 8px;
+            padding: 6px 12px;
+            border-radius: 6px;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 12px;
+            border: 1px solid #e5e7eb;
         }
 
         .trend-improving {
-            background: #D4EDDA;
-            color: #155724;
+            background: #f0fdf4;
+            color: #166534;
         }
 
         .trend-increasing {
-            background: #F8D7DA;
-            color: #721C24;
+            background: #fef2f2;
+            color: #dc2626;
         }
 
         .trend-stable {
-            background: #E2E3E5;
-            color: #383D41;
+            background: #f3f4f6;
+            color: #374151;
         }
 
         .error-type {
             background: white;
-            padding: 15px;
-            margin: 12px 0;
-            border-radius: 8px;
-            border-left: 3px solid #f5576c;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border-left: 3px solid #dc2626;
+            border: 1px solid #e5e7eb;
         }
 
         .error-type-header {
             font-weight: 600;
-            color: #333;
+            color: #1a1a1a;
             margin-bottom: 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            font-size: 13px;
         }
 
         .error-count {
-            background: #FFE5E5;
-            color: #721C24;
+            background: #fef2f2;
+            color: #dc2626;
             padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 12px;
+            border-radius: 4px;
+            font-size: 11px;
             font-weight: 600;
+            border: 1px solid #fecaca;
         }
 
         .error-type-body {
-            font-size: 14px;
-            color: #666;
+            font-size: 12px;
+            color: #6b7280;
         }
 
         .example {
-            background: #f5f5f5;
-            padding: 10px;
-            border-radius: 6px;
+            background: #f3f4f6;
+            padding: 8px;
+            border-radius: 4px;
             margin: 8px 0;
-            font-size: 13px;
+            font-size: 12px;
             font-family: 'Courier New', monospace;
+            color: #374151;
+            border: 1px solid #e5e7eb;
         }
 
         .suggestion {
-            background: #E3F2FD;
-            padding: 12px;
+            background: #eff6ff;
+            padding: 10px;
             border-radius: 6px;
-            margin-top: 10px;
-            border-left: 3px solid #2196F3;
-            font-size: 14px;
-            color: #1565C0;
+            margin-top: 8px;
+            border-left: 3px solid #2563eb;
+            font-size: 12px;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
         }
 
         .parent-action {
-            background: #FFF3CD;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            border-left: 3px solid #FFC107;
+            background: #fffbf0;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            border-left: 3px solid #ea580c;
+            border: 1px solid #fed7aa;
         }
 
         .parent-action-title {
             font-weight: 600;
-            color: #856404;
-            margin-bottom: 8px;
+            color: #92400e;
+            margin-bottom: 6px;
+            font-size: 13px;
         }
 
         .parent-action-content {
-            color: #856404;
-            font-size: 14px;
+            color: #92400e;
+            font-size: 12px;
             line-height: 1.6;
         }
 
         .no-issues {
-            background: #D4EDDA;
-            padding: 20px;
-            border-radius: 12px;
+            background: #f0fdf4;
+            padding: 16px;
+            border-radius: 8px;
             text-align: center;
-            color: #155724;
-            border: 1px solid #C3E6CB;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .no-issues p {
+            font-size: 13px;
+            line-height: 1.6;
         }
 
         footer {
-            background: #f0f2f5;
-            padding: 20px;
+            background: #f3f4f6;
+            padding: 16px;
             text-align: center;
-            font-size: 12px;
-            color: #666;
+            font-size: 11px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
         }
 
         @media (max-width: 768px) {
@@ -536,7 +559,7 @@ class AreasOfImprovementGenerator {
             }
 
             .mistake-count, .trend-badge {
-                margin-top: 10px;
+                margin-top: 8px;
             }
         }
     </style>

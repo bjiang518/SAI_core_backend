@@ -3597,7 +3597,77 @@ class NetworkService: ObservableObject {
             return (false, nil, errorMsg)
         }
     }
-    
+
+    /// Upload custom avatar image
+    func uploadCustomAvatar(base64Image: String) async -> (success: Bool, avatarUrl: String?, message: String) {
+        print("📸 === UPLOAD CUSTOM AVATAR ===")
+
+        let uploadURL = "\(baseURL)/api/user/upload-avatar"
+
+        guard let url = URL(string: uploadURL) else {
+            return (false, nil, "Invalid URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Add authentication header
+        addAuthHeader(to: &request)
+
+        let requestBody: [String: Any] = [
+            "image": base64Image
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                let statusCode = httpResponse.statusCode
+                print("📸 [NetworkService] Response status code: \(statusCode)")
+
+                // Try to parse JSON response
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    print("📸 [NetworkService] Response JSON: \(json)")
+
+                    if statusCode == 200 {
+                        let avatarUrl = json["avatarUrl"] as? String ?? json["avatar_url"] as? String
+                        let message = json["message"] as? String ?? "Avatar uploaded successfully"
+
+                        print("✅ [NetworkService] Avatar upload successful: \(avatarUrl ?? "no URL")")
+                        return (true, avatarUrl, message)
+                    } else {
+                        let message = json["message"] as? String ?? "Failed to upload avatar"
+                        let code = json["code"] as? String ?? "UNKNOWN_ERROR"
+                        let errorDetail = json["error"] as? String
+
+                        print("❌ [NetworkService] Upload failed with status \(statusCode)")
+                        print("❌ [NetworkService] Error code: \(code)")
+                        print("❌ [NetworkService] Error message: \(message)")
+                        if let errorDetail = errorDetail {
+                            print("❌ [NetworkService] Error detail: \(errorDetail)")
+                        }
+                        return (false, nil, message)
+                    }
+                } else {
+                    // Failed to parse JSON
+                    let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                    print("❌ [NetworkService] Failed to parse JSON response")
+                    print("❌ [NetworkService] Raw response: \(responseString)")
+                    return (false, nil, "Invalid response format")
+                }
+            }
+
+            return (false, nil, "Invalid response")
+        } catch {
+            let errorMsg = "Upload avatar request failed: \(error.localizedDescription)"
+            print("❌ \(errorMsg)")
+            return (false, nil, errorMsg)
+        }
+    }
+
     /// Get profile completion status
     func getProfileCompletion() async -> (success: Bool, completion: [String: Any]?, message: String) {
         print("📊 === GET PROFILE COMPLETION ===")

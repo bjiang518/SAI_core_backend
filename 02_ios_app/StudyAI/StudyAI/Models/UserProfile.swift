@@ -34,6 +34,7 @@ struct UserProfile: Codable {
     let profileCompletionPercentage: Int
     let lastUpdated: Date?
     let avatarId: Int? // Profile avatar selection (1-6)
+    let customAvatarUrl: String? // Custom uploaded avatar URL
 
     // Computed properties for display
     var fullName: String {
@@ -73,7 +74,7 @@ struct UserProfile: Codable {
         case dateOfBirth, kidsAges, gender, city
         case stateProvince = "stateProvince"
         case country, favoriteSubjects, learningStyle, timezone, languagePreference
-        case profileCompletionPercentage, lastUpdated, avatarId
+        case profileCompletionPercentage, lastUpdated, avatarId, customAvatarUrl
     }
     
     // Custom date handling for JSON
@@ -110,6 +111,7 @@ struct UserProfile: Codable {
         languagePreference = try container.decodeIfPresent(String.self, forKey: .languagePreference)
         profileCompletionPercentage = try container.decodeIfPresent(Int.self, forKey: .profileCompletionPercentage) ?? 0
         avatarId = try container.decodeIfPresent(Int.self, forKey: .avatarId)
+        customAvatarUrl = try container.decodeIfPresent(String.self, forKey: .customAvatarUrl)
 
         // Handle lastUpdated date
         if let lastUpdatedString = try container.decodeIfPresent(String.self, forKey: .lastUpdated) {
@@ -151,6 +153,7 @@ struct UserProfile: Codable {
         try container.encodeIfPresent(languagePreference, forKey: .languagePreference)
         try container.encode(profileCompletionPercentage, forKey: .profileCompletionPercentage)
         try container.encodeIfPresent(avatarId, forKey: .avatarId)
+        try container.encodeIfPresent(customAvatarUrl, forKey: .customAvatarUrl)
 
         // Handle lastUpdated encoding
         if let lastUpdated = lastUpdated {
@@ -178,7 +181,8 @@ struct ProfileUpdateRequest: Codable {
     let timezone: String?
     let languagePreference: String?
     let avatarId: Int?
-    
+    let customAvatarUrl: String?
+
     init(from profile: UserProfile) {
         self.firstName = profile.firstName
         self.lastName = profile.lastName
@@ -204,6 +208,7 @@ struct ProfileUpdateRequest: Codable {
         self.timezone = profile.timezone
         self.languagePreference = profile.languagePreference
         self.avatarId = profile.avatarId
+        self.customAvatarUrl = profile.customAvatarUrl
     }
 }
 
@@ -567,6 +572,9 @@ extension UserProfile {
             }
         }
 
+        // Parse customAvatarUrl
+        let customAvatarUrl = dict["customAvatarUrl"] as? String ?? dict["custom_avatar_url"] as? String
+
         return UserProfile(
             id: id,
             email: email,
@@ -589,7 +597,8 @@ extension UserProfile {
             languagePreference: dict["languagePreference"] as? String ?? dict["language_preference"] as? String ?? "en",
             profileCompletionPercentage: dict["profileCompletionPercentage"] as? Int ?? dict["profile_completion_percentage"] as? Int ?? 0,
             lastUpdated: lastUpdated,
-            avatarId: avatarId  // Use the parsed avatarId variable
+            avatarId: avatarId,
+            customAvatarUrl: customAvatarUrl
         )
     }
     
@@ -657,6 +666,9 @@ extension UserProfile {
         if let avatarId = avatarId {
             dict["avatarId"] = avatarId
         }
+        if let customAvatarUrl = customAvatarUrl {
+            dict["customAvatarUrl"] = customAvatarUrl
+        }
 
         return dict
     }
@@ -684,7 +696,8 @@ extension UserProfile {
         languagePreference: String = "en",
         profileCompletionPercentage: Int = 0,
         lastUpdated: Date? = nil,
-        avatarId: Int? = nil
+        avatarId: Int? = nil,
+        customAvatarUrl: String? = nil
     ) {
         self.id = id
         self.email = email
@@ -708,6 +721,7 @@ extension UserProfile {
         self.profileCompletionPercentage = profileCompletionPercentage
         self.lastUpdated = lastUpdated
         self.avatarId = avatarId
+        self.customAvatarUrl = customAvatarUrl
     }
 }
 
