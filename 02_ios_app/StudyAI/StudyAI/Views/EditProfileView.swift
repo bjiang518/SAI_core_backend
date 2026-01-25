@@ -619,6 +619,7 @@ struct EditProfileView: View {
         // Upload custom avatar if exists
         var customAvatarUrl: String? = nil
         if customAvatarImage != nil {
+            print("📸 [EditProfileView] Uploading custom avatar...")
             customAvatarUrl = await uploadCustomAvatar()
             if customAvatarUrl == nil {
                 await MainActor.run {
@@ -627,6 +628,10 @@ struct EditProfileView: View {
                 }
                 return
             }
+            print("✅ [EditProfileView] Custom avatar uploaded successfully")
+            print("📦 [EditProfileView] Received customAvatarUrl: \(customAvatarUrl?.prefix(100) ?? "nil")...")
+        } else {
+            print("ℹ️ [EditProfileView] No custom avatar to upload")
         }
 
         // Convert child age to array (empty or single element)
@@ -663,10 +668,23 @@ struct EditProfileView: View {
         )
 
         do {
+            print("💾 [EditProfileView] Updating profile...")
             _ = try await profileService.updateUserProfile(updatedProfile)
+            print("✅ [EditProfileView] Profile updated on backend")
 
             // Reload profile to get the updated data including custom avatar URL
+            print("🔄 [EditProfileView] Reloading profile from backend...")
             try? await profileService.getUserProfile()
+            print("✅ [EditProfileView] Profile reloaded")
+
+            if let reloadedProfile = profileService.currentProfile {
+                print("📦 [EditProfileView] Reloaded profile has custom avatar: \(reloadedProfile.customAvatarUrl != nil ? "YES" : "NO")")
+                if let customUrl = reloadedProfile.customAvatarUrl {
+                    print("📦 [EditProfileView] Custom avatar URL: \(customUrl.prefix(100))...")
+                }
+            } else {
+                print("⚠️ [EditProfileView] No profile in ProfileService after reload!")
+            }
 
             await MainActor.run {
                 showingSaveSuccess = true

@@ -2649,26 +2649,36 @@ struct CameraPickerView: UIViewControllerRepresentable {
 
         // Mirror image horizontally for front camera
         private func mirrorImage(_ image: UIImage) -> UIImage {
-            guard let cgImage = image.cgImage else { return image }
+            // Step 1: Normalize the orientation by drawing the image
+            // This "bakes in" the EXIF orientation metadata and fixes rotation issues
+            UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+            guard let normalizedImage = UIGraphicsGetImageFromCurrentImageContext() else {
+                UIGraphicsEndImageContext()
+                return image
+            }
+            UIGraphicsEndImageContext()
 
-            // Create a new image with the same size but flipped horizontally
-            let width = image.size.width
-            let height = image.size.height
+            // Step 2: Apply horizontal flip for mirror effect
+            guard let cgImage = normalizedImage.cgImage else { return normalizedImage }
 
-            UIGraphicsBeginImageContextWithOptions(CGSize(width: width, height: height), false, image.scale)
-            guard let context = UIGraphicsGetCurrentContext() else { return image }
+            let width = normalizedImage.size.width
+            let height = normalizedImage.size.height
+
+            UIGraphicsBeginImageContextWithOptions(CGSize(width: width, height: height), false, normalizedImage.scale)
+            guard let context = UIGraphicsGetCurrentContext() else { return normalizedImage }
 
             // Flip horizontally
             context.translateBy(x: width, y: 0)
             context.scaleBy(x: -1.0, y: 1.0)
 
-            // Draw the image
+            // Draw the normalized image
             context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
 
             let flippedImage = UIGraphicsGetImageFromCurrentImageContext()
             UIGraphicsEndImageContext()
 
-            return flippedImage ?? image
+            return flippedImage ?? normalizedImage
         }
     }
 }
