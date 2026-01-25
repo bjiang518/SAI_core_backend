@@ -1779,36 +1779,6 @@ struct SubquestionRow: View {
     @State private var showArchiveOptions = false  // ✅ NEW: Show action sheet for archive options
 
     var body: some View {
-        let _ = {
-            // 🔍 DEBUG: Log what SubquestionRow receives
-            print("")
-            print("   " + String(repeating: "=", count: 70))
-            print("   🎴 === SUBQUESTION ROW RENDERING ===")
-            print("   " + String(repeating: "=", count: 70))
-            print("   🆔 Subquestion ID: '\(subquestion.id)'")
-            print("   📝 Question Text: '\(subquestion.questionText.prefix(50))...'")
-            print("   📝 Student Answer: '\(subquestion.studentAnswer)'")
-
-            if let grade = grade {
-                print("   ✅ Grade: NOT NIL")
-                print("   📊 Score: \(grade.score)")
-                print("   ✓ Is Correct: \(grade.isCorrect)")
-                print("   💬 Feedback: '\(grade.feedback)'")
-                print("   🔍 Feedback length: \(grade.feedback.count) chars")
-                print("   🔍 Feedback is empty: \(grade.feedback.isEmpty)")
-
-                if !grade.feedback.isEmpty {
-                    print("   ✅ FEEDBACK WILL BE DISPLAYED (showFeedback=\(showFeedback))")
-                } else {
-                    print("   ⚠️ FEEDBACK IS EMPTY - won't show feedback section")
-                }
-            } else {
-                print("   ❌ Grade: NIL - no score or feedback will display")
-            }
-            print("   " + String(repeating: "=", count: 70))
-            print("")
-        }()
-
         VStack(alignment: .leading, spacing: 8) {
             // Header row with ID, question, and score
             HStack(alignment: .top, spacing: 8) {
@@ -2232,13 +2202,7 @@ struct GradingLoadingIndicator: View {
     @State private var isAnimating = false
 
     var body: some View {
-        let _ = print("🔍🔍🔍 === GradingLoadingIndicator RENDERING ===")
-        let _ = print("🔍 Model Type: '\(modelType)'")
-        let _ = print("🔍 Computed Icon Name: '\(modelIconName)'")
-        let _ = print("🔍 Glow Color: \(glowColor)")
-        let _ = print("🔍 Background Color: \(backgroundColor)")
-
-        return ZStack {
+        ZStack {
             // Pulsing glow circle
             Circle()
                 .fill(
@@ -2271,14 +2235,8 @@ struct GradingLoadingIndicator: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 20, height: 20)
                 .foregroundColor(glowColor)  // Apply model-specific color
-                .onAppear {
-                    print("🖼️ Image APPEARED for icon: '\(modelIconName)'")
-                    print("   🎨 Applying template rendering with color: \(glowColor)")
-                }
         }
         .onAppear {
-            print("✅ GradingLoadingIndicator.onAppear() called")
-            print("   Starting animation for modelType: '\(modelType)'")
             isAnimating = true
         }
     }
