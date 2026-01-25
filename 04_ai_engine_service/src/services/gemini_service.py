@@ -479,7 +479,7 @@ class GeminiEducationalAIService:
 
                     return {
                         "success": False,
-                        "error": "Grading response exceeded token limit. Try simpler questions or contact support."
+                        "error": f"Token limit (finish_reason={finish_reason}/{finish_reason_str}, max_tokens={generation_config.get('max_output_tokens', 'N/A')}). Model: {model_name}"
                     }
                 elif finish_reason == 3:  # SAFETY
                     logger.debug(f"⚠️ Response blocked by SAFETY filter")
