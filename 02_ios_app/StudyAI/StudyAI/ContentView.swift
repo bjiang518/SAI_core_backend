@@ -315,6 +315,7 @@ struct ModernProfileView: View {
     @State private var showingShareSheet = false
     @State private var showingStorageControl = false
     @State private var showingPrivacySettings = false
+    @State private var refreshID = UUID()  // Force refresh when profile updates
 
     var body: some View {
         NavigationView {
@@ -362,7 +363,7 @@ struct ModernProfileView: View {
                                         EmptyView()
                                     }
                                 }
-                                .id(customAvatarUrl)  // Force refresh when custom avatar URL changes
+                                .id("\(customAvatarUrl)-\(refreshID)")  // Force refresh when avatar URL or refreshID changes
                             } else if let profile = profileService.currentProfile,
                                let avatarId = profile.avatarId,
                                let avatar = ProfileAvatar.from(id: avatarId) {
@@ -629,8 +630,14 @@ struct ModernProfileView: View {
             if oldValue == true && newValue == false {
                 Task {
                     try? await profileService.getUserProfile()
+                    print("🔄 [ContentView] Profile reloaded after Edit Profile dismissed")
                 }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ProfileUpdated"))) { _ in
+            // Force UI refresh when profile is updated
+            refreshID = UUID()
+            print("🔄 [ContentView] Received ProfileUpdated notification, forcing UI refresh")
         }
         .sheet(isPresented: $showingLearningGoals) {
             LearningGoalsSettingsView()
