@@ -144,7 +144,10 @@ def _get_type_specific_instructions(question_type: str) -> str:
   * Correct final answer (25%): numerical result with units
 - Check units! Wrong units = incorrect even with right number
 - Rounding: Accept answers within reasonable precision (±2% or within 1 significant figure)
-- Show work is critical - no work shown = maximum 50% credit even if answer is correct
+- **Show work requirement depends on complexity**:
+  * Simple mental math (1-2 steps, no formulas): Full credit if answer is correct
+  * Multi-step calculations: No work shown = maximum 50% credit even if answer is correct
+  * Examples of simple mental math: "What is 5+3?", "One less than 17?", "10% of 50?"
 - Accept equivalent forms (fractions = decimals = percentages)
 """,
 
@@ -382,10 +385,14 @@ def _get_combined_instructions(question_type: str, subject: str) -> str:
 
         ("calculation", "Math"): """
 🎯 CALCULATION × MATH COMBINATION:
-- Show work requirement: No work = maximum 30% credit even with correct answer
+- **Show work requirement depends on complexity**:
+  * Simple mental math (1-2 steps): Full credit if answer is correct
+  * Multi-step problems: No work = maximum 30% credit even with correct answer
+  * Examples of simple: "17-1", "5+3", "What's one more than 11?"
+  * Examples of multi-step: Solving equations, word problems, multi-operation
 - Accept multiple solution methods (algebraic, graphical, numerical)
 - Notation: π is acceptable for answers, exact vs decimal specified in problem
-- Partial credit structure:
+- Partial credit structure (for multi-step):
   * Correct approach/method: 30%
   * Correct calculation process: 40%
   * Correct final answer: 30%
