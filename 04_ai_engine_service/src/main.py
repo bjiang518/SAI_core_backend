@@ -63,6 +63,7 @@ from src.middleware.service_auth import (
 
 # Import diagram generation routes
 from src.routes.diagram import router as diagram_router
+from src.routes.error_analysis import router as error_analysis_router
 
 # Initialize Redis client (optional)
 redis_client = None
@@ -201,6 +202,9 @@ app.middleware("http")(service_auth_middleware)
 
 # Register diagram generation routes
 app.include_router(diagram_router)
+
+# Register error analysis routes (Pass 2 - Two-Pass Grading)
+app.include_router(error_analysis_router)
 
 # Initialize AI services
 ai_service = EducationalAIService()
@@ -2070,40 +2074,6 @@ async def send_session_message_stream(
                             else:
                                 logger.debug(f"ℹ️ No suggestions generated")
 
-                            # 🆕 HOMEWORK FOLLOWUP: Detect grade correction after streaming completes
-                            if is_homework_followup:
-                                try:
-                                    grade_correction_data = _detect_grade_correction(accumulated_content)
-
-                                    if grade_correction_data:
-                                        logger.debug(f"🎯 === GRADE CORRECTION DETECTED (STREAMING) ===")
-                                        logger.debug(f"🎯 Original Grade: {grade_correction_data['original_grade']}")
-                                        logger.debug(f"🎯 Corrected Grade: {grade_correction_data['corrected_grade']}")
-                                        logger.debug(f"🎯 Reason: {grade_correction_data['reason'][:100]}...")
-
-                                        # 🐛 FIX: Ensure grade_correction_data is JSON-serializable
-                                        serializable_grade_data = {
-                                            'original_grade': str(grade_correction_data.get('original_grade', '')),
-                                            'corrected_grade': str(grade_correction_data.get('corrected_grade', '')),
-                                            'reason': str(grade_correction_data.get('reason', '')),
-                                            'new_points_earned': float(grade_correction_data.get('new_points_earned', 0)),
-                                            'points_possible': float(grade_correction_data.get('points_possible', 0))
-                                        }
-
-                                        # Send grade_correction event
-                                        grade_event = {
-                                            'type': 'grade_correction',
-                                            'change_grade': True,
-                                            'grade_correction': serializable_grade_data
-                                        }
-                                        yield f"data: {_json.dumps(grade_event)}\n\n"
-                                        logger.debug(f"✅ Sent grade_correction SSE event")
-                                    else:
-                                        logger.debug(f"ℹ️ No grade correction detected in response")
-                                except Exception as grade_error:
-                                    logger.debug(f"❌ Error processing grade correction: {type(grade_error).__name__}: {grade_error}")
-                                    logger.debug(f"🔍 Grade correction data: {grade_correction_data if 'grade_correction_data' in locals() else 'Not defined'}")
-
                             # Break after sending all events
                             break
 
@@ -2578,70 +2548,19 @@ IMPORTANT:
         logger.debug(f"📋 Traceback:\n{traceback.format_exc()}")
         return []
 
-# MARK: - Homework Follow-up with Grade Correction
-
-class GradeCorrectionData(BaseModel):
-    """Structured grade correction information detected by AI."""
-    original_grade: str
-    corrected_grade: str
-    reason: str
-    new_points_earned: float
-    points_possible: float
+# MARK: - Homework Follow-up
 
 class HomeworkFollowupRequest(BaseModel):
     """Request model for homework follow-up questions."""
     message: str
-    question_context: Dict[str, Any]  # Full question context including grading info
+    question_context: Dict[str, Any]
 
 class HomeworkFollowupResponse(BaseModel):
-    """Response model for homework follow-up with optional grade correction."""
+    """Response model for homework follow-up."""
     session_id: str
     ai_response: str
     tokens_used: int
     compressed: bool
-    grade_correction: Optional[GradeCorrectionData] = None  # Present if AI detected grading error
-
-def _detect_grade_correction(ai_response: str) -> Optional[Dict[str, Any]]:
-    """
-    Detect grade correction signals in AI response using structured format.
-
-    Looks for:
-    ```
-    GRADE_CORRECTION_NEEDED
-    Original Grade: INCORRECT
-    Corrected Grade: CORRECT
-    Reason: [explanation]
-    New Points Earned: 10
-    Points Possible: 10
-    ```
-
-    Returns:
-        Dict with correction data if detected, None otherwise
-    """
-    import re
-
-    # Pattern to match the structured correction block
-    pattern = r"""
-        GRADE_CORRECTION_NEEDED\s*\n
-        Original\s+Grade:\s*(.+?)\s*\n
-        Corrected\s+Grade:\s*(.+?)\s*\n
-        Reason:\s*(.+?)\s*\n
-        New\s+Points\s+Earned:\s*([\d.]+)\s*\n
-        Points\s+Possible:\s*([\d.]+)
-    """
-
-    match = re.search(pattern, ai_response, re.VERBOSE | re.IGNORECASE | re.DOTALL)
-
-    if match:
-        return {
-            "original_grade": match.group(1).strip(),
-            "corrected_grade": match.group(2).strip(),
-            "reason": match.group(3).strip(),
-            "new_points_earned": float(match.group(4)),
-            "points_possible": float(match.group(5))
-        }
-
-    return None
 
 @app.post("/api/v1/homework-followup/{session_id}/message", response_model=HomeworkFollowupResponse)
 async def process_homework_followup(
@@ -2726,16 +2645,6 @@ async def process_homework_followup(
         logger.debug(f"✅ OpenAI response received ({tokens_used} tokens)")
         logger.debug(f"📝 Response length: {len(ai_response)} chars")
 
-        # Detect grade correction in response
-        grade_correction_data = _detect_grade_correction(ai_response)
-
-        if grade_correction_data:
-            logger.debug(f"🔄 === GRADE CORRECTION DETECTED ===")
-            logger.debug(f"📊 Original Grade: {grade_correction_data['original_grade']}")
-            logger.debug(f"✅ Corrected Grade: {grade_correction_data['corrected_grade']}")
-            logger.debug(f"💡 Reason: {grade_correction_data['reason'][:100]}...")
-            logger.debug(f"🎯 New Points: {grade_correction_data['new_points_earned']}/{grade_correction_data['points_possible']}")
-
         # Add AI response to session
         updated_session = await session_service.add_message_to_session(
             session_id=session.session_id,
@@ -2751,8 +2660,7 @@ async def process_homework_followup(
             session_id=session.session_id,
             ai_response=ai_response,
             tokens_used=tokens_used,
-            compressed=updated_session.compressed_context is not None,
-            grade_correction=GradeCorrectionData(**grade_correction_data) if grade_correction_data else None
+            compressed=updated_session.compressed_context is not None
         )
 
         return response_data
