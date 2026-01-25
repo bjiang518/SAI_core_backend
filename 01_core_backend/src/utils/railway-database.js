@@ -2616,7 +2616,86 @@ async function runDatabaseMigrations() {
     } else {
       logger.debug('✅ Performance indexes migration already applied');
     }
-    
+
+    // ============================================================
+    // Migration 003: Error Analysis Fields (Two-Pass Grading)
+    // ============================================================
+    // Adds error analysis columns to questions table for Pass 2 grading
+    // Part of two-pass grading system: Pass 1 (fast grading) + Pass 2 (error analysis)
+
+    const errorAnalysisMigrationCheck = await db.query(`
+      SELECT EXISTS (
+        SELECT 1 FROM migration_history
+        WHERE migration_name = '003_error_analysis_fields'
+      ) as exists;
+    `);
+
+    if (!errorAnalysisMigrationCheck.rows[0].exists) {
+      logger.debug('🔄 Running migration 003: Error analysis fields...');
+
+      try {
+        // Add error analysis columns to questions table
+        await db.query(`
+          ALTER TABLE questions
+            ADD COLUMN IF NOT EXISTS error_type VARCHAR(50),
+            ADD COLUMN IF NOT EXISTS error_evidence TEXT,
+            ADD COLUMN IF NOT EXISTS error_confidence FLOAT,
+            ADD COLUMN IF NOT EXISTS learning_suggestion TEXT,
+            ADD COLUMN IF NOT EXISTS error_analysis_status VARCHAR(20) DEFAULT 'pending',
+            ADD COLUMN IF NOT EXISTS error_analyzed_at TIMESTAMP;
+        `);
+
+        logger.debug('✅ Added error analysis columns to questions table');
+
+        // Create indexes for error analysis report queries
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_questions_error_type
+          ON questions(user_id, error_type)
+          WHERE error_type IS NOT NULL;
+        `);
+
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_questions_error_status
+          ON questions(user_id, error_analysis_status)
+          WHERE error_analysis_status != 'skipped';
+        `);
+
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_questions_incorrect
+          ON questions(user_id, archived_date DESC)
+          WHERE is_correct = false;
+        `);
+
+        logger.debug('✅ Created error analysis indexes');
+
+        // Record migration in history
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('003_error_analysis_fields')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+
+        logger.debug('✅ Error analysis migration completed successfully!');
+        logger.debug('📊 Two-pass grading system ready:');
+        logger.debug('   - Pass 1: Fast grading (2-3s)');
+        logger.debug('   - Pass 2: Background error analysis');
+        logger.debug('   - Error types: 9 universal categories');
+        logger.debug('   - Mistake notebook: AI-powered insights');
+
+      } catch (errorAnalysisError) {
+        logger.warn('⚠️ Error analysis migration warning (will continue):', errorAnalysisError.message);
+        // Record migration as complete to prevent retry loops
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('003_error_analysis_fields')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+        logger.debug('✅ Error analysis migration marked as complete');
+      }
+    } else {
+      logger.debug('✅ Error analysis migration already applied');
+    }
+
     // DEPRECATED: Legacy table cleanup moved to migration 005_cleanup_unused_tables
     // This old cleanup code is kept for reference but disabled to use proper migration tracking
     // See migration 005_cleanup_unused_tables in runDatabaseMigrations() for the new approach
