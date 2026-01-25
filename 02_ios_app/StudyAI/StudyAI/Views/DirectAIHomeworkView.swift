@@ -2651,9 +2651,24 @@ struct CameraPickerView: UIViewControllerRepresentable {
         private func mirrorImage(_ image: UIImage) -> UIImage {
             guard let cgImage = image.cgImage else { return image }
 
-            return UIImage(cgImage: cgImage,
-                          scale: image.scale,
-                          orientation: .upMirrored)
+            // Create a new image with the same size but flipped horizontally
+            let width = image.size.width
+            let height = image.size.height
+
+            UIGraphicsBeginImageContextWithOptions(CGSize(width: width, height: height), false, image.scale)
+            guard let context = UIGraphicsGetCurrentContext() else { return image }
+
+            // Flip horizontally
+            context.translateBy(x: width, y: 0)
+            context.scaleBy(x: -1.0, y: 1.0)
+
+            // Draw the image
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+            let flippedImage = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+
+            return flippedImage ?? image
         }
     }
 }

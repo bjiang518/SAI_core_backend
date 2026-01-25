@@ -765,6 +765,7 @@ class AuthRoutes {
             languagePreference: profileData.language_preference || 'en',
             profileCompletionPercentage: profileData.profile_completion_percentage || 0,
             avatarId: profileData.avatar_id,
+            customAvatarUrl: profileData.custom_avatar_url,
             lastUpdated: profileData.updated_at
           }
         });
@@ -794,6 +795,7 @@ class AuthRoutes {
             languagePreference: 'en',
             profileCompletionPercentage: 0,
             avatarId: null,
+            customAvatarUrl: null,
             lastUpdated: null
           }
         });
@@ -866,6 +868,7 @@ class AuthRoutes {
           languagePreference: updatedProfile.language_preference || 'en',
           profileCompletionPercentage: updatedProfile.profile_completion_percentage || 0,
           avatarId: updatedProfile.avatar_id,
+          customAvatarUrl: updatedProfile.custom_avatar_url,
           lastUpdated: updatedProfile.updated_at
         }
       });
