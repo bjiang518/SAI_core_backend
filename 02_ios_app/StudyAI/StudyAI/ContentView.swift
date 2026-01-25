@@ -327,19 +327,24 @@ struct ModernProfileView: View {
                             if let profile = profileService.currentProfile,
                                let customAvatarUrl = profile.customAvatarUrl, !customAvatarUrl.isEmpty {
                                 // Display custom uploaded avatar
+                                let _ = print("🖼️ [ContentView] Displaying CUSTOM avatar")
+                                let _ = print("🖼️ [ContentView] Custom avatar URL: \(customAvatarUrl.prefix(100))...")
                                 AsyncImage(url: URL(string: customAvatarUrl)) { phase in
                                     switch phase {
                                     case .empty:
+                                        let _ = print("🖼️ [ContentView] AsyncImage: Loading...")
                                         ProgressView()
                                             .frame(width: 60, height: 60)
                                     case .success(let image):
+                                        let _ = print("✅ [ContentView] AsyncImage: SUCCESS")
                                         image
                                             .resizable()
                                             .aspectRatio(contentMode: .fill)
                                             .frame(width: 60, height: 60)
                                             .clipShape(Circle())
-                                    case .failure:
+                                    case .failure(let error):
                                         // Fallback to gradient circle on failure
+                                        let _ = print("❌ [ContentView] AsyncImage: FAILED - \(error.localizedDescription)")
                                         ZStack {
                                             Circle()
                                                 .fill(LinearGradient(
@@ -362,6 +367,7 @@ struct ModernProfileView: View {
                                let avatarId = profile.avatarId,
                                let avatar = ProfileAvatar.from(id: avatarId) {
                                 // Display selected preset avatar
+                                let _ = print("🖼️ [ContentView] Displaying PRESET avatar: \(avatarId)")
                                 Image(avatar.imageName)
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -370,6 +376,12 @@ struct ModernProfileView: View {
                                     .id(avatarId)  // Force refresh when avatar changes
                             } else {
                                 // Fallback to gradient circle with initial
+                                let _ = print("🖼️ [ContentView] Displaying FALLBACK avatar")
+                                if let profile = profileService.currentProfile {
+                                    let _ = print("🖼️ [ContentView] Profile exists but customAvatarUrl=\(profile.customAvatarUrl ?? "nil"), avatarId=\(profile.avatarId?.description ?? "nil")")
+                                } else {
+                                    let _ = print("🖼️ [ContentView] No profile in ProfileService")
+                                }
                                 ZStack {
                                     Circle()
                                         .fill(LinearGradient(

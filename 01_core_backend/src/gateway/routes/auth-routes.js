@@ -740,6 +740,12 @@ class AuthRoutes {
       // Get enhanced profile data with ALL fields
       const profileData = await db.getEnhancedUserProfile(sessionData.user_id);
 
+      this.fastify.log.info(`📦 Profile data retrieved for user: ${PIIMasking.maskUserId(sessionData.user_id)}`);
+      this.fastify.log.info(`📦 Has custom avatar: ${profileData?.custom_avatar_url ? 'YES' : 'NO'}`);
+      if (profileData?.custom_avatar_url) {
+        this.fastify.log.info(`📦 Custom avatar URL length: ${profileData.custom_avatar_url.length} characters`);
+      }
+
       if (profileData) {
         return reply.send({
           success: true,
@@ -954,12 +960,13 @@ class AuthRoutes {
         `UPDATE profiles
          SET custom_avatar_url = $1
          WHERE user_id = $2
-         RETURNING user_id, custom_avatar_url IS NOT NULL as has_avatar`,
+         RETURNING user_id, custom_avatar_url IS NOT NULL as has_avatar, LENGTH(custom_avatar_url) as url_length`,
         [avatarUrl, sessionData.user_id]
       );
 
       this.fastify.log.info(`📸 Database update result: ${JSON.stringify(result.rows)}`);
       this.fastify.log.info(`📸 Rows affected: ${result.rowCount}`);
+      this.fastify.log.info(`📸 Avatar URL saved - Length: ${avatarUrl.length} characters`);
 
       if (result.rowCount === 0) {
         this.fastify.log.warn(`⚠️ No profile found for user: ${PIIMasking.maskUserId(sessionData.user_id)}`);
