@@ -20,6 +20,8 @@ const QuestionGenerationV2Routes = require('./modules/question-generation-v2'); 
 const TTSRoutes = require('./modules/tts');
 const AnalyticsRoutes = require('./modules/analytics');
 const DiagramGenerationRoutes = require('./modules/diagram-generation'); // NEW: AI diagram generation
+const ErrorAnalysisRoutes = require('./modules/error-analysis'); // NEW: Pass 2 error analysis
+const WeaknessDescriptionRoutes = require('./modules/weakness-description'); // NEW: Weakness description generation
 
 /**
  * Register all AI routes
@@ -61,6 +63,22 @@ async function aiRoutes(fastify, opts) {
   } catch (error) {
     fastify.log.error(`  ❌ Failed to register Question Generation V2 routes:`, error);
     // Don't throw - allow app to continue with legacy routes
+  }
+
+  // Register error analysis routes (NEW: Two-Pass Grading)
+  try {
+    await fastify.register(ErrorAnalysisRoutes);
+    fastify.log.info(`  ✅ Error Analysis (Pass 2) routes registered`);
+  } catch (error) {
+    fastify.log.error(`  ❌ Failed to register Error Analysis routes:`, error);
+  }
+
+  // Register weakness description routes (NEW: Short-Term Status Architecture)
+  try {
+    await fastify.register(WeaknessDescriptionRoutes);
+    fastify.log.info(`  ✅ Weakness Description Generation routes registered`);
+  } catch (error) {
+    fastify.log.error(`  ❌ Failed to register Weakness Description routes:`, error);
   }
 
   fastify.log.info('✅ All AI routes registered successfully');
