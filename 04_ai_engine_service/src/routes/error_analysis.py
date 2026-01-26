@@ -31,6 +31,8 @@ class ErrorAnalysisResponse(BaseModel):
     confidence: float
     learning_suggestion: Optional[str]
     analysis_failed: bool = False
+    primary_concept: Optional[str] = None  # e.g., "quadratic_equations"
+    secondary_concept: Optional[str] = None  # e.g., "factoring"
 
 @router.post("/analyze", response_model=ErrorAnalysisResponse)
 async def analyze_single_error(request: ErrorAnalysisRequest):
