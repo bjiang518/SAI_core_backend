@@ -68,7 +68,9 @@ class ErrorAnalysisService:
                 "evidence": None,
                 "confidence": 0.0,
                 "learning_suggestion": None,
-                "analysis_failed": True
+                "analysis_failed": True,
+                "primary_concept": None,
+                "secondary_concept": None
             }
 
     def _get_system_prompt(self):
@@ -117,8 +119,16 @@ Return JSON with this structure:
     "error_type": "<one of the error types above>",
     "evidence": "<specific quote or description from student's work showing the error>",
     "confidence": <0.0 to 1.0 - how certain you are about this categorization>,
-    "learning_suggestion": "<actionable advice for the student - 1-2 sentences>"
+    "learning_suggestion": "<actionable advice for the student - 1-2 sentences>",
+    "primary_concept": "<the main concept tested - use snake_case like 'quadratic_equations', 'linear_systems', 'counting', etc.>",
+    "secondary_concept": "<optional - a more specific sub-concept if applicable, null otherwise>"
 }}
+
+**Concept Guidelines**:
+- primary_concept: The MAIN topic or skill being tested (e.g., "algebra", "fractions", "word_problems")
+- secondary_concept: A more specific sub-skill if relevant (e.g., for primary "algebra", secondary might be "solving_equations")
+- Use lowercase snake_case (underscores instead of spaces)
+- Be specific but concise (1-3 words max)
 
 ## Examples
 
@@ -132,7 +142,9 @@ Output:
     "error_type": "incomplete_work",
     "evidence": "Student found one solution (x=2) but missed the second solution (x=3)",
     "confidence": 0.95,
-    "learning_suggestion": "Remember that quadratic equations can have two solutions. After finding one, check if there's another by factoring or using the quadratic formula."
+    "learning_suggestion": "Remember that quadratic equations can have two solutions. After finding one, check if there's another by factoring or using the quadratic formula.",
+    "primary_concept": "quadratic_equations",
+    "secondary_concept": "factoring"
 }}
 
 Example 2:
@@ -145,7 +157,9 @@ Output:
     "error_type": "procedural_error",
     "evidence": "Student added 5 to both sides instead of subtracting, getting 2x = 18",
     "confidence": 0.9,
-    "learning_suggestion": "When isolating x, do the inverse operation. Since +5 is added, subtract 5 from both sides to get 2x = 8."
+    "learning_suggestion": "When isolating x, do the inverse operation. Since +5 is added, subtract 5 from both sides to get 2x = 8.",
+    "primary_concept": "linear_equations",
+    "secondary_concept": "inverse_operations"
 }}
 
 Now analyze the student's mistake above.
@@ -176,7 +190,9 @@ Now analyze the student's mistake above.
                     "evidence": None,
                     "confidence": 0.0,
                     "learning_suggestion": None,
-                    "analysis_failed": True
+                    "analysis_failed": True,
+                    "primary_concept": None,
+                    "secondary_concept": None
                 })
             else:
                 processed_results.append(result)
