@@ -229,6 +229,7 @@ class GeminiEducationalAIService:
                 "subject_confidence": result.get("subject_confidence", 0.5),
                 "total_questions": result.get("total_questions", 0),
                 "questions": questions_array,
+                "handwriting_evaluation": result.get("handwriting_evaluation", None),
                 "processed_image_dimensions": {
                     "width": image_width,
                     "height": image_height

@@ -115,7 +115,8 @@ class EnhancedHomeworkParser {
                 rawAIResponse: backendResponse.processingNotes ?? "Parsed from JSON",
                 totalQuestionsFound: backendResponse.totalQuestionsFound,
                 jsonParsingUsed: true,
-                performanceSummary: performanceSummary
+                performanceSummary: performanceSummary,
+                handwritingEvaluation: backendResponse.handwritingEvaluation
             )
 
             print("✅ === JSON PARSING SUCCESS ===")
@@ -190,7 +191,8 @@ class EnhancedHomeworkParser {
             rawAIResponse: response,
             totalQuestionsFound: totalQuestionsFound,
             jsonParsingUsed: jsonParsingUsed,
-            performanceSummary: performanceSummary
+            performanceSummary: performanceSummary,
+            handwritingEvaluation: nil
         )
         
         print("✅ Enhanced parsing successful:")
@@ -231,7 +233,8 @@ class EnhancedHomeworkParser {
             rawAIResponse: response,
             totalQuestionsFound: questions.count,
             jsonParsingUsed: false,
-            performanceSummary: extractPerformanceSummary(from: response, questions: questions)
+            performanceSummary: extractPerformanceSummary(from: response, questions: questions),
+            handwritingEvaluation: nil
         )
         
         print("✅ Traditional parsing successful:")

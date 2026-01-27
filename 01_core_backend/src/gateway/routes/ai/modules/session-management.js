@@ -11,6 +11,7 @@ const AuthHelper = require('../utils/auth-helper');
 const SessionHelper = require('../utils/session-helper');
 const { TUTORING_SYSTEM_PROMPT, MATH_FORMATTING_SYSTEM_PROMPT } = require('../utils/prompts');
 const PIIMasking = require('../../../../utils/pii-masking');
+const aiEngineCircuitBreaker = require('../../../../utils/ai-engine-client');
 
 class SessionManagementRoutes {
   constructor(fastify) {
@@ -509,6 +510,18 @@ LANGUAGE: ${languageInstruction}`;
         });
       }
 
+      // ✅ RELIABILITY FIX: Check database health before proceeding
+      try {
+        await db.query('SELECT 1');
+      } catch (dbError) {
+        this.fastify.log.error('❌ Database health check failed:', dbError);
+        return reply.status(503).send({
+          error: 'Database temporarily unavailable',
+          code: 'DATABASE_UNAVAILABLE',
+          retry_after: 10
+        });
+      }
+
       // Build request payload (same as non-streaming)
       let userLanguage = language || 'en';
       const languageInstructions = {
@@ -561,17 +574,36 @@ LANGUAGE: ${languageInstruction}`;
         this.fastify.log.info(`✅ Added question_context to AI Engine request (has_image: ${!!question_context.question_image_base64})`);
       }
 
-      const response = await fetch(streamUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-          ...(process.env.SERVICE_AUTH_SECRET ? {
-            'X-Service-Auth': process.env.SERVICE_AUTH_SECRET
-          } : {})
-        },
-        body: JSON.stringify(requestPayload)
-      });
+      // ✅ Phase 2.4: Add 170s timeout (10s buffer before iOS 180s timeout)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        this.fastify.log.warn('⚠️ AI Engine request timed out after 170s');
+      }, 170000); // 170 seconds
+
+      let response;
+      try {
+        response = await aiEngineCircuitBreaker.call(streamUrl, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream',
+            ...(process.env.SERVICE_AUTH_SECRET ? {
+              'X-Service-Auth': process.env.SERVICE_AUTH_SECRET
+            } : {})
+          },
+          body: JSON.stringify(requestPayload)
+        });
+
+        clearTimeout(timeoutId); // Clear timeout on successful response
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          throw new Error('AI Engine request timed out after 170 seconds');
+        }
+        throw error;
+      }
 
       if (!response.ok) {
         throw new Error(`AI Engine returned ${response.status}: ${response.statusText}`);
@@ -600,27 +632,40 @@ LANGUAGE: ${languageInstruction}`;
         const duration = Date.now() - startTime;
         this.fastify.log.info(`✅ Streaming complete: ${duration}ms`);
 
-        // 🚀 OPTIMIZATION: Send end event BEFORE database write (async fire-and-forget)
-        reply.raw.end();
-
         // ✅ NEW: Extract image data if present
         const imageData = question_context?.question_image_base64 || null;
 
-        // Store conversation in background (non-blocking)
-        this.sessionHelper.storeConversation(
-          sessionId,
-          authenticatedUserId,
-          message,
-          {
-            response: fullResponse,
-            tokensUsed: 0, // Token count not available in streaming
-            service: 'ai-engine-stream',
-            compressed: false
-          },
-          imageData  // ✅ NEW: Pass image data to be stored
-        ).catch(storeError => {
-          this.fastify.log.error('❌ Background DB write failed:', storeError);
-        });
+        // ✅ RELIABILITY FIX: Await database write to ensure persistence before completion
+        try {
+          await this.sessionHelper.storeConversation(
+            sessionId,
+            authenticatedUserId,
+            message,
+            {
+              response: fullResponse,
+              tokensUsed: 0, // Token count not available in streaming
+              service: 'ai-engine-stream',
+              compressed: false
+            },
+            imageData
+          );
+
+          this.fastify.log.info('✅ Conversation stored successfully');
+
+          // Send completion event AFTER successful database write
+          reply.raw.end();
+
+        } catch (storeError) {
+          this.fastify.log.error('❌ Database write failed:', storeError);
+
+          // Send error event to client
+          const errorEvent = `data: ${JSON.stringify({
+            type: 'error',
+            error: 'Message not saved - database unavailable'
+          })}\n\n`;
+          reply.raw.write(errorEvent);
+          reply.raw.end();
+        }
       });
 
       response.body.on('error', (error) => {
@@ -643,6 +688,27 @@ LANGUAGE: ${languageInstruction}`;
 
     } catch (error) {
       this.fastify.log.error('❌ Streaming setup error:', error);
+
+      // Check if circuit breaker is open
+      if (error.message && error.message.includes('Circuit breaker OPEN')) {
+        if (!reply.raw.headersSent) {
+          return reply.status(503).send({
+            error: 'AI service temporarily unavailable. Please try again in a moment.',
+            code: 'AI_SERVICE_UNAVAILABLE',
+            retry_after: 30,
+            details: error.message
+          });
+        } else {
+          const errorEvent = `data: ${JSON.stringify({
+            type: 'error',
+            error: 'AI service temporarily unavailable'
+          })}\n\n`;
+          reply.raw.write(errorEvent);
+          reply.raw.end();
+        }
+        return;
+      }
+
       if (!reply.raw.headersSent) {
         return reply.status(500).send({
           error: 'Failed to set up streaming',

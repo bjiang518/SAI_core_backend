@@ -75,7 +75,7 @@ struct PassiveReportDetailView: View {
         .task {
             await viewModel.loadBatchDetails(batchId: batch.id)
         }
-        .sheet(item: $selectedReport) { report in
+        .fullScreenCover(item: $selectedReport) { report in
             ReportDetailSheet(report: report)
         }
     }

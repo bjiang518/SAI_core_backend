@@ -1090,7 +1090,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         logger.info("Subquestion archive summary: parent Q\(parentQuestionId), \(questionsToArchive.count) subquestions, \(withImages) with images")
 
         // Save to local storage (same method as regular questions)
-        QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
+        _ = QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
 
         logger.info("Successfully archived \(questionsToArchive.count) subquestions from parent Q\(parentQuestionId)")
     }
@@ -1208,10 +1208,33 @@ class DigitalHomeworkViewModel: ObservableObject {
         let withImages = questionsToArchive.filter { ($0["hasVisualElements"] as? Bool) == true }.count
         logger.info("Archive summary: \(questionsToArchive.count) questions, \(withImages) with images")
 
-        // Save to local storage
-        QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
+        // Save to local storage and get ID mappings
+        let idMappings = QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
 
         logger.info("Successfully archived \(questionsToArchive.count) Pro Mode questions")
+
+        // ✅ NEW: Queue error analysis for wrong answers (Pass 2 - Two-Pass Grading)
+        var wrongQuestions = questionsToArchive.filter {
+            ($0["isCorrect"] as? Bool) == false
+        }
+
+        // ✅ CRITICAL: Remap IDs to actual saved IDs (handles duplicate detection)
+        if !wrongQuestions.isEmpty {
+            for index in 0..<wrongQuestions.count {
+                if let originalId = wrongQuestions[index]["id"] as? String,
+                   let mapping = idMappings.first(where: { $0.originalId == originalId }) {
+                    wrongQuestions[index]["id"] = mapping.savedId
+                    logger.debug("Remapped error analysis ID: \(originalId.prefix(8))... → \(mapping.savedId.prefix(8))...")
+                }
+            }
+
+            let sessionId = UUID().uuidString // Generate session ID for this grading batch
+            ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
+                sessionId: sessionId,
+                wrongQuestions: wrongQuestions
+            )
+            logger.info("Queued \(wrongQuestions.count) wrong answers for Pass 2 error analysis")
+        }
 
         // ✅ NEW: Archive all subquestions for parent questions
         if !subquestionsToArchive.isEmpty {

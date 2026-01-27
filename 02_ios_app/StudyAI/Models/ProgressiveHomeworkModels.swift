@@ -96,6 +96,7 @@ struct ParseHomeworkQuestionsResponse: Codable {
     let processingTimeMs: Int?
     let error: String?
     let processedImageDimensions: ProcessedImageDimensions?  // NEW: Backend image dimensions for coordinate scaling
+    let handwritingEvaluation: HandwritingEvaluation?  // NEW: Handwriting quality assessment (Pro Mode)
 
     enum CodingKeys: String, CodingKey {
         case success
@@ -106,6 +107,7 @@ struct ParseHomeworkQuestionsResponse: Codable {
         case processingTimeMs = "processing_time_ms"
         case error
         case processedImageDimensions = "processed_image_dimensions"
+        case handwritingEvaluation = "handwriting_evaluation"
     }
 }
 

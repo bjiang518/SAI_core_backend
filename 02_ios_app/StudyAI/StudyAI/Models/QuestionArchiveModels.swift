@@ -156,7 +156,8 @@ struct EnhancedHomeworkParsingResult: Codable {
     let totalQuestionsFound: Int?
     let jsonParsingUsed: Bool?
     let performanceSummary: PerformanceSummary?
-    
+    let handwritingEvaluation: HandwritingEvaluation?
+
     // Computed properties for easy access
     var questionCount: Int {
         return questions.count

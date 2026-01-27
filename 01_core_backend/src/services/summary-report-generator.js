@@ -352,29 +352,29 @@ class SummaryReportGenerator {
 
         .quick-stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 12px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 8px;
+            margin-bottom: 16px;
         }
 
         .stat {
             background: #f9fafb;
-            padding: 12px;
-            border-radius: 8px;
+            padding: 8px;
+            border-radius: 6px;
             text-align: center;
             border: 1px solid #e5e7eb;
         }
 
         .stat-value {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             color: #1a1a1a;
         }
 
         .stat-label {
-            font-size: 11px;
+            font-size: 10px;
             color: #6b7280;
-            margin-top: 4px;
+            margin-top: 3px;
             font-weight: 500;
         }
 

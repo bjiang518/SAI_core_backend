@@ -118,7 +118,10 @@ final class AuthenticationService: ObservableObject {
     private let networkService = NetworkService.shared
     private let sessionManager = SessionManager.shared
     private let authLogger = Logger(subsystem: "com.studyai", category: "AuthService")
-    
+
+    // MARK: - Token Refresh (Phase 2.5)
+    private var tokenRefreshTimer: Timer?
+
     private init() {
         let initStartTime = CFAbsoluteTimeGetCurrent()
         authLogger.info("🔐 === AUTHENTICATION SERVICE INIT STARTED ===")
@@ -297,6 +300,9 @@ final class AuthenticationService: ObservableObject {
                 sessionManager.startSession()
                 authLogger.info("🔐 Session started for user: \(user.email)")
 
+                // ✅ Phase 2.5: Start token monitoring to prevent expiration
+                startTokenMonitoring()
+
                 // Auto-load user profile after successful login
                 await loadUserProfileAfterLogin()
             }
@@ -413,6 +419,9 @@ final class AuthenticationService: ObservableObject {
                 // ✅ NEW: Start session after successful email verification
                 sessionManager.startSession()
                 authLogger.info("🔐 Session started for user: \(user.email)")
+
+                // ✅ Phase 2.5: Start token monitoring to prevent expiration
+                startTokenMonitoring()
 
                 authLogger.info("✅ Email verified and user logged in: \(user.email)")
             }
@@ -534,6 +543,9 @@ final class AuthenticationService: ObservableObject {
                     sessionManager.startSession()
                     authLogger.info("🔐 Session started for user: \(user.email)")
 
+                    // ✅ Phase 2.5: Start token monitoring to prevent expiration
+                    startTokenMonitoring()
+
                     // Auto-load user profile after successful login
                     print("🍎 Step 9: Loading user profile...")
                     await loadUserProfileAfterLogin()
@@ -626,6 +638,9 @@ final class AuthenticationService: ObservableObject {
                 // ✅ NEW: Start session after successful Google Sign-In
                 sessionManager.startSession()
                 authLogger.info("🔐 Session started for user: \(user.email)")
+
+                // ✅ Phase 2.5: Start token monitoring to prevent expiration
+                startTokenMonitoring()
 
                 // Auto-load user profile after successful login
                 await loadUserProfileAfterLogin()
@@ -739,6 +754,10 @@ final class AuthenticationService: ObservableObject {
         sessionManager.endSession()
         authLogger.info("🔐 Session ended on sign out")
 
+        // ✅ Phase 2.5: Cancel token refresh timer on sign out
+        tokenRefreshTimer?.invalidate()
+        tokenRefreshTimer = nil
+
         Task { @MainActor in
             currentUser = nil
             isAuthenticated = false
@@ -746,7 +765,113 @@ final class AuthenticationService: ObservableObject {
             requiresFaceIDReauth = false
         }
     }
-    
+
+    // MARK: - Token Refresh (Phase 2.5)
+
+    /// Parse JWT token expiration time
+    private func parseTokenExpiration(_ token: String) -> Date? {
+        // JWT format: header.payload.signature
+        let parts = token.components(separatedBy: ".")
+        guard parts.count == 3 else {
+            authLogger.error("❌ Invalid JWT format - expected 3 parts, got \(parts.count)")
+            return nil
+        }
+
+        // Decode Base64URL payload (index 1)
+        var base64 = parts[1]
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+
+        // Add padding if needed
+        let remainder = base64.count % 4
+        if remainder > 0 {
+            base64 += String(repeating: "=", count: 4 - remainder)
+        }
+
+        guard let payloadData = Data(base64Encoded: base64),
+              let payload = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any],
+              let exp = payload["exp"] as? TimeInterval else {
+            authLogger.error("❌ Failed to decode JWT payload or missing 'exp' claim")
+            return nil
+        }
+
+        return Date(timeIntervalSince1970: exp)
+    }
+
+    /// Start monitoring token expiration and schedule proactive refresh
+    func startTokenMonitoring() {
+        // Cancel existing timer
+        tokenRefreshTimer?.invalidate()
+        tokenRefreshTimer = nil
+
+        guard let token = getAuthToken(),
+              let expiration = parseTokenExpiration(token) else {
+            authLogger.info("⚠️ Cannot start token monitoring - no valid token found")
+            return
+        }
+
+        let now = Date()
+        let refreshTime = expiration.addingTimeInterval(-300) // 5 minutes before expiry
+
+        guard refreshTime > now else {
+            authLogger.warning("⚠️ Token expires in less than 5 minutes - triggering immediate refresh")
+            Task {
+                await refreshTokenAsync()
+            }
+            return
+        }
+
+        let timeUntilRefresh = refreshTime.timeIntervalSince(now)
+        authLogger.info("🔄 Token monitoring started - will refresh in \(Int(timeUntilRefresh / 60)) minutes")
+
+        // Schedule refresh timer
+        tokenRefreshTimer = Timer.scheduledTimer(
+            withTimeInterval: timeUntilRefresh,
+            repeats: false
+        ) { [weak self] _ in
+            Task { [weak self] in
+                await self?.refreshTokenAsync()
+            }
+        }
+    }
+
+    /// Refresh authentication token before expiration
+    private func refreshTokenAsync() async {
+        guard let oldToken = getAuthToken() else {
+            authLogger.error("❌ Cannot refresh token - no token found")
+            return
+        }
+
+        authLogger.info("🔄 Attempting token refresh...")
+
+        let result = await networkService.refreshAuthToken(oldToken)
+
+        if result.success, let newToken = result.token {
+            authLogger.info("✅ Token refreshed successfully")
+
+            do {
+                try keychainService.saveAuthToken(newToken)
+                authLogger.info("✅ New token saved to keychain")
+
+                // Restart monitoring with new token
+                startTokenMonitoring()
+            } catch {
+                authLogger.error("❌ Failed to save new token to keychain: \(error.localizedDescription)")
+                // Token refresh succeeded but save failed - force logout for safety
+                await MainActor.run {
+                    signOut()
+                }
+            }
+        } else {
+            authLogger.error("❌ Token refresh failed: \(result.message)")
+            // Refresh failed - logout user
+            await MainActor.run {
+                errorMessage = "Your session expired. Please sign in again."
+                signOut()
+            }
+        }
+    }
+
     // MARK: - Helper Methods
     
     private func extractNameFromEmail(_ email: String) -> String {

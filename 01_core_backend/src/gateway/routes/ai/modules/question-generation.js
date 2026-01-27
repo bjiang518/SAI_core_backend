@@ -41,7 +41,7 @@ class QuestionGenerationRoutes {
       }
     }, this.generateRandomQuestions.bind(this));
 
-    // Generate questions based on past mistakes
+    // Generate questions based on past mistakes (database query)
     this.fastify.post('/api/ai/generate-questions/mistakes', {
       schema: {
         description: 'Generate practice questions based on user mistakes',
@@ -57,6 +57,27 @@ class QuestionGenerationRoutes {
         }
       }
     }, this.generateMistakeBasedQuestions.bind(this));
+
+    // ✅ NEW: Generate questions from client-provided mistakes (with error analysis)
+    this.fastify.post('/api/ai/generate-from-mistakes', {
+      schema: {
+        description: 'Generate targeted practice questions from selected mistakes with error analysis',
+        tags: ['AI', 'Questions', 'Practice', 'Mistakes', 'Error Analysis'],
+        body: {
+          type: 'object',
+          required: ['subject', 'mistakes_data'],
+          properties: {
+            subject: { type: 'string' },
+            mistakes_data: {
+              type: 'array',
+              items: { type: 'object' }
+            },
+            count: { type: 'integer', minimum: 1, maximum: 20, default: 5 },
+            question_type: { type: 'string' }
+          }
+        }
+      }
+    }, this.generateFromSelectedMistakes.bind(this));
 
     // Generate questions based on conversation history
     this.fastify.post('/api/ai/generate-questions/conversations', {
@@ -261,6 +282,96 @@ class QuestionGenerationRoutes {
       return reply.status(500).send({
         error: 'Failed to generate questions based on mistakes',
         code: 'MISTAKE_QUESTION_GENERATION_ERROR',
+        details: error.message
+      });
+    }
+  }
+
+  /**
+   * ✅ NEW: Generate questions from client-provided mistakes (with error analysis)
+   * This allows iOS to send pre-analyzed mistakes directly for targeted practice
+   */
+  async generateFromSelectedMistakes(request, reply) {
+    const startTime = Date.now();
+
+    try {
+      // Authenticate user
+      const userId = await this.authHelper.requireAuth(request, reply);
+      if (!userId) return;
+
+      const { subject, mistakes_data, count = 5, question_type } = request.body;
+
+      this.fastify.log.info(`🎯 Generating ${count} targeted questions from ${mistakes_data.length} selected mistakes`);
+      this.fastify.log.info(`   Subject: ${subject}`);
+      this.fastify.log.info(`   Has error analysis: ${mistakes_data.some(m => m.error_type || m.primary_concept)}`);
+
+      // Build request for AI Engine's mistake-based generation endpoint
+      const aiRequest = {
+        subject,
+        mistakes_data: mistakes_data.map(m => ({
+          original_question: m.question_text || m.questionText,
+          user_answer: m.student_answer || m.studentAnswer,
+          correct_answer: m.correct_answer || m.correctAnswer,
+          // ✅ Pass through error analysis if available
+          error_type: m.error_type || m.errorType,
+          error_evidence: m.error_evidence || m.errorEvidence,
+          primary_concept: m.primary_concept || m.primaryConcept,
+          secondary_concept: m.secondary_concept || m.secondaryConcept,
+          subject: m.subject || subject,
+          tags: m.tags || []
+        })),
+        config: {
+          question_count: count,
+          question_types: question_type ? [question_type] : ['multiple_choice', 'short_answer', 'calculation'],
+          question_type
+        },
+        user_profile: {
+          grade: 'High School', // Default - could be enhanced with actual user profile
+          location: 'US'
+        }
+      };
+
+      // Log sample of first mistake for debugging
+      if (mistakes_data.length > 0) {
+        const sample = mistakes_data[0];
+        this.fastify.log.info(`   Sample mistake: Q="${(sample.question_text || sample.questionText || '').substring(0, 50)}..."`);
+        this.fastify.log.info(`   Error type: ${sample.error_type || sample.errorType || 'N/A'}`);
+        this.fastify.log.info(`   Concept: ${sample.primary_concept || sample.primaryConcept || 'N/A'}`);
+      }
+
+      // Send to AI Engine's mistake-based generation endpoint
+      const result = await this.aiClient.proxyRequest(
+        'POST',
+        '/api/v1/generate-questions/mistakes',
+        aiRequest,
+        { 'Content-Type': 'application/json' }
+      );
+
+      if (result.success) {
+        const duration = Date.now() - startTime;
+
+        this.fastify.log.info(`✅ Generated ${result.data.questions?.length || 0} targeted questions in ${duration}ms`);
+
+        return reply.send({
+          success: true,
+          questions: result.data.questions || [],
+          metadata: {
+            ...result.data.metadata,
+            source_mistakes_count: mistakes_data.length,
+            has_error_analysis: mistakes_data.some(m => m.error_type || m.primary_concept),
+            processTime: duration
+          }
+        });
+      } else {
+        return this.handleProxyError(reply, result.error);
+      }
+
+    } catch (error) {
+      this.fastify.log.error('Generate from selected mistakes error:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to generate questions from selected mistakes',
+        code: 'SELECTED_MISTAKE_GENERATION_ERROR',
         details: error.message
       });
     }

@@ -320,15 +320,15 @@ class ActivityReportGenerator {
 
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 12px;
-            margin-bottom: 32px;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin-bottom: 20px;
         }
 
         .metric-card {
             background: #f9fafb;
-            padding: 16px 12px;
-            border-radius: 8px;
+            padding: 10px 8px;
+            border-radius: 6px;
             text-align: center;
             border: 1px solid #e5e7eb;
         }
@@ -354,36 +354,36 @@ class ActivityReportGenerator {
         }
 
         .metric-value {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: 700;
             color: #1a1a1a;
             margin-bottom: 2px;
         }
 
         .metric-label {
-            font-size: 12px;
+            font-size: 11px;
             color: #6b7280;
             font-weight: 600;
         }
 
         .section {
-            margin-bottom: 32px;
+            margin-bottom: 20px;
         }
 
         .section-title {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
             color: #1a1a1a;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
             border-bottom: 2px solid #f3f4f6;
         }
 
         .charts-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
         }
 
         .chart-container {

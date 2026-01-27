@@ -20,8 +20,10 @@ class MistakeReviewService: ObservableObject {
 
     /// Fetch subjects with mistake counts from LOCAL STORAGE ONLY
     func fetchSubjectsWithMistakes(timeRange: MistakeTimeRange? = nil) async {
+        #if DEBUG
         print("🔍 [MistakeReview] === FETCHING SUBJECTS FROM LOCAL STORAGE ===")
         print("🔍 [MistakeReview] Time range: \(timeRange?.rawValue ?? "All Time")")
+        #endif
 
         isLoading = true
         errorMessage = nil
@@ -49,22 +51,29 @@ class MistakeReviewService: ObservableObject {
             )
         }.sorted { $0.mistakeCount > $1.mistakeCount } // Sort by count descending
 
+        #if DEBUG
         print("✅ [MistakeReview] Successfully fetched subjects from local storage")
         print("📊 [MistakeReview] Found \(subjects.count) subjects with mistakes in time range:")
         for subject in subjects {
             print("   - \(subject.subject): \(subject.mistakeCount) mistakes")
         }
+        #endif
 
         self.subjectsWithMistakes = subjects
         isLoading = false
+
+        #if DEBUG
         print("🔍 [MistakeReview] === FETCH SUBJECTS COMPLETE ===\n")
+        #endif
     }
 
     /// Fetch mistakes from LOCAL STORAGE ONLY
     func fetchMistakes(subject: String?, timeRange: MistakeTimeRange) async {
+        #if DEBUG
         print("🔍 [MistakeReview] === FETCHING MISTAKES FROM LOCAL STORAGE ===")
         print("🔍 [MistakeReview] Subject: \(subject ?? "All Subjects")")
         print("🔍 [MistakeReview] Time range: \(timeRange.rawValue)")
+        #endif
 
         isLoading = true
         errorMessage = nil
@@ -101,6 +110,21 @@ class MistakeReviewService: ObservableObject {
                 let tags = data["tags"] as? [String] ?? []
                 let notes = data["notes"] as? String ?? ""
 
+                // ✅ Extract error analysis fields (eliminates double fetch!)
+                let errorType = data["errorType"] as? String
+                let errorEvidence = data["errorEvidence"] as? String
+                let errorConfidence = (data["errorConfidence"] as? Double) ?? (data["errorConfidence"] as? Float).map(Double.init)
+                let learningSuggestion = data["learningSuggestion"] as? String
+
+                // ✅ Convert string status to enum with backwards compatibility
+                let statusString = data["errorAnalysisStatus"] as? String ?? "pending"
+                let errorAnalysisStatus = ErrorAnalysisStatus(rawValue: statusString) ?? .pending
+
+                // ✅ Extract weakness tracking fields (standardized naming)
+                let primaryConcept = data["primaryConcept"] as? String
+                let secondaryConcept = data["secondaryConcept"] as? String
+                let weaknessKey = data["weaknessKey"] as? String
+
                 let mistake = MistakeQuestion(
                     id: id,
                     subject: subject,
@@ -114,12 +138,21 @@ class MistakeReviewService: ObservableObject {
                     pointsEarned: points,
                     pointsPossible: maxPoints,
                     tags: tags,
-                    notes: notes
+                    notes: notes,
+                    errorType: errorType,
+                    errorEvidence: errorEvidence,
+                    errorConfidence: errorConfidence,
+                    learningSuggestion: learningSuggestion,
+                    errorAnalysisStatus: errorAnalysisStatus,
+                    primaryConcept: primaryConcept,
+                    secondaryConcept: secondaryConcept,
+                    weaknessKey: weaknessKey
                 )
                 mistakes.append(mistake)
             }
         }
 
+        #if DEBUG
         print("✅ [MistakeReview] Successfully fetched mistakes from local storage")
         print("📊 [MistakeReview] Total mistakes retrieved: \(mistakes.count)")
 
@@ -128,18 +161,21 @@ class MistakeReviewService: ObservableObject {
         } else {
             print("📋 [MistakeReview] Mistake summary:")
             for (index, mistake) in mistakes.prefix(5).enumerated() {
-                print("   \(index + 1). [\(mistake.subject)] \(mistake.question.prefix(50))...")
-                print("      Student: \(mistake.studentAnswer.prefix(30))...")
-                print("      Correct: \(mistake.correctAnswer.prefix(30))...")
+                // ⚠️ SECURITY: Only log first 30 chars of potentially sensitive data
+                print("   \(index + 1). [\(mistake.subject)] \(mistake.question.prefix(30))...")
             }
             if mistakes.count > 5 {
                 print("   ... and \(mistakes.count - 5) more")
             }
         }
+        #endif
 
         self.mistakes = mistakes
         isLoading = false
+
+        #if DEBUG
         print("🔍 [MistakeReview] === FETCH MISTAKES COMPLETE ===\n")
+        #endif
     }
 
     /// Get mistake statistics from LOCAL STORAGE ONLY
@@ -209,24 +245,30 @@ class MistakeReviewService: ObservableObject {
 
         let filtered = mistakes.filter { mistake in
             // Debug: Print first few mistakes in detail
+            #if DEBUG
             if parsedDatesCount + failedParseCount < 5 {
                 print("🔍 [MistakeReview] Checking mistake: subject=\(mistake["subject"] as? String ?? "N/A"), archivedAt=\(mistake["archivedAt"] as? String ?? "MISSING")")
             }
+            #endif
 
             guard let archivedAtString = mistake["archivedAt"] as? String else {
                 failedParseCount += 1
+                #if DEBUG
                 if failedParseCount <= 3 {
                     print("⚠️ [MistakeReview] Missing archivedAt field in mistake")
                 }
+                #endif
                 return false
             }
 
-            let dateFormatter = ISO8601DateFormatter()
-            guard let mistakeDate = dateFormatter.date(from: archivedAtString) else {
+            // ✅ Use cached date parsing for performance
+            guard let mistakeDate = QuestionLocalStorage.shared.getDateCached(archivedAtString) else {
                 failedParseCount += 1
+                #if DEBUG
                 if failedParseCount <= 3 {
                     print("⚠️ [MistakeReview] Failed to parse date: \(archivedAtString)")
                 }
+                #endif
                 return false
             }
 
@@ -237,9 +279,11 @@ class MistakeReviewService: ObservableObject {
             }
 
             // Log first few comparisons
+            #if DEBUG
             if parsedDatesCount <= 5 {
                 print("🔍 [MistakeReview] Mistake date: \(mistakeDate), matches: \(matches)")
             }
+            #endif
 
             return matches
         }

@@ -67,7 +67,11 @@ class NetworkService: ObservableObject {
     // MARK: - Request Management
     private var activeRequests: [String: URLSessionDataTask] = [:]
     private let requestQueue = DispatchQueue(label: "com.studyai.network", qos: .userInitiated)
-    
+
+    // MARK: - Streaming Retry Management (Phase 2.3)
+    private var streamingRetryState: StreamingRetryState?
+    private let maxStreamingRetries = 3
+
     // MARK: - Network Monitoring
     private let networkMonitor = NWPathMonitor()
     private let networkQueue = DispatchQueue(label: "NetworkMonitor")
@@ -892,7 +896,65 @@ class NetworkService: ObservableObject {
             return (false, nil, error.localizedDescription)
         }
     }
-    
+
+    // MARK: - Session Validation (Phase 2.6)
+
+    /// Validate if a session still exists on the backend
+    func validateSession(_ sessionId: String) async -> Bool {
+        guard AuthenticationService.shared.getAuthToken() != nil else {
+            print("❌ Authentication required to validate session")
+            return false
+        }
+
+        let sessionURL = "\(baseURL)/api/ai/sessions/\(sessionId)"
+        guard let url = URL(string: sessionURL) else {
+            return false
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10.0
+        addAuthHeader(to: &request)
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse {
+                let isValid = httpResponse.statusCode == 200
+                print(isValid ? "✅ Session \(sessionId.prefix(8))... is valid" : "❌ Session \(sessionId.prefix(8))... is invalid (status: \(httpResponse.statusCode))")
+                return isValid
+            }
+            return false
+        } catch {
+            print("❌ Session validation error: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Ensure we have a valid session - create new one if current is invalid
+    func ensureValidSession() async -> String? {
+        // Check if we have a current session
+        if let sessionId = await MainActor.run(body: { self.currentSessionId }) {
+            // Validate it
+            let isValid = await validateSession(sessionId)
+            if isValid {
+                print("✅ Using existing session: \(sessionId.prefix(8))...")
+                return sessionId
+            } else {
+                print("⚠️ Current session invalid - creating new one")
+            }
+        }
+
+        // No session or invalid session - create new one
+        let result = await createSession(subject: "general")
+        if result.success, let newSessionId = result.sessionId {
+            print("✅ Created new session: \(newSessionId.prefix(8))...")
+            return newSessionId
+        } else {
+            print("❌ Failed to create session: \(result.message)")
+            return nil
+        }
+    }
+
     func sendSessionMessage(sessionId: String, message: String, questionContext: [String: Any]? = nil) async -> (success: Bool, aiResponse: String?, suggestions: [FollowUpSuggestion]?, tokensUsed: Int?, compressed: Bool?) {
         print("🌐 ============================================")
         print("🌐 === NETWORK SERVICE: SEND SESSION MESSAGE ===")
@@ -961,7 +1023,7 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 90.0 // Extended timeout for AI processing
+        request.timeoutInterval = 180.0 // Aligned with backend timeout (170s) + buffer
 
         // Add authentication header
         addAuthHeader(to: &request)
@@ -1058,28 +1120,145 @@ class NetworkService: ObservableObject {
         }
     }
 
+    // MARK: - 🚀 STREAMING Session Message with Retry (Phase 2.3)
+
+    /// Send a session message with STREAMING response and automatic retry with partial response recovery
+    /// - Parameters:
+    ///   - sessionId: The session ID
+    ///   - message: The user message
+    ///   - deepMode: Enable deep thinking mode (o4-mini)
+    ///   - questionContext: Optional homework question context
+    ///   - onChunk: Callback for each streaming chunk (delta text)
+    ///   - onSuggestions: Callback when AI-generated follow-up suggestions arrive
+    ///   - onComplete: Callback when streaming is complete (success, full text, tokens, compressed)
+    ///   - onRetryAvailable: Callback when retry is available with partial response
+    /// - Returns: Success status
+    @MainActor
+    func sendSessionMessageStreamingWithRetry(
+        sessionId: String,
+        message: String,
+        deepMode: Bool = false,
+        questionContext: [String: Any]? = nil,
+        onChunk: @escaping (String) -> Void,
+        onSuggestions: @escaping ([FollowUpSuggestion]) -> Void,
+        onComplete: @escaping (Bool, String?, Int?, Bool?) -> Void,
+        onRetryAvailable: @escaping (String) -> Void  // Called with partial text when retry is available
+    ) async -> Bool {
+        print("🔄 === STREAMING WITH RETRY (Phase 2.3) ===")
+
+        // Initialize retry state if this is the first attempt
+        if streamingRetryState == nil {
+            streamingRetryState = StreamingRetryState(
+                sessionId: sessionId,
+                message: message,
+                deepMode: deepMode,
+                questionContext: questionContext
+            )
+            print("🔄 Initialized retry state for new request")
+        }
+
+        // Check max retries
+        guard let retryState = streamingRetryState, retryState.retryCount < maxStreamingRetries else {
+            print("❌ Max retries (\(maxStreamingRetries)) exceeded")
+            if let partialText = streamingRetryState?.accumulatedText, !partialText.isEmpty {
+                onComplete(false, partialText, nil, nil)
+            } else {
+                onComplete(false, nil, nil, nil)
+            }
+            streamingRetryState = nil
+            return false
+        }
+
+        print("🔄 Attempt \(retryState.retryCount + 1) of \(maxStreamingRetries)")
+
+        var latestAccumulatedText = retryState.accumulatedText
+
+        // Attempt streaming with text accumulation
+        let success = await sendSessionMessageStreaming(
+            sessionId: sessionId,
+            message: message,
+            deepMode: deepMode,
+            questionContext: questionContext,
+            onChunk: { text in
+                latestAccumulatedText = text
+                self.streamingRetryState?.updateAccumulatedText(text)
+                onChunk(text)
+            },
+            onSuggestions: onSuggestions,
+            onComplete: onComplete
+        )
+
+        if success {
+            // Success - clear retry state
+            print("✅ Streaming succeeded, clearing retry state")
+            streamingRetryState = nil
+            return true
+        } else {
+            // Failure - increment retry count and notify about partial response
+            streamingRetryState?.retryCount += 1
+
+            print("⚠️ Streaming failed (attempt \(retryState.retryCount + 1))")
+            print("📦 Partial response saved: \(latestAccumulatedText.count) characters")
+
+            if !latestAccumulatedText.isEmpty && retryState.retryCount < maxStreamingRetries {
+                // Partial response available and retries remaining
+                onRetryAvailable(latestAccumulatedText)
+            } else if retryState.retryCount >= maxStreamingRetries {
+                // Max retries exhausted
+                print("❌ Max retries exhausted")
+                streamingRetryState = nil
+            }
+
+            return false
+        }
+    }
+
+    /// Manually retry streaming after failure (called by UI)
+    @MainActor
+    func retryStreaming(
+        onChunk: @escaping (String) -> Void,
+        onSuggestions: @escaping ([FollowUpSuggestion]) -> Void,
+        onComplete: @escaping (Bool, String?, Int?, Bool?) -> Void,
+        onRetryAvailable: @escaping (String) -> Void
+    ) async -> Bool {
+        guard let retryState = streamingRetryState else {
+            print("❌ No retry state available")
+            return false
+        }
+
+        print("🔄 Manual retry requested")
+        return await sendSessionMessageStreamingWithRetry(
+            sessionId: retryState.sessionId,
+            message: retryState.message,
+            deepMode: retryState.deepMode,
+            questionContext: retryState.questionContext,
+            onChunk: onChunk,
+            onSuggestions: onSuggestions,
+            onComplete: onComplete,
+            onRetryAvailable: onRetryAvailable
+        )
+    }
+
     // MARK: - 🚀 STREAMING Session Message
 
     /// Send a session message with STREAMING response (real-time token-by-token)
     /// - Parameters:
     ///   - sessionId: The session ID
     ///   - message: The user message
-    ///   - questionContext: Optional homework question context for grade correction support
+    ///   - questionContext: Optional homework question context
     ///   - onChunk: Callback for each streaming chunk (delta text)
     ///   - onSuggestions: Callback when AI-generated follow-up suggestions arrive
-    ///   - onGradeCorrection: Callback when grade correction is detected (changeGrade, gradeCorrectionData)
     ///   - onComplete: Callback when streaming is complete (full text, tokens, compressed)
     /// - Returns: Success status
     @MainActor
     func sendSessionMessageStreaming(
         sessionId: String,
         message: String,
-        deepMode: Bool = false,  // NEW: Deep thinking mode flag
-        questionContext: [String: Any]? = nil,  // NEW: Optional homework context
-        onChunk: @escaping (String) -> Void,  // Called with accumulated text
-        onSuggestions: @escaping ([FollowUpSuggestion]) -> Void,  // Called when suggestions arrive
-        onGradeCorrection: @escaping (Bool, GradeCorrectionData?) -> Void,  // NEW: Grade correction callback
-        onComplete: @escaping (Bool, String?, Int?, Bool?) -> Void  // (success, fullText, tokens, compressed)
+        deepMode: Bool = false,
+        questionContext: [String: Any]? = nil,
+        onChunk: @escaping (String) -> Void,
+        onSuggestions: @escaping ([FollowUpSuggestion]) -> Void,
+        onComplete: @escaping (Bool, String?, Int?, Bool?) -> Void
     ) async -> Bool {
         print("🟢 ============================================")
         print("🟢 === NETWORK SERVICE: STREAMING SESSION MESSAGE ===")
@@ -1163,7 +1342,7 @@ class NetworkService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 90.0
+        request.timeoutInterval = 180.0 // Aligned with backend timeout (170s) + buffer
 
         addAuthHeader(to: &request)
 
@@ -1280,35 +1459,6 @@ class NetworkService: ObservableObject {
                                         onComplete(false, nil, nil, nil)
                                         return false
 
-                                    case "grade_correction":
-                                        print("🎯 === GRADE CORRECTION EVENT ===")
-                                        let changeGrade = event.change_grade ?? false
-                                        print("📊 Change grade: \(changeGrade)")
-
-                                        if changeGrade, let gradeCorrection = event.grade_correction {
-                                            print("✅ Grade correction approved by AI!")
-                                            print("   Original: \(gradeCorrection.originalGrade)")
-                                            print("   Corrected: \(gradeCorrection.correctedGrade)")
-                                            print("   Points: \(gradeCorrection.newPointsEarned)/\(gradeCorrection.pointsPossible)")
-                                            print("   Reason: \(gradeCorrection.reason.prefix(100))...")
-
-                                            // Call grade correction callback on main thread
-                                            await MainActor.run {
-                                                onGradeCorrection(true, gradeCorrection)
-                                            }
-                                        } else {
-                                            print("ℹ️ No grade correction needed - original grading was correct")
-
-                                            // Call grade correction callback with false
-                                            await MainActor.run {
-                                                onGradeCorrection(false, nil)
-                                            }
-                                        }
-
-                                        // Grade correction is the final event, exit after receiving it
-                                        print("✅ Grade correction event received, stream complete")
-                                        return true
-
                                     default:
                                         break  // Ignore unknown event types
                                     }
@@ -1349,9 +1499,48 @@ class NetworkService: ObservableObject {
         let error: String?
         let finish_reason: String?
         let timestamp: String?
-        let suggestions: [FollowUpSuggestion]?  // AI-generated suggestions
-        let change_grade: Bool?  // NEW: Grade correction flag
-        let grade_correction: GradeCorrectionData?  // NEW: Grade correction details
+        let suggestions: [FollowUpSuggestion]?
+    }
+
+    // MARK: - Streaming Retry State (Phase 2.3)
+
+    /// State for streaming retry with partial response recovery
+    private struct StreamingRetryState {
+        let accumulatedText: String
+        let sessionId: String
+        let message: String
+        let deepMode: Bool
+        let questionContext: [String: Any]?
+        var retryCount: Int
+
+        init(sessionId: String, message: String, deepMode: Bool, questionContext: [String: Any]?) {
+            self.accumulatedText = ""
+            self.sessionId = sessionId
+            self.message = message
+            self.deepMode = deepMode
+            self.questionContext = questionContext
+            self.retryCount = 0
+        }
+
+        mutating func updateAccumulatedText(_ text: String) {
+            self = StreamingRetryState(
+                accumulatedText: text,
+                sessionId: sessionId,
+                message: message,
+                deepMode: deepMode,
+                questionContext: questionContext,
+                retryCount: retryCount
+            )
+        }
+
+        private init(accumulatedText: String, sessionId: String, message: String, deepMode: Bool, questionContext: [String: Any]?, retryCount: Int) {
+            self.accumulatedText = accumulatedText
+            self.sessionId = sessionId
+            self.message = message
+            self.deepMode = deepMode
+            self.questionContext = questionContext
+            self.retryCount = retryCount
+        }
     }
 
     // MARK: - AI Response Models
@@ -1382,24 +1571,7 @@ class NetworkService: ObservableObject {
         }
     }
 
-    // MARK: - Homework Follow-up with Grade Correction
-
-    /// Grade correction data returned from homework follow-up endpoint
-    struct GradeCorrectionData: Codable {
-        let originalGrade: String
-        let correctedGrade: String
-        let reason: String
-        let newPointsEarned: Float
-        let pointsPossible: Float
-
-        enum CodingKeys: String, CodingKey {
-            case originalGrade = "original_grade"
-            case correctedGrade = "corrected_grade"
-            case reason
-            case newPointsEarned = "new_points_earned"
-            case pointsPossible = "points_possible"
-        }
-    }
+    // MARK: - Homework Follow-up
 
     // MARK: - Diagram Generation Models
 
@@ -2943,6 +3115,57 @@ class NetworkService: ObservableObject {
         return (false, "Unknown error", nil, nil, nil)
     }
 
+    // MARK: - Token Refresh (Phase 2.5)
+
+    /// Refresh authentication token before expiration
+    func refreshAuthToken(_ oldToken: String) async -> (success: Bool, message: String, token: String?) {
+        print("🔄 === TOKEN REFRESH STARTED ===")
+        print("🔄 Old Token (first 20 chars): \(oldToken.prefix(20))...")
+
+        let refreshURL = "\(baseURL)/api/auth/refresh"
+        guard let url = URL(string: refreshURL) else {
+            print("🔄 ❌ Invalid refresh URL")
+            return (false, "Invalid URL", nil)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let refreshData: [String: Any] = ["token": oldToken]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: refreshData)
+            print("🔄 Sending refresh request to backend...")
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                print("🔄 Response Status: \(httpResponse.statusCode)")
+
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    let success = json["success"] as? Bool ?? false
+                    let message = json["message"] as? String ?? "Unknown error"
+                    let newToken = json["token"] as? String
+
+                    if success, let newToken = newToken {
+                        print("🔄 ✅ Token refreshed successfully (first 20 chars): \(newToken.prefix(20))...")
+                        return (true, "Token refreshed", newToken)
+                    } else {
+                        print("🔄 ❌ Refresh failed: \(message)")
+                        return (false, message, nil)
+                    }
+                }
+            }
+        } catch {
+            print("🔄 ❌ Network error: \(error.localizedDescription)")
+            return (false, "Network error: \(error.localizedDescription)", nil)
+        }
+
+        print("🔄 ❌ Token refresh failed - unknown error")
+        return (false, "Unknown error", nil)
+    }
+
     // MARK: - Session Archive Management
     
     /// Archive a session conversation to LOCAL storage only (with image processing)
@@ -4402,6 +4625,123 @@ class NetworkService: ObservableObject {
             return (false, error.localizedDescription)
         }
     }
+
+    // MARK: - Error Analysis (Pass 2)
+
+    /// Analyze errors for wrong answers (Pass 2 of two-pass grading)
+    /// Backend processes and returns results WITHOUT storing to database
+    func analyzeErrorsBatch(questions: [ErrorAnalysisRequest]) async throws -> [ErrorAnalysisResponse] {
+        let url = URL(string: "\(baseURL)/api/ai/analyze-errors-batch")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(["questions": questions])
+
+        print("📊 [Network] POST /api/ai/analyze-errors-batch (\(questions.count) questions)")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            print("❌ [Network] Error analysis failed: HTTP \(httpResponse.statusCode)")
+            throw NetworkError.invalidResponse
+        }
+
+        // 🔍 DEBUG: Print raw response
+        if let jsonString = String(data: data, encoding: .utf8) {
+            print("📄 [Network] Raw response: \(jsonString)")
+        }
+
+        // Backend returns: {"success": true, "analyses": [...], "count": 1}
+        struct ErrorAnalysisBatchResponse: Codable {
+            let success: Bool
+            let analyses: [ErrorAnalysisResponse]
+            let count: Int
+        }
+
+        let decoder = JSONDecoder()
+
+        do {
+            let result = try decoder.decode(ErrorAnalysisBatchResponse.self, from: data)
+
+            guard result.success else {
+                print("❌ [Network] Backend reported failure")
+                throw NetworkError.invalidResponse
+            }
+
+            print("✅ [Network] Received \(result.analyses.count) error analyses")
+            return result.analyses
+        } catch {
+            print("❌ [Network] Decoding error: \(error)")
+            print("❌ [Network] Error details: \(error.localizedDescription)")
+            throw error
+        }
+    }
+
+    // MARK: - Weakness Description Generation (Short-Term Status Architecture)
+
+    /// Generate AI-powered natural language descriptions for weakness points
+    func generateWeaknessDescriptions(_ weaknesses: [[String: Any]]) async throws -> [WeaknessDescriptionResponse] {
+        let url = URL(string: "\(baseURL)/api/ai/generate-weakness-descriptions")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["weaknesses": weaknesses])
+
+        print("📊 [Network] POST /api/ai/generate-weakness-descriptions (\(weaknesses.count) weaknesses)")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            print("❌ [Network] Weakness description generation failed: HTTP \(httpResponse.statusCode)")
+            throw NetworkError.invalidResponse
+        }
+
+        // Backend returns: {"descriptions": [...]}
+        struct WeaknessDescriptionsResponse: Codable {
+            let descriptions: [WeaknessDescriptionResponse]
+        }
+
+        let decoder = JSONDecoder()
+
+        do {
+            let result = try decoder.decode(WeaknessDescriptionsResponse.self, from: data)
+            print("✅ [Network] Received \(result.descriptions.count) weakness descriptions")
+            return result.descriptions
+        } catch {
+            print("❌ [Network] Decoding error: \(error)")
+            throw error
+        }
+    }
+}
+
+// MARK: - Weakness Description Models
+
+struct WeaknessDescriptionResponse: Codable {
+    let key: String
+    let description: String
+    let severity: String
+    let confidence: Double
 }
 
 // MARK: - Dictionary Extension for Key Conversion

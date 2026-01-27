@@ -498,11 +498,11 @@ class MentalHealthReportGenerator {
         }
 
         .section {
-            margin-bottom: 24px;
+            margin-bottom: 16px;
         }
 
         .section-title {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
             color: #1a1a1a;
             margin-bottom: 12px;

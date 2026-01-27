@@ -877,7 +877,7 @@ Remember: Your goal is to help the student learn and understand both the image c
         
         return response.strip()
 
-    # MARK: - Homework Follow-up Prompts (with Grade Self-Validation)
+    # MARK: - Homework Follow-up Prompts
 
     def create_homework_followup_prompt(
         self,
@@ -886,7 +886,7 @@ Remember: Your goal is to help the student learn and understand both the image c
         session_id: str
     ) -> str:
         """
-        Create specialized prompts for homework follow-up questions with grade self-validation.
+        Create specialized prompts for homework follow-up questions.
 
         This is DIFFERENT from:
         - create_session_conversation_prompt(): Generic tutoring (no grading context)
@@ -894,8 +894,7 @@ Remember: Your goal is to help the student learn and understand both the image c
 
         This method enables AI to:
         1. Help student understand a previously-graded homework question
-        2. Self-validate the previous grading (detect if original grade was wrong)
-        3. Provide structured grade correction signals for iOS to detect
+        2. Provide educational guidance based on the grading context
 
         Args:
             question_context: {
@@ -913,7 +912,7 @@ Remember: Your goal is to help the student learn and understand both the image c
             session_id: Chat session identifier
 
         Returns:
-            System prompt with AI self-validation instructions and structured correction format
+            System prompt with educational tutoring instructions
         """
 
         # Extract context with safe defaults
@@ -936,51 +935,13 @@ Current Grade: {current_grade}
 Original Feedback: {original_feedback}
 Points: {points_earned}/{points_possible}
 
-## YOUR DUAL ROLE
-
-### ROLE 1: Educational Tutor
+## YOUR ROLE: Educational Tutor
 - Help the student understand this question
 - Explain concepts clearly with step-by-step examples
 - Use encouraging, supportive language
 - Focus on learning, not just getting the right answer
-
-### ROLE 2: Grade Self-Validator (CRITICAL)
-**IMPORTANT**: Re-examine the original grading decision before responding.
-
-Compare the student's answer vs. the correct answer:
-- Was the original grade accurate?
-- Did the AI grader make an error?
-- Is the student's answer actually correct (or partially correct)?
-- Are there edge cases or alternative interpretations?
-
-## GRADE CORRECTION PROTOCOL
-
-If you determine the original grade was WRONG, you MUST include this EXACT structured block:
-
-```
-GRADE_CORRECTION_NEEDED
-Original Grade: {current_grade}
-Corrected Grade: [CORRECT|INCORRECT|PARTIAL_CREDIT|EMPTY]
-Reason: [Detailed explanation of why the original grading was incorrect. Be specific about what the AI grader missed or misinterpreted.]
-New Points Earned: [number between 0 and {points_possible}]
-Points Possible: {points_possible}
-```
-
-After the correction block, continue with your educational explanation.
-
-## WHEN TO ISSUE GRADE CORRECTIONS
-
-Issue corrections when:
-- ✅ Student's answer is mathematically/scientifically correct but was marked incorrect
-- ✅ Answer uses alternative method that is valid but wasn't recognized
-- ✅ Grading was too harsh for a minor notation error
-- ✅ Partial credit should have been awarded but wasn't
-- ✅ Question was ambiguous and student's interpretation was reasonable
-
-DO NOT issue corrections for:
-- ❌ Student clearly got the wrong answer (arithmetic errors, wrong method)
-- ❌ Grading was appropriate given the rubric
-- ❌ Student is asking "why" but the grade was correct
+- If the student's answer was incorrect, explain why and help them understand the correct approach
+- If the student's answer was correct, reinforce their understanding and explain the concepts further
 
 ## MATHEMATICAL FORMATTING (iOS Rendering)
 
@@ -998,46 +959,26 @@ Examples:
 
 ## RESPONSE STRUCTURE
 
-1. **Grade Validation** (silent unless correction needed):
-   - Re-examine student answer vs. correct answer
-   - If grade was wrong, include GRADE_CORRECTION_NEEDED block
+1. **Address the Student's Question**:
+   - Respond directly to what the student is asking
+   - Be clear and specific
 
 2. **Educational Explanation**:
-   - Address the student's specific question/confusion
    - Explain the concept step-by-step
    - Use examples and analogies
    - Connect to broader understanding
+   - If the answer was wrong, explain why and show the correct approach
+   - If the answer was right, reinforce understanding with additional insights
 
-3. **Encouragement** (if applicable):
-   - Acknowledge good attempts or partial understanding
+3. **Encouragement**:
+   - Acknowledge good attempts or understanding
    - Encourage continued learning
-   - Suggest related practice
-
-## EXAMPLE CORRECTION SCENARIO
-
-Student Question: "I don't understand why I got this wrong. Isn't 4 the right answer?"
-Student Answer: "4"
-Correct Answer: "4"
-Current Grade: INCORRECT
-
-Your Response:
-```
-GRADE_CORRECTION_NEEDED
-Original Grade: INCORRECT
-Corrected Grade: CORRECT
-Reason: The student's answer of 4 is actually correct. The AI grader appears to have made an error in comparing the student's handwritten "4" with the expected answer. This was a grading mistake, not a student error.
-New Points Earned: {points_possible}
-Points Possible: {points_possible}
-```
-
-You're absolutely right! Your answer of 4 is correct. Let me explain why...
-
-[Continue with educational explanation]
+   - Suggest related practice if helpful
 
 ## STUDENT'S QUESTION
 {student_message}
 
-Remember: Be honest about grading errors. If the student was right and the AI was wrong, clearly state the correction. If the student was wrong, explain why compassionately and educationally.
+Remember: Be patient, clear, and supportive. Focus on helping the student learn and understand, not just getting the right answer.
 """
 
         return system_prompt
@@ -1130,6 +1071,7 @@ Generate now:"""
     def get_mistake_based_questions_prompt(self, subject: str, mistakes_data: List[Dict], config: Dict[str, Any], user_profile: Dict[str, Any]) -> str:
         """
         Generate prompt for creating questions based on previous mistakes.
+        Enhanced to use error analysis data when available.
         """
         print(f"🎯 === GENERATING MISTAKE-BASED QUESTIONS PROMPT ===")
         print(f"📚 Subject: {subject}")
@@ -1149,15 +1091,75 @@ Generate now:"""
         # Extract user profile
         grade_level = user_profile.get('grade', 'High School')
 
-        # Simplified mistakes format
+        # ✅ NEW: Detect if error analysis is available
+        has_error_analysis = any(
+            m.get('error_type') or m.get('error_evidence') or m.get('primary_concept')
+            for m in mistakes_data
+        )
+
+        # Enhanced mistakes format with error analysis
         mistakes_summary = []
         all_source_tags = []
+        error_types = []
+        primary_concepts = []
+
         for i, m in enumerate(mistakes_data, 1):
             tags = m.get('tags', [])
             all_source_tags.extend(tags)
-            mistakes_summary.append(f"#{i}: Q: {m.get('original_question', 'N/A')[:60]}... Student: {m.get('user_answer', 'N/A')[:40]} Correct: {m.get('correct_answer', 'N/A')[:40]} Type: {m.get('mistake_type', 'N/A')}")
+
+            # Build mistake summary with error analysis if available
+            mistake_line = f"Mistake #{i}:\n"
+            mistake_line += f"  Question: {m.get('original_question', m.get('question_text', 'N/A'))[:150]}...\n"
+            mistake_line += f"  Student Answer: {m.get('user_answer', m.get('student_answer', 'N/A'))[:100]}\n"
+            mistake_line += f"  Correct Answer: {m.get('correct_answer', 'N/A')[:100]}\n"
+
+            # ✅ Add error analysis details if available
+            if m.get('error_type'):
+                error_type = m['error_type']
+                error_types.append(error_type)
+                mistake_line += f"  Error Type: {error_type}\n"
+
+            if m.get('error_evidence'):
+                mistake_line += f"  What Went Wrong: {m['error_evidence'][:150]}\n"
+
+            if m.get('primary_concept'):
+                primary_concept = m['primary_concept']
+                primary_concepts.append(primary_concept)
+                mistake_line += f"  Concept: {primary_concept}\n"
+
+            if m.get('secondary_concept'):
+                mistake_line += f"  Sub-Concept: {m['secondary_concept']}\n"
+
+            mistakes_summary.append(mistake_line)
 
         unique_source_tags = list(set(all_source_tags))
+
+        # ✅ NEW: Build error pattern analysis if available
+        error_analysis_section = ""
+        if has_error_analysis:
+            # Get most common error type
+            most_common_error = max(set(error_types), key=error_types.count) if error_types else None
+            # Get most common concept
+            most_common_concept = max(set(primary_concepts), key=primary_concepts.count) if primary_concepts else None
+
+            error_analysis_section = f"""
+🎯 TARGETED PRACTICE MODE - Error Analysis Available:
+
+Pattern Analysis:
+- Most Common Error Type: {most_common_error or 'Not specified'}
+- Most Problematic Concept: {most_common_concept or 'Not specified'}
+- Total Mistakes with Analysis: {len([m for m in mistakes_data if m.get('error_type')])}
+
+YOUR MISSION:
+Generate {question_count} questions that:
+1. Target the SAME concepts ({most_common_concept}) but use DIFFERENT numbers/contexts
+2. Address the specific error pattern ({most_common_error})
+3. Include hints that guide students AWAY from the common error
+4. Progress from slightly easier (build confidence) to moderate difficulty
+5. DO NOT repeat the exact questions above - use similar concepts with new scenarios
+
+Focus on helping the student master what they struggled with.
+"""
 
         # ALWAYS include LaTeX formatting instructions for ALL question types
         # True/false, multiple choice, etc. can all contain mathematical notation
@@ -1176,7 +1178,7 @@ Generate now:"""
         prompt = f"""Generate {question_count} remedial {subject} questions targeting these mistakes:
 
 {chr(10).join(mistakes_summary)}
-
+{error_analysis_section}
 {math_note}
 {tags_note}
 

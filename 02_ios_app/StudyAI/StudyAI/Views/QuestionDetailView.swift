@@ -1047,7 +1047,7 @@ Question: \(question.question)
             ]
 
             // Save to local storage
-            QuestionLocalStorage.shared.saveQuestions([questionData])
+            _ = QuestionLocalStorage.shared.saveQuestions([questionData])
 
             await MainActor.run {
                 isArchiving = false

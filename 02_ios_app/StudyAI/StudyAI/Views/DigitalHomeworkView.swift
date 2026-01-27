@@ -704,6 +704,14 @@ struct DigitalHomeworkView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.black.opacity(0.3))
 
+            // ✅ Handwriting Evaluation (Pro Mode only - if available from parsing)
+            if let handwriting = parseResults.handwritingEvaluation,
+               handwriting.hasHandwriting {
+                HandwritingEvaluationCompactView(evaluation: handwriting)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
+            }
+
             // 添加标注按钮
             Button(action: {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
@@ -2295,7 +2303,8 @@ struct GradingLoadingIndicator: View {
                 ],
                 processingTimeMs: 1200,
                 error: nil,
-                processedImageDimensions: nil
+                processedImageDimensions: nil,
+                handwritingEvaluation: nil
             ),
             originalImage: UIImage(systemName: "photo")!
         )
