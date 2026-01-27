@@ -6,6 +6,55 @@
 //
 
 import Foundation
+
+// MARK: - Application Constants
+
+struct AppConstants {
+    // Storage limits
+    static let maxLocalQuestions = 100
+    static let maxPracticeQuestions = 40
+    static let maxSelectedMistakes = 20
+    static let practiceQuestionsMultiplier = 2
+
+    // Data retention
+    static let dataRetentionDays = 90
+    static let weaknessMigrationDays = 21
+
+    // Timeout & retry
+    static let apiTimeoutSeconds = 60.0
+    static let circuitBreakerThreshold = 5
+    static let circuitBreakerResetSeconds = 60.0
+
+    // Cache settings
+    static let dateCacheSizeLimit = 200
+}
+
+// MARK: - Error Analysis Status
+
+enum ErrorAnalysisStatus: String, Codable {
+    case pending
+    case processing
+    case completed
+    case failed
+
+    var displayText: String {
+        switch self {
+        case .pending: return "Queued for analysis"
+        case .processing: return "Analyzing..."
+        case .completed: return "Analysis complete"
+        case .failed: return "Analysis unavailable"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .pending, .processing: return "hourglass"
+        case .completed: return "checkmark.circle.fill"
+        case .failed: return "exclamationmark.triangle"
+        }
+    }
+}
+
 import SwiftUI
 
 // MARK: - String Extension for Unicode Decoding
@@ -139,6 +188,19 @@ enum QuestionType: String, Codable {
 
 // MARK: - Backend JSON Models (Direct Parsing)
 
+/// Handwriting quality evaluation for Pro Mode
+struct HandwritingEvaluation: Codable {
+    let hasHandwriting: Bool
+    let score: Float?
+    let feedback: String?
+
+    enum CodingKeys: String, CodingKey {
+        case hasHandwriting = "has_handwriting"
+        case score
+        case feedback
+    }
+}
+
 /// Backend JSON response structure (matches improved_openai_service.py output)
 struct BackendHomeworkResponse: Decodable {  // Changed from Codable to Decodable (we only decode, not encode)
     let subject: String
@@ -146,6 +208,7 @@ struct BackendHomeworkResponse: Decodable {  // Changed from Codable to Decodabl
     let totalQuestionsFound: Int
     let questions: [BackendQuestion]
     let performanceSummary: BackendPerformanceSummary
+    let handwritingEvaluation: HandwritingEvaluation?
     let processingNotes: String?
 
     enum CodingKeys: String, CodingKey {
@@ -155,6 +218,7 @@ struct BackendHomeworkResponse: Decodable {  // Changed from Codable to Decodabl
         case questions
         case sections  // For hierarchical mode
         case performanceSummary = "performance_summary"
+        case handwritingEvaluation = "handwriting_evaluation"
         case processingNotes = "processing_notes"
     }
 
@@ -165,6 +229,7 @@ struct BackendHomeworkResponse: Decodable {  // Changed from Codable to Decodabl
         subject = try container.decode(String.self, forKey: .subject)
         totalQuestionsFound = try container.decode(Int.self, forKey: .totalQuestionsFound)
         performanceSummary = try container.decode(BackendPerformanceSummary.self, forKey: .performanceSummary)
+        handwritingEvaluation = try? container.decode(HandwritingEvaluation.self, forKey: .handwritingEvaluation)
         processingNotes = try? container.decode(String.self, forKey: .processingNotes)
 
         // Handle subjectConfidence as Float or String
@@ -751,11 +816,35 @@ struct MistakeQuestion: Codable, Identifiable {
     let tags: [String]
     let notes: String
 
+    // ✅ Error analysis fields (standardized naming)
+    let errorType: String?
+    let errorEvidence: String?
+    let errorConfidence: Double?
+    let learningSuggestion: String?
+    let errorAnalysisStatus: ErrorAnalysisStatus  // ✅ Now using enum
+
+    // ✅ Weakness tracking fields (standardized naming)
+    let primaryConcept: String?
+    let secondaryConcept: String?
+    let weaknessKey: String?
+
+    // Computed properties
+    var hasErrorAnalysis: Bool {
+        errorAnalysisStatus == .completed && errorType != nil
+    }
+
+    var isAnalyzing: Bool {
+        errorAnalysisStatus == .pending || errorAnalysisStatus == .processing
+    }
+
     // Custom initializer for manual construction
     init(id: String, subject: String, question: String, rawQuestionText: String? = nil, correctAnswer: String,
          studentAnswer: String, explanation: String, createdAt: Date,
          confidence: Double, pointsEarned: Double, pointsPossible: Double,
-         tags: [String], notes: String) {
+         tags: [String], notes: String,
+         errorType: String? = nil, errorEvidence: String? = nil, errorConfidence: Double? = nil,
+         learningSuggestion: String? = nil, errorAnalysisStatus: ErrorAnalysisStatus = .pending,
+         primaryConcept: String? = nil, secondaryConcept: String? = nil, weaknessKey: String? = nil) {
         self.id = id
         self.subject = subject
         self.question = question
@@ -769,11 +858,22 @@ struct MistakeQuestion: Codable, Identifiable {
         self.pointsPossible = pointsPossible
         self.tags = tags
         self.notes = notes
+        // Error analysis fields
+        self.errorType = errorType
+        self.errorEvidence = errorEvidence
+        self.errorConfidence = errorConfidence
+        self.learningSuggestion = learningSuggestion
+        self.errorAnalysisStatus = errorAnalysisStatus
+        self.primaryConcept = primaryConcept
+        self.secondaryConcept = secondaryConcept
+        self.weaknessKey = weaknessKey
     }
 
     enum CodingKeys: String, CodingKey {
         case id, subject, question, rawQuestionText, correctAnswer, studentAnswer, explanation
         case createdAt, confidence, pointsEarned, pointsPossible, tags, notes
+        case errorType, errorEvidence, errorConfidence, learningSuggestion, errorAnalysisStatus
+        case primaryConcept, secondaryConcept, weaknessKey
     }
 
     init(from decoder: Decoder) throws {
@@ -805,6 +905,25 @@ struct MistakeQuestion: Codable, Identifiable {
         pointsEarned = try container.decode(Double.self, forKey: .pointsEarned)
         pointsPossible = try container.decode(Double.self, forKey: .pointsPossible)
         tags = try container.decode([String].self, forKey: .tags)
+
+        // ✅ Decode error analysis fields (with backwards compatibility)
+        errorType = try container.decodeIfPresent(String.self, forKey: .errorType)
+        errorEvidence = try container.decodeIfPresent(String.self, forKey: .errorEvidence)
+        errorConfidence = try container.decodeIfPresent(Double.self, forKey: .errorConfidence)
+        learningSuggestion = try container.decodeIfPresent(String.self, forKey: .learningSuggestion)
+
+        // Decode status with backwards compatibility (string → enum)
+        if let statusEnum = try? container.decodeIfPresent(ErrorAnalysisStatus.self, forKey: .errorAnalysisStatus) {
+            errorAnalysisStatus = statusEnum
+        } else if let statusString = try? container.decodeIfPresent(String.self, forKey: .errorAnalysisStatus) {
+            errorAnalysisStatus = ErrorAnalysisStatus(rawValue: statusString) ?? .pending
+        } else {
+            errorAnalysisStatus = .pending
+        }
+
+        primaryConcept = try container.decodeIfPresent(String.self, forKey: .primaryConcept)
+        secondaryConcept = try container.decodeIfPresent(String.self, forKey: .secondaryConcept)
+        weaknessKey = try container.decodeIfPresent(String.self, forKey: .weaknessKey)
 
         // Handle date parsing
         let dateString = try container.decode(String.self, forKey: .createdAt)

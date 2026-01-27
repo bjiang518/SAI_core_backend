@@ -2139,7 +2139,8 @@ struct DirectAIHomeworkView: View {
             rawAIResponse: "Batch processing of \(responses.count) images",
             totalQuestionsFound: allQuestions.count,
             jsonParsingUsed: false,
-            performanceSummary: firstPerformanceSummary  // NEW: Pass summary from first image
+            performanceSummary: firstPerformanceSummary,  // NEW: Pass summary from first image
+            handwritingEvaluation: nil
         )
 
         stateManager.parsingResult = HomeworkParsingResult(
@@ -2392,7 +2393,8 @@ struct DirectAIHomeworkView: View {
                 rawAIResponse: enhanced.rawAIResponse,
                 totalQuestionsFound: enhanced.totalQuestionsFound,
                 jsonParsingUsed: enhanced.jsonParsingUsed,
-                performanceSummary: enhanced.performanceSummary
+                performanceSummary: enhanced.performanceSummary,
+                handwritingEvaluation: enhanced.handwritingEvaluation
             )
 
             stateManager.parsingResult = HomeworkParsingResult(
@@ -2420,7 +2422,8 @@ struct DirectAIHomeworkView: View {
                 rawAIResponse: actualResponse,
                 totalQuestionsFound: 0,
                 jsonParsingUsed: false,
-                performanceSummary: nil
+                performanceSummary: nil,
+                handwritingEvaluation: nil
             )
 
             stateManager.parsingResult = HomeworkParsingResult(

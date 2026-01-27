@@ -868,6 +868,12 @@ class ParseHomeworkQuestionsRequest(BaseModel):
     expected_questions: Optional[List[int]] = None  # Pro Mode: user-provided question numbers
     model_provider: Optional[str] = "openai"  # "openai" or "gemini"
 
+class HandwritingEvaluationResponse(BaseModel):
+    """Handwriting quality assessment for Pro Mode"""
+    has_handwriting: bool
+    score: Optional[float] = None
+    feedback: Optional[str] = None
+
 class ParseHomeworkQuestionsResponse(BaseModel):
     """Response with parsed questions and image regions"""
     success: bool
@@ -877,6 +883,7 @@ class ParseHomeworkQuestionsResponse(BaseModel):
     questions: List[ParsedQuestion]
     processing_time_ms: int
     error: Optional[str] = None
+    handwriting_evaluation: Optional[HandwritingEvaluationResponse] = None
 
 class GradeSingleQuestionRequest(BaseModel):
     """Request to grade a single question"""
@@ -1227,6 +1234,16 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
 
         processing_time = int((time.time() - start_time) * 1000)
 
+        # Extract handwriting evaluation from result (if present)
+        handwriting_eval_dict = result.get("handwriting_evaluation")
+        handwriting_eval = None
+        if handwriting_eval_dict:
+            handwriting_eval = HandwritingEvaluationResponse(
+                has_handwriting=handwriting_eval_dict.get("has_handwriting", False),
+                score=handwriting_eval_dict.get("score"),
+                feedback=handwriting_eval_dict.get("feedback")
+            )
+
         return ParseHomeworkQuestionsResponse(
             success=True,
             subject=result.get("subject", "Unknown"),
@@ -1234,7 +1251,8 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
             total_questions=result.get("total_questions", 0),
             questions=questions,  # Use cleaned questions
             processing_time_ms=processing_time,
-            error=None
+            error=None,
+            handwriting_evaluation=handwriting_eval
         )
 
     except HTTPException as he:

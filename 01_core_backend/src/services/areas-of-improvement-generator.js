@@ -399,8 +399,8 @@ class AreasOfImprovementGenerator {
         .subject-section {
             background: #f9fafb;
             border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 16px;
+            padding: 12px;
+            margin-bottom: 12px;
             border-left: 3px solid #dc2626;
         }
 
@@ -408,11 +408,11 @@ class AreasOfImprovementGenerator {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .subject-title {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
             color: #1a1a1a;
         }
@@ -420,10 +420,10 @@ class AreasOfImprovementGenerator {
         .mistake-count {
             background: #fef2f2;
             color: #dc2626;
-            padding: 6px 12px;
+            padding: 4px 10px;
             border-radius: 6px;
             font-weight: 600;
-            font-size: 12px;
+            font-size: 11px;
             border: 1px solid #fecaca;
         }
 

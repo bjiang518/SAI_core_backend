@@ -7,6 +7,7 @@
 
 import SwiftUI
 import GoogleSignIn
+import BackgroundTasks
 
 @main
 struct StudyAIApp: App {
@@ -22,6 +23,7 @@ struct StudyAIApp: App {
 
         setupGoogleSignIn()
         setupLanguage()
+        registerBackgroundTasks()  // ✅ Register background tasks early
     }
 
     var body: some Scene {
@@ -62,5 +64,27 @@ struct StudyAIApp: App {
            let clientId = plist["CLIENT_ID"] as? String {
             GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientId)
         }
+    }
+
+    // MARK: - Background Task Registration
+
+    /// Register background tasks for weakness migration
+    /// Must be called before application:didFinishLaunchingWithOptions: completes
+    private func registerBackgroundTasks() {
+        #if !targetEnvironment(simulator)
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: "com.studyai.weaknessmigration",
+            using: nil
+        ) { task in
+            Task {
+                await ShortTermStatusService.shared.performDailyWeaknessMigration()
+                task.setTaskCompleted(success: true)
+            }
+            ShortTermStatusService.shared.scheduleNextBackgroundMigration()
+        }
+        print("✅ [App] Background task registered: com.studyai.weaknessmigration")
+        #else
+        print("⚠️ [App] Background tasks disabled in simulator")
+        #endif
     }
 }

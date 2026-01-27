@@ -181,7 +181,7 @@ class StorageSyncService {
             print("   📊 [Sync] Grade: \(rawGrade) → \(normalizedGrade), isCorrect: \(localQuestion["isCorrect"] ?? "nil")")
 
             // Save to local storage
-            localStorage.saveQuestions([localQuestion])
+            _ = localStorage.saveQuestions([localQuestion])
             downloadedFromServerCount += 1
             print("   ✅ [Sync] Downloaded question to local storage")
         }
@@ -240,7 +240,7 @@ class StorageSyncService {
                 // Update local storage with server ID
                 var updatedQuestion = questionData
                 updatedQuestion["id"] = serverId
-                QuestionLocalStorage.shared.saveQuestions([updatedQuestion])
+                _ = QuestionLocalStorage.shared.saveQuestions([updatedQuestion])
 
                 syncedToServerCount += 1
                 print("   ✅ [Sync] Successfully uploaded question (Server ID: \(serverId))")

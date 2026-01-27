@@ -406,6 +406,40 @@
 "success.grade.updated" = "✅ Grade updated to %@ (%@ points)";
 "success.network.restored" = "✓ Connection restored";
 
+// Phase 2 Reliability - Network Monitoring (Phase 2.3)
+"error.network.disconnected" = "Connection lost. Partial response saved.";
+"error.network.reconnecting" = "Reconnecting...";
+"error.network.timeout" = "Request timed out. Please check your connection and try again.";
+
+// Phase 2 Reliability - Streaming Retry (Phase 2.3)
+"error.streaming.interrupted" = "Connection interrupted during response. Partial message saved.";
+"error.streaming.retry" = "Retry";
+"success.streaming.recovered" = "Connection recovered. Message complete.";
+"streaming.partialResponse" = "Partial response available. Tap Retry to continue.";
+
+// Phase 2 Reliability - Circuit Breaker (Phase 2.1)
+"error.ai.circuitOpen" = "AI service temporarily unavailable. Please try again in a few moments.";
+"error.ai.serviceDown" = "AI service is offline. Our team is working to restore it.";
+"error.ai.timeout" = "AI processing is taking longer than expected. Please try again.";
+
+// Phase 2 Reliability - Database Errors (Phase 2.2)
+"error.database.writeFailed" = "Unable to save your message. Please check your connection and try again.";
+"error.database.unavailable" = "Database temporarily unavailable. Your message will be retried automatically.";
+"error.database.saveFailed" = "Failed to save conversation. Your messages are safe in memory.";
+
+// Phase 2 Reliability - Token Refresh (Phase 2.5)
+"error.token.expired" = "Your session expired. Please sign in again.";
+"error.token.refreshFailed" = "Unable to refresh session. Please sign in again.";
+"error.token.invalid" = "Session invalid. Please sign in again.";
+"success.token.refreshed" = "Session renewed successfully.";
+
+// Phase 2 Reliability - Session Validation (Phase 2.6)
+"error.session.notfound" = "Session not found. Creating a new one...";
+"error.session.invalid" = "Session invalid. Starting new session...";
+"error.session.validation" = "Unable to validate session. Please try again.";
+"success.session.validated" = "Session ready.";
+"success.session.recreated" = "New session created successfully.";
+
 // Homework Album
 "homeworkAlbum.title" = "Homework Album";
 "homeworkAlbum.select" = "Select";

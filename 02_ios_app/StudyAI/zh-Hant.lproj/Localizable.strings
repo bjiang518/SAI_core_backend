@@ -408,6 +408,40 @@
 "success.grade.updated" = "✅ 成績已更新為 %@ (%@ 分)";
 "success.network.restored" = "✓ 網路連線已恢復";
 
+// Phase 2 可靠性 - 網路監控 (Phase 2.3)
+"error.network.disconnected" = "連線中斷。部分回應已儲存。";
+"error.network.reconnecting" = "重新連線中...";
+"error.network.timeout" = "請求逾時。請檢查網路連線後重試。";
+
+// Phase 2 可靠性 - 串流重試 (Phase 2.3)
+"error.streaming.interrupted" = "回應過程中連線中斷。部分訊息已儲存。";
+"error.streaming.retry" = "重試";
+"success.streaming.recovered" = "連線已恢復。訊息完整。";
+"streaming.partialResponse" = "部分回應可用。點擊重試繼續。";
+
+// Phase 2 可靠性 - 斷路器 (Phase 2.1)
+"error.ai.circuitOpen" = "AI服務暫時無法使用。請稍後重試。";
+"error.ai.serviceDown" = "AI服務離線中。我們的團隊正在努力恢復。";
+"error.ai.timeout" = "AI處理時間超出預期。請重試。";
+
+// Phase 2 可靠性 - 資料庫錯誤 (Phase 2.2)
+"error.database.writeFailed" = "無法儲存您的訊息。請檢查網路連線後重試。";
+"error.database.unavailable" = "資料庫暫時無法使用。您的訊息將自動重試。";
+"error.database.saveFailed" = "對話儲存失敗。您的訊息在記憶體中是安全的。";
+
+// Phase 2 可靠性 - 權杖更新 (Phase 2.5)
+"error.token.expired" = "會話已過期。請重新登入。";
+"error.token.refreshFailed" = "無法更新會話。請重新登入。";
+"error.token.invalid" = "會話無效。請重新登入。";
+"success.token.refreshed" = "會話已成功續期。";
+
+// Phase 2 可靠性 - 會話驗證 (Phase 2.6)
+"error.session.notfound" = "未找到會話。正在建立新會話...";
+"error.session.invalid" = "會話無效。正在開始新會話...";
+"error.session.validation" = "無法驗證會話。請重試。";
+"success.session.validated" = "會話就緒。";
+"success.session.recreated" = "新會話建立成功。";
+
 // Homework Album
 "homeworkAlbum.title" = "作業相簿";
 "homeworkAlbum.select" = "選擇";

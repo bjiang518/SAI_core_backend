@@ -31,7 +31,6 @@ struct SessionChatView: View {
     @State private var showingCamera = false
     @State private var showingImageInputSheet = false
     @State private var showingExistingSessionAlert = false
-    @State private var showingGradeCorrectionAlert = false
     @State private var isVoiceMode = false
     @State private var hasConversationStarted = false
     @State private var showingPermissionAlert = false
@@ -264,35 +263,6 @@ struct SessionChatView: View {
                 }
             } message: {
                 Text("'\(viewModel.archivedSessionTitle.isEmpty ? "Your conversation" : viewModel.archivedSessionTitle.capitalized)' saved successfully!\n\nYou can view it anytime in the Library tab.\n\nA new chat session is ready for you!")
-            }
-            .alert("Grade Update Detected", isPresented: $showingGradeCorrectionAlert) {
-                Button("Accept Grade Change", role: .destructive) {
-                    if let gradeCorrection = viewModel.detectedGradeCorrection {
-                        viewModel.applyGradeCorrection(gradeCorrection)
-                    }
-                    showingGradeCorrectionAlert = false
-                }
-                Button("Keep Original Grade") {
-                    print("ℹ️ User rejected grade correction")
-                    showingGradeCorrectionAlert = false
-                }
-            } message: {
-                if let gradeCorrection = viewModel.detectedGradeCorrection {
-                    Text("""
-                    The AI has re-examined this question and determined the grade should be updated:
-
-                    Original Grade: \(gradeCorrection.originalGrade)
-                    New Grade: \(gradeCorrection.correctedGrade)
-
-                    Points: \(String(format: "%.1f", gradeCorrection.newPointsEarned)) / \(String(format: "%.1f", gradeCorrection.pointsPossible))
-
-                    Reason: \(gradeCorrection.reason)
-
-                    Would you like to apply this grade correction to your homework?
-                    """)
-                } else {
-                    Text("Grade correction information unavailable")
-                }
             }
     }
 

@@ -61,6 +61,13 @@ class PerformanceSummary(BaseModel):
     summary_text: str
 
 
+class HandwritingEvaluation(BaseModel):
+    """Handwriting quality assessment for Pro Mode."""
+    has_handwriting: bool = Field(description="True if handwritten content detected, False otherwise")
+    score: Optional[float] = Field(default=None, ge=0, le=10, description="Handwriting clarity score 0-10, None if no handwriting")
+    feedback: Optional[str] = Field(default=None, max_length=150, description="Brief feedback on handwriting quality, None if no handwriting")
+
+
 class HomeworkGradingResult(BaseModel):
     """Complete structured homework grading result."""
     subject: str
@@ -68,6 +75,7 @@ class HomeworkGradingResult(BaseModel):
     total_questions_found: int
     questions: List[QuestionGrade]
     performance_summary: PerformanceSummary
+    handwriting_evaluation: Optional[HandwritingEvaluation] = None
     processing_notes: str = ""
 
 
@@ -1207,10 +1215,26 @@ GENERAL GRADING RULES:
       ]
     }}
   ],
-  "performance_summary": {{"total_correct": <N>, "total_incorrect": <N>, "total_empty": <N>, "total_partial_credit": <N>, "accuracy_rate": 0.0-1.0, "summary_text": "brief"}}
+  "performance_summary": {{"total_correct": <N>, "total_incorrect": <N>, "total_empty": <N>, "total_partial_credit": <N>, "accuracy_rate": 0.0-1.0, "summary_text": "brief"}},
+  "handwriting_evaluation": {{
+    "has_handwriting": true|false,
+    "score": 0-10 or null,
+    "feedback": "Brief assessment <150 chars" or null
+  }}
 }}
 
 {subject_rules}
+
+HANDWRITING EVALUATION (Pro Mode):
+Assess handwriting clarity using this rubric:
+- 9-10: Exceptional - Very clear, consistent, easily readable
+- 7-8: Clear - Well-formed letters, good spacing, readable
+- 5-6: Readable - Some inconsistency but understandable
+- 3-4: Difficult - Hard to read, poor spacing/formation
+- 0-2: Illegible - Very difficult to decipher
+
+If handwriting detected: Set has_handwriting=true, score=0-10, feedback="Brief comment"
+If typed/printed/no handwriting: Set has_handwriting=false, score=null, feedback=null
 
 RULES:
 1. Group by type. Types: multiple_choice, fill_blank, calculation, short_answer, long_answer
@@ -1243,10 +1267,26 @@ RULES:
       "feedback": "<30w"
     }}
   ],
-  "performance_summary": {{"total_correct": <N>, "total_incorrect": <N>, "total_empty": <N>, "total_partial_credit": <N>, "accuracy_rate": 0.0-1.0, "summary_text": "brief"}}
+  "performance_summary": {{"total_correct": <N>, "total_incorrect": <N>, "total_empty": <N>, "total_partial_credit": <N>, "accuracy_rate": 0.0-1.0, "summary_text": "brief"}},
+  "handwriting_evaluation": {{
+    "has_handwriting": true|false,
+    "score": 0-10 or null,
+    "feedback": "Brief assessment <150 chars" or null
+  }}
 }}
 
 {subject_rules}
+
+HANDWRITING EVALUATION (Pro Mode):
+Assess handwriting clarity using this rubric:
+- 9-10: Exceptional - Very clear, consistent, easily readable
+- 7-8: Clear - Well-formed letters, good spacing, readable
+- 5-6: Readable - Some inconsistency but understandable
+- 3-4: Difficult - Hard to read, poor spacing/formation
+- 0-2: Illegible - Very difficult to decipher
+
+If handwriting detected: Set has_handwriting=true, score=0-10, feedback="Brief comment"
+If typed/printed/no handwriting: Set has_handwriting=false, score=null, feedback=null
 
 RULES:
 1. Flat structure. Parse each question separately
@@ -3118,7 +3158,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 "subject": result.get("subject", "Unknown"),
                 "subject_confidence": result.get("subject_confidence", 0.5),
                 "total_questions": result.get("total_questions", 0),
-                "questions": questions_array
+                "questions": questions_array,
+                "handwriting_evaluation": result.get("handwriting_evaluation", None)
             }
 
         except json.JSONDecodeError as e:

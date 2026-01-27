@@ -376,7 +376,8 @@ struct QuestionPreviewRow: View {
                 ],
                 processingTimeMs: 1200,
                 error: nil,
-                processedImageDimensions: nil
+                processedImageDimensions: nil,
+                handwritingEvaluation: nil
             ),
             originalImage: UIImage(systemName: "photo")!
         )

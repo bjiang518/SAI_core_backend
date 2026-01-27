@@ -67,6 +67,10 @@ class SessionChatViewModel: ObservableObject {
     @Published var isNetworkConnected = true
     @Published var showNetworkBanner = false
 
+    // Phase 2.3: Streaming retry with partial response recovery
+    @Published var showRetryStreamingButton = false
+    @Published var partialResponseText: String?
+
     // Archive functionality
     @Published var archiveTitle = ""
     @Published var archiveTopic = ""
@@ -86,10 +90,6 @@ class SessionChatViewModel: ObservableObject {
     // Homework context
     @Published var pendingHomeworkQuestion = ""
     @Published var pendingHomeworkSubject = ""
-
-    // Grade correction
-    @Published var detectedGradeCorrection: NetworkService.GradeCorrectionData?
-    @Published var pendingGradeCorrectionResponse: String?
 
     // AI suggestions
     @Published var aiGeneratedSuggestions: [NetworkService.FollowUpSuggestion] = []
@@ -201,51 +201,51 @@ class SessionChatViewModel: ObservableObject {
         print("🟢 Prepared message: \(message.prefix(100))")
         print("🟢 Checking session ID: \(networkService.currentSessionId ?? "nil")")
 
-        // Check if we have a session
-        if let sessionId = networkService.currentSessionId {
-            print("🟢 ➡️ Routing to EXISTING SESSION path")
-            print("🟢 Session ID: \(sessionId)")
+        // ✅ Phase 2.6: Validate session before sending
+        Task {
+            // Ensure we have a valid session
+            if let validSessionId = await networkService.ensureValidSession() {
+                print("🟢 ➡️ Routing to EXISTING SESSION path")
+                print("🟢 Session ID: \(validSessionId)")
 
-            // ✅ FIX: Check if homework context has image and persist it
-            let homeworkContext = appState.pendingHomeworkContext
-            if let questionImage = homeworkContext?.questionImage {
-                // Generate message ID and store image
-                let messageId = UUID().uuidString
-                // Convert UIImage to Data for storage
-                if let imageData = questionImage.jpegData(compressionQuality: 0.8) {
-                    imageMessages[messageId] = imageData
-                    print("🖼️ Stored homework question image with messageId: \(messageId)")
+                // ✅ FIX: Check if homework context has image and persist it
+                let homeworkContext = appState.pendingHomeworkContext
+                if let questionImage = homeworkContext?.questionImage {
+                    // Generate message ID and store image
+                    let messageId = UUID().uuidString
+                    // Convert UIImage to Data for storage
+                    if let imageData = questionImage.jpegData(compressionQuality: 0.8) {
+                        imageMessages[messageId] = imageData
+                        print("🖼️ Stored homework question image with messageId: \(messageId)")
+                    } else {
+                        print("⚠️ Failed to convert homework question image to Data")
+                    }
+
+                    // Add message with image marker
+                    networkService.conversationHistory.append([
+                        "role": "user",
+                        "content": message,
+                        "hasImage": "true",
+                        "messageId": messageId,
+                        "deepMode": deepMode ? "true" : "false"
+                    ])
+                    print("✅ Added user message to history WITH image marker")
                 } else {
-                    print("⚠️ Failed to convert homework question image to Data")
+                    // For existing session: Add user message immediately (no image)
+                    persistMessage(role: "user", content: message, deepMode: deepMode)
                 }
 
-                // Add message with image marker
-                networkService.conversationHistory.append([
-                    "role": "user",
-                    "content": message,
-                    "hasImage": "true",
-                    "messageId": messageId,
-                    "deepMode": deepMode ? "true" : "false"
-                ])
-                print("✅ Added user message to history WITH image marker")
+                // Show typing indicator
+                showTypingIndicator = true
+
+                sendMessageToExistingSession(sessionId: validSessionId, message: message, deepMode: deepMode)
             } else {
-                // For existing session: Add user message immediately (no image)
-                persistMessage(role: "user", content: message, deepMode: deepMode)
+                // Failed to get valid session - show error
+                print("❌ Failed to validate or create session")
+                errorMessage = NSLocalizedString("error.session.creation", comment: "")
+                isSubmitting = false
+                messageText = message  // Restore message so user can retry
             }
-
-            // Show typing indicator
-            showTypingIndicator = true
-
-            sendMessageToExistingSession(sessionId: sessionId, message: message, deepMode: deepMode)
-        } else {
-            print("🟢 ➡️ Routing to FIRST MESSAGE path (new session)")
-            // For first message: Create session and add user message immediately
-            networkService.addUserMessageToHistory(message, deepMode: deepMode)
-
-            // Show typing indicator
-            showTypingIndicator = true
-
-            sendFirstMessage(message: message, deepMode: deepMode)
         }
     }
 
@@ -522,41 +522,6 @@ class SessionChatViewModel: ObservableObject {
                 }
             }
         }
-    }
-
-    /// Apply grade correction detected by AI
-    func applyGradeCorrection(_ gradeCorrection: NetworkService.GradeCorrectionData) {
-        guard let homeworkContext = appState.pendingHomeworkContext else {
-            return
-        }
-
-        // Prepare notification payload
-        let userInfo: [String: Any] = [
-            "questionNumber": homeworkContext.questionNumber ?? 0,
-            "newGrade": gradeCorrection.correctedGrade,
-            "newPointsEarned": gradeCorrection.newPointsEarned,
-            "pointsPossible": gradeCorrection.pointsPossible,
-            "correctionReason": gradeCorrection.reason,
-            "originalGrade": gradeCorrection.originalGrade
-        ]
-
-        // Post notification for HomeworkResultsView to receive
-        NotificationCenter.default.post(
-            name: NSNotification.Name("GradeCorrectionApplied"),
-            object: nil,
-            userInfo: userInfo
-        )
-
-        // Show success message
-        errorMessage = String(
-            format: NSLocalizedString("success.grade.updated", comment: ""),
-            gradeCorrection.correctedGrade,
-            String(format: "%.1f", gradeCorrection.newPointsEarned)
-        )
-
-        // Haptic feedback
-        let notificationFeedback = UINotificationFeedbackGenerator()
-        notificationFeedback.notificationOccurred(.success)
     }
 
     /// Handle voice input from WeChat-style voice interface
@@ -848,11 +813,11 @@ class SessionChatViewModel: ObservableObject {
             let homeworkContext = appState.pendingHomeworkContext
 
             if useStreaming {
-                // Use STREAMING endpoint (with deep mode flag)
-                _ = await networkService.sendSessionMessageStreaming(
+                // Use STREAMING endpoint with retry (Phase 2.3)
+                _ = await networkService.sendSessionMessageStreamingWithRetry(
                     sessionId: sessionId,
                     message: message,
-                    deepMode: deepMode, // ✅ NEW: Pass deep mode flag
+                    deepMode: deepMode,
                     questionContext: homeworkContext?.toDictionary(),
                     onChunk: { [weak self] accumulatedText in
                         Task { @MainActor in
@@ -879,31 +844,13 @@ class SessionChatViewModel: ObservableObject {
                             }
 
                             // ✅ PERFORMANCE FIX: Update streaming message state instead of conversationHistory
-                            // This prevents full conversation re-renders during streaming
                             self.isActivelyStreaming = true
                             self.activeStreamingMessage = accumulatedText
-
-                            // No longer call scheduleStreamingUpdate() - only the streaming message view updates
                         }
                     },
                     onSuggestions: { [weak self] suggestions in
                         Task { @MainActor in
                             self?.aiGeneratedSuggestions = suggestions
-                        }
-                    },
-                    onGradeCorrection: { [weak self] changeGrade, gradeCorrectionData in
-                        Task { @MainActor in
-                            guard let self = self else { return }
-
-                            if changeGrade, let gradeCorrection = gradeCorrectionData {
-                                self.detectedGradeCorrection = gradeCorrection
-
-                                if let lastMessage = self.networkService.conversationHistory.last,
-                                   lastMessage["role"] == "assistant",
-                                   let content = lastMessage["content"] {
-                                    self.pendingGradeCorrectionResponse = content
-                                }
-                            }
                         }
                     },
                     onComplete: { [weak self] success, fullText, tokens, compressed in
@@ -934,9 +881,11 @@ class SessionChatViewModel: ObservableObject {
                                     }
                                 }
 
-                                // Clear streaming state
+                                // Clear streaming state and retry UI
                                 self.isActivelyStreaming = false
                                 self.activeStreamingMessage = ""
+                                self.showRetryStreamingButton = false
+                                self.partialResponseText = nil
 
                                 withAnimation {
                                     self.isSubmitting = false
@@ -949,18 +898,27 @@ class SessionChatViewModel: ObservableObject {
                                     self.appState.clearPendingChatMessage()
                                 }
                             } else {
-                                // Clear streaming state on failure
-                                self.isActivelyStreaming = false
-                                self.activeStreamingMessage = ""
+                                // ⚠️ Phase 2.3: On failure, retry logic will handle showing retry UI
+                                // Don't clear streaming state yet - keep for retry
+                                print("⚠️ Streaming failed, retry may be available")
+                            }
+                        }
+                    },
+                    onRetryAvailable: { [weak self] partialText in
+                        Task { @MainActor in
+                            guard let self = self else { return }
 
-                                // Fallback to non-streaming
-                                let fallbackResult = await self.networkService.sendSessionMessage(
-                                    sessionId: sessionId,
-                                    message: message,
-                                    questionContext: homeworkContext?.toDictionary()
-                                )
+                            // Show retry UI with partial response
+                            print("🔄 Retry available with partial response: \(partialText.count) chars")
 
-                                self.handleSendMessageResult(fallbackResult, originalMessage: message)
+                            self.partialResponseText = partialText
+                            self.showRetryStreamingButton = true
+                            self.isActivelyStreaming = false
+                            self.activeStreamingMessage = partialText  // Show partial response
+
+                            withAnimation {
+                                self.isSubmitting = false
+                                self.showTypingIndicator = false
                             }
                         }
                     }
@@ -1023,7 +981,7 @@ class SessionChatViewModel: ObservableObject {
 
                 if useStreaming {
                     // Use streaming (same logic as sendMessageToExistingSession)
-                    _ = await networkService.sendSessionMessageStreaming(
+                    _ = await networkService.sendSessionMessageStreamingWithRetry(
                         sessionId: sessionId,
                         message: message,
                         questionContext: homeworkContext?.toDictionary(),
@@ -1065,15 +1023,6 @@ class SessionChatViewModel: ObservableObject {
                                 self?.aiGeneratedSuggestions = suggestions
                             }
                         },
-                        onGradeCorrection: { [weak self] changeGrade, gradeCorrectionData in
-                            Task { @MainActor in
-                                guard let self = self else { return }
-
-                                if changeGrade, let gradeCorrection = gradeCorrectionData {
-                                    self.detectedGradeCorrection = gradeCorrection
-                                }
-                            }
-                        },
                         onComplete: { [weak self] success, fullText, tokens, compressed in
                             Task { @MainActor in
                                 guard let self = self else { return }
@@ -1108,6 +1057,10 @@ class SessionChatViewModel: ObservableObject {
                                         self.persistMessage(role: "assistant", content: finalText, addToHistory: false)
                                     }
 
+                                    // Clear retry UI
+                                    self.showRetryStreamingButton = false
+                                    self.partialResponseText = nil
+
                                     withAnimation {
                                         self.isSubmitting = false
                                         self.showTypingIndicator = false
@@ -1117,18 +1070,33 @@ class SessionChatViewModel: ObservableObject {
                                         self.appState.clearPendingChatMessage()
                                     }
                                 } else {
-                                    if let lastMessage = self.networkService.conversationHistory.last,
-                                       lastMessage["role"] == "assistant" {
-                                        self.networkService.removeLastMessageFromHistory()
-                                    }
+                                    // ⚠️ Phase 2.3: Retry logic will handle showing retry UI
+                                    print("⚠️ Streaming failed, retry may be available")
+                                }
+                            }
+                        },
+                        onRetryAvailable: { [weak self] partialText in
+                            Task { @MainActor in
+                                guard let self = self else { return }
 
-                                    let fallbackResult = await self.networkService.sendSessionMessage(
-                                        sessionId: sessionId,
-                                        message: message,
-                                        questionContext: homeworkContext?.toDictionary()
-                                    )
+                                print("🔄 Retry available: \(partialText.count) chars")
 
-                                    self.handleSendMessageResult(fallbackResult, originalMessage: message)
+                                self.partialResponseText = partialText
+                                self.showRetryStreamingButton = true
+
+                                // Show partial response
+                                if self.networkService.conversationHistory.last?["role"] == "assistant" {
+                                    self.networkService.conversationHistory[self.networkService.conversationHistory.count - 1]["content"] = partialText
+                                } else {
+                                    self.networkService.conversationHistory.append([
+                                        "role": "assistant",
+                                        "content": partialText
+                                    ])
+                                }
+
+                                withAnimation {
+                                    self.isSubmitting = false
+                                    self.showTypingIndicator = false
                                 }
                             }
                         }

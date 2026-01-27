@@ -133,6 +133,21 @@ class AuthRoutes {
       }
     }, this.appleLogin.bind(this));
 
+    // Token refresh endpoint (Phase 2.5)
+    this.fastify.post('/api/auth/refresh', {
+      schema: {
+        description: 'Refresh authentication token',
+        tags: ['Authentication'],
+        body: {
+          type: 'object',
+          required: ['token'],
+          properties: {
+            token: { type: 'string', minLength: 1 }
+          }
+        }
+      }
+    }, this.refreshToken.bind(this));
+
     this.fastify.get('/api/auth/verify', {
       schema: {
         description: 'Verify authentication token',
@@ -559,6 +574,65 @@ class AuthRoutes {
       return reply.status(500).send({
         success: false,
         message: 'Apple login failed',
+        error: error.message
+      });
+    }
+  }
+
+  // Token refresh method (Phase 2.5)
+  async refreshToken(request, reply) {
+    try {
+      const { token: oldToken } = request.body;
+      const jwt = require('jsonwebtoken');
+      const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+      this.fastify.log.info('🔄 Token refresh attempt');
+
+      // Verify old token (allow expired tokens up to 1 hour for refresh)
+      let decoded;
+      try {
+        decoded = jwt.verify(oldToken, JWT_SECRET, { ignoreExpiration: true });
+      } catch (error) {
+        this.fastify.log.warn('❌ Invalid token format');
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid token'
+        });
+      }
+
+      // Check if token expired more than 1 hour ago
+      const now = Math.floor(Date.now() / 1000);
+      const hourAgo = now - 3600;
+      if (decoded.exp < hourAgo) {
+        this.fastify.log.warn('❌ Token too old for refresh');
+        return reply.status(401).send({
+          success: false,
+          message: 'Token expired - please log in again'
+        });
+      }
+
+      // Issue new token (24h expiration)
+      const newToken = jwt.sign(
+        {
+          userId: decoded.userId,
+          sessionId: decoded.sessionId // Preserve session ID if present
+        },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      this.fastify.log.info(`✅ Token refreshed for user: ${PIIMasking.maskUserId(decoded.userId)}`);
+
+      return reply.send({
+        success: true,
+        message: 'Token refreshed successfully',
+        token: newToken
+      });
+    } catch (error) {
+      this.fastify.log.error('Token refresh error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Token refresh failed',
         error: error.message
       });
     }
