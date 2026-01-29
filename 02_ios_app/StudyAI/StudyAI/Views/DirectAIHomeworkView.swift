@@ -2636,11 +2636,19 @@ struct CameraPickerView: UIViewControllerRepresentable {
 
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
             if let image = info[.originalImage] as? UIImage {
+                print("📸 [CameraPickerView] Captured image: size=\(image.size), orientation=\(image.imageOrientation.rawValue)")
+
                 // Mirror the image if front camera was used (selfie mode)
                 if parent.useFrontCamera {
-                    parent.selectedImage = mirrorImage(image)
+                    let startTime = Date()
+                    parent.selectedImage = mirrorImageOptimized(image)
+                    let duration = Date().timeIntervalSince(startTime)
+                    print("✅ [CameraPickerView] Mirrored in \(String(format: "%.3f", duration))s")
                 } else {
-                    parent.selectedImage = image
+                    let startTime = Date()
+                    parent.selectedImage = normalizeOrientation(image)
+                    let duration = Date().timeIntervalSince(startTime)
+                    print("✅ [CameraPickerView] Normalized in \(String(format: "%.3f", duration))s")
                 }
             }
             parent.isPresented = false
@@ -2650,28 +2658,59 @@ struct CameraPickerView: UIViewControllerRepresentable {
             parent.isPresented = false
         }
 
-        // Mirror image horizontally for front camera
-        private func mirrorImage(_ image: UIImage) -> UIImage {
-            // Use UIImage's orientation system to handle both rotation and mirroring
-            // This avoids coordinate system conflicts between UIKit and Core Graphics
-            guard let cgImage = image.cgImage else { return image }
+        // Normalize image orientation (fix rotation from camera)
+        private func normalizeOrientation(_ image: UIImage) -> UIImage {
+            print("🔄 [CameraPickerView] Normalizing orientation: \(image.imageOrientation.rawValue)")
 
-            // Create a mirrored version using .upMirrored orientation
-            // This handles the EXIF orientation data and applies horizontal flip
-            let mirroredImage = UIImage(
-                cgImage: cgImage,
-                scale: image.scale,
-                orientation: .upMirrored
-            )
+            // If already upright, return as-is
+            if image.imageOrientation == .up {
+                print("✅ [CameraPickerView] Already upright, no normalization needed")
+                return image
+            }
 
-            // Now "bake in" the orientation by rendering to a new context
-            // This creates a new image with .up orientation containing the mirrored pixels
-            UIGraphicsBeginImageContextWithOptions(mirroredImage.size, false, mirroredImage.scale)
-            mirroredImage.draw(in: CGRect(origin: .zero, size: mirroredImage.size))
-            let finalImage = UIGraphicsGetImageFromCurrentImageContext()
+            // Render image in normalized orientation
+            UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+            let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
             UIGraphicsEndImageContext()
 
-            return finalImage ?? image
+            print("✅ [CameraPickerView] Normalized to upright orientation")
+            return normalizedImage ?? image
+        }
+
+        // Optimized mirror for front camera - single render pass
+        private func mirrorImageOptimized(_ image: UIImage) -> UIImage {
+            print("🪞 [CameraPickerView] Mirroring selfie: orientation=\(image.imageOrientation.rawValue), size=\(image.size)")
+
+            guard let cgImage = image.cgImage else {
+                print("❌ [CameraPickerView] No CGImage, returning original")
+                return image
+            }
+
+            // Calculate the size accounting for orientation
+            let size = image.size
+
+            // Create graphics context for single-pass render
+            UIGraphicsBeginImageContextWithOptions(size, false, image.scale)
+            guard let context = UIGraphicsGetCurrentContext() else {
+                UIGraphicsEndImageContext()
+                print("❌ [CameraPickerView] Failed to create graphics context")
+                return image
+            }
+
+            // Apply horizontal flip transform
+            context.translateBy(x: size.width, y: 0)
+            context.scaleBy(x: -1.0, y: 1.0)
+
+            // Draw the image with its original orientation respected
+            // This handles both rotation and mirroring in one pass
+            image.draw(in: CGRect(origin: .zero, size: size))
+
+            let mirroredImage = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+
+            print("✅ [CameraPickerView] Mirrored successfully")
+            return mirroredImage ?? image
         }
     }
 }

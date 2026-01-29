@@ -14,6 +14,11 @@ import SwiftUI
 struct ShortTermStatus: Codable {
     var activeWeaknesses: [String: WeaknessValue] = [:]
     var lastUpdated: Date = Date()
+
+    // ✅ Handwriting tracking (for report generation)
+    var recentHandwritingScore: Float?           // Latest score (0-10)
+    var recentHandwritingFeedback: String?       // Latest feedback
+    var recentHandwritingDate: Date?             // When recorded
 }
 
 struct WeaknessValue: Codable {
@@ -25,6 +30,12 @@ struct WeaknessValue: Codable {
 
     // ✅ FIX #2: Track recent error types for weighted decrement
     var recentErrorTypes: [String] = []  // Last 3 error types
+
+    // ✅ CONDITIONAL TRACKING: Only populated when value > 0 (weakness)
+    var recentQuestionIds: [String] = []      // Last 5 question IDs (only when positive)
+
+    // ✅ MASTERY TRACKING: Only populated when value < 0 (mastery)
+    var masteryQuestions: [String] = []       // Recent correct questions (only when negative)
 
     // Computed properties
     var accuracy: Double {
@@ -160,4 +171,37 @@ enum ShortTermStatusStorageKeys {
     static let shortTermStatus = "shortTermStatus_v1"
     static let weaknessPointFolder = "weaknessPointFolder_v1"
     static let lastMigrationDate = "lastWeaknessMigrationDate"
+    static let handwritingHistory = "handwritingHistory_v1"  // ✅ NEW
+}
+
+// MARK: - Handwriting History (Long-term tracking for reports)
+
+struct HandwritingHistory: Codable {
+    var records: [HandwritingSnapshot] = []
+
+    // Computed: average of last 10 records
+    var averageScore: Float? {
+        guard !records.isEmpty else { return nil }
+        let recent = records.suffix(10)
+        return recent.reduce(0.0) { $0 + $1.score } / Float(recent.count)
+    }
+
+    // Computed: improvement trend (first 5 vs last 5)
+    var trend: Float? {
+        guard records.count >= 10 else { return nil }
+        let first5 = records.prefix(5)
+        let last5 = records.suffix(5)
+
+        let oldAvg = first5.reduce(0.0) { $0 + $1.score } / 5.0
+        let newAvg = last5.reduce(0.0) { $0 + $1.score } / 5.0
+
+        return newAvg - oldAvg
+    }
+}
+
+struct HandwritingSnapshot: Codable {
+    let score: Float                 // 0-10
+    let date: Date                   // When recorded
+    let subject: String?             // Optional subject
+    let questionCount: Int           // Homework size
 }

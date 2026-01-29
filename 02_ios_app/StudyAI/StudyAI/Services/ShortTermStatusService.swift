@@ -88,15 +88,36 @@ class ShortTermStatusService: ObservableObject {
         if var weakness = status.activeWeaknesses[key] {
             // Update existing weakness
             let oldValue = weakness.value
+
+            // ✅ NEW: Check if transitioning from mastery (negative) to weakness (positive)
+            let wasNegative = oldValue < 0
             weakness.value += increment
+            let isNowPositive = weakness.value > 0
+
+            if wasNegative && isNowPositive {
+                // Transitioning from mastery to weakness: clear mastery data, start fresh tracking
+                weakness.masteryQuestions = []
+                weakness.recentErrorTypes = [errorType]
+                weakness.recentQuestionIds = questionId.map { [$0] } ?? []
+                print("   ⚠️ TRANSITION: Mastery → Weakness (cleared mastery data)")
+            } else {
+                // Track recent error types (keep last 3)
+                weakness.recentErrorTypes.append(errorType)
+                if weakness.recentErrorTypes.count > 3 {
+                    weakness.recentErrorTypes.removeFirst()
+                }
+
+                // ✅ NEW: Track recent question IDs (keep last 5)
+                if let qId = questionId {
+                    weakness.recentQuestionIds.append(qId)
+                    if weakness.recentQuestionIds.count > 5 {
+                        weakness.recentQuestionIds.removeFirst()
+                    }
+                }
+            }
+
             weakness.lastAttempt = Date()
             weakness.totalAttempts += 1
-
-            // ✅ FIX #2: Track recent error types (keep last 3)
-            weakness.recentErrorTypes.append(errorType)
-            if weakness.recentErrorTypes.count > 3 {
-                weakness.recentErrorTypes.removeFirst()
-            }
 
             status.activeWeaknesses[key] = weakness
 
@@ -112,6 +133,9 @@ class ShortTermStatusService: ObservableObject {
                 correctAttempts: 0
             )
             newWeakness.recentErrorTypes = [errorType]
+            if let qId = questionId {
+                newWeakness.recentQuestionIds = [qId]
+            }
 
             status.activeWeaknesses[key] = newWeakness
 
@@ -121,16 +145,26 @@ class ShortTermStatusService: ObservableObject {
 
         print("   📊 Total active weaknesses: \(status.activeWeaknesses.count)")
 
+        // ✅ NEW: Enforce memory limit (20 keys per subject)
+        enforceMemoryLimit()
+
         save()
     }
 
-    // ✅ FIX #2: Error type weights
+    // ✅ Error type weights (updated for hierarchical error analysis)
     private func errorTypeWeight(_ type: String) -> Double {
         switch type {
+        // NEW hierarchical error types (3 types)
+        case "conceptual_gap": return 3.0        // High severity - conceptual misunderstanding
+        case "execution_error": return 1.5       // Medium severity - procedural/calculation errors
+        case "needs_refinement": return 0.5      // Low severity - careless mistakes
+
+        // OLD error types (backward compatibility)
         case "conceptual_misunderstanding": return 3.0
         case "procedural_error": return 2.0
         case "calculation_mistake": return 1.0
         case "careless_mistake": return 0.5
+
         default: return 1.5
         }
     }
@@ -140,9 +174,27 @@ class ShortTermStatusService: ObservableObject {
     // ✅ HYBRID RETRY DETECTION: Explicit practice + auto-detection
     func recordCorrectAttempt(key: String, retryType: RetryType = .firstTime, questionId: String? = nil) {
         guard var weakness = status.activeWeaknesses[key] else {
-            logger.warning("Attempted to record correct for non-existent weakness: \(key)")
+            // ✅ NEW: If key doesn't exist, create mastery entry with negative value
+            logger.info("Creating new mastery entry for: \(key)")
+            var newMastery = WeaknessValue(
+                value: -0.5,  // Start with small mastery bonus
+                firstDetected: Date(),
+                lastAttempt: Date(),
+                totalAttempts: 1,
+                correctAttempts: 1
+            )
+            if let qId = questionId {
+                newMastery.masteryQuestions = [qId]
+            }
+            status.activeWeaknesses[key] = newMastery
+
+            // ✅ NEW: Enforce memory limit
+            enforceMemoryLimit()
+            save()
             return
         }
+
+        let oldValue = weakness.value
 
         // ✅ FIX #2: Calculate weighted decrement based on error history
         let avgErrorWeight = weakness.recentErrorTypes.isEmpty ? 1.5 :
@@ -160,25 +212,82 @@ class ShortTermStatusService: ObservableObject {
         let baseDecrement = 1.0
         let decrement = baseDecrement * avgErrorWeight * 0.6 * bonusMultiplier
 
-        weakness.value = max(0.0, weakness.value - decrement)
+        // ✅ NEW: Allow negative values (remove clamp at 0)
+        weakness.value -= decrement
+
+        // ✅ NEW: Check if transitioning from weakness (positive) to mastery (negative)
+        let wasPositive = oldValue > 0
+        let isNowNegative = weakness.value < 0
+
+        if wasPositive && isNowNegative {
+            // Transitioning from weakness to mastery: clear weakness tracking, start mastery tracking
+            weakness.recentErrorTypes = []
+            weakness.recentQuestionIds = []
+            weakness.masteryQuestions = questionId.map { [$0] } ?? []
+            logger.info("🎉 TRANSITION: Weakness → Mastery for '\(key)' (value: \(weakness.value))")
+            print("   🎉 TRANSITION: Weakness → Mastery (cleared error data, starting mastery tracking)")
+        } else if isNowNegative {
+            // Already in mastery: track mastery questions (keep last 5)
+            if let qId = questionId {
+                weakness.masteryQuestions.append(qId)
+                if weakness.masteryQuestions.count > 5 {
+                    weakness.masteryQuestions.removeFirst()
+                }
+            }
+        }
+
         weakness.correctAttempts += 1
         weakness.totalAttempts += 1
         weakness.lastAttempt = Date()
 
-        logger.debug("Correct attempt on '\(key)': value \(weakness.value + decrement) → \(weakness.value) (decrement: \(decrement), retry: \(retryType))")
+        logger.debug("Correct attempt on '\(key)': value \(oldValue) → \(weakness.value) (decrement: \(decrement), retry: \(retryType))")
 
-        // Check for mastery
-        if weakness.value == 0.0 {
-            status.activeWeaknesses.removeValue(forKey: key)
-            logger.info("✅ Weakness mastered and removed: \(key)")
+        status.activeWeaknesses[key] = weakness
 
-            // TODO: Show celebration UI
-            // TODO: Record in trajectory
-        } else {
-            status.activeWeaknesses[key] = weakness
-        }
+        // ✅ NEW: Enforce memory limit
+        enforceMemoryLimit()
 
         save()
+    }
+
+    // ✅ NEW: Memory management - keep only 20 most recent keys per subject
+    private func enforceMemoryLimit() {
+        let maxKeysPerSubject = 20
+
+        // Group by subject (extract subject from key "Mathematics/branch/topic")
+        var keysBySubject: [String: [String]] = [:]
+
+        for key in status.activeWeaknesses.keys {
+            let components = key.split(separator: "/").map(String.init)
+            guard let subject = components.first else { continue }
+
+            if keysBySubject[subject] == nil {
+                keysBySubject[subject] = []
+            }
+            keysBySubject[subject]?.append(key)
+        }
+
+        // For each subject, keep only the 20 most recent
+        for (subject, keys) in keysBySubject {
+            if keys.count > maxKeysPerSubject {
+                // Sort by lastAttempt (most recent first)
+                let sortedKeys = keys.sorted { key1, key2 in
+                    let date1 = status.activeWeaknesses[key1]?.lastAttempt ?? Date.distantPast
+                    let date2 = status.activeWeaknesses[key2]?.lastAttempt ?? Date.distantPast
+                    return date1 > date2
+                }
+
+                // Remove oldest keys (beyond the limit)
+                let keysToRemove = sortedKeys.suffix(keys.count - maxKeysPerSubject)
+
+                for key in keysToRemove {
+                    status.activeWeaknesses.removeValue(forKey: key)
+                    logger.info("🗑️ Removed old weakness key (memory limit): \(key)")
+                }
+
+                logger.info("📊 Memory cleanup for \(subject): Removed \(keysToRemove.count) old keys, kept \(maxKeysPerSubject)")
+            }
+        }
     }
 
     // Helper: Auto-detect retry
@@ -581,5 +690,63 @@ class ShortTermStatusService: ObservableObject {
         save()
 
         logger.info("🗑️ Manually removed weakness: '\(key)'")
+    }
+
+    // MARK: - Handwriting Recording (for report generation)
+
+    /// Record handwriting score (updates short-term + appends to long-term)
+    func recordHandwritingScore(
+        score: Float,
+        feedback: String?,
+        subject: String?,
+        questionCount: Int
+    ) {
+        // Update short-term (recent)
+        status.recentHandwritingScore = score
+        status.recentHandwritingFeedback = feedback
+        status.recentHandwritingDate = Date()
+
+        // Append to long-term history
+        var history = loadHandwritingHistory()
+
+        let snapshot = HandwritingSnapshot(
+            score: score,
+            date: Date(),
+            subject: subject,
+            questionCount: questionCount
+        )
+
+        history.records.append(snapshot)
+
+        // Keep last 100 records only (limit storage)
+        if history.records.count > 100 {
+            history.records = Array(history.records.suffix(100))
+        }
+
+        saveHandwritingHistory(history)
+        save() // Save ShortTermStatus
+
+        logger.info("✅ Recorded handwriting: \(score)/10 (total records: \(history.records.count))")
+    }
+
+    // MARK: - Handwriting History Storage
+
+    private func loadHandwritingHistory() -> HandwritingHistory {
+        if let data = UserDefaults.standard.data(forKey: ShortTermStatusStorageKeys.handwritingHistory),
+           let decoded = try? JSONDecoder().decode(HandwritingHistory.self, from: data) {
+            return decoded
+        }
+        return HandwritingHistory()
+    }
+
+    private func saveHandwritingHistory(_ history: HandwritingHistory) {
+        if let encoded = try? JSONEncoder().encode(history) {
+            UserDefaults.standard.set(encoded, forKey: ShortTermStatusStorageKeys.handwritingHistory)
+        }
+    }
+
+    /// Get handwriting history (for report generation)
+    func getHandwritingHistory() -> HandwritingHistory {
+        return loadHandwritingHistory()
     }
 }

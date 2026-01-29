@@ -1467,6 +1467,7 @@
 "proMode.tapToAnnotate" = "點擊圖片創建標註框";
 "proMode.done" = "完成";
 "proMode.selectQuestionNumber" = "選擇題號";
+"proMode.questionPrefix" = "題";
 "proMode.questionNumber" = "題 %@";
 "proMode.studentAnswer" = "學生答案";
 "proMode.grading" = "正在批改 %d/%d";

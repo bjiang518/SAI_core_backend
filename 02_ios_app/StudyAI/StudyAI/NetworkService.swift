@@ -4703,6 +4703,62 @@ class NetworkService: ObservableObject {
         }
     }
 
+    // MARK: - Concept Extraction (Bidirectional Status Tracking)
+
+    /// Extract curriculum taxonomy for CORRECT answers (lightweight, no error analysis)
+    /// Used for bidirectional status tracking: correct answers reduce weakness values
+    func extractConceptsBatch(questions: [ConceptExtractionRequest]) async throws -> [ConceptExtractionResponse] {
+        let url = URL(string: "\(baseURL)/api/ai/extract-concepts-batch")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(["questions": questions])
+
+        print("📊 [Network] POST /api/ai/extract-concepts-batch (\(questions.count) questions)")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            print("❌ [Network] Concept extraction failed: HTTP \(httpResponse.statusCode)")
+            throw NetworkError.invalidResponse
+        }
+
+        // Backend returns: {"success": true, "concepts": [...], "count": N}
+        struct ConceptBatchResponse: Codable {
+            let success: Bool
+            let concepts: [ConceptExtractionResponse]
+            let count: Int
+        }
+
+        let decoder = JSONDecoder()
+
+        do {
+            let result = try decoder.decode(ConceptBatchResponse.self, from: data)
+
+            guard result.success else {
+                print("❌ [Network] Backend reported concept extraction failure")
+                throw NetworkError.invalidResponse
+            }
+
+            print("✅ [Network] Received \(result.concepts.count) concept extractions")
+            return result.concepts
+        } catch {
+            print("❌ [Network] Concept extraction decoding error: \(error)")
+            throw error
+        }
+    }
+
     // MARK: - Weakness Description Generation (Short-Term Status Architecture)
 
     /// Generate AI-powered natural language descriptions for weakness points

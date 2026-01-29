@@ -116,30 +116,35 @@ Be precise, empathetic, and curriculum-aligned."""
 
 ## Step 1: Identify Base Branch (Chapter-Level)
 
-Choose EXACTLY ONE from:
+**CRITICAL**: You MUST select EXACTLY ONE from the list below. DO NOT create new branch names.
+
 {taxonomy_text['base_branches']}
 
 ## Step 2: Identify Detailed Branch (Topic-Level)
 
-Based on Step 1, choose from the corresponding topics:
+**CRITICAL**: Based on Step 1, you MUST select EXACTLY ONE from the corresponding topics below. DO NOT create new topic names.
+
 {taxonomy_text['detailed_branches']}
+
+**IMPORTANT**: Copy the exact branch/topic name character-for-character from the lists above. Do not paraphrase or create variations.
 
 ## Step 3: Classify Error Type
 
-Choose EXACTLY ONE:
+**CRITICAL**: You MUST select EXACTLY ONE from the list below. DO NOT create new error type names.
+
 {taxonomy_text['error_types']}
 
 ## Step 4: Describe Specific Issue
 
-Write 1-2 sentences explaining what specifically went wrong.
+Write 1-2 sentences explaining what specifically went wrong in the student's work.
 
 ---
 
 ## Output JSON Format
 
 {{
-    "base_branch": "<exact name from Step 1>",
-    "detailed_branch": "<exact name from Step 2>",
+    "base_branch": "<exact name from Step 1 list>",
+    "detailed_branch": "<exact name from Step 2 list matching the base branch>",
     "error_type": "execution_error|conceptual_gap|needs_refinement",
     "specific_issue": "<1-2 sentence description>",
     "evidence": "<quote from student's work>",
@@ -163,7 +168,7 @@ Correct: "x = 4"
     "confidence": 0.95
 }}
 
-Now analyze the student's mistake above.
+Now analyze the student's mistake above using ONLY the predefined taxonomy options.
 """
 
     async def analyze_batch(self, questions_data):

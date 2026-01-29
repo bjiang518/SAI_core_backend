@@ -26,13 +26,17 @@ class BatchErrorAnalysisRequest(BaseModel):
     questions: List[ErrorAnalysisRequest]
 
 class ErrorAnalysisResponse(BaseModel):
+    # ✅ NEW: Hierarchical taxonomy fields (bidirectional status tracking)
+    base_branch: Optional[str] = None  # e.g., "Algebra - Foundations"
+    detailed_branch: Optional[str] = None  # e.g., "Linear Equations - One Variable"
+
+    # Error classification
     error_type: Optional[str]
+    specific_issue: Optional[str] = None  # NEW: What specifically went wrong
     evidence: Optional[str]
     confidence: float
     learning_suggestion: Optional[str]
     analysis_failed: bool = False
-    primary_concept: Optional[str] = None  # e.g., "quadratic_equations"
-    secondary_concept: Optional[str] = None  # e.g., "factoring"
 
 @router.post("/analyze", response_model=ErrorAnalysisResponse)
 async def analyze_single_error(request: ErrorAnalysisRequest):

@@ -919,6 +919,13 @@ class AuthRoutes {
       this.fastify.log.info(`📝 Updating profile for user: ${PIIMasking.maskEmail(sessionData.email)}`);
       this.fastify.log.info(`📝 Profile data received: ${JSON.stringify(profileData, null, 2)}`);
 
+      // ✅ LOG: Check if customAvatarUrl is included
+      if (profileData.customAvatarUrl) {
+        this.fastify.log.info(`📝 customAvatarUrl will be set to: ${profileData.customAvatarUrl.substring(0, 50)}...`);
+      } else {
+        this.fastify.log.info(`📝 customAvatarUrl not included (local-first approach)`);
+      }
+
       // Update profile in database
       const updatedProfile = await db.updateUserProfileEnhanced(sessionData.user_id, profileData);
 
@@ -1000,16 +1007,13 @@ class AuthRoutes {
       this.fastify.log.info(`📸 === UPLOAD CUSTOM AVATAR ===`);
       this.fastify.log.info(`📸 User ID: ${PIIMasking.maskUserId(sessionData.user_id)}`);
       this.fastify.log.info(`📸 Image size: ${image.length} bytes`);
-      this.fastify.log.info(`📸 Base64 preview: ${image.substring(0, 50)}...`);
+      this.fastify.log.info(`📸 Note: iOS stores files locally - this is server backup only`);
 
-      // For now, store as data URL (in production, upload to S3/CloudFlare/etc)
-      // Format: data:image/jpeg;base64,{base64data}
+      // Store as data URL (backup for when local file is not available)
       const avatarUrl = `data:image/jpeg;base64,${image}`;
-      this.fastify.log.info(`📸 Avatar URL length: ${avatarUrl.length} characters`);
 
-      // Ensure column exists (add if missing)
+      // Ensure column exists
       try {
-        this.fastify.log.info(`📸 Checking if custom_avatar_url column exists...`);
         await db.query(`
           DO $$
           BEGIN
@@ -1018,29 +1022,23 @@ class AuthRoutes {
               WHERE table_name = 'profiles' AND column_name = 'custom_avatar_url'
             ) THEN
               ALTER TABLE profiles ADD COLUMN custom_avatar_url TEXT;
-              RAISE NOTICE 'Added custom_avatar_url column';
             END IF;
           END $$;
         `);
-        this.fastify.log.info(`📸 Column check completed`);
       } catch (colError) {
         this.fastify.log.warn(`⚠️ Column check error (continuing anyway): ${colError.message}`);
       }
 
-      // Update user profile with custom avatar URL
-      this.fastify.log.info(`📸 Updating profile for user: ${PIIMasking.maskUserId(sessionData.user_id)}`);
-
+      // Store data URL as backup
       const result = await db.query(
         `UPDATE profiles
          SET custom_avatar_url = $1
          WHERE user_id = $2
-         RETURNING user_id, custom_avatar_url IS NOT NULL as has_avatar, LENGTH(custom_avatar_url) as url_length`,
+         RETURNING user_id`,
         [avatarUrl, sessionData.user_id]
       );
 
-      this.fastify.log.info(`📸 Database update result: ${JSON.stringify(result.rows)}`);
-      this.fastify.log.info(`📸 Rows affected: ${result.rowCount}`);
-      this.fastify.log.info(`📸 Avatar URL saved - Length: ${avatarUrl.length} characters`);
+      this.fastify.log.info(`📸 Backup stored - ${avatarUrl.length} characters`);
 
       if (result.rowCount === 0) {
         this.fastify.log.warn(`⚠️ No profile found for user: ${PIIMasking.maskUserId(sessionData.user_id)}`);

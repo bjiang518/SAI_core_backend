@@ -1515,6 +1515,7 @@
 "proMode.tapToAnnotate" = "点击图片创建标注框";
 "proMode.done" = "完成";
 "proMode.selectQuestionNumber" = "选择题号";
+"proMode.questionPrefix" = "题";
 "proMode.questionNumber" = "题 %@";
 "proMode.studentAnswer" = "学生答案";
 "proMode.grading" = "正在批改 %d/%d";

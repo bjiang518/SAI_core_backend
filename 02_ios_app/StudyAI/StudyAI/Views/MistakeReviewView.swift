@@ -218,6 +218,9 @@ struct MistakeReviewView: View {
                 Text(NSLocalizedString("mistakeReview.instructions.message", comment: ""))
             }
             .task {
+                // ✅ DEBUG: Print short-term status for debugging bidirectional tracking
+                printShortTermStatusDebugInfo()
+
                 await mistakeService.fetchSubjectsWithMistakes(timeRange: selectedTimeRange)
             }
             .onChange(of: selectedTimeRange) { _, newRange in
@@ -275,6 +278,84 @@ struct MistakeReviewView: View {
         }
 
         return allMistakes.count
+    }
+
+    /// DEBUG: Print comprehensive short-term status for bidirectional tracking verification
+    private func printShortTermStatusDebugInfo() {
+        let statusService = ShortTermStatusService.shared
+        let status = statusService.status
+
+        print("\n" + String(repeating: "=", count: 80))
+        print("🔍 SHORT-TERM STATUS DEBUG INFO (Bidirectional Tracking)")
+        print(String(repeating: "=", count: 80))
+
+        // Overall statistics
+        let totalKeys = status.activeWeaknesses.count
+        let weaknessKeys = status.activeWeaknesses.filter { $0.value.value > 0 }
+        let masteryKeys = status.activeWeaknesses.filter { $0.value.value < 0 }
+        let neutralKeys = status.activeWeaknesses.filter { $0.value.value == 0 }
+
+        print("📊 OVERALL STATISTICS:")
+        print("   Total Keys: \(totalKeys)")
+        print("   Weaknesses (value > 0): \(weaknessKeys.count)")
+        print("   Mastery (value < 0): \(masteryKeys.count)")
+        print("   Neutral (value = 0): \(neutralKeys.count)")
+
+        // Group by subject
+        var keysBySubject: [String: [(key: String, weakness: WeaknessValue)]] = [:]
+        for (key, weakness) in status.activeWeaknesses {
+            let components = key.split(separator: "/").map(String.init)
+            guard let subject = components.first else { continue }
+            keysBySubject[subject, default: []].append((key, weakness))
+        }
+
+        // Print subject-by-subject breakdown
+        for (subject, keys) in keysBySubject.sorted(by: { $0.key < $1.key }) {
+            print("\n" + String(repeating: "-", count: 80))
+            print("📚 SUBJECT: \(subject) (\(keys.count) keys)")
+            print(String(repeating: "-", count: 80))
+
+            // Sort by value (most negative first, then most positive)
+            let sortedKeys = keys.sorted { $0.weakness.value < $1.weakness.value }
+
+            for (key, weakness) in sortedKeys {
+                let statusEmoji = weakness.value > 0 ? "⚠️" : (weakness.value < 0 ? "✅" : "➖")
+                let statusLabel = weakness.value > 0 ? "WEAKNESS" : (weakness.value < 0 ? "MASTERY" : "NEUTRAL")
+
+                print("\n\(statusEmoji) [\(statusLabel)] Key: \(key)")
+                print("   Value: \(String(format: "%.2f", weakness.value)) (Attempts: \(weakness.totalAttempts), Correct: \(weakness.correctAttempts))")
+                print("   First Detected: \(formatDate(weakness.firstDetected))")
+                print("   Last Attempt: \(formatDate(weakness.lastAttempt))")
+
+                // Conditional tracking data
+                if weakness.value > 0 {
+                    // Weakness tracking
+                    if !weakness.recentErrorTypes.isEmpty {
+                        print("   Error Types: \(weakness.recentErrorTypes.joined(separator: ", "))")
+                    }
+                    if !weakness.recentQuestionIds.isEmpty {
+                        print("   Recent Questions: \(weakness.recentQuestionIds.prefix(3).joined(separator: ", "))...")
+                    }
+                } else if weakness.value < 0 {
+                    // Mastery tracking
+                    if !weakness.masteryQuestions.isEmpty {
+                        print("   Mastery Questions: \(weakness.masteryQuestions.prefix(3).joined(separator: ", "))...")
+                    }
+                }
+            }
+        }
+
+        print("\n" + String(repeating: "=", count: 80))
+        print("🔍 END OF SHORT-TERM STATUS DEBUG INFO")
+        print(String(repeating: "=", count: 80) + "\n")
+    }
+
+    /// Helper: Format date for debug output
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 
     // MARK: - Hierarchical Navigation Sections
