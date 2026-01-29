@@ -652,8 +652,29 @@ JSON SCHEMA
       "student_answer": "4",
       "question_type": "short_answer"
     }}
-  ]
+  ],
+  "handwriting_evaluation": {{
+    "has_handwriting": true|false,
+    "score": 0-10 or null,
+    "feedback": "Brief assessment <150 chars" or null
+  }}
 }}
+
+================================================================================
+🖊️ HANDWRITING EVALUATION (Pro Mode)
+================================================================================
+Assess handwriting clarity using this 5-tier rubric:
+- 9-10: Exceptional - Very clear, consistent, easily readable
+- 7-8: Clear - Well-formed letters, good spacing, readable
+- 5-6: Readable - Some inconsistency but understandable
+- 3-4: Difficult - Hard to read, poor spacing/formation
+- 0-2: Illegible - Very difficult to decipher
+
+RULES:
+- If handwriting detected: Set has_handwriting=true, score=0-10, feedback="Brief comment"
+- If typed/printed/no handwriting: Set has_handwriting=false, score=null, feedback=null
+- Feedback MUST be <150 characters and constructive
+- Focus on clarity, spacing, consistency, and readability
 
 ================================================================================
 🌐 LANGUAGE PRESERVATION (CRITICAL)

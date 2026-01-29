@@ -248,6 +248,25 @@ class ArchiveRoutes {
       }
     }, this.getArchivedQuestions.bind(this));
 
+    // Delete all archived questions for a user
+    this.fastify.delete('/api/archived-questions/clear-all', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Delete all archived questions for the authenticated user',
+        tags: ['Archived Questions'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+              deletedCount: { type: 'integer' }
+            }
+          }
+        }
+      }
+    }, this.deleteAllQuestions.bind(this));
+
     // ❌ REMOVED: GET /api/archived-questions/subject/:subject
     // ❌ REMOVED: GET /api/archived-questions/:id
     // ❌ REMOVED: PATCH /api/archived-questions/:id
@@ -1049,6 +1068,34 @@ class ArchiveRoutes {
       return reply.status(500).send({
         success: false,
         error: 'Failed to fetch questions',
+        message: error.message
+      });
+    }
+  }
+
+  async deleteAllQuestions(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+
+      this.fastify.log.info(`🗑️ Deleting all archived questions for user: ${PIIMasking.maskUserId(userId)}`);
+
+      // Delete from the questions table (new schema)
+      const deleteQuery = 'DELETE FROM questions WHERE user_id = $1';
+      const result = await db.query(deleteQuery, [userId]);
+      const deletedCount = result.rowCount || 0;
+
+      this.fastify.log.info(`✅ Deleted ${deletedCount} questions for user ${PIIMasking.maskUserId(userId)}`);
+
+      return reply.send({
+        success: true,
+        message: `Successfully deleted ${deletedCount} archived questions`,
+        deletedCount
+      });
+    } catch (error) {
+      this.fastify.log.error('Error deleting archived questions:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to delete questions',
         message: error.message
       });
     }

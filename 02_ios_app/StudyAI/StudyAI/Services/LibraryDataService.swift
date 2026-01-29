@@ -1536,7 +1536,13 @@ class QuestionLocalStorage {
     /// Clear all local questions (e.g., on logout)
     func clearAll() {
         userDefaults.removeObject(forKey: questionsKey)
+
+        // ✅ CRITICAL: Invalidate in-memory cache to prevent returning stale data
+        cachedQuestions = nil
+        cacheLastModified = nil
+
         print("💾 [QuestionLocalStorage] Cleared all local questions")
+        print("🔄 [QuestionLocalStorage] Cache invalidated")
     }
 
     /// Sync with server: Remove local questions that exist on server

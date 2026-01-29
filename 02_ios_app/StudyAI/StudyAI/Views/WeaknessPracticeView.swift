@@ -157,38 +157,33 @@ struct WeaknessPracticeQuestionCard: View {
                         .foregroundColor(.blue)
                 }
 
-                // Render the question text only (no icons, no student work, no Ask AI button)
-                // For subquestions, rawQuestionText contains: "Parent content\n\nSubquestion (X): Subquestion text"
-                let displayText = question.rawQuestionText ?? question.questionText
-
-                VStack(alignment: .leading, spacing: 12) {
-                    // Split by double newline to separate parent and subquestion content
-                    let parts = displayText.components(separatedBy: "\n\n")
-
-                    ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
-                        if !part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                // Highlight subquestion part if it starts with "Subquestion"
-                                if part.lowercased().contains("subquestion") {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "arrow.turn.down.right")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.orange)
-                                        MathFormattedText(part, fontSize: 16)
-                                            .fontWeight(.semibold)
-                                    }
-                                } else {
-                                    MathFormattedText(part, fontSize: 15)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                    }
-                }
+                // ✅ Use shared SubquestionAwareTextView for consistent rendering
+                SubquestionAwareTextView(
+                    text: question.rawQuestionText ?? question.questionText,
+                    fontSize: 16
+                )
 
                 // ✅ Display question image if available
+                #if DEBUG
+                let _ = print("🔍 [WeaknessPractice-Render] Evaluating image conditional for Q\(questionNumber)")
+                let _ = print("   question.questionImageUrl = '\(question.questionImageUrl ?? "nil")'")
+                let _ = print("   isEmpty check = \(question.questionImageUrl?.isEmpty ?? true)")
+                #endif
+
                 if let imageUrl = question.questionImageUrl, !imageUrl.isEmpty {
+                    #if DEBUG
+                    let _ = print("✅ [WeaknessPractice-Render] IF branch - imageUrl has value: '\(imageUrl)'")
+                    #endif
+
                     QuestionImageView(imageUrl: imageUrl)
+                        .onAppear {
+                            #if DEBUG
+                            print("🖼️ [WeaknessPractice-Render] QuestionImageView.onAppear - imageUrl: '\(imageUrl)'")
+                            #endif
+                        }
+                } else {
+                    // No image for this question - render nothing
+                    EmptyView()
                 }
             }
             .padding()
@@ -211,27 +206,6 @@ struct WeaknessPracticeQuestionCard: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
         )
-    }
-}
-
-// Helper view for question images
-struct QuestionImageView: View {
-    let imageUrl: String
-
-    var body: some View {
-        if FileManager.default.fileExists(atPath: imageUrl) {
-            if let uiImage = UIImage(contentsOfFile: imageUrl) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .cornerRadius(8)
-                    .padding(.vertical, 8)
-            } else {
-                Text("Unable to load image")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
     }
 }
 
@@ -622,6 +596,16 @@ class WeaknessPracticeViewModel: ObservableObject {
             }
 
             print("   🎯 Found \(mistakeQuestions.count) original mistake questions for '\(weaknessKey)'")
+            #if DEBUG
+            // Show IDs of all matching questions
+            print("   📋 Question IDs with this weakness key:")
+            for (idx, q) in mistakeQuestions.enumerated() {
+                let qId = q["id"] as? String ?? "unknown"
+                let hasRaw = q["rawQuestionText"] != nil
+                let rawLength = (q["rawQuestionText"] as? String)?.count ?? 0
+                print("      \(idx + 1). ID: \(qId), hasRawQuestionText: \(hasRaw), length: \(rawLength)")
+            }
+            #endif
 
             // Convert to WeaknessPracticeQuestion format
             var practiceQuestions: [WeaknessPracticeQuestion] = []
@@ -638,20 +622,41 @@ class WeaknessPracticeViewModel: ObservableObject {
                 let questionId = questionData["id"] as? String ?? UUID().uuidString
                 let studentAnswer = questionData["studentAnswer"] as? String  // ✅ Original answer
                 let questionImageUrl = questionData["questionImageUrl"] as? String  // ✅ Image
-                let rawQuestionText = questionData["rawQuestionText"] as? String  // ✅ Full raw text
 
-                // 🔍 DEBUG: Log what we're loading
-                print("   📝 Question \(index + 1) data:")
-                print("      questionText: \(questionText.prefix(50))...")
-                print("      rawQuestionText: \(rawQuestionText?.prefix(100) ?? "nil")")
-                print("      questionImageUrl: \(questionImageUrl ?? "nil")")
+                #if DEBUG
+                // Log what's in local storage BEFORE fallback
+                let rawFromStorage = questionData["rawQuestionText"] as? String
+                print("📦 [WeaknessPractice-Storage] Question \(index + 1) data from local storage:")
+                print("   Question ID: \(questionId)")
+                print("   weaknessKey: \(weaknessKey)")
+                print("   questionText length: \(questionText.count)")
+                print("   questionText: '\(questionText.prefix(100))'...")
+                print("   rawQuestionText from storage: \(rawFromStorage != nil ? "EXISTS (\(rawFromStorage!.count) chars)" : "NIL/MISSING")")
+                if let raw = rawFromStorage {
+                    print("   rawQuestionText content: '\(raw.prefix(100))'...")
+                    if raw.isEmpty {
+                        print("   ⚠️ rawQuestionText is EMPTY STRING - will fallback to questionText")
+                    }
+                } else {
+                    print("   ⚠️ rawQuestionText is NIL - will fallback to questionText")
+                }
+                print("   All keys in questionData: \(questionData.keys.sorted())")
+                #endif
+
+                // ✅ FIX: Add fallback to questionText if rawQuestionText is nil OR empty (same as MistakeReviewService)
+                let rawQuestionTextFromStorage = questionData["rawQuestionText"] as? String
+                let rawQuestionText = (rawQuestionTextFromStorage?.isEmpty == false) ? rawQuestionTextFromStorage! : questionText
+
+                #if DEBUG
+                // Only log image-related data
                 if let imageUrl = questionImageUrl {
                     let fileExists = FileManager.default.fileExists(atPath: imageUrl)
-                    print("      🖼️ Image file exists: \(fileExists)")
+                    print("🖼️ [WeaknessPractice] Question \(index + 1) - Image file exists: \(fileExists)")
                     if fileExists {
-                        print("      📍 Image path: \(imageUrl)")
+                        print("   📍 Image path: \(imageUrl)")
                     }
                 }
+                #endif
 
                 let practiceQuestion = WeaknessPracticeQuestion(
                     id: UUID(uuidString: questionId) ?? UUID(),
@@ -667,14 +672,21 @@ class WeaknessPracticeViewModel: ObservableObject {
                 )
 
                 practiceQuestions.append(practiceQuestion)
-                print("   ✅ Loaded original question \(index + 1)")
             }
 
             questions = practiceQuestions
 
-            if questions.isEmpty {
-                print("   ⚠️ No original mistake questions found - weakness may have been created from aggregated data")
+            #if DEBUG
+            // Only log image-related info
+            if !questions.isEmpty {
+                print("   🖼️ [WeaknessPractice] Loaded \(questions.count) questions with images:")
+                for (idx, q) in questions.enumerated() {
+                    if let imageUrl = q.questionImageUrl, !imageUrl.isEmpty {
+                        print("      Question \(idx + 1): has image at '\(imageUrl)'")
+                    }
+                }
             }
+            #endif
 
             logger.info("Loaded \(questions.count) original mistake questions for '\(weaknessKey)'")
 

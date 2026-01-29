@@ -3302,18 +3302,18 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     model=selected_model,  # o4-mini
                     messages=messages,  # Already formatted with full prompt
                     response_format={"type": "json_object"},
-                    max_completion_tokens=2048  # Extended tokens for deep reasoning with solution steps
+                    max_completion_tokens=4096  # ✅ INCREASED: Match Gemini's token budget (was 2048)
                 )
             else:
                 # OPTIMIZED: Improved accuracy for simple math problems
                 # - temperature: 0.3 → 0.2 (more deterministic for math)
-                # - max_tokens: 300 → 500 (prevent truncation during reasoning)
+                # - max_tokens: 300 → 500 → 4096 (match Gemini's capacity)
                 response = await self.client.chat.completions.create(
                     model=selected_model,
                     messages=messages,
                     response_format={"type": "json_object"},
                     temperature=0.2,  # More deterministic for math grading (was 0.3)
-                    max_tokens=500    # Increased for complete reasoning (was 300)
+                    max_tokens=4096   # ✅ INCREASED: Match Gemini's token budget (was 500)
                 )
 
             api_duration = time.time() - start_time

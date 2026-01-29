@@ -35,6 +35,20 @@ struct DigitalHomeworkView: View {
     // MARK: - Body
 
     var body: some View {
+        // 🔍 DEBUG: Log handwriting evaluation availability at view render time
+        let _ = print("\n" + String(repeating: "=", count: 80))
+        let _ = print("🔍 [HANDWRITING DEBUG - DigitalHomeworkView body]")
+        let _ = print(String(repeating: "=", count: 80))
+        let _ = print("parseResults.handwritingEvaluation: \(parseResults.handwritingEvaluation != nil ? "EXISTS" : "NIL")")
+        if let handwriting = parseResults.handwritingEvaluation {
+            let _ = print("   - has_handwriting: \(handwriting.hasHandwriting)")
+            let _ = print("   - score: \(handwriting.score ?? -1)")
+            let _ = print("   - feedback: \(handwriting.feedback ?? "N/A")")
+        } else {
+            let _ = print("   ⚠️ parseResults.handwritingEvaluation is NIL")
+        }
+        let _ = print(String(repeating: "=", count: 80) + "\n")
+
         ZStack {
             if viewModel.showAnnotationMode {
                 // 标注模式: 全屏图片 + 底部控制面板
@@ -239,6 +253,23 @@ struct DigitalHomeworkView: View {
         VStack(spacing: 12) {
             // Expanded accuracy card with slide-to-mark progress
             accuracyCardWithSlideToMark
+
+            // ✅ Handwriting Evaluation (Pro Mode - displayed after grading)
+            // 🔍 DEBUG: Log right before rendering handwriting evaluation
+            let _ = print("🔍 [HANDWRITING DEBUG - gradingCompletedSection] Checking handwriting evaluation...")
+            let _ = print("   parseResults.handwritingEvaluation != nil: \(parseResults.handwritingEvaluation != nil)")
+            if let handwriting = parseResults.handwritingEvaluation {
+                let _ = print("   handwriting.hasHandwriting: \(handwriting.hasHandwriting)")
+                if handwriting.hasHandwriting {
+                    let _ = print("   ✅ RENDERING HandwritingEvaluationView with score: \(handwriting.score ?? -1)")
+                    HandwritingEvaluationView(evaluation: handwriting)
+                        .padding(.top, 4)
+                } else {
+                    let _ = print("   ⚠️ handwriting.hasHandwriting is FALSE - NOT rendering")
+                }
+            } else {
+                let _ = print("   ⚠️ parseResults.handwritingEvaluation is NIL - NOT rendering")
+            }
 
             // ✅ NEW: Revert button (appears only after grading)
             revertButton
@@ -1762,7 +1793,7 @@ struct AnnotationQuestionPreviewCard: View {
             Text(questionWithGrade.question.displayText)
                 .font(.caption2)
                 .foregroundColor(.secondary)
-                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(12)
         .background(Color(.tertiarySystemGroupedBackground))

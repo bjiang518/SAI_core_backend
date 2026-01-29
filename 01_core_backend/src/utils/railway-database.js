@@ -2642,10 +2642,13 @@ async function runDatabaseMigrations() {
             ADD COLUMN IF NOT EXISTS error_confidence FLOAT,
             ADD COLUMN IF NOT EXISTS learning_suggestion TEXT,
             ADD COLUMN IF NOT EXISTS error_analysis_status VARCHAR(20) DEFAULT 'pending',
-            ADD COLUMN IF NOT EXISTS error_analyzed_at TIMESTAMP;
+            ADD COLUMN IF NOT EXISTS error_analyzed_at TIMESTAMP,
+            ADD COLUMN IF NOT EXISTS base_branch VARCHAR(100),
+            ADD COLUMN IF NOT EXISTS detailed_branch VARCHAR(100),
+            ADD COLUMN IF NOT EXISTS specific_issue TEXT;
         `);
 
-        logger.debug('✅ Added error analysis columns to questions table');
+        logger.debug('✅ Added error analysis columns to questions table (including hierarchical taxonomy)');
 
         // Create indexes for error analysis report queries
         await db.query(`
@@ -2658,6 +2661,25 @@ async function runDatabaseMigrations() {
           CREATE INDEX IF NOT EXISTS idx_questions_error_status
           ON questions(user_id, error_analysis_status)
           WHERE error_analysis_status != 'skipped';
+        `);
+
+        // NEW: Indexes for hierarchical taxonomy
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_questions_base_branch
+          ON questions(base_branch)
+          WHERE base_branch IS NOT NULL;
+        `);
+
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_questions_detailed_branch
+          ON questions(detailed_branch)
+          WHERE detailed_branch IS NOT NULL;
+        `);
+
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_questions_hierarchy
+          ON questions(user_id, subject, base_branch, detailed_branch)
+          WHERE base_branch IS NOT NULL AND detailed_branch IS NOT NULL;
         `);
 
         await db.query(`

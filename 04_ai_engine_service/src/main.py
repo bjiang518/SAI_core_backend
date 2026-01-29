@@ -1237,14 +1237,21 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
         # Extract handwriting evaluation from result (if present)
         handwriting_eval_dict = result.get("handwriting_evaluation")
         handwriting_eval = None
+
+        # 🔍 DEBUG: Log raw handwriting evaluation data
+        logger.info(f"🔍 [HANDWRITING DEBUG] Raw handwriting_eval_dict from AI: {handwriting_eval_dict}")
+
         if handwriting_eval_dict:
             handwriting_eval = HandwritingEvaluationResponse(
                 has_handwriting=handwriting_eval_dict.get("has_handwriting", False),
                 score=handwriting_eval_dict.get("score"),
                 feedback=handwriting_eval_dict.get("feedback")
             )
+            logger.info(f"🔍 [HANDWRITING DEBUG] Parsed handwriting_eval object: has_handwriting={handwriting_eval.has_handwriting}, score={handwriting_eval.score}, feedback={handwriting_eval.feedback}")
+        else:
+            logger.warning(f"⚠️ [HANDWRITING DEBUG] No handwriting_evaluation in result. Available keys: {list(result.keys())}")
 
-        return ParseHomeworkQuestionsResponse(
+        response = ParseHomeworkQuestionsResponse(
             success=True,
             subject=result.get("subject", "Unknown"),
             subject_confidence=result.get("subject_confidence", 0.5),
@@ -1254,6 +1261,13 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
             error=None,
             handwriting_evaluation=handwriting_eval
         )
+
+        # 🔍 DEBUG: Log final response being sent
+        logger.info(f"🔍 [HANDWRITING DEBUG] Response includes handwriting_evaluation: {response.handwriting_evaluation is not None}")
+        if response.handwriting_evaluation:
+            logger.info(f"🔍 [HANDWRITING DEBUG] Response handwriting details: {response.handwriting_evaluation.model_dump()}")
+
+        return response
 
     except HTTPException as he:
         processing_time = int((time.time() - start_time) * 1000)

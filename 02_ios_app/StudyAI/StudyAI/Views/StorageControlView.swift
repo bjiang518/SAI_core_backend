@@ -337,9 +337,23 @@ struct StorageControlView: View {
     // MARK: - Clear Actions
 
     private func clearArchivedQuestions() {
-        QuestionLocalStorage.shared.clearAll()
-        clearMessage = NSLocalizedString("storage.clearQuestions.success", comment: "")
-        showingClearSuccess = true
+        Task {
+            do {
+                // First, delete from server
+                let deletedCount = try await QuestionArchiveService.shared.deleteAllQuestionsFromServer()
+                print("🗑️ [StorageControl] Deleted \(deletedCount) questions from server")
+
+                // Then clear local storage
+                QuestionLocalStorage.shared.clearAll()
+
+                clearMessage = NSLocalizedString("storage.clearQuestions.success", comment: "")
+                showingClearSuccess = true
+            } catch {
+                print("❌ [StorageControl] Failed to delete questions: \(error)")
+                clearMessage = "Failed to delete questions: \(error.localizedDescription)"
+                showingClearSuccess = true
+            }
+        }
     }
 
     private func clearProgressData() {

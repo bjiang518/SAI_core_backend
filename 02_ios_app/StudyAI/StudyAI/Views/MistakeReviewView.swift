@@ -53,6 +53,12 @@ struct MistakeReviewView: View {
     @StateObject private var mistakeService = MistakeReviewService()
     @State private var selectedSubject: String?
     @State private var selectedTimeRange: MistakeTimeRange? = nil
+
+    // NEW: Hierarchical filtering state
+    @State private var selectedBaseBranch: String?
+    @State private var selectedDetailedBranch: String?
+    @State private var selectedErrorType: String?
+
     @State private var showingMistakeList = false
     @State private var showingInstructions = false
     @Environment(\.dismiss) private var dismiss
@@ -61,33 +67,7 @@ struct MistakeReviewView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    // ✅ NEW: Recent Mistakes Section (Active Weaknesses)
-                    RecentMistakesSection()
-
-                    // Time Range Selection
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text(NSLocalizedString("mistakeReview.timeRangeTitle", comment: ""))
-                            .font(.title3)
-                            .fontWeight(.semibold)
-
-                        HStack(spacing: 12) {
-                            ForEach(MistakeTimeRange.allCases) { range in
-                                TimeRangeButton(
-                                    range: range,
-                                    isSelected: selectedTimeRange == range,
-                                    action: {
-                                        if selectedTimeRange == range {
-                                            selectedTimeRange = nil
-                                        } else {
-                                            selectedTimeRange = range
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // Subject Selection
+                    // SECTION 1: Subject Selection (TOP)
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             Text(NSLocalizedString("mistakeReview.subjectsTitle", comment: ""))
@@ -123,25 +103,73 @@ struct MistakeReviewView: View {
                                     .foregroundColor(.secondary)
                                     .multilineTextAlignment(.center)
                             }
-                            .frame(height: 150)
+                            .frame(maxWidth: .infinity)
+                            .padding()
                         } else {
-                            LazyVGrid(columns: [
-                                GridItem(.flexible()),
-                                GridItem(.flexible())
-                            ], spacing: 16) {
-                                ForEach(mistakeService.subjectsWithMistakes) { subject in
-                                    SubjectCard(
-                                        subject: subject,
-                                        isSelected: selectedSubject == subject.subject,
-                                        action: { selectedSubject = subject.subject }
-                                    )
-                                }
+                            CarouselSubjectSelector(
+                                subjects: mistakeService.subjectsWithMistakes,
+                                selectedSubject: $selectedSubject
+                            )
+                            .onChange(of: selectedSubject) { _, _ in
+                                // Clear hierarchical filters when subject changes
+                                selectedBaseBranch = nil
+                                selectedDetailedBranch = nil
+                                selectedErrorType = nil
+                            }
+                        }
+                    }
+                    .padding()
+
+                    // SECTION 2: Hierarchical Navigation (Drill-Down)
+                    if let subject = selectedSubject {
+                        VStack(spacing: 24) {
+                            // Base Branch Selection
+                            baseBranchSection(for: subject)
+
+                            // Detailed Branch Selection (show only if base branch selected)
+                            if let baseBranch = selectedBaseBranch {
+                                detailedBranchSection(for: subject, baseBranch: baseBranch)
+                            }
+
+                            // Error Type Filter (conditional, show when subject selected)
+                            errorTypeSection(for: subject)
+
+                            // Clear Filters Button (show if any filter is active)
+                            if selectedBaseBranch != nil || selectedDetailedBranch != nil || selectedErrorType != nil {
+                                clearFiltersButton
                             }
                         }
                     }
 
+                    // Time Range Selection
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(NSLocalizedString("mistakeReview.timeRangeTitle", comment: ""))
+                            .font(.title3)
+                            .fontWeight(.semibold)
+
+                        HStack(spacing: 12) {
+                            ForEach(MistakeTimeRange.allCases) { range in
+                                TimeRangeButton(
+                                    range: range,
+                                    isSelected: selectedTimeRange == range,
+                                    action: {
+                                        if selectedTimeRange == range {
+                                            selectedTimeRange = nil
+                                        } else {
+                                            selectedTimeRange = range
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    .padding()
+
+                    // SECTION 3: Raw Mistake Questions (Filtered by selectedSubject)
                     // Review Button
                     if selectedSubject != nil && !mistakeService.subjectsWithMistakes.isEmpty {
+                        let mistakeCount = calculateFilteredMistakeCount()
+
                         Button(action: {
                             showingMistakeList = true
                         }) {
@@ -149,7 +177,7 @@ struct MistakeReviewView: View {
                                 Image(systemName: "play.circle.fill")
                                     .font(.title3)
 
-                                Text(NSLocalizedString("mistakeReview.startReview", comment: ""))
+                                Text("Start Review (\(mistakeCount) \(mistakeCount == 1 ? "Mistake" : "Mistakes"))")
                                     .font(.body)
                                     .fontWeight(.semibold)
                             }
@@ -201,11 +229,272 @@ struct MistakeReviewView: View {
                 if let subject = selectedSubject {
                     MistakeQuestionListView(
                         subject: subject,
+                        baseBranch: selectedBaseBranch,
+                        detailedBranch: selectedDetailedBranch,
+                        errorType: selectedErrorType,
                         timeRange: selectedTimeRange ?? .allTime
                     )
                 }
             }
         }
+    }
+
+    // MARK: - Helper Methods
+
+    /// Calculate filtered mistake count based on hierarchical filters
+    private func calculateFilteredMistakeCount() -> Int {
+        guard let selectedSubject = selectedSubject else { return 0 }
+
+        let localStorage = QuestionLocalStorage.shared
+        var allMistakes = localStorage.getMistakeQuestions(subject: selectedSubject)
+
+        // Filter by time range
+        if let timeRange = selectedTimeRange {
+            allMistakes = mistakeService.filterByTimeRange(allMistakes, timeRange: timeRange)
+        }
+
+        // Filter by base branch
+        if let baseBranch = selectedBaseBranch {
+            allMistakes = allMistakes.filter { mistake in
+                (mistake["baseBranch"] as? String) == baseBranch
+            }
+        }
+
+        // Filter by detailed branch
+        if let detailedBranch = selectedDetailedBranch {
+            allMistakes = allMistakes.filter { mistake in
+                (mistake["detailedBranch"] as? String) == detailedBranch
+            }
+        }
+
+        // Filter by error type
+        if let errorType = selectedErrorType {
+            allMistakes = allMistakes.filter { mistake in
+                (mistake["errorType"] as? String) == errorType
+            }
+        }
+
+        return allMistakes.count
+    }
+
+    // MARK: - Hierarchical Navigation Sections
+
+    /// Base Branch selection section
+    private func baseBranchSection(for subject: String) -> some View {
+        let branches = mistakeService.getBaseBranches(for: subject, timeRange: selectedTimeRange)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("📖 Select Chapter")
+                .font(.title3)
+                .fontWeight(.semibold)
+                .padding(.horizontal)
+
+            if branches.isEmpty {
+                Text("No mistakes with taxonomy data yet")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(branches) { branch in
+                            Button(action: {
+                                if selectedBaseBranch == branch.baseBranch {
+                                    selectedBaseBranch = nil
+                                    selectedDetailedBranch = nil
+                                } else {
+                                    selectedBaseBranch = branch.baseBranch
+                                    selectedDetailedBranch = nil
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: selectedBaseBranch == branch.baseBranch ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(selectedBaseBranch == branch.baseBranch ? .blue : .gray)
+
+                                    Text(branch.baseBranch)
+                                        .font(.body)
+                                        .foregroundColor(.primary)
+
+                                    Spacer()
+
+                                    Text("\(branch.mistakeCount)")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.red)
+                                        .cornerRadius(12)
+                                }
+                                .padding()
+                                .background(selectedBaseBranch == branch.baseBranch ? Color.blue.opacity(0.1) : Color(.systemGray6))
+                                .cornerRadius(10)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .frame(maxHeight: 300)
+            }
+        }
+    }
+
+    /// Detailed Branch selection section
+    private func detailedBranchSection(for subject: String, baseBranch: String) -> some View {
+        let branches = mistakeService.getDetailedBranches(for: subject, baseBranch: baseBranch, timeRange: selectedTimeRange)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "chevron.left")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Text(baseBranch)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Text("Select Topic")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+            }
+            .padding(.horizontal)
+
+            if branches.isEmpty {
+                Text("No specific topics found")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(branches) { branch in
+                            Button(action: {
+                                if selectedDetailedBranch == branch.detailedBranch {
+                                    selectedDetailedBranch = nil
+                                } else {
+                                    selectedDetailedBranch = branch.detailedBranch
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: selectedDetailedBranch == branch.detailedBranch ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(selectedDetailedBranch == branch.detailedBranch ? .blue : .gray)
+
+                                    Text(branch.detailedBranch)
+                                        .font(.body)
+                                        .foregroundColor(.primary)
+
+                                    Spacer()
+
+                                    Text("\(branch.mistakeCount)")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.red)
+                                        .cornerRadius(12)
+                                }
+                                .padding()
+                                .background(selectedDetailedBranch == branch.detailedBranch ? Color.blue.opacity(0.1) : Color(.systemGray6))
+                                .cornerRadius(10)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .frame(maxHeight: 250)
+            }
+        }
+    }
+
+    /// Error Type filter section
+    private func errorTypeSection(for subject: String) -> some View {
+        let errorTypes = mistakeService.getErrorTypeCounts(
+            for: subject,
+            baseBranch: selectedBaseBranch,
+            detailedBranch: selectedDetailedBranch,
+            timeRange: selectedTimeRange
+        )
+
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("🎯 Filter by Error Type")
+                .font(.title3)
+                .fontWeight(.semibold)
+                .padding(.horizontal)
+
+            if errorTypes.isEmpty {
+                Text("No error analysis data available")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(errorTypes) { errorType in
+                            Button(action: {
+                                if selectedErrorType == errorType.errorType {
+                                    selectedErrorType = nil
+                                } else {
+                                    selectedErrorType = errorType.errorType
+                                }
+                            }) {
+                                VStack(spacing: 8) {
+                                    Image(systemName: errorType.icon)
+                                        .font(.title2)
+                                        .foregroundColor(selectedErrorType == errorType.errorType ? .white : errorType.color)
+
+                                    Text(errorType.displayName)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(selectedErrorType == errorType.errorType ? .white : .primary)
+
+                                    Text("\(errorType.mistakeCount)")
+                                        .font(.caption2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(selectedErrorType == errorType.errorType ? .white : errorType.color)
+                                }
+                                .frame(width: 100, height: 100)
+                                .background(selectedErrorType == errorType.errorType ? errorType.color : errorType.color.opacity(0.1))
+                                .cornerRadius(12)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
+        }
+    }
+
+    /// Clear Filters button
+    private var clearFiltersButton: some View {
+        Button(action: {
+            selectedBaseBranch = nil
+            selectedDetailedBranch = nil
+            selectedErrorType = nil
+        }) {
+            HStack {
+                Image(systemName: "arrow.counterclockwise")
+                    .font(.body)
+
+                Text("Clear Filters")
+                    .font(.body)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(.red)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .background(Color.red.opacity(0.1))
+            .cornerRadius(10)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .padding(.horizontal)
     }
 }
 
@@ -236,46 +525,141 @@ struct TimeRangeButton: View {
     }
 }
 
-struct SubjectCard: View {
+// MARK: - Carousel Subject Selector
+
+struct CarouselSubjectSelector: View {
+    let subjects: [SubjectMistakeCount]
+    @Binding var selectedSubject: String?
+    @Namespace private var animation
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            ScrollViewReader { proxy in
+                HStack(spacing: 20) {
+                    // Add leading spacer for centering
+                    Spacer()
+                        .frame(width: UIScreen.main.bounds.width / 2 - 80)
+
+                    ForEach(subjects, id: \.subject) { subject in
+                        GeometryReader { geometry in
+                            CarouselSubjectCard(
+                                subject: subject,
+                                isSelected: selectedSubject == subject.subject,
+                                geometry: geometry,
+                                action: {
+                                    withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                                        if selectedSubject == subject.subject {
+                                            selectedSubject = nil
+                                        } else {
+                                            selectedSubject = subject.subject
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        .frame(width: 160, height: 180)
+                        .id(subject.subject)
+                    }
+
+                    // Add trailing spacer for centering
+                    Spacer()
+                        .frame(width: UIScreen.main.bounds.width / 2 - 80)
+                }
+                .onChange(of: selectedSubject) { _, newValue in
+                    if let selected = newValue {
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                            proxy.scrollTo(selected, anchor: .center)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(height: 200)
+    }
+}
+
+struct CarouselSubjectCard: View {
     let subject: SubjectMistakeCount
     let isSelected: Bool
+    let geometry: GeometryProxy
     let action: () -> Void
+
+    // Calculate how far this card is from the center of the screen
+    private var distanceFromCenter: CGFloat {
+        let cardCenter = geometry.frame(in: .global).midX
+        let screenCenter = UIScreen.main.bounds.width / 2
+        return cardCenter - screenCenter
+    }
+
+    // Scale based on distance from center: 1.2 at center, 0.75 at edges
+    private var scale: CGFloat {
+        let normalizedDistance = abs(distanceFromCenter) / (UIScreen.main.bounds.width / 2)
+        let scale = 1.2 - (normalizedDistance * 0.45)
+        return max(0.75, min(1.2, scale))
+    }
+
+    // Opacity based on distance: 1.0 at center, 0.5 at edges
+    private var opacity: Double {
+        let normalizedDistance = abs(distanceFromCenter) / (UIScreen.main.bounds.width / 2)
+        let opacity = 1.0 - (normalizedDistance * 0.5)
+        return max(0.5, min(1.0, opacity))
+    }
+
+    // Y offset for parallax effect
+    private var yOffset: CGFloat {
+        let normalizedDistance = distanceFromCenter / (UIScreen.main.bounds.width / 2)
+        return normalizedDistance * 15
+    }
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 12) {
-                Image(systemName: subject.icon)
-                    .font(.title3)
-                    .foregroundColor(isSelected ? .white : .red)
-
                 Text(subject.subject)
-                    .font(.body)
-                    .fontWeight(.semibold)
+                    .font(.title2)
+                    .fontWeight(.bold)
                     .foregroundColor(isSelected ? .white : .primary)
                     .multilineTextAlignment(.center)
+                    .lineLimit(2)
 
-                Text(subject.mistakeCount == 1 ?
-                     NSLocalizedString("mistakeReview.mistakeSingular", comment: "") :
-                     String.localizedStringWithFormat(NSLocalizedString("mistakeReview.mistakePlural", comment: ""), subject.mistakeCount))
+                Text("\(subject.mistakeCount)")
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundColor(isSelected ? .white : .red)
+
+                Text(subject.mistakeCount == 1 ? "Mistake" : "Mistakes")
                     .font(.caption)
-                    .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
+                    .fontWeight(.medium)
+                    .foregroundColor(isSelected ? .white.opacity(0.9) : .secondary)
             }
-            .frame(height: 100)
-            .frame(maxWidth: .infinity)
-            .background(isSelected ? Color.red : Color.red.opacity(0.1))
-            .cornerRadius(12)
+            .frame(width: 160, height: 180)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(isSelected ? Color.red : Color(.systemGray6))
+                    .shadow(color: isSelected ? Color.red.opacity(0.4) : Color.black.opacity(0.1),
+                           radius: isSelected ? 12 : 4,
+                           x: 0,
+                           y: isSelected ? 8 : 2)
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.red : Color.clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(isSelected ? Color.red : Color.clear, lineWidth: 3)
             )
         }
         .buttonStyle(PlainButtonStyle())
+        .scaleEffect(scale)
+        .opacity(opacity)
+        .offset(y: yOffset)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: scale)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: opacity)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: yOffset)
     }
 }
 
 // MARK: - Mistake Question List View
 struct MistakeQuestionListView: View {
     let subject: String
+    let baseBranch: String?  // NEW: Hierarchical filter
+    let detailedBranch: String?  // NEW: Hierarchical filter
+    let errorType: String?  // NEW: Error type filter
     let timeRange: MistakeTimeRange
 
     @StateObject private var mistakeService = MistakeReviewService()
@@ -288,11 +672,35 @@ struct MistakeQuestionListView: View {
     @State private var generationError: String? = nil // ✅ OPTIMIZATION: Error handling
     @Environment(\.dismiss) private var dismiss
 
+    // MARK: - Computed Properties
+
+    /// Filter mistakes by hierarchical filters
+    private var filteredMistakes: [MistakeQuestion] {
+        var filtered = mistakeService.mistakes
+
+        // Filter by base branch
+        if let baseBranch = baseBranch {
+            filtered = filtered.filter { $0.baseBranch == baseBranch }
+        }
+
+        // Filter by detailed branch
+        if let detailedBranch = detailedBranch {
+            filtered = filtered.filter { $0.detailedBranch == detailedBranch }
+        }
+
+        // Filter by error type
+        if let errorType = errorType {
+            filtered = filtered.filter { $0.errorType == errorType }
+        }
+
+        return filtered
+    }
+
     var body: some View {
         NavigationView {
             VStack {
                 // Selection Mode Buttons
-                if !mistakeService.mistakes.isEmpty && !isSelectionMode {
+                if !filteredMistakes.isEmpty && !isSelectionMode {
                     VStack(spacing: 12) {
                         Button(action: {
                             isSelectionMode = true
@@ -321,13 +729,13 @@ struct MistakeQuestionListView: View {
                 if isSelectionMode {
                     HStack {
                         Button(action: {
-                            if selectedQuestions.count == mistakeService.mistakes.count {
+                            if selectedQuestions.count == filteredMistakes.count {
                                 selectedQuestions.removeAll()
                             } else {
-                                selectedQuestions = Set(mistakeService.mistakes.map { $0.id })
+                                selectedQuestions = Set(filteredMistakes.map { $0.id })
                             }
                         }) {
-                            Text(selectedQuestions.count == mistakeService.mistakes.count ?
+                            Text(selectedQuestions.count == filteredMistakes.count ?
                                  NSLocalizedString("common.deselectAll", comment: "") :
                                  NSLocalizedString("common.selectAll", comment: ""))
                                 .font(.subheadline)
@@ -359,7 +767,7 @@ struct MistakeQuestionListView: View {
                     if mistakeService.isLoading {
                         ProgressView(NSLocalizedString("mistakeReview.loadingMistakes", comment: ""))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if mistakeService.mistakes.isEmpty {
+                    } else if filteredMistakes.isEmpty {
                         VStack(spacing: 16) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 64))
@@ -377,7 +785,7 @@ struct MistakeQuestionListView: View {
                         .padding()
                     } else {
                         List {
-                            ForEach(mistakeService.mistakes) { mistake in
+                            ForEach(filteredMistakes) { mistake in
                                 MistakeQuestionCard(
                                     question: mistake,
                                     isSelectionMode: isSelectionMode,
@@ -439,7 +847,7 @@ struct MistakeQuestionListView: View {
             }
             .sheet(isPresented: $showingPDFGenerator) {
                 if !selectedQuestions.isEmpty {
-                    let selectedMistakes = mistakeService.mistakes.filter { selectedQuestions.contains($0.id) }
+                    let selectedMistakes = filteredMistakes.filter { selectedQuestions.contains($0.id) }
                     PDFPreviewView(
                         questions: selectedMistakes,
                         subject: subject,
@@ -474,11 +882,7 @@ struct MistakeQuestionListView: View {
 
         do {
             // Get selected mistakes
-            let selectedMistakes = mistakeService.mistakes.filter { selectedQuestions.contains($0.id) }
-
-            #if DEBUG
-            print("🎯 [Practice] Generating from \(selectedMistakes.count) selected mistakes")
-            #endif
+            let selectedMistakes = filteredMistakes.filter { selectedQuestions.contains($0.id) }
 
             // ✅ VALIDATION #1: Check selection count
             guard !selectedMistakes.isEmpty else {
@@ -507,18 +911,12 @@ struct MistakeQuestionListView: View {
                 // Add error analysis fields (already in model!)
                 if let errorType = mistake.errorType {
                     data["error_type"] = errorType
-                    #if DEBUG
-                    print("   ✓ Error type: \(errorType)")
-                    #endif
                 }
                 if let errorEvidence = mistake.errorEvidence {
                     data["error_evidence"] = errorEvidence
                 }
                 if let primaryConcept = mistake.primaryConcept {
                     data["primary_concept"] = primaryConcept
-                    #if DEBUG
-                    print("   ✓ Concept: \(primaryConcept)")
-                    #endif
                 }
                 if let secondaryConcept = mistake.secondaryConcept {
                     data["secondary_concept"] = secondaryConcept
@@ -584,10 +982,6 @@ struct MistakeQuestionListView: View {
                     q["question"] as? String
                 }
 
-                #if DEBUG
-                print("✅ [Practice] Generated \(generatedQuestions.count) questions")
-                #endif
-
                 // Show success
                 await MainActor.run {
                     showingPracticeQuestions = true
@@ -597,14 +991,8 @@ struct MistakeQuestionListView: View {
             }
 
         } catch let error as PracticeGenerationError {
-            #if DEBUG
-            print("❌ [Practice] Validation error: \(error.localizedDescription)")
-            #endif
             generationError = error.localizedDescription
         } catch {
-            #if DEBUG
-            print("❌ [Practice] Unexpected error: \(error.localizedDescription)")
-            #endif
             generationError = "An unexpected error occurred. Please try again."
         }
     }
@@ -651,99 +1039,167 @@ struct MistakeQuestionCard: View {
                 }
                 .padding(.bottom, 8)
             }
-            // Question
+            // Question with subquestion hierarchy support
             VStack(alignment: .leading, spacing: 8) {
                 Text(NSLocalizedString("mistakeReview.questionLabel", comment: ""))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
 
-                // ✅ Use EnhancedMathText for LaTeX/math rendering
-                EnhancedMathText(question.rawQuestionText, fontSize: 16)
-                    .fontWeight(.medium)
-            }
-
-            // Your incorrect answer
-            VStack(alignment: .leading, spacing: 8) {
-                Text(NSLocalizedString("mistakeReview.yourAnswerLabel", comment: ""))
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-
-                // ✅ Use EnhancedMathText for math support in student answers
-                EnhancedMathText(
-                    question.studentAnswer.isEmpty ?
-                    NSLocalizedString("mistakeReview.noAnswer", comment: "") :
-                    question.studentAnswer,
+                // ✅ Render with subquestion support (match Library approach)
+                SubquestionAwareTextView(
+                    text: question.rawQuestionText,
                     fontSize: 16
                 )
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.red.opacity(0.1))
-                .foregroundColor(.red)
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                )
+                .textSelection(.enabled)
+                .onAppear {
+                    #if DEBUG
+                    print("🖼️ [MistakeReview-Render] Question ID: \(question.id) - questionImageUrl: '\(question.questionImageUrl ?? "nil")'")
+                    #endif
+                }
+
+                // ✅ Add image rendering for Pro Mode questions
+                if let imageUrl = question.questionImageUrl, !imageUrl.isEmpty {
+                    QuestionImageView(imageUrl: imageUrl)
+                        .padding(.top, 8)
+                        .onAppear {
+                            #if DEBUG
+                            print("🖼️ [MistakeReview-Render] ✅ RENDERING QuestionImageView with imageUrl: '\(imageUrl)'")
+                            #endif
+                        }
+                } else {
+                    EmptyView()
+                        .onAppear {
+                            #if DEBUG
+                            print("🖼️ [MistakeReview-Render] ❌ NOT RENDERING - imageUrl is: '\(question.questionImageUrl ?? "nil")'")
+                            #endif
+                        }
+                }
             }
 
-            // Correct answer
-            VStack(alignment: .leading, spacing: 8) {
-                Text(NSLocalizedString("mistakeReview.correctAnswerLabel", comment: ""))
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-
-                // ✅ Use EnhancedMathText for math support in correct answers
-                EnhancedMathText(question.correctAnswer, fontSize: 16)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.green.opacity(0.1))
-                    .foregroundColor(.green)
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.green.opacity(0.3), lineWidth: 1)
-                    )
-            }
-
-            // ✅ OPTIMIZATION: Error Analysis Visualization
+            // ✅ OPTIMIZATION: Error Analysis Visualization (always visible if available)
             if question.hasErrorAnalysis {
                 errorAnalysisSection
             } else if question.isAnalyzing {
                 analyzingSection
             }
 
-            // Explanation toggle
-            if !question.explanation.isEmpty && question.explanation != "No explanation provided" {
-                Button(action: { showingExplanation.toggle() }) {
-                    HStack {
-                        Image(systemName: showingExplanation ? "chevron.down" : "chevron.right")
-                        Text(NSLocalizedString("mistakeReview.showExplanation", comment: ""))
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                }
-
+            // ✅ FOLDED SECTION: Answer Details & Explanation
+            Button(action: {
+                showingExplanation.toggle()
+                #if DEBUG
                 if showingExplanation {
-                    // ✅ Use EnhancedMathText for math support in explanations
-                    EnhancedMathText(question.explanation, fontSize: 13)
-                        .padding(.top, 4)
-                        .foregroundColor(.secondary)
+                    // Detailed logs when unfolding
+                    print("📋 [MistakeReview-Detail] === UNFOLDING QUESTION DETAILS ===")
+                    print("   Question ID: \(question.id)")
+                    print("   Subject: \(question.subject)")
+                    print("   Created At: \(question.createdAt)")
+                    print("   Raw Question Text Length: \(question.rawQuestionText.count) chars")
+                    print("   Raw Question Text: \(question.rawQuestionText.prefix(100))...")
+                    print("   Question Preview (short): \(question.question.prefix(50))...")
+                    print("   Student Answer: \(question.studentAnswer.prefix(50))...")
+                    print("   Correct Answer: \(question.correctAnswer.prefix(50))...")
+                    print("   Explanation: \(question.explanation.prefix(50))...")
+                    print("   Has Image: \(question.questionImageUrl != nil)")
+                    if let imageUrl = question.questionImageUrl {
+                        print("   Image URL: \(imageUrl)")
+                        print("   Image file exists: \(FileManager.default.fileExists(atPath: imageUrl))")
+                    }
+                    print("   Points: \(question.pointsEarned)/\(question.pointsPossible)")
+                    print("   Confidence: \(question.confidence)")
+                    print("   Has Error Analysis: \(question.hasErrorAnalysis)")
+                    if question.hasErrorAnalysis {
+                        print("   Error Type: \(question.errorType ?? "N/A")")
+                        print("   Primary Concept: \(question.primaryConcept ?? "N/A")")
+                        print("   Secondary Concept: \(question.secondaryConcept ?? "N/A")")
+                        print("   Weakness Key: \(question.weaknessKey ?? "N/A")")
+                    }
+                    print("   Tags: \(question.tags)")
+                    print("   Notes: \(question.notes)")
+                    print("📋 [MistakeReview-Detail] === END DETAILS ===\n")
                 }
+                #endif
+            }) {
+                HStack {
+                    Image(systemName: showingExplanation ? "chevron.down" : "chevron.right")
+                    Text(showingExplanation ? "Hide Details" : "Show Answer & Explanation")
+                        .fontWeight(.medium)
+                }
+                .font(.subheadline)
+                .foregroundColor(.blue)
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            if showingExplanation {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Your incorrect answer
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(NSLocalizedString("mistakeReview.yourAnswerLabel", comment: ""))
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
+
+                        // ✅ Use EnhancedMathText for math support in student answers
+                        EnhancedMathText(
+                            question.studentAnswer.isEmpty ?
+                            NSLocalizedString("mistakeReview.noAnswer", comment: "") :
+                            question.studentAnswer,
+                            fontSize: 16
+                        )
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.red.opacity(0.1))
+                        .foregroundColor(.red)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+
+                    // Correct answer
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(NSLocalizedString("mistakeReview.correctAnswerLabel", comment: ""))
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
+
+                        // ✅ Use EnhancedMathText for math support in correct answers
+                        EnhancedMathText(question.correctAnswer, fontSize: 16)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.green.opacity(0.1))
+                            .foregroundColor(.green)
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                            )
+                    }
+
+                    // Explanation (if available)
+                    if !question.explanation.isEmpty && question.explanation != "No explanation provided" {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Explanation")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.secondary)
+
+                            // ✅ Use EnhancedMathText for math support in explanations
+                            EnhancedMathText(question.explanation, fontSize: 14)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color.blue.opacity(0.05))
+                                .foregroundColor(.primary)
+                                .cornerRadius(8)
+                        }
+                    }
+                }
+                .padding(.top, 8)
             }
 
-            // Footer with metadata
+            // Footer with metadata (subject badge removed, only date)
             HStack {
-                Text(question.subject)
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
-                    .cornerRadius(4)
-
                 Spacer()
 
                 Text(RelativeDateTimeFormatter().localizedString(for: question.createdAt, relativeTo: Date()))
@@ -764,7 +1220,44 @@ struct MistakeQuestionCard: View {
     // ✅ OPTIMIZATION: Error analysis section
     private var errorAnalysisSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Error type badge
+            // NEW: Hierarchical breadcrumb
+            if let baseBranch = question.baseBranch,
+               let detailedBranch = question.detailedBranch,
+               !baseBranch.isEmpty,
+               !detailedBranch.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "folder.fill")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    Text("Math")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    Text(baseBranch)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    Text(detailedBranch)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color(.systemGray6))
+                .cornerRadius(6)
+            }
+
+            // Error type badge (updated for 3 types)
             if let errorType = question.errorType {
                 HStack(spacing: 8) {
                     Image(systemName: errorIcon(for: errorType))
@@ -790,14 +1283,35 @@ struct MistakeQuestionCard: View {
                 .cornerRadius(6)
             }
 
-            // What went wrong
-            if let evidence = question.errorEvidence {
+            // NEW: Specific issue section
+            if let specificIssue = question.specificIssue, !specificIssue.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                            .font(.caption)
+                        Text("What Went Wrong")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
+                    }
+                    Text(specificIssue)
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                }
+                .padding(10)
+                .background(Color.orange.opacity(0.05))
+                .cornerRadius(8)
+            }
+
+            // Evidence section (existing)
+            if let evidence = question.errorEvidence, !evidence.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.blue)
                             .font(.caption)
-                        Text("What Went Wrong")
+                        Text("Evidence")
                             .font(.caption)
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
@@ -811,8 +1325,8 @@ struct MistakeQuestionCard: View {
                 .cornerRadius(8)
             }
 
-            // Learning suggestion
-            if let suggestion = question.learningSuggestion {
+            // Learning suggestion (existing)
+            if let suggestion = question.learningSuggestion, !suggestion.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Image(systemName: "lightbulb.fill")
@@ -849,48 +1363,30 @@ struct MistakeQuestionCard: View {
         .cornerRadius(8)
     }
 
-    // Helper functions for error type display
+    // Helper functions for error type display (updated for 3 types)
     private func errorDisplayName(for errorType: String) -> String {
         switch errorType {
-        case "conceptual_misunderstanding": return "Conceptual Error"
-        case "procedural_error": return "Process Error"
-        case "calculation_mistake": return "Calculation Error"
-        case "careless_mistake": return "Careless Error"
-        case "reading_comprehension": return "Reading Error"
-        case "incomplete_answer": return "Incomplete Answer"
-        case "wrong_method": return "Wrong Method"
-        case "memory_lapse": return "Memory Lapse"
-        case "time_pressure": return "Time Pressure"
-        default: return "Other Error"
+        case "execution_error": return "Execution Error"
+        case "conceptual_gap": return "Concept Gap"
+        case "needs_refinement": return "Needs Refinement"
+        default: return "Unknown Error"
         }
     }
 
     private func errorIcon(for errorType: String) -> String {
         switch errorType {
-        case "conceptual_misunderstanding": return "brain.head.profile"
-        case "procedural_error": return "list.bullet.clipboard"
-        case "calculation_mistake": return "function"
-        case "careless_mistake": return "exclamationmark.circle"
-        case "reading_comprehension": return "book"
-        case "incomplete_answer": return "ellipsis.circle"
-        case "wrong_method": return "arrow.triangle.branch"
-        case "memory_lapse": return "questionmark.circle"
-        case "time_pressure": return "clock"
+        case "execution_error": return "exclamationmark.circle"
+        case "conceptual_gap": return "brain.head.profile"
+        case "needs_refinement": return "star.circle"
         default: return "questionmark"
         }
     }
 
     private func errorColor(for errorType: String) -> Color {
         switch errorType {
-        case "conceptual_misunderstanding": return .purple
-        case "procedural_error": return .blue
-        case "calculation_mistake": return .orange
-        case "careless_mistake": return .yellow
-        case "reading_comprehension": return .green
-        case "incomplete_answer": return .pink
-        case "wrong_method": return .red
-        case "memory_lapse": return .gray
-        case "time_pressure": return .brown
+        case "execution_error": return .yellow
+        case "conceptual_gap": return .red
+        case "needs_refinement": return .blue
         default: return .secondary
         }
     }
@@ -965,6 +1461,98 @@ struct PracticeQuestionsView: View {
         }
     }
 }
+
+// MARK: - Subquestion-Aware Text Renderer
+
+/// Shared component for rendering questions with subquestion support
+/// Splits text by "\n\n" and highlights subquestion parts with indentation
+struct SubquestionAwareTextView: View {
+    let text: String
+    let fontSize: CGFloat
+
+    var body: some View {
+        #if DEBUG
+        let _ = print("📝 [SubquestionAware] Body evaluating")
+        let _ = print("   Text length: \(text.count) chars")
+        let _ = print("   Font size: \(fontSize)")
+        #endif
+
+        VStack(alignment: .leading, spacing: 12) {
+            // Split by double newline to separate parent and subquestion content
+            let parts = text.components(separatedBy: "\n\n")
+
+            #if DEBUG
+            let _ = print("   Split into \(parts.count) parts")
+            #endif
+
+            ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
+                if !part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    #if DEBUG
+                    let _ = {
+                        let isSubquestion = part.lowercased().contains("subquestion") || isSubquestionFormat(part)
+                        print("")
+                        print("   📋 Part \(index + 1):")
+                        print("      Content: \(part.prefix(50))...")
+                        print("      Contains 'subquestion': \(part.lowercased().contains("subquestion"))")
+                        print("      Matches regex pattern: \(isSubquestionFormat(part))")
+                        print("      → Rendering as: \(isSubquestion ? "✅ SUBQUESTION (with arrow)" : "⚪ PARENT (regular text)")")
+                        return ()
+                    }()
+                    #endif
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Highlight subquestion part if it contains "Subquestion" or starts with a letter/number + ")"
+                        if part.lowercased().contains("subquestion") || isSubquestionFormat(part) {
+                            HStack(alignment: .top, spacing: 6) {
+                                Image(systemName: "arrow.turn.down.right")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.orange)
+                                    .padding(.top, 4)
+                                EnhancedMathText(part, fontSize: fontSize)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
+                            }
+                        } else {
+                            // Parent content or regular text
+                            EnhancedMathText(part, fontSize: fontSize - 1)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Check if text matches common subquestion formats like "a)", "1)", "(a)", etc.
+    private func isSubquestionFormat(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Check for patterns: "a)", "1)", "(a)", "(1)", "Part a:", "Part 1:"
+        let subquestionPatterns: [(pattern: String, description: String)] = [
+            ("^[a-z]\\)", "a), b), c)"),
+            ("^\\d+\\)", "1), 2), 3)"),
+            ("^\\([a-z]\\)", "(a), (b), (c)"),
+            ("^\\(\\d+\\)", "(1), (2), (3)"),
+            ("^Part [a-z]:", "Part a:, Part b:"),
+            ("^Part \\d+:", "Part 1:, Part 2:"),
+        ]
+
+        for (pattern, description) in subquestionPatterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+                let range = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
+                if regex.firstMatch(in: trimmed, range: range) != nil {
+                    #if DEBUG
+                    print("      🎯 Matched pattern: \(description)")
+                    #endif
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
+}
+
 
 #Preview {
     MistakeReviewView()

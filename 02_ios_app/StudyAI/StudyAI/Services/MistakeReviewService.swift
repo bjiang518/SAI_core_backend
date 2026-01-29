@@ -81,6 +81,16 @@ class MistakeReviewService: ObservableObject {
         // ✅ Fetch from local storage only
         let allMistakeData = questionLocalStorage.getMistakeQuestions(subject: subject)
 
+        #if DEBUG
+        print("🔍 [MistakeReviewService] Fetched \(allMistakeData.count) mistakes from local storage")
+        // Log first few with image URLs
+        for (index, data) in allMistakeData.prefix(3).enumerated() {
+            if let imageUrl = data["questionImageUrl"] as? String, !imageUrl.isEmpty {
+                print("   📸 Mistake \(index + 1) has image: \(imageUrl)")
+            }
+        }
+        #endif
+
         // ✅ Filter by time range
         let filteredMistakeData = filterByTimeRange(allMistakeData, timeRange: timeRange == .allTime ? nil : timeRange)
 
@@ -117,13 +127,18 @@ class MistakeReviewService: ObservableObject {
                 let learningSuggestion = data["learningSuggestion"] as? String
 
                 // ✅ Convert string status to enum with backwards compatibility
-                let statusString = data["errorAnalysisStatus"] as? String ?? "pending"
-                let errorAnalysisStatus = ErrorAnalysisStatus(rawValue: statusString) ?? .pending
+                // For old mistakes without analysis status, mark as failed (no analysis available)
+                // Only new mistakes from grading will have pending/processing status
+                let statusString = data["errorAnalysisStatus"] as? String ?? "failed"
+                let errorAnalysisStatus = ErrorAnalysisStatus(rawValue: statusString) ?? .failed
 
                 // ✅ Extract weakness tracking fields (standardized naming)
                 let primaryConcept = data["primaryConcept"] as? String
                 let secondaryConcept = data["secondaryConcept"] as? String
                 let weaknessKey = data["weaknessKey"] as? String
+
+                // ✅ Extract Pro Mode image field
+                let questionImageUrl = data["questionImageUrl"] as? String
 
                 let mistake = MistakeQuestion(
                     id: id,
@@ -146,8 +161,19 @@ class MistakeReviewService: ObservableObject {
                     errorAnalysisStatus: errorAnalysisStatus,
                     primaryConcept: primaryConcept,
                     secondaryConcept: secondaryConcept,
-                    weaknessKey: weaknessKey
+                    weaknessKey: weaknessKey,
+                    questionImageUrl: questionImageUrl
                 )
+
+                #if DEBUG
+                if questionImageUrl != nil {
+                    print("   🔍 [MistakeReviewService] Created MistakeQuestion with image:")
+                    print("      - id: \(id)")
+                    print("      - questionImageUrl: '\(questionImageUrl ?? "nil")'")
+                    print("      - rawQuestionText: \(rawQuestionText.prefix(50))...")
+                }
+                #endif
+
                 mistakes.append(mistake)
             }
         }
@@ -208,7 +234,7 @@ class MistakeReviewService: ObservableObject {
     }
 
     /// Filter mistakes by time range
-    private func filterByTimeRange(_ mistakes: [[String: Any]], timeRange: MistakeTimeRange?) -> [[String: Any]] {
+    func filterByTimeRange(_ mistakes: [[String: Any]], timeRange: MistakeTimeRange?) -> [[String: Any]] {
         guard let timeRange = timeRange else {
             // No time range specified, return all
             print("🔍 [MistakeReview] No time range filter - returning all \(mistakes.count) mistakes")
@@ -315,6 +341,149 @@ class MistakeReviewService: ObservableObject {
         case "Computer Science": return "desktopcomputer"  // SF Symbol for computer
         case "Science": return "lightbulb.fill"  // SF Symbol for science/ideas
         default: return "book.closed.fill"  // SF Symbol for general subject
+        }
+    }
+
+    // MARK: - Hierarchical Filtering Support
+
+    /// Get base branches with counts for a subject
+    func getBaseBranches(for subject: String, timeRange: MistakeTimeRange?) -> [BaseBranchCount] {
+        let allMistakes = questionLocalStorage.getMistakeQuestions(subject: subject)
+        let filteredMistakes = filterByTimeRange(allMistakes, timeRange: timeRange)
+
+        // Group by base branch
+        var branchGroups: [String: [[String: Any]]] = [:]
+        for mistake in filteredMistakes {
+            guard let baseBranch = mistake["baseBranch"] as? String, !baseBranch.isEmpty else {
+                continue
+            }
+            branchGroups[baseBranch, default: []].append(mistake)
+        }
+
+        // Convert to BaseBranchCount with detailed branches
+        return branchGroups.map { baseBranch, mistakes in
+            let detailedBranches = getDetailedBranchesInternal(from: mistakes)
+            return BaseBranchCount(
+                baseBranch: baseBranch,
+                mistakeCount: mistakes.count,
+                detailedBranches: detailedBranches
+            )
+        }.sorted { $0.mistakeCount > $1.mistakeCount }
+    }
+
+    /// Get detailed branches with counts for a base branch
+    func getDetailedBranches(for subject: String, baseBranch: String, timeRange: MistakeTimeRange?) -> [DetailedBranchCount] {
+        let allMistakes = questionLocalStorage.getMistakeQuestions(subject: subject)
+        let filteredMistakes = filterByTimeRange(allMistakes, timeRange: timeRange)
+
+        // Filter by base branch
+        let branchMistakes = filteredMistakes.filter { mistake in
+            (mistake["baseBranch"] as? String) == baseBranch
+        }
+
+        return getDetailedBranchesInternal(from: branchMistakes)
+    }
+
+    /// Internal helper to group mistakes by detailed branch
+    private func getDetailedBranchesInternal(from mistakes: [[String: Any]]) -> [DetailedBranchCount] {
+        var branchCounts: [String: Int] = [:]
+        for mistake in mistakes {
+            guard let detailedBranch = mistake["detailedBranch"] as? String, !detailedBranch.isEmpty else {
+                continue
+            }
+            branchCounts[detailedBranch, default: 0] += 1
+        }
+
+        return branchCounts.map { branch, count in
+            DetailedBranchCount(detailedBranch: branch, mistakeCount: count)
+        }.sorted { $0.mistakeCount > $1.mistakeCount }
+    }
+
+    /// Get error type counts with optional filters
+    func getErrorTypeCounts(for subject: String, baseBranch: String?, detailedBranch: String?, timeRange: MistakeTimeRange?) -> [ErrorTypeCount] {
+        let allMistakes = questionLocalStorage.getMistakeQuestions(subject: subject)
+        var filteredMistakes = filterByTimeRange(allMistakes, timeRange: timeRange)
+
+        // Filter by base branch if provided
+        if let baseBranch = baseBranch {
+            filteredMistakes = filteredMistakes.filter { mistake in
+                (mistake["baseBranch"] as? String) == baseBranch
+            }
+        }
+
+        // Filter by detailed branch if provided
+        if let detailedBranch = detailedBranch {
+            filteredMistakes = filteredMistakes.filter { mistake in
+                (mistake["detailedBranch"] as? String) == detailedBranch
+            }
+        }
+
+        // Group by error type
+        var typeCounts: [String: Int] = [:]
+        for mistake in filteredMistakes {
+            guard let errorType = mistake["errorType"] as? String, !errorType.isEmpty else {
+                continue
+            }
+            typeCounts[errorType, default: 0] += 1
+        }
+
+        // Convert to ErrorTypeCount with colors
+        return typeCounts.map { errorType, count in
+            ErrorTypeCount(
+                errorType: errorType,
+                mistakeCount: count,
+                color: colorForErrorType(errorType)
+            )
+        }.sorted { $0.mistakeCount > $1.mistakeCount }
+    }
+
+    /// Get color for error type
+    private func colorForErrorType(_ errorType: String) -> Color {
+        switch errorType {
+        case "execution_error": return .yellow
+        case "conceptual_gap": return .red
+        case "needs_refinement": return .blue
+        default: return .gray
+        }
+    }
+}
+
+// MARK: - Hierarchical Data Structures
+
+struct BaseBranchCount: Identifiable {
+    let id = UUID()
+    let baseBranch: String
+    let mistakeCount: Int
+    let detailedBranches: [DetailedBranchCount]
+}
+
+struct DetailedBranchCount: Identifiable {
+    let id = UUID()
+    let detailedBranch: String
+    let mistakeCount: Int
+}
+
+struct ErrorTypeCount: Identifiable {
+    let id = UUID()
+    let errorType: String
+    let mistakeCount: Int
+    let color: Color
+
+    var displayName: String {
+        switch errorType {
+        case "execution_error": return "Execution Error"
+        case "conceptual_gap": return "Concept Gap"
+        case "needs_refinement": return "Needs Refinement"
+        default: return errorType
+        }
+    }
+
+    var icon: String {
+        switch errorType {
+        case "execution_error": return "exclamationmark.circle"
+        case "conceptual_gap": return "brain.head.profile"
+        case "needs_refinement": return "star.circle"
+        default: return "questionmark.circle"
         }
     }
 }
