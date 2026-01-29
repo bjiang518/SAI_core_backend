@@ -55,6 +55,74 @@ enum ErrorAnalysisStatus: String, Codable {
     }
 }
 
+// MARK: - Hierarchical Taxonomy Enums
+
+/// Math curriculum base branches (Chapter-level)
+enum MathBaseBranch: String, CaseIterable {
+    case numberOperations = "Number & Operations"
+    case algebraFoundations = "Algebra - Foundations"
+    case algebraAdvanced = "Algebra - Advanced"
+    case geometryFoundations = "Geometry - Foundations"
+    case geometryFormal = "Geometry - Formal"
+    case trigonometry = "Trigonometry"
+    case statistics = "Statistics"
+    case probability = "Probability"
+    case calculusDifferential = "Calculus - Differential"
+    case calculusIntegral = "Calculus - Integral"
+    case discreteMath = "Discrete Mathematics"
+    case mathModeling = "Mathematical Modeling & Applications"
+}
+
+/// Simplified error types (3 types instead of 9)
+enum ErrorSeverityType: String, Codable {
+    case executionError = "execution_error"
+    case conceptualGap = "conceptual_gap"
+    case needsRefinement = "needs_refinement"
+
+    var displayName: String {
+        switch self {
+        case .executionError: return "Execution Error"
+        case .conceptualGap: return "Concept Gap"
+        case .needsRefinement: return "Needs Refinement"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .executionError:
+            return "Student understands concept but made careless mistake"
+        case .conceptualGap:
+            return "Student has fundamental misunderstanding"
+        case .needsRefinement:
+            return "Answer is correct but could be improved"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .executionError: return "exclamationmark.circle"
+        case .conceptualGap: return "brain.head.profile"
+        case .needsRefinement: return "star.circle"
+        }
+    }
+
+    var color: String {
+        switch self {
+        case .executionError: return "yellow"
+        case .conceptualGap: return "red"
+        case .needsRefinement: return "blue"
+        }
+    }
+
+    var severity: String {
+        switch self {
+        case .executionError: return "low"
+        case .conceptualGap: return "high"
+        case .needsRefinement: return "minimal"
+        }
+    }
+}
+
 import SwiftUI
 
 // MARK: - String Extension for Unicode Decoding
@@ -828,6 +896,14 @@ struct MistakeQuestion: Codable, Identifiable {
     let secondaryConcept: String?
     let weaknessKey: String?
 
+    // NEW: Hierarchical taxonomy fields
+    let baseBranch: String?
+    let detailedBranch: String?
+    let specificIssue: String?
+
+    // ✅ Pro Mode image field (for questions with images)
+    let questionImageUrl: String?
+
     // Computed properties
     var hasErrorAnalysis: Bool {
         errorAnalysisStatus == .completed && errorType != nil
@@ -843,8 +919,10 @@ struct MistakeQuestion: Codable, Identifiable {
          confidence: Double, pointsEarned: Double, pointsPossible: Double,
          tags: [String], notes: String,
          errorType: String? = nil, errorEvidence: String? = nil, errorConfidence: Double? = nil,
-         learningSuggestion: String? = nil, errorAnalysisStatus: ErrorAnalysisStatus = .pending,
-         primaryConcept: String? = nil, secondaryConcept: String? = nil, weaknessKey: String? = nil) {
+         learningSuggestion: String? = nil, errorAnalysisStatus: ErrorAnalysisStatus = .failed,
+         primaryConcept: String? = nil, secondaryConcept: String? = nil, weaknessKey: String? = nil,
+         baseBranch: String? = nil, detailedBranch: String? = nil, specificIssue: String? = nil,
+         questionImageUrl: String? = nil) {
         self.id = id
         self.subject = subject
         self.question = question
@@ -867,6 +945,11 @@ struct MistakeQuestion: Codable, Identifiable {
         self.primaryConcept = primaryConcept
         self.secondaryConcept = secondaryConcept
         self.weaknessKey = weaknessKey
+        // NEW: Hierarchical taxonomy fields
+        self.baseBranch = baseBranch
+        self.detailedBranch = detailedBranch
+        self.specificIssue = specificIssue
+        self.questionImageUrl = questionImageUrl
     }
 
     enum CodingKeys: String, CodingKey {
@@ -874,6 +957,8 @@ struct MistakeQuestion: Codable, Identifiable {
         case createdAt, confidence, pointsEarned, pointsPossible, tags, notes
         case errorType, errorEvidence, errorConfidence, learningSuggestion, errorAnalysisStatus
         case primaryConcept, secondaryConcept, weaknessKey
+        case baseBranch, detailedBranch, specificIssue
+        case questionImageUrl
     }
 
     init(from decoder: Decoder) throws {
@@ -913,17 +998,25 @@ struct MistakeQuestion: Codable, Identifiable {
         learningSuggestion = try container.decodeIfPresent(String.self, forKey: .learningSuggestion)
 
         // Decode status with backwards compatibility (string → enum)
+        // For old mistakes without analysis, default to failed (no analysis available)
         if let statusEnum = try? container.decodeIfPresent(ErrorAnalysisStatus.self, forKey: .errorAnalysisStatus) {
             errorAnalysisStatus = statusEnum
         } else if let statusString = try? container.decodeIfPresent(String.self, forKey: .errorAnalysisStatus) {
-            errorAnalysisStatus = ErrorAnalysisStatus(rawValue: statusString) ?? .pending
+            errorAnalysisStatus = ErrorAnalysisStatus(rawValue: statusString) ?? .failed
         } else {
-            errorAnalysisStatus = .pending
+            errorAnalysisStatus = .failed
         }
 
         primaryConcept = try container.decodeIfPresent(String.self, forKey: .primaryConcept)
         secondaryConcept = try container.decodeIfPresent(String.self, forKey: .secondaryConcept)
         weaknessKey = try container.decodeIfPresent(String.self, forKey: .weaknessKey)
+
+        // NEW: Decode hierarchical taxonomy fields
+        baseBranch = try container.decodeIfPresent(String.self, forKey: .baseBranch)
+        detailedBranch = try container.decodeIfPresent(String.self, forKey: .detailedBranch)
+        specificIssue = try container.decodeIfPresent(String.self, forKey: .specificIssue)
+
+        questionImageUrl = try container.decodeIfPresent(String.self, forKey: .questionImageUrl)
 
         // Handle date parsing
         let dateString = try container.decode(String.self, forKey: .createdAt)

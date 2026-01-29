@@ -160,51 +160,45 @@ class ErrorAnalysisQueueService: ObservableObject {
             return
         }
 
-        // Update with analysis results
+        // NEW: Save hierarchical taxonomy
+        allQuestions[index]["baseBranch"] = analysis.base_branch ?? ""
+        allQuestions[index]["detailedBranch"] = analysis.detailed_branch ?? ""
+        allQuestions[index]["specificIssue"] = analysis.specific_issue ?? ""
+
+        // Save error type (now 3 values)
         allQuestions[index]["errorType"] = analysis.error_type ?? ""
         allQuestions[index]["errorEvidence"] = analysis.evidence ?? ""
-        allQuestions[index]["errorConfidence"] = analysis.confidence
         allQuestions[index]["learningSuggestion"] = analysis.learning_suggestion ?? ""
+        allQuestions[index]["errorConfidence"] = analysis.confidence
 
         // ✅ Save status as string (for backwards compatibility with UserDefaults)
         let status: ErrorAnalysisStatus = analysis.analysis_failed ? .failed : .completed
         allQuestions[index]["errorAnalysisStatus"] = status.rawValue
         allQuestions[index]["errorAnalyzedAt"] = ISO8601DateFormatter().string(from: Date())
 
-        // ✅ Save concept data for weakness tracking (standardized naming)
-        allQuestions[index]["primaryConcept"] = analysis.primary_concept ?? "general"
-        if let secondary = analysis.secondary_concept {
-            allQuestions[index]["secondaryConcept"] = secondary
-        }
+        // NEW: Generate weakness key using hierarchical path
+        if let baseBranch = analysis.base_branch,
+           let detailedBranch = analysis.detailed_branch,
+           !baseBranch.isEmpty,
+           !detailedBranch.isEmpty {
 
-        // ✅ FIX #2: Save weakness key for retry auto-detection
-        if !analysis.analysis_failed,
-           let errorType = analysis.error_type,
-           let primaryConcept = analysis.primary_concept {
+            let subject = allQuestions[index]["subject"] as? String ?? "Mathematics"
 
-            let subject = allQuestions[index]["subject"] as? String ?? "Unknown"
-            let questionType = allQuestions[index]["questionType"] as? String ?? "general"
+            // NEW format: "Mathematics/Algebra - Foundations/Linear Equations - One Variable"
+            let weaknessKey = "\(subject)/\(baseBranch)/\(detailedBranch)"
 
-            let weaknessKey = ShortTermStatusService.shared.generateKey(
-                subject: subject,
-                concept: primaryConcept,
-                questionType: questionType
-            )
-
-            allQuestions[index]["weaknessKey"] = weaknessKey  // ✅ SAVE IT
-            print("   🔑 [WeaknessTracking] Assigned weakness key: \(weaknessKey)")
-            print("      Subject: \(subject), Concept: \(primaryConcept), Type: \(questionType)")
+            allQuestions[index]["weaknessKey"] = weaknessKey
+            print("   🔑 [WeaknessTracking] Generated weakness key: \(weaknessKey)")
         } else {
             print("   ⚠️ [WeaknessTracking] Could NOT generate weakness key:")
-            print("      analysis_failed: \(analysis.analysis_failed)")
-            print("      error_type: \(analysis.error_type ?? "nil")")
-            print("      primary_concept: \(analysis.primary_concept ?? "nil") ❌")
+            print("      base_branch: \(analysis.base_branch ?? "nil")")
+            print("      detailed_branch: \(analysis.detailed_branch ?? "nil")")
         }
 
         // Save back to local storage (now includes weaknessKey)
         _ = localStorage.saveQuestions([allQuestions[index]])
 
-        print("✅ [ErrorAnalysis] Updated question \(questionId): \(analysis.error_type ?? "unknown") (concept: \(analysis.primary_concept ?? "N/A"))")
+        print("✅ [ErrorAnalysis] Updated question \(questionId): \(analysis.error_type ?? "unknown") (branch: \(analysis.detailed_branch ?? "N/A"))")
 
         // ✅ Update short-term status (use the weaknessKey we just saved)
         if let weaknessKey = allQuestions[index]["weaknessKey"] as? String,
@@ -288,13 +282,17 @@ struct ErrorAnalysisRequest: Codable {
 }
 
 struct ErrorAnalysisResponse: Codable {
-    let error_type: String?
-    let evidence: String?
-    let confidence: Double
-    let learning_suggestion: String?
-    let analysis_failed: Bool
+    // NEW: Hierarchical taxonomy fields
+    let base_branch: String?           // "Algebra - Foundations"
+    let detailed_branch: String?       // "Linear Equations - One Variable"
+    let specific_issue: String?        // AI-generated issue description
 
-    // ✅ FIX #1: Add concept extraction for weakness tracking
-    let primary_concept: String?      // e.g., "quadratic_equations"
-    let secondary_concept: String?    // e.g., "factoring" (optional)
+    // Updated: Error type (now 3 values instead of 9)
+    let error_type: String?            // "execution_error" | "conceptual_gap" | "needs_refinement"
+
+    // Existing fields (unchanged)
+    let evidence: String?
+    let learning_suggestion: String?
+    let confidence: Double
+    let analysis_failed: Bool
 }

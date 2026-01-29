@@ -493,6 +493,13 @@ class HomeworkProcessingRoutes {
       const duration = Date.now() - startTime;
       this.fastify.log.info(`✅ Question parsing completed: ${duration}ms`);
 
+      // 🔍 DEBUG: Log handwriting evaluation in response
+      if (result.data && result.data.handwriting_evaluation) {
+        this.fastify.log.info(`🔍 [HANDWRITING DEBUG - BACKEND] Received handwriting_evaluation from AI engine: ${JSON.stringify(result.data.handwriting_evaluation)}`);
+      } else {
+        this.fastify.log.warn(`⚠️ [HANDWRITING DEBUG - BACKEND] No handwriting_evaluation in AI engine response. Response keys: ${result.data ? Object.keys(result.data).join(', ') : 'N/A'}`);
+      }
+
       return reply.send({
         ...result.data,
         _gateway: {

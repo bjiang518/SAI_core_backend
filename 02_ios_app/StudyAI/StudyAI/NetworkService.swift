@@ -2608,6 +2608,21 @@ class NetworkService: ObservableObject {
         let decoder = JSONDecoder()
         let parseResponse = try decoder.decode(ParseHomeworkQuestionsResponse.self, from: data)
 
+        // 🔍 DEBUG: Log handwriting evaluation specifically
+        print("\n" + String(repeating: "=", count: 80))
+        print("🔍 [HANDWRITING DEBUG - iOS NetworkService]")
+        print(String(repeating: "=", count: 80))
+        if let handwriting = parseResponse.handwritingEvaluation {
+            print("✅ Handwriting Evaluation RECEIVED from backend:")
+            print("   - has_handwriting: \(handwriting.hasHandwriting)")
+            print("   - score: \(handwriting.score ?? -1)")
+            print("   - feedback: \(handwriting.feedback ?? "N/A")")
+        } else {
+            print("⚠️ NO handwriting_evaluation in parseResponse")
+            print("   Available response keys: subject, subjectConfidence, totalQuestions, questions, processingTimeMs, error")
+        }
+        print(String(repeating: "=", count: 80) + "\n")
+
         print("✅ === PHASE 1 COMPLETE ===")
         print("📚 Subject: \(parseResponse.subject) (confidence: \(parseResponse.subjectConfidence))")
         print("📊 Questions found: \(parseResponse.totalQuestions)")

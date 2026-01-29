@@ -125,7 +125,7 @@ class QuestionArchiveService: ObservableObject {
             archivedQuestions.append(archivedQuestion)
 
             // Build data for local storage
-            let questionData: [String: Any] = [
+            var questionData: [String: Any] = [
                 "id": questionId,
                 "subject": request.detectedSubject,
                 "questionText": question.questionText,
@@ -147,11 +147,33 @@ class QuestionArchiveService: ObservableObject {
                 "questionType": question.questionType ?? "",
                 "options": question.options ?? []
             ]
+
+            // ✅ Add image URL from request context if available
+            if let imageUrl = request.originalImageUrl, !imageUrl.isEmpty {
+                questionData["questionImageUrl"] = imageUrl
+            }
+
             questionDataForLocalStorage.append(questionData)
 
             print("   📝 [Archive] Question \(arrayIndex + 1): \(question.questionText.prefix(50))... (ID: \(questionId))")
             print("      ✓ Original grade: \(question.grade ?? "N/A") → Normalized: \(normalizedGrade ?? "N/A")")
             print("      ✓ isCorrect: \(isCorrect) \(isCorrect ? "✅" : "❌ MISTAKE")")
+            #if DEBUG
+            // Log what's being saved for critical fields
+            if let raw = question.rawQuestionText {
+                print("      📦 Saving rawQuestionText: \(raw.count) chars - '\(raw.prefix(60))'...")
+            } else {
+                print("      ⚠️ rawQuestionText is NIL - falling back to questionText (\(question.questionText.count) chars)")
+            }
+            if let imageUrl = request.originalImageUrl, !imageUrl.isEmpty {
+                print("      🖼️ Saving questionImageUrl from request: '\(imageUrl)'")
+            } else {
+                print("      ℹ️ No questionImageUrl in request")
+            }
+            if let feedback = question.feedback, !feedback.isEmpty {
+                print("      💡 Saving feedback: \(feedback.count) chars")
+            }
+            #endif
         }
 
         // ✅ Save to local storage ONLY - no server request
@@ -328,6 +350,48 @@ class QuestionArchiveService: ObservableObject {
         print("   ✅ [Archive] Successfully uploaded question (ID: \(questionId))")
 
         return questionId
+    }
+
+    // MARK: - Delete Questions
+
+    /// Delete all archived questions from the server
+    func deleteAllQuestionsFromServer() async throws -> Int {
+        guard let authToken = authToken else {
+            throw QuestionArchiveError.notAuthenticated
+        }
+
+        guard let url = URL(string: "\(baseURL)/api/archived-questions/clear-all") else {
+            throw QuestionArchiveError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+
+        print("   🗑️ [Archive] Deleting all questions from server: \(url)")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw QuestionArchiveError.invalidResponse
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            print("   ❌ [Archive] Server returned error: \(httpResponse.statusCode)")
+            if let errorText = String(data: data, encoding: .utf8) {
+                print("   ❌ [Archive] Error response: \(errorText)")
+            }
+            throw QuestionArchiveError.archiveFailed("Server returned status code \(httpResponse.statusCode)")
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let deletedCount = json["deletedCount"] as? Int else {
+            throw QuestionArchiveError.invalidData
+        }
+
+        print("   ✅ [Archive] Successfully deleted \(deletedCount) questions from server")
+
+        return deletedCount
     }
 
     // MARK: - Helper Methods (kept for StorageSyncService data conversion)
