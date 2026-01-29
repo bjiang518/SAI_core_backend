@@ -64,6 +64,7 @@ from src.middleware.service_auth import (
 # Import diagram generation routes
 from src.routes.diagram import router as diagram_router
 from src.routes.error_analysis import router as error_analysis_router
+from src.routes.concept_extraction import router as concept_extraction_router
 
 # Initialize Redis client (optional)
 redis_client = None
@@ -205,6 +206,9 @@ app.include_router(diagram_router)
 
 # Register error analysis routes (Pass 2 - Two-Pass Grading)
 app.include_router(error_analysis_router)
+
+# Register concept extraction routes (Bidirectional Status Tracking)
+app.include_router(concept_extraction_router)
 
 # Initialize AI services
 ai_service = EducationalAIService()

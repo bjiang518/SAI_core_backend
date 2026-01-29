@@ -19,6 +19,9 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     private let logger = AppLogger.forFeature("ProMode")
 
+    // ✅ Debug mode flag - set to false to disable verbose logs
+    private static let isDebugMode = false  // Set to true for verbose debugging
+
     // MARK: - Global State Manager
 
     // ✅ Use @ObservedObject to react to state changes
@@ -201,9 +204,11 @@ class DigitalHomeworkViewModel: ObservableObject {
     /// ✅ DEPRECATED: Setup is now handled by StateManager.parseHomework()
     /// This method is kept for backward compatibility during migration
     func setup(parseResults: ParseHomeworkQuestionsResponse, originalImage: UIImage) {
-        logger.debug("[ViewModel] setup() called - redirecting to global state")
-        logger.debug("State should already be .parsed from HomeworkSummaryView")
-        logger.debug("Current state: \(stateManager.currentState)")
+        if Self.isDebugMode {
+            logger.debug("[ViewModel] setup() called - redirecting to global state")
+            logger.debug("State should already be .parsed from HomeworkSummaryView")
+            logger.debug("Current state: \(stateManager.currentState)")
+        }
 
         // State should already be set by HomeworkSummaryView calling stateManager.parseHomework()
         // If not, set it now (fallback for migration)
@@ -245,7 +250,9 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         selectedAnnotationId = newAnnotation.id
 
-        logger.debug("Created annotation at (\(Int(point.x)), \(Int(point.y)))")
+        if Self.isDebugMode {
+            logger.debug("Created annotation at (\(Int(point.x)), \(Int(point.y)))")
+        }
     }
 
     func updateAnnotationQuestionNumber(annotationId: UUID, questionNumber: String) {
@@ -1130,11 +1137,16 @@ class DigitalHomeworkViewModel: ObservableObject {
 
             let question = questionWithGrade.question
 
-            // ✅ NEW: Check if this is a parent question with subquestions
+            // ✅ FIX: Check if this is a parent question with subquestions
             if question.isParentQuestion, let subquestions = question.subquestions, !subquestions.isEmpty {
                 logger.debug("Q\(questionId): Detected parent question with \(subquestions.count) subquestions")
                 let subquestionIds = subquestions.map { $0.id }
                 subquestionsToArchive.append((parentId: questionId, subquestionIds: subquestionIds))
+
+                // ✅ FIX: Skip archiving parent question itself - only archive subquestions
+                // Parent content is already included in each subquestion's rawQuestionText (see archiveSubquestions)
+                logger.debug("Q\(questionId): Skipping parent question archive (will archive \(subquestions.count) subquestions separately)")
+                continue  // Skip to next question
             }
 
             // Save cropped image to file system if available
@@ -1234,6 +1246,29 @@ class DigitalHomeworkViewModel: ObservableObject {
                 wrongQuestions: wrongQuestions
             )
             logger.info("Queued \(wrongQuestions.count) wrong answers for Pass 2 error analysis")
+        }
+
+        // ✅ NEW: Queue concept extraction for CORRECT answers (Bidirectional Status Tracking)
+        var correctQuestions = questionsToArchive.filter {
+            ($0["isCorrect"] as? Bool) == true
+        }
+
+        // ✅ CRITICAL: Remap IDs to actual saved IDs (handles duplicate detection)
+        if !correctQuestions.isEmpty {
+            for index in 0..<correctQuestions.count {
+                if let originalId = correctQuestions[index]["id"] as? String,
+                   let mapping = idMappings.first(where: { $0.originalId == originalId }) {
+                    correctQuestions[index]["id"] = mapping.savedId
+                    logger.debug("Remapped concept extraction ID: \(originalId.prefix(8))... → \(mapping.savedId.prefix(8))...")
+                }
+            }
+
+            let sessionId = UUID().uuidString // Generate session ID for this grading batch
+            ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(
+                sessionId: sessionId,
+                correctQuestions: correctQuestions
+            )
+            logger.info("✅ Queued \(correctQuestions.count) CORRECT answers for concept extraction (mastery tracking)")
         }
 
         // ✅ NEW: Archive all subquestions for parent questions
@@ -1343,6 +1378,21 @@ class DigitalHomeworkViewModel: ObservableObject {
 
                 logger.info("Progress marked successfully")
                 logger.debug("hasMarkedProgress flag set in StateManager")
+
+                // ✅ NEW: Record handwriting score if available
+                if let handwriting = stateManager.currentHomework?.parseResults.handwritingEvaluation,
+                   handwriting.hasHandwriting,
+                   let score = handwriting.score {
+
+                    ShortTermStatusService.shared.recordHandwritingScore(
+                        score: score,
+                        feedback: handwriting.feedback,
+                        subject: subject,
+                        questionCount: totalQuestions
+                    )
+
+                    logger.info("✅ Recorded handwriting score: \(score)/10")
+                }
             }
         }
     }

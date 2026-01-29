@@ -219,6 +219,203 @@ struct HandwritingEvaluationCompactView: View {
     }
 }
 
+// MARK: - Expandable Card (for question list section)
+
+struct HandwritingEvaluationExpandableCard: View {
+    let evaluation: HandwritingEvaluation
+    @State private var isExpanded: Bool = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Tappable header
+            Button(action: {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack(spacing: 12) {
+                    // Icon
+                    ZStack {
+                        Circle()
+                            .fill(scoreColor.opacity(0.15))
+                            .frame(width: 36, height: 36)
+
+                        Image(systemName: "pencil.and.scribble")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(scoreColor)
+                    }
+
+                    // Title
+                    Text("Handwriting Quality")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.primary)
+
+                    Spacer()
+
+                    // Score badge
+                    if let score = evaluation.score {
+                        HStack(spacing: 4) {
+                            Text("\(Int(score))")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+
+                            Text("/10")
+                                .font(.system(size: 12))
+                                .foregroundColor(.white.opacity(0.9))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(scoreColor)
+                        .cornerRadius(10)
+                        .shadow(color: scoreColor.opacity(0.3), radius: 4, x: 0, y: 2)
+                    }
+
+                    // Chevron indicator
+                    Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(scoreColor)
+                        .rotationEffect(.degrees(isExpanded ? 0 : 0))
+                }
+                .padding()
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            // Expandable content
+            if isExpanded {
+                VStack(spacing: 12) {
+                    Divider()
+                        .padding(.horizontal)
+
+                    VStack(spacing: 12) {
+                        // Progress bar with tier label
+                        if let score = evaluation.score {
+                            VStack(spacing: 8) {
+                                // Progress bar
+                                GeometryReader { geometry in
+                                    ZStack(alignment: .leading) {
+                                        // Background
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(Color(.systemGray5))
+                                            .frame(height: 10)
+
+                                        // Filled portion
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [scoreColor, scoreColor.opacity(0.7)],
+                                                    startPoint: .leading,
+                                                    endPoint: .trailing
+                                                )
+                                            )
+                                            .frame(width: geometry.size.width * CGFloat(score / 10.0), height: 10)
+                                            .shadow(color: scoreColor.opacity(0.3), radius: 2, x: 0, y: 1)
+                                    }
+                                }
+                                .frame(height: 10)
+
+                                // Tier label
+                                HStack {
+                                    Text(qualityLabel)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+
+                                    Spacer()
+
+                                    Text(scoreDescription)
+                                        .font(.caption)
+                                        .foregroundColor(scoreColor)
+                                        .fontWeight(.semibold)
+                                }
+                            }
+                        }
+
+                        // Feedback text
+                        if let feedback = evaluation.feedback, !feedback.isEmpty {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: "quote.bubble.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(scoreColor.opacity(0.7))
+                                    .offset(y: 2)
+
+                                Text(feedback)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(scoreColor.opacity(0.06))
+                            )
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom)
+                }
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .top)),
+                    removal: .opacity.combined(with: .move(edge: .top))
+                ))
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(scoreColor.opacity(isExpanded ? 0.3 : 0.15), lineWidth: 1.5)
+        )
+    }
+
+    // Color coding based on score
+    private var scoreColor: Color {
+        guard let score = evaluation.score else {
+            return .gray
+        }
+
+        switch score {
+        case 9...10: return .green
+        case 7..<9: return .blue
+        case 5..<7: return .orange
+        case 3..<5: return .red.opacity(0.8)
+        default: return .red
+        }
+    }
+
+    // Quality label based on score
+    private var qualityLabel: String {
+        guard let score = evaluation.score else {
+            return "No handwriting detected"
+        }
+
+        switch score {
+        case 9...10: return "Exceptional"
+        case 7..<9: return "Clear"
+        case 5..<7: return "Readable"
+        case 3..<5: return "Difficult"
+        default: return "Illegible"
+        }
+    }
+
+    // Score description
+    private var scoreDescription: String {
+        guard let score = evaluation.score else {
+            return ""
+        }
+
+        switch score {
+        case 9...10: return "Very clear and consistent"
+        case 7..<9: return "Well-formed and readable"
+        case 5..<7: return "Understandable"
+        case 3..<5: return "Hard to read"
+        default: return "Very difficult to decipher"
+        }
+    }
+}
+
 // MARK: - Preview
 
 #Preview("Exceptional") {
@@ -292,4 +489,40 @@ struct HandwritingEvaluationCompactView: View {
         )
     }
     .padding()
+}
+
+#Preview("Expandable Card - Exceptional") {
+    HandwritingEvaluationExpandableCard(
+        evaluation: HandwritingEvaluation(
+            hasHandwriting: true,
+            score: 9.5,
+            feedback: "Excellent handwriting! Very clear and consistent letter formation with proper spacing."
+        )
+    )
+    .padding()
+    .background(Color(uiColor: .systemGroupedBackground))
+}
+
+#Preview("Expandable Card - Clear") {
+    HandwritingEvaluationExpandableCard(
+        evaluation: HandwritingEvaluation(
+            hasHandwriting: true,
+            score: 7.5,
+            feedback: "Good handwriting with well-formed letters and consistent spacing."
+        )
+    )
+    .padding()
+    .background(Color(uiColor: .systemGroupedBackground))
+}
+
+#Preview("Expandable Card - Readable") {
+    HandwritingEvaluationExpandableCard(
+        evaluation: HandwritingEvaluation(
+            hasHandwriting: true,
+            score: 5.5,
+            feedback: "Handwriting is readable but has some inconsistencies in letter size and spacing."
+        )
+    )
+    .padding()
+    .background(Color(uiColor: .systemGroupedBackground))
 }

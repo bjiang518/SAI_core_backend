@@ -22,6 +22,7 @@ const AnalyticsRoutes = require('./modules/analytics');
 const DiagramGenerationRoutes = require('./modules/diagram-generation'); // NEW: AI diagram generation
 const ErrorAnalysisRoutes = require('./modules/error-analysis'); // NEW: Pass 2 error analysis
 const WeaknessDescriptionRoutes = require('./modules/weakness-description'); // NEW: Weakness description generation
+const ConceptExtractionRoutes = require('./modules/concept-extraction'); // NEW: Bidirectional status tracking
 
 /**
  * Register all AI routes
@@ -79,6 +80,14 @@ async function aiRoutes(fastify, opts) {
     fastify.log.info(`  ✅ Weakness Description Generation routes registered`);
   } catch (error) {
     fastify.log.error(`  ❌ Failed to register Weakness Description routes:`, error);
+  }
+
+  // Register concept extraction routes (NEW: Bidirectional Status Tracking)
+  try {
+    await fastify.register(ConceptExtractionRoutes);
+    fastify.log.info(`  ✅ Concept Extraction (Bidirectional Tracking) routes registered`);
+  } catch (error) {
+    fastify.log.error(`  ❌ Failed to register Concept Extraction routes:`, error);
   }
 
   fastify.log.info('✅ All AI routes registered successfully');

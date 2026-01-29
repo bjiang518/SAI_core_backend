@@ -1496,6 +1496,7 @@
 "proMode.tapToAnnotate" = "Tap to create annotation box";
 "proMode.done" = "Done";
 "proMode.selectQuestionNumber" = "Select Question Number";
+"proMode.questionPrefix" = "Q";
 "proMode.questionNumber" = "Q %@";
 "proMode.studentAnswer" = "Student Answer";
 "proMode.grading" = "Grading %d/%d";

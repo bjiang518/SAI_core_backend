@@ -35,20 +35,6 @@ struct DigitalHomeworkView: View {
     // MARK: - Body
 
     var body: some View {
-        // 🔍 DEBUG: Log handwriting evaluation availability at view render time
-        let _ = print("\n" + String(repeating: "=", count: 80))
-        let _ = print("🔍 [HANDWRITING DEBUG - DigitalHomeworkView body]")
-        let _ = print(String(repeating: "=", count: 80))
-        let _ = print("parseResults.handwritingEvaluation: \(parseResults.handwritingEvaluation != nil ? "EXISTS" : "NIL")")
-        if let handwriting = parseResults.handwritingEvaluation {
-            let _ = print("   - has_handwriting: \(handwriting.hasHandwriting)")
-            let _ = print("   - score: \(handwriting.score ?? -1)")
-            let _ = print("   - feedback: \(handwriting.feedback ?? "N/A")")
-        } else {
-            let _ = print("   ⚠️ parseResults.handwritingEvaluation is NIL")
-        }
-        let _ = print(String(repeating: "=", count: 80) + "\n")
-
         ZStack {
             if viewModel.showAnnotationMode {
                 // 标注模式: 全屏图片 + 底部控制面板
@@ -251,25 +237,17 @@ struct DigitalHomeworkView: View {
 
     private var gradingCompletedScrollableSection: some View {
         VStack(spacing: 12) {
+            // ✅ Handwriting Evaluation Expandable Card (shown after grading)
+            if let parseResults = viewModel.parseResults,
+               let handwriting = parseResults.handwritingEvaluation,
+               handwriting.hasHandwriting {
+                HandwritingEvaluationExpandableCard(evaluation: handwriting)
+                    .padding(.horizontal)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
             // Expanded accuracy card with slide-to-mark progress
             accuracyCardWithSlideToMark
-
-            // ✅ Handwriting Evaluation (Pro Mode - displayed after grading)
-            // 🔍 DEBUG: Log right before rendering handwriting evaluation
-            let _ = print("🔍 [HANDWRITING DEBUG - gradingCompletedSection] Checking handwriting evaluation...")
-            let _ = print("   parseResults.handwritingEvaluation != nil: \(parseResults.handwritingEvaluation != nil)")
-            if let handwriting = parseResults.handwritingEvaluation {
-                let _ = print("   handwriting.hasHandwriting: \(handwriting.hasHandwriting)")
-                if handwriting.hasHandwriting {
-                    let _ = print("   ✅ RENDERING HandwritingEvaluationView with score: \(handwriting.score ?? -1)")
-                    HandwritingEvaluationView(evaluation: handwriting)
-                        .padding(.top, 4)
-                } else {
-                    let _ = print("   ⚠️ handwriting.hasHandwriting is FALSE - NOT rendering")
-                }
-            } else {
-                let _ = print("   ⚠️ parseResults.handwritingEvaluation is NIL - NOT rendering")
-            }
 
             // ✅ NEW: Revert button (appears only after grading)
             revertButton
@@ -735,14 +713,6 @@ struct DigitalHomeworkView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.black.opacity(0.3))
 
-            // ✅ Handwriting Evaluation (Pro Mode only - if available from parsing)
-            if let handwriting = parseResults.handwritingEvaluation,
-               handwriting.hasHandwriting {
-                HandwritingEvaluationCompactView(evaluation: handwriting)
-                    .padding(.horizontal, 12)
-                    .padding(.top, 8)
-            }
-
             // 添加标注按钮
             Button(action: {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
@@ -856,11 +826,16 @@ struct DigitalHomeworkView: View {
                         }) {
                             HStack {
                                 // Question number and preview text on same line
+                                // ✅ IMPROVED: Show 50 characters instead of 8, allow 2-line wrapping
                                 if let question = viewModel.questions.first(where: { $0.question.questionNumber == number }) {
-                                    let previewText = String(question.question.displayText.prefix(8))
-                                    Text("题 \(number): \(previewText)\(question.question.displayText.count > 8 ? "..." : "")")
+                                    let previewText = String(question.question.displayText.prefix(50))
+                                    let questionPrefix = NSLocalizedString("proMode.questionPrefix", comment: "Question prefix (Q/题)")
+                                    Text("\(questionPrefix) \(number): \(previewText)\(question.question.displayText.count > 50 ? "..." : "")")
+                                        .lineLimit(2)  // Allow wrapping to 2 lines for long questions
+                                        .fixedSize(horizontal: false, vertical: true)
                                 } else {
-                                    Text("题 \(number)")
+                                    let questionPrefix = NSLocalizedString("proMode.questionPrefix", comment: "Question prefix (Q/题)")
+                                    Text("\(questionPrefix) \(number)")
                                 }
 
                                 Spacer()
@@ -941,7 +916,8 @@ struct DigitalHomeworkView: View {
         return VStack(alignment: .leading, spacing: 12) {
             // Question header
             HStack {
-                Text("题 \(questionWithGrade.question.questionNumber ?? "?")")
+                let questionPrefix = NSLocalizedString("proMode.questionPrefix", comment: "Question prefix (Q/题)")
+                Text("\(questionPrefix) \(questionWithGrade.question.questionNumber ?? "?")")
                     .font(.headline)
                     .foregroundColor(.primary)
             }
@@ -1329,7 +1305,8 @@ struct QuestionCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 // Question header
                 HStack {
-                    Text("题 \(questionWithGrade.question.questionNumber ?? "?")")
+                    let questionPrefix = NSLocalizedString("proMode.questionPrefix", comment: "Question prefix (Q/题)")
+                    Text("\(questionPrefix) \(questionWithGrade.question.questionNumber ?? "?")")
                         .font(.headline)
                         .foregroundColor(.primary)
 
@@ -1767,7 +1744,8 @@ struct AnnotationQuestionPreviewCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("题 \(questionWithGrade.question.questionNumber ?? "?")")
+                let questionPrefix = NSLocalizedString("proMode.questionPrefix", comment: "Question prefix (Q/题)")
+                Text("\(questionPrefix) \(questionWithGrade.question.questionNumber ?? "?")")
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.blue)

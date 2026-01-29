@@ -56,6 +56,90 @@ class ErrorAnalysisQueueService: ObservableObject {
         await analyzeBatch(sessionId: "retry", questions: failedQuestions)
     }
 
+    // MARK: - Concept Extraction (Bidirectional Status Tracking)
+
+    /// Extract concepts for CORRECT answers to reduce weakness values
+    /// Called immediately after grading for correct answers
+    func queueConceptExtractionForCorrectAnswers(sessionId: String, correctQuestions: [[String: Any]]) {
+        guard !correctQuestions.isEmpty else {
+            print("📊 [ConceptExtraction] No correct answers - skipping")
+            return
+        }
+
+        print("📊 [ConceptExtraction] Queuing concept extraction for \(correctQuestions.count) correct answers")
+
+        Task {
+            await extractConceptsBatch(sessionId: sessionId, questions: correctQuestions)
+        }
+    }
+
+    /// Extract concepts for a batch of correct questions
+    private func extractConceptsBatch(sessionId: String, questions: [[String: Any]]) async {
+        print("📊 [ConceptExtraction] Starting batch extraction for \(questions.count) questions")
+
+        // Build extraction requests
+        let extractionRequests = questions.compactMap { question -> ConceptExtractionRequest? in
+            let questionText = question["questionText"] as? String ?? ""
+            let subject = question["subject"] as? String ?? "Mathematics"
+
+            print("📝 [ConceptExtraction] Building request for Q: '\(questionText.prefix(50))...'")
+
+            return ConceptExtractionRequest(
+                questionText: questionText,
+                subject: subject
+            )
+        }
+
+        do {
+            print("📤 [ConceptExtraction] Sending \(extractionRequests.count) requests to backend")
+
+            let concepts = try await NetworkService.shared.extractConceptsBatch(
+                questions: extractionRequests
+            )
+
+            print("📥 [ConceptExtraction] Received \(concepts.count) concepts from backend")
+
+            // Update ShortTermStatusService with negative values (mastery)
+            for (index, concept) in concepts.enumerated() {
+                guard index < questions.count else { continue }
+
+                if let baseBranch = concept.baseBranch,
+                   let detailedBranch = concept.detailedBranch,
+                   !concept.extractionFailed {
+
+                    // Build weakness key: "Subject/Base Branch/Detailed Branch"
+                    let weaknessKey = "\(concept.subject)/\(baseBranch)/\(detailedBranch)"
+                    let questionId = questions[index]["id"] as? String
+
+                    print("✅ [ConceptExtraction] Correct answer detected:")
+                    print("   Key: \(weaknessKey)")
+                    print("   Reducing weakness value (mastery bonus)")
+
+                    // ✅ BIDIRECTIONAL TRACKING: Correct answer reduces weakness
+                    ShortTermStatusService.shared.recordCorrectAttempt(
+                        key: weaknessKey,
+                        retryType: .firstTime,
+                        questionId: questionId
+                    )
+                } else {
+                    print("⚠️ [ConceptExtraction] Extraction failed for question \(index)")
+                }
+            }
+
+            print("✅ [ConceptExtraction] Completed extraction for \(concepts.count) questions")
+
+            // Post notification for UI update
+            NotificationCenter.default.post(
+                name: NSNotification.Name("ConceptExtractionCompleted"),
+                object: nil,
+                userInfo: ["sessionId": sessionId, "count": concepts.count]
+            )
+
+        } catch {
+            print("❌ [ConceptExtraction] Batch extraction failed: \(error)")
+        }
+    }
+
     // MARK: - Private Implementation
 
     private func analyzeBatch(sessionId: String, questions: [[String: Any]]) async {
@@ -295,4 +379,34 @@ struct ErrorAnalysisResponse: Codable {
     let learning_suggestion: String?
     let confidence: Double
     let analysis_failed: Bool
+}
+
+// MARK: - Concept Extraction Models (Bidirectional Status Tracking)
+
+/// Request for lightweight concept extraction (CORRECT answers only)
+/// Much simpler than error analysis - only needs question text and subject
+struct ConceptExtractionRequest: Codable {
+    let questionText: String
+    let subject: String
+
+    enum CodingKeys: String, CodingKey {
+        case questionText = "question_text"
+        case subject
+    }
+}
+
+/// Response from concept extraction (ONLY taxonomy, no error analysis)
+/// Used to reduce weakness values when students answer correctly
+struct ConceptExtractionResponse: Codable {
+    let subject: String
+    let baseBranch: String?
+    let detailedBranch: String?
+    let extractionFailed: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case subject
+        case baseBranch = "base_branch"
+        case detailedBranch = "detailed_branch"
+        case extractionFailed = "extraction_failed"
+    }
 }

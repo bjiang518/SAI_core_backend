@@ -325,119 +325,82 @@ struct ModernProfileView: View {
                     Button(action: { showingEditProfile = true }) {
                         HStack(spacing: 16) {
                             // Profile Image / Avatar
-                            if let profile = profileService.currentProfile,
-                               let customAvatarUrl = profile.customAvatarUrl, !customAvatarUrl.isEmpty {
-                                // Display custom avatar from LOCAL FILE (instant loading)
-                                let _ = print("🖼️ [ContentView] Displaying CUSTOM avatar")
-                                let _ = print("🖼️ [ContentView] Custom avatar URL: \(customAvatarUrl.prefix(100))...")
+                            // ✅ LOCAL-FIRST APPROACH: Try local data first, fall back to server
+                            let _ = print("🖼️ [ContentView] Loading avatar (local-first approach)")
 
-                                // Load from local file URL (file://)
-                                if customAvatarUrl.hasPrefix("file://"), let url = URL(string: customAvatarUrl) {
-                                    let _ = print("📁 [ContentView] Loading from LOCAL file")
-                                    if let imageData = try? Data(contentsOf: url),
-                                       let uiImage = UIImage(data: imageData) {
-                                        let _ = print("✅ [ContentView] Local file loaded successfully")
-                                        Image(uiImage: uiImage)
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                            .frame(width: 60, height: 60)
-                                            .clipShape(Circle())
-                                            .id("\(customAvatarUrl)-\(refreshID)")  // Force refresh when avatar URL or refreshID changes
-                                    } else {
-                                        // Fallback if local file fails
-                                        let _ = print("❌ [ContentView] Failed to load local file, showing fallback")
-                                        ZStack {
-                                            Circle()
-                                                .fill(LinearGradient(
-                                                    colors: [.blue, .purple],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ))
-                                                .frame(width: 60, height: 60)
+                            // Priority 1: Try to load custom avatar from local filename
+                            if let localFilename = UserDefaults.standard.string(forKey: "localAvatarFilename"),
+                               let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+                                let fileURL = documentsDirectory.appendingPathComponent(localFilename)
+                                let _ = print("📁 [ContentView] Trying LOCAL custom avatar: \(localFilename)")
 
-                                            Image(systemName: "person.fill")
-                                                .font(.title)
-                                                .foregroundColor(.white)
-                                        }
-                                    }
+                                if let imageData = try? Data(contentsOf: fileURL),
+                                   let uiImage = UIImage(data: imageData) {
+                                    let _ = print("✅ [ContentView] Loaded custom avatar from LOCAL file")
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 60, height: 60)
+                                        .clipShape(Circle())
+                                        .id(localFilename)
                                 } else {
-                                    // Legacy: data URL or HTTP URL - use AsyncImage
-                                    let _ = print("🌐 [ContentView] Loading from SERVER URL (legacy)")
-                                    AsyncImage(url: URL(string: customAvatarUrl)) { phase in
-                                        switch phase {
-                                        case .empty:
-                                            let _ = print("🖼️ [ContentView] AsyncImage: Loading...")
-                                            ProgressView()
-                                                .frame(width: 60, height: 60)
-                                        case .success(let image):
-                                            let _ = print("✅ [ContentView] AsyncImage: SUCCESS")
-                                            image
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fill)
-                                                .frame(width: 60, height: 60)
-                                                .clipShape(Circle())
-                                        case .failure(let error):
-                                            // Fallback to gradient circle on failure
-                                            let _ = print("❌ [ContentView] AsyncImage: FAILED - \(error.localizedDescription)")
-                                            ZStack {
-                                                Circle()
-                                                    .fill(LinearGradient(
-                                                        colors: [.blue, .purple],
-                                                        startPoint: .topLeading,
-                                                        endPoint: .bottomTrailing
-                                                    ))
-                                                    .frame(width: 60, height: 60)
-
-                                                Image(systemName: "person.fill")
-                                                    .font(.title)
-                                                    .foregroundColor(.white)
-                                            }
-                                        @unknown default:
-                                            EmptyView()
-                                        }
-                                    }
-                                    .id("\(customAvatarUrl)-\(refreshID)")  // Force refresh when avatar URL or refreshID changes
+                                    let _ = print("⚠️ [ContentView] Local custom avatar file not found")
+                                    fallbackAvatarCircle()
                                 }
-                            } else if let profile = profileService.currentProfile,
-                               let avatarId = profile.avatarId,
-                               let avatar = ProfileAvatar.from(id: avatarId) {
-                                // Display selected preset avatar
-                                let _ = print("🖼️ [ContentView] Displaying PRESET avatar: \(avatarId)")
+                            }
+                            // Priority 2: Try to load preset avatar from local UserDefaults
+                            else if let localAvatarId = UserDefaults.standard.object(forKey: "selectedAvatarId") as? Int,
+                                    let avatar = ProfileAvatar.from(id: localAvatarId) {
+                                let _ = print("🎨 [ContentView] Loaded preset avatar from LOCAL: ID \(localAvatarId)")
                                 Image(avatar.imageName)
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
                                     .frame(width: 60, height: 60)
                                     .clipShape(Circle())
-                                    .id(avatarId)  // Force refresh when avatar changes
-                            } else {
-                                // Fallback to gradient circle with initial
-                                let _ = print("🖼️ [ContentView] Displaying FALLBACK avatar")
-                                if let profile = profileService.currentProfile {
-                                    let _ = print("🖼️ [ContentView] Profile exists but customAvatarUrl=\(profile.customAvatarUrl ?? "nil"), avatarId=\(profile.avatarId?.description ?? "nil")")
-                                } else {
-                                    let _ = print("🖼️ [ContentView] No profile in ProfileService")
-                                }
-                                ZStack {
-                                    Circle()
-                                        .fill(LinearGradient(
-                                            colors: [.blue, .purple],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ))
-                                        .frame(width: 60, height: 60)
-
-                                    if let user = authService.currentUser {
-                                        Text(String(user.name.prefix(1)))
-                                            .font(.title)
-                                            .fontWeight(.bold)
-                                            .foregroundColor(.white)
-                                    } else {
-                                        Image(systemName: "person.fill")
-                                            .font(.title)
-                                            .foregroundColor(.white)
+                                    .id("preset-\(localAvatarId)")
+                            }
+                            // Priority 3: Fall back to server custom avatar (data URL)
+                            else if let profile = profileService.currentProfile,
+                                    let customAvatarUrl = profile.customAvatarUrl,
+                                    !customAvatarUrl.isEmpty {
+                                let _ = print("🌐 [ContentView] Loading custom avatar from SERVER backup")
+                                AsyncImage(url: URL(string: customAvatarUrl)) { phase in
+                                    switch phase {
+                                    case .empty:
+                                        ProgressView()
+                                            .frame(width: 60, height: 60)
+                                    case .success(let image):
+                                        let _ = print("✅ [ContentView] Loaded custom avatar from SERVER")
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                            .frame(width: 60, height: 60)
+                                            .clipShape(Circle())
+                                    case .failure(let error):
+                                        let _ = print("❌ [ContentView] Server custom avatar failed: \(error.localizedDescription)")
+                                        fallbackAvatarCircle()
+                                    @unknown default:
+                                        EmptyView()
                                     }
                                 }
-                                .id("no-avatar")  // Stable ID for fallback state
+                            }
+                            // Priority 4: Fall back to server preset avatar
+                            else if let profile = profileService.currentProfile,
+                                    let avatarId = profile.avatarId,
+                                    let avatar = ProfileAvatar.from(id: avatarId) {
+                                let _ = print("🌐 [ContentView] Loaded preset avatar from SERVER: ID \(avatarId)")
+                                Image(avatar.imageName)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(Circle())
+                                    .id("preset-server-\(avatarId)")
+                            }
+                            // Priority 5: Show fallback avatar with user initial
+                            else {
+                                // Fallback to gradient circle with initial
+                                let _ = print("🖼️ [ContentView] Displaying FALLBACK avatar")
+                                fallbackAvatarCircle()
                             }
 
                             VStack(alignment: .leading, spacing: 4) {
@@ -731,6 +694,31 @@ struct ModernProfileView: View {
             return "applelogo"
         case .phone:
             return "phone.fill"
+        }
+    }
+
+    // Helper function for fallback avatar
+    @ViewBuilder
+    private func fallbackAvatarCircle() -> some View {
+        ZStack {
+            Circle()
+                .fill(LinearGradient(
+                    colors: [.blue, .purple],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+                .frame(width: 60, height: 60)
+
+            if let user = authService.currentUser {
+                Text(String(user.name.prefix(1)))
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+            } else {
+                Image(systemName: "person.fill")
+                    .font(.title)
+                    .foregroundColor(.white)
+            }
         }
     }
 }

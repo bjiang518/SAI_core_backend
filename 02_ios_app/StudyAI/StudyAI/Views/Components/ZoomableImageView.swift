@@ -122,7 +122,13 @@ struct AnnotatableImageView: View {
                 let rect = ann.rect(in: fittedSize)
 
                 Rectangle()
-                    .stroke(ann.color, lineWidth: 2)
+                    .stroke(
+                        ann.color,
+                        style: StrokeStyle(
+                            lineWidth: 2,
+                            dash: ann.questionNumber == nil ? [5, 5] : []  // ✅ Dashed if unmapped
+                        )
+                    )
                     .background(Rectangle().fill(ann.color.opacity(0.1)))
                     .frame(width: rect.width, height: rect.height)
                     .position(x: rect.midX, y: rect.midY)
@@ -214,12 +220,11 @@ struct AnnotationOverlay: View {
         let color = colorPalette[newColorIndex % colorPalette.count]
         newColorIndex += 1
 
-        var ann = QuestionAnnotation.from(rect: rect, in: fittedImageSize, color: color)
+        let ann = QuestionAnnotation.from(rect: rect, in: fittedImageSize, color: color)
 
-        // assign question number (if exists but optional)
-        if annotations.count < availableNumbers.count {
-            ann.questionNumber = availableNumbers[annotations.count]
-        }
+        // ✅ FIX: Do NOT auto-assign question number - user must select manually
+        // This prevents confusion with pseudo/auto-generated labels
+        // Annotation will show with NO badge until user explicitly selects a question
 
         annotations.append(ann)
         selectedAnnotationId = ann.id
@@ -254,7 +259,13 @@ struct InteractiveAnnotationBox: View {
 
         ZStack {
             Rectangle()
-                .stroke(annotation.color, lineWidth: isSelected ? 4 : 2)
+                .stroke(
+                    annotation.color,
+                    style: StrokeStyle(
+                        lineWidth: isSelected ? 4 : 2,
+                        dash: annotation.questionNumber == nil ? [8, 4] : []  // ✅ Dashed if unmapped
+                    )
+                )
                 .background(Rectangle().fill(annotation.color.opacity(isSelected ? 0.15 : 0.05)))
                 .frame(width: rect.width, height: rect.height)
                 .position(x: rect.midX, y: rect.minY + rect.height / 2)

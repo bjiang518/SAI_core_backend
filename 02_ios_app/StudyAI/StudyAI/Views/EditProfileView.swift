@@ -572,24 +572,28 @@ struct EditProfileView: View {
             learningStyle = profile.learningStyle ?? ""
             timezone = profile.timezone ?? "UTC"
             languagePreference = profile.languagePreference ?? "en"
-            selectedAvatarId = profile.avatarId
 
-            // Load custom avatar image if exists
-            if let customAvatarUrl = profile.customAvatarUrl, !customAvatarUrl.isEmpty {
-                // Check if it's a local file URL
-                if customAvatarUrl.hasPrefix("file://") {
-                    // Load from local file synchronously
-                    if let localImage = loadAvatarLocally(from: customAvatarUrl) {
+            // ✅ LOCAL-FIRST: Load avatar selection from UserDefaults (not server)
+            if let localAvatarId = UserDefaults.standard.object(forKey: "selectedAvatarId") as? Int {
+                selectedAvatarId = localAvatarId
+                print("🎨 [EditProfileView] Loaded preset avatar from LOCAL: ID \(localAvatarId)")
+            } else if let serverAvatarId = profile.avatarId {
+                // Fall back to server if local not set (migration)
+                selectedAvatarId = serverAvatarId
+                UserDefaults.standard.set(serverAvatarId, forKey: "selectedAvatarId")
+                print("🌐 [EditProfileView] Loaded preset avatar from SERVER (migrated): ID \(serverAvatarId)")
+            }
+
+            // ✅ LOCAL-FIRST: Load custom avatar from local filename
+            if let localFilename = UserDefaults.standard.string(forKey: "localAvatarFilename") {
+                print("📁 [EditProfileView] Loading custom avatar from LOCAL filename: \(localFilename)")
+                if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+                    let fileURL = documentsDirectory.appendingPathComponent(localFilename)
+                    if let localImage = loadAvatarLocally(from: localFilename) {
                         customAvatarImage = localImage
-                        print("✅ [EditProfileView] Custom avatar loaded from local file")
+                        print("✅ [EditProfileView] Custom avatar loaded from LOCAL file")
                     } else {
-                        print("⚠️ [EditProfileView] Failed to load custom avatar from local file")
-                    }
-                } else {
-                    // MIGRATION: Convert data URL or HTTP URL to local file
-                    print("🔄 [EditProfileView] Migrating avatar from data/HTTP URL to local file...")
-                    Task {
-                        await migrateAvatarToLocalStorage(from: customAvatarUrl)
+                        print("⚠️ [EditProfileView] Failed to load custom avatar from LOCAL file")
                     }
                 }
             }
@@ -633,27 +637,37 @@ struct EditProfileView: View {
         }
 
         // Upload custom avatar if exists
-        var customAvatarUrl: String? = nil
         if customAvatarImage != nil {
             print("📸 [EditProfileView] Processing custom avatar...")
 
             // Delete old avatar file if it exists
-            if let oldUrl = profileService.currentProfile?.customAvatarUrl {
-                deleteOldAvatarFile(oldUrl)
+            if let oldFilename = UserDefaults.standard.string(forKey: "localAvatarFilename") {
+                deleteOldAvatarFile(oldFilename)
             }
 
-            customAvatarUrl = await uploadCustomAvatar()
-            if customAvatarUrl == nil {
+            let filename = await uploadCustomAvatar()
+            if filename == nil {
                 await MainActor.run {
                     errorMessage = "Failed to save custom avatar. Please try again."
                     showingError = true
                 }
                 return
             }
-            print("✅ [EditProfileView] Custom avatar saved to local file")
-            print("📦 [EditProfileView] Local file URL: \(customAvatarUrl ?? "nil")")
+
+            // ✅ Store filename LOCALLY ONLY (not sent to backend)
+            UserDefaults.standard.set(filename, forKey: "localAvatarFilename")
+            // ✅ Clear preset avatar ID since we're using custom
+            UserDefaults.standard.removeObject(forKey: "selectedAvatarId")
+            print("✅ [EditProfileView] Local avatar filename saved: \(filename ?? "nil")")
+        } else if let avatarId = selectedAvatarId {
+            // ✅ User selected a PRESET avatar
+            print("🎨 [EditProfileView] Saving preset avatar ID: \(avatarId)")
+            UserDefaults.standard.set(avatarId, forKey: "selectedAvatarId")
+            // ✅ Clear custom avatar filename since we're using preset
+            UserDefaults.standard.removeObject(forKey: "localAvatarFilename")
+            print("✅ [EditProfileView] Preset avatar ID saved locally")
         } else {
-            print("ℹ️ [EditProfileView] No custom avatar to upload")
+            print("ℹ️ [EditProfileView] No avatar selected")
         }
 
         // Convert child age to array (empty or single element)
@@ -685,8 +699,8 @@ struct EditProfileView: View {
             languagePreference: languagePreference,
             profileCompletionPercentage: 0, // Will be calculated by server
             lastUpdated: Date(),
-            avatarId: customAvatarUrl != nil ? nil : selectedAvatarId,  // Clear avatarId if custom avatar uploaded
-            customAvatarUrl: customAvatarUrl
+            avatarId: customAvatarImage != nil ? nil : selectedAvatarId,  // Clear avatarId if custom avatar uploaded
+            customAvatarUrl: nil  // ✅ Never send filename to backend (local-first approach)
         )
 
         do {
@@ -756,6 +770,7 @@ struct EditProfileView: View {
             try imageData.write(to: fileURL)
             print("✅ [EditProfileView] Avatar saved locally to: \(fileURL.path)")
             print("📸 [EditProfileView] File size: \(imageData.count / 1024) KB")
+            print("📸 [EditProfileView] Filename (relative): \(filename)")
             return fileURL
         } catch {
             print("❌ [EditProfileView] Failed to save avatar: \(error)")
@@ -763,15 +778,28 @@ struct EditProfileView: View {
         }
     }
 
-    /// Load avatar image from local file URL
+    /// Load avatar image from local file URL or filename
     private func loadAvatarLocally(from urlString: String) -> UIImage? {
-        // Check if it's a local file URL
-        guard urlString.hasPrefix("file://") else {
-            print("⚠️ [EditProfileView] Not a local file URL: \(urlString)")
-            return nil
+        var fileURL: URL?
+
+        // Check if it's a full file URL or just a filename
+        if urlString.hasPrefix("file://") {
+            // Full URL
+            fileURL = URL(string: urlString)
+        } else if !urlString.contains("/") {
+            // Just a filename - construct full path
+            guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+                print("❌ [EditProfileView] Failed to get documents directory")
+                return nil
+            }
+            fileURL = documentsDirectory.appendingPathComponent(urlString)
+            print("📁 [EditProfileView] Constructed file URL from filename: \(fileURL?.path ?? "nil")")
+        } else {
+            // Relative or absolute path
+            fileURL = URL(fileURLWithPath: urlString)
         }
 
-        guard let url = URL(string: urlString) else {
+        guard let url = fileURL else {
             print("❌ [EditProfileView] Invalid URL string: \(urlString)")
             return nil
         }
@@ -793,9 +821,34 @@ struct EditProfileView: View {
 
     /// Delete old avatar file if exists
     private func deleteOldAvatarFile(_ urlString: String?) {
-        guard let urlString = urlString,
-              urlString.hasPrefix("file://"),
-              let url = URL(string: urlString) else {
+        guard let urlString = urlString, !urlString.isEmpty else {
+            return
+        }
+
+        var fileURL: URL?
+
+        // Check if it's a full file URL or just a filename
+        if urlString.hasPrefix("file://") {
+            // Full URL
+            fileURL = URL(string: urlString)
+        } else if !urlString.contains("/") {
+            // Just a filename - construct full path
+            guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+                print("❌ [EditProfileView] Failed to get documents directory for deletion")
+                return
+            }
+            fileURL = documentsDirectory.appendingPathComponent(urlString)
+        } else if urlString.hasPrefix("data:") {
+            // Data URL - nothing to delete
+            print("ℹ️ [EditProfileView] Skipping deletion of data URL")
+            return
+        } else {
+            // Other path format
+            fileURL = URL(fileURLWithPath: urlString)
+        }
+
+        guard let url = fileURL else {
+            print("❌ [EditProfileView] Invalid URL string for deletion: \(urlString)")
             return
         }
 
@@ -867,8 +920,9 @@ struct EditProfileView: View {
             return nil
         }
 
-        let localURLString = localFileURL.absoluteString
-        print("✅ [EditProfileView] Avatar saved locally: \(localURLString)")
+        // ✅ IMPORTANT: Extract just the filename (not full path)
+        let filename = localFileURL.lastPathComponent
+        print("✅ [EditProfileView] Avatar saved locally with filename: \(filename)")
 
         // STEP 2: Upload to server in background (for backup/sync)
         Task {
@@ -895,129 +949,11 @@ struct EditProfileView: View {
             }
         }
 
-        // Return local file URL immediately (no waiting for server)
-        return localURLString
+        // Return just the filename (not full URL path)
+        return filename
     }
 
     /// Load custom avatar from URL
-    private func loadCustomAvatarFromUrl(_ urlString: String) async {
-        guard let url = URL(string: urlString) else {
-            print("❌ [EditProfileView] Invalid custom avatar URL: \(urlString)")
-            return
-        }
-
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            if let image = UIImage(data: data) {
-                await MainActor.run {
-                    customAvatarImage = image
-                    print("✅ [EditProfileView] Custom avatar loaded from URL")
-                }
-            }
-        } catch {
-            print("❌ [EditProfileView] Failed to load custom avatar: \(error)")
-        }
-    }
-
-    /// Migrate existing data URL or HTTP URL avatar to local file storage
-    private func migrateAvatarToLocalStorage(from urlString: String) async {
-        print("🔄 [EditProfileView] Starting avatar migration...")
-        print("📦 [EditProfileView] Source URL type: \(urlString.hasPrefix("data:") ? "data URL" : "HTTP URL")")
-
-        // Load image from data URL or HTTP URL
-        var image: UIImage?
-
-        if urlString.hasPrefix("data:image/") {
-            // Extract base64 data from data URL
-            if let base64Data = urlString.components(separatedBy: ",").last,
-               let imageData = Data(base64Encoded: base64Data) {
-                image = UIImage(data: imageData)
-                print("✅ [EditProfileView] Decoded image from data URL")
-            } else {
-                print("❌ [EditProfileView] Failed to decode data URL")
-                return
-            }
-        } else {
-            // Load from HTTP URL
-            await loadCustomAvatarFromUrl(urlString)
-            await MainActor.run {
-                image = customAvatarImage
-            }
-        }
-
-        guard let avatarImage = image else {
-            print("❌ [EditProfileView] No image to migrate")
-            return
-        }
-
-        // Save to local file
-        guard let localFileURL = saveAvatarLocally(avatarImage) else {
-            print("❌ [EditProfileView] Failed to save migrated avatar locally")
-            return
-        }
-
-        let localURLString = localFileURL.absoluteString
-        print("✅ [EditProfileView] Avatar migrated to local file: \(localURLString)")
-
-        // Update UI
-        await MainActor.run {
-            customAvatarImage = avatarImage
-        }
-
-        // Update profile on server with new local file URL
-        if let currentProfile = profileService.currentProfile {
-            let updatedProfile = UserProfile(
-                id: currentProfile.id,
-                email: currentProfile.email,
-                name: currentProfile.name,
-                profileImageUrl: currentProfile.profileImageUrl,
-                authProvider: currentProfile.authProvider,
-                firstName: currentProfile.firstName,
-                lastName: currentProfile.lastName,
-                displayName: currentProfile.displayName,
-                gradeLevel: currentProfile.gradeLevel,
-                dateOfBirth: currentProfile.dateOfBirth,
-                kidsAges: currentProfile.kidsAges,
-                gender: currentProfile.gender,
-                city: currentProfile.city,
-                stateProvince: currentProfile.stateProvince,
-                country: currentProfile.country,
-                favoriteSubjects: currentProfile.favoriteSubjects,
-                learningStyle: currentProfile.learningStyle,
-                timezone: currentProfile.timezone ?? "UTC",
-                languagePreference: currentProfile.languagePreference ?? "en",
-                profileCompletionPercentage: currentProfile.profileCompletionPercentage,
-                lastUpdated: currentProfile.lastUpdated,
-                avatarId: nil,  // Clear preset avatar
-                customAvatarUrl: localURLString  // Set new local file URL
-            )
-
-            do {
-                _ = try await profileService.updateUserProfile(updatedProfile)
-                print("✅ [EditProfileView] Profile updated with local file URL")
-
-                // Post notification to refresh UI
-                await MainActor.run {
-                    NotificationCenter.default.post(name: NSNotification.Name("ProfileUpdated"), object: nil)
-                    print("📢 [EditProfileView] Posted ProfileUpdated notification after migration")
-                }
-            } catch {
-                print("❌ [EditProfileView] Failed to update profile with local URL: \(error)")
-            }
-        }
-
-        // Upload to server in background for backup
-        Task {
-            do {
-                guard let imageData = avatarImage.jpegData(compressionQuality: 0.6) else { return }
-                let base64String = imageData.base64EncodedString()
-                let result = await NetworkService.shared.uploadCustomAvatar(base64Image: base64String)
-                if result.success {
-                    print("✅ [EditProfileView] Migrated avatar backed up to server")
-                }
-            }
-        }
-    }
 }
 
 // MARK: - Subject Picker View
