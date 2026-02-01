@@ -473,7 +473,7 @@ class ProModePDFExporter: ObservableObject {
                 .foregroundColor: UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)
             ]
 
-            for (index, subquestion) in subquestions.enumerated() {
+            for (_, subquestion) in subquestions.enumerated() {
                 y += 10  // Space before subquestion
 
                 // Subquestion header (e.g., "(a)" or "(1)")

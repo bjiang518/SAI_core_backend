@@ -662,7 +662,7 @@ struct ModernProfileView: View {
             // Reload profile when returning from Edit Profile
             if oldValue == true && newValue == false {
                 Task {
-                    try? await profileService.getUserProfile()
+                    _ = try? await profileService.getUserProfile()
                     avatarLog("🔄 [ContentView] Profile reloaded after Edit Profile dismissed")
                 }
             }
