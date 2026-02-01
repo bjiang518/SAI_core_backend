@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import os.log
 
 struct HomeworkResultsView: View {
     @State var parsingResult: HomeworkParsingResult
@@ -17,6 +18,7 @@ struct HomeworkResultsView: View {
     @State private var isArchiving = false
     @State private var isRegrading = false  // NEW: Track regrading state
     @State private var showingRegradingAlert = false  // NEW: Show regrading confirmation
+    @State private var showingNoImageForRegradeAlert = false  // NEW: Show alert when no image available
     @State private var selectedQuestionIndices: Set<Int> = []
     @State private var questionNotes: [String] = []
     @State private var questionTags: [[String]] = []
@@ -29,6 +31,9 @@ struct HomeworkResultsView: View {
     @StateObject private var homeworkImageStorage = HomeworkImageStorageService.shared  // NEW: Storage service
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
+
+    // ✅ Logger for debugging
+    private let logger = AppLogger.homework
 
     // Generate unique session ID for this homework session
     private var sessionId: String {
@@ -119,7 +124,12 @@ struct HomeworkResultsView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     // Regrade Button
                     Button(action: {
-                        showingRegradingAlert = true
+                        // Check if we have an image before showing the alert
+                        if submittedImage == nil {
+                            showingNoImageForRegradeAlert = true
+                        } else {
+                            showingRegradingAlert = true
+                        }
                     }) {
                         HStack(spacing: 4) {
                             if isRegrading {
@@ -132,7 +142,7 @@ struct HomeworkResultsView: View {
                         }
                         .foregroundColor(isRegrading ? .gray : .purple)
                     }
-                    .disabled(isRegrading || submittedImage == nil)
+                    .disabled(isRegrading)  // Only disable when actively regrading
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -195,9 +205,21 @@ struct HomeworkResultsView: View {
             } message: {
                 Text("This will send your homework to AI for a more detailed evaluation using advanced analysis. This may take longer but provides deeper insights.")
             }
+            .alert("Image Not Available", isPresented: $showingNoImageForRegradeAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("The original homework image is not available for regrading. Please grade a new homework assignment to use this feature.")
+            }
             .onAppear {
                 initializeQuestionData()
                 loadProgressState()
+
+                // Debug: Log if we have a submitted image for regrading
+                if submittedImage != nil {
+                    logger.homeworkGrading("✓ Submitted image available for regrading")
+                } else {
+                    logger.warning("No submitted image - Regrade button will show but trigger alert")
+                }
 
                 // ❌ REMOVED: Auto-save moved to Mark Progress button
                 // saveHomeworkImageToStorage()
@@ -1482,9 +1504,12 @@ extension HomeworkResultsView {
     /// Regrade homework with Gemini's deep mode for more detailed evaluation
     private func performRegrade() async {
         guard let image = submittedImage else {
-            print("⚠️ No submitted image available for regrading")
+            logger.error("No submitted image available for regrading")
             return
         }
+
+        logger.homeworkRegrade("=== Starting Regrade Process ===")
+        logger.homeworkRegrade("Session ID: \(sessionId)")
 
         await MainActor.run {
             isRegrading = true
@@ -1492,15 +1517,20 @@ extension HomeworkResultsView {
 
         // Convert image to base64
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+            logger.error("Failed to convert image to JPEG for regrading")
             await MainActor.run {
                 isRegrading = false
             }
             return
         }
         let base64Image = imageData.base64EncodedString()
+        logger.homeworkRegrade("Image converted to base64 (\(imageData.count / 1024)KB)")
 
         // Get current subject
         let subject = enhancedResult?.detectedSubject ?? detectSubjectFromQuestion(parsingResult.allQuestions.first?.questionText ?? "")
+        logger.homeworkRegrade("Subject: \(subject)")
+        logger.homeworkRegrade("Current questions: \(parsingResult.allQuestions.count)")
+        logger.homeworkRegrade("Current accuracy: \(String(format: "%.1f%%", (enhancedResult?.calculatedAccuracy ?? parsingResult.calculatedAccuracy) * 100))")
 
         // Enhanced detailed prompt for regrading
         let detailedPrompt = """
@@ -1533,7 +1563,7 @@ extension HomeworkResultsView {
         Please provide a thorough, student-friendly evaluation that helps improve learning.
         """
 
-        print("🔄 Regrading homework with Gemini deep mode...")
+        logger.homeworkRegrade("Sending to AI with Gemini deep mode (detail parsing)...")
 
         // Call batch processing API with Gemini provider for deep analysis
         let result = await NetworkService.shared.processHomeworkImagesBatch(
@@ -1548,8 +1578,10 @@ extension HomeworkResultsView {
             isRegrading = false
         }
 
+        logger.homeworkRegrade("API call completed - Success: \(result.success)")
+
         if result.success, let responses = result.responses, let firstResponse = responses.first {
-            print("✅ Regrade completed successfully")
+            logger.info("✅ Regrade completed successfully")
 
             // Parse the regraded results
             do {
@@ -1559,6 +1591,11 @@ extension HomeworkResultsView {
                 // Decode into EnhancedHomeworkParsingResult
                 let decoder = JSONDecoder()
                 let regradedResult = try decoder.decode(EnhancedHomeworkParsingResult.self, from: jsonData)
+
+                logger.homeworkRegrade("Successfully parsed regraded results:")
+                logger.homeworkRegrade("  New questions: \(regradedResult.questionCount)")
+                logger.homeworkRegrade("  New subject: \(regradedResult.detectedSubject)")
+                logger.homeworkRegrade("  New accuracy: \(String(format: "%.1f%%", regradedResult.calculatedAccuracy * 100))")
 
                 // Update the UI with new results
                 await MainActor.run {
@@ -1578,17 +1615,14 @@ extension HomeworkResultsView {
                     // Reset question selection to show all new results
                     selectedQuestionIndices = Set(0..<regradedResult.allQuestions.count)
 
-                    print("📊 UI updated with regraded results:")
-                    print("   - Subject: \(regradedResult.detectedSubject)")
-                    print("   - Questions: \(regradedResult.questionCount)")
-                    print("   - Accuracy: \(String(format: "%.1f%%", regradedResult.calculatedAccuracy * 100))")
+                    logger.info("📊 UI updated with regraded results")
 
                     // Show success feedback
                     let impactFeedback = UINotificationFeedbackGenerator()
                     impactFeedback.notificationOccurred(.success)
                 }
             } catch {
-                print("❌ Failed to parse regraded results: \(error)")
+                logger.error("Failed to parse regraded results", error: error)
 
                 await MainActor.run {
                     // Show error feedback
@@ -1597,7 +1631,7 @@ extension HomeworkResultsView {
                 }
             }
         } else {
-            print("❌ Regrade failed")
+            logger.error("❌ Regrade API call failed")
 
             await MainActor.run {
                 // Show error feedback
@@ -1605,21 +1639,25 @@ extension HomeworkResultsView {
                 impactFeedback.notificationOccurred(.error)
             }
         }
+
+        logger.homeworkRegrade("=== Regrade Process Complete ===")
     }
 
     // MARK: - Homework Image Storage
 
     /// Automatically save homework image to local storage
     private func saveHomeworkImageToStorage() {
+        logger.homeworkAlbum("=== Attempting to Save to Album ===")
+
         // Guard: Only save once per session (persistent check)
         guard !hasAlreadySavedImage else {
-            print("📸 Image already saved for this session (persistent), skipping")
+            logger.homeworkAlbum("Image already saved for this session (persistent), skipping")
             return
         }
 
         // Only save if we have an image
         guard let image = submittedImage else {
-            print("📸 No submitted image to save")
+            logger.warning("No submitted image to save to album")
             return
         }
 
@@ -1627,6 +1665,12 @@ extension HomeworkResultsView {
         let subject = enhancedResult?.detectedSubject ?? detectSubjectFromQuestion(parsingResult.allQuestions.first?.questionText ?? "")
         let accuracy = enhancedResult?.calculatedAccuracy ?? parsingResult.calculatedAccuracy
         let questionCount = parsingResult.allQuestions.count
+
+        logger.homeworkAlbum("Metadata extracted:")
+        logger.homeworkAlbum("  Session ID: \(sessionId)")
+        logger.homeworkAlbum("  Subject: \(subject)")
+        logger.homeworkAlbum("  Accuracy: \(String(format: "%.1f%%", accuracy * 100))")
+        logger.homeworkAlbum("  Questions: \(questionCount)")
 
         // Calculate correct/incorrect counts
         var correctCount = 0
@@ -1642,16 +1686,20 @@ extension HomeworkResultsView {
             }
         }
 
+        logger.homeworkAlbum("  Correct: \(correctCount), Incorrect: \(incorrectCount)")
+
         // Get total points if available
         let totalPoints = parsingResult.allQuestions.compactMap { $0.pointsEarned }.reduce(0, +)
         let maxPoints = parsingResult.allQuestions.compactMap { $0.pointsPossible }.reduce(0, +)
 
+        if totalPoints > 0 || maxPoints > 0 {
+            logger.homeworkAlbum("  Points: \(totalPoints)/\(maxPoints)")
+        }
+
         // Extract raw question texts for PDF generation
         let rawQuestions = parsingResult.allQuestions.compactMap { $0.rawQuestionText }
 
-        print("📸 Attempting to save homework image to album...")
-        print("   Session ID: \(sessionId)")
-        print("   Subject: \(subject), Accuracy: \(String(format: "%.1f%%", accuracy * 100))")
+        logger.homeworkAlbum("Calling HomeworkImageStorageService.saveHomeworkImage()...")
 
         // Save to storage
         let record = homeworkImageStorage.saveHomeworkImage(
@@ -1667,14 +1715,18 @@ extension HomeworkResultsView {
         )
 
         if record != nil {
-            print("✅ Homework image saved to album: \(subject), \(questionCount) questions")
+            logger.info("✅ Homework image saved to album successfully")
+            logger.homeworkAlbum("Record ID: \(record!.id)")
 
             // Mark as saved and persist to prevent duplicates
             hasAlreadySavedImage = true
             UserDefaults.standard.set(true, forKey: albumSavedKey)
+            logger.homeworkAlbum("Saved flag set to prevent future duplicates")
         } else {
-            print("⚠️ Failed to save homework image (likely duplicate detected)")
+            logger.warning("⚠️ Failed to save homework image (likely duplicate detected by service)")
         }
+
+        logger.homeworkAlbum("=== Album Save Complete ===")
     }
 
 }

@@ -34,7 +34,11 @@ struct DigitalHomeworkView: View {
 
     // ✅ NEW: Mistake detection alert
     @State private var showMistakeDetectionAlert = false
-    @State private var detectedMistakes: [ParsedQuestion] = []
+    @State private var detectedMistakeIds: [Int] = []
+
+    // ✅ NEW: Regrade functionality
+    @State private var showRegradingAlert = false
+    @State private var isRegrading = false
 
     // MARK: - Body
 
@@ -51,7 +55,7 @@ struct DigitalHomeworkView: View {
                     .navigationTitle(NSLocalizedString("proMode.title", comment: "Digital Homework"))
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
-                        // ✅ NEW: Select All button (left side, only in archive mode)
+                        // ✅ Select All button (left side, only in archive mode)
                         ToolbarItem(placement: .navigationBarLeading) {
                             if viewModel.isArchiveMode {
                                 Button(action: {
@@ -129,9 +133,9 @@ struct DigitalHomeworkView: View {
         } message: {
             Text(NSLocalizedString("proMode.revertGradingAlert.message", comment: "Warning message"))
         }
-        .alert("Detected \(detectedMistakes.count) Errors on This Page", isPresented: $showMistakeDetectionAlert) {
+        .alert("Detected \(detectedMistakeIds.count) Errors on This Page", isPresented: $showMistakeDetectionAlert) {
             Button("Cancel", role: .cancel) {
-                detectedMistakes = []
+                detectedMistakeIds = []
             }
             Button("Analyze Them") {
                 Task {
@@ -140,6 +144,16 @@ struct DigitalHomeworkView: View {
             }
         } message: {
             Text("Do you want me to analyze them? (Results will be ready soon in the mistake review)")
+        }
+        .alert("Regrade with Deep Analysis", isPresented: $showRegradingAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Regrade", role: .none) {
+                Task {
+                    await performRegrade()
+                }
+            }
+        } message: {
+            Text("This will send your homework to AI for a more detailed evaluation using Gemini's advanced analysis. This may take longer but provides deeper insights and more accurate scoring.")
         }
     }
 
@@ -195,6 +209,21 @@ struct DigitalHomeworkView: View {
                                                 parentQuestionId: questionWithGrade.question.id,
                                                 subquestionId: subquestionId
                                             )
+                                        },
+                                        onRegrade: {
+                                            // ✅ NEW: Regrade this question
+                                            Task {
+                                                await viewModel.regradeQuestion(questionId: questionWithGrade.question.id)
+                                            }
+                                        },
+                                        onRegradeSubquestion: { subquestionId in
+                                            // ✅ NEW: Regrade specific subquestion
+                                            Task {
+                                                await viewModel.regradeSubquestion(
+                                                    parentQuestionId: questionWithGrade.question.id,
+                                                    subquestionId: subquestionId
+                                                )
+                                            }
                                         },
                                         onToggleSelection: {
                                             viewModel.toggleQuestionSelection(questionId: questionWithGrade.question.id)
@@ -554,17 +583,17 @@ struct DigitalHomeworkView: View {
                                 viewModel.markProgress()
 
                                 // ✅ NEW: Check for unarchived mistakes after marking progress
-                                // Note: ProgressiveQuestion is not compatible with ParsedQuestion type cast
-                                // This feature requires refactoring to support Progressive Homework format
-                                // TODO: Implement mistake detection for Progressive Homework
-                                // let allQuestions = viewModel.questions.compactMap { $0.question }
-                                // let mistakes = MistakeDetectionHelper.shared.getUnarchivedMistakes(from: allQuestions)
+                                AppLogger.mistakeDetection.mistakeDetection("Checking for unarchived mistakes after marking progress...")
+                                let mistakeIds = MistakeDetectionHelper.shared.getUnarchivedMistakeIds(from: viewModel.questions)
 
-                                // if !mistakes.isEmpty {
-                                //     // Found unarchived mistakes - show prompt
-                                //     detectedMistakes = mistakes
-                                //     showMistakeDetectionAlert = true
-                                // }
+                                if !mistakeIds.isEmpty {
+                                    // Found unarchived mistakes - show prompt
+                                    detectedMistakeIds = mistakeIds
+                                    showMistakeDetectionAlert = true
+                                    AppLogger.mistakeDetection.info("📢 Showing alert for \(mistakeIds.count) detected mistakes")
+                                } else {
+                                    AppLogger.mistakeDetection.info("No unarchived mistakes detected")
+                                }
 
                                 // ✅ iOS unlock sound effect (1100 = Tock sound, similar to unlock)
                                 AudioServicesPlaySystemSound(1100)
@@ -1305,24 +1334,77 @@ struct DigitalHomeworkView: View {
 
     /// Archive and analyze detected mistakes
     private func archiveAndAnalyzeMistakes() async {
-        guard !detectedMistakes.isEmpty else { return }
+        guard !detectedMistakeIds.isEmpty else {
+            AppLogger.archiving.warning("archiveAndAnalyzeMistakes called with empty mistake IDs")
+            return
+        }
 
-        print("🔍 [MistakeDetection] Archiving and analyzing \(detectedMistakes.count) mistakes...")
+        AppLogger.archiving.info("═══════════════════════════════════════════")
+        AppLogger.archiving.info("ARCHIVING & ANALYZING MISTAKES")
+        AppLogger.archiving.info("═══════════════════════════════════════════")
+        AppLogger.archiving.archiving("Starting archive process for \(detectedMistakeIds.count) mistakes")
+
+        // Get the actual question objects from viewModel using the IDs
+        let mistakeQuestions = viewModel.questions.filter { detectedMistakeIds.contains($0.id) }
+        AppLogger.archiving.archiving("Filtered to \(mistakeQuestions.count) question objects")
+
+        // Convert ProgressiveQuestionWithGrade to ParsedQuestion format for archiving
+        AppLogger.archiving.archiving("Converting ProgressiveQuestionWithGrade to ParsedQuestion format...")
+        let parsedQuestions: [ParsedQuestion] = mistakeQuestions.map { questionWithGrade in
+            let question = questionWithGrade.question
+            let grade = questionWithGrade.grade
+
+            // Determine grade string
+            let gradeString: String
+            if let gradeResult = grade {
+                gradeString = gradeResult.isCorrect ? "CORRECT" : "INCORRECT"
+            } else {
+                gradeString = "INCORRECT"
+            }
+
+            // Convert question number from String to Int
+            let questionNumberInt = question.questionNumber.flatMap { Int($0) }
+            AppLogger.archiving.archiving("  Converting Q#\(question.questionNumber ?? "?") - Grade: \(gradeString)")
+
+            return ParsedQuestion(
+                questionNumber: questionNumberInt,
+                rawQuestionText: question.questionText,
+                questionText: question.displayText,
+                answerText: "",  // Not used in Pro Mode
+                confidence: nil,
+                hasVisualElements: false,
+                studentAnswer: question.studentAnswer,
+                correctAnswer: grade?.correctAnswer,
+                grade: gradeString,
+                pointsEarned: grade != nil ? grade!.score : 0.0,
+                pointsPossible: 1.0,
+                feedback: grade?.feedback,
+                questionType: question.questionType,
+                options: nil,
+                isParent: question.isParent,
+                hasSubquestions: question.hasSubquestions,
+                parentContent: question.parentContent,
+                subquestions: nil,  // Don't include subquestions in archive
+                subquestionNumber: nil,
+                parentSummary: nil
+            )
+        }
 
         // Get subject from parse results
         let subject = parseResults.subject
         let subjectConfidence = parseResults.subjectConfidence
+        AppLogger.archiving.archiving("Subject: \(subject) (confidence: \(subjectConfidence))")
 
         // Create indices array (0...count-1)
-        let selectedIndices = Array(0..<detectedMistakes.count)
+        let selectedIndices = Array(0..<parsedQuestions.count)
 
         // Create empty notes and tags for all questions
-        let userNotes = Array(repeating: "", count: detectedMistakes.count)
-        let userTags = Array(repeating: [String](), count: detectedMistakes.count)
+        let userNotes = Array(repeating: "", count: parsedQuestions.count)
+        let userTags = Array(repeating: [String](), count: parsedQuestions.count)
 
         // Create archive request
         let archiveRequest = QuestionArchiveRequest(
-            questions: detectedMistakes,
+            questions: parsedQuestions,
             selectedQuestionIndices: selectedIndices,
             detectedSubject: subject,
             subjectConfidence: subjectConfidence,
@@ -1334,11 +1416,13 @@ struct DigitalHomeworkView: View {
 
         do {
             // Archive questions using QuestionArchiveService
+            AppLogger.archiving.archiving("Calling QuestionArchiveService.archiveQuestions...")
             let archivedQuestions = try await QuestionArchiveService.shared.archiveQuestions(archiveRequest)
-            print("✅ [MistakeDetection] Archived \(archivedQuestions.count) questions")
+            AppLogger.archiving.info("✅ Archived \(archivedQuestions.count) questions successfully")
 
-            // Convert ParsedQuestion to dictionary format for error analysis
-            let wrongQuestions: [[String: Any]] = detectedMistakes.map { question in
+            // Convert to dictionary format for error analysis
+            AppLogger.errorAnalysis.errorAnalysis("Converting to error analysis format...")
+            let wrongQuestions: [[String: Any]] = parsedQuestions.map { question in
                 var dict: [String: Any] = [
                     "questionText": question.questionText,
                     "studentAnswer": question.studentAnswer ?? "",
@@ -1359,24 +1443,28 @@ struct DigitalHomeworkView: View {
 
             // Generate session ID for this mistake batch
             let sessionId = UUID().uuidString
+            AppLogger.errorAnalysis.errorAnalysis("Generated session ID: \(sessionId)")
 
             // Queue error analysis for these mistakes
             await MainActor.run {
+                AppLogger.errorAnalysis.errorAnalysis("Queueing error analysis...")
                 ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
                     sessionId: sessionId,
                     wrongQuestions: wrongQuestions
                 )
-                print("✅ [MistakeDetection] Queued error analysis for session \(sessionId)")
+                AppLogger.errorAnalysis.info("✅ Queued error analysis for session \(sessionId)")
+                AppLogger.archiving.info("═══════════════════════════════════════════")
 
-                // Clear detected mistakes
-                detectedMistakes = []
+                // Clear detected mistake IDs
+                detectedMistakeIds = []
 
                 // Show success feedback
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
             }
         } catch {
-            print("❌ [MistakeDetection] Failed to archive and analyze: \(error)")
+            AppLogger.archiving.error("❌ Failed to archive and analyze", error: error)
+            AppLogger.archiving.info("═══════════════════════════════════════════")
 
             // Show error feedback
             await MainActor.run {
@@ -1384,6 +1472,37 @@ struct DigitalHomeworkView: View {
                 generator.notificationOccurred(.error)
             }
         }
+    }
+
+    // MARK: - Regrade Functionality
+
+    /// Regrade homework with Gemini's deep mode
+    private func performRegrade() async {
+        let logger = AppLogger.homework
+        logger.homeworkRegrade("=== Starting Regrade ===")
+        await MainActor.run { isRegrading = true }
+
+        guard let imageData = originalImage.jpegData(compressionQuality: 0.8) else {
+            logger.error("Failed to convert image")
+            await MainActor.run { isRegrading = false }
+            return
+        }
+
+        let result = await NetworkService.shared.processHomeworkImagesBatch(
+            base64Images: [imageData.base64EncodedString()],
+            prompt: "Comprehensive re-evaluation with enhanced grading criteria.",
+            subject: parseResults.subject,
+            parsingMode: "detail",
+            modelProvider: "gemini"
+        )
+
+        await MainActor.run {
+            isRegrading = false
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(result.success ? .success : .error)
+        }
+
+        logger.homeworkRegrade(result.success ? "✅ Regrade complete" : "❌ Regrade failed")
     }
 
 }
@@ -1399,6 +1518,8 @@ struct QuestionCard: View {
     let onAskAI: (ProgressiveSubquestion?) -> Void  // ✅ UPDATED: Accept optional subquestion
     let onArchive: () -> Void
     let onArchiveSubquestion: ((String) -> Void)?  // ✅ NEW: Archive specific subquestion (optional, only for parent questions)
+    let onRegrade: () -> Void  // ✅ NEW: Regrade this question
+    let onRegradeSubquestion: ((String) -> Void)?  // ✅ NEW: Regrade specific subquestion
     let onToggleSelection: () -> Void
     let onRemoveImage: () -> Void  // NEW: callback to remove image
 
@@ -1505,6 +1626,11 @@ struct QuestionCard: View {
                                     // ✅ NEW: Archive only this subquestion
                                     print("⭐ Archive only subquestion \(subquestion.id)")
                                     onArchiveSubquestion?(subquestion.id)
+                                },
+                                onRegrade: {
+                                    // ✅ NEW: Regrade only this subquestion
+                                    print("🔄 Regrade subquestion \(subquestion.id)")
+                                    onRegradeSubquestion?(subquestion.id)
                                 }
                             )
                         }
@@ -1543,11 +1669,19 @@ struct QuestionCard: View {
                 if questionWithGrade.grade != nil && !isArchiveMode {
                     HStack(spacing: 12) {
                         Button(action: { onAskAI(nil) }) {  // ✅ FIXED: Pass nil for regular questions
-                            Label(NSLocalizedString("proMode.askAI", comment: "Ask AI for Help"), systemImage: "questionmark.bubble")
+                            Label("Follow Up", systemImage: "message")
                                 .font(.caption)
                         }
                         .buttonStyle(.bordered)
                         .disabled(questionWithGrade.isArchived)  // ✅ NEW: Disable for archived questions
+
+                        Button(action: onRegrade) {
+                            Label("Regrade", systemImage: "arrow.triangle.2.circlepath")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.purple)
+                        .disabled(questionWithGrade.isArchived)
 
                         Button(action: onArchive) {
                             Label(questionWithGrade.isArchived ? NSLocalizedString("proMode.archived", comment: "Archived") : NSLocalizedString("proMode.archive", comment: "Archive"), systemImage: questionWithGrade.isArchived ? "checkmark.circle" : "archivebox")
@@ -1905,6 +2039,7 @@ struct SubquestionRow: View {
     let onAskAI: () -> Void
     let onArchive: () -> Void  // This archives the parent question
     let onArchiveSubquestion: () -> Void  // ✅ NEW: Archive this subquestion only
+    let onRegrade: () -> Void  // ✅ NEW: Regrade this subquestion
 
     @State private var showFeedback = false  // ✅ CHANGED: Collapsed by default
     @State private var showArchiveOptions = false  // ✅ NEW: Show action sheet for archive options
@@ -1999,14 +2134,23 @@ struct SubquestionRow: View {
                                 .cornerRadius(6)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
 
-                            // Action buttons (Ask AI + Archive)
+                            // Action buttons (Follow Up + Regrade + Archive)
                             HStack(spacing: 12) {
-                                // Ask AI button
+                                // Follow Up button
                                 Button(action: onAskAI) {
-                                    Label(NSLocalizedString("proMode.askAI", comment: "Ask AI for Help"), systemImage: "questionmark.bubble")
+                                    Label("Follow Up", systemImage: "message")
                                         .font(.caption)
                                 }
                                 .buttonStyle(.bordered)
+                                .disabled(isArchived)  // ✅ NEW: Disable for archived subquestions
+
+                                // ✅ NEW: Regrade button
+                                Button(action: onRegrade) {
+                                    Label("Regrade", systemImage: "arrow.triangle.2.circlepath")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.purple)
                                 .disabled(isArchived)  // ✅ NEW: Disable for archived subquestions
 
                                 // ✅ NEW: Archive button with action sheet

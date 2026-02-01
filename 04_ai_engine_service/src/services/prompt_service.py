@@ -1231,18 +1231,23 @@ Return your response as a JSON object with a "questions" array. Each question mu
             "topic": "specific topic from the mistake analysis",
             "tags": {unique_source_tags if unique_source_tags else "[]"},
             "addresses_mistake": "Brief description of which mistake pattern this question helps with (optional)",
-            "estimated_time_minutes": "time in minutes"
+            "estimated_time_minutes": "time in minutes",
+            "error_type": "{most_common_error or 'execution_error'}",
+            "base_branch": "{most_common_topic_area or 'General'}",
+            "detailed_branch": "{most_common_specific_topic or 'Mixed Topics'}"
         }}
     ]
 }}
 
-CRITICAL:
+CRITICAL REQUIREMENTS:
 - Use "question_type", "multiple_choice_options", "estimated_time_minutes"
 - For MC: "multiple_choice_options" = [{{"label":"A","text":"...","is_correct":true/false}}]
 - For non-MC: set "multiple_choice_options" to null
 {question_type_instruction}
 {tags_note if unique_source_tags else ""}
 - Generate EXACTLY {question_count} questions
+- MANDATORY: Each question MUST include "error_type", "base_branch", and "detailed_branch" fields for status tracking
+- Use the error analysis from the mistakes above to populate these fields accurately
 
 Generate now:"""
 

@@ -10,6 +10,7 @@ import SwiftUI
 import UIKit
 import Combine
 import CryptoKit
+import os.log
 
 // MARK: - Homework Image Storage Service
 
@@ -21,6 +22,7 @@ final class HomeworkImageStorageService: ObservableObject {
     private let fileManager = FileManager.default
     private let metadataKey = "homework_images_metadata"
     private let maxStoredImages = 100 // Limit to prevent excessive storage
+    private let logger = Logger(subsystem: "com.studyai", category: "HomeworkImageStorage")
 
     // Directories
     private var documentsDirectory: URL {
@@ -72,25 +74,31 @@ final class HomeworkImageStorageService: ObservableObject {
         rawQuestions: [String]? = nil,
         proModeData: Data? = nil  // ✅ NEW: Pro Mode digital homework data
     ) -> HomeworkImageRecord? {
+        logger.debug("Starting save process for homework image")
+        logger.debug("  Subject: \(subject), Accuracy: \(String(format: "%.1f%%", accuracy * 100))")
+        logger.debug("  Questions: \(questionCount), Correct: \(correctCount ?? 0), Incorrect: \(incorrectCount ?? 0)")
+
         // Generate hash for deduplication
         guard let imageHash = generateImageHash(image) else {
-            print("❌ Failed to generate image hash")
+            logger.error("Failed to generate image hash")
             return nil
         }
 
         // Check if this image already exists
         if let existingRecord = findDuplicateRecord(withHash: imageHash) {
-            print("⚠️ Duplicate image detected! Returning existing record: \(existingRecord.id)")
-            print("   Original submission: \(existingRecord.submittedDate)")
-            print("   Subject: \(existingRecord.subject)")
+            logger.warning("⚠️ Duplicate image detected! Returning existing record")
+            logger.debug("  Existing ID: \(existingRecord.id)")
+            logger.debug("  Original submission: \(existingRecord.submittedDate)")
+            logger.debug("  Subject: \(existingRecord.subject)")
             return existingRecord
         }
 
-        print("✅ New unique image detected (hash: \(String(imageHash.prefix(16)))...)")
+        logger.debug("✓ New unique image detected")
+        logger.debug("Hash: \(String(imageHash.prefix(16)))...")
 
         // Check if we've reached the storage limit
         if homeworkImages.count >= maxStoredImages {
-            // Remove oldest image to make space
+            logger.warning("Storage limit reached (\(self.maxStoredImages) images), deleting oldest")
             deleteOldestImage()
         }
 
@@ -103,15 +111,15 @@ final class HomeworkImageStorageService: ObservableObject {
 
         // Compress and save full image (80% quality)
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            print("❌ Failed to compress image")
+            logger.error("Failed to compress image")
             return nil
         }
 
         do {
             try imageData.write(to: imageURL)
-            print("✅ Saved full image: \(imageFileName)")
+            logger.debug("✓ Saved full image: \(imageFileName) (\(imageData.count / 1024)KB)")
         } catch {
-            print("❌ Failed to save image: \(error)")
+            logger.error("Failed to save image: \(error.localizedDescription)")
             return nil
         }
 
@@ -120,9 +128,9 @@ final class HomeworkImageStorageService: ObservableObject {
            let thumbnailData = thumbnail.jpegData(compressionQuality: 0.7) {
             do {
                 try thumbnailData.write(to: thumbnailURL)
-                print("✅ Saved thumbnail: \(thumbnailFileName)")
+                logger.debug("✓ Saved thumbnail: \(thumbnailFileName) (\(thumbnailData.count / 1024)KB)")
             } catch {
-                print("⚠️ Failed to save thumbnail: \(error)")
+                logger.warning("Failed to save thumbnail: \(error.localizedDescription)")
             }
         }
 
@@ -148,7 +156,8 @@ final class HomeworkImageStorageService: ObservableObject {
         homeworkImages.insert(record, at: 0) // Insert at beginning (most recent first)
         saveMetadata()
 
-        print("✅ Homework image saved successfully: \(recordId)")
+        logger.info("✅ Homework image saved successfully: \(recordId)")
+        logger.debug("  Total images in album: \(self.homeworkImages.count)")
         return record
     }
 
@@ -346,37 +355,53 @@ final class HomeworkImageStorageService: ObservableObject {
     /// Generate a SHA256 hash from an image to detect duplicates
     /// Uses PNG data for consistent hashing (lossless)
     private func generateImageHash(_ image: UIImage) -> String? {
+        logger.debug("Generating hash for image deduplication...")
+
         // ✅ FIX: Use PNG data instead of JPEG to avoid compression variations
         guard let imageData = image.pngData() else {
-            print("❌ Failed to get PNG data for hashing, falling back to JPEG")
+            logger.warning("Failed to get PNG data for hashing, falling back to JPEG")
             // Fallback to JPEG if PNG fails
             guard let jpegData = image.jpegData(compressionQuality: 1.0) else {
+                logger.error("Failed to get any image data for hashing")
                 return nil
             }
             let hash = SHA256.hash(data: jpegData)
-            return hash.compactMap { String(format: "%02x", $0) }.joined()
+            let hashString = hash.compactMap { String(format: "%02x", $0) }.joined()
+            logger.debug("Generated hash from JPEG: \(String(hashString.prefix(16)))...")
+            return hashString
         }
 
         let hash = SHA256.hash(data: imageData)
         let hashString = hash.compactMap { String(format: "%02x", $0) }.joined()
 
-        print("🔐 Generated hash: \(String(hashString.prefix(16)))... (from PNG data)")
+        logger.debug("✓ Generated hash from PNG: \(String(hashString.prefix(16)))... (size: \(imageData.count / 1024)KB)")
         return hashString
     }
 
     /// Check if an image with the same hash already exists
     private func findDuplicateRecord(withHash hash: String) -> HomeworkImageRecord? {
+        logger.debug("Checking for duplicate with hash: \(String(hash.prefix(16)))...")
+
         let duplicate = homeworkImages.first { record in
             // Only compare if both hashes exist (avoid nil comparison issues)
-            guard let recordHash = record.imageHash else { return false }
-            return recordHash == hash
+            guard let recordHash = record.imageHash else {
+                logger.debug("  Skipping record \(record.id) - no hash")
+                return false
+            }
+            let matches = recordHash == hash
+            if matches {
+                logger.debug("  ✓ Match found with record \(record.id)")
+            }
+            return matches
         }
 
         if let dup = duplicate {
-            print("🔍 Duplicate found:")
-            print("   Existing ID: \(dup.id)")
-            print("   Hash: \(String(hash.prefix(16)))...")
-            print("   Original date: \(dup.submittedDate)")
+            logger.info("🔍 Duplicate image found in album")
+            logger.debug("  Existing ID: \(dup.id)")
+            logger.debug("  Hash: \(String(hash.prefix(16)))...")
+            logger.debug("  Original date: \(dup.submittedDate)")
+        } else {
+            logger.debug("✓ No duplicate found - image is unique")
         }
 
         return duplicate

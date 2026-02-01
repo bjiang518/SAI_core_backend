@@ -128,6 +128,29 @@ struct GeneratedQuestionsListView: View {
             }
             .onAppear {
                 logger.info("📝 Generated questions list appeared with \(questions.count) questions")
+
+                // ✅ DEBUG: Log question list details
+                // TODO: Add DebugSettings.swift to Xcode project to enable debug logging
+                print("📝 [Generation] Displaying \(questions.count) generated questions")
+
+                // ✅ DEBUG: Count questions with error keys
+                let questionsWithErrorKeys = questions.filter { $0.errorType != nil }
+                print("🎯 [ErrorKeys] Questions with error keys: \(questionsWithErrorKeys.count)/\(questions.count)")
+
+                // ✅ DEBUG: Log each question's error key status
+                for (index, question) in questions.enumerated() {
+                    let hasKeys = question.errorType != nil
+                    print("🎯 [ErrorKeys] Question \(index + 1): \(hasKeys ? "HAS" : "NO") error keys - Type: \(question.type.rawValue)")
+
+                    // if hasKeys {
+                    //     DebugSettings.shared.prettyPrintErrorKeys(
+                    //         errorType: question.errorType,
+                    //         baseBranch: question.baseBranch,
+                    //         detailedBranch: question.detailedBranch,
+                    //         weaknessKey: question.weaknessKey
+                    //     )
+                    // }
+                }
             }
         }
     }
@@ -181,6 +204,10 @@ struct GeneratedQuestionsListView: View {
 
     private var confirmPDFButton: some View {
         Button(action: {
+            // ✅ DEBUG: Log PDF generation start
+            print("📝 [Generation] Starting PDF generation for \(selectedQuestions.count) selected questions")
+            // DebugSettings.shared.logGeneration("Starting PDF generation for \(selectedQuestions.count) selected questions")
+
             showingPDFGenerator = true
         }) {
             HStack {

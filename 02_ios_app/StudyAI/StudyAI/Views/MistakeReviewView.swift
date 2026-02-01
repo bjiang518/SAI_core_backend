@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Lottie
 
 // MARK: - Practice Generation Errors
 
@@ -319,12 +320,15 @@ struct MistakeQuestionListView: View {
     let timeRange: MistakeTimeRange
 
     @StateObject private var mistakeService = MistakeReviewService()
+    @StateObject private var questionGenerationService = QuestionGenerationService.shared
+    @StateObject private var profileService = ProfileService.shared
     @State private var selectedQuestions: Set<String> = []
     @State private var isSelectionMode = false
     @State private var showingPDFGenerator = false
     @State private var isGeneratingPractice = false
-    @State private var generatedQuestions: [String] = []
+    @State private var generatedQuestions: [QuestionGenerationService.GeneratedQuestion] = []
     @State private var showingPracticeQuestions = false
+    @State private var showingConfigurationSheet = false // ✅ NEW: Show configuration before generating
     @State private var generationError: String? = nil // ✅ OPTIMIZATION: Error handling
     @Environment(\.dismiss) private var dismiss
 
@@ -353,10 +357,12 @@ struct MistakeQuestionListView: View {
     }
 
     var body: some View {
-        NavigationView {
-            VStack {
-                // Selection Mode Buttons
-                if !filteredMistakes.isEmpty && !isSelectionMode {
+        ZStack {
+            // Main content
+            NavigationView {
+                VStack {
+                    // Selection Mode Buttons
+                    if !filteredMistakes.isEmpty && !isSelectionMode {
                     VStack(spacing: 12) {
                         Button(action: {
                             isSelectionMode = true
@@ -456,12 +462,11 @@ struct MistakeQuestionListView: View {
                     }
                 }
 
-                //✅ Generate Practice Button (ENHANCED with error analysis)
+                //✅ Generate Practice Button (ENHANCED with configuration UI)
                 if isSelectionMode && !selectedQuestions.isEmpty {
                     Button(action: {
-                        Task {
-                            await generatePracticeFromMistakes()
-                        }
+                        // Show configuration sheet instead of immediately generating
+                        showingConfigurationSheet = true
                     }) {
                         HStack {
                             if isGeneratingPractice {
@@ -514,12 +519,28 @@ struct MistakeQuestionListView: View {
             .sheet(isPresented: $showingPracticeQuestions) {
                 PracticeQuestionsView(questions: generatedQuestions, subject: subject)
             }
+            .sheet(isPresented: $showingConfigurationSheet) {
+                // ✅ NEW: Show configuration sheet before generating
+                PracticeConfigurationSheet(
+                    mistakeCount: selectedQuestions.count,
+                    onGenerate: { difficulty, questionTypes, count in
+                        Task {
+                            // Generate with user-selected parameters
+                            await generatePracticeFromMistakes(
+                                difficulty: difficulty,
+                                questionTypes: questionTypes,
+                                questionCount: count
+                            )
+                        }
+                    }
+                )
+            }
             // ✅ OPTIMIZATION: Error alert for practice generation
             .alert("Practice Generation Failed", isPresented: .constant(generationError != nil)) {
                 Button("Retry") {
-                    Task {
-                        await generatePracticeFromMistakes()
-                    }
+                    // Show configuration sheet again
+                    generationError = nil
+                    showingConfigurationSheet = true
                 }
                 Button("Cancel", role: .cancel) {
                     generationError = nil
@@ -528,10 +549,52 @@ struct MistakeQuestionListView: View {
                 Text(generationError ?? "An unknown error occurred")
             }
         }
+
+        // Lottie Animation Overlay (when generating questions)
+        if isGeneratingPractice {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .transition(.opacity)
+
+            VStack(spacing: 0) {
+                Spacer()
+
+                VStack(spacing: 12) {
+                    Text("Generating Questions...")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+
+                    if let progress = questionGenerationService.generationProgress {
+                        Text(progress)
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                }
+
+                LottieView(
+                    animationName: "Bubbles x2",
+                    loopMode: .loop,
+                    animationSpeed: 1.0,
+                    powerSavingProgress: 0.7
+                )
+                .frame(width: 150, height: 150)
+                .padding(.bottom, 40)
+            }
+            .transition(.scale.combined(with: .opacity))
+        }
+        }
+        .animation(.easeInOut(duration: 0.3), value: isGeneratingPractice)
     }
 
-    // ✅ OPTIMIZED: Generate practice from selected mistakes with full error analysis
-    private func generatePracticeFromMistakes() async {
+    // ✅ OPTIMIZED: Generate practice from selected mistakes with user-configured parameters
+    private func generatePracticeFromMistakes(
+        difficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty,
+        questionTypes: Set<QuestionGenerationService.GeneratedQuestion.QuestionType>,
+        questionCount: Int
+    ) async {
         isGeneratingPractice = true
         generationError = nil
         defer { isGeneratingPractice = false }
@@ -558,17 +621,6 @@ struct MistakeQuestionListView: View {
             // ✅ OPTIMIZED: Convert to MistakeData with error analysis (minimal fields)
             let mistakesData = selectedMistakes.map { convertToMistakeData($0) }
 
-            // ✅ OPTIMIZED: Auto-determine difficulty from error types
-            let errorTypes = selectedMistakes.compactMap { $0.errorType }
-            let difficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty
-            if errorTypes.contains("conceptual_gap") {
-                difficulty = .beginner  // Conceptual gaps need foundational review
-            } else if errorTypes.contains("needs_refinement") {
-                difficulty = .advanced  // Refinement needs challenging questions
-            } else {
-                difficulty = .intermediate  // Execution errors need practice
-            }
-
             // ✅ OPTIMIZED: Build topics from hierarchical taxonomy
             let topics = Set(selectedMistakes.compactMap {
                 $0.detailedBranch ?? $0.baseBranch ?? $0.subject
@@ -579,27 +631,37 @@ struct MistakeQuestionListView: View {
             let focusNotes = specificIssues.isEmpty ? nil :
                 "Address these specific issues: \(specificIssues.joined(separator: "; "))"
 
-            // ✅ Create config with optimized parameters
+            // ✅ Create config with user-selected parameters
+            // Determine which question type to use (if multiple selected, use .any)
+            let questionType = questionTypes.count == 1 ? questionTypes.first! : .any
+
             let config = QuestionGenerationService.RandomQuestionsConfig(
                 topics: topics,
                 focusNotes: focusNotes,
                 difficulty: difficulty,
-                questionCount: min(selectedMistakes.count * 2, 20),  // 2x mistakes, max 20
-                questionType: .any  // Let AI choose appropriate types
+                questionCount: questionCount,
+                questionType: questionType
             )
 
-            // ✅ Build user profile
+            // ✅ Build user profile from ProfileService (with fallback to cached or defaults)
+            let cachedProfile = profileService.currentProfile ?? profileService.loadCachedProfile()
+            let gradeLevel = cachedProfile?.gradeLevel ?? "8"
+            let location = cachedProfile?.country ?? "US"
+
             let userProfile = QuestionGenerationService.UserProfile(
-                grade: "8",  // TODO: Get from user profile
-                location: "US",  // TODO: Get from user profile
+                grade: gradeLevel,
+                location: location,
                 preferences: [:]
             )
 
+            DebugSettings.shared.logGeneration("Using user profile - Grade: \(gradeLevel), Location: \(location)")
+
             // ✅ Call optimized service
-            print("🎯 [MistakeReview] Generating practice with error analysis:")
+            print("🎯 [MistakeReview] Generating practice with user-selected configuration:")
             print("   - Mistakes: \(mistakesData.count)")
-            print("   - Error types: \(errorTypes)")
             print("   - Difficulty: \(difficulty.rawValue)")
+            print("   - Question Count: \(questionCount)")
+            print("   - Question Types: \(questionTypes.map { $0.rawValue }.joined(separator: ", "))")
             print("   - Topics: \(topics)")
 
             let result = await QuestionGenerationService.shared.generateMistakeBasedQuestions(
@@ -612,10 +674,11 @@ struct MistakeQuestionListView: View {
             switch result {
             case .success(let questions):
                 await MainActor.run {
-                    generatedQuestions = questions.map { $0.question }
+                    // ✅ FIX: Keep full GeneratedQuestion objects instead of just text
+                    generatedQuestions = questions
                     showingPracticeQuestions = true
                 }
-                print("🎉 Generated \(questions.count) targeted practice questions using error analysis")
+                print("🎉 Generated \(questions.count) targeted practice questions with type-based rendering")
 
             case .failure(_):
                 throw PracticeGenerationError.serverError
@@ -1023,9 +1086,20 @@ struct MistakeQuestionCard: View {
 
 // MARK: - Practice Questions View
 struct PracticeQuestionsView: View {
-    let questions: [String]
+    let questions: [QuestionGenerationService.GeneratedQuestion]
     let subject: String
     @Environment(\.dismiss) private var dismiss
+    @State private var expandedQuestions: Set<UUID> = []
+    @State private var currentAnswers: [UUID: String] = [:]
+    @State private var gradedQuestions: [UUID: GradeResult] = [:] // UUID -> GradeResult
+    @State private var showingGradedAlert = false
+    @State private var lastGradedResult: (correct: Int, total: Int)?
+
+    struct GradeResult {
+        let isCorrect: Bool
+        let correctAnswer: String
+        let feedback: String
+    }
 
     var body: some View {
         NavigationView {
@@ -1046,34 +1120,86 @@ struct PracticeQuestionsView: View {
                             .foregroundColor(.secondary)
                     }
                     .padding()
-
-                    // Questions
-                    ForEach(Array(questions.enumerated()), id: \.offset) { index, question in
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Question \(index + 1)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-
-                            Text(question)
-                                .font(.body)
-
-                            // Answer space
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Your Answer:")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-
-                                TextEditor(text: .constant(""))
-                                    .frame(height: 80)
-                                    .padding(8)
-                                    .background(Color(.systemGray6))
-                                    .cornerRadius(8)
+                    .onAppear {
+                        #if DEBUG
+                        print("🎯 ============================================")
+                        print("🎯 PRACTICE QUESTIONS VIEW LOADED")
+                        print("🎯 ============================================")
+                        print("📊 Total Questions: \(questions.count)")
+                        print("📚 Subject: \(subject)")
+                        print("")
+                        for (index, question) in questions.enumerated() {
+                            print("📝 Question #\(index + 1):")
+                            print("   Type: \(question.type.rawValue)")
+                            print("   Difficulty: \(question.difficulty)")
+                            print("   Question: \(question.question.prefix(80))...")
+                            print("   Correct Answer: \(question.correctAnswer)")
+                            if let options = question.options {
+                                print("   Options: \(options)")
                             }
+                            print("")
                         }
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(12)
-                        .shadow(color: .black.opacity(0.05), radius: 2)
+                        print("🎯 ============================================")
+                        #endif
+                    }
+
+                    // Progress indicator
+                    if !gradedQuestions.isEmpty {
+                        HStack {
+                            Text("Progress: \(gradedQuestions.count)/\(questions.count) answered")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text("\(correctCount)/\(gradedQuestions.count) correct")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(correctCount == gradedQuestions.count ? .green : .orange)
+                        }
+                        .padding(.horizontal)
+                    }
+
+                    // Questions with type-based rendering
+                    ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
+                        PracticeQuestionCard(
+                            questionNumber: index + 1,
+                            question: question,
+                            subject: subject,
+                            isExpanded: expandedQuestions.contains(question.id),
+                            currentAnswer: currentAnswers[question.id] ?? "",
+                            gradeResult: gradedQuestions[question.id],
+                            onToggleExpand: {
+                                toggleExpand(question.id)
+                            },
+                            onAnswerChange: { newAnswer in
+                                currentAnswers[question.id] = newAnswer
+                            },
+                            onSubmitAnswer: {
+                                Task {
+                                    await submitAnswer(for: question)
+                                }
+                            }
+                        )
+                    }
+
+                    // Final summary button
+                    if gradedQuestions.count == questions.count {
+                        Button(action: {
+                            showingGradedAlert = true
+                        }) {
+                            HStack {
+                                Image(systemName: "chart.bar.doc.horizontal")
+                                    .font(.title3)
+                                Text("View Final Summary")
+                                    .font(.body)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(Color.green)
+                            .cornerRadius(12)
+                        }
+                        .padding(.horizontal)
                     }
                 }
                 .padding()
@@ -1087,9 +1213,527 @@ struct PracticeQuestionsView: View {
                     }
                 }
             }
+            .alert("Practice Complete!", isPresented: $showingGradedAlert) {
+                Button("Done", role: .cancel) {
+                    dismiss()
+                }
+            } message: {
+                if let result = lastGradedResult {
+                    Text("You got \(result.correct) out of \(result.total) questions correct (\(Int(Double(result.correct)/Double(result.total) * 100))%)")
+                }
+            }
+        }
+    }
+
+    private var correctCount: Int {
+        gradedQuestions.values.filter { $0.isCorrect }.count
+    }
+
+    private func toggleExpand(_ questionId: UUID) {
+        if expandedQuestions.contains(questionId) {
+            expandedQuestions.remove(questionId)
+        } else {
+            expandedQuestions.insert(questionId)
+        }
+    }
+
+    private func submitAnswer(for question: QuestionGenerationService.GeneratedQuestion) async {
+        guard let userAnswer = currentAnswers[question.id], !userAnswer.isEmpty else {
+            return
+        }
+
+        #if DEBUG
+        print("📤 ============================================")
+        print("📤 SUBMITTING ANSWER FOR GRADING")
+        print("📤 ============================================")
+        print("🔹 Question ID: \(question.id)")
+        print("🔹 Question Type: \(question.type.rawValue)")
+        print("🔹 Question Text: \(question.question.prefix(100))...")
+        print("🔹 Student Answer: \(userAnswer)")
+        print("🔹 Subject: \(subject)")
+        print("🔹 Using Deep Reasoning: true")
+        print("🔹 Model Provider: gemini")
+        print("")
+        print("⏳ Sending request to NetworkService.gradeSingleQuestion()...")
+        #endif
+
+        // Use backend API for grading (supports semantic understanding, partial credit, etc.)
+        do {
+            let response = try await NetworkService.shared.gradeSingleQuestion(
+                questionText: question.question,
+                studentAnswer: userAnswer,
+                subject: subject,
+                questionType: question.type.rawValue,
+                contextImageBase64: nil,
+                parentQuestionContent: nil,
+                useDeepReasoning: true,  // Pro Mode grading
+                modelProvider: "gemini"
+            )
+
+            #if DEBUG
+            print("")
+            print("✅ RECEIVED GRADING RESPONSE")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            if let grade = response.grade {
+                print("📊 Grade Result:")
+                print("   ✓ Is Correct: \(grade.isCorrect ? "✅ YES" : "❌ NO")")
+                print("   ✓ Correct Answer: \(grade.correctAnswer ?? question.correctAnswer)")
+                print("   ✓ Feedback Length: \(grade.feedback.count) characters")
+                print("")
+                print("📝 AI Feedback:")
+                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                print(grade.feedback)
+                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            } else if let error = response.error {
+                print("❌ ERROR in response: \(error)")
+            } else {
+                print("⚠️ No grade data in response")
+            }
+            print("📤 ============================================")
+            #endif
+
+            if let grade = response.grade {
+                await MainActor.run {
+                    gradedQuestions[question.id] = GradeResult(
+                        isCorrect: grade.isCorrect,
+                        correctAnswer: grade.correctAnswer ?? question.correctAnswer,
+                        feedback: grade.feedback
+                    )
+
+                    #if DEBUG
+                    print("💾 Stored grade result for question \(question.id)")
+                    print("📈 Progress: \(gradedQuestions.count)/\(questions.count) answered")
+                    #endif
+
+                    // Update final result if all questions answered
+                    if gradedQuestions.count == questions.count {
+                        let correct = gradedQuestions.values.filter { $0.isCorrect }.count
+                        lastGradedResult = (correct: correct, total: questions.count)
+
+                        #if DEBUG
+                        print("🎊 ALL QUESTIONS COMPLETED!")
+                        print("📊 Final Score: \(correct)/\(questions.count) (\(Int(Double(correct)/Double(questions.count) * 100))%)")
+                        #endif
+                    }
+
+                    // Haptic feedback
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(grade.isCorrect ? .success : .error)
+                }
+            }
+        } catch {
+            #if DEBUG
+            print("❌ ============================================")
+            print("❌ GRADING FAILED")
+            print("❌ ============================================")
+            print("Error: \(error.localizedDescription)")
+            print("Full error: \(error)")
+            print("❌ ============================================")
+            #endif
+            print("❌ Failed to grade answer: \(error.localizedDescription)")
+            // Could show error alert here
         }
     }
 }
+
+// MARK: - Practice Question Card
+struct PracticeQuestionCard: View {
+    let questionNumber: Int
+    let question: QuestionGenerationService.GeneratedQuestion
+    let subject: String
+    let isExpanded: Bool
+    let currentAnswer: String
+    let gradeResult: PracticeQuestionsView.GradeResult?
+    let onToggleExpand: () -> Void
+    let onAnswerChange: (String) -> Void
+    let onSubmitAnswer: () -> Void
+
+    @State private var answerText: String = ""
+    @State private var selectedOption: String = ""
+    @State private var isSubmitting: Bool = false
+
+    private var isGraded: Bool {
+        gradeResult != nil
+    }
+
+    private var isCorrect: Bool {
+        gradeResult?.isCorrect ?? false
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Question Header
+            Button(action: onToggleExpand) {
+                HStack {
+                    // Question number badge
+                    ZStack {
+                        Circle()
+                            .fill(isGraded ? (isCorrect ? Color.green : Color.red) : Color.blue)
+                            .frame(width: 36, height: 36)
+
+                        if isGraded {
+                            Image(systemName: isCorrect ? "checkmark" : "xmark")
+                                .foregroundColor(.white)
+                                .font(.system(size: 16, weight: .bold))
+                        } else {
+                            Text("\(questionNumber)")
+                                .foregroundColor(.white)
+                                .font(.system(size: 16, weight: .bold))
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Question \(questionNumber)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        HStack(spacing: 8) {
+                            // Question type badge
+                            Image(systemName: question.type.icon)
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                            Text(question.type.displayName)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            // Difficulty badge
+                            Text(question.difficulty)
+                                .font(.caption)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.orange.opacity(0.2))
+                                .foregroundColor(.orange)
+                                .cornerRadius(4)
+                        }
+                    }
+
+                    Spacer()
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            if isExpanded {
+                Divider()
+
+                // Question text
+                Text(question.question)
+                    .font(.body)
+                    .padding(.vertical, 4)
+                    .onAppear {
+                        #if DEBUG
+                        print("🔍 ============================================")
+                        print("🔍 RENDERING QUESTION CARD #\(questionNumber)")
+                        print("🔍 ============================================")
+                        print("📝 Type: \(question.type.rawValue)")
+                        print("📝 Question: \(question.question)")
+                        if let options = question.options {
+                            print("📝 Options Available: \(options.count)")
+                            for (idx, option) in options.enumerated() {
+                                print("   [\(idx + 1)] \(option)")
+                            }
+                        }
+                        print("📝 Expected Answer: \(question.correctAnswer)")
+                        print("📝 Is Graded: \(isGraded)")
+                        if isGraded {
+                            print("📝 Result: \(isCorrect ? "✅ CORRECT" : "❌ INCORRECT")")
+                        }
+                        print("🔍 ============================================")
+                        #endif
+                    }
+
+                // Answer input
+                if !isGraded {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Your Answer:")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+
+                        // Type-specific input
+                        switch question.type {
+                        case .multipleChoice:
+                            if let options = question.options {
+                                #if DEBUG
+                                let _ = print("🎨 Rendering MULTIPLE CHOICE input with \(options.count) options")
+                                #endif
+                                PracticeMCInput(options: options, selectedOption: $selectedOption)
+                                    .onChange(of: selectedOption) { _, newValue in
+                                        #if DEBUG
+                                        print("✏️ User selected MC option: \(newValue)")
+                                        #endif
+                                        onAnswerChange(newValue)
+                                    }
+                            }
+
+                        case .trueFalse:
+                            #if DEBUG
+                            let _ = print("🎨 Rendering TRUE/FALSE input")
+                            #endif
+                            PracticeTFInput(selectedOption: $selectedOption)
+                                .onChange(of: selectedOption) { _, newValue in
+                                    #if DEBUG
+                                    print("✏️ User selected T/F option: \(newValue)")
+                                    #endif
+                                    onAnswerChange(newValue)
+                                }
+
+                        default:
+                            #if DEBUG
+                            let _ = print("🎨 Rendering TEXT EDITOR for type: \(question.type.rawValue)")
+                            #endif
+                            TextEditor(text: $answerText)
+                                .frame(height: 80)
+                                .padding(8)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                                .onChange(of: answerText) { _, newValue in
+                                    #if DEBUG
+                                    print("✏️ User typed text: \(newValue.prefix(50))...")
+                                    #endif
+                                    onAnswerChange(newValue)
+                                }
+                        }
+
+                        Button(action: {
+                            #if DEBUG
+                            print("🔘 Submit button pressed for question #\(questionNumber)")
+                            print("   Answer: \(currentAnswer)")
+                            #endif
+                            isSubmitting = true
+                            onSubmitAnswer()
+                        }) {
+                            HStack {
+                                if isSubmitting {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "checkmark.circle")
+                                    Text("Submit Answer")
+                                }
+                            }
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(isSubmitDisabled ? Color.gray : Color.blue)
+                            .cornerRadius(8)
+                        }
+                        .disabled(isSubmitDisabled)
+                    }
+                } else {
+                    // Show graded result
+                    VStack(alignment: .leading, spacing: 12) {
+                        // User's answer
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "pencil.circle.fill")
+                                .foregroundColor(.blue)
+                                .font(.system(size: 16))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Your Answer")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.secondary)
+                                Text(currentAnswer)
+                                    .font(.body)
+                            }
+                        }
+                        .padding(12)
+                        .background(isCorrect ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                        .cornerRadius(8)
+
+                        // Correct answer (if incorrect)
+                        if !isCorrect, let result = gradeResult {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "lightbulb.fill")
+                                    .foregroundColor(.orange)
+                                    .font(.system(size: 16))
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Correct Answer")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.secondary)
+                                    Text(result.correctAnswer)
+                                        .font(.body)
+                                }
+                            }
+                            .padding(12)
+                            .background(Color.orange.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+
+                        // Explanation
+                        if let result = gradeResult {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "bubble.left.fill")
+                                    .foregroundColor(.purple)
+                                    .font(.system(size: 16))
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Explanation")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.secondary)
+                                    Text(result.feedback)
+                                        .font(.body)
+                                }
+                            }
+                            .padding(12)
+                            .background(Color.purple.opacity(0.05))
+                            .cornerRadius(8)
+                        }
+                    }
+                    .onAppear {
+                        #if DEBUG
+                        print("📊 ============================================")
+                        print("📊 DISPLAYING GRADED RESULT #\(questionNumber)")
+                        print("📊 ============================================")
+                        print("🎯 Result: \(isCorrect ? "✅ CORRECT" : "❌ INCORRECT")")
+                        print("📝 Student Answer: \(currentAnswer)")
+                        if let result = gradeResult {
+                            print("💡 Correct Answer: \(result.correctAnswer)")
+                            print("📚 Feedback: \(result.feedback)")
+                        }
+                        print("📊 ============================================")
+                        #endif
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 2)
+        .onAppear {
+            answerText = currentAnswer
+            selectedOption = currentAnswer
+        }
+        .onChange(of: gradeResult) { _, _ in
+            // Reset submitting state when grade result arrives
+            isSubmitting = false
+        }
+    }
+
+    private var isSubmitDisabled: Bool {
+        if isSubmitting {
+            return true
+        }
+
+        switch question.type {
+        case .multipleChoice, .trueFalse:
+            return selectedOption.isEmpty
+        default:
+            return answerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+}
+
+// MARK: - Practice Input Components
+
+/// Multiple Choice Input for Practice Questions
+struct PracticeMCInput: View {
+    let options: [String]
+    @Binding var selectedOption: String
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ForEach(options, id: \.self) { option in
+                Button {
+                    #if DEBUG
+                    print("🎯 MC Option Selected: \(option)")
+                    #endif
+                    selectedOption = option
+                } label: {
+                    HStack {
+                        Image(systemName: selectedOption == option ?
+                              "checkmark.circle.fill" : "circle")
+                            .foregroundColor(selectedOption == option ? .blue : .gray)
+                            .font(.title3)
+                        Text(option)
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.leading)
+                        Spacer()
+                    }
+                    .padding()
+                    .background(selectedOption == option ?
+                                Color.blue.opacity(0.1) : Color(.systemGray6))
+                    .cornerRadius(8)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .onAppear {
+            #if DEBUG
+            print("🎨 PracticeMCInput appeared with \(options.count) options:")
+            for (idx, opt) in options.enumerated() {
+                print("   [\(idx + 1)] \(opt)")
+            }
+            #endif
+        }
+    }
+}
+
+/// True/False Input for Practice Questions
+struct PracticeTFInput: View {
+    @Binding var selectedOption: String
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Button {
+                #if DEBUG
+                print("🎯 T/F Option Selected: True")
+                #endif
+                selectedOption = "True"
+            } label: {
+                HStack {
+                    Image(systemName: selectedOption == "True" ?
+                          "checkmark.circle.fill" : "circle")
+                        .foregroundColor(selectedOption == "True" ? .green : .gray)
+                        .font(.title3)
+                    Text("True")
+                        .fontWeight(.semibold)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(selectedOption == "True" ?
+                            Color.green.opacity(0.2) : Color(.systemGray6))
+                .cornerRadius(8)
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            Button {
+                #if DEBUG
+                print("🎯 T/F Option Selected: False")
+                #endif
+                selectedOption = "False"
+            } label: {
+                HStack {
+                    Image(systemName: selectedOption == "False" ?
+                          "checkmark.circle.fill" : "circle")
+                        .foregroundColor(selectedOption == "False" ? .red : .gray)
+                        .font(.title3)
+                    Text("False")
+                        .fontWeight(.semibold)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(selectedOption == "False" ?
+                            Color.red.opacity(0.2) : Color(.systemGray6))
+                .cornerRadius(8)
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .onAppear {
+            #if DEBUG
+            print("🎨 PracticeTFInput appeared")
+            #endif
+        }
+    }
+}
+
 
 // MARK: - Subquestion-Aware Text Renderer
 
@@ -1178,6 +1822,247 @@ struct SubquestionAwareTextView: View {
         }
 
         return false
+    }
+}
+
+// MARK: - Practice Configuration Sheet
+struct PracticeConfigurationSheet: View {
+    let mistakeCount: Int
+    let onGenerate: (QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty, Set<QuestionGenerationService.GeneratedQuestion.QuestionType>, Int) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var selectedDifficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty = .intermediate
+    @State private var selectedQuestionTypes: Set<QuestionGenerationService.GeneratedQuestion.QuestionType> = [.any]
+    @State private var questionCount: Int = 5
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    // Header
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Configure Practice Questions")
+                            .font(.title2)
+                            .fontWeight(.bold)
+
+                        Text("Based on \(mistakeCount) selected mistake\(mistakeCount == 1 ? "" : "s")")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal)
+
+                    // Question Types Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Question Types")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        Text("Select which types of questions to generate:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach([QuestionGenerationService.GeneratedQuestion.QuestionType.any] + QuestionGenerationService.GeneratedQuestion.QuestionType.allCases.filter { $0 != .any }, id: \.self) { type in
+                                    QuestionTypeChip(
+                                        type: type,
+                                        isSelected: selectedQuestionTypes.contains(type),
+                                        onTap: {
+                                            toggleQuestionType(type)
+                                        }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+
+                    // Difficulty Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Difficulty Level")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        VStack(spacing: 10) {
+                            ForEach(QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty.allCases, id: \.self) { difficulty in
+                                DifficultyOption(
+                                    difficulty: difficulty,
+                                    isSelected: selectedDifficulty == difficulty,
+                                    onTap: {
+                                        selectedDifficulty = difficulty
+                                    }
+                                )
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+
+                    // Question Count Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Number of Questions")
+                                .font(.headline)
+                            Spacer()
+                            Text("\(questionCount)")
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.blue)
+                        }
+                        .padding(.horizontal)
+
+                        Slider(value: Binding(
+                            get: { Double(questionCount) },
+                            set: { questionCount = Int($0) }
+                        ), in: 1...10, step: 1)
+                            .tint(.blue)
+                            .padding(.horizontal)
+
+                        HStack {
+                            Text("1 question")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text("10 questions")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal)
+                    }
+
+                    // Generate Button
+                    Button(action: {
+                        // Call onGenerate with selected parameters
+                        let typesToUse = selectedQuestionTypes.isEmpty ? [.any] : selectedQuestionTypes
+                        onGenerate(selectedDifficulty, typesToUse, questionCount)
+                        dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "brain.head.profile")
+                                .font(.title3)
+                            Text("Generate \(questionCount) Questions")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Color.blue)
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                }
+                .padding(.vertical)
+            }
+            .navigationTitle("Practice Configuration")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private func toggleQuestionType(_ type: QuestionGenerationService.GeneratedQuestion.QuestionType) {
+        if type == .any {
+            // If "Any" is selected, clear all other selections
+            selectedQuestionTypes = [.any]
+        } else {
+            // Remove "Any" if specific type is selected
+            selectedQuestionTypes.remove(.any)
+
+            // Toggle the specific type
+            if selectedQuestionTypes.contains(type) {
+                selectedQuestionTypes.remove(type)
+                // If no types selected, default to "Any"
+                if selectedQuestionTypes.isEmpty {
+                    selectedQuestionTypes = [.any]
+                }
+            } else {
+                selectedQuestionTypes.insert(type)
+            }
+        }
+    }
+}
+
+// MARK: - Question Type Chip
+struct QuestionTypeChip: View {
+    let type: QuestionGenerationService.GeneratedQuestion.QuestionType
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 6) {
+                Image(systemName: type.icon)
+                    .font(.caption)
+                Text(type.displayName)
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(isSelected ? Color.blue : Color(.systemGray6))
+            .foregroundColor(isSelected ? .white : .primary)
+            .cornerRadius(20)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Difficulty Option
+struct DifficultyOption: View {
+    let difficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(difficulty.displayName)
+                        .font(.body)
+                        .fontWeight(.semibold)
+
+                    Text(difficultyDescription)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(difficulty.color)
+                        .font(.title3)
+                }
+            }
+            .padding()
+            .background(isSelected ? difficulty.color.opacity(0.1) : Color(.systemGray6))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? difficulty.color : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    private var difficultyDescription: String {
+        switch difficulty {
+        case .beginner:
+            return "Foundation-building questions for new concepts"
+        case .intermediate:
+            return "Balanced questions for practice and review"
+        case .advanced:
+            return "Challenging questions to push understanding"
+        case .adaptive:
+            return "AI-adjusted difficulty based on your mistakes"
+        }
     }
 }
 
