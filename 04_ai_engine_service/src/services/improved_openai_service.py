@@ -2783,6 +2783,21 @@ Focus on being helpful and educational while maintaining a conversational tone."
             logger.debug(f"⚙️  Config: {config}")
             logger.debug(f"👤 User Profile: {user_profile}")
 
+            # ✅ NEW: Log input mistake details with error analysis
+            logger.debug(f"📋 === INPUT MISTAKES WITH ERROR ANALYSIS ===")
+            for i, mistake in enumerate(mistakes_data[:3], 1):  # Log first 3 mistakes
+                logger.debug(f"Mistake #{i}:")
+                logger.debug(f"  Question: {mistake.get('original_question', 'N/A')[:100]}...")
+                logger.debug(f"  Student Answer: {mistake.get('user_answer', 'N/A')[:50]}")
+                logger.debug(f"  Correct Answer: {mistake.get('correct_answer', 'N/A')[:50]}")
+                logger.debug(f"  Error Type: {mistake.get('error_type', 'NOT PROVIDED')}")
+                logger.debug(f"  Base Branch: {mistake.get('base_branch', 'NOT PROVIDED')}")
+                logger.debug(f"  Detailed Branch: {mistake.get('detailed_branch', 'NOT PROVIDED')}")
+                logger.debug(f"  Specific Issue: {mistake.get('specific_issue', 'NOT PROVIDED')[:80]}")
+            if len(mistakes_data) > 3:
+                logger.debug(f"... and {len(mistakes_data) - 3} more mistakes")
+            logger.debug("=" * 80)
+
             # Generate the comprehensive prompt
             system_prompt = self.prompt_service.get_mistake_based_questions_prompt(
                 subject, mistakes_data, config, user_profile
@@ -2814,7 +2829,12 @@ Focus on being helpful and educational while maintaining a conversational tone."
             logger.debug(f"✅ OpenAI API call completed")
             logger.debug(f"📊 Tokens used: {tokens_used}")
             logger.debug(f"📝 Raw response length: {len(raw_response)} characters")
-            logger.debug(f"📋 Raw Response Preview: {raw_response[:200]}...")
+
+            # ✅ NEW: Log full AI response for debugging
+            logger.debug(f"📋 === FULL AI RESPONSE FOR MISTAKE-BASED QUESTIONS ===")
+            logger.debug("=" * 80)
+            logger.debug(raw_response)
+            logger.debug("=" * 80)
 
             # Use robust text parsing instead of fragile JSON parsing
             try:
@@ -2869,28 +2889,29 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     for question in questions_json:
                         question['tags'] = unique_source_tags
 
-                        # ✅ NEW: Add error keys for short-term status tracking
-                        if most_common_error_type:
+                        # ✅ NEW: Add error keys ONLY if not already provided by AI
+                        # This allows AI to specify per-question error analysis while providing fallback
+                        if not question.get('error_type') and most_common_error_type:
                             question['error_type'] = most_common_error_type
-                        if most_common_base_branch:
+                        if not question.get('base_branch') and most_common_base_branch:
                             question['base_branch'] = most_common_base_branch
-                        if most_common_detailed_branch:
+                        if not question.get('detailed_branch') and most_common_detailed_branch:
                             question['detailed_branch'] = most_common_detailed_branch
-                        if weakness_key:
+                        if not question.get('weakness_key') and weakness_key:
                             question['weakness_key'] = weakness_key
 
                         logger.debug(f"  ✓ Set tags + error keys for question: '{question.get('question', '')[:50]}...'")
                 else:
                     logger.debug(f"⚠️ No source tags found in mistakes_data")
-                    # ✅ Still add error keys even without tags
+                    # ✅ Still add error keys even without tags (only if not already present)
                     for question in questions_json:
-                        if most_common_error_type:
+                        if not question.get('error_type') and most_common_error_type:
                             question['error_type'] = most_common_error_type
-                        if most_common_base_branch:
+                        if not question.get('base_branch') and most_common_base_branch:
                             question['base_branch'] = most_common_base_branch
-                        if most_common_detailed_branch:
+                        if not question.get('detailed_branch') and most_common_detailed_branch:
                             question['detailed_branch'] = most_common_detailed_branch
-                        if weakness_key:
+                        if not question.get('weakness_key') and weakness_key:
                             question['weakness_key'] = weakness_key
 
                 # Validate each question has required fields
@@ -2905,6 +2926,16 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     for field in required_fields:
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")
+
+                # ✅ NEW: Log detailed error keys for each question
+                logger.debug(f"📊 === ERROR KEYS SUMMARY FOR GENERATED QUESTIONS ===")
+                for i, question in enumerate(questions_json, 1):
+                    logger.debug(f"Question #{i}: '{question.get('question', '')[:60]}...'")
+                    logger.debug(f"  - error_type: {question.get('error_type', 'MISSING')}")
+                    logger.debug(f"  - base_branch: {question.get('base_branch', 'MISSING')}")
+                    logger.debug(f"  - detailed_branch: {question.get('detailed_branch', 'MISSING')}")
+                    logger.debug(f"  - weakness_key: {question.get('weakness_key', 'MISSING')}")
+                logger.debug("=" * 80)
 
                 logger.debug(f"✅ === AI SERVICE: MISTAKE-BASED QUESTIONS GENERATION SUCCESS ===")
                 logger.debug(f"🎯 Generated {len(questions_json)} remedial questions")

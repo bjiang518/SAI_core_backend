@@ -146,9 +146,6 @@
 		7B2248992F2D8DFE006ADD93 /* CompactSubjectSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248902F2D8DFE006ADD93 /* CompactSubjectSelector.swift */; };
 		7B22489A2F2D8DFE006ADD93 /* DualSliderFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248912F2D8DFE006ADD93 /* DualSliderFilters.swift */; };
 		7B22489B2F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248922F2D8DFE006ADD93 /* TaxonomyFilter.swift */; };
-		7B22489D2F2DCD97006ADD93 /* Just Flow - Teal.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B22489C2F2DCD97006ADD93 /* Just Flow - Teal.json */; };
-		7B22489E2F2DCD97006ADD93 /* Just Flow - Teal.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B22489C2F2DCD97006ADD93 /* Just Flow - Teal.json */; };
-		7B22489F2F2DCD97006ADD93 /* Just Flow - Teal.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B22489C2F2DCD97006ADD93 /* Just Flow - Teal.json */; };
 		7B2248A12F2DCDAC006ADD93 /* LoadingAnimationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A02F2DCDAC006ADD93 /* LoadingAnimationView.swift */; };
 		7B2248A22F2DCDAC006ADD93 /* LoadingAnimationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A02F2DCDAC006ADD93 /* LoadingAnimationView.swift */; };
 		7B2248A32F2DCDAC006ADD93 /* LoadingAnimationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A02F2DCDAC006ADD93 /* LoadingAnimationView.swift */; };
@@ -158,6 +155,12 @@
 		7B2248A92F2DDF1F006ADD93 /* MistakeDetectionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */; };
 		7B2248AA2F2DDF1F006ADD93 /* MistakeDetectionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */; };
 		7B2248AB2F2DDF1F006ADD93 /* MistakeDetectionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */; };
+		7B2248AD2F2F4A8D006ADD93 /* DebugSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248AC2F2F4A8D006ADD93 /* DebugSettings.swift */; };
+		7B2248AE2F2F4A8D006ADD93 /* DebugSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248AC2F2F4A8D006ADD93 /* DebugSettings.swift */; };
+		7B2248AF2F2F4A8D006ADD93 /* DebugSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248AC2F2F4A8D006ADD93 /* DebugSettings.swift */; };
+		7B2248B12F2F53CB006ADD93 /* Just Flow.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248B02F2F53CB006ADD93 /* Just Flow.json */; };
+		7B2248B22F2F53CB006ADD93 /* Just Flow.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248B02F2F53CB006ADD93 /* Just Flow.json */; };
+		7B2248B32F2F53CB006ADD93 /* Just Flow.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248B02F2F53CB006ADD93 /* Just Flow.json */; };
 		7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
@@ -539,10 +542,11 @@
 		7B2248902F2D8DFE006ADD93 /* CompactSubjectSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompactSubjectSelector.swift; path = StudyAI/Views/MistakeReview/CompactSubjectSelector.swift; sourceTree = SOURCE_ROOT; };
 		7B2248912F2D8DFE006ADD93 /* DualSliderFilters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DualSliderFilters.swift; path = StudyAI/Views/MistakeReview/DualSliderFilters.swift; sourceTree = SOURCE_ROOT; };
 		7B2248922F2D8DFE006ADD93 /* TaxonomyFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaxonomyFilter.swift; path = StudyAI/Views/MistakeReview/TaxonomyFilter.swift; sourceTree = SOURCE_ROOT; };
-		7B22489C2F2DCD97006ADD93 /* Just Flow - Teal.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Just Flow - Teal.json"; sourceTree = "<group>"; };
 		7B2248A02F2DCDAC006ADD93 /* LoadingAnimationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LoadingAnimationView.swift; path = StudyAI/Views/LoadingAnimationView.swift; sourceTree = SOURCE_ROOT; };
 		7B2248A42F2DCDE4006ADD93 /* AppSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppSessionManager.swift; path = StudyAI/Services/AppSessionManager.swift; sourceTree = SOURCE_ROOT; };
 		7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MistakeDetectionHelper.swift; path = StudyAI/Services/MistakeDetectionHelper.swift; sourceTree = SOURCE_ROOT; };
+		7B2248AC2F2F4A8D006ADD93 /* DebugSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DebugSettings.swift; path = StudyAI/Services/DebugSettings.swift; sourceTree = SOURCE_ROOT; };
+		7B2248B02F2F53CB006ADD93 /* Just Flow.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Just Flow.json"; sourceTree = "<group>"; };
 		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCropper.swift; sourceTree = "<group>"; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
 		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
@@ -859,6 +863,7 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7B2248AC2F2F4A8D006ADD93 /* DebugSettings.swift */,
 				7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */,
 				7B2248A42F2DCDE4006ADD93 /* AppSessionManager.swift */,
 				7B2248802F26F838006ADD93 /* ShortTermStatusService.swift */,
@@ -1059,7 +1064,7 @@
 				7BEEB61F2E8E419600957748 /* LottieView.swift */,
 				7BEEB61B2E8E411900957748 /* Education edit.json */,
 				7BEEB62A2E8EFFEB00957748 /* AI Spiral Loading.json */,
-				7B22489C2F2DCD97006ADD93 /* Just Flow - Teal.json */,
+				7B2248B02F2F53CB006ADD93 /* Just Flow.json */,
 			);
 			path = Lottie;
 			sourceTree = "<group>";
@@ -1202,10 +1207,10 @@
 				7B74A2E92EB6BBDD002DBE2B /* Fire_moving.json in Resources */,
 				7B74A2EA2EB6BBDD002DBE2B /* Loading_animation_blue.json in Resources */,
 				7B74A2EB2EB6BBDD002DBE2B /* Bubbles x2.json in Resources */,
-				7B22489D2F2DCD97006ADD93 /* Just Flow - Teal.json in Resources */,
 				7BC00E702E714D67002DF625 /* GoogleService-Info.plist in Resources */,
 				7B9045252E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045262E8FB5DD00E5DDFA /* Chat.json in Resources */,
+				7B2248B32F2F53CB006ADD93 /* Just Flow.json in Resources */,
 				7B1961E42E94D96A0024317A /* Localizable.strings in Resources */,
 				7B1961E52E94D96A0024317A /* Localizable.strings in Resources */,
 				7B8353682EA80C7000199AC3 /* Assets.xcassets in Resources */,
@@ -1237,11 +1242,11 @@
 				7B9045272E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045282E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7B1961DE2E94D96A0024317A /* Localizable.strings in Resources */,
+				7B2248B12F2F53CB006ADD93 /* Just Flow.json in Resources */,
 				7B1961DF2E94D96A0024317A /* Localizable.strings in Resources */,
 				7B83536A2EA80C7000199AC3 /* Assets.xcassets in Resources */,
 				7B1961E02E94D96A0024317A /* Localizable.strings in Resources */,
 				7BEEB62C2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
-				7B22489E2F2DCD97006ADD93 /* Just Flow - Teal.json in Resources */,
 				7B2248152F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */,
 				7BEEB61E2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */,
@@ -1267,11 +1272,11 @@
 				7B9045232E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045242E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7B1961E12E94D96A0024317A /* Localizable.strings in Resources */,
+				7B2248B22F2F53CB006ADD93 /* Just Flow.json in Resources */,
 				7B1961E22E94D96A0024317A /* Localizable.strings in Resources */,
 				7B8353692EA80C7000199AC3 /* Assets.xcassets in Resources */,
 				7B1961E32E94D96A0024317A /* Localizable.strings in Resources */,
 				7BEEB62D2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
-				7B22489F2F2DCD97006ADD93 /* Just Flow - Teal.json in Resources */,
 				7B2248162F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */,
 				7BEEB61D2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */,
@@ -1330,6 +1335,7 @@
 				8659331C2BF143DBB36C245F /* EnhancedHomeworkParser.swift in Sources */,
 				0B6A2DF7A9ED4CCEBEABDB0A /* EnhancedTTSService.swift in Sources */,
 				BF2B7897 /* GreetingVoiceService.swift in Sources */,
+				7B2248AD2F2F4A8D006ADD93 /* DebugSettings.swift in Sources */,
 				61B870B5050040DB9CEFA635 /* ImageEnhancer.swift in Sources */,
 				6CBE355CB94942A4BCE01308 /* ImageProcessingService.swift in Sources */,
 				3A80D5B52F8146A1B97E0CC4 /* MathRenderer.swift in Sources */,
@@ -1560,6 +1566,7 @@
 				7BD668C62EE2E88700E09E55 /* ProModePDFExporter.swift in Sources */,
 				7BDE56602EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */,
 				7BDE56702EC1C667004A8629 /* SessionChatViewModel.swift in Sources */,
+				7B2248AE2F2F4A8D006ADD93 /* DebugSettings.swift in Sources */,
 				7BD668B72ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift in Sources */,
 				7B8E9E952EAB50F400E83DA8 /* HomeworkImageDetailView.swift in Sources */,
 				7BDE56E52EC31A8B004A8629 /* LaTeXToHTMLConverter.swift in Sources */,
@@ -1642,6 +1649,7 @@
 				7B22489B2F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */,
 				7B83533D2EA6F11400199AC3 /* ErrorBoundary.swift in Sources */,
 				7B2248A52F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */,
+				7B2248AF2F2F4A8D006ADD93 /* DebugSettings.swift in Sources */,
 				7B8E9E9E2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				7BDE56E62EC31A8B004A8629 /* LaTeXToHTMLConverter.swift in Sources */,
 				7BD6687D2ED05FD400E09E55 /* ZoomableImageView.swift in Sources */,

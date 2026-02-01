@@ -26,7 +26,7 @@ struct LoadingAnimationView: View {
 
                 // Lottie Animation using existing LottieView wrapper
                 LottieView(
-                    animationName: "Just Flow - Teal",
+                    animationName: "Just Flow",
                     loopMode: .playOnce,  // Import Lottie to access .playOnce
                     animationSpeed: 1.0
                 )

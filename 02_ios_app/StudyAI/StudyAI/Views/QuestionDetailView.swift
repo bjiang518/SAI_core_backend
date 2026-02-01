@@ -642,6 +642,15 @@ struct GeneratedQuestionDetailView: View {
         hasSubmitted = true
         let currentAnswer = getCurrentAnswer()
 
+        // ✅ DEBUG: Log grading start
+        // TODO: Add DebugSettings.swift to Xcode project to enable debug logging
+        print("📝 [Generation] Submitting answer for question: \(question.question.prefix(50))...")
+        print("📝 [Generation] User answer: \(currentAnswer.prefix(100))")
+        print("📝 [Generation] Correct answer: \(question.correctAnswer.prefix(100))")
+        // DebugSettings.shared.logGeneration("Submitting answer for question: \(question.question.prefix(50))...")
+        // DebugSettings.shared.logGeneration("User answer: \(currentAnswer.prefix(100))")
+        // DebugSettings.shared.logGeneration("Correct answer: \(question.correctAnswer.prefix(100))")
+
         // Use flexible grading system
         let gradingResult = gradeAnswerFlexibly(userAnswer: currentAnswer, correctAnswer: question.correctAnswer, questionType: question.type)
 
@@ -649,6 +658,10 @@ struct GeneratedQuestionDetailView: View {
         partialCredit = gradingResult.creditPercentage
 
         showingExplanation = true
+
+        // ✅ DEBUG: Log grading result
+        print("📝 [Generation] Grading result: \(gradingResult.matchMethod), Credit: \(Int(partialCredit * 100))%")
+        // DebugSettings.shared.logGeneration("Grading result: \(gradingResult.matchMethod), Credit: \(Int(partialCredit * 100))%")
 
         if isCorrect {
             logger.info("📝 Answer submitted: Correct (100%)")
@@ -665,6 +678,18 @@ struct GeneratedQuestionDetailView: View {
         let maxPoints = question.points ?? 1
         let earnedPoints = Int(Double(maxPoints) * partialCredit)
         onAnswerSubmitted?(isCorrect, earnedPoints)
+
+        // ✅ DEBUG: Log if question has error keys for status tracking
+        if question.errorType != nil {
+            print("📊 [Status] Question has error keys - will update status on archive")
+            // DebugSettings.shared.logStatus("Question has error keys - will update status on archive")
+            // DebugSettings.shared.prettyPrintErrorKeys(
+            //     errorType: question.errorType,
+            //     baseBranch: question.baseBranch,
+            //     detailedBranch: question.detailedBranch,
+            //     weaknessKey: question.weaknessKey
+            // )
+        }
     }
 
     /// Normalize an answer by removing option prefixes and standardizing format across all question types
@@ -1023,6 +1048,16 @@ Question: \(question.question)
 
         isArchiving = true
 
+        // ✅ DEBUG: Log archiving start
+        print("📚 [Archive] Starting archive for question: \(question.question.prefix(50))...")
+        // DebugSettings.shared.logArchive("Starting archive for question: \(question.question.prefix(50))...")
+        // DebugSettings.shared.prettyPrintErrorKeys(
+        //     errorType: question.errorType,
+        //     baseBranch: question.baseBranch,
+        //     detailedBranch: question.detailedBranch,
+        //     weaknessKey: question.weaknessKey
+        // )
+
         Task {
             // Build question data for archiving
             let questionData: [String: Any] = [
@@ -1051,6 +1086,10 @@ Question: \(question.question)
                 "weaknessKey": question.weaknessKey as Any
             ]
 
+            // ✅ DEBUG: Log archiving data
+            print("📚 [Archive] Archive data - Subject: \(question.topic), Correct: \(isCorrect), Has error keys: \(question.errorType != nil)")
+            // DebugSettings.shared.logArchive("Archive data - Subject: \(question.topic), Correct: \(isCorrect), Has error keys: \(question.errorType != nil)")
+
             // Save to local storage
             _ = QuestionLocalStorage.shared.saveQuestions([questionData])
 
@@ -1060,6 +1099,10 @@ Question: \(question.question)
                 saveArchivedState()  // Persist archived state
                 showingArchiveSuccess = true
                 logger.info("📚 [Archive] Practice question archived successfully")
+
+                // ✅ DEBUG: Log completion
+                print("📚 [Archive] ✅ Archive completed successfully")
+                // DebugSettings.shared.logArchive("✅ Archive completed successfully")
             }
         }
     }

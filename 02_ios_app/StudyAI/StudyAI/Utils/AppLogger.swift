@@ -15,11 +15,27 @@ struct LogConfig {
     static let networkLogging = true   // Network request/response logging
     static let performanceLogging = false  // Performance metrics
     static let suppressSystemLogs = true  // ✅ NEW: Suppress noisy iOS system logs
+
+    // 🔍 HOMEWORK DEBUGGING FLAGS
+    static let homeworkGradingDebug = true   // Homework grading and processing
+    static let homeworkAlbumDebug = true     // Album saving/deduplication
+    static let homeworkRegradeDebug = true   // Regrade functionality
+    static let imageHashingDebug = true      // Image hash generation and comparison
+    static let mistakeDetectionDebug = true  // ✅ NEW: Mistake detection and analysis
+    static let archivingDebug = true         // ✅ NEW: Question archiving
+    static let errorAnalysisDebug = true     // ✅ NEW: Error analysis queueing
     #else
     static let verboseLogging = false
     static let networkLogging = false
     static let performanceLogging = false
     static let suppressSystemLogs = true
+    static let homeworkGradingDebug = false
+    static let homeworkAlbumDebug = false
+    static let homeworkRegradeDebug = false
+    static let imageHashingDebug = false
+    static let mistakeDetectionDebug = false  // ✅ NEW
+    static let archivingDebug = false         // ✅ NEW
+    static let errorAnalysisDebug = false     // ✅ NEW
     #endif
 
     // ✅ NEW: System log patterns to suppress
@@ -137,6 +153,71 @@ struct AppLogger {
         logger.info("\(message)")
     }
 
+    // MARK: - Homework Debugging
+
+    /// Homework grading debug logging
+    func homeworkGrading(_ message: String) {
+        #if DEBUG
+        if LogConfig.homeworkGradingDebug {
+            logger.debug("📝 [GRADING] \(message)")
+        }
+        #endif
+    }
+
+    /// Homework album debug logging
+    func homeworkAlbum(_ message: String) {
+        #if DEBUG
+        if LogConfig.homeworkAlbumDebug {
+            logger.debug("📸 [ALBUM] \(message)")
+        }
+        #endif
+    }
+
+    /// Homework regrade debug logging
+    func homeworkRegrade(_ message: String) {
+        #if DEBUG
+        if LogConfig.homeworkRegradeDebug {
+            logger.debug("🔄 [REGRADE] \(message)")
+        }
+        #endif
+    }
+
+    /// Image hashing debug logging
+    func imageHashing(_ message: String) {
+        #if DEBUG
+        if LogConfig.imageHashingDebug {
+            logger.debug("🔐 [HASH] \(message)")
+        }
+        #endif
+    }
+
+    /// ✅ NEW: Mistake detection debug logging
+    func mistakeDetection(_ message: String) {
+        #if DEBUG
+        if LogConfig.mistakeDetectionDebug {
+            logger.debug("🔍 [MISTAKE] \(message)")
+        }
+        #endif
+    }
+
+    /// ✅ NEW: Archiving debug logging
+    func archiving(_ message: String) {
+        #if DEBUG
+        if LogConfig.archivingDebug {
+            logger.debug("📦 [ARCHIVE] \(message)")
+        }
+        #endif
+    }
+
+    /// ✅ NEW: Error analysis debug logging
+    func errorAnalysis(_ message: String) {
+        #if DEBUG
+        if LogConfig.errorAnalysisDebug {
+            logger.debug("🧠 [ANALYSIS] \(message)")
+        }
+        #endif
+    }
+
     // MARK: - System Log Filtering
 
     /// ✅ NEW: Setup console filtering to suppress noisy iOS system logs
@@ -192,6 +273,21 @@ extension AppLogger {
 
     /// Authentication-specific logger
     static let auth = AppLogger(category: "Authentication")
+
+    /// Homework grading logger
+    static let homework = AppLogger(category: "Homework")
+
+    /// Homework album logger
+    static let album = AppLogger(category: "HomeworkAlbum")
+
+    /// ✅ NEW: Mistake detection logger
+    static let mistakeDetection = AppLogger(category: "MistakeDetection")
+
+    /// ✅ NEW: Question archiving logger
+    static let archiving = AppLogger(category: "QuestionArchive")
+
+    /// ✅ NEW: Error analysis logger
+    static let errorAnalysis = AppLogger(category: "ErrorAnalysis")
 }
 
 // MARK: - Performance Measurement Helper

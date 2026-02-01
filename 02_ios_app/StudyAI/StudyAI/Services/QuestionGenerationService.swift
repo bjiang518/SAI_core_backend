@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import os.log
 
 // MARK: - Production Logging Safety
 // Disable debug print statements in production builds to prevent practice question exposure
@@ -224,6 +225,19 @@ class QuestionGenerationService: ObservableObject {
             self.baseBranch = try container.decodeIfPresent(String.self, forKey: .baseBranch)
             self.detailedBranch = try container.decodeIfPresent(String.self, forKey: .detailedBranch)
             self.weaknessKey = try container.decodeIfPresent(String.self, forKey: .weaknessKey)
+
+            // ✅ DEBUG: Log error keys if present
+            if let errorType = self.errorType {
+                DebugSettings.shared.logErrorKeys("Decoded question with error keys: \(errorType)")
+                DebugSettings.shared.prettyPrintErrorKeys(
+                    errorType: self.errorType,
+                    baseBranch: self.baseBranch,
+                    detailedBranch: self.detailedBranch,
+                    weaknessKey: self.weaknessKey
+                )
+            } else {
+                DebugSettings.shared.logErrorKeys("Question has NO error keys (likely random generation)")
+            }
         }
 
         // Helper struct for parsing backend multiple choice options
@@ -490,13 +504,19 @@ class QuestionGenerationService: ObservableObject {
             return .failure(.invalidURL)
         }
 
-        // ✅ OPTIMIZED: Minimal request body matching backend expectations
-        // Backend expects: subject, mistakes_data, count, question_type (flat structure)
+        // ✅ FIXED: Nested config structure matching backend expectations
+        // Backend expects: subject, mistakes_data, config { question_count, question_type, difficulty }
         let requestBody: [String: Any] = [
             "subject": subject,
             "mistakes_data": mistakes.map { $0.dictionary },
-            "count": config.questionCount,
-            "question_type": config.questionType.rawValue
+            "config": [
+                "question_count": config.questionCount,
+                "question_type": config.questionType.rawValue,
+                "difficulty": config.difficulty.rawValue,
+                "topics": config.topics,
+                "focus_notes": config.focusNotes ?? ""
+            ] as [String: Any],
+            "user_profile": userProfile.dictionary
         ]
 
         var request = URLRequest(url: url)
@@ -980,9 +1000,14 @@ class QuestionGenerationService: ObservableObject {
                 let text = option["text"] as? String ?? ""
                 return "\(label). \(text)"
             }
-            print("  ✅ Parsed \(options?.count ?? 0) multiple choice options")
+            print("  ✅ Parsed \(options?.count ?? 0) multiple choice options (object format)")
+        } else if let simpleOptions = dict["multiple_choice_options"] as? [String] {
+            // ✅ NEW: Handle simple string array format from backend
+            options = simpleOptions
+            print("  ✅ Parsed \(options?.count ?? 0) multiple choice options (string array format)")
         } else if let simpleOptions = dict["options"] as? [String] {
             options = simpleOptions
+            print("  ✅ Parsed \(options?.count ?? 0) multiple choice options (legacy format)")
         }
 
         let tags = dict["tags"] as? [String]

@@ -869,6 +869,157 @@ class DigitalHomeworkViewModel: ObservableObject {
         return jpegData.base64EncodedString()
     }
 
+    // MARK: - Per-Question Regrading
+
+    /// Regrade a single question with Gemini's deep mode for enhanced accuracy
+    func regradeQuestion(questionId: Int) async {
+        guard let index = questions.firstIndex(where: { $0.question.id == questionId }) else {
+            logger.error("Question \(questionId) not found for regrading")
+            return
+        }
+
+        logger.info("🔄 [Regrade] Starting regrade for Q\(questionId) with Gemini deep mode...")
+
+        var updatedQuestions = questions
+
+        // Mark as grading
+        updatedQuestions[index].isGrading = true
+        await MainActor.run {
+            stateManager.updateHomework(questions: updatedQuestions)
+        }
+
+        let question = updatedQuestions[index].question
+
+        do {
+            // Get context image if available
+            let contextImage = getCroppedImageBase64(for: questionId)
+
+            // Call grading endpoint with deep reasoning enabled (Gemini)
+            let response = try await networkService.gradeSingleQuestion(
+                questionText: question.displayText,
+                studentAnswer: question.displayStudentAnswer,
+                subject: subject,
+                questionType: question.questionType,
+                contextImageBase64: contextImage,
+                useDeepReasoning: true,  // ✅ Force deep reasoning for regrade
+                modelProvider: "gemini"  // ✅ Force Gemini for deep mode
+            )
+
+            await MainActor.run {
+                if response.success, let grade = response.grade {
+                    // Update grade
+                    updatedQuestions[index].grade = grade
+                    updatedQuestions[index].gradingError = nil
+                    logger.info("✅ [Regrade] Q\(questionId) regraded: score=\(grade.score), correct=\(grade.isCorrect)")
+                } else {
+                    let error = response.error ?? "Regrade failed"
+                    updatedQuestions[index].gradingError = error
+                    logger.error("❌ [Regrade] Q\(questionId) failed: \(error)")
+                }
+
+                // Mark as not grading anymore
+                updatedQuestions[index].isGrading = false
+
+                // Update state
+                stateManager.updateHomework(questions: updatedQuestions)
+
+                // Haptic feedback
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(response.success ? .success : .error)
+            }
+
+        } catch {
+            logger.error("❌ [Regrade] Q\(questionId) exception: \(error.localizedDescription)")
+            await MainActor.run {
+                updatedQuestions[index].gradingError = error.localizedDescription
+                updatedQuestions[index].isGrading = false
+                stateManager.updateHomework(questions: updatedQuestions)
+
+                // Error feedback
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.error)
+            }
+        }
+    }
+
+    /// Regrade a specific subquestion with Gemini's deep mode
+    func regradeSubquestion(parentQuestionId: Int, subquestionId: String) async {
+        guard let index = questions.firstIndex(where: { $0.question.id == parentQuestionId }) else {
+            logger.error("Parent question \(parentQuestionId) not found for subquestion regrade")
+            return
+        }
+
+        guard let subquestion = questions[index].question.subquestions?.first(where: { $0.id == subquestionId }) else {
+            logger.error("Subquestion \(subquestionId) not found in Q\(parentQuestionId)")
+            return
+        }
+
+        logger.info("🔄 [Regrade] Starting regrade for subquestion \(subquestionId) of Q\(parentQuestionId) with Gemini deep mode...")
+
+        var updatedQuestions = questions
+
+        // Mark subquestion as grading
+        updatedQuestions[index].subquestionGradingStatus[subquestionId] = true
+        await MainActor.run {
+            stateManager.updateHomework(questions: updatedQuestions)
+        }
+
+        do {
+            // Get context image from parent question if available
+            let contextImage = getCroppedImageBase64(for: parentQuestionId)
+
+            // Get parent question content for context
+            let parentContent = updatedQuestions[index].question.parentContent
+
+            // Call grading endpoint with deep reasoning enabled (Gemini)
+            let response = try await networkService.gradeSingleQuestion(
+                questionText: subquestion.questionText,
+                studentAnswer: subquestion.studentAnswer,
+                subject: subject,
+                questionType: subquestion.questionType,
+                contextImageBase64: contextImage,
+                parentQuestionContent: parentContent,
+                useDeepReasoning: true,  // ✅ Force deep reasoning for regrade
+                modelProvider: "gemini"  // ✅ Force Gemini for deep mode
+            )
+
+            await MainActor.run {
+                if response.success, let grade = response.grade {
+                    // Update subquestion grade
+                    updatedQuestions[index].subquestionGrades[subquestionId] = grade
+                    updatedQuestions[index].subquestionErrors.removeValue(forKey: subquestionId)
+                    logger.info("✅ [Regrade] Subquestion \(subquestionId) regraded: score=\(grade.score), correct=\(grade.isCorrect)")
+                } else {
+                    let error = response.error ?? "Regrade failed"
+                    updatedQuestions[index].subquestionErrors[subquestionId] = error
+                    logger.error("❌ [Regrade] Subquestion \(subquestionId) failed: \(error)")
+                }
+
+                // Mark subquestion as not grading
+                updatedQuestions[index].subquestionGradingStatus[subquestionId] = false
+
+                // Update state
+                stateManager.updateHomework(questions: updatedQuestions)
+
+                // Haptic feedback
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(response.success ? .success : .error)
+            }
+
+        } catch {
+            logger.error("❌ [Regrade] Subquestion \(subquestionId) exception: \(error.localizedDescription)")
+            await MainActor.run {
+                updatedQuestions[index].subquestionErrors[subquestionId] = error.localizedDescription
+                updatedQuestions[index].subquestionGradingStatus[subquestionId] = false
+                stateManager.updateHomework(questions: updatedQuestions)
+
+                // Error feedback
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.error)
+            }
+        }
+    }
+
     // MARK: - User Actions
 
     func askAIForHelp(questionId: Int, appState: AppState, subquestion: ProgressiveSubquestion? = nil) {

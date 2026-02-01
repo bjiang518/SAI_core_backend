@@ -351,6 +351,7 @@ struct ModernProfileView: View {
     @State private var showingShareSheet = false
     @State private var showingStorageControl = false
     @State private var showingPrivacySettings = false
+    @State private var showingDebugSettings = false
     @State private var refreshID = UUID()  // Force refresh when profile updates
 
     var body: some View {
@@ -526,6 +527,16 @@ struct ModernProfileView: View {
                         SettingsRow(icon: "externaldrive.fill", title: NSLocalizedString("settings.storageControl", comment: ""), color: .purple)
                     }
                     .buttonStyle(.plain)
+
+                    #if DEBUG
+                    // Debug Settings (only visible in debug builds)
+                    Button(action: {
+                        showingDebugSettings = true
+                    }) {
+                        SettingsRow(icon: "ant.fill", title: "Debug Settings", color: .red)
+                    }
+                    .buttonStyle(.plain)
+                    #endif
 
                     // Power Saving Mode Toggle
                     HStack(spacing: 12) {
@@ -712,6 +723,12 @@ struct ModernProfileView: View {
         .sheet(isPresented: $showingPrivacySettings) {
             PrivacySettingsView()
         }
+        // TODO: Add DebugSettings.swift to Xcode project to enable debug settings menu
+        // #if DEBUG
+        // .sheet(isPresented: $showingDebugSettings) {
+        //     DebugSettingsView()
+        // }
+        // #endif
     }
 
     private func rateApp() {
