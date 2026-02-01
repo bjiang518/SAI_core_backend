@@ -2826,21 +2826,72 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
                 # Extract unique tags from source mistakes for enforcement
                 all_source_tags = []
+                # ✅ NEW: Extract error analysis for status tracking
+                error_types = []
+                base_branches = []
+                detailed_branches = []
+
                 for mistake in mistakes_data:
                     mistake_tags = mistake.get('tags', [])
                     if mistake_tags:
                         all_source_tags.extend(mistake_tags)
+
+                    # ✅ NEW: Collect error analysis fields
+                    error_type = mistake.get('error_type')
+                    base_branch = mistake.get('base_branch') or mistake.get('primary_concept')
+                    detailed_branch = mistake.get('detailed_branch') or mistake.get('secondary_concept')
+
+                    if error_type:
+                        error_types.append(error_type)
+                    if base_branch:
+                        base_branches.append(base_branch)
+                    if detailed_branch:
+                        detailed_branches.append(detailed_branch)
+
                 unique_source_tags = list(set(all_source_tags))
 
-                # ENFORCEMENT: Override all question tags with source tags
-                # This ensures tag inheritance even if AI doesn't follow instructions
+                # ✅ NEW: Determine most common error analysis for all generated questions
+                most_common_error_type = max(set(error_types), key=error_types.count) if error_types else None
+                most_common_base_branch = max(set(base_branches), key=base_branches.count) if base_branches else None
+                most_common_detailed_branch = max(set(detailed_branches), key=detailed_branches.count) if detailed_branches else None
+
+                # ✅ NEW: Build weakness_key for short-term status tracking
+                weakness_key = None
+                if most_common_base_branch and most_common_detailed_branch:
+                    weakness_key = f"{most_common_base_branch}|{most_common_detailed_branch}"
+
+                logger.debug(f"🎯 [Error Keys] Error Type: {most_common_error_type}, Base: {most_common_base_branch}, Detailed: {most_common_detailed_branch}, Key: {weakness_key}")
+
+                # ENFORCEMENT: Override all question tags with source tags + error keys
+                # This ensures tag inheritance AND error tracking even if AI doesn't follow instructions
                 if unique_source_tags:
                     logger.debug(f"🏷️ Enforcing tag inheritance: {unique_source_tags}")
                     for question in questions_json:
                         question['tags'] = unique_source_tags
-                        logger.debug(f"  ✓ Set tags for question: '{question.get('question', '')[:50]}...'")
+
+                        # ✅ NEW: Add error keys for short-term status tracking
+                        if most_common_error_type:
+                            question['error_type'] = most_common_error_type
+                        if most_common_base_branch:
+                            question['base_branch'] = most_common_base_branch
+                        if most_common_detailed_branch:
+                            question['detailed_branch'] = most_common_detailed_branch
+                        if weakness_key:
+                            question['weakness_key'] = weakness_key
+
+                        logger.debug(f"  ✓ Set tags + error keys for question: '{question.get('question', '')[:50]}...'")
                 else:
-                    logger.debug(f"⚠️ No source tags found in mistakes_data, generated questions will have no tags")
+                    logger.debug(f"⚠️ No source tags found in mistakes_data")
+                    # ✅ Still add error keys even without tags
+                    for question in questions_json:
+                        if most_common_error_type:
+                            question['error_type'] = most_common_error_type
+                        if most_common_base_branch:
+                            question['base_branch'] = most_common_base_branch
+                        if most_common_detailed_branch:
+                            question['detailed_branch'] = most_common_detailed_branch
+                        if weakness_key:
+                            question['weakness_key'] = weakness_key
 
                 # Validate each question has required fields
                 required_fields = ["question", "question_type", "correct_answer", "explanation", "topic"]

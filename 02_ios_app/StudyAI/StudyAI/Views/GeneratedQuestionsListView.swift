@@ -301,13 +301,20 @@ struct GeneratedQuestionsListView: View {
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(DesignTokens.AdaptiveColors.border(colorScheme: colorScheme), lineWidth: 1)
+                            .stroke(
+                                isSelectionMode && selectedQuestions.contains(question.id)
+                                    ? Color.blue
+                                    : DesignTokens.AdaptiveColors.border(colorScheme: colorScheme),
+                                lineWidth: isSelectionMode && selectedQuestions.contains(question.id) ? 3 : 2
+                            )
                     )
                     .shadow(
-                        color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.05),
-                        radius: 2,
+                        color: isSelectionMode && selectedQuestions.contains(question.id)
+                            ? Color.blue.opacity(0.3)
+                            : (colorScheme == .dark ? Color.black.opacity(0.4) : Color.black.opacity(0.1)),
+                        radius: isSelectionMode && selectedQuestions.contains(question.id) ? 8 : 4,
                         x: 0,
-                        y: 1
+                        y: isSelectionMode && selectedQuestions.contains(question.id) ? 4 : 2
                     )
                 }
 

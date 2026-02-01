@@ -547,39 +547,47 @@ struct SessionChatView: View {
                                 }
                             } else {
                                 // AI message - Check for diagram data
-                                let diagramKey = message["diagramKey"] as? String
-                                let diagramData = diagramKey != nil ? viewModel.getDiagramData(for: diagramKey!) : nil
+                                if let diagramKey = message["diagramKey"] {
+                                    let diagramData = viewModel.getDiagramData(for: diagramKey)
+                                    let isRegenerating = viewModel.regeneratingDiagramKey == diagramKey
 
-                                // ✅ CRITICAL: Check if this diagram is being regenerated
-                                let isRegenerating = diagramKey != nil && viewModel.regeneratingDiagramKey == diagramKey
+                                    if isRegenerating {
+                                        // Show loading animation while regenerating
+                                        VStack(spacing: 12) {
+                                            DiagramGenerationIndicatorView()
 
-                                if isRegenerating {
-                                    // Show loading animation while regenerating
-                                    VStack(spacing: 12) {
-                                        DiagramGenerationIndicatorView()
-
-                                        Text(NSLocalizedString("chat.diagram.regenerating", value: "Regenerating diagram...", comment: ""))
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.secondary)
+                                            Text(NSLocalizedString("chat.diagram.regenerating", value: "Regenerating diagram...", comment: ""))
+                                                .font(.system(size: 14))
+                                                .foregroundColor(.secondary)
+                                        }
+                                        .padding()
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .id(index)
+                                    } else if diagramData != nil {
+                                        // AI message with diagram
+                                        EnhancedAIMessageView(
+                                            message: message["content"] ?? "",
+                                            diagramData: diagramData,
+                                            voiceType: voiceService.voiceSettings.voiceType,
+                                            isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
+                                            messageId: "message-\(index)",
+                                            onRemoveDiagram: {
+                                                viewModel.removeDiagram(withKey: diagramKey)
+                                            }
+                                        )
+                                        .id(index)
+                                    } else {
+                                        // Regular AI message - ChatGPT style with character avatar
+                                        ModernAIMessageView(
+                                            message: message["content"] ?? "",
+                                            voiceType: voiceService.voiceSettings.voiceType,
+                                            isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
+                                            messageId: "message-\(index)"
+                                        )
+                                        .id(index)
                                     }
-                                    .padding()
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .id(index)
-                                } else if diagramData != nil {
-                                    // AI message with diagram
-                                    EnhancedAIMessageView(
-                                        message: message["content"] ?? "",
-                                        diagramData: diagramData,
-                                        voiceType: voiceService.voiceSettings.voiceType,
-                                        isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
-                                        messageId: "message-\(index)",
-                                        onRemoveDiagram: diagramKey != nil ? {
-                                            viewModel.removeDiagram(withKey: diagramKey!)
-                                        } : nil
-                                    )
-                                    .id(index)
                                 } else {
-                                    // Regular AI message - ChatGPT style with character avatar
+                                    // No diagram key - regular AI message
                                     ModernAIMessageView(
                                         message: message["content"] ?? "",
                                         voiceType: voiceService.voiceSettings.voiceType,

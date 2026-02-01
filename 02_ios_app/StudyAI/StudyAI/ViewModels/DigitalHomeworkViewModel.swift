@@ -221,7 +221,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     // MARK: - Annotation Management
 
     func addAnnotation(at point: CGPoint, imageSize: CGSize) {
-        guard let originalImage = originalImage else { return }
+        guard originalImage != nil else { return }
 
         // Calculate normalized coordinates
         let normalizedTopLeft = [
@@ -1430,7 +1430,6 @@ class DigitalHomeworkViewModel: ObservableObject {
 
                 let totalQuestions = totalCount
                 let totalCorrect = correctCount
-                let accuracy = totalCount > 0 ? Float(correctCount) / Float(totalCount) : 0.0
 
                 logger.info("Progress marking: \(totalCorrect)/\(totalQuestions) correct")
 

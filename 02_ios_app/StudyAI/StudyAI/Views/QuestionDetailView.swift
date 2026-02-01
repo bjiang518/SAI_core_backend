@@ -1043,7 +1043,12 @@ Question: \(question.question)
                 "maxPoints": question.points ?? 1,
                 "feedback": question.explanation,
                 "isGraded": true,
-                "isCorrect": isCorrect
+                "isCorrect": isCorrect,
+                // ✅ CRITICAL: Include error keys for short-term status tracking
+                "errorType": question.errorType as Any,
+                "baseBranch": question.baseBranch as Any,
+                "detailedBranch": question.detailedBranch as Any,
+                "weaknessKey": question.weaknessKey as Any
             ]
 
             // Save to local storage

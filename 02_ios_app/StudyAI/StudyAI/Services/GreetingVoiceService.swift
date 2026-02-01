@@ -131,7 +131,7 @@ class GreetingVoiceService: ObservableObject {
 
     private func observeSpeakingState() {
         // Monitor the TTS service speaking state
-        let stateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+        _ = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
             Task { @MainActor [weak self] in
                 guard let self = self else {
                     timer.invalidate()

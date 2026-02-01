@@ -643,8 +643,7 @@ struct EditProfileView: View {
             // ✅ LOCAL-FIRST: Load custom avatar from local filename
             if let localFilename = UserDefaults.standard.string(forKey: "localAvatarFilename") {
                 avatarLog("📁 [EditProfileView] Loading custom avatar from LOCAL filename: \(localFilename)")
-                if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-                    let fileURL = documentsDirectory.appendingPathComponent(localFilename)
+                if loadAvatarLocally(from: localFilename) != nil {
                     if let localImage = loadAvatarLocally(from: localFilename) {
                         customAvatarImage = localImage
                         avatarLog("✅ [EditProfileView] Custom avatar loaded from LOCAL file")
@@ -766,7 +765,7 @@ struct EditProfileView: View {
 
             // Reload profile to get the updated data including custom avatar URL
             avatarLog("🔄 [EditProfileView] Reloading profile from backend...")
-            try? await profileService.getUserProfile()
+            _ = try? await profileService.getUserProfile()
             avatarLog("✅ [EditProfileView] Profile reloaded")
 
             if let reloadedProfile = profileService.currentProfile {
@@ -1541,7 +1540,7 @@ struct ProfileCameraPickerView: UIViewControllerRepresentable {
         private func mirrorImageOptimized(_ image: UIImage) -> UIImage {
             avatarLog("🪞 [ProfileCameraPickerView] Mirroring selfie: orientation=\(image.imageOrientation.rawValue), size=\(image.size)")
 
-            guard let cgImage = image.cgImage else {
+            guard image.cgImage != nil else {
                 avatarLog("❌ [ProfileCameraPickerView] No CGImage, returning original")
                 return image
             }

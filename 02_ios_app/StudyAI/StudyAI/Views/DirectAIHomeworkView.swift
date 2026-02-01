@@ -2591,7 +2591,7 @@ struct CameraPickerView: UIViewControllerRepresentable {
         private func mirrorImageOptimized(_ image: UIImage) -> UIImage {
             print("🪞 [CameraPickerView] Mirroring selfie: orientation=\(image.imageOrientation.rawValue), size=\(image.size)")
 
-            guard let cgImage = image.cgImage else {
+            guard image.cgImage != nil else {
                 print("❌ [CameraPickerView] No CGImage, returning original")
                 return image
             }

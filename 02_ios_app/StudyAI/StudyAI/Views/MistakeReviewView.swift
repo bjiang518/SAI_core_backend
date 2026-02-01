@@ -617,7 +617,7 @@ struct MistakeQuestionListView: View {
                 }
                 print("🎉 Generated \(questions.count) targeted practice questions using error analysis")
 
-            case .failure(let error):
+            case .failure(_):
                 throw PracticeGenerationError.serverError
             }
 
