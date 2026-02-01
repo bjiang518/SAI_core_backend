@@ -309,14 +309,19 @@ class QuestionGenerationRoutes {
       const aiRequest = {
         subject,
         mistakes_data: mistakes_data.map(m => ({
-          original_question: m.question_text || m.questionText,
-          user_answer: m.student_answer || m.studentAnswer,
+          original_question: m.original_question || m.question_text || m.questionText,
+          user_answer: m.user_answer || m.student_answer || m.studentAnswer,
           correct_answer: m.correct_answer || m.correctAnswer,
-          // ✅ Pass through error analysis if available
+
+          // ✅ OPTIMIZED: Support new hierarchical taxonomy fields
           error_type: m.error_type || m.errorType,
-          error_evidence: m.error_evidence || m.errorEvidence,
-          primary_concept: m.primary_concept || m.primaryConcept,
-          secondary_concept: m.secondary_concept || m.secondaryConcept,
+          base_branch: m.base_branch || m.baseBranch || m.primary_concept || m.primaryConcept,
+          detailed_branch: m.detailed_branch || m.detailedBranch || m.secondary_concept || m.secondaryConcept,
+          specific_issue: m.specific_issue || m.specificIssue || m.error_evidence || m.errorEvidence,
+
+          // ✅ NEW: Support image URLs for Pro Mode questions
+          question_image_url: m.question_image_url || m.questionImageUrl,
+
           subject: m.subject || subject,
           tags: m.tags || []
         })),
@@ -334,9 +339,11 @@ class QuestionGenerationRoutes {
       // Log sample of first mistake for debugging
       if (mistakes_data.length > 0) {
         const sample = mistakes_data[0];
-        this.fastify.log.info(`   Sample mistake: Q="${(sample.question_text || sample.questionText || '').substring(0, 50)}..."`);
+        this.fastify.log.info(`   Sample mistake: Q="${(sample.original_question || sample.question_text || sample.questionText || '').substring(0, 50)}..."`);
         this.fastify.log.info(`   Error type: ${sample.error_type || sample.errorType || 'N/A'}`);
-        this.fastify.log.info(`   Concept: ${sample.primary_concept || sample.primaryConcept || 'N/A'}`);
+        this.fastify.log.info(`   Base branch: ${sample.base_branch || sample.baseBranch || sample.primary_concept || sample.primaryConcept || 'N/A'}`);
+        this.fastify.log.info(`   Detailed branch: ${sample.detailed_branch || sample.detailedBranch || sample.secondary_concept || sample.secondaryConcept || 'N/A'}`);
+        this.fastify.log.info(`   Specific issue: ${sample.specific_issue || sample.specificIssue || sample.error_evidence || sample.errorEvidence || 'N/A'}`);
       }
 
       // Send to AI Engine's mistake-based generation endpoint

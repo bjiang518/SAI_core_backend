@@ -132,9 +132,10 @@ class MistakeReviewService: ObservableObject {
                 let statusString = data["errorAnalysisStatus"] as? String ?? "failed"
                 let errorAnalysisStatus = ErrorAnalysisStatus(rawValue: statusString) ?? .failed
 
-                // ✅ Extract weakness tracking fields (standardized naming)
-                let primaryConcept = data["primaryConcept"] as? String
-                let secondaryConcept = data["secondaryConcept"] as? String
+                // ✅ Extract hierarchical taxonomy fields
+                let baseBranch = data["baseBranch"] as? String
+                let detailedBranch = data["detailedBranch"] as? String
+                let specificIssue = data["specificIssue"] as? String
                 let weaknessKey = data["weaknessKey"] as? String
 
                 // ✅ Extract Pro Mode image field
@@ -159,9 +160,10 @@ class MistakeReviewService: ObservableObject {
                     errorConfidence: errorConfidence,
                     learningSuggestion: learningSuggestion,
                     errorAnalysisStatus: errorAnalysisStatus,
-                    primaryConcept: primaryConcept,
-                    secondaryConcept: secondaryConcept,
                     weaknessKey: weaknessKey,
+                    baseBranch: baseBranch,
+                    detailedBranch: detailedBranch,
+                    specificIssue: specificIssue,
                     questionImageUrl: questionImageUrl
                 )
 

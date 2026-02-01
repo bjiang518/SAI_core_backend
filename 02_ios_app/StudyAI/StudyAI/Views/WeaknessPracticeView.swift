@@ -832,14 +832,15 @@ class WeaknessPracticeViewModel: ObservableObject {
         do {
             // Parse weakness key to extract subject and concept
             let parts = weaknessKey.split(separator: "/")
-            guard parts.count >= 2 else {
+            guard parts.count >= 3 else {
                 throw PracticeError.generationFailed
             }
 
             let subject = String(parts[0])
-            let primaryConcept = String(parts[1])
+            let baseBranch = String(parts[1])
+            let detailedBranch = String(parts[2])
 
-            print("   📚 Subject: \(subject), Concept: \(primaryConcept)")
+            print("   📚 Subject: \(subject), Base: \(baseBranch), Detail: \(detailedBranch)")
 
             // ✅ Load original mistake questions with error analysis from local storage
             let localStorage = QuestionLocalStorage.shared
@@ -878,12 +879,13 @@ class WeaknessPracticeViewModel: ObservableObject {
                 if let errorEvidence = question["errorEvidence"] as? String {
                     data["error_evidence"] = errorEvidence
                 }
-                if let concept = question["primaryConcept"] as? String {
-                    data["primary_concept"] = concept
-                    print("   ✓ Including concept: \(concept)")
+                if let baseBranch = question["baseBranch"] as? String {
+                    data["base_branch"] = baseBranch
+                    print("   ✓ Including base branch: \(baseBranch)")
                 }
-                if let secondaryConcept = question["secondaryConcept"] as? String {
-                    data["secondary_concept"] = secondaryConcept
+                if let detailedBranch = question["detailedBranch"] as? String {
+                    data["detailed_branch"] = detailedBranch
+                    print("   ✓ Including detailed branch: \(detailedBranch)")
                 }
 
                 return data
@@ -897,7 +899,7 @@ class WeaknessPracticeViewModel: ObservableObject {
             print("   🎯 Calling backend with \(mistakesData.count) mistakes (with error analysis)")
 
             // Call backend endpoint
-            guard let url = URL(string: "https://sai-backend-production.up.railway.app/api/ai/generate-from-mistakes") else {
+            guard let url = URL(string: "https://sai-backend-production.up.railway.app/api/ai/generate-questions/mistakes") else {
                 throw URLError(.badURL)
             }
 

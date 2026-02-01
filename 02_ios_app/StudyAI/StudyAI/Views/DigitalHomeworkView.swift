@@ -32,6 +32,10 @@ struct DigitalHomeworkView: View {
     @State private var showPDFExportError = false
     @State private var pdfExportErrorMessage = ""
 
+    // ✅ NEW: Mistake detection alert
+    @State private var showMistakeDetectionAlert = false
+    @State private var detectedMistakes: [ParsedQuestion] = []
+
     // MARK: - Body
 
     var body: some View {
@@ -124,6 +128,18 @@ struct DigitalHomeworkView: View {
             }
         } message: {
             Text(NSLocalizedString("proMode.revertGradingAlert.message", comment: "Warning message"))
+        }
+        .alert("Detected \(detectedMistakes.count) Errors on This Page", isPresented: $showMistakeDetectionAlert) {
+            Button("Cancel", role: .cancel) {
+                detectedMistakes = []
+            }
+            Button("Analyze Them") {
+                Task {
+                    await archiveAndAnalyzeMistakes()
+                }
+            }
+        } message: {
+            Text("Do you want me to analyze them? (Results will be ready soon in the mistake review)")
         }
     }
 
@@ -297,7 +313,7 @@ struct DigitalHomeworkView: View {
         let correctCount = stats.correct
         let partialCount = stats.partial
         let incorrectCount = stats.incorrect
-        let totalCount = stats.total
+        _ = stats.total  // Total count not currently displayed
         let accuracy = stats.accuracy
 
         return VStack(spacing: 12) {
@@ -364,7 +380,7 @@ struct DigitalHomeworkView: View {
         let correctCount = stats.correct
         let partialCount = stats.partial
         let incorrectCount = stats.incorrect
-        let totalCount = stats.total
+        _ = stats.total  // Total count not currently displayed
         let accuracy = stats.accuracy
 
         return VStack(spacing: 20) {
@@ -536,6 +552,19 @@ struct DigitalHomeworkView: View {
 
                                 // Trigger mark progress
                                 viewModel.markProgress()
+
+                                // ✅ NEW: Check for unarchived mistakes after marking progress
+                                // Note: ProgressiveQuestion is not compatible with ParsedQuestion type cast
+                                // This feature requires refactoring to support Progressive Homework format
+                                // TODO: Implement mistake detection for Progressive Homework
+                                // let allQuestions = viewModel.questions.compactMap { $0.question }
+                                // let mistakes = MistakeDetectionHelper.shared.getUnarchivedMistakes(from: allQuestions)
+
+                                // if !mistakes.isEmpty {
+                                //     // Found unarchived mistakes - show prompt
+                                //     detectedMistakes = mistakes
+                                //     showMistakeDetectionAlert = true
+                                // }
 
                                 // ✅ iOS unlock sound effect (1100 = Tock sound, similar to unlock)
                                 AudioServicesPlaySystemSound(1100)
@@ -1269,6 +1298,91 @@ struct DigitalHomeworkView: View {
             let height = containerSize.height
             let width = height * imageAspect
             return CGSize(width: width, height: height)
+        }
+    }
+
+    // MARK: - Mistake Detection & Analysis
+
+    /// Archive and analyze detected mistakes
+    private func archiveAndAnalyzeMistakes() async {
+        guard !detectedMistakes.isEmpty else { return }
+
+        print("🔍 [MistakeDetection] Archiving and analyzing \(detectedMistakes.count) mistakes...")
+
+        // Get subject from parse results
+        let subject = parseResults.subject
+        let subjectConfidence = parseResults.subjectConfidence
+
+        // Create indices array (0...count-1)
+        let selectedIndices = Array(0..<detectedMistakes.count)
+
+        // Create empty notes and tags for all questions
+        let userNotes = Array(repeating: "", count: detectedMistakes.count)
+        let userTags = Array(repeating: [String](), count: detectedMistakes.count)
+
+        // Create archive request
+        let archiveRequest = QuestionArchiveRequest(
+            questions: detectedMistakes,
+            selectedQuestionIndices: selectedIndices,
+            detectedSubject: subject,
+            subjectConfidence: subjectConfidence,
+            originalImageUrl: nil,  // Pro Mode doesn't have original URL
+            processingTime: Double(parseResults.processingTimeMs ?? 0) / 1000.0,  // Convert ms to seconds
+            userNotes: userNotes,
+            userTags: userTags
+        )
+
+        do {
+            // Archive questions using QuestionArchiveService
+            let archivedQuestions = try await QuestionArchiveService.shared.archiveQuestions(archiveRequest)
+            print("✅ [MistakeDetection] Archived \(archivedQuestions.count) questions")
+
+            // Convert ParsedQuestion to dictionary format for error analysis
+            let wrongQuestions: [[String: Any]] = detectedMistakes.map { question in
+                var dict: [String: Any] = [
+                    "questionText": question.questionText,
+                    "studentAnswer": question.studentAnswer ?? "",
+                    "correctAnswer": question.correctAnswer ?? "",
+                    "grade": question.grade ?? "INCORRECT"
+                ]
+
+                if let rawText = question.rawQuestionText {
+                    dict["rawQuestionText"] = rawText
+                }
+
+                if let qNum = question.questionNumber {
+                    dict["questionNumber"] = qNum
+                }
+
+                return dict
+            }
+
+            // Generate session ID for this mistake batch
+            let sessionId = UUID().uuidString
+
+            // Queue error analysis for these mistakes
+            await MainActor.run {
+                ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
+                    sessionId: sessionId,
+                    wrongQuestions: wrongQuestions
+                )
+                print("✅ [MistakeDetection] Queued error analysis for session \(sessionId)")
+
+                // Clear detected mistakes
+                detectedMistakes = []
+
+                // Show success feedback
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+            }
+        } catch {
+            print("❌ [MistakeDetection] Failed to archive and analyze: \(error)")
+
+            // Show error feedback
+            await MainActor.run {
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.error)
+            }
         }
     }
 

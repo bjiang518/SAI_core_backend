@@ -5,10 +5,11 @@ import os
 
 # Add parent directory to path to import config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.error_taxonomy import (
-    MATH_DETAILED_BRANCHES,
+from config.taxonomy_router import (
+    get_taxonomy_for_subject,
     get_taxonomy_prompt_text,
-    validate_taxonomy_path
+    validate_taxonomy_path,
+    normalize_subject
 )
 
 class ConceptExtractionService:
@@ -37,7 +38,7 @@ class ConceptExtractionService:
             Dict with subject, base_branch, detailed_branch
         """
         question_text = question_data.get('question_text', '')
-        subject = question_data.get('subject', 'Mathematics')
+        subject = question_data.get('subject', 'Math')
 
         extraction_prompt = self._build_extraction_prompt(question_text, subject)
 
@@ -45,7 +46,7 @@ class ConceptExtractionService:
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "system", "content": self._get_system_prompt(subject)},
                     {"role": "user", "content": extraction_prompt}
                 ],
                 response_format={"type": "json_object"},
@@ -55,15 +56,22 @@ class ConceptExtractionService:
 
             result = json.loads(response.choices[0].message.content)
 
-            # Validate taxonomy path
+            # Validate taxonomy path using subject-specific taxonomy
             base = result.get('base_branch', '')
             detailed = result.get('detailed_branch', '')
 
-            if not validate_taxonomy_path(base, detailed):
-                # Fallback to first valid detailed branch
-                if base in MATH_DETAILED_BRANCHES:
-                    result['detailed_branch'] = MATH_DETAILED_BRANCHES[base][0]
-                    print(f"⚠️ [ConceptExtraction] Invalid taxonomy path, using fallback: {base}/{result['detailed_branch']}")
+            if not validate_taxonomy_path(subject, base, detailed):
+                # Fallback to first valid detailed branch for this subject
+                base_branches, detailed_branches = get_taxonomy_for_subject(subject)
+                if base in detailed_branches and detailed_branches[base]:
+                    result['detailed_branch'] = detailed_branches[base][0]
+                    print(f"⚠️ [ConceptExtraction] Invalid taxonomy path for {subject}, using fallback: {base}/{result['detailed_branch']}")
+                else:
+                    # Base branch also invalid, use first available
+                    if base_branches and base_branches[0] in detailed_branches:
+                        result['base_branch'] = base_branches[0]
+                        result['detailed_branch'] = detailed_branches[base_branches[0]][0]
+                        print(f"⚠️ [ConceptExtraction] Invalid base branch for {subject}, using fallback: {result['base_branch']}/{result['detailed_branch']}")
 
             # Ensure subject is returned
             result['subject'] = subject
@@ -79,10 +87,38 @@ class ConceptExtractionService:
                 "extraction_failed": True
             }
 
-    def _get_system_prompt(self):
-        return """You are an expert mathematics curriculum classifier.
+    def _get_system_prompt(self, subject):
+        """Get subject-specific system prompt"""
+        normalized = normalize_subject(subject)
+        is_generic = normalized == "others"
 
-Your ONLY task: Identify WHERE in the math curriculum this question belongs.
+        if is_generic:
+            return f"""You are an expert curriculum classifier for {subject}.
+
+Your ONLY task: Identify WHERE in the {subject} curriculum this question belongs.
+
+Return:
+- base_branch (chapter-level)
+- detailed_branch (topic-level)
+
+NO error analysis needed. Just taxonomy classification."""
+        else:
+            subject_label = {
+                "math": "mathematics",
+                "english": "English Language Arts",
+                "physics": "physics",
+                "chemistry": "chemistry",
+                "biology": "biology",
+                "history": "history and social studies",
+                "geography": "geography",
+                "compsci": "computer science",
+                "chinese": "Chinese Language Arts (语文)",
+                "spanish": "Spanish language"
+            }.get(normalized, subject)
+
+            return f"""You are an expert {subject_label} curriculum classifier.
+
+Your ONLY task: Identify WHERE in the {subject_label} curriculum this question belongs.
 
 Return:
 - base_branch (chapter-level)
@@ -91,12 +127,22 @@ Return:
 NO error analysis needed. Just taxonomy classification."""
 
     def _build_extraction_prompt(self, question, subject):
-        taxonomy_text = get_taxonomy_prompt_text()
+        taxonomy_text = get_taxonomy_prompt_text(subject)
+        normalized = normalize_subject(subject)
+        is_generic = normalized == "others"
+
+        generic_note = ""
+        if is_generic:
+            generic_note = f"""
+**NOTE**: You are classifying a {subject} question using a flexible taxonomy.
+Interpret the taxonomy categories in the context of {subject} education.
+"""
 
         return f"""Classify this {subject} question into the curriculum hierarchy.
 
 **Question**: {question}
 
+{generic_note}
 ---
 
 ## Step 1: Identify Base Branch (Chapter-Level)
@@ -123,16 +169,6 @@ NO error analysis needed. Just taxonomy classification."""
     "detailed_branch": "<exact name from Step 2 list matching the base branch>"
 }}
 
-## Example
-
-Question: "Solve for x: 2x + 5 = 13"
-
-{{
-    "subject": "Mathematics",
-    "base_branch": "Algebra - Foundations",
-    "detailed_branch": "Linear Equations - One Variable"
-}}
-
 Now classify the question above using ONLY the predefined taxonomy options.
 """
 
@@ -157,7 +193,7 @@ Now classify the question above using ONLY the predefined taxonomy options.
             if isinstance(result, Exception):
                 print(f"❌ [ConceptExtraction] Failed for question {i}: {result}")
                 question_data = questions_data[i] if i < len(questions_data) else {}
-                subject = question_data.get('subject', 'Mathematics')
+                subject = question_data.get('subject', 'Math')
                 processed_results.append({
                     "subject": subject,
                     "base_branch": None,

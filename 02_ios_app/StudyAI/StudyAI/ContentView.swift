@@ -9,6 +9,21 @@
 import SwiftUI
 import Combine
 
+// MARK: - Debug Configuration
+#if DEBUG
+private let enableAvatarDebugLogs = false  // Set to true to enable debug logs
+#else
+private let enableAvatarDebugLogs = false  // Always false in release
+#endif
+
+private func avatarLog(_ message: String) {
+    #if DEBUG
+    if enableAvatarDebugLogs {
+        print(message)
+    }
+    #endif
+}
+
 // MARK: - Main Tab Enum
 enum MainTab: Int, CaseIterable {
     case home = 0
@@ -41,9 +56,11 @@ enum MainTab: Int, CaseIterable {
 struct ContentView: View {
     @StateObject private var authService = AuthenticationService.shared
     @StateObject private var sessionManager = SessionManager.shared  // ✅ NEW: Session management
+    @StateObject private var appSessionManager = AppSessionManager.shared  // ✅ NEW: App session for loading animation
     @StateObject private var networkService = NetworkService.shared
     @Environment(\.scenePhase) private var scenePhase  // ✅ NEW: Monitor app lifecycle
     @State private var showingFaceIDReauth = false  // ✅ NEW: Face ID re-auth sheet
+    @State private var showLoadingAnimation = false  // ✅ NEW: Control loading animation display
 
     // COPPA Parental Consent
     @State private var showingParentalConsent = false
@@ -52,34 +69,44 @@ struct ContentView: View {
     @State private var hasCheckedConsentOnce = false
 
     var body: some View {
-        Group {
-            if authService.isAuthenticated {
-                MainTabView(onLogout: {
-                    authService.signOut()
-                })
-                .onAppear {
-                    // MainTabView appeared
-                }
-                .fullScreenCover(isPresented: $showingParentalConsent) {
-                    ParentalConsentView(
-                        childEmail: authService.currentUser?.email ?? "",
-                        childDateOfBirth: getUserDateOfBirth(),
-                        onConsentGranted: {
-                            // Consent granted - dismiss and refresh
-                            showingParentalConsent = false
-                            requiresParentalConsent = false
+        ZStack {
+            // Main content
+            Group {
+                if authService.isAuthenticated {
+                    MainTabView(onLogout: {
+                        authService.signOut()
+                    })
+                    .onAppear {
+                        // MainTabView appeared
+                    }
+                    .fullScreenCover(isPresented: $showingParentalConsent) {
+                        ParentalConsentView(
+                            childEmail: authService.currentUser?.email ?? "",
+                            childDateOfBirth: getUserDateOfBirth(),
+                            onConsentGranted: {
+                                // Consent granted - dismiss and refresh
+                                showingParentalConsent = false
+                                requiresParentalConsent = false
 
-                            // User data will be updated automatically after consent verification
-                        }
-                    )
+                                // User data will be updated automatically after consent verification
+                            }
+                        )
+                    }
+                } else {
+                    ModernLoginView(onLoginSuccess: {
+                        // Authentication is handled by the service
+                    })
+                    .onAppear {
+                        // ModernLoginView appeared
+                    }
                 }
-            } else {
-                ModernLoginView(onLoginSuccess: {
-                    // Authentication is handled by the service
-                })
-                .onAppear {
-                    // ModernLoginView appeared
-                }
+            }
+            .opacity(showLoadingAnimation ? 0 : 1)
+
+            // Loading animation overlay (only on first launch)
+            if showLoadingAnimation {
+                LoadingAnimationView(isShowing: $showLoadingAnimation)
+                    .zIndex(999)  // Ensure it's on top
             }
         }
         .animationIfNotPowerSaving(.easeInOut(duration: 0.3), value: authService.isAuthenticated)
@@ -116,6 +143,11 @@ struct ContentView: View {
             // ContentView appeared - check consent if authenticated
             if authService.isAuthenticated && !hasCheckedConsentOnce {
                 checkParentalConsent()
+            }
+
+            // ✅ Show loading animation on first launch or new session
+            if appSessionManager.shouldShowLoadingAnimation {
+                showLoadingAnimation = true
             }
         }
     }
@@ -171,6 +203,7 @@ struct ContentView: View {
             // App is going to background - session will be ended immediately
             print("🔐 [ContentView] App entering background - session will be ended (Face ID required on reopen)")
             sessionManager.appWillResignActive()
+            appSessionManager.appDidEnterBackground()  // ✅ Track background time
 
         case .active:
             // App is returning to foreground - session was ended, so Face ID is required
@@ -185,6 +218,9 @@ struct ContentView: View {
                     authService.requiresFaceIDReauth = true
                 }
             }
+
+            // ✅ Check if should show loading animation on return
+            appSessionManager.appDidBecomeActive()
 
         case .inactive:
             // App is temporarily inactive (e.g., during transition)
@@ -326,17 +362,17 @@ struct ModernProfileView: View {
                         HStack(spacing: 16) {
                             // Profile Image / Avatar
                             // ✅ LOCAL-FIRST APPROACH: Try local data first, fall back to server
-                            let _ = print("🖼️ [ContentView] Loading avatar (local-first approach)")
+                            let _ = avatarLog("🖼️ [ContentView] Loading avatar (local-first approach)")
 
                             // Priority 1: Try to load custom avatar from local filename
                             if let localFilename = UserDefaults.standard.string(forKey: "localAvatarFilename"),
                                let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
                                 let fileURL = documentsDirectory.appendingPathComponent(localFilename)
-                                let _ = print("📁 [ContentView] Trying LOCAL custom avatar: \(localFilename)")
+                                let _ = avatarLog("📁 [ContentView] Trying LOCAL custom avatar: \(localFilename)")
 
                                 if let imageData = try? Data(contentsOf: fileURL),
                                    let uiImage = UIImage(data: imageData) {
-                                    let _ = print("✅ [ContentView] Loaded custom avatar from LOCAL file")
+                                    let _ = avatarLog("✅ [ContentView] Loaded custom avatar from LOCAL file")
                                     Image(uiImage: uiImage)
                                         .resizable()
                                         .aspectRatio(contentMode: .fill)
@@ -344,14 +380,14 @@ struct ModernProfileView: View {
                                         .clipShape(Circle())
                                         .id(localFilename)
                                 } else {
-                                    let _ = print("⚠️ [ContentView] Local custom avatar file not found")
+                                    let _ = avatarLog("⚠️ [ContentView] Local custom avatar file not found")
                                     fallbackAvatarCircle()
                                 }
                             }
                             // Priority 2: Try to load preset avatar from local UserDefaults
                             else if let localAvatarId = UserDefaults.standard.object(forKey: "selectedAvatarId") as? Int,
                                     let avatar = ProfileAvatar.from(id: localAvatarId) {
-                                let _ = print("🎨 [ContentView] Loaded preset avatar from LOCAL: ID \(localAvatarId)")
+                                let _ = avatarLog("🎨 [ContentView] Loaded preset avatar from LOCAL: ID \(localAvatarId)")
                                 Image(avatar.imageName)
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -363,21 +399,21 @@ struct ModernProfileView: View {
                             else if let profile = profileService.currentProfile,
                                     let customAvatarUrl = profile.customAvatarUrl,
                                     !customAvatarUrl.isEmpty {
-                                let _ = print("🌐 [ContentView] Loading custom avatar from SERVER backup")
+                                let _ = avatarLog("🌐 [ContentView] Loading custom avatar from SERVER backup")
                                 AsyncImage(url: URL(string: customAvatarUrl)) { phase in
                                     switch phase {
                                     case .empty:
                                         ProgressView()
                                             .frame(width: 60, height: 60)
                                     case .success(let image):
-                                        let _ = print("✅ [ContentView] Loaded custom avatar from SERVER")
+                                        let _ = avatarLog("✅ [ContentView] Loaded custom avatar from SERVER")
                                         image
                                             .resizable()
                                             .aspectRatio(contentMode: .fill)
                                             .frame(width: 60, height: 60)
                                             .clipShape(Circle())
                                     case .failure(let error):
-                                        let _ = print("❌ [ContentView] Server custom avatar failed: \(error.localizedDescription)")
+                                        let _ = avatarLog("❌ [ContentView] Server custom avatar failed: \(error.localizedDescription)")
                                         fallbackAvatarCircle()
                                     @unknown default:
                                         EmptyView()
@@ -388,7 +424,7 @@ struct ModernProfileView: View {
                             else if let profile = profileService.currentProfile,
                                     let avatarId = profile.avatarId,
                                     let avatar = ProfileAvatar.from(id: avatarId) {
-                                let _ = print("🌐 [ContentView] Loaded preset avatar from SERVER: ID \(avatarId)")
+                                let _ = avatarLog("🌐 [ContentView] Loaded preset avatar from SERVER: ID \(avatarId)")
                                 Image(avatar.imageName)
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -399,7 +435,7 @@ struct ModernProfileView: View {
                             // Priority 5: Show fallback avatar with user initial
                             else {
                                 // Fallback to gradient circle with initial
-                                let _ = print("🖼️ [ContentView] Displaying FALLBACK avatar")
+                                let _ = avatarLog("🖼️ [ContentView] Displaying FALLBACK avatar")
                                 fallbackAvatarCircle()
                             }
 
@@ -627,14 +663,14 @@ struct ModernProfileView: View {
             if oldValue == true && newValue == false {
                 Task {
                     try? await profileService.getUserProfile()
-                    print("🔄 [ContentView] Profile reloaded after Edit Profile dismissed")
+                    avatarLog("🔄 [ContentView] Profile reloaded after Edit Profile dismissed")
                 }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ProfileUpdated"))) { _ in
             // Force UI refresh when profile is updated
             refreshID = UUID()
-            print("🔄 [ContentView] Received ProfileUpdated notification, forcing UI refresh")
+            avatarLog("🔄 [ContentView] Received ProfileUpdated notification, forcing UI refresh")
         }
         .sheet(isPresented: $showingLearningGoals) {
             LearningGoalsSettingsView()

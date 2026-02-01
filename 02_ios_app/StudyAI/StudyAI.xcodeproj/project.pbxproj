@@ -137,6 +137,27 @@
 		7B22488D2F28208D006ADD93 /* HandwritingEvaluationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B22488C2F28208D006ADD93 /* HandwritingEvaluationView.swift */; };
 		7B22488E2F28208D006ADD93 /* HandwritingEvaluationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B22488C2F28208D006ADD93 /* HandwritingEvaluationView.swift */; };
 		7B22488F2F28208D006ADD93 /* HandwritingEvaluationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B22488C2F28208D006ADD93 /* HandwritingEvaluationView.swift */; };
+		7B2248932F2D8DFE006ADD93 /* CompactSubjectSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248902F2D8DFE006ADD93 /* CompactSubjectSelector.swift */; };
+		7B2248942F2D8DFE006ADD93 /* DualSliderFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248912F2D8DFE006ADD93 /* DualSliderFilters.swift */; };
+		7B2248952F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248922F2D8DFE006ADD93 /* TaxonomyFilter.swift */; };
+		7B2248962F2D8DFE006ADD93 /* CompactSubjectSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248902F2D8DFE006ADD93 /* CompactSubjectSelector.swift */; };
+		7B2248972F2D8DFE006ADD93 /* DualSliderFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248912F2D8DFE006ADD93 /* DualSliderFilters.swift */; };
+		7B2248982F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248922F2D8DFE006ADD93 /* TaxonomyFilter.swift */; };
+		7B2248992F2D8DFE006ADD93 /* CompactSubjectSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248902F2D8DFE006ADD93 /* CompactSubjectSelector.swift */; };
+		7B22489A2F2D8DFE006ADD93 /* DualSliderFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248912F2D8DFE006ADD93 /* DualSliderFilters.swift */; };
+		7B22489B2F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248922F2D8DFE006ADD93 /* TaxonomyFilter.swift */; };
+		7B22489D2F2DCD97006ADD93 /* Just Flow - Teal.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B22489C2F2DCD97006ADD93 /* Just Flow - Teal.json */; };
+		7B22489E2F2DCD97006ADD93 /* Just Flow - Teal.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B22489C2F2DCD97006ADD93 /* Just Flow - Teal.json */; };
+		7B22489F2F2DCD97006ADD93 /* Just Flow - Teal.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B22489C2F2DCD97006ADD93 /* Just Flow - Teal.json */; };
+		7B2248A12F2DCDAC006ADD93 /* LoadingAnimationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A02F2DCDAC006ADD93 /* LoadingAnimationView.swift */; };
+		7B2248A22F2DCDAC006ADD93 /* LoadingAnimationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A02F2DCDAC006ADD93 /* LoadingAnimationView.swift */; };
+		7B2248A32F2DCDAC006ADD93 /* LoadingAnimationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A02F2DCDAC006ADD93 /* LoadingAnimationView.swift */; };
+		7B2248A52F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A42F2DCDE4006ADD93 /* AppSessionManager.swift */; };
+		7B2248A62F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A42F2DCDE4006ADD93 /* AppSessionManager.swift */; };
+		7B2248A72F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A42F2DCDE4006ADD93 /* AppSessionManager.swift */; };
+		7B2248A92F2DDF1F006ADD93 /* MistakeDetectionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */; };
+		7B2248AA2F2DDF1F006ADD93 /* MistakeDetectionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */; };
+		7B2248AB2F2DDF1F006ADD93 /* MistakeDetectionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */; };
 		7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
@@ -515,6 +536,13 @@
 		7B2248842F26FB06006ADD93 /* RecentMistakesSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RecentMistakesSection.swift; path = StudyAI/Views/RecentMistakesSection.swift; sourceTree = SOURCE_ROOT; };
 		7B2248852F26FB06006ADD93 /* WeaknessPracticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WeaknessPracticeView.swift; path = StudyAI/Views/WeaknessPracticeView.swift; sourceTree = SOURCE_ROOT; };
 		7B22488C2F28208D006ADD93 /* HandwritingEvaluationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandwritingEvaluationView.swift; path = StudyAI/Views/HandwritingEvaluationView.swift; sourceTree = SOURCE_ROOT; };
+		7B2248902F2D8DFE006ADD93 /* CompactSubjectSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompactSubjectSelector.swift; path = StudyAI/Views/MistakeReview/CompactSubjectSelector.swift; sourceTree = SOURCE_ROOT; };
+		7B2248912F2D8DFE006ADD93 /* DualSliderFilters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DualSliderFilters.swift; path = StudyAI/Views/MistakeReview/DualSliderFilters.swift; sourceTree = SOURCE_ROOT; };
+		7B2248922F2D8DFE006ADD93 /* TaxonomyFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaxonomyFilter.swift; path = StudyAI/Views/MistakeReview/TaxonomyFilter.swift; sourceTree = SOURCE_ROOT; };
+		7B22489C2F2DCD97006ADD93 /* Just Flow - Teal.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Just Flow - Teal.json"; sourceTree = "<group>"; };
+		7B2248A02F2DCDAC006ADD93 /* LoadingAnimationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LoadingAnimationView.swift; path = StudyAI/Views/LoadingAnimationView.swift; sourceTree = SOURCE_ROOT; };
+		7B2248A42F2DCDE4006ADD93 /* AppSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppSessionManager.swift; path = StudyAI/Services/AppSessionManager.swift; sourceTree = SOURCE_ROOT; };
+		7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MistakeDetectionHelper.swift; path = StudyAI/Services/MistakeDetectionHelper.swift; sourceTree = SOURCE_ROOT; };
 		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCropper.swift; sourceTree = "<group>"; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
 		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
@@ -831,6 +859,8 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */,
+				7B2248A42F2DCDE4006ADD93 /* AppSessionManager.swift */,
 				7B2248802F26F838006ADD93 /* ShortTermStatusService.swift */,
 				7B2248702F26BE4C006ADD93 /* ErrorAnalysisQueueService.swift */,
 				7BD668C32EE2E88700E09E55 /* ProModePDFExporter.swift */,
@@ -892,6 +922,10 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7B2248A02F2DCDAC006ADD93 /* LoadingAnimationView.swift */,
+				7B2248902F2D8DFE006ADD93 /* CompactSubjectSelector.swift */,
+				7B2248912F2D8DFE006ADD93 /* DualSliderFilters.swift */,
+				7B2248922F2D8DFE006ADD93 /* TaxonomyFilter.swift */,
 				7B22488C2F28208D006ADD93 /* HandwritingEvaluationView.swift */,
 				7B2248842F26FB06006ADD93 /* RecentMistakesSection.swift */,
 				7B2248852F26FB06006ADD93 /* WeaknessPracticeView.swift */,
@@ -1025,6 +1059,7 @@
 				7BEEB61F2E8E419600957748 /* LottieView.swift */,
 				7BEEB61B2E8E411900957748 /* Education edit.json */,
 				7BEEB62A2E8EFFEB00957748 /* AI Spiral Loading.json */,
+				7B22489C2F2DCD97006ADD93 /* Just Flow - Teal.json */,
 			);
 			path = Lottie;
 			sourceTree = "<group>";
@@ -1167,6 +1202,7 @@
 				7B74A2E92EB6BBDD002DBE2B /* Fire_moving.json in Resources */,
 				7B74A2EA2EB6BBDD002DBE2B /* Loading_animation_blue.json in Resources */,
 				7B74A2EB2EB6BBDD002DBE2B /* Bubbles x2.json in Resources */,
+				7B22489D2F2DCD97006ADD93 /* Just Flow - Teal.json in Resources */,
 				7BC00E702E714D67002DF625 /* GoogleService-Info.plist in Resources */,
 				7B9045252E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045262E8FB5DD00E5DDFA /* Chat.json in Resources */,
@@ -1205,6 +1241,7 @@
 				7B83536A2EA80C7000199AC3 /* Assets.xcassets in Resources */,
 				7B1961E02E94D96A0024317A /* Localizable.strings in Resources */,
 				7BEEB62C2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
+				7B22489E2F2DCD97006ADD93 /* Just Flow - Teal.json in Resources */,
 				7B2248152F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */,
 				7BEEB61E2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */,
@@ -1234,6 +1271,7 @@
 				7B8353692EA80C7000199AC3 /* Assets.xcassets in Resources */,
 				7B1961E32E94D96A0024317A /* Localizable.strings in Resources */,
 				7BEEB62D2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
+				7B22489F2F2DCD97006ADD93 /* Just Flow - Teal.json in Resources */,
 				7B2248162F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */,
 				7BEEB61D2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */,
@@ -1260,6 +1298,7 @@
 				7BDE56F22EC31AD7004A8629 /* EssayResultsView.swift in Sources */,
 				9F1B2C579AB0463A90EF1624 /* StudyAI/Services/MusicDownloadService.swift in Sources */,
 				809124D3E9CF44C6A623DE31 /* ContentView.swift in Sources */,
+				7B2248A12F2DCDAC006ADD93 /* LoadingAnimationView.swift in Sources */,
 				47661FA6102F43AE9462714A /* HomeworkModels.swift in Sources */,
 				9435f120dda645beb1b73507 /* NotificationModels.swift in Sources */,
 				7BEEB6212E8E419600957748 /* LottieView.swift in Sources */,
@@ -1281,6 +1320,7 @@
 				7BD664D72ECAB29F00E09E55 /* NativePhotoViewer.swift in Sources */,
 				7BDE566F2EC1C667004A8629 /* SessionChatViewModel.swift in Sources */,
 				C42D5B1E2F9F422F898D739B /* NetworkService.swift in Sources */,
+				7B2248A72F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */,
 				7BD668752ED05FAE00E09E55 /* DigitalHomeworkView.swift in Sources */,
 				7BD668762ED05FAE00E09E55 /* HomeworkSummaryView.swift in Sources */,
 				3CAC0FF7EDE94A0B9ACDC78F /* AuthenticationService.swift in Sources */,
@@ -1294,6 +1334,7 @@
 				6CBE355CB94942A4BCE01308 /* ImageProcessingService.swift in Sources */,
 				3A80D5B52F8146A1B97E0CC4 /* MathRenderer.swift in Sources */,
 				D10DEB4AEF7548A0BC7A194F /* PerspectiveCorrector.swift in Sources */,
+				7B2248A92F2DDF1F006ADD93 /* MistakeDetectionHelper.swift in Sources */,
 				7B1961B12E949DD10024317A /* NotificationService.swift in Sources */,
 				7B22487D2F26F821006ADD93 /* ShortTermStatusModels.swift in Sources */,
 				7B8353372EA6F11400199AC3 /* AppLogger.swift in Sources */,
@@ -1351,6 +1392,9 @@
 				7BD664DB2ECAB9D200E09E55 /* ProgressiveSubquestionModel.swift in Sources */,
 				CFF62B0E63B348CCA844F0C4 /* MusicPlaylist.swift in Sources */,
 				C7AB5FD25BB44CF4BDAF0DC6 /* FocusView.swift in Sources */,
+				7B2248962F2D8DFE006ADD93 /* CompactSubjectSelector.swift in Sources */,
+				7B2248972F2D8DFE006ADD93 /* DualSliderFilters.swift in Sources */,
+				7B2248982F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */,
 				52C62E0B488A4000B350549B /* MyGardenView.swift in Sources */,
 				7BDE56842EC1C718004A8629 /* PomodoroCalendarEvent.swift in Sources */,
 				0F87356DF3C14F9A8C93C7FE /* MusicSelectionSheet.swift in Sources */,
@@ -1468,6 +1512,7 @@
 				7B8353452EA6F4F400199AC3 /* LocalReportDataAggregator.swift in Sources */,
 				7B1961F02E94E31A0024317A /* ParentModeManager.swift in Sources */,
 				7B8E9E9A2EAB516C00E83DA8 /* HomeworkImageModels.swift in Sources */,
+				7B2248A22F2DCDAC006ADD93 /* LoadingAnimationView.swift in Sources */,
 				7BDE56952EC1CA4D004A8629 /* UIComponents.swift in Sources */,
 				7BDE56962EC1CA4D004A8629 /* MessageBubbles.swift in Sources */,
 				7BDE56972EC1CA4D004A8629 /* VoiceComponents.swift in Sources */,
@@ -1486,10 +1531,14 @@
 				7BDE567B2EC1C6C4004A8629 /* PomodoroCalendarView.swift in Sources */,
 				7BDE56762EC1C6A3004A8629 /* PomodoroNotificationService.swift in Sources */,
 				7BFC71312EC5A91D00DB95A7 /* AssistantLogger.swift in Sources */,
+				7B2248A62F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */,
 				7B2248232F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */,
 				7B2248862F26FB06006ADD93 /* RecentMistakesSection.swift in Sources */,
 				7B2248872F26FB06006ADD93 /* WeaknessPracticeView.swift in Sources */,
 				7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */,
+				7B2248932F2D8DFE006ADD93 /* CompactSubjectSelector.swift in Sources */,
+				7B2248942F2D8DFE006ADD93 /* DualSliderFilters.swift in Sources */,
+				7B2248952F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */,
 				7BFC71322EC5A91D00DB95A7 /* NetworkService+PracticeGenerator.swift in Sources */,
 				7BD668A22ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */,
 				7B8353402EA6F11400199AC3 /* SecureLogger.swift in Sources */,
@@ -1502,6 +1551,7 @@
 				7BD6687E2ED05FD400E09E55 /* ZoomableImageView.swift in Sources */,
 				7BDE56622EC1C617004A8629 /* PomodoroDeepLinkHandler.swift in Sources */,
 				7B8353422EA6F11400199AC3 /* RateLimitManager.swift in Sources */,
+				7B2248AB2F2DDF1F006ADD93 /* MistakeDetectionHelper.swift in Sources */,
 				7B1961CE2E94B32C0024317A /* LanguageSettingsView.swift in Sources */,
 				7B1961B02E949DD10024317A /* NotificationService.swift in Sources */,
 				7BEEB6202E8E419600957748 /* LottieView.swift in Sources */,
@@ -1531,6 +1581,7 @@
 				7BDE56F12EC31AD7004A8629 /* EssayResultsView.swift in Sources */,
 				7BDE56912EC1CA4D004A8629 /* UIComponents.swift in Sources */,
 				7BDE56922EC1CA4D004A8629 /* MessageBubbles.swift in Sources */,
+				7B2248AA2F2DDF1F006ADD93 /* MistakeDetectionHelper.swift in Sources */,
 				7BDE56932EC1CA4D004A8629 /* VoiceComponents.swift in Sources */,
 				7B2248832F26F838006ADD93 /* ShortTermStatusService.swift in Sources */,
 				7BDE56942EC1CA4D004A8629 /* ImageComponents.swift in Sources */,
@@ -1544,6 +1595,7 @@
 				7B22487F2F26F821006ADD93 /* ShortTermStatusModels.swift in Sources */,
 				7BD668CD2EE6A7F000E09E55 /* DiagramMessageView.swift in Sources */,
 				7BD668CE2EE6A7F000E09E55 /* DiagramRendererView.swift in Sources */,
+				7B2248A32F2DCDAC006ADD93 /* LoadingAnimationView.swift in Sources */,
 				7BEEB6132E8E3A3200957748 /* DesignTokens.swift in Sources */,
 				7BFC71332EC5A91D00DB95A7 /* AssistantLogger.swift in Sources */,
 				7BD668A72ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */,
@@ -1585,7 +1637,11 @@
 				7B83533B2EA6F11400199AC3 /* AppLogger.swift in Sources */,
 				7B83533C2EA6F11400199AC3 /* SecureLogger.swift in Sources */,
 				7BDE567C2EC1C6C4004A8629 /* PomodoroCalendarView.swift in Sources */,
+				7B2248992F2D8DFE006ADD93 /* CompactSubjectSelector.swift in Sources */,
+				7B22489A2F2D8DFE006ADD93 /* DualSliderFilters.swift in Sources */,
+				7B22489B2F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */,
 				7B83533D2EA6F11400199AC3 /* ErrorBoundary.swift in Sources */,
+				7B2248A52F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */,
 				7B8E9E9E2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				7BDE56E62EC31A8B004A8629 /* LaTeXToHTMLConverter.swift in Sources */,
 				7BD6687D2ED05FD400E09E55 /* ZoomableImageView.swift in Sources */,

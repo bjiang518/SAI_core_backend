@@ -595,10 +595,11 @@ struct QuestionGenerationView: View {
                     originalQuestion: mistake.question,
                     userAnswer: mistake.studentAnswer,
                     correctAnswer: mistake.correctAnswer,
-                    mistakeType: NSLocalizedString("questionGeneration.mistakeType.incorrectAnswer", comment: ""),
-                    topic: mistake.subject,
-                    date: ISO8601DateFormatter().string(from: mistake.createdAt),
-                    tags: mistake.tags  // Pass tags from source question
+                    errorType: mistake.errorType,  // From error analysis
+                    baseBranch: mistake.baseBranch,  // From error analysis
+                    detailedBranch: mistake.detailedBranch,  // From error analysis
+                    specificIssue: mistake.specificIssue,  // From error analysis
+                    questionImageUrl: nil  // Archive doesn't store original image URLs
                 )
             }
 

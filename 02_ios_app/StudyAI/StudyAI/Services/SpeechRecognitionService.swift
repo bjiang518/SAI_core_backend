@@ -46,30 +46,29 @@ class SpeechRecognitionService: NSObject, ObservableObject {
         // Initialize with device's preferred language, fallback to English
         let locale = Locale.current
         self.speechRecognizer = SFSpeechRecognizer(locale: locale) ?? SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
-        
+
         super.init()
-        
+
         // Check if running on simulator
         #if targetEnvironment(simulator)
         print("🎙️ SpeechRecognitionService: Running on simulator - speech recognition unavailable")
         self.permissionStatus = .restricted
         self.errorMessage = "Speech recognition is not available in the iOS Simulator. Please test on a physical device."
-        return
-        #endif
-        
+        #else
         // Check if speech recognition is available
         guard speechRecognizer != nil else {
             self.permissionStatus = .restricted
             return
         }
-        
+
         // Set delegate
         speechRecognizer?.delegate = self
-        
+
         // Request initial permissions
         Task {
             await requestPermissions()
         }
+        #endif
     }
     
     // MARK: - Permission Management
@@ -97,9 +96,7 @@ class SpeechRecognitionService: NSObject, ObservableObject {
     private func requestMicrophonePermission() async -> AVAudioSession.RecordPermission {
         // iOS 17+ uses AVAudioApplication.recordPermission, but we need to return AVAudioSession.RecordPermission
         // The enum cases .granted/.denied are deprecated but we suppress warnings since this is a compatibility bridge
-        #if compiler(>=6.0)
-        #warning("TODO: Refactor to use AVAudioApplication.recordPermission directly when minimum deployment target is iOS 17+")
-        #endif
+        // NOTE: Refactor to use AVAudioApplication.recordPermission directly when minimum deployment target is iOS 17+
 
         if #available(iOS 17.0, *) {
             // Use new iOS 17+ API

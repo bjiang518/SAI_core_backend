@@ -529,8 +529,10 @@ class DigitalHomeworkViewModel: ObservableObject {
                     let originalSize = croppedUIImage.pngData()?.count ?? 0
                     let compressedSize = jpegData.count
                     let savings = originalSize > 0 ? (1.0 - Double(compressedSize) / Double(originalSize)) * 100 : 0
-                    logger.debug("Cropped image for Q\(questionNumber) (id: \(questionId))")
-                    logger.debug("Compressed: \(originalSize / 1024)KB → \(compressedSize / 1024)KB (saved \(Int(savings))%)")
+                    if Self.isDebugMode {
+                        logger.debug("Cropped image for Q\(questionNumber) (id: \(questionId))")
+                        logger.debug("Compressed: \(originalSize / 1024)KB → \(compressedSize / 1024)KB (saved \(Int(savings))%)")
+                    }
                 } else {
                     logger.error("Failed to create UIImage from JPEG data for Q\(questionNumber)")
                 }
@@ -779,7 +781,9 @@ class DigitalHomeworkViewModel: ObservableObject {
                 )
 
                 if response.success, let grade = response.grade {
-                    logger.debug("Q\(question.id) graded: score=\(grade.score), correct=\(grade.isCorrect)")
+                    if Self.isDebugMode {
+                        logger.debug("Q\(question.id) graded: score=\(grade.score), correct=\(grade.isCorrect)")
+                    }
                     return GradingResult(
                         questionId: question.id,
                         grade: grade,
@@ -1096,10 +1100,60 @@ class DigitalHomeworkViewModel: ObservableObject {
         let withImages = questionsToArchive.filter { ($0["hasVisualElements"] as? Bool) == true }.count
         logger.info("Subquestion archive summary: parent Q\(parentQuestionId), \(questionsToArchive.count) subquestions, \(withImages) with images")
 
-        // Save to local storage (same method as regular questions)
-        _ = QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
+        // Save to local storage and get ID mappings
+        let idMappings = QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
 
         logger.info("Successfully archived \(questionsToArchive.count) subquestions from parent Q\(parentQuestionId)")
+
+        // ✅ NEW: Queue error analysis for wrong subquestions (Pass 2 - Two-Pass Grading)
+        var wrongSubquestions = questionsToArchive.filter {
+            ($0["isCorrect"] as? Bool) == false
+        }
+
+        // ✅ CRITICAL: Remap IDs to actual saved IDs (handles duplicate detection)
+        if !wrongSubquestions.isEmpty {
+            for index in 0..<wrongSubquestions.count {
+                if let originalId = wrongSubquestions[index]["id"] as? String,
+                   let mapping = idMappings.first(where: { $0.originalId == originalId }) {
+                    wrongSubquestions[index]["id"] = mapping.savedId
+                    if Self.isDebugMode {
+                        logger.debug("Remapped subquestion error analysis ID: \(originalId.prefix(8))... → \(mapping.savedId.prefix(8))...")
+                    }
+                }
+            }
+
+            let sessionId = UUID().uuidString // Generate session ID for this grading batch
+            ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
+                sessionId: sessionId,
+                wrongQuestions: wrongSubquestions
+            )
+            logger.info("Queued \(wrongSubquestions.count) wrong SUBQUESTIONS for Pass 2 error analysis")
+        }
+
+        // ✅ NEW: Queue concept extraction for correct subquestions (Bidirectional Status Tracking)
+        var correctSubquestions = questionsToArchive.filter {
+            ($0["isCorrect"] as? Bool) == true
+        }
+
+        // ✅ CRITICAL: Remap IDs to actual saved IDs (handles duplicate detection)
+        if !correctSubquestions.isEmpty {
+            for index in 0..<correctSubquestions.count {
+                if let originalId = correctSubquestions[index]["id"] as? String,
+                   let mapping = idMappings.first(where: { $0.originalId == originalId }) {
+                    correctSubquestions[index]["id"] = mapping.savedId
+                    if Self.isDebugMode {
+                        logger.debug("Remapped subquestion concept extraction ID: \(originalId.prefix(8))... → \(mapping.savedId.prefix(8))...")
+                    }
+                }
+            }
+
+            let sessionId = UUID().uuidString // Generate session ID for this grading batch
+            ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(
+                sessionId: sessionId,
+                correctQuestions: correctSubquestions
+            )
+            logger.info("✅ Queued \(correctSubquestions.count) correct SUBQUESTIONS for concept extraction (mastery tracking)")
+        }
     }
 
     /// Determine grade string and isCorrect status for a subquestion
@@ -1151,37 +1205,45 @@ class DigitalHomeworkViewModel: ObservableObject {
 
             // Save cropped image to file system if available
             var imagePath: String?
-            logger.debug("Q\(questionId): Checking for cropped image...")
-            logger.debug("croppedImages has \(croppedImages.count) entries, keys: \(croppedImages.keys.sorted())")
+            if Self.isDebugMode {
+                logger.debug("Q\(questionId): Checking for cropped image...")
+                logger.debug("croppedImages has \(croppedImages.count) entries, keys: \(croppedImages.keys.sorted())")
+            }
 
             if let image = croppedImages[questionId] {
-                logger.debug("Q\(questionId): Found cropped image (size: \(image.size))")
+                if Self.isDebugMode {
+                    logger.debug("Q\(questionId): Found cropped image (size: \(image.size))")
+                }
                 imagePath = imageStorage.saveImage(image)
                 if let path = imagePath {
-                    let fileExists = FileManager.default.fileExists(atPath: path)
-                    logger.debug("Q\(questionId): Saved image to: \(path), exists: \(fileExists)")
+                    if Self.isDebugMode {
+                        let fileExists = FileManager.default.fileExists(atPath: path)
+                        logger.debug("Q\(questionId): Saved image to: \(path), exists: \(fileExists)")
+                    }
                 } else {
                     logger.error("Q\(questionId): Failed to save image to file system")
                 }
-            } else {
+            } else if Self.isDebugMode {
                 logger.debug("Q\(questionId): No cropped image found in memory")
             }
 
             // Determine grade and isCorrect
             let (gradeString, isCorrect) = determineGradeAndCorrectness(for: questionWithGrade)
 
-            // 🔍 CRITICAL DEBUG: Log grading data before archiving
-            logger.debug("=== ARCHIVE DEBUG Q\(questionId) ===")
-            logger.debug("Grade object present: \(questionWithGrade.grade != nil)")
-            if let grade = questionWithGrade.grade {
-                logger.debug("  - score: \(grade.score)")
-                logger.debug("  - isCorrect: \(grade.isCorrect)")
-                logger.debug("  - feedback: '\(grade.feedback.prefix(50))'...")
-                logger.debug("  - correctAnswer: '\(grade.correctAnswer ?? "NIL")'")
-                logger.debug("  - correctAnswer length: \(grade.correctAnswer?.count ?? 0)")
+            // 🔍 CRITICAL DEBUG: Log grading data before archiving (debug mode only)
+            if Self.isDebugMode {
+                logger.debug("=== ARCHIVE DEBUG Q\(questionId) ===")
+                logger.debug("Grade object present: \(questionWithGrade.grade != nil)")
+                if let grade = questionWithGrade.grade {
+                    logger.debug("  - score: \(grade.score)")
+                    logger.debug("  - isCorrect: \(grade.isCorrect)")
+                    logger.debug("  - feedback: '\(grade.feedback.prefix(50))'...")
+                    logger.debug("  - correctAnswer: '\(grade.correctAnswer ?? "NIL")'")
+                    logger.debug("  - correctAnswer length: \(grade.correctAnswer?.count ?? 0)")
+                }
+                logger.debug("Student answer: '\(question.displayStudentAnswer.prefix(50))'...")
+                logger.debug("===")
             }
-            logger.debug("Student answer: '\(question.displayStudentAnswer.prefix(50))'...")
-            logger.debug("===")
 
             // Build archived question data
             let questionData: [String: Any] = [
@@ -1211,10 +1273,14 @@ class DigitalHomeworkViewModel: ObservableObject {
                 "proMode": true  // Mark as Pro Mode question
             ]
 
-            // 🔍 CRITICAL DEBUG: Log what's actually being archived
-            logger.debug("ARCHIVED Q\(questionId): studentAnswer='\(question.displayStudentAnswer.prefix(30))', correctAnswer='\((questionWithGrade.grade?.correctAnswer ?? "NIL").prefix(30))'")
+            // 🔍 CRITICAL DEBUG: Log what's actually being archived (debug mode only)
+            if Self.isDebugMode {
+                logger.debug("ARCHIVED Q\(questionId): studentAnswer='\(question.displayStudentAnswer.prefix(30))', correctAnswer='\((questionWithGrade.grade?.correctAnswer ?? "NIL").prefix(30))'")
+            }
             questionsToArchive.append(questionData)
-            logger.debug("Prepared Q\(questionId) for archiving (hasImage: \(imagePath != nil), isCorrect: \(isCorrect))")
+            if Self.isDebugMode {
+                logger.debug("Prepared Q\(questionId) for archiving (hasImage: \(imagePath != nil), isCorrect: \(isCorrect))")
+            }
         }
 
         let withImages = questionsToArchive.filter { ($0["hasVisualElements"] as? Bool) == true }.count
@@ -1236,7 +1302,9 @@ class DigitalHomeworkViewModel: ObservableObject {
                 if let originalId = wrongQuestions[index]["id"] as? String,
                    let mapping = idMappings.first(where: { $0.originalId == originalId }) {
                     wrongQuestions[index]["id"] = mapping.savedId
-                    logger.debug("Remapped error analysis ID: \(originalId.prefix(8))... → \(mapping.savedId.prefix(8))...")
+                    if Self.isDebugMode {
+                        logger.debug("Remapped error analysis ID: \(originalId.prefix(8))... → \(mapping.savedId.prefix(8))...")
+                    }
                 }
             }
 
@@ -1259,7 +1327,9 @@ class DigitalHomeworkViewModel: ObservableObject {
                 if let originalId = correctQuestions[index]["id"] as? String,
                    let mapping = idMappings.first(where: { $0.originalId == originalId }) {
                     correctQuestions[index]["id"] = mapping.savedId
-                    logger.debug("Remapped concept extraction ID: \(originalId.prefix(8))... → \(mapping.savedId.prefix(8))...")
+                    if Self.isDebugMode {
+                        logger.debug("Remapped concept extraction ID: \(originalId.prefix(8))... → \(mapping.savedId.prefix(8))...")
+                    }
                 }
             }
 

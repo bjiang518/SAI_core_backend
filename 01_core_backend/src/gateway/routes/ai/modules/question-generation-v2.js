@@ -381,6 +381,118 @@ Mistake #${i+1}:
   });
 
   /**
+   * ✅ OPTIMIZED: Generate questions from client-provided mistakes with hierarchical error analysis
+   * iOS sends mistake data with enhanced error taxonomy (error_type, base_branch, detailed_branch, specific_issue)
+   */
+  fastify.post('/api/ai/generate-from-mistakes', async (request, reply) => {
+    const startTime = Date.now();
+    const userId = await getUserId(request);
+
+    if (!userId) {
+      return reply.status(401).send({
+        success: false,
+        error: 'AUTHENTICATION_REQUIRED',
+        message: 'Please log in to generate practice questions'
+      });
+    }
+
+    const { subject, mistakes_data = [], count = 5, question_type } = request.body;
+
+    fastify.log.info(`🎯 [OPTIMIZED] Generating ${count} targeted questions from ${mistakes_data.length} selected mistakes`);
+    fastify.log.info(`   Subject: ${subject}`);
+    fastify.log.info(`   Has error analysis: ${mistakes_data.some(m => m.error_type || m.base_branch)}`);
+
+    if (!mistakes_data || mistakes_data.length === 0) {
+      return reply.status(400).send({
+        success: false,
+        error: 'NO_MISTAKES_PROVIDED',
+        message: 'No mistakes data provided. Please select mistakes from your practice history.'
+      });
+    }
+
+    try {
+      // ✅ OPTIMIZED: Enhanced field mapping with hierarchical taxonomy
+      const enhancedMistakesData = mistakes_data.map(m => ({
+        original_question: m.original_question || m.question_text || m.questionText,
+        user_answer: m.user_answer || m.student_answer || m.studentAnswer,
+        correct_answer: m.correct_answer || m.correctAnswer,
+
+        // ✅ NEW: Hierarchical error taxonomy
+        error_type: m.error_type || m.errorType,
+        base_branch: m.base_branch || m.baseBranch || m.primary_concept || m.primaryConcept,
+        detailed_branch: m.detailed_branch || m.detailedBranch || m.secondary_concept || m.secondaryConcept,
+        specific_issue: m.specific_issue || m.specificIssue || m.error_evidence || m.errorEvidence,
+
+        // ✅ NEW: Pro Mode image support
+        question_image_url: m.question_image_url || m.questionImageUrl,
+
+        subject: m.subject || subject,
+        tags: m.tags || []
+      }));
+
+      // Log sample for debugging
+      if (enhancedMistakesData.length > 0) {
+        const sample = enhancedMistakesData[0];
+        fastify.log.info(`   Sample mistake: Q="${(sample.original_question || '').substring(0, 50)}..."`);
+        fastify.log.info(`   Error type: ${sample.error_type || 'N/A'}`);
+        fastify.log.info(`   Base branch: ${sample.base_branch || 'N/A'}`);
+        fastify.log.info(`   Detailed branch: ${sample.detailed_branch || 'N/A'}`);
+        fastify.log.info(`   Specific issue: ${sample.specific_issue || 'N/A'}`);
+      }
+
+      // Use AI Engine directly (fast path)
+      fastify.log.info('⚡ Using AI Engine for mistake-based questions with hierarchical analysis...');
+
+      const result = await generateMistakeQuestionsWithAIEngine(
+        userId,
+        subject,
+        enhancedMistakesData,
+        3, // difficulty (intermediate)
+        count,
+        'en', // language
+        question_type || 'any',
+        aiClient
+      );
+
+      const totalLatency = Date.now() - startTime;
+
+      // Log metrics
+      await logMetrics({
+        userId,
+        assistantType: 'practice_generator_optimized',
+        endpoint: '/api/ai/generate-from-mistakes',
+        totalLatency,
+        inputTokens: result.tokens?.input || 0,
+        outputTokens: result.tokens?.output || 0,
+        model: result.model || 'gpt-4o-mini',
+        wasSuccessful: true,
+        useAssistantsAPI: false,
+        experimentGroup: 'ai_engine_hierarchical_taxonomy'
+      });
+
+      return {
+        success: true,
+        questions: result.questions,
+        metadata: {
+          ...result.metadata,
+          using_ai_engine: true,
+          using_hierarchical_taxonomy: true,
+          mode: 2,
+          total_latency_ms: totalLatency
+        }
+      };
+    } catch (error) {
+      fastify.log.error('❌ Optimized mistake-based generation failed:', error);
+
+      return reply.status(500).send({
+        success: false,
+        error: 'GENERATION_FAILED',
+        message: error.message || 'Failed to generate questions from mistakes'
+      });
+    }
+  });
+
+  /**
    * Generate questions based on conversations/archives (iOS sends local data)
    * Supports: conversations, questions (archived), or both combined
    */

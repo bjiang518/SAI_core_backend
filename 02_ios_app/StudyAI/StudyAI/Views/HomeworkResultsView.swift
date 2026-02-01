@@ -8,13 +8,15 @@
 import SwiftUI
 
 struct HomeworkResultsView: View {
-    let parsingResult: HomeworkParsingResult
-    let enhancedResult: EnhancedHomeworkParsingResult?
+    @State var parsingResult: HomeworkParsingResult
+    @State var enhancedResult: EnhancedHomeworkParsingResult?
     let originalImageUrl: String?
     let submittedImage: UIImage?  // NEW: Actual image for local storage
     @State private var expandedQuestions: Set<String> = []
     @State private var showingQuestionArchiveDialog = false
     @State private var isArchiving = false
+    @State private var isRegrading = false  // NEW: Track regrading state
+    @State private var showingRegradingAlert = false  // NEW: Show regrading confirmation
     @State private var selectedQuestionIndices: Set<Int> = []
     @State private var questionNotes: [String] = []
     @State private var questionTags: [[String]] = []
@@ -39,6 +41,11 @@ struct HomeworkResultsView: View {
     // Key for storing progress state in UserDefaults
     private var progressMarkedKey: String {
         return "homework_progress_marked_\(sessionId)"
+    }
+
+    // Key for storing album save state in UserDefaults
+    private var albumSavedKey: String {
+        return "homework_album_saved_\(sessionId)"
     }
 
     // Dynamic navigation title with subject
@@ -109,6 +116,25 @@ struct HomeworkResultsView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    // Regrade Button
+                    Button(action: {
+                        showingRegradingAlert = true
+                    }) {
+                        HStack(spacing: 4) {
+                            if isRegrading {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                Text("Regrade")
+                            }
+                        }
+                        .foregroundColor(isRegrading ? .gray : .purple)
+                    }
+                    .disabled(isRegrading || submittedImage == nil)
+                }
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         // ✅ Validate that questions are selected
@@ -159,12 +185,22 @@ struct HomeworkResultsView: View {
             } message: {
                 Text(NSLocalizedString("homeworkResults.selectQuestionsToArchiveMessage", comment: "Please select at least one question to archive."))
             }
+            .alert("Regrade with Deep Analysis", isPresented: $showingRegradingAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Regrade", role: .none) {
+                    Task {
+                        await performRegrade()
+                    }
+                }
+            } message: {
+                Text("This will send your homework to AI for a more detailed evaluation using advanced analysis. This may take longer but provides deeper insights.")
+            }
             .onAppear {
                 initializeQuestionData()
                 loadProgressState()
 
-                // NEW: Auto-save homework image to local storage
-                saveHomeworkImageToStorage()
+                // ❌ REMOVED: Auto-save moved to Mark Progress button
+                // saveHomeworkImageToStorage()
             }
             .onDisappear {
             }
@@ -439,6 +475,9 @@ struct HomeworkResultsView: View {
                     trackHomeworkUsage()
                     hasMarkedProgress = true
                     saveProgressState() // Persist the state
+
+                    // ✅ NEW: Save to album when marking progress
+                    saveHomeworkImageToStorage()
                 }
 
                 // Show success feedback
@@ -500,11 +539,13 @@ struct HomeworkResultsView: View {
     /// Load the progress state from UserDefaults based on session ID
     private func loadProgressState() {
         hasMarkedProgress = UserDefaults.standard.bool(forKey: progressMarkedKey)
+        hasAlreadySavedImage = UserDefaults.standard.bool(forKey: albumSavedKey)
     }
 
     /// Save the progress state to UserDefaults
     private func saveProgressState() {
         UserDefaults.standard.set(hasMarkedProgress, forKey: progressMarkedKey)
+        UserDefaults.standard.set(hasAlreadySavedImage, forKey: albumSavedKey)
     }
     
     private func toggleQuestion(_ questionId: String) {
@@ -1436,13 +1477,143 @@ extension HomeworkResultsView {
         return "General"
     }
 
+    // MARK: - Regrade Functionality
+
+    /// Regrade homework with Gemini's deep mode for more detailed evaluation
+    private func performRegrade() async {
+        guard let image = submittedImage else {
+            print("⚠️ No submitted image available for regrading")
+            return
+        }
+
+        await MainActor.run {
+            isRegrading = true
+        }
+
+        // Convert image to base64
+        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+            await MainActor.run {
+                isRegrading = false
+            }
+            return
+        }
+        let base64Image = imageData.base64EncodedString()
+
+        // Get current subject
+        let subject = enhancedResult?.detectedSubject ?? detectSubjectFromQuestion(parsingResult.allQuestions.first?.questionText ?? "")
+
+        // Enhanced detailed prompt for regrading
+        let detailedPrompt = """
+        Please perform a comprehensive re-evaluation of this homework with the following enhanced criteria:
+
+        1. **Detailed Answer Analysis**: Carefully examine each student answer for:
+           - Conceptual understanding and reasoning
+           - Mathematical or logical correctness
+           - Completeness of the solution
+           - Common misconceptions or errors
+
+        2. **Enhanced Feedback**: Provide specific, actionable feedback that:
+           - Explains why answers are correct or incorrect
+           - Points out partial credit opportunities
+           - Suggests learning resources or concepts to review
+           - Highlights strong aspects of correct answers
+
+        3. **Grading Precision**: Use more nuanced grading:
+           - Award partial credit where appropriate
+           - Consider alternative valid approaches
+           - Be lenient with minor arithmetic errors if conceptual understanding is sound
+
+        4. **Subject Context**: This is a \(subject) assignment. Apply subject-specific grading criteria and standards.
+
+        5. **Pedagogical Insights**: Where applicable, identify:
+           - Knowledge gaps or misconceptions
+           - Recommended practice areas
+           - Connections to related concepts
+
+        Please provide a thorough, student-friendly evaluation that helps improve learning.
+        """
+
+        print("🔄 Regrading homework with Gemini deep mode...")
+
+        // Call batch processing API with Gemini provider for deep analysis
+        let result = await NetworkService.shared.processHomeworkImagesBatch(
+            base64Images: [base64Image],
+            prompt: detailedPrompt,
+            subject: subject,
+            parsingMode: "detail",  // Use detail mode for thorough analysis
+            modelProvider: "gemini"  // Use Gemini for deep mode
+        )
+
+        await MainActor.run {
+            isRegrading = false
+        }
+
+        if result.success, let responses = result.responses, let firstResponse = responses.first {
+            print("✅ Regrade completed successfully")
+
+            // Parse the regraded results
+            do {
+                // Convert the response dictionary to JSON data
+                let jsonData = try JSONSerialization.data(withJSONObject: firstResponse, options: [])
+
+                // Decode into EnhancedHomeworkParsingResult
+                let decoder = JSONDecoder()
+                let regradedResult = try decoder.decode(EnhancedHomeworkParsingResult.self, from: jsonData)
+
+                // Update the UI with new results
+                await MainActor.run {
+                    // Update enhanced result
+                    self.enhancedResult = regradedResult
+
+                    // Update parsing result from enhanced result
+                    self.parsingResult = HomeworkParsingResult(
+                        questions: regradedResult.questions,
+                        processingTime: regradedResult.processingTime,
+                        overallConfidence: regradedResult.overallConfidence,
+                        parsingMethod: regradedResult.parsingMethod + " (Regraded)",
+                        rawAIResponse: regradedResult.rawAIResponse,
+                        performanceSummary: regradedResult.performanceSummary
+                    )
+
+                    // Reset question selection to show all new results
+                    selectedQuestionIndices = Set(0..<regradedResult.allQuestions.count)
+
+                    print("📊 UI updated with regraded results:")
+                    print("   - Subject: \(regradedResult.detectedSubject)")
+                    print("   - Questions: \(regradedResult.questionCount)")
+                    print("   - Accuracy: \(String(format: "%.1f%%", regradedResult.calculatedAccuracy * 100))")
+
+                    // Show success feedback
+                    let impactFeedback = UINotificationFeedbackGenerator()
+                    impactFeedback.notificationOccurred(.success)
+                }
+            } catch {
+                print("❌ Failed to parse regraded results: \(error)")
+
+                await MainActor.run {
+                    // Show error feedback
+                    let impactFeedback = UINotificationFeedbackGenerator()
+                    impactFeedback.notificationOccurred(.error)
+                }
+            }
+        } else {
+            print("❌ Regrade failed")
+
+            await MainActor.run {
+                // Show error feedback
+                let impactFeedback = UINotificationFeedbackGenerator()
+                impactFeedback.notificationOccurred(.error)
+            }
+        }
+    }
+
     // MARK: - Homework Image Storage
 
     /// Automatically save homework image to local storage
     private func saveHomeworkImageToStorage() {
-        // Guard: Only save once per session
+        // Guard: Only save once per session (persistent check)
         guard !hasAlreadySavedImage else {
-            print("📸 Image already saved for this session, skipping")
+            print("📸 Image already saved for this session (persistent), skipping")
             return
         }
 
@@ -1451,9 +1622,6 @@ extension HomeworkResultsView {
             print("📸 No submitted image to save")
             return
         }
-
-        // Mark as saved to prevent duplicate saves
-        hasAlreadySavedImage = true
 
         // Extract metadata from results
         let subject = enhancedResult?.detectedSubject ?? detectSubjectFromQuestion(parsingResult.allQuestions.first?.questionText ?? "")
@@ -1481,6 +1649,10 @@ extension HomeworkResultsView {
         // Extract raw question texts for PDF generation
         let rawQuestions = parsingResult.allQuestions.compactMap { $0.rawQuestionText }
 
+        print("📸 Attempting to save homework image to album...")
+        print("   Session ID: \(sessionId)")
+        print("   Subject: \(subject), Accuracy: \(String(format: "%.1f%%", accuracy * 100))")
+
         // Save to storage
         let record = homeworkImageStorage.saveHomeworkImage(
             image,
@@ -1495,9 +1667,13 @@ extension HomeworkResultsView {
         )
 
         if record != nil {
-            print("✅ Homework image auto-saved to album: \(subject), \(questionCount) questions")
+            print("✅ Homework image saved to album: \(subject), \(questionCount) questions")
+
+            // Mark as saved and persist to prevent duplicates
+            hasAlreadySavedImage = true
+            UserDefaults.standard.set(true, forKey: albumSavedKey)
         } else {
-            print("⚠️ Failed to auto-save homework image")
+            print("⚠️ Failed to save homework image (likely duplicate detected)")
         }
     }
 

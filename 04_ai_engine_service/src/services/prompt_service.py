@@ -1091,74 +1091,103 @@ Generate now:"""
         # Extract user profile
         grade_level = user_profile.get('grade', 'High School')
 
-        # ✅ NEW: Detect if error analysis is available
+        # ✅ OPTIMIZED: Detect if error analysis is available (support both old and new field names)
         has_error_analysis = any(
-            m.get('error_type') or m.get('error_evidence') or m.get('primary_concept')
+            m.get('error_type') or m.get('specific_issue') or m.get('error_evidence') or
+            m.get('base_branch') or m.get('primary_concept')
             for m in mistakes_data
         )
 
-        # Enhanced mistakes format with error analysis
+        # Enhanced mistakes format with hierarchical error analysis
         mistakes_summary = []
         all_source_tags = []
         error_types = []
-        primary_concepts = []
+        base_branches = []
+        detailed_branches = []
+        specific_issues = []
 
         for i, m in enumerate(mistakes_data, 1):
             tags = m.get('tags', [])
             all_source_tags.extend(tags)
 
-            # Build mistake summary with error analysis if available
+            # Build mistake summary with hierarchical error analysis if available
             mistake_line = f"Mistake #{i}:\n"
             mistake_line += f"  Question: {m.get('original_question', m.get('question_text', 'N/A'))[:150]}...\n"
             mistake_line += f"  Student Answer: {m.get('user_answer', m.get('student_answer', 'N/A'))[:100]}\n"
             mistake_line += f"  Correct Answer: {m.get('correct_answer', 'N/A')[:100]}\n"
 
-            # ✅ Add error analysis details if available
+            # ✅ OPTIMIZED: Add hierarchical taxonomy (new fields) with fallback to old fields
             if m.get('error_type'):
                 error_type = m['error_type']
                 error_types.append(error_type)
-                mistake_line += f"  Error Type: {error_type}\n"
+                mistake_line += f"  Error Classification: {error_type}\n"
 
-            if m.get('error_evidence'):
-                mistake_line += f"  What Went Wrong: {m['error_evidence'][:150]}\n"
+            # Hierarchical taxonomy (new structure): base_branch -> detailed_branch
+            base_branch = m.get('base_branch') or m.get('primary_concept')
+            detailed_branch = m.get('detailed_branch') or m.get('secondary_concept')
 
-            if m.get('primary_concept'):
-                primary_concept = m['primary_concept']
-                primary_concepts.append(primary_concept)
-                mistake_line += f"  Concept: {primary_concept}\n"
+            if base_branch:
+                base_branches.append(base_branch)
+                mistake_line += f"  Topic Area: {base_branch}\n"
 
-            if m.get('secondary_concept'):
-                mistake_line += f"  Sub-Concept: {m['secondary_concept']}\n"
+            if detailed_branch:
+                detailed_branches.append(detailed_branch)
+                mistake_line += f"  Specific Topic: {detailed_branch}\n"
+
+            # specific_issue is the targeted description of what went wrong
+            specific_issue = m.get('specific_issue') or m.get('error_evidence')
+            if specific_issue:
+                specific_issues.append(specific_issue)
+                mistake_line += f"  What Went Wrong: {specific_issue[:150]}\n"
 
             mistakes_summary.append(mistake_line)
 
         unique_source_tags = list(set(all_source_tags))
 
-        # ✅ NEW: Build error pattern analysis if available
+        # ✅ OPTIMIZED: Build error pattern analysis using hierarchical taxonomy
         error_analysis_section = ""
         if has_error_analysis:
             # Get most common error type
             most_common_error = max(set(error_types), key=error_types.count) if error_types else None
-            # Get most common concept
-            most_common_concept = max(set(primary_concepts), key=primary_concepts.count) if primary_concepts else None
+
+            # ✅ OPTIMIZED: Get most common topic area (base_branch)
+            most_common_topic_area = max(set(base_branches), key=base_branches.count) if base_branches else None
+
+            # ✅ OPTIMIZED: Get most common specific topic (detailed_branch)
+            most_common_specific_topic = max(set(detailed_branches), key=detailed_branches.count) if detailed_branches else None
+
+            # ✅ NEW: Auto-determine difficulty based on error type
+            suggested_difficulty = "intermediate"  # default
+            if most_common_error == "conceptual_gap":
+                suggested_difficulty = "beginner"  # Needs foundational review
+            elif most_common_error == "needs_refinement":
+                suggested_difficulty = "advanced"  # Ready for challenges
+            elif most_common_error == "execution_error":
+                suggested_difficulty = "intermediate"  # Needs practice
 
             error_analysis_section = f"""
-🎯 TARGETED PRACTICE MODE - Error Analysis Available:
+🎯 TARGETED PRACTICE MODE - Hierarchical Error Analysis:
 
 Pattern Analysis:
-- Most Common Error Type: {most_common_error or 'Not specified'}
-- Most Problematic Concept: {most_common_concept or 'Not specified'}
+- Error Classification: {most_common_error or 'Not specified'}
+- Topic Area: {most_common_topic_area or 'Not specified'}
+- Specific Topic: {most_common_specific_topic or 'Not specified'}
 - Total Mistakes with Analysis: {len([m for m in mistakes_data if m.get('error_type')])}
+- Suggested Difficulty: {suggested_difficulty}
+
+Specific Issues Identified:
+{chr(10).join(f"  • {issue[:100]}" for issue in specific_issues[:5]) if specific_issues else "  • None specified"}
 
 YOUR MISSION:
 Generate {question_count} questions that:
-1. Target the SAME concepts ({most_common_concept}) but use DIFFERENT numbers/contexts
-2. Address the specific error pattern ({most_common_error})
-3. Include hints that guide students AWAY from the common error
-4. Progress from slightly easier (build confidence) to moderate difficulty
+1. Target the hierarchical path: {most_common_topic_area} → {most_common_specific_topic}
+2. Address the error pattern: {most_common_error}
+3. Focus on these specific issues: {', '.join(specific_issues[:3]) if specific_issues else 'general practice'}
+4. Use {suggested_difficulty} difficulty level based on error type
 5. DO NOT repeat the exact questions above - use similar concepts with new scenarios
+6. Progress from slightly easier (build confidence) to moderate difficulty
 
-Focus on helping the student master what they struggled with.
+Focus on helping the student master the specific topic they struggled with.
 """
 
         # ALWAYS include LaTeX formatting instructions for ALL question types
