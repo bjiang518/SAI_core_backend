@@ -3404,7 +3404,7 @@ PRESERVE the original language of the homework in ALL text fields:
 
 OUTPUT FORMAT:
 {{
-  "subject": "Mathematics|Physics|Chemistry|Biology|English|History|Geography|Computer Science|Other",
+  "subject": "Math|Physics|Chemistry|Biology|English|History|Geography|Computer Science|Art|Music|Physical Education|Others: [description]",
   "subject_confidence": 0.95,
   "total_questions": 3,
   "questions": [
@@ -3437,6 +3437,22 @@ OUTPUT FORMAT:
     }}
   ]
 }}
+
+SUBJECT SELECTION RULES:
+📚 Select the most specific subject from the predefined list:
+   Math, Physics, Chemistry, Biology, English, History, Geography, Computer Science, Art, Music, Physical Education
+
+⚠️ If homework does NOT match any predefined subject:
+   - Use format: "Others: [brief subject name]"
+   - Example: "Others: French", "Others: Economics", "Others: Social Studies"
+   - Keep description SHORT (1-3 words max)
+   - Be SPECIFIC (not "Others: Language" - use "Others: Spanish")
+
+✅ Examples:
+   - Algebra homework → "Math"
+   - Essay writing → "English"
+   - French vocabulary → "Others: French"
+   - Economics graphs → "Others: Economics"
 
 CRITICAL RECOGNITION RULES:
 🚨 IF you see "1. a) b) c) d)" or "1. i) ii) iii)" → THIS IS A PARENT QUESTION

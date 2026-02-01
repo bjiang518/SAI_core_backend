@@ -19,6 +19,21 @@ private func print(_ items: Any...) { }
 private func debugPrint(_ items: Any...) { }
 #endif
 
+// MARK: - Debug Configuration for Avatar/Profile Logs
+#if DEBUG
+private let enableProfileDebugLogs = false  // Set to true to enable profile/avatar debug logs
+#else
+private let enableProfileDebugLogs = false  // Always false in release
+#endif
+
+private func profileLog(_ message: String) {
+    #if DEBUG
+    if enableProfileDebugLogs {
+        print(message)
+    }
+    #endif
+}
+
 class NetworkService: ObservableObject {
     static let shared = NetworkService()
 
@@ -1792,7 +1807,7 @@ class NetworkService: ObservableObject {
                             print("📊 Explanation preview: '\(explanation.prefix(100))...'")
                         }
                         if let renderingHint = decodedResponse.renderingHint {
-                            print("📊 Rendering hint: \(renderingHint.width)x\(renderingHint.height), bg=\(renderingHint.background), scale=\(renderingHint.scaleFactor)")
+                            print("📊 Rendering hint: \(renderingHint.width)x\(renderingHint.height), bg=\(renderingHint.background), scale=\(renderingHint.scaleFactor ?? 1.0)")
                         }
                         print("📊 Processing time: \(decodedResponse.processingTimeMs ?? 0)ms")
                         print("📊 Tokens used: \(decodedResponse.tokensUsed ?? 0)")
@@ -3232,7 +3247,7 @@ class NetworkService: ObservableObject {
                 if let hint = diagramResponse.renderingHint {
                     diagramDict["width"] = hint.width
                     diagramDict["height"] = hint.height
-                    diagramDict["background"] = hint.background ?? "white"
+                    diagramDict["background"] = hint.background
                 }
 
                 diagramsArray.append(diagramDict)
@@ -3313,7 +3328,7 @@ class NetworkService: ObservableObject {
             let content = message["content"] ?? ""
             let hasImage = message["hasImage"] == "true"
             let messageId = message["messageId"] ?? ""
-            let diagramKey = message["diagramKey"] as? String
+            let diagramKey = message["diagramKey"]
 
             print("📝 Processing message \(index): role=\(role), hasImage=\(hasImage), hasDiagram=\(diagramKey != nil)")
 
@@ -3740,7 +3755,7 @@ class NetworkService: ObservableObject {
     
     /// Get detailed user profile from server
     func getUserProfile() async -> (success: Bool, profile: [String: Any]?, message: String) {
-        print("👤 === GET USER PROFILE ===")
+        profileLog("👤 === GET USER PROFILE ===")
         
         let profileURL = "\(baseURL)/api/user/profile-details"
         

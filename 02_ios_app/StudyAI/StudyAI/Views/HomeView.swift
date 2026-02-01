@@ -70,19 +70,12 @@ struct HomeView: View {
                 .padding(.vertical, DesignTokens.Spacing.md)
             }
             .background(
-                // Holographic gradient background - adaptive for dark mode
-                LottieView(
-                    animationName: "Holographic gradient",
-                    loopMode: .loop,
-                    animationSpeed: 1.5,
-                    powerSavingProgress: 0.8  // Background animation pauses at 80%
-                )
-                .scaleEffect(1.5)
-                .opacity(colorScheme == .dark ? 0.25 : 0.8)  // Much dimmer in dark mode
-                .blendMode(colorScheme == .dark ? .screen : .normal)  // Screen blend for dark mode
-                .ignoresSafeArea()
+                // Clean background - blue for day mode, light grey for dark mode
+                (colorScheme == .dark ?
+                    Color(red: 0.18, green: 0.18, blue: 0.20) :  // Light grey for dark mode
+                    Color(red: 0.93, green: 0.96, blue: 1.0))    // Clear blue for day mode
+                    .ignoresSafeArea()
             )
-            .background(DesignTokens.Colors.surface.ignoresSafeArea())
             .navigationBarHidden(true)
             .onAppear {
                 // Load user name from ProfileService - always show display name or first name
@@ -829,10 +822,10 @@ struct HorizontalActionButton: View {
             .cornerRadius(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(
-                        style: StrokeStyle(lineWidth: isPressed ? 2.0 : 1.5, dash: [5, 3])
+                    .stroke(
+                        isPressed ? color.opacity(colorScheme == .dark ? 0.6 : 0.7) : color.opacity(colorScheme == .dark ? 0.3 : 0.4),
+                        lineWidth: isPressed ? 2.0 : 1.5
                     )
-                    .foregroundColor(isPressed ? color.opacity(colorScheme == .dark ? 0.6 : 0.7) : color.opacity(colorScheme == .dark ? 0.3 : 0.4))
             )
             .shadow(
                 color: colorScheme == .dark ?

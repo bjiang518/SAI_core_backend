@@ -891,15 +891,11 @@ struct MistakeQuestion: Codable, Identifiable {
     let learningSuggestion: String?
     let errorAnalysisStatus: ErrorAnalysisStatus  // ✅ Now using enum
 
-    // ✅ Weakness tracking fields (standardized naming)
-    let primaryConcept: String?
-    let secondaryConcept: String?
+    // ✅ Weakness tracking fields (hierarchical taxonomy)
     let weaknessKey: String?
-
-    // NEW: Hierarchical taxonomy fields
-    let baseBranch: String?
-    let detailedBranch: String?
-    let specificIssue: String?
+    let baseBranch: String?           // Chapter-level taxonomy (e.g., "Algebra - Foundations")
+    let detailedBranch: String?       // Topic-level taxonomy (e.g., "Linear Equations - One Variable")
+    let specificIssue: String?        // AI-generated issue description
 
     // ✅ Pro Mode image field (for questions with images)
     let questionImageUrl: String?
@@ -920,7 +916,7 @@ struct MistakeQuestion: Codable, Identifiable {
          tags: [String], notes: String,
          errorType: String? = nil, errorEvidence: String? = nil, errorConfidence: Double? = nil,
          learningSuggestion: String? = nil, errorAnalysisStatus: ErrorAnalysisStatus = .failed,
-         primaryConcept: String? = nil, secondaryConcept: String? = nil, weaknessKey: String? = nil,
+         weaknessKey: String? = nil,
          baseBranch: String? = nil, detailedBranch: String? = nil, specificIssue: String? = nil,
          questionImageUrl: String? = nil) {
         self.id = id
@@ -936,16 +932,13 @@ struct MistakeQuestion: Codable, Identifiable {
         self.pointsPossible = pointsPossible
         self.tags = tags
         self.notes = notes
-        // Error analysis fields
         self.errorType = errorType
         self.errorEvidence = errorEvidence
         self.errorConfidence = errorConfidence
         self.learningSuggestion = learningSuggestion
         self.errorAnalysisStatus = errorAnalysisStatus
-        self.primaryConcept = primaryConcept
-        self.secondaryConcept = secondaryConcept
         self.weaknessKey = weaknessKey
-        // NEW: Hierarchical taxonomy fields
+        // Hierarchical taxonomy fields
         self.baseBranch = baseBranch
         self.detailedBranch = detailedBranch
         self.specificIssue = specificIssue
@@ -956,7 +949,7 @@ struct MistakeQuestion: Codable, Identifiable {
         case id, subject, question, rawQuestionText, correctAnswer, studentAnswer, explanation
         case createdAt, confidence, pointsEarned, pointsPossible, tags, notes
         case errorType, errorEvidence, errorConfidence, learningSuggestion, errorAnalysisStatus
-        case primaryConcept, secondaryConcept, weaknessKey
+        case weaknessKey
         case baseBranch, detailedBranch, specificIssue
         case questionImageUrl
     }
@@ -1007,11 +1000,9 @@ struct MistakeQuestion: Codable, Identifiable {
             errorAnalysisStatus = .failed
         }
 
-        primaryConcept = try container.decodeIfPresent(String.self, forKey: .primaryConcept)
-        secondaryConcept = try container.decodeIfPresent(String.self, forKey: .secondaryConcept)
         weaknessKey = try container.decodeIfPresent(String.self, forKey: .weaknessKey)
 
-        // NEW: Decode hierarchical taxonomy fields
+        // Decode hierarchical taxonomy fields
         baseBranch = try container.decodeIfPresent(String.self, forKey: .baseBranch)
         detailedBranch = try container.decodeIfPresent(String.self, forKey: .detailedBranch)
         specificIssue = try container.decodeIfPresent(String.self, forKey: .specificIssue)

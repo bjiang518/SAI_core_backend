@@ -181,11 +181,11 @@ struct MultipleChoiceRenderer: View {
                     .cornerRadius(8)
                 }
 
-                // Ask AI Button
+                // Follow Up Button
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Ask AI for Help")
+                        Text("Follow Up")
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -295,11 +295,11 @@ struct TrueFalseRenderer: View {
                     .cornerRadius(8)
                 }
 
-                // Ask AI Button
+                // Follow Up Button
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Ask AI for Help")
+                        Text("Follow Up")
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -407,11 +407,11 @@ struct FillInBlankRenderer: View {
                     .cornerRadius(8)
                 }
 
-                // Ask AI Button
+                // Follow Up Button
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Ask AI for Help")
+                        Text("Follow Up")
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -532,11 +532,11 @@ struct CalculationRenderer: View {
                     .cornerRadius(8)
                 }
 
-                // Ask AI Button
+                // Follow Up Button
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Ask AI for Help")
+                        Text("Follow Up")
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -593,11 +593,11 @@ struct ShortAnswerRenderer: View {
                     .cornerRadius(8)
                 }
 
-                // Ask AI Button
+                // Follow Up Button
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Ask AI for Help")
+                        Text("Follow Up")
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -698,11 +698,11 @@ struct LongAnswerRenderer: View {
                     .cornerRadius(8)
                 }
 
-                // Ask AI Button
+                // Follow Up Button
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Ask AI for Help")
+                        Text("Follow Up")
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -758,11 +758,11 @@ struct MatchingRenderer: View {
                     .cornerRadius(8)
                 }
 
-                // Ask AI Button
+                // Follow Up Button
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Ask AI for Help")
+                        Text("Follow Up")
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)

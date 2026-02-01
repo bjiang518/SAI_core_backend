@@ -344,18 +344,41 @@ final class HomeworkImageStorageService: ObservableObject {
     // MARK: - Image Hashing for Deduplication
 
     /// Generate a SHA256 hash from an image to detect duplicates
+    /// Uses PNG data for consistent hashing (lossless)
     private func generateImageHash(_ image: UIImage) -> String? {
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            print("❌ Failed to get image data for hashing")
-            return nil
+        // ✅ FIX: Use PNG data instead of JPEG to avoid compression variations
+        guard let imageData = image.pngData() else {
+            print("❌ Failed to get PNG data for hashing, falling back to JPEG")
+            // Fallback to JPEG if PNG fails
+            guard let jpegData = image.jpegData(compressionQuality: 1.0) else {
+                return nil
+            }
+            let hash = SHA256.hash(data: jpegData)
+            return hash.compactMap { String(format: "%02x", $0) }.joined()
         }
 
         let hash = SHA256.hash(data: imageData)
-        return hash.compactMap { String(format: "%02x", $0) }.joined()
+        let hashString = hash.compactMap { String(format: "%02x", $0) }.joined()
+
+        print("🔐 Generated hash: \(String(hashString.prefix(16)))... (from PNG data)")
+        return hashString
     }
 
     /// Check if an image with the same hash already exists
     private func findDuplicateRecord(withHash hash: String) -> HomeworkImageRecord? {
-        return homeworkImages.filter { $0.imageHash == hash }.first
+        let duplicate = homeworkImages.first { record in
+            // Only compare if both hashes exist (avoid nil comparison issues)
+            guard let recordHash = record.imageHash else { return false }
+            return recordHash == hash
+        }
+
+        if let dup = duplicate {
+            print("🔍 Duplicate found:")
+            print("   Existing ID: \(dup.id)")
+            print("   Hash: \(String(hash.prefix(16)))...")
+            print("   Original date: \(dup.submittedDate)")
+        }
+
+        return duplicate
     }
 }

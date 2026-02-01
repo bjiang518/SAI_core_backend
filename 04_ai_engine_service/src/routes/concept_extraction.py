@@ -17,7 +17,7 @@ class ConceptExtractionRequest(BaseModel):
     Much simpler than error analysis - only needs question and subject
     """
     questionText: str = Field(..., alias="question_text")
-    subject: Optional[str] = "Mathematics"
+    subject: Optional[str] = "Math"
 
     class Config:
         populate_by_name = True  # Allow both camelCase and snake_case

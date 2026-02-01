@@ -653,8 +653,8 @@ class SessionChatViewModel: ObservableObject {
 
         // Find and remove the message with this diagram key from conversation history
         if let index = networkService.conversationHistory.firstIndex(where: { message in
-            if let key = message["diagramKey"] as? String {
-                return key == diagramKey
+            if let key = message["diagramKey"] as? String, key == diagramKey {
+                return true
             }
             return false
         }) {

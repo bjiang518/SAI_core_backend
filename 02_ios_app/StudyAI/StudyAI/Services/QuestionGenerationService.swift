@@ -97,24 +97,45 @@ class QuestionGenerationService: ObservableObject {
     }
 
     struct MistakeData {
+        // Core question data (required)
         let originalQuestion: String
         let userAnswer: String
         let correctAnswer: String
-        let mistakeType: String
-        let topic: String
-        let date: String
-        let tags: [String]  // Tags from source question
+
+        // Error analysis (required for targeting)
+        let errorType: String?              // "execution_error", "conceptual_gap", "needs_refinement"
+        let baseBranch: String?             // "Algebra - Foundations"
+        let detailedBranch: String?         // "Linear Equations - One Variable"
+
+        // Optional context (send only if available)
+        let specificIssue: String?          // "Arithmetic calculation error"
+        let questionImageUrl: String?       // Image URL for visual context
 
         var dictionary: [String: Any] {
-            return [
+            var dict: [String: Any] = [
                 "original_question": originalQuestion,
                 "user_answer": userAnswer,
-                "correct_answer": correctAnswer,
-                "mistake_type": mistakeType,
-                "topic": topic,
-                "date": date,
-                "tags": tags
+                "correct_answer": correctAnswer
             ]
+
+            // Add error analysis if available
+            if let errorType = errorType {
+                dict["error_type"] = errorType
+            }
+            if let baseBranch = baseBranch {
+                dict["base_branch"] = baseBranch
+            }
+            if let detailedBranch = detailedBranch {
+                dict["detailed_branch"] = detailedBranch
+            }
+            if let specificIssue = specificIssue {
+                dict["specific_issue"] = specificIssue
+            }
+            if let questionImageUrl = questionImageUrl {
+                dict["question_image_url"] = questionImageUrl
+            }
+
+            return dict
         }
     }
 
@@ -441,21 +462,20 @@ class QuestionGenerationService: ObservableObject {
 
 
 
-        let endpoint = "/api/ai/generate-questions/mistakes"
+        let endpoint = "/api/ai/generate-questions/mistakes"  // V2 standardized endpoint
 
         guard let url = URL(string: "\(baseURL)\(endpoint)") else {
             await MainActor.run { self.lastError = "Invalid URL" }
             return .failure(.invalidURL)
         }
 
+        // ✅ OPTIMIZED: Minimal request body matching backend expectations
+        // Backend expects: subject, mistakes_data, count, question_type (flat structure)
         let requestBody: [String: Any] = [
             "subject": subject,
             "mistakes_data": mistakes.map { $0.dictionary },
-            "config": [
-                "question_count": config.questionCount,
-                "question_type": config.questionType.rawValue
-            ],
-            "user_profile": userProfile.dictionary
+            "count": config.questionCount,
+            "question_type": config.questionType.rawValue
         ]
 
         var request = URLRequest(url: url)

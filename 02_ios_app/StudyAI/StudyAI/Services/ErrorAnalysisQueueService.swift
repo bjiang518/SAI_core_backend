@@ -107,8 +107,19 @@ class ErrorAnalysisQueueService: ObservableObject {
                    let detailedBranch = concept.detailedBranch,
                    !concept.extractionFailed {
 
+                    // ✅ Normalize subject (AI may return "Mathematics", iOS uses "Math")
+                    // ✅ EXCEPT for "Others: XX" - preserve full string for specificity
+                    let normalizedSubject: String
+                    if concept.subject.hasPrefix("Others:") {
+                        // Keep "Others: French", "Others: Economics" as-is
+                        normalizedSubject = concept.subject
+                    } else {
+                        // Normalize standard subjects: "Mathematics" → "Math"
+                        normalizedSubject = Subject.normalizeWithFallback(concept.subject).rawValue
+                    }
+
                     // Build weakness key: "Subject/Base Branch/Detailed Branch"
-                    let weaknessKey = "\(concept.subject)/\(baseBranch)/\(detailedBranch)"
+                    let weaknessKey = "\(normalizedSubject)/\(baseBranch)/\(detailedBranch)"
                     let questionId = questions[index]["id"] as? String
 
                     print("✅ [ConceptExtraction] Correct answer detected:")
@@ -266,10 +277,21 @@ class ErrorAnalysisQueueService: ObservableObject {
            !baseBranch.isEmpty,
            !detailedBranch.isEmpty {
 
-            let subject = allQuestions[index]["subject"] as? String ?? "Mathematics"
+            let subject = allQuestions[index]["subject"] as? String ?? "Math"
 
-            // NEW format: "Mathematics/Algebra - Foundations/Linear Equations - One Variable"
-            let weaknessKey = "\(subject)/\(baseBranch)/\(detailedBranch)"
+            // ✅ Normalize subject (AI may return "Mathematics", iOS uses "Math")
+            // ✅ EXCEPT for "Others: XX" - preserve full string for specificity
+            let normalizedSubject: String
+            if subject.hasPrefix("Others:") {
+                // Keep "Others: French", "Others: Economics" as-is
+                normalizedSubject = subject
+            } else {
+                // Normalize standard subjects: "Mathematics" → "Math"
+                normalizedSubject = Subject.normalizeWithFallback(subject).rawValue
+            }
+
+            // NEW format: "Math/Algebra - Foundations/Linear Equations - One Variable"
+            let weaknessKey = "\(normalizedSubject)/\(baseBranch)/\(detailedBranch)"
 
             allQuestions[index]["weaknessKey"] = weaknessKey
             print("   🔑 [WeaknessTracking] Generated weakness key: \(weaknessKey)")
@@ -318,41 +340,9 @@ class ErrorAnalysisQueueService: ObservableObject {
     }
 
     // MARK: - Correct Answer Processing
-
-    /// Process correct answers to update weakness tracking
-    /// Should be called after grading completes for CORRECT answers
-    /// This allows natural learning through homework to reduce weaknesses
-    func processCorrectAnswer(questionId: String, subject: String, concept: String, questionType: String) {
-        print("✅ [WeaknessTracking] processCorrectAnswer called:")
-        print("   Question ID: \(questionId)")
-        print("   Subject: \(subject), Concept: \(concept), Type: \(questionType)")
-
-        Task { @MainActor in
-            let key = ShortTermStatusService.shared.generateKey(
-                subject: subject,
-                concept: concept,
-                questionType: questionType
-            )
-
-            print("   Generated weakness key: \(key)")
-
-            // Check if this weakness exists
-            guard ShortTermStatusService.shared.status.activeWeaknesses[key] != nil else {
-                print("   ℹ️ No existing weakness for this key - skipping")
-                return  // No weakness to update
-            }
-
-            print("   ✅ Found weakness! Calling recordCorrectAttemptWithAutoDetection...")
-
-            // Record correct attempt with auto-detection
-            ShortTermStatusService.shared.recordCorrectAttemptWithAutoDetection(
-                key: key,
-                questionId: questionId
-            )
-
-            print("   ✅ Weakness value decreased")
-        }
-    }
+    // NOTE: Correct answer processing is now handled by queueConceptExtractionForCorrectAnswers()
+    // which uses the new hierarchical taxonomy (baseBranch/detailedBranch) instead of the old
+    // single-concept approach. The old processCorrectAnswer() method has been removed.
 }
 
 // MARK: - Models

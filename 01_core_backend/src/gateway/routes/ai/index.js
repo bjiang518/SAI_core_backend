@@ -15,7 +15,8 @@ const ChatImageRoutes = require('./modules/chat-image');
 const QuestionProcessingRoutes = require('./modules/question-processing');
 const SessionManagementRoutes = require('./modules/session-management');
 const ArchiveRetrievalRoutes = require('./modules/archive-retrieval');
-const QuestionGenerationRoutes = require('./modules/question-generation');
+// REMOVED: Legacy question generation (moved to question-generation.js.legacy)
+// const QuestionGenerationRoutes = require('./modules/question-generation');
 const QuestionGenerationV2Routes = require('./modules/question-generation-v2'); // NEW: Assistants API support
 const TTSRoutes = require('./modules/tts');
 const AnalyticsRoutes = require('./modules/analytics');
@@ -39,8 +40,8 @@ async function aiRoutes(fastify, opts) {
     { name: 'Question Processing', Class: QuestionProcessingRoutes },
     { name: 'Session Management', Class: SessionManagementRoutes },
     { name: 'Archive Retrieval', Class: ArchiveRetrievalRoutes },
-    // DISABLED: Using Question Generation V2 (Assistants API) instead
-    // { name: 'Question Generation (Legacy)', Class: QuestionGenerationRoutes },
+    // REMOVED: Legacy question generation replaced by V2 (Assistants API)
+    // iOS now uses /api/ai/generate-questions/* endpoints from question-generation-v2.js
     { name: 'Text-to-Speech', Class: TTSRoutes },
     { name: 'Analytics', Class: AnalyticsRoutes },
     { name: 'Diagram Generation', Class: DiagramGenerationRoutes }, // NEW: AI diagram generation

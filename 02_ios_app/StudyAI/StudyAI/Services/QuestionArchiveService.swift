@@ -179,32 +179,6 @@ class QuestionArchiveService: ObservableObject {
         // ✅ Save to local storage ONLY - no server request
         _ = QuestionLocalStorage.shared.saveQuestions(questionDataForLocalStorage)
 
-        // ✅ FIX #3: Process correct answers for weakness tracking
-        // This allows natural learning through homework to reduce weaknesses
-        for (index, questionData) in questionDataForLocalStorage.enumerated() {
-            guard let isCorrect = questionData["isCorrect"] as? Bool, isCorrect else {
-                continue  // Skip incorrect answers
-            }
-
-            // Check if this question has concept information (from previous error analysis or current grading)
-            if let primaryConcept = questionData["errorAnalysisPrimaryConcept"] as? String,
-               let subject = questionData["subject"] as? String,
-               let questionId = questionData["id"] as? String {
-
-                let questionType = questionData["questionType"] as? String ?? "general"
-
-                // Process correct answer to potentially reduce related weakness
-                ErrorAnalysisQueueService.shared.processCorrectAnswer(
-                    questionId: questionId,
-                    subject: subject,
-                    concept: primaryConcept,
-                    questionType: questionType
-                )
-
-                print("   ✅ [Archive] Correct answer on concept '\(primaryConcept)' - checking for weakness reduction")
-            }
-        }
-
         // ✅ DEBUG: Verify what was saved
         print("\n🔍 [DEBUG] === VERIFYING SAVED DATA ===")
         let savedQuestions = QuestionLocalStorage.shared.getLocalQuestions()

@@ -631,7 +631,7 @@ First character MUST be "{{". Last character MUST be "}}".
 JSON SCHEMA
 ================================================================================
 {{
-  "subject": "Mathematics|Physics|Chemistry|...",
+  "subject": "Math|Physics|Chemistry|Biology|English|History|Geography|Computer Science|Art|Music|Physical Education|Others: [description]",
   "subject_confidence": 0.95,
   "total_questions": 2,
   "questions": [
@@ -659,6 +659,24 @@ JSON SCHEMA
     "feedback": "Brief assessment <150 chars" or null
   }}
 }}
+
+================================================================================
+📚 SUBJECT SELECTION
+================================================================================
+Select the most specific subject from the predefined list:
+   Math, Physics, Chemistry, Biology, English, History, Geography, Computer Science, Art, Music, Physical Education
+
+⚠️ If homework does NOT match any predefined subject:
+   - Use format: "Others: [brief subject name]"
+   - Example: "Others: French", "Others: Economics", "Others: Social Studies"
+   - Keep description SHORT (1-3 words max)
+   - Be SPECIFIC (not "Others: Language" - use "Others: Spanish")
+
+✅ Examples:
+   - Algebra homework → "Math"
+   - Essay writing → "English"
+   - French vocabulary → "Others: French"
+   - Economics graphs → "Others: Economics"
 
 ================================================================================
 🖊️ HANDWRITING EVALUATION (Pro Mode)

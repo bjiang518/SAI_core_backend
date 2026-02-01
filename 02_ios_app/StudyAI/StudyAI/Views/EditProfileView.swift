@@ -6,6 +6,22 @@
 //
 
 import SwiftUI
+import UIKit
+
+// MARK: - Debug Configuration
+#if DEBUG
+private let enableAvatarDebugLogs = false  // Set to true to enable debug logs
+#else
+private let enableAvatarDebugLogs = false  // Always false in release
+#endif
+
+private func avatarLog(_ message: String) {
+    #if DEBUG
+    if enableAvatarDebugLogs {
+        print(message)
+    }
+    #endif
+}
 
 struct EditProfileView: View {
     @Environment(\.dismiss) private var dismiss
@@ -38,11 +54,13 @@ struct EditProfileView: View {
     // Sheet presentation
     enum SheetType: Identifiable {
         case camera
+        case photoLibrary
         case editor
 
         var id: String {
             switch self {
             case .camera: return "camera"
+            case .photoLibrary: return "photoLibrary"
             case .editor: return "editor"
             }
         }
@@ -64,21 +82,23 @@ struct EditProfileView: View {
 
                 // Personal Information Section
                 personalInformationSection
-                
+
                 // Children Information Section (for parents)
                 childrenInformationSection
-                
+
                 // Location Section
                 locationSection
-                
+
                 // Academic Preferences Section
                 academicPreferencesSection
-                
+
                 // Optional Information Section
                 optionalInformationSection
             }
+            .listStyle(.plain)  // Remove default Form spacing
+            .padding(.top, -20)  // Reduce top gap
             .navigationTitle(NSLocalizedString("editProfile.title", comment: ""))
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)  // Changed from .large to .inline to reduce top spacing
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(NSLocalizedString("editProfile.cancel", comment: "")) {
@@ -124,7 +144,7 @@ struct EditProfileView: View {
 
     private var avatarSelectionSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {  // Reduced from 16 to 8
                 Text(NSLocalizedString("editProfile.selectAvatar", comment: ""))
                     .font(.headline)
                     .foregroundColor(.primary)
@@ -137,7 +157,7 @@ struct EditProfileView: View {
                 if let customAvatar = customAvatarImage {
                     HStack {
                         Spacer()
-                        VStack(spacing: 8) {
+                        VStack(spacing: 4) {  // Reduced from 8 to 4
                             Image(uiImage: customAvatar)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -148,50 +168,18 @@ struct EditProfileView: View {
                                         .stroke(Color.green, lineWidth: 3)
                                 )
                                 .shadow(color: .green.opacity(0.3), radius: 5)
-
-                            Text("Custom Avatar")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                                .fontWeight(.semibold)
-
-                            HStack(spacing: 12) {
-                                Button(action: {
-                                    print("🎨 [EditProfileView] Edit button tapped")
-                                    imageToEdit = customAvatarImage
-                                    activeSheet = .editor
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "crop.rotate")
-                                            .font(.caption)
-                                        Text("Edit")
-                                            .font(.caption)
-                                    }
-                                    .foregroundColor(.blue)
-                                }
-
-                                Button(action: {
-                                    print("🗑️ [EditProfileView] Remove button tapped")
-                                    customAvatarImage = nil
-                                    selectedAvatarId = nil
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "trash")
-                                            .font(.caption)
-                                        Text("Remove")
-                                            .font(.caption)
-                                    }
-                                    .foregroundColor(.red)
-                                }
-                            }
                         }
                         Spacer()
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 4)  // Reduced from 8 to 4
                 }
 
                 // Take Selfie Button (only option for custom avatar)
                 Button(action: {
-                    print("📷 [EditProfileView] Take Selfie button tapped")
+                    avatarLog("📷 [EditProfileView] ========================================")
+                    avatarLog("📷 [EditProfileView] TAKE SELFIE button tapped")
+                    avatarLog("📷 [EditProfileView] Setting activeSheet to .camera")
+                    avatarLog("📷 [EditProfileView] ========================================")
                     activeSheet = .camera
                 }) {
                     HStack(spacing: 8) {
@@ -206,8 +194,36 @@ struct EditProfileView: View {
                     .background(Color.blue.opacity(0.1))
                     .foregroundColor(.blue)
                     .cornerRadius(12)
+                    .contentShape(Rectangle())  // Explicit tap area
                 }
+                .buttonStyle(.plain)  // Prevent default button behavior
                 .disabled(isUploadingAvatar)
+
+                // Upload from Album Button
+                Button(action: {
+                    avatarLog("📚 [EditProfileView] ========================================")
+                    avatarLog("📚 [EditProfileView] UPLOAD FROM ALBUM button tapped")
+                    avatarLog("📚 [EditProfileView] Setting activeSheet to .photoLibrary")
+                    avatarLog("📚 [EditProfileView] ========================================")
+                    activeSheet = .photoLibrary
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "photo.on.rectangle")
+                            .font(.system(size: 16))
+                        Text("Upload from Album")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.green.opacity(0.1))
+                    .foregroundColor(.green)
+                    .cornerRadius(12)
+                    .contentShape(Rectangle())  // Explicit tap area
+                }
+                .buttonStyle(.plain)  // Prevent default button behavior
+                .disabled(isUploadingAvatar)
+                .padding(.top, 8)  // Add spacing between buttons
 
                 // Divider
                 HStack {
@@ -218,15 +234,15 @@ struct EditProfileView: View {
                         .padding(.horizontal, 8)
                     VStack { Divider() }
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, 4)  // Reduced from 8 to 4
 
                 // Preset Avatar Grid (always visible)
                 Text(customAvatarImage != nil ? "Or choose a preset avatar" : "Choose a preset avatar")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .padding(.bottom, 4)
+                    .padding(.bottom, 2)  // Reduced from 4 to 2
 
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 16) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 12) {  // Reduced from 16 to 12
                     ForEach(ProfileAvatar.allCases, id: \.self) { avatar in
                         Button(action: {
                             selectedAvatarId = avatar.rawValue
@@ -252,33 +268,73 @@ struct EditProfileView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.top, 8)
+                .padding(.top, 4)  // Reduced from 8 to 4
             }
         }
         .sheet(item: $activeSheet) { sheetType in
+            let _ = avatarLog("🔵 [EditProfileView] Sheet presentation triggered for: \(sheetType.id)")
             switch sheetType {
             case .camera:
-                CameraPickerView(
+                let _ = avatarLog("📷 [EditProfileView] ✅ Opening CAMERA sheet (ProfileCameraPickerView)")
+                ProfileCameraPickerView(
                     selectedImage: $imageToEdit,
                     isPresented: Binding(
-                        get: { activeSheet == .camera },
-                        set: { if !$0 { activeSheet = nil } }
-                    ),
-                    useFrontCamera: true  // Use front camera for selfies with mirroring
+                        get: {
+                            avatarLog("📷 [EditProfileView] Camera isPresented getter: \(activeSheet == .camera)")
+                            return activeSheet == .camera
+                        },
+                        set: {
+                            avatarLog("📷 [EditProfileView] Camera isPresented setter: \($0)")
+                            if !$0 { activeSheet = nil }
+                        }
+                    )
                 )
+                .onAppear {
+                    avatarLog("📷 [EditProfileView] Camera sheet appeared")
+                }
                 .onDisappear {
-                    print("📷 [EditProfileView] Camera dismissed")
+                    avatarLog("📷 [EditProfileView] Camera dismissed")
                     // After camera dismisses, show editor if we have an image
                     if let _ = imageToEdit {
+                        avatarLog("📷 [EditProfileView] Image captured, showing editor after delay")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            activeSheet = .editor
+                        }
+                    }
+                }
+            case .photoLibrary:
+                let _ = avatarLog("📚 [EditProfileView] ✅ Opening PHOTO LIBRARY sheet (ProfilePhotoLibraryPickerView)")
+                ProfilePhotoLibraryPickerView(
+                    selectedImage: $imageToEdit,
+                    isPresented: Binding(
+                        get: {
+                            avatarLog("📚 [EditProfileView] Photo library isPresented getter: \(activeSheet == .photoLibrary)")
+                            return activeSheet == .photoLibrary
+                        },
+                        set: {
+                            avatarLog("📚 [EditProfileView] Photo library isPresented setter: \($0)")
+                            if !$0 { activeSheet = nil }
+                        }
+                    )
+                )
+                .onAppear {
+                    avatarLog("📚 [EditProfileView] Photo library sheet appeared")
+                }
+                .onDisappear {
+                    avatarLog("📚 [EditProfileView] Photo library dismissed")
+                    // After photo library dismisses, show editor if we have an image
+                    if let _ = imageToEdit {
+                        avatarLog("📚 [EditProfileView] Photo selected, showing editor after delay")
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             activeSheet = .editor
                         }
                     }
                 }
             case .editor:
+                let _ = avatarLog("✂️ [EditProfileView] ✅ Opening EDITOR sheet (ImageCropperView)")
                 if let image = imageToEdit {
                     ImageCropperView(image: image) { croppedImage in
-                        print("✅ [EditProfileView] Image cropped successfully")
+                        avatarLog("✅ [EditProfileView] Image cropped successfully")
                         customAvatarImage = croppedImage
                         imageToEdit = nil
                         activeSheet = nil
@@ -537,15 +593,15 @@ struct EditProfileView: View {
     // MARK: - Helper Methods
     
     private func loadCurrentProfile() {
-        print("🔵 [EditProfileView] loadCurrentProfile() called")
+        avatarLog("🔵 [EditProfileView] loadCurrentProfile() called")
 
         if let profile = profileService.currentProfile {
-            print("📦 [EditProfileView] Loading profile from ProfileService")
-            print("   - City: \(profile.city ?? "nil")")
-            print("   - State/Province: \(profile.stateProvince ?? "nil")")
-            print("   - Country: \(profile.country ?? "nil")")
-            print("   - Kids Ages: \(profile.kidsAges)")
-            print("   - Display Location: \(profile.displayLocation ?? "nil")")
+            avatarLog("📦 [EditProfileView] Loading profile from ProfileService")
+            avatarLog("   - City: \(profile.city ?? "nil")")
+            avatarLog("   - State/Province: \(profile.stateProvince ?? "nil")")
+            avatarLog("   - Country: \(profile.country ?? "nil")")
+            avatarLog("   - Kids Ages: \(profile.kidsAges)")
+            avatarLog("   - Display Location: \(profile.displayLocation ?? "nil")")
 
             firstName = profile.firstName ?? ""
             lastName = profile.lastName ?? ""
@@ -576,41 +632,41 @@ struct EditProfileView: View {
             // ✅ LOCAL-FIRST: Load avatar selection from UserDefaults (not server)
             if let localAvatarId = UserDefaults.standard.object(forKey: "selectedAvatarId") as? Int {
                 selectedAvatarId = localAvatarId
-                print("🎨 [EditProfileView] Loaded preset avatar from LOCAL: ID \(localAvatarId)")
+                avatarLog("🎨 [EditProfileView] Loaded preset avatar from LOCAL: ID \(localAvatarId)")
             } else if let serverAvatarId = profile.avatarId {
                 // Fall back to server if local not set (migration)
                 selectedAvatarId = serverAvatarId
                 UserDefaults.standard.set(serverAvatarId, forKey: "selectedAvatarId")
-                print("🌐 [EditProfileView] Loaded preset avatar from SERVER (migrated): ID \(serverAvatarId)")
+                avatarLog("🌐 [EditProfileView] Loaded preset avatar from SERVER (migrated): ID \(serverAvatarId)")
             }
 
             // ✅ LOCAL-FIRST: Load custom avatar from local filename
             if let localFilename = UserDefaults.standard.string(forKey: "localAvatarFilename") {
-                print("📁 [EditProfileView] Loading custom avatar from LOCAL filename: \(localFilename)")
+                avatarLog("📁 [EditProfileView] Loading custom avatar from LOCAL filename: \(localFilename)")
                 if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
                     let fileURL = documentsDirectory.appendingPathComponent(localFilename)
                     if let localImage = loadAvatarLocally(from: localFilename) {
                         customAvatarImage = localImage
-                        print("✅ [EditProfileView] Custom avatar loaded from LOCAL file")
+                        avatarLog("✅ [EditProfileView] Custom avatar loaded from LOCAL file")
                     } else {
-                        print("⚠️ [EditProfileView] Failed to load custom avatar from LOCAL file")
+                        avatarLog("⚠️ [EditProfileView] Failed to load custom avatar from LOCAL file")
                     }
                 }
             }
 
-            print("✅ [EditProfileView] Profile loaded into @State variables")
-            print("   - @State city: \(city)")
-            print("   - @State stateProvince: \(stateProvince)")
-            print("   - @State country: \(country)")
-            print("   - @State childAge: \(childAge)")
+            avatarLog("✅ [EditProfileView] Profile loaded into @State variables")
+            avatarLog("   - @State city: \(city)")
+            avatarLog("   - @State stateProvince: \(stateProvince)")
+            avatarLog("   - @State country: \(country)")
+            avatarLog("   - @State childAge: \(childAge)")
         } else {
-            print("⚠️ [EditProfileView] No profile in ProfileService.currentProfile")
+            avatarLog("⚠️ [EditProfileView] No profile in ProfileService.currentProfile")
 
             // Load from current user if no profile exists
             if let user = authService.currentUser {
                 firstName = extractFirstName(from: user.name)
                 lastName = extractLastName(from: user.name)
-                print("ℹ️ [EditProfileView] Loaded name from currentUser: \(firstName) \(lastName)")
+                avatarLog("ℹ️ [EditProfileView] Loaded name from currentUser: \(firstName) \(lastName)")
             }
         }
     }
@@ -638,7 +694,7 @@ struct EditProfileView: View {
 
         // Upload custom avatar if exists
         if customAvatarImage != nil {
-            print("📸 [EditProfileView] Processing custom avatar...")
+            avatarLog("📸 [EditProfileView] Processing custom avatar...")
 
             // Delete old avatar file if it exists
             if let oldFilename = UserDefaults.standard.string(forKey: "localAvatarFilename") {
@@ -658,16 +714,16 @@ struct EditProfileView: View {
             UserDefaults.standard.set(filename, forKey: "localAvatarFilename")
             // ✅ Clear preset avatar ID since we're using custom
             UserDefaults.standard.removeObject(forKey: "selectedAvatarId")
-            print("✅ [EditProfileView] Local avatar filename saved: \(filename ?? "nil")")
+            avatarLog("✅ [EditProfileView] Local avatar filename saved: \(filename ?? "nil")")
         } else if let avatarId = selectedAvatarId {
             // ✅ User selected a PRESET avatar
-            print("🎨 [EditProfileView] Saving preset avatar ID: \(avatarId)")
+            avatarLog("🎨 [EditProfileView] Saving preset avatar ID: \(avatarId)")
             UserDefaults.standard.set(avatarId, forKey: "selectedAvatarId")
             // ✅ Clear custom avatar filename since we're using preset
             UserDefaults.standard.removeObject(forKey: "localAvatarFilename")
-            print("✅ [EditProfileView] Preset avatar ID saved locally")
+            avatarLog("✅ [EditProfileView] Preset avatar ID saved locally")
         } else {
-            print("ℹ️ [EditProfileView] No avatar selected")
+            avatarLog("ℹ️ [EditProfileView] No avatar selected")
         }
 
         // Convert child age to array (empty or single element)
@@ -704,28 +760,28 @@ struct EditProfileView: View {
         )
 
         do {
-            print("💾 [EditProfileView] Updating profile...")
+            avatarLog("💾 [EditProfileView] Updating profile...")
             _ = try await profileService.updateUserProfile(updatedProfile)
-            print("✅ [EditProfileView] Profile updated on backend")
+            avatarLog("✅ [EditProfileView] Profile updated on backend")
 
             // Reload profile to get the updated data including custom avatar URL
-            print("🔄 [EditProfileView] Reloading profile from backend...")
+            avatarLog("🔄 [EditProfileView] Reloading profile from backend...")
             try? await profileService.getUserProfile()
-            print("✅ [EditProfileView] Profile reloaded")
+            avatarLog("✅ [EditProfileView] Profile reloaded")
 
             if let reloadedProfile = profileService.currentProfile {
-                print("📦 [EditProfileView] Reloaded profile has custom avatar: \(reloadedProfile.customAvatarUrl != nil ? "YES" : "NO")")
+                avatarLog("📦 [EditProfileView] Reloaded profile has custom avatar: \(reloadedProfile.customAvatarUrl != nil ? "YES" : "NO")")
                 if let customUrl = reloadedProfile.customAvatarUrl {
-                    print("📦 [EditProfileView] Custom avatar URL: \(customUrl.prefix(100))...")
+                    avatarLog("📦 [EditProfileView] Custom avatar URL: \(customUrl.prefix(100))...")
                 }
             } else {
-                print("⚠️ [EditProfileView] No profile in ProfileService after reload!")
+                avatarLog("⚠️ [EditProfileView] No profile in ProfileService after reload!")
             }
 
             // Force UI update by posting notification
             await MainActor.run {
                 NotificationCenter.default.post(name: NSNotification.Name("ProfileUpdated"), object: nil)
-                print("📢 [EditProfileView] Posted ProfileUpdated notification")
+                avatarLog("📢 [EditProfileView] Posted ProfileUpdated notification")
                 showingSaveSuccess = true
             }
         } catch {
@@ -751,7 +807,7 @@ struct EditProfileView: View {
     private func saveAvatarLocally(_ image: UIImage) -> URL? {
         // Get Documents directory
         guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            print("❌ [EditProfileView] Failed to get documents directory")
+            avatarLog("❌ [EditProfileView] Failed to get documents directory")
             return nil
         }
 
@@ -761,19 +817,19 @@ struct EditProfileView: View {
 
         // Compress image to JPEG with 0.8 quality
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            print("❌ [EditProfileView] Failed to convert image to JPEG")
+            avatarLog("❌ [EditProfileView] Failed to convert image to JPEG")
             return nil
         }
 
         do {
             // Write to file
             try imageData.write(to: fileURL)
-            print("✅ [EditProfileView] Avatar saved locally to: \(fileURL.path)")
-            print("📸 [EditProfileView] File size: \(imageData.count / 1024) KB")
-            print("📸 [EditProfileView] Filename (relative): \(filename)")
+            avatarLog("✅ [EditProfileView] Avatar saved locally to: \(fileURL.path)")
+            avatarLog("📸 [EditProfileView] File size: \(imageData.count / 1024) KB")
+            avatarLog("📸 [EditProfileView] Filename (relative): \(filename)")
             return fileURL
         } catch {
-            print("❌ [EditProfileView] Failed to save avatar: \(error)")
+            avatarLog("❌ [EditProfileView] Failed to save avatar: \(error)")
             return nil
         }
     }
@@ -789,32 +845,32 @@ struct EditProfileView: View {
         } else if !urlString.contains("/") {
             // Just a filename - construct full path
             guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-                print("❌ [EditProfileView] Failed to get documents directory")
+                avatarLog("❌ [EditProfileView] Failed to get documents directory")
                 return nil
             }
             fileURL = documentsDirectory.appendingPathComponent(urlString)
-            print("📁 [EditProfileView] Constructed file URL from filename: \(fileURL?.path ?? "nil")")
+            avatarLog("📁 [EditProfileView] Constructed file URL from filename: \(fileURL?.path ?? "nil")")
         } else {
             // Relative or absolute path
             fileURL = URL(fileURLWithPath: urlString)
         }
 
         guard let url = fileURL else {
-            print("❌ [EditProfileView] Invalid URL string: \(urlString)")
+            avatarLog("❌ [EditProfileView] Invalid URL string: \(urlString)")
             return nil
         }
 
         do {
             let imageData = try Data(contentsOf: url)
             if let image = UIImage(data: imageData) {
-                print("✅ [EditProfileView] Avatar loaded from local file: \(url.path)")
+                avatarLog("✅ [EditProfileView] Avatar loaded from local file: \(url.path)")
                 return image
             } else {
-                print("❌ [EditProfileView] Failed to create UIImage from data")
+                avatarLog("❌ [EditProfileView] Failed to create UIImage from data")
                 return nil
             }
         } catch {
-            print("❌ [EditProfileView] Failed to load avatar: \(error)")
+            avatarLog("❌ [EditProfileView] Failed to load avatar: \(error)")
             return nil
         }
     }
@@ -834,13 +890,13 @@ struct EditProfileView: View {
         } else if !urlString.contains("/") {
             // Just a filename - construct full path
             guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-                print("❌ [EditProfileView] Failed to get documents directory for deletion")
+                avatarLog("❌ [EditProfileView] Failed to get documents directory for deletion")
                 return
             }
             fileURL = documentsDirectory.appendingPathComponent(urlString)
         } else if urlString.hasPrefix("data:") {
             // Data URL - nothing to delete
-            print("ℹ️ [EditProfileView] Skipping deletion of data URL")
+            avatarLog("ℹ️ [EditProfileView] Skipping deletion of data URL")
             return
         } else {
             // Other path format
@@ -848,17 +904,17 @@ struct EditProfileView: View {
         }
 
         guard let url = fileURL else {
-            print("❌ [EditProfileView] Invalid URL string for deletion: \(urlString)")
+            avatarLog("❌ [EditProfileView] Invalid URL string for deletion: \(urlString)")
             return
         }
 
         do {
             if FileManager.default.fileExists(atPath: url.path) {
                 try FileManager.default.removeItem(at: url)
-                print("🗑️ [EditProfileView] Deleted old avatar file: \(url.path)")
+                avatarLog("🗑️ [EditProfileView] Deleted old avatar file: \(url.path)")
             }
         } catch {
-            print("⚠️ [EditProfileView] Failed to delete old avatar: \(error)")
+            avatarLog("⚠️ [EditProfileView] Failed to delete old avatar: \(error)")
         }
     }
 
@@ -877,7 +933,7 @@ struct EditProfileView: View {
         customAvatarImage = resizedImage
         selectedAvatarId = nil  // Clear preset avatar selection
 
-        print("✅ [EditProfileView] Custom avatar processed: \(targetSize)")
+        avatarLog("✅ [EditProfileView] Custom avatar processed: \(targetSize)")
     }
 
     /// Crop image to square from center
@@ -908,32 +964,32 @@ struct EditProfileView: View {
     /// Upload custom avatar - save locally first, then sync to server in background
     private func uploadCustomAvatar() async -> String? {
         guard let avatarImage = customAvatarImage else {
-            print("❌ [EditProfileView] No avatar image to upload")
+            avatarLog("❌ [EditProfileView] No avatar image to upload")
             return nil
         }
 
-        print("📸 [EditProfileView] Avatar image size: \(avatarImage.size)")
+        avatarLog("📸 [EditProfileView] Avatar image size: \(avatarImage.size)")
 
         // STEP 1: Save locally FIRST for instant access
         guard let localFileURL = saveAvatarLocally(avatarImage) else {
-            print("❌ [EditProfileView] Failed to save avatar locally")
+            avatarLog("❌ [EditProfileView] Failed to save avatar locally")
             return nil
         }
 
         // ✅ IMPORTANT: Extract just the filename (not full path)
         let filename = localFileURL.lastPathComponent
-        print("✅ [EditProfileView] Avatar saved locally with filename: \(filename)")
+        avatarLog("✅ [EditProfileView] Avatar saved locally with filename: \(filename)")
 
         // STEP 2: Upload to server in background (for backup/sync)
         Task {
             do {
                 // Compress image to JPEG with 0.6 quality for upload
                 guard let imageData = avatarImage.jpegData(compressionQuality: 0.6) else {
-                    print("❌ [EditProfileView] Failed to convert image to JPEG for upload")
+                    avatarLog("❌ [EditProfileView] Failed to convert image to JPEG for upload")
                     return
                 }
 
-                print("📸 [EditProfileView] Uploading to server - JPEG size: \(imageData.count / 1024) KB")
+                avatarLog("📸 [EditProfileView] Uploading to server - JPEG size: \(imageData.count / 1024) KB")
 
                 // Convert to base64 for upload
                 let base64String = imageData.base64EncodedString()
@@ -942,9 +998,9 @@ struct EditProfileView: View {
                 let result = await NetworkService.shared.uploadCustomAvatar(base64Image: base64String)
 
                 if result.success {
-                    print("✅ [EditProfileView] Background server sync successful")
+                    avatarLog("✅ [EditProfileView] Background server sync successful")
                 } else {
-                    print("⚠️ [EditProfileView] Background server sync failed (local copy still available): \(result.message)")
+                    avatarLog("⚠️ [EditProfileView] Background server sync failed (local copy still available): \(result.message)")
                 }
             }
         }
@@ -1215,13 +1271,13 @@ struct ImageCropperView: View {
     }
 
     private func cropImage() {
-        print("✂️ [ImageCropper] Starting crop with scale: \(scale), offset: \(offset), rotation: \(rotation.degrees)°")
+        avatarLog("✂️ [ImageCropper] Starting crop with scale: \(scale), offset: \(offset), rotation: \(rotation.degrees)°")
 
         // Step 1: Apply rotation to the image if needed
         var workingImage = image
         if rotation.degrees != 0 {
             workingImage = rotateImage(image, by: rotation) ?? image
-            print("✂️ [ImageCropper] Applied rotation: \(rotation.degrees)°")
+            avatarLog("✂️ [ImageCropper] Applied rotation: \(rotation.degrees)°")
         }
 
         // Output size for the final avatar
@@ -1233,7 +1289,7 @@ struct ImageCropperView: View {
         let croppedImage = renderer.image { context in
             // Step 3: Calculate the source rect from the working image
             let imageSize = workingImage.size
-            print("✂️ [ImageCropper] Working image size: \(imageSize)")
+            avatarLog("✂️ [ImageCropper] Working image size: \(imageSize)")
 
             // The crop circle is 300 points in UI
             // We need to find what 300 UI points represents in the scaled/offset image
@@ -1255,18 +1311,18 @@ struct ImageCropperView: View {
                 displaySize = CGSize(width: availableSize.height * imageAspect, height: availableSize.height)
             }
 
-            print("✂️ [ImageCropper] Display size (before scale): \(displaySize)")
+            avatarLog("✂️ [ImageCropper] Display size (before scale): \(displaySize)")
 
             // Apply user's scale
             displaySize = CGSize(width: displaySize.width * scale, height: displaySize.height * scale)
-            print("✂️ [ImageCropper] Display size (after scale): \(displaySize)")
+            avatarLog("✂️ [ImageCropper] Display size (after scale): \(displaySize)")
 
             // The crop circle is 300 points in the center of the screen
             // Calculate what portion of the image this represents
             let pointsToImageRatio = imageSize.width / displaySize.width
             let cropDimensionInImage = cropSize * pointsToImageRatio
 
-            print("✂️ [ImageCropper] Crop dimension in image coordinates: \(cropDimensionInImage)")
+            avatarLog("✂️ [ImageCropper] Crop dimension in image coordinates: \(cropDimensionInImage)")
 
             // Calculate center position accounting for offset
             // Offset is in display points, convert to image coordinates
@@ -1276,7 +1332,7 @@ struct ImageCropperView: View {
             let centerX = imageSize.width / 2 + offsetInImageX
             let centerY = imageSize.height / 2 + offsetInImageY
 
-            print("✂️ [ImageCropper] Center in image coordinates: (\(centerX), \(centerY))")
+            avatarLog("✂️ [ImageCropper] Center in image coordinates: (\(centerX), \(centerY))")
 
             // Create crop rect
             let cropRect = CGRect(
@@ -1286,16 +1342,16 @@ struct ImageCropperView: View {
                 height: min(cropDimensionInImage, imageSize.height)
             )
 
-            print("✂️ [ImageCropper] Crop rect: \(cropRect)")
+            avatarLog("✂️ [ImageCropper] Crop rect: \(cropRect)")
 
             // Step 4: Crop the image
             if let cgImage = workingImage.cgImage?.cropping(to: cropRect) {
                 let croppedUIImage = UIImage(cgImage: cgImage, scale: 1.0, orientation: workingImage.imageOrientation)
                 // Draw the cropped image into the output size
                 croppedUIImage.draw(in: CGRect(origin: .zero, size: CGSize(width: outputSize, height: outputSize)))
-                print("✅ [ImageCropper] Crop successful")
+                avatarLog("✅ [ImageCropper] Crop successful")
             } else {
-                print("❌ [ImageCropper] Failed to crop CGImage")
+                avatarLog("❌ [ImageCropper] Failed to crop CGImage")
             }
         }
 
@@ -1341,6 +1397,258 @@ struct ImageCropperView: View {
         UIGraphicsEndImageContext()
 
         return rotatedImage
+    }
+}
+
+// MARK: - Photo Library Picker View
+
+/// Simple photo library picker for selecting images from album
+struct PhotoLibraryPickerView: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    @Binding var isPresented: Bool
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .photoLibrary
+        picker.allowsEditing = false
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: PhotoLibraryPickerView
+
+        init(_ parent: PhotoLibraryPickerView) {
+            self.parent = parent
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            avatarLog("📚 [PhotoLibraryPickerView] Photo selected from library")
+
+            if let image = info[.originalImage] as? UIImage {
+                let startTime = Date()
+
+                // Normalize orientation to fix any rotation issues
+                let normalizedImage = normalizeOrientation(image)
+
+                let duration = Date().timeIntervalSince(startTime)
+                avatarLog("✅ [PhotoLibraryPickerView] Image normalized in \(String(format: "%.3f", duration))s")
+                avatarLog("📏 [PhotoLibraryPickerView] Image size: \(normalizedImage.size)")
+
+                parent.selectedImage = normalizedImage
+            } else {
+                avatarLog("❌ [PhotoLibraryPickerView] No image found in selection")
+            }
+
+            parent.isPresented = false
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            avatarLog("🚫 [PhotoLibraryPickerView] Photo selection cancelled")
+            parent.isPresented = false
+        }
+
+        // Normalize image orientation (fix rotation from camera metadata)
+        private func normalizeOrientation(_ image: UIImage) -> UIImage {
+            avatarLog("🔄 [PhotoLibraryPickerView] Normalizing orientation: \(image.imageOrientation.rawValue)")
+
+            // If already upright, return as-is
+            if image.imageOrientation == .up {
+                avatarLog("✅ [PhotoLibraryPickerView] Already upright, no normalization needed")
+                return image
+            }
+
+            // Render image in normalized orientation
+            UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+            let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+
+            avatarLog("✅ [PhotoLibraryPickerView] Normalized to upright orientation")
+            return normalizedImage ?? image
+        }
+    }
+}
+
+// MARK: - Profile Camera Picker View
+
+/// Dedicated camera picker for profile photos (selfies)
+/// Opens front camera directly and applies optimized mirroring
+struct ProfileCameraPickerView: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    @Binding var isPresented: Bool
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        avatarLog("📷 [ProfileCameraPickerView] 🚀 makeUIViewController called - CREATING CAMERA PICKER")
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.allowsEditing = false
+        picker.sourceType = .camera
+        avatarLog("📷 [ProfileCameraPickerView] ✅ sourceType set to .camera")
+
+        // Use front camera for selfies
+        if UIImagePickerController.isCameraDeviceAvailable(.front) {
+            picker.cameraDevice = .front
+            avatarLog("📷 [ProfileCameraPickerView] ✅ cameraDevice set to .front")
+        }
+
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ProfileCameraPickerView
+
+        init(_ parent: ProfileCameraPickerView) {
+            self.parent = parent
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            avatarLog("📸 [ProfileCameraPickerView] Captured selfie from camera")
+
+            if let image = info[.originalImage] as? UIImage {
+                let startTime = Date()
+
+                // Apply optimized single-pass mirroring for front camera
+                parent.selectedImage = mirrorImageOptimized(image)
+
+                let duration = Date().timeIntervalSince(startTime)
+                avatarLog("✅ [ProfileCameraPickerView] Mirrored in \(String(format: "%.3f", duration))s")
+            } else {
+                avatarLog("❌ [ProfileCameraPickerView] No image found in selection")
+            }
+
+            parent.isPresented = false
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            avatarLog("🚫 [ProfileCameraPickerView] Camera capture cancelled")
+            parent.isPresented = false
+        }
+
+        // Optimized single-pass mirroring for front camera selfies
+        private func mirrorImageOptimized(_ image: UIImage) -> UIImage {
+            avatarLog("🪞 [ProfileCameraPickerView] Mirroring selfie: orientation=\(image.imageOrientation.rawValue), size=\(image.size)")
+
+            guard let cgImage = image.cgImage else {
+                avatarLog("❌ [ProfileCameraPickerView] No CGImage, returning original")
+                return image
+            }
+
+            let size = image.size
+
+            // Create graphics context for single-pass render
+            UIGraphicsBeginImageContextWithOptions(size, false, image.scale)
+            guard let context = UIGraphicsGetCurrentContext() else {
+                UIGraphicsEndImageContext()
+                avatarLog("❌ [ProfileCameraPickerView] Failed to create graphics context")
+                return image
+            }
+
+            // Apply horizontal flip transform
+            context.translateBy(x: size.width, y: 0)
+            context.scaleBy(x: -1.0, y: 1.0)
+
+            // Draw the image with its original orientation respected
+            // This handles both rotation and mirroring in one pass
+            image.draw(in: CGRect(origin: .zero, size: size))
+
+            let mirroredImage = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+
+            avatarLog("✅ [ProfileCameraPickerView] Mirrored successfully")
+            return mirroredImage ?? image
+        }
+    }
+}
+
+// MARK: - Profile Photo Library Picker View
+
+/// Dedicated photo library picker for profile photos
+/// Opens photo library selector and normalizes orientation
+struct ProfilePhotoLibraryPickerView: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    @Binding var isPresented: Bool
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        avatarLog("📚 [ProfilePhotoLibraryPickerView] 🚀 makeUIViewController called - CREATING PHOTO LIBRARY PICKER")
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.allowsEditing = false
+        picker.sourceType = .photoLibrary  // Photo library, not camera
+        avatarLog("📚 [ProfilePhotoLibraryPickerView] ✅ sourceType set to .photoLibrary")
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ProfilePhotoLibraryPickerView
+
+        init(_ parent: ProfilePhotoLibraryPickerView) {
+            self.parent = parent
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            avatarLog("📚 [ProfilePhotoLibraryPickerView] Photo selected from library")
+
+            if let image = info[.originalImage] as? UIImage {
+                let startTime = Date()
+
+                // Normalize orientation to fix any rotation issues
+                let normalizedImage = normalizeOrientation(image)
+
+                let duration = Date().timeIntervalSince(startTime)
+                avatarLog("✅ [ProfilePhotoLibraryPickerView] Image normalized in \(String(format: "%.3f", duration))s")
+                avatarLog("📏 [ProfilePhotoLibraryPickerView] Image size: \(normalizedImage.size)")
+
+                parent.selectedImage = normalizedImage
+            } else {
+                avatarLog("❌ [ProfilePhotoLibraryPickerView] No image found in selection")
+            }
+
+            parent.isPresented = false
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            avatarLog("🚫 [ProfilePhotoLibraryPickerView] Photo selection cancelled")
+            parent.isPresented = false
+        }
+
+        // Normalize image orientation (fix rotation from camera metadata)
+        private func normalizeOrientation(_ image: UIImage) -> UIImage {
+            avatarLog("🔄 [ProfilePhotoLibraryPickerView] Normalizing orientation: \(image.imageOrientation.rawValue)")
+
+            // If already upright, return as-is
+            if image.imageOrientation == .up {
+                avatarLog("✅ [ProfilePhotoLibraryPickerView] Already upright, no normalization needed")
+                return image
+            }
+
+            // Render image in normalized orientation
+            UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+            let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+
+            avatarLog("✅ [ProfilePhotoLibraryPickerView] Normalized to upright orientation")
+            return normalizedImage ?? image
+        }
     }
 }
 

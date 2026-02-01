@@ -189,20 +189,8 @@ struct DirectAIHomeworkView: View {
     // Progressive grading view state
     @State private var showProgressiveGrading = false
 
-    // Subject selection for AI grading
-    @State private var selectedSubject: String = "General"
-    private let availableSubjects = [
-        "General",
-        "Mathematics",
-        "Physics",
-        "Chemistry",
-        "Biology",
-        "Language",
-        "Essay",
-        "History",
-        "Geography",
-        "Computer Science"
-    ]
+    // ✅ REMOVED: Subject selection UI (AI auto-detects subject from image)
+    // Subject is now ALWAYS auto-detected by AI, not user-selectable
 
     // Parsing mode selection
     @State private var parsingMode: ParsingMode = .progressive // Default to Pro mode
@@ -736,8 +724,7 @@ struct DirectAIHomeworkView: View {
 
             // Configuration Cards Section
             VStack(spacing: 8) {  // Reduced from 12 to 8 for more compact layout
-                // Subject Selection Card
-                subjectSelectionCard
+                // ✅ REMOVED: Subject Selection Card (AI auto-detects subject)
 
                 // AI Model Selection Card
                 aiModelSelectionCard
@@ -826,58 +813,8 @@ struct DirectAIHomeworkView: View {
         .padding(.top, 4)
     }
 
-    // MARK: - Subject Selection Card
-    private var subjectSelectionCard: some View {
-        HStack(spacing: 12) {
-            // Label on left
-            Text(NSLocalizedString("aiHomework.subject", comment: ""))
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.secondary)
-                .frame(width: 70, alignment: .leading)
-
-            // Dropdown on right
-            Menu {
-                ForEach(availableSubjects, id: \.self) { subject in
-                    Button(action: {
-                        selectedSubject = subject
-                    }) {
-                        HStack {
-                            Text(subject)
-                            if selectedSubject == subject {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                    }
-                }
-            } label: {
-                HStack {
-                    Image(systemName: getSubjectIcon(selectedSubject))
-                        .foregroundColor(.blue)
-                        .font(.body)
-                    Text(selectedSubject)
-                        .font(.body)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
-                    Spacer()
-                    Image(systemName: "chevron.down")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(Color(UIColor.secondarySystemGroupedBackground))
-                .cornerRadius(8)
-            }
-            .buttonStyle(PlainButtonStyle())
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color(UIColor.systemGroupedBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
-        .padding(.horizontal)
-    }
+    // ✅ REMOVED: Subject Selection Card (AI auto-detects subject from image)
+    // Subject is determined by AI Engine, not user-selectable
 
     // MARK: - AI Model Selection Card
     private var aiModelSelectionCard: some View {
@@ -1730,31 +1667,6 @@ struct DirectAIHomeworkView: View {
     
     // MARK: - Helper Methods
 
-    private func getSubjectIcon(_ subject: String) -> String {
-        switch subject {
-        case "Mathematics":
-            return "function"
-        case "Physics":
-            return "atom"
-        case "Chemistry":
-            return "flask"
-        case "Biology":
-            return "leaf"
-        case "Language":
-            return "book.closed"
-        case "Essay":
-            return "pencil.and.list.clipboard"
-        case "History":
-            return "clock"
-        case "Geography":
-            return "globe"
-        case "Computer Science":
-            return "laptopcomputer"
-        default:
-            return "doc.text"
-        }
-    }
-
     private func prepareBase64Image(_ image: UIImage) -> String {
         // Compress image using the same logic as batch processing
         guard let compressedData = compressPreprocessedImage(image) else {
@@ -1926,7 +1838,6 @@ struct DirectAIHomeworkView: View {
         let result = await NetworkService.shared.processHomeworkImagesBatch(
             base64Images: base64Images,
             prompt: "",
-            subject: selectedSubject,  // Pass user-selected subject
             parsingMode: parsingMode.apiValue,  // Pass parsing mode
             modelProvider: selectedAIModel  // NEW: Pass AI model selection (OpenAI/Gemini)
         )
@@ -2016,15 +1927,13 @@ struct DirectAIHomeworkView: View {
                 // NEW FLOW: Call AI Parse with Detail Mode (hierarchical parsing)
                 print("🤖 Calling AI Engine with Detail Mode (hierarchical parsing)...")
                 print("🤖 Using AI Model: \(selectedAIModel)")
-                print("📚 Selected Subject: \(selectedSubject)")
 
                 let parseResponse = try await NetworkService.shared.parseHomeworkQuestions(
                     base64Image: base64Image,
                     parsingMode: "standard",  // Use standard mode for Pro
                     skipBboxDetection: true,   // No bbox needed
                     expectedQuestions: nil,
-                    modelProvider: selectedAIModel,  // Pass selected AI model
-                    subject: selectedSubject  // NEW: Pass selected subject
+                    modelProvider: selectedAIModel  // Pass selected AI model
                 )
 
                 guard parseResponse.success else {

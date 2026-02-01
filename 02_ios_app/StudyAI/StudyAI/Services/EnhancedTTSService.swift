@@ -454,7 +454,8 @@ class EnhancedTTSService: NSObject, ObservableObject {
     
     private func startProgressTracking() {
         progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            guard let self = self else { return }
+            Task { @MainActor [weak self] in
                 guard let self = self,
                       let player = self.audioPlayer,
                       player.isPlaying,
