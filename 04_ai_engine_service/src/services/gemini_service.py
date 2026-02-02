@@ -736,8 +736,17 @@ RULE 2 - QUESTION NUMBER FORMATS:
 Accept: "1", "1.", "1)", "Q1", "Q1:", "Problem 1", "#1", "I.", "II."
 
 RULE 3 - PARENT QUESTION DETECTION:
-IF printed question has lettered/numbered sub-items (a,b,c... or i,ii,iii...)
+IF any of these patterns exist:
+  A) Question has lettered/numbered sub-items (a,b,c... or i,ii,iii...)
+  B) Long passage/context (2+ paragraphs) followed by numbered questions
+  C) Diagram/chart with multiple numbered questions referring to it
 THEN classify as parent question.
+
+Examples:
+- "Solve the following: a) 2+2  b) 3+3" → parent question
+- "Read passage... [3 paragraphs]. 1. What...? 2. Where...?" → parent question (passage = parent_content)
+- "Look at the diagram. 1. Label A. 2. Label B." → parent question (if diagram present)
+
 
 RULE 4 - SUBQUESTION EXTRACTION (VISION-FIRST):
 IF parent question exists:

@@ -367,6 +367,55 @@ RULE 5 - CIRCLED WORDS (Grammar Questions):
 IF student circled/underlined answer in text:
 → Extract only the circled word(s): "runs"
 → Don't include surrounding text
+
+RULE 6 - READING COMPREHENSION STRUCTURE (CRITICAL):
+IF you see:
+- Long passage (2+ paragraphs) at top of page
+- Followed by numbered questions (1, 2, 3...) referring to the passage
+THEN:
+→ is_parent: true
+→ has_subquestions: true
+→ parent_content: [the full reading passage text]
+→ subquestions: [the numbered comprehension questions with student answers]
+→ Example structure:
+   "Read the following passage and answer the questions:
+    [3 paragraphs about mountains...]
+    1. What is the main idea?
+    2. Where does this take place?"
+
+   Should parse as:
+   - parent_content: "Read the following passage... [full passage text]"
+   - subquestions: [
+       {id: "1", question_text: "What is the main idea?", student_answer: "..."},
+       {id: "2", question_text: "Where does this take place?", student_answer: "..."}
+     ]
+
+⚠️ IMPORTANT:
+- Passage text goes in parent_content, NOT as a separate question
+- Only the numbered questions become subquestions
+- Don't create a "question 0" for the passage itself
+
+RULE 7 - COMPOSITION/ESSAY PROMPTS (CRITICAL):
+IF you see:
+- Writing prompt/topic at top (e.g., "Write about your favorite season")
+- Followed by multi-paragraph student response (essay/composition)
+THEN:
+→ question_text: [the writing prompt/topic]
+→ student_answer: [entire student essay with all paragraphs]
+→ question_type: "long_answer"
+→ Preserve paragraph breaks with newlines (\n)
+
+⚠️ IMPORTANT:
+- Don't split essay into multiple questions (one per paragraph)
+- Capture the COMPLETE student response as one answer
+- Keep original formatting and line breaks
+
+Examples:
+- Prompt: "Describe your summer vacation"
+  Answer: [All 3-4 paragraphs student wrote]
+
+- Prompt: "Write a letter to your friend"
+  Answer: [Complete letter from "Dear..." to "Sincerely..."]
 """
 
     @staticmethod
