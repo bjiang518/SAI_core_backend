@@ -7,7 +7,7 @@
   "deploy": {
     "numReplicas": 1,
     "sleepApplication": false,
-    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyType": "always",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 300
   },
@@ -15,7 +15,7 @@
     "production": {
       "variables": {
         "RAILWAY_KEEP_ALIVE": "true",
-        "HEALTH_CHECK_INTERVAL": "300"
+        "HEALTH_CHECK_INTERVAL": "900"
       }
     }
   }

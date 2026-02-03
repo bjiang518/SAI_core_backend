@@ -161,6 +161,9 @@
 		7B2248B12F2F53CB006ADD93 /* Just Flow.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248B02F2F53CB006ADD93 /* Just Flow.json */; };
 		7B2248B22F2F53CB006ADD93 /* Just Flow.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248B02F2F53CB006ADD93 /* Just Flow.json */; };
 		7B2248B32F2F53CB006ADD93 /* Just Flow.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248B02F2F53CB006ADD93 /* Just Flow.json */; };
+		7B2248B52F309BEC006ADD93 /* AnswerMatchingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248B42F309BEC006ADD93 /* AnswerMatchingService.swift */; };
+		7B2248B62F309BEC006ADD93 /* AnswerMatchingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248B42F309BEC006ADD93 /* AnswerMatchingService.swift */; };
+		7B2248B72F309BEC006ADD93 /* AnswerMatchingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248B42F309BEC006ADD93 /* AnswerMatchingService.swift */; };
 		7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
@@ -547,6 +550,7 @@
 		7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MistakeDetectionHelper.swift; path = StudyAI/Services/MistakeDetectionHelper.swift; sourceTree = SOURCE_ROOT; };
 		7B2248AC2F2F4A8D006ADD93 /* DebugSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DebugSettings.swift; path = StudyAI/Services/DebugSettings.swift; sourceTree = SOURCE_ROOT; };
 		7B2248B02F2F53CB006ADD93 /* Just Flow.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Just Flow.json"; sourceTree = "<group>"; };
+		7B2248B42F309BEC006ADD93 /* AnswerMatchingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AnswerMatchingService.swift; path = StudyAI/Services/AnswerMatchingService.swift; sourceTree = SOURCE_ROOT; };
 		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCropper.swift; sourceTree = "<group>"; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
 		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
@@ -863,6 +867,7 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7B2248B42F309BEC006ADD93 /* AnswerMatchingService.swift */,
 				7B2248AC2F2F4A8D006ADD93 /* DebugSettings.swift */,
 				7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */,
 				7B2248A42F2DCDE4006ADD93 /* AppSessionManager.swift */,
@@ -1331,6 +1336,7 @@
 				3CAC0FF7EDE94A0B9ACDC78F /* AuthenticationService.swift in Sources */,
 				CAB7C1BE421684B5D6EBB59 /* CameraSessionManager.swift in Sources */,
 				EIB7AB25DA9B4CE3E97F6F9 /* EnhancedImageProcessor.swift in Sources */,
+				7B2248B62F309BEC006ADD93 /* AnswerMatchingService.swift in Sources */,
 				7B83523F2E9625E800199AC3 /* ChatMessageModel.swift in Sources */,
 				8659331C2BF143DBB36C245F /* EnhancedHomeworkParser.swift in Sources */,
 				0B6A2DF7A9ED4CCEBEABDB0A /* EnhancedTTSService.swift in Sources */,
@@ -1514,6 +1520,7 @@
 				7B8E9E9D2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				7B1961EC2E94E2740024317A /* ParentAuthenticationView.swift in Sources */,
 				7B22485B2F202156006ADD93 /* PassiveReportsViewModel.swift in Sources */,
+				7B2248B52F309BEC006ADD93 /* AnswerMatchingService.swift in Sources */,
 				7B8E9EB72EAF395200E83DA8 /* FaceIDReauthView.swift in Sources */,
 				7B8353452EA6F4F400199AC3 /* LocalReportDataAggregator.swift in Sources */,
 				7B1961F02E94E31A0024317A /* ParentModeManager.swift in Sources */,
@@ -1618,6 +1625,7 @@
 				7BDE56EA2EC31AC7004A8629 /* HTMLRendererView.swift in Sources */,
 				7BD664D42ECA908300E09E55 /* ProgressiveHomeworkModels.swift in Sources */,
 				7BD664D02ECA8B2E00E09E55 /* ProgressiveHomeworkView.swift in Sources */,
+				7B2248B72F309BEC006ADD93 /* AnswerMatchingService.swift in Sources */,
 				7BDE56E02EC31A7A004A8629 /* EssayGradingModels.swift in Sources */,
 				7BD664D82ECAB29F00E09E55 /* NativePhotoViewer.swift in Sources */,
 				7B1961F22E94E31A0024317A /* ParentModeManager.swift in Sources */,

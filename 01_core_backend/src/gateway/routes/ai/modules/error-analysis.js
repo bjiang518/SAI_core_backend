@@ -33,15 +33,21 @@ module.exports = async function (fastify, opts) {
       return reply.code(400).send({ error: 'No questions provided' });
     }
 
+    // ✅ NEW: Count questions with images for logging
+    const questionsWithImages = questions.filter(q => q.question_image_base64 || q.questionImageBase64).length;
+
     fastify.log.info(`📊 Pass 2 analysis request: ${questions.length} questions from user ${userId.substring(0, 8)}...`);
+    if (questionsWithImages > 0) {
+      fastify.log.info(`   📸 Including images for ${questionsWithImages}/${questions.length} questions`);
+    }
 
     try {
-      // Forward to AI Engine for error analysis
+      // Forward to AI Engine for error analysis (including images if present)
       const aiEngineUrl = process.env.AI_ENGINE_URL || 'http://localhost:8000';
       const response = await fetch(`${aiEngineUrl}/api/v1/error-analysis/analyze-batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questions })
+        body: JSON.stringify({ questions })  // ✅ Includes questionImageBase64 field if present
       });
 
       if (!response.ok) {

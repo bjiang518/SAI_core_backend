@@ -706,9 +706,6 @@ class DigitalHomeworkViewModel: ObservableObject {
         // ✅ SINGLE state transition: .parsed → .graded
         stateManager.completeGrading(gradedQuestions: updatedQuestions)
         logger.debug("State transitioned to .graded")
-
-        // Auto-save to Homework Album after grading completes
-        saveToHomeworkAlbum()
     }
 
     // ✅ NEW: Unified grading result type
@@ -880,11 +877,13 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         logger.info("🔄 [Regrade] Starting regrade for Q\(questionId) with Gemini deep mode...")
 
+        // Get local copy and mark as grading
         var updatedQuestions = questions
-
-        // Mark as grading
         updatedQuestions[index].isGrading = true
+
         await MainActor.run {
+            // ✅ FIX: Notify observers so UI sees the isGrading = true change and shows animations
+            objectWillChange.send()
             stateManager.updateHomework(questions: updatedQuestions)
         }
 
@@ -906,22 +905,36 @@ class DigitalHomeworkViewModel: ObservableObject {
             )
 
             await MainActor.run {
+                // ✅ FIX: Get FRESH copy from state manager to avoid stale data
+                var freshQuestions = self.questions
+                guard let currentIndex = freshQuestions.firstIndex(where: { $0.question.id == questionId }) else {
+                    logger.error("Question \(questionId) disappeared during regrade")
+                    return
+                }
+
                 if response.success, let grade = response.grade {
                     // Update grade
-                    updatedQuestions[index].grade = grade
-                    updatedQuestions[index].gradingError = nil
+                    freshQuestions[currentIndex].grade = grade
+                    freshQuestions[currentIndex].gradingError = nil
                     logger.info("✅ [Regrade] Q\(questionId) regraded: score=\(grade.score), correct=\(grade.isCorrect)")
+                    logger.debug("  - feedback: '\(grade.feedback.prefix(100))...'")
+                    logger.debug("  - correctAnswer: '\(grade.correctAnswer?.prefix(50) ?? "nil")...'")
                 } else {
                     let error = response.error ?? "Regrade failed"
-                    updatedQuestions[index].gradingError = error
+                    freshQuestions[currentIndex].gradingError = error
                     logger.error("❌ [Regrade] Q\(questionId) failed: \(error)")
                 }
 
                 // Mark as not grading anymore
-                updatedQuestions[index].isGrading = false
+                freshQuestions[currentIndex].isGrading = false
+
+                // ✅ FIX: Explicitly notify observers before updating (ensures UI sees the change)
+                objectWillChange.send()
 
                 // Update state
-                stateManager.updateHomework(questions: updatedQuestions)
+                stateManager.updateHomework(questions: freshQuestions)
+
+                logger.debug("State updated - UI should refresh now")
 
                 // Haptic feedback
                 let generator = UINotificationFeedbackGenerator()
@@ -931,9 +944,16 @@ class DigitalHomeworkViewModel: ObservableObject {
         } catch {
             logger.error("❌ [Regrade] Q\(questionId) exception: \(error.localizedDescription)")
             await MainActor.run {
-                updatedQuestions[index].gradingError = error.localizedDescription
-                updatedQuestions[index].isGrading = false
-                stateManager.updateHomework(questions: updatedQuestions)
+                var freshQuestions = self.questions
+                guard let currentIndex = freshQuestions.firstIndex(where: { $0.question.id == questionId }) else {
+                    return
+                }
+
+                freshQuestions[currentIndex].gradingError = error.localizedDescription
+                freshQuestions[currentIndex].isGrading = false
+
+                objectWillChange.send()
+                stateManager.updateHomework(questions: freshQuestions)
 
                 // Error feedback
                 let generator = UINotificationFeedbackGenerator()
@@ -956,11 +976,13 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         logger.info("🔄 [Regrade] Starting regrade for subquestion \(subquestionId) of Q\(parentQuestionId) with Gemini deep mode...")
 
-        var updatedQuestions = questions
-
         // Mark subquestion as grading
+        var updatedQuestions = questions
         updatedQuestions[index].subquestionGradingStatus[subquestionId] = true
+
         await MainActor.run {
+            // ✅ FIX: Notify observers so UI sees the grading status change and shows animations
+            objectWillChange.send()
             stateManager.updateHomework(questions: updatedQuestions)
         }
 
@@ -984,22 +1006,36 @@ class DigitalHomeworkViewModel: ObservableObject {
             )
 
             await MainActor.run {
+                // ✅ FIX: Get FRESH copy from state manager to avoid stale data
+                var freshQuestions = self.questions
+                guard let currentIndex = freshQuestions.firstIndex(where: { $0.question.id == parentQuestionId }) else {
+                    logger.error("Parent question \(parentQuestionId) disappeared during regrade")
+                    return
+                }
+
                 if response.success, let grade = response.grade {
                     // Update subquestion grade
-                    updatedQuestions[index].subquestionGrades[subquestionId] = grade
-                    updatedQuestions[index].subquestionErrors.removeValue(forKey: subquestionId)
+                    freshQuestions[currentIndex].subquestionGrades[subquestionId] = grade
+                    freshQuestions[currentIndex].subquestionErrors.removeValue(forKey: subquestionId)
                     logger.info("✅ [Regrade] Subquestion \(subquestionId) regraded: score=\(grade.score), correct=\(grade.isCorrect)")
+                    logger.debug("  - feedback: '\(grade.feedback.prefix(100))...'")
+                    logger.debug("  - correctAnswer: '\(grade.correctAnswer?.prefix(50) ?? "nil")...'")
                 } else {
                     let error = response.error ?? "Regrade failed"
-                    updatedQuestions[index].subquestionErrors[subquestionId] = error
+                    freshQuestions[currentIndex].subquestionErrors[subquestionId] = error
                     logger.error("❌ [Regrade] Subquestion \(subquestionId) failed: \(error)")
                 }
 
                 // Mark subquestion as not grading
-                updatedQuestions[index].subquestionGradingStatus[subquestionId] = false
+                freshQuestions[currentIndex].subquestionGradingStatus[subquestionId] = false
+
+                // ✅ FIX: Explicitly notify observers before updating
+                objectWillChange.send()
 
                 // Update state
-                stateManager.updateHomework(questions: updatedQuestions)
+                stateManager.updateHomework(questions: freshQuestions)
+
+                logger.debug("State updated - UI should refresh now")
 
                 // Haptic feedback
                 let generator = UINotificationFeedbackGenerator()
@@ -1009,9 +1045,16 @@ class DigitalHomeworkViewModel: ObservableObject {
         } catch {
             logger.error("❌ [Regrade] Subquestion \(subquestionId) exception: \(error.localizedDescription)")
             await MainActor.run {
-                updatedQuestions[index].subquestionErrors[subquestionId] = error.localizedDescription
-                updatedQuestions[index].subquestionGradingStatus[subquestionId] = false
-                stateManager.updateHomework(questions: updatedQuestions)
+                var freshQuestions = self.questions
+                guard let currentIndex = freshQuestions.firstIndex(where: { $0.question.id == parentQuestionId }) else {
+                    return
+                }
+
+                freshQuestions[currentIndex].subquestionErrors[subquestionId] = error.localizedDescription
+                freshQuestions[currentIndex].subquestionGradingStatus[subquestionId] = false
+
+                objectWillChange.send()
+                stateManager.updateHomework(questions: freshQuestions)
 
                 // Error feedback
                 let generator = UINotificationFeedbackGenerator()
@@ -1613,6 +1656,9 @@ class DigitalHomeworkViewModel: ObservableObject {
 
                     logger.info("✅ Recorded handwriting score: \(score)/10")
                 }
+
+                // ✅ NEW: Save to Homework Album when marking progress
+                saveToHomeworkAlbum()
             }
         }
     }
@@ -1689,6 +1735,60 @@ class DigitalHomeworkViewModel: ObservableObject {
         }
 
         logger.info("Batch archive completed - \(selectedQuestionIds.count) questions marked as archived")
+    }
+
+    // MARK: - Question Deletion
+
+    /// Delete selected questions from the homework session
+    /// Unlike archiving, this permanently removes questions from the session
+    func deleteQuestions(questionIds: [Int]) {
+        guard !questionIds.isEmpty else {
+            logger.warning("deleteQuestions called with empty array")
+            return
+        }
+
+        logger.info("Deleting \(questionIds.count) questions from homework session...")
+
+        // Get current state
+        var updatedQuestions = questions
+        var updatedCroppedImages = croppedImages
+        var updatedAnnotations = annotations
+
+        // Remove questions and their associated data
+        updatedQuestions.removeAll { questionIds.contains($0.question.id) }
+
+        // Remove cropped images for deleted questions
+        for questionId in questionIds {
+            updatedCroppedImages.removeValue(forKey: questionId)
+            logger.debug("Removed cropped image for Q\(questionId)")
+        }
+
+        // Remove annotations for deleted questions
+        // Find question numbers for deleted questions
+        let deletedQuestionNumbers = Set(
+            parseResults?.questions
+                .filter { questionIds.contains($0.id) }
+                .compactMap { $0.questionNumber } ?? []
+        )
+
+        if !deletedQuestionNumbers.isEmpty {
+            updatedAnnotations.removeAll { annotation in
+                if let questionNumber = annotation.questionNumber {
+                    return deletedQuestionNumbers.contains(questionNumber)
+                }
+                return false
+            }
+            logger.debug("Removed \(annotations.count - updatedAnnotations.count) annotations for deleted questions")
+        }
+
+        // Update global state
+        stateManager.updateHomework(
+            questions: updatedQuestions,
+            annotations: updatedAnnotations,
+            croppedImages: updatedCroppedImages
+        )
+
+        logger.info("✅ Successfully deleted \(questionIds.count) questions from session")
     }
 
     // MARK: - PDF Export

@@ -8,7 +8,9 @@
 
 import Foundation
 import Combine
-import BackgroundTasks  // ✅ Required for Layer 3 background migration
+#if canImport(BackgroundTasks)
+import BackgroundTasks  // ✅ Required for Layer 3 background migration (iOS only)
+#endif
 
 @MainActor
 class ShortTermStatusService: ObservableObject {
@@ -16,6 +18,9 @@ class ShortTermStatusService: ObservableObject {
 
     @Published var status: ShortTermStatus
     @Published var weaknessFolder: WeaknessPointFolder
+
+    // ✅ NEW: Track recently mastered weaknesses for UI celebration
+    @Published var recentMasteries: [(key: String, timestamp: Date)] = []
 
     private let logger = AppLogger.forFeature("ShortTermStatus")
     private var midnightCheckTimer: Timer?
@@ -66,6 +71,12 @@ class ShortTermStatusService: ObservableObject {
         logger.debug("Saved status: \(status.activeWeaknesses.count) active, \(weaknessFolder.weaknessPoints.count) points")
     }
 
+    // ✅ NEW: Clear recent masteries (called after UI celebration is shown)
+    func clearRecentMasteries() {
+        recentMasteries.removeAll()
+        logger.debug("Cleared recent masteries")
+    }
+
     // MARK: - Key Generation
 
     func generateKey(subject: String, concept: String, questionType: String) -> String {
@@ -107,11 +118,16 @@ class ShortTermStatusService: ObservableObject {
                     weakness.recentErrorTypes.removeFirst()
                 }
 
-                // ✅ NEW: Track recent question IDs (keep last 5)
+                // ✅ FIX: Track recent question IDs (keep last 5, prevent duplicates)
                 if let qId = questionId {
-                    weakness.recentQuestionIds.append(qId)
-                    if weakness.recentQuestionIds.count > 5 {
-                        weakness.recentQuestionIds.removeFirst()
+                    // Only append if not already in the array (prevent duplicates)
+                    if !weakness.recentQuestionIds.contains(qId) {
+                        weakness.recentQuestionIds.append(qId)
+                        if weakness.recentQuestionIds.count > 5 {
+                            weakness.recentQuestionIds.removeFirst()
+                        }
+                    } else {
+                        print("   ℹ️ Question ID \(qId) already tracked (duplicate prevented)")
                     }
                 }
             }
@@ -226,12 +242,21 @@ class ShortTermStatusService: ObservableObject {
             weakness.masteryQuestions = questionId.map { [$0] } ?? []
             logger.info("🎉 TRANSITION: Weakness → Mastery for '\(key)' (value: \(weakness.value))")
             print("   🎉 TRANSITION: Weakness → Mastery (cleared error data, starting mastery tracking)")
+
+            // ✅ NEW: Add to recentMasteries for UI celebration
+            recentMasteries.append((key: key, timestamp: Date()))
+            print("   🎊 Added to recentMasteries for UI celebration!")
         } else if isNowNegative {
-            // Already in mastery: track mastery questions (keep last 5)
+            // Already in mastery: track mastery questions (keep last 5, prevent duplicates)
             if let qId = questionId {
-                weakness.masteryQuestions.append(qId)
-                if weakness.masteryQuestions.count > 5 {
-                    weakness.masteryQuestions.removeFirst()
+                // Only append if not already in the array (prevent duplicates)
+                if !weakness.masteryQuestions.contains(qId) {
+                    weakness.masteryQuestions.append(qId)
+                    if weakness.masteryQuestions.count > 5 {
+                        weakness.masteryQuestions.removeFirst()
+                    }
+                } else {
+                    print("   ℹ️ Question ID \(qId) already tracked in mastery (duplicate prevented)")
                 }
             }
         }
@@ -373,7 +398,7 @@ class ShortTermStatusService: ObservableObject {
     /// Schedule next background migration task
     /// Called from StudyAIApp.swift after task completion
     func scheduleNextBackgroundMigration() {
-        #if !targetEnvironment(simulator)
+        #if canImport(BackgroundTasks) && !targetEnvironment(simulator)
         let request = BGAppRefreshTaskRequest(identifier: "com.studyai.weaknessmigration")
         request.earliestBeginDate = Calendar.current.date(byAdding: .day, value: 1, to: Date())
 
@@ -690,6 +715,89 @@ class ShortTermStatusService: ObservableObject {
         save()
 
         logger.info("🗑️ Manually removed weakness: '\(key)'")
+    }
+
+    /// Remove a question's contribution to weakness tracking
+    /// Called when user deletes a mistake question from Library
+    /// - Parameters:
+    ///   - questionId: The ID of the deleted question
+    ///   - weaknessKey: The weakness key associated with this question
+    ///   - errorType: The error type that contributed to the weakness (optional)
+    func removeQuestionFromWeakness(questionId: String, weaknessKey: String?, errorType: String?) {
+        print("🗑️ [WeaknessTracking] removeQuestionFromWeakness called:")
+        print("   Question ID: \(questionId)")
+        print("   Weakness Key: \(weaknessKey ?? "NONE")")
+        print("   Error Type: \(errorType ?? "NONE")")
+
+        // If we have a weakness key, update that specific weakness
+        if let key = weaknessKey, var weakness = status.activeWeaknesses[key] {
+            print("   📊 Found weakness for key: \(key)")
+            print("      Current value: \(weakness.value)")
+            print("      Question IDs before: \(weakness.recentQuestionIds)")
+
+            // Remove question ID from recentQuestionIds
+            let oldCount = weakness.recentQuestionIds.count
+            weakness.recentQuestionIds.removeAll { $0 == questionId }
+            let removed = oldCount - weakness.recentQuestionIds.count
+
+            print("      Removed \(removed) occurrence(s) of question ID")
+            print("      Question IDs after: \(weakness.recentQuestionIds)")
+
+            // ✅ CONSERVATIVE: Decrement weakness value by error type weight
+            // This prevents inflated weakness scores when questions are deleted
+            if let errorType = errorType {
+                let decrement = errorTypeWeight(errorType)
+                let oldValue = weakness.value
+                weakness.value = max(0, weakness.value - decrement)  // Never go below 0
+
+                print("      Decrementing value by \(decrement) (error type: \(errorType))")
+                print("      Value changed: \(oldValue) → \(weakness.value)")
+            }
+
+            // If weakness is now empty (no recent questions) and value is small, remove it
+            if weakness.recentQuestionIds.isEmpty && weakness.value < 1.0 {
+                status.activeWeaknesses.removeValue(forKey: key)
+                print("      ✅ Removed weakness key (empty + low value)")
+            } else {
+                status.activeWeaknesses[key] = weakness
+                print("      ✅ Updated weakness key")
+            }
+
+            save()
+        } else if let key = weaknessKey {
+            // Weakness key provided but not found (already migrated or removed)
+            print("   ⚠️ Weakness key '\(key)' not found in active weaknesses (possibly migrated)")
+        } else {
+            // No weakness key - scan all weaknesses to remove question ID
+            print("   🔍 No weakness key provided - scanning all weaknesses")
+            var updated = false
+
+            for (key, var weakness) in status.activeWeaknesses {
+                if weakness.recentQuestionIds.contains(questionId) {
+                    print("      Found question ID in key: \(key)")
+                    weakness.recentQuestionIds.removeAll { $0 == questionId }
+
+                    // Same cleanup logic
+                    if weakness.recentQuestionIds.isEmpty && weakness.value < 1.0 {
+                        status.activeWeaknesses.removeValue(forKey: key)
+                        print("      ✅ Removed weakness key (empty + low value)")
+                    } else {
+                        status.activeWeaknesses[key] = weakness
+                        print("      ✅ Updated weakness key")
+                    }
+                    updated = true
+                }
+            }
+
+            if updated {
+                save()
+                print("   ✅ Completed scan and update")
+            } else {
+                print("   ℹ️ Question ID not found in any weakness")
+            }
+        }
+
+        print("   📊 Final state: \(status.activeWeaknesses.count) active weaknesses")
     }
 
     // MARK: - Handwriting Recording (for report generation)

@@ -16,9 +16,6 @@ struct HomeworkResultsView: View {
     @State private var expandedQuestions: Set<String> = []
     @State private var showingQuestionArchiveDialog = false
     @State private var isArchiving = false
-    @State private var isRegrading = false  // NEW: Track regrading state
-    @State private var showingRegradingAlert = false  // NEW: Show regrading confirmation
-    @State private var showingNoImageForRegradeAlert = false  // NEW: Show alert when no image available
     @State private var selectedQuestionIndices: Set<Int> = []
     @State private var questionNotes: [String] = []
     @State private var questionTags: [[String]] = []
@@ -121,30 +118,6 @@ struct HomeworkResultsView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    // Regrade Button
-                    Button(action: {
-                        // Check if we have an image before showing the alert
-                        if submittedImage == nil {
-                            showingNoImageForRegradeAlert = true
-                        } else {
-                            showingRegradingAlert = true
-                        }
-                    }) {
-                        HStack(spacing: 4) {
-                            if isRegrading {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                                Text("Regrade")
-                            }
-                        }
-                        .foregroundColor(isRegrading ? .gray : .purple)
-                    }
-                    .disabled(isRegrading)  // Only disable when actively regrading
-                }
-
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         // ✅ Validate that questions are selected
@@ -195,31 +168,9 @@ struct HomeworkResultsView: View {
             } message: {
                 Text(NSLocalizedString("homeworkResults.selectQuestionsToArchiveMessage", comment: "Please select at least one question to archive."))
             }
-            .alert("Regrade with Deep Analysis", isPresented: $showingRegradingAlert) {
-                Button("Cancel", role: .cancel) { }
-                Button("Regrade", role: .none) {
-                    Task {
-                        await performRegrade()
-                    }
-                }
-            } message: {
-                Text("This will send your homework to AI for a more detailed evaluation using advanced analysis. This may take longer but provides deeper insights.")
-            }
-            .alert("Image Not Available", isPresented: $showingNoImageForRegradeAlert) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text("The original homework image is not available for regrading. Please grade a new homework assignment to use this feature.")
-            }
             .onAppear {
                 initializeQuestionData()
                 loadProgressState()
-
-                // Debug: Log if we have a submitted image for regrading
-                if submittedImage != nil {
-                    logger.homeworkGrading("✓ Submitted image available for regrading")
-                } else {
-                    logger.warning("No submitted image - Regrade button will show but trigger alert")
-                }
 
                 // ❌ REMOVED: Auto-save moved to Mark Progress button
                 // saveHomeworkImageToStorage()
@@ -1497,150 +1448,6 @@ extension HomeworkResultsView {
 
         // Default to General if no specific subject detected
         return "General"
-    }
-
-    // MARK: - Regrade Functionality
-
-    /// Regrade homework with Gemini's deep mode for more detailed evaluation
-    private func performRegrade() async {
-        guard let image = submittedImage else {
-            logger.error("No submitted image available for regrading")
-            return
-        }
-
-        logger.homeworkRegrade("=== Starting Regrade Process ===")
-        logger.homeworkRegrade("Session ID: \(sessionId)")
-
-        await MainActor.run {
-            isRegrading = true
-        }
-
-        // Convert image to base64
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            logger.error("Failed to convert image to JPEG for regrading")
-            await MainActor.run {
-                isRegrading = false
-            }
-            return
-        }
-        let base64Image = imageData.base64EncodedString()
-        logger.homeworkRegrade("Image converted to base64 (\(imageData.count / 1024)KB)")
-
-        // Get current subject
-        let subject = enhancedResult?.detectedSubject ?? detectSubjectFromQuestion(parsingResult.allQuestions.first?.questionText ?? "")
-        logger.homeworkRegrade("Subject: \(subject)")
-        logger.homeworkRegrade("Current questions: \(parsingResult.allQuestions.count)")
-        logger.homeworkRegrade("Current accuracy: \(String(format: "%.1f%%", (enhancedResult?.calculatedAccuracy ?? parsingResult.calculatedAccuracy) * 100))")
-
-        // Enhanced detailed prompt for regrading
-        let detailedPrompt = """
-        Please perform a comprehensive re-evaluation of this homework with the following enhanced criteria:
-
-        1. **Detailed Answer Analysis**: Carefully examine each student answer for:
-           - Conceptual understanding and reasoning
-           - Mathematical or logical correctness
-           - Completeness of the solution
-           - Common misconceptions or errors
-
-        2. **Enhanced Feedback**: Provide specific, actionable feedback that:
-           - Explains why answers are correct or incorrect
-           - Points out partial credit opportunities
-           - Suggests learning resources or concepts to review
-           - Highlights strong aspects of correct answers
-
-        3. **Grading Precision**: Use more nuanced grading:
-           - Award partial credit where appropriate
-           - Consider alternative valid approaches
-           - Be lenient with minor arithmetic errors if conceptual understanding is sound
-
-        4. **Subject Context**: This is a \(subject) assignment. Apply subject-specific grading criteria and standards.
-
-        5. **Pedagogical Insights**: Where applicable, identify:
-           - Knowledge gaps or misconceptions
-           - Recommended practice areas
-           - Connections to related concepts
-
-        Please provide a thorough, student-friendly evaluation that helps improve learning.
-        """
-
-        logger.homeworkRegrade("Sending to AI with Gemini deep mode (detail parsing)...")
-
-        // Call batch processing API with Gemini provider for deep analysis
-        let result = await NetworkService.shared.processHomeworkImagesBatch(
-            base64Images: [base64Image],
-            prompt: detailedPrompt,
-            subject: subject,
-            parsingMode: "detail",  // Use detail mode for thorough analysis
-            modelProvider: "gemini"  // Use Gemini for deep mode
-        )
-
-        await MainActor.run {
-            isRegrading = false
-        }
-
-        logger.homeworkRegrade("API call completed - Success: \(result.success)")
-
-        if result.success, let responses = result.responses, let firstResponse = responses.first {
-            logger.info("✅ Regrade completed successfully")
-
-            // Parse the regraded results
-            do {
-                // Convert the response dictionary to JSON data
-                let jsonData = try JSONSerialization.data(withJSONObject: firstResponse, options: [])
-
-                // Decode into EnhancedHomeworkParsingResult
-                let decoder = JSONDecoder()
-                let regradedResult = try decoder.decode(EnhancedHomeworkParsingResult.self, from: jsonData)
-
-                logger.homeworkRegrade("Successfully parsed regraded results:")
-                logger.homeworkRegrade("  New questions: \(regradedResult.questionCount)")
-                logger.homeworkRegrade("  New subject: \(regradedResult.detectedSubject)")
-                logger.homeworkRegrade("  New accuracy: \(String(format: "%.1f%%", regradedResult.calculatedAccuracy * 100))")
-
-                // Update the UI with new results
-                await MainActor.run {
-                    // Update enhanced result
-                    self.enhancedResult = regradedResult
-
-                    // Update parsing result from enhanced result
-                    self.parsingResult = HomeworkParsingResult(
-                        questions: regradedResult.questions,
-                        processingTime: regradedResult.processingTime,
-                        overallConfidence: regradedResult.overallConfidence,
-                        parsingMethod: regradedResult.parsingMethod + " (Regraded)",
-                        rawAIResponse: regradedResult.rawAIResponse,
-                        performanceSummary: regradedResult.performanceSummary
-                    )
-
-                    // Reset question selection to show all new results
-                    selectedQuestionIndices = Set(0..<regradedResult.allQuestions.count)
-
-                    logger.info("📊 UI updated with regraded results")
-
-                    // Show success feedback
-                    let impactFeedback = UINotificationFeedbackGenerator()
-                    impactFeedback.notificationOccurred(.success)
-                }
-            } catch {
-                logger.error("Failed to parse regraded results", error: error)
-
-                await MainActor.run {
-                    // Show error feedback
-                    let impactFeedback = UINotificationFeedbackGenerator()
-                    impactFeedback.notificationOccurred(.error)
-                }
-            }
-        } else {
-            logger.error("❌ Regrade API call failed")
-
-            await MainActor.run {
-                // Show error feedback
-                let impactFeedback = UINotificationFeedbackGenerator()
-                impactFeedback.notificationOccurred(.error)
-            }
-        }
-
-        logger.homeworkRegrade("=== Regrade Process Complete ===")
     }
 
     // MARK: - Homework Image Storage

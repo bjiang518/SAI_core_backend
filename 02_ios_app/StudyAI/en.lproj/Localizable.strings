@@ -1497,10 +1497,12 @@
 "proMode.done" = "Done";
 "proMode.selectQuestionNumber" = "Select Question Number";
 "proMode.questionPrefix" = "Q";
+"proMode.pageCounter" = "Page %d/%d";
 "proMode.questionNumber" = "Q %@";
 "proMode.studentAnswer" = "Student Answer";
 "proMode.grading" = "Grading %d/%d";
 "proMode.deepGradingMode" = "Deep Grading Mode";
+"proMode.deepMode" = "Deep Mode";
 "proMode.deepGradingDescription" = "AI will analyze deeply (slower but more accurate)";
 "proMode.standardGradingDescription" = "Standard grading speed (fast but may lack depth)";
 "proMode.gradeHomework" = "Grade Homework with AI";

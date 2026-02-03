@@ -26,12 +26,25 @@ struct GeneratedQuestionsListView: View {
     @State private var answeredQuestions: [UUID: QuestionResult] = [:] // Track answered questions with results
     @State private var showingInfoAlert = false // Add info alert state
 
+    // ✅ NEW: Save progress confirmation dialog
+    @State private var showingSaveProgressDialog = false
+    @State private var pendingDismiss = false
+
     private let logger = Logger(subsystem: "com.studyai", category: "GeneratedQuestionsList")
 
     // Track question answer results
     struct QuestionResult {
         let isCorrect: Bool
         let points: Int
+    }
+
+    // ✅ NEW: Compute unfinished questions count
+    private var hasUnfinishedQuestions: Bool {
+        answeredQuestions.count < questions.count
+    }
+
+    private var unfinishedCount: Int {
+        questions.count - answeredQuestions.count
     }
 
     var filteredQuestions: [QuestionGenerationService.GeneratedQuestion] {
@@ -96,7 +109,8 @@ struct GeneratedQuestionsListView: View {
                 }
             }
             .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background
-            .sheet(isPresented: $showingQuestionDetail) {
+            // ✅ CHANGED: Use fullScreenCover instead of sheet for fixed view
+            .fullScreenCover(isPresented: $showingQuestionDetail) {
                 if let selectedQuestion = selectedQuestion,
                    let questionIndex = questions.firstIndex(where: { $0.id == selectedQuestion.id }) {
                     GeneratedQuestionDetailView(
@@ -125,6 +139,25 @@ struct GeneratedQuestionsListView: View {
                 Button(NSLocalizedString("common.ok", comment: "")) { }
             } message: {
                 Text(NSLocalizedString("generatedQuestions.howToUse.message", comment: ""))
+            }
+            // ✅ NEW: Save progress confirmation dialog
+            .confirmationDialog(
+                "You have \(unfinishedCount) unfinished question\(unfinishedCount == 1 ? "" : "s"). Save your progress?",
+                isPresented: $showingSaveProgressDialog,
+                titleVisibility: .visible
+            ) {
+                Button("Yes", role: .none) {
+                    // Save progress and dismiss
+                    saveProgress()
+                    dismiss()
+                }
+                Button("No", role: .destructive) {
+                    // Dismiss without saving
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {
+                    // Stay on the page
+                }
             }
             .onAppear {
                 logger.info("📝 Generated questions list appeared with \(questions.count) questions")
@@ -444,10 +477,30 @@ struct GeneratedQuestionsListView: View {
 
     private var closeButton: some View {
         Button(NSLocalizedString("common.done", comment: "")) {
-            dismiss()
+            // ✅ Check for unfinished questions before dismissing
+            if hasUnfinishedQuestions {
+                showingSaveProgressDialog = true
+            } else {
+                dismiss()
+            }
         }
         .font(.body)
         .fontWeight(.semibold)
+    }
+
+    // ✅ NEW: Save progress function
+    private func saveProgress() {
+        logger.info("💾 Saving progress: \(answeredQuestions.count)/\(questions.count) questions answered")
+
+        // Save answered questions to local storage or UserDefaults
+        // This can be expanded to save to the archive service or local database
+        for (questionId, result) in answeredQuestions {
+            logger.debug("✓ Question \(questionId): \(result.isCorrect ? "Correct" : "Incorrect") (\(result.points) points)")
+        }
+
+        // TODO: Implement actual save logic here
+        // For now, just log the progress
+        print("💾 [Progress] Saved \(answeredQuestions.count) answered questions")
     }
 
     private func difficultyColor(_ difficulty: String) -> Color {

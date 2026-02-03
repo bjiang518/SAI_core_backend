@@ -1468,10 +1468,12 @@
 "proMode.done" = "完成";
 "proMode.selectQuestionNumber" = "選擇題號";
 "proMode.questionPrefix" = "題";
+"proMode.pageCounter" = "第 %d/%d 頁";
 "proMode.questionNumber" = "題 %@";
 "proMode.studentAnswer" = "學生答案";
 "proMode.grading" = "正在批改 %d/%d";
 "proMode.deepGradingMode" = "深度批改模式";
+"proMode.deepMode" = "深度模式";
 "proMode.deepGradingDescription" = "AI將深度推理分析 (較慢但更準確)";
 "proMode.standardGradingDescription" = "標準批改速度 (快速但可能不夠深入)";
 "proMode.gradeHomework" = "AI 批改作業";

@@ -545,9 +545,28 @@ struct UnifiedLibraryView: View {
         let success = await libraryService.deleteLibraryItem(item)
 
         if success {
-            // Refresh the library content after deletion
-            await refreshContent()
-            print("✅ [Library] Item deleted successfully")
+            // ✅ FIX: Create new LibraryContent with filtered arrays
+            // The libraryService already updated its cache, so just rebuild from cache
+            await MainActor.run {
+                if item.itemType == .question {
+                    // Remove from questions
+                    let filteredQuestions = libraryContent.questions.filter { $0.id != item.id }
+                    libraryContent = LibraryContent(
+                        questions: filteredQuestions,
+                        conversations: libraryContent.conversations,
+                        error: libraryContent.error
+                    )
+                } else {
+                    // Remove from conversations
+                    let filteredConversations = libraryContent.conversations.filter { ($0["id"] as? String) != item.id }
+                    libraryContent = LibraryContent(
+                        questions: libraryContent.questions,
+                        conversations: filteredConversations,
+                        error: libraryContent.error
+                    )
+                }
+            }
+            print("✅ [Library] Item deleted successfully and UI updated")
         } else {
             print("❌ [Library] Failed to delete item")
         }

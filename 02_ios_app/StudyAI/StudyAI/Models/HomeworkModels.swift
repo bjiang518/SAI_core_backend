@@ -11,7 +11,7 @@ import Foundation
 
 struct AppConstants {
     // Storage limits
-    static let maxLocalQuestions = 100
+    static let maxLocalQuestions = 10000  // ✅ CHANGED: Removed 100-question limitation (increased to 10,000)
     static let maxPracticeQuestions = 40
     static let maxSelectedMistakes = 20
     static let practiceQuestionsMultiplier = 2

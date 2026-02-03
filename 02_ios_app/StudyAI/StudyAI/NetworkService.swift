@@ -2646,6 +2646,106 @@ class NetworkService: ObservableObject {
         return parseResponse
     }
 
+    /// Parse multiple homework images (Phase 1 - Batch) - Use when 2+ pages
+    /// This is more efficient than calling parseHomeworkQuestions multiple times
+    func parseHomeworkQuestionsBatch(
+        base64Images: [String],
+        parsingMode: String = "standard",
+        modelProvider: String = "openai",
+        subject: String? = nil
+    ) async throws -> ParseHomeworkQuestionsResponse {
+        guard base64Images.count >= 2 else {
+            throw NetworkError.invalidData
+        }
+
+        print("📝 === PHASE 1: BATCH PARSING (\(base64Images.count) PAGES) ===")
+        print("🔧 Mode: \(parsingMode)")
+        print("🤖 AI Model: \(modelProvider)")
+        if let subj = subject {
+            print("📚 Subject: \(subj)")
+        }
+
+        guard let url = URL(string: "\(baseURL)/api/ai/parse-homework-questions-batch") else {
+            throw NetworkError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 300.0  // 5 minutes for batch parsing (multiple images)
+
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        var requestData: [String: Any] = [
+            "base64_images": base64Images,
+            "parsing_mode": parsingMode,
+            "model_provider": modelProvider
+        ]
+
+        if let subj = subject {
+            requestData["subject"] = subj
+        }
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+
+        print("📡 Sending batch request to backend...")
+        let startTime = Date()
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        let duration = Date().timeIntervalSince(startTime)
+        print("⏱️ Batch parsing completed in \(String(format: "%.1f", duration))s")
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+
+        print("📊 Response status: \(httpResponse.statusCode)")
+
+        // Track rate limits
+        RateLimitManager.shared.updateFromHeaders(httpResponse, endpoint: .homeworkImage)
+
+        guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 429 {
+                throw NetworkError.rateLimited
+            }
+            throw NetworkError.serverError(httpResponse.statusCode)
+        }
+
+        // Log raw response for debugging
+        if let rawJSON = String(data: data, encoding: .utf8) {
+            print("\n" + String(repeating: "=", count: 80))
+            print("🔍 === RAW BATCH PARSING RESPONSE ===")
+            print(String(repeating: "=", count: 80))
+
+            if let jsonObject = try? JSONSerialization.jsonObject(with: data),
+               let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted]),
+               let prettyJSON = String(data: prettyData, encoding: .utf8) {
+                print(prettyJSON)
+            } else {
+                print(rawJSON)
+            }
+
+            let jsonSizeKB = Double(data.count) / 1024.0
+            print("\n📊 Response Size: \(String(format: "%.2f", jsonSizeKB)) KB")
+            print("⏱️ Processing Time: \(String(format: "%.1f", duration))s")
+            print(String(repeating: "=", count: 80) + "\n")
+        }
+
+        // Decode response
+        let decoder = JSONDecoder()
+        let parseResponse = try decoder.decode(ParseHomeworkQuestionsResponse.self, from: data)
+
+        print("✅ === BATCH PARSING COMPLETE ===")
+        print("📚 Subject: \(parseResponse.subject) (confidence: \(parseResponse.subjectConfidence))")
+        print("📊 Total questions: \(parseResponse.totalQuestions) from \(base64Images.count) pages")
+        print("🖼️ Questions with page numbers: \(parseResponse.questions.filter { $0.pageNumber != nil }.count)")
+
+        return parseResponse
+    }
+
     /// Grade a single question (Phase 2)
     /// Uses gpt-4o-mini for fast, low-cost grading or Gemini Thinking for deep reasoning
     func gradeSingleQuestion(

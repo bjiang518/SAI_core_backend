@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware  # PHASE 2.2: Compression
 from pydantic import BaseModel, ConfigDict
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from contextlib import asynccontextmanager
 import uvicorn
 import os
@@ -844,7 +844,7 @@ class ParsedQuestion(BaseModel):
     1. Regular: has question_text, student_answer
     2. Parent: has is_parent=true, parent_content, subquestions array
     """
-    id: int
+    id: Union[int, str]  # ✅ FIX: Support both int and string IDs (e.g., '1a', '1b' for multi-page)
     question_number: Optional[str] = None
 
     # Hierarchical support (ONLY for parent questions)

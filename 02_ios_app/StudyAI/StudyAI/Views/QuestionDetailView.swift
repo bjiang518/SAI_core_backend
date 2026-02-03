@@ -29,6 +29,11 @@ struct GeneratedQuestionDetailView: View {
     @State private var showingArchiveSuccess = false
     @State private var isArchiving = false
 
+    // ✅ NEW: Two-tier grading state
+    @State private var isGradingWithAI = false
+    @State private var wasInstantGraded = false
+    @State private var aiFeedback: String? = nil
+
     // Mark progress state
     @State private var hasMarkedProgress = false
     @ObservedObject private var pointsManager = PointsEarningManager.shared
@@ -112,6 +117,38 @@ struct GeneratedQuestionDetailView: View {
                 loadSavedAnswer()
             }
         }
+        // ✅ NEW: AI grading loading overlay
+        .overlay {
+            if isGradingWithAI {
+                ZStack {
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(1.5)
+
+                        Text("AI is analyzing your answer...")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal)
+                            .multilineTextAlignment(.center)
+
+                        Text("Using Gemini deep mode")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .padding(32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(.ultraThinMaterial)
+                    )
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: isGradingWithAI)
     }
 
     private var questionContent: some View {
@@ -120,7 +157,7 @@ struct GeneratedQuestionDetailView: View {
                 .font(.title3)
                 .fontWeight(.semibold)
 
-            MathFormattedText(question.question, fontSize: 16)
+            EnhancedMathText(question.question, fontSize: 16)
                 .padding()
                 .background(Color(.systemBackground))
                 .cornerRadius(16)
@@ -363,7 +400,7 @@ struct GeneratedQuestionDetailView: View {
             let bgColor = isCorrect ? Color.green.opacity(0.05) : (partialCredit > 0 ? Color.orange.opacity(0.05) : Color.red.opacity(0.05))
             let strokeColor = isCorrect ? Color.green.opacity(0.3) : (partialCredit > 0 ? Color.orange.opacity(0.3) : Color.red.opacity(0.3))
 
-            MathFormattedText(getCurrentAnswer(), fontSize: 14)
+            EnhancedMathText(getCurrentAnswer(), fontSize: 14)
                 .padding()
                 .background(bgColor)
                 .cornerRadius(12)
@@ -381,7 +418,7 @@ struct GeneratedQuestionDetailView: View {
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
 
-            MathFormattedText(question.correctAnswer, fontSize: 14)
+            EnhancedMathText(question.correctAnswer, fontSize: 14)
                 .padding()
                 .background(Color.green.opacity(0.05))
                 .cornerRadius(12)
@@ -397,23 +434,64 @@ struct GeneratedQuestionDetailView: View {
             Divider()
 
             HStack {
-                Image(systemName: "lightbulb.fill")
+                Image(systemName: wasInstantGraded ? "bolt.fill" : "brain.head.profile")
                     .font(.title3)
-                    .foregroundColor(.yellow)
+                    .foregroundColor(wasInstantGraded ? .yellow : .purple)
 
                 Text(NSLocalizedString("questionDetail.explanation", comment: ""))
                     .font(.title3)
                     .fontWeight(.semibold)
+
+                Spacer()
+
+                // ✅ NEW: Badge showing grading method
+                if wasInstantGraded {
+                    HStack(spacing: 3) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 8))
+                        Text("Instant")
+                            .font(.system(size: 9))
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(Color.yellow)
+                    )
+                } else if aiFeedback != nil {
+                    HStack(spacing: 3) {
+                        Image(systemName: "brain.head.profile")
+                            .font(.system(size: 8))
+                        Text("AI Analyzed")
+                            .font(.system(size: 9))
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(Color.purple)
+                    )
+                }
             }
 
-            MathFormattedText(question.explanation, fontSize: 14)
+            // Show AI feedback if available, otherwise show question explanation
+            if let feedback = aiFeedback {
+                EnhancedMathText(feedback, fontSize: 14)
+                    .foregroundColor(.primary)
+            } else {
+                EnhancedMathText(question.explanation, fontSize: 14)
+            }
         }
         .padding()
-        .background(Color.yellow.opacity(0.05))
+        .background((wasInstantGraded ? Color.yellow : Color.purple).opacity(0.05))
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
+                .stroke((wasInstantGraded ? Color.yellow : Color.purple).opacity(0.3), lineWidth: 1)
         )
     }
 
@@ -638,57 +716,153 @@ struct GeneratedQuestionDetailView: View {
         }
     }
 
+    // ✅ OPTIMIZED: Two-tier grading system (client-side matching + AI fallback)
     private func submitAnswer() {
         hasSubmitted = true
         let currentAnswer = getCurrentAnswer()
 
-        // ✅ DEBUG: Log grading start
-        // TODO: Add DebugSettings.swift to Xcode project to enable debug logging
         print("📝 [Generation] Submitting answer for question: \(question.question.prefix(50))...")
         print("📝 [Generation] User answer: \(currentAnswer.prefix(100))")
         print("📝 [Generation] Correct answer: \(question.correctAnswer.prefix(100))")
-        // DebugSettings.shared.logGeneration("Submitting answer for question: \(question.question.prefix(50))...")
-        // DebugSettings.shared.logGeneration("User answer: \(currentAnswer.prefix(100))")
-        // DebugSettings.shared.logGeneration("Correct answer: \(question.correctAnswer.prefix(100))")
 
-        // Use flexible grading system
-        let gradingResult = gradeAnswerFlexibly(userAnswer: currentAnswer, correctAnswer: question.correctAnswer, questionType: question.type)
-
-        isCorrect = gradingResult.isFullyCorrect
-        partialCredit = gradingResult.creditPercentage
-
-        showingExplanation = true
-
-        // ✅ DEBUG: Log grading result
-        print("📝 [Generation] Grading result: \(gradingResult.matchMethod), Credit: \(Int(partialCredit * 100))%")
-        // DebugSettings.shared.logGeneration("Grading result: \(gradingResult.matchMethod), Credit: \(Int(partialCredit * 100))%")
-
-        if isCorrect {
-            logger.info("📝 Answer submitted: Correct (100%)")
-        } else if partialCredit > 0 {
-            logger.info("📝 Answer submitted: Partial credit (\(Int(partialCredit * 100))%)")
+        // TIER 1: Client-side answer matching (instant grading)
+        // Convert options array to dictionary format for matching service
+        let optionsDict: [String: String]?
+        if let optionsArray = question.options {
+            let letters = ["A", "B", "C", "D", "E", "F", "G", "H"]
+            optionsDict = Dictionary(uniqueKeysWithValues: zip(letters.prefix(optionsArray.count), optionsArray))
         } else {
-            logger.info("📝 Answer submitted: Incorrect (0%)")
+            optionsDict = nil
         }
 
-        // Save answer for persistence
-        saveAnswer()
+        let matchResult = AnswerMatchingService.shared.matchAnswer(
+            userAnswer: currentAnswer,
+            correctAnswer: question.correctAnswer,
+            questionType: question.type.rawValue,
+            options: optionsDict
+        )
 
-        // Notify parent view about the answer result with partial credit
-        let maxPoints = question.points ?? 1
-        let earnedPoints = Int(Double(maxPoints) * partialCredit)
-        onAnswerSubmitted?(isCorrect, earnedPoints)
+        print("🎯 [Generation] Client-side match score: \(String(format: "%.1f%%", matchResult.matchScore * 100))")
+        print("   Should skip AI: \(matchResult.shouldSkipAIGrading)")
 
-        // ✅ DEBUG: Log if question has error keys for status tracking
-        if question.errorType != nil {
-            print("📊 [Status] Question has error keys - will update status on archive")
-            // DebugSettings.shared.logStatus("Question has error keys - will update status on archive")
-            // DebugSettings.shared.prettyPrintErrorKeys(
-            //     errorType: question.errorType,
-            //     baseBranch: question.baseBranch,
-            //     detailedBranch: question.detailedBranch,
-            //     weaknessKey: question.weaknessKey
-            // )
+        // If match score >= 90%, grade instantly without AI call
+        if matchResult.shouldSkipAIGrading {
+            print("⚡ [Generation] INSTANT GRADING (score >= 90%)")
+
+            // Instant grade result (curve to 100% correct if >= 90%)
+            isCorrect = true
+            partialCredit = 1.0
+            wasInstantGraded = true
+            showingExplanation = true
+
+            let instantFeedback = matchResult.isExactMatch ?
+                "Perfect! Your answer is exactly correct." :
+                "Correct! Your answer matches the expected solution."
+            aiFeedback = instantFeedback
+
+            logger.info("📝 Answer submitted: Instant grade - Correct (100%)")
+
+            // Save and notify
+            saveAnswer()
+            let maxPoints = question.points ?? 1
+            onAnswerSubmitted?(isCorrect, maxPoints)
+
+            return  // Skip AI grading
+        }
+
+        // TIER 2: AI grading with specialized prompts (for match score < 90%)
+        print("🤖 [Generation] AI GRADING (score < 90%)")
+        print("   Sending to Gemini deep mode for analysis...")
+
+        isGradingWithAI = true
+
+        Task {
+            await gradeWithAI(userAnswer: currentAnswer)
+        }
+    }
+
+    // ✅ NEW: AI grading helper with specialized prompts
+    private func gradeWithAI(userAnswer: String) async {
+        defer { isGradingWithAI = false }
+
+        do {
+            // Get subject from question topic or default to "General"
+            let subject = question.topic ?? "General"
+
+            // Call backend with specialized prompts
+            let response = try await NetworkService.shared.gradeSingleQuestion(
+                questionText: question.question,
+                studentAnswer: userAnswer,
+                subject: subject,
+                questionType: question.type.rawValue,
+                contextImageBase64: nil,
+                parentQuestionContent: nil,
+                useDeepReasoning: true,  // Gemini deep mode for nuanced grading
+                modelProvider: "gemini"
+            )
+
+            print("✅ [Generation] RECEIVED AI GRADING RESPONSE")
+
+            if let grade = response.grade {
+                await MainActor.run {
+                    isCorrect = grade.isCorrect
+                    partialCredit = Double(grade.score)
+                    wasInstantGraded = false
+                    aiFeedback = grade.feedback
+                    showingExplanation = true
+
+                    print("   Is Correct: \(grade.isCorrect ? "✅ YES" : "❌ NO")")
+                    print("   Score: \(String(format: "%.1f%%", grade.score * 100))")
+                    print("   Feedback: \(grade.feedback)")
+
+                    if isCorrect {
+                        logger.info("📝 Answer submitted: AI grade - Correct (100%)")
+                    } else if partialCredit > 0 {
+                        logger.info("📝 Answer submitted: AI grade - Partial credit (\(Int(partialCredit * 100))%)")
+                    } else {
+                        logger.info("📝 Answer submitted: AI grade - Incorrect (0%)")
+                    }
+
+                    // Save answer for persistence
+                    saveAnswer()
+
+                    // Notify parent view about the answer result with partial credit
+                    let maxPoints = question.points ?? 1
+                    let earnedPoints = Int(Double(maxPoints) * partialCredit)
+                    onAnswerSubmitted?(isCorrect, earnedPoints)
+
+                    // Haptic feedback
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(isCorrect ? .success : .error)
+                }
+            }
+        } catch {
+            print("❌ [Generation] AI grading failed: \(error.localizedDescription)")
+            logger.error("AI grading failed: \(error.localizedDescription)")
+
+            await MainActor.run {
+                // Fallback to local flexible grading on error
+                print("🔄 [Generation] Falling back to local flexible grading")
+                let gradingResult = gradeAnswerFlexibly(
+                    userAnswer: userAnswer,
+                    correctAnswer: question.correctAnswer,
+                    questionType: question.type
+                )
+
+                isCorrect = gradingResult.isFullyCorrect
+                partialCredit = gradingResult.creditPercentage
+                wasInstantGraded = false
+                aiFeedback = "AI grading unavailable. Using local grading."
+                showingExplanation = true
+
+                print("   Fallback result: \(gradingResult.matchMethod), Credit: \(Int(partialCredit * 100))%")
+
+                // Save and notify
+                saveAnswer()
+                let maxPoints = question.points ?? 1
+                let earnedPoints = Int(Double(maxPoints) * partialCredit)
+                onAnswerSubmitted?(isCorrect, earnedPoints)
+            }
         }
     }
 
