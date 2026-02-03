@@ -180,6 +180,7 @@ struct DirectAIHomeworkView: View {
     // Image editing functionality
     @State private var showingImageEditor = false
     @State private var editedImage: UIImage?
+    @State private var editingImageIndex: Int? = nil  // Track which image is being edited
     @State private var showingEditMultipleAlert = false  // Alert when multiple images selected for edit
     @State private var showingEditImageInfo = false  // Alert for edit image tips
 
@@ -374,11 +375,10 @@ struct DirectAIHomeworkView: View {
         .navigationDestination(isPresented: $showProModeSummary) {
             // Pro Mode: Show summary view after AI parsing (NEW FLOW)
             // Pushed onto navigation stack (NOT sheet) for full navigation bar
-            if let parseResults = proModeParsedQuestions,
-               let firstImage = stateManager.capturedImages.first {
+            if let parseResults = proModeParsedQuestions {
                 HomeworkSummaryView(
                     parseResults: parseResults,
-                    originalImage: firstImage
+                    originalImages: stateManager.capturedImages  // ✅ Pass ALL images
                 )
                 .environmentObject(appState)
             }
@@ -482,15 +482,16 @@ struct DirectAIHomeworkView: View {
                     // Update both originalImage and the corresponding image in capturedImages array
                     stateManager.originalImage = edited
 
-                    // Update the image in the capturedImages array
-                    let currentIndex = stateManager.selectedImageIndex
-                    if currentIndex < stateManager.capturedImages.count {
-                        stateManager.capturedImages[currentIndex] = edited
+                    // ✅ Use editingImageIndex if available, otherwise use selectedImageIndex
+                    let indexToUpdate = editingImageIndex ?? stateManager.selectedImageIndex
+                    if indexToUpdate < stateManager.capturedImages.count {
+                        stateManager.capturedImages[indexToUpdate] = edited
                         // Mark this image as user-edited (skip iOS preprocessing)
-                        stateManager.userEditedIndices.insert(currentIndex)
+                        stateManager.userEditedIndices.insert(indexToUpdate)
                     }
 
                     editedImage = nil
+                    editingImageIndex = nil  // Reset editing index
                 }
             }
         }
@@ -762,7 +763,7 @@ struct DirectAIHomeworkView: View {
         }
     }
 
-    // MARK: - Edit Image Button
+    // MARK: - Edit Image Button (for single image view)
     private var editImageButton: some View {
         ZStack(alignment: .topTrailing) {
             // Main button
@@ -772,16 +773,10 @@ struct DirectAIHomeworkView: View {
                 generator.impactOccurred()
 
                 // Edit the image
-                if let selectedIndex = stateManager.selectedImageIndices.first {
-                    stateManager.selectedImageIndex = selectedIndex
-                    stateManager.originalImage = stateManager.capturedImages[selectedIndex]
-                    showingImageEditor = true
-                } else {
-                    // Default to first image
-                    stateManager.selectedImageIndex = 0
-                    stateManager.originalImage = stateManager.capturedImages[0]
-                    showingImageEditor = true
-                }
+                editingImageIndex = 0  // Single image is always at index 0
+                stateManager.selectedImageIndex = 0
+                stateManager.originalImage = stateManager.capturedImages[0]
+                showingImageEditor = true
             }) {
                 HStack(spacing: 8) {
                     Image(systemName: "pencil.circle")
@@ -1167,7 +1162,7 @@ struct DirectAIHomeworkView: View {
                                 }
                             }
 
-                        // X delete button
+                        // X delete button (top-right)
                         Button(action: {
                             withAnimation {
                                 self.stateManager.removeImage(at: index)
@@ -1180,7 +1175,32 @@ struct DirectAIHomeworkView: View {
                         }
                         .padding(8)
 
-                        // Selection checkmark
+                        // ✅ NEW: Edit button (top-left)
+                        VStack {
+                            HStack {
+                                Button(action: {
+                                    // Haptic feedback
+                                    let generator = UIImpactFeedbackGenerator(style: .light)
+                                    generator.impactOccurred()
+
+                                    // Set the image to edit
+                                    editingImageIndex = index
+                                    stateManager.selectedImageIndex = index
+                                    stateManager.originalImage = image
+                                    showingImageEditor = true
+                                }) {
+                                    Image(systemName: "pencil.circle.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.white)
+                                        .background(Circle().fill(Color.orange.opacity(0.9)))
+                                }
+                                .padding(8)
+                                Spacer()
+                            }
+                            Spacer()
+                        }
+
+                        // Selection checkmark (bottom-left)
                         if stateManager.selectedImageIndices.contains(index) {
                             VStack {
                                 Spacer()
@@ -1907,7 +1927,35 @@ struct DirectAIHomeworkView: View {
             return
         }
 
-        let base64Image = imageData.base64EncodedString()
+        // ✅ NEW: Collect all selected images for batch parsing (if 2+ selected)
+        let selectedImages = stateManager.selectedImageIndices
+            .sorted()
+            .compactMap { index -> UIImage? in
+                guard index < stateManager.capturedImages.count else { return nil }
+                return stateManager.capturedImages[index]
+            }
+
+        let imagesToParse = selectedImages.isEmpty ? [originalImage] : selectedImages
+
+        print("📚 === PRO MODE PARSING ===")
+        print("📄 Total images to parse: \(imagesToParse.count)")
+        print("🤖 Using AI Model: \(selectedAIModel)")
+
+        // Compress all selected images
+        let base64Images = imagesToParse.compactMap { image -> String? in
+            guard let imageData = compressPreprocessedImage(image) else {
+                return nil
+            }
+            return imageData.base64EncodedString()
+        }
+
+        guard !base64Images.isEmpty else {
+            await MainActor.run {
+                stateManager.parsingError = "Failed to compress images"
+                isProcessing = false
+            }
+            return
+        }
 
         // ✅ Retry logic for network failures (max 3 attempts)
         var lastError: Error?
@@ -1924,23 +1972,36 @@ struct DirectAIHomeworkView: View {
                     try await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt))) * 1_000_000_000)
                 }
 
-                // NEW FLOW: Call AI Parse with Detail Mode (hierarchical parsing)
-                print("🤖 Calling AI Engine with Detail Mode (hierarchical parsing)...")
-                print("🤖 Using AI Model: \(selectedAIModel)")
+                // ✅ SMART ROUTING: Use batch endpoint for 2+ images, single endpoint for 1 image
+                let parseResponse: ParseHomeworkQuestionsResponse
 
-                let parseResponse = try await NetworkService.shared.parseHomeworkQuestions(
-                    base64Image: base64Image,
-                    parsingMode: "standard",  // Use standard mode for Pro
-                    skipBboxDetection: true,   // No bbox needed
-                    expectedQuestions: nil,
-                    modelProvider: selectedAIModel  // Pass selected AI model
-                )
+                if base64Images.count >= 2 {
+                    // Batch parsing for multiple pages
+                    print("🔄 Using BATCH parsing endpoint (\(base64Images.count) pages)...")
+                    parseResponse = try await NetworkService.shared.parseHomeworkQuestionsBatch(
+                        base64Images: base64Images,
+                        parsingMode: "standard",
+                        modelProvider: selectedAIModel,
+                        subject: nil
+                    )
+                    print("✅ Batch parsed \(base64Images.count) pages: \(parseResponse.totalQuestions) total questions")
+                } else {
+                    // Single page parsing (existing flow)
+                    print("🔄 Using SINGLE parsing endpoint (1 page)...")
+                    parseResponse = try await NetworkService.shared.parseHomeworkQuestions(
+                        base64Image: base64Images[0],
+                        parsingMode: "standard",
+                        skipBboxDetection: true,
+                        expectedQuestions: nil,
+                        modelProvider: selectedAIModel
+                    )
+                    print("✅ Single parsed 1 page: \(parseResponse.totalQuestions) questions")
+                }
 
                 guard parseResponse.success else {
                     throw ProgressiveGradingError.parsingFailed(parseResponse.error ?? "Unknown error")
                 }
 
-                print("✅ AI parsed \(parseResponse.totalQuestions) questions")
                 print("📚 Subject: \(parseResponse.subject)")
 
                 // Navigate to Summary View

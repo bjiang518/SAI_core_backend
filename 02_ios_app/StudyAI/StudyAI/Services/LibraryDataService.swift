@@ -1156,6 +1156,9 @@ class QuestionLocalStorage {
     private let userDefaults = UserDefaults.standard
     private let questionsKey = "localArchivedQuestions"
 
+    // ✅ CRITICAL: Serial queue for thread-safe access
+    private let storageQueue = DispatchQueue(label: "com.studyai.questionStorage", qos: .userInitiated)
+
     // ✅ In-memory cache to avoid repeated JSON deserialization
     private var cachedQuestions: [[String: Any]]?
     private var cacheLastModified: Date?
@@ -1248,105 +1251,108 @@ class QuestionLocalStorage {
 
     /// Save newly archived questions to local storage with content-based duplicate detection
     /// Returns array of tuples: (originalId, savedId) - maps new IDs to actual saved IDs
+    /// ✅ THREAD-SAFE: Uses serial queue to prevent race conditions
     func saveQuestions(_ questions: [[String: Any]]) -> [(originalId: String, savedId: String)] {
-        var existingQuestions = getLocalQuestions()
-        var idMappings: [(originalId: String, savedId: String)] = []
+        return storageQueue.sync {
+            var existingQuestions = getLocalQuestionsUnsafe()  // Direct read without queue (already in queue)
+            var idMappings: [(originalId: String, savedId: String)] = []
 
-        #if DEBUG
-        print("💾 [QuestionLocalStorage] Saving \(questions.count) questions with duplicate detection")
-        print("   📊 Existing questions in storage: \(existingQuestions.count)")
-        #endif
+            #if DEBUG
+            print("💾 [QuestionLocalStorage] Saving \(questions.count) questions with duplicate detection")
+            print("   📊 Existing questions in storage: \(existingQuestions.count)")
+            #endif
 
-        var addedCount = 0
-        var skippedCount = 0
+            var addedCount = 0
+            var skippedCount = 0
 
-        // Add new questions at the beginning (most recent first)
-        for question in questions.reversed() {
-            guard let originalId = question["id"] as? String else {
-                #if DEBUG
-                print("   ⚠️ Skipping question without ID")
-                #endif
-                continue
-            }
-
-            // ✅ NORMALIZE SUBJECT before storing (use existing Subject enum)
-            var normalizedQuestion = question
-            if let subject = question["subject"] as? String {
-                let normalizedSubject = Subject.normalize(subject)?.rawValue ?? subject
-                normalizedQuestion["subject"] = normalizedSubject
-                #if DEBUG
-                if subject != normalizedSubject {
-                    print("   🔄 Normalized subject: '\(subject)' → '\(normalizedSubject)'")
+            // Add new questions at the beginning (most recent first)
+            for question in questions.reversed() {
+                guard let originalId = question["id"] as? String else {
+                    #if DEBUG
+                    print("   ⚠️ Skipping question without ID")
+                    #endif
+                    continue
                 }
+
+                // ✅ NORMALIZE SUBJECT before storing (use existing Subject enum)
+                var normalizedQuestion = question
+                if let subject = question["subject"] as? String {
+                    let normalizedSubject = Subject.normalize(subject)?.rawValue ?? subject
+                    normalizedQuestion["subject"] = normalizedSubject
+                    #if DEBUG
+                    if subject != normalizedSubject {
+                        print("   🔄 Normalized subject: '\(subject)' → '\(normalizedSubject)'")
+                    }
+                    #endif
+                }
+
+                // Check if this question content already exists
+                if let existingIndex = findDuplicateIndex(normalizedQuestion, in: existingQuestions) {
+                    // ✅ UPDATE existing question instead of skipping
+                    print("   🔄 Updating existing question: \(String(describing: normalizedQuestion["questionText"] as? String ?? "").prefix(50))...")
+
+                    // Keep existing ID but update all other fields (especially error analysis)
+                    let existingId = existingQuestions[existingIndex]["id"] as? String ?? originalId
+                    normalizedQuestion["id"] = existingId
+                    existingQuestions[existingIndex] = normalizedQuestion
+                    skippedCount += 1
+
+                    // Map original ID to existing ID
+                    idMappings.append((originalId: originalId, savedId: existingId))
+
+                    print("   ✅ Updated with ID: \(existingId)")
+                    continue
+                }
+
+                // Not a duplicate, add it with original ID
+                existingQuestions.insert(normalizedQuestion, at: 0)
+                addedCount += 1
+
+                // Map original ID to itself (new question)
+                idMappings.append((originalId: originalId, savedId: originalId))
+
+                print("   ✅ Added new question: \(String(describing: normalizedQuestion["questionText"] as? String ?? "").prefix(50))...")
+
+                // 🔍 DEBUG: Log Pro Mode image info
+                if let proMode = normalizedQuestion["proMode"] as? Bool, proMode == true {
+                    print("   🌟 Pro Mode question detected")
+                    if let imagePath = normalizedQuestion["questionImageUrl"] as? String {
+                        print("   🖼️ questionImageUrl: \(imagePath)")
+                        print("   🖼️ File exists: \(FileManager.default.fileExists(atPath: imagePath))")
+                    } else {
+                        print("   ⚠️ No questionImageUrl found in question data")
+                    }
+                }
+            }
+
+            // Keep only the most recent questions
+            if existingQuestions.count > AppConstants.maxLocalQuestions {
+                existingQuestions = Array(existingQuestions.prefix(AppConstants.maxLocalQuestions))
+                #if DEBUG
+                print("   ✂️ Trimmed to \(AppConstants.maxLocalQuestions) questions")
                 #endif
             }
 
-            // Check if this question content already exists
-            if let existingIndex = findDuplicateIndex(normalizedQuestion, in: existingQuestions) {
-                // ✅ UPDATE existing question instead of skipping
-                print("   🔄 Updating existing question: \(String(describing: normalizedQuestion["questionText"] as? String ?? "").prefix(50))...")
+            // Save to UserDefaults
+            do {
+                let data = try JSONSerialization.data(withJSONObject: existingQuestions)
+                userDefaults.set(data, forKey: questionsKey)
 
-                // Keep existing ID but update all other fields (especially error analysis)
-                let existingId = existingQuestions[existingIndex]["id"] as? String ?? originalId
-                normalizedQuestion["id"] = existingId
-                existingQuestions[existingIndex] = normalizedQuestion
-                skippedCount += 1
+                // ✅ OPTIMIZATION: Invalidate cache and update with new data
+                cachedQuestions = existingQuestions
+                cacheLastModified = Date()
 
-                // Map original ID to existing ID
-                idMappings.append((originalId: originalId, savedId: existingId))
-
-                print("   ✅ Updated with ID: \(existingId)")
-                continue
+                #if DEBUG
+                print("   💾 Successfully saved \(existingQuestions.count) questions (added: \(addedCount), skipped duplicates: \(skippedCount))")
+                #endif
+            } catch {
+                #if DEBUG
+                print("   ❌ Failed to serialize questions: \(error)")
+                #endif
             }
 
-            // Not a duplicate, add it with original ID
-            existingQuestions.insert(normalizedQuestion, at: 0)
-            addedCount += 1
-
-            // Map original ID to itself (new question)
-            idMappings.append((originalId: originalId, savedId: originalId))
-
-            print("   ✅ Added new question: \(String(describing: normalizedQuestion["questionText"] as? String ?? "").prefix(50))...")
-
-            // 🔍 DEBUG: Log Pro Mode image info
-            if let proMode = normalizedQuestion["proMode"] as? Bool, proMode == true {
-                print("   🌟 Pro Mode question detected")
-                if let imagePath = normalizedQuestion["questionImageUrl"] as? String {
-                    print("   🖼️ questionImageUrl: \(imagePath)")
-                    print("   🖼️ File exists: \(FileManager.default.fileExists(atPath: imagePath))")
-                } else {
-                    print("   ⚠️ No questionImageUrl found in question data")
-                }
-            }
+            return idMappings
         }
-
-        // Keep only the most recent questions
-        if existingQuestions.count > AppConstants.maxLocalQuestions {
-            existingQuestions = Array(existingQuestions.prefix(AppConstants.maxLocalQuestions))
-            #if DEBUG
-            print("   ✂️ Trimmed to \(AppConstants.maxLocalQuestions) questions")
-            #endif
-        }
-
-        // Save to UserDefaults
-        do {
-            let data = try JSONSerialization.data(withJSONObject: existingQuestions)
-            userDefaults.set(data, forKey: questionsKey)
-
-            // ✅ OPTIMIZATION: Invalidate cache and update with new data
-            cachedQuestions = existingQuestions
-            cacheLastModified = Date()
-
-            #if DEBUG
-            print("   💾 Successfully saved \(existingQuestions.count) questions (added: \(addedCount), skipped duplicates: \(skippedCount))")
-            #endif
-        } catch {
-            #if DEBUG
-            print("   ❌ Failed to serialize questions: \(error)")
-            #endif
-        }
-
-        return idMappings
     }
 
     /// Check if a question with the same content already exists in storage
@@ -1396,8 +1402,15 @@ class QuestionLocalStorage {
 
     // MARK: - Fetch from Local Storage
 
-    /// ✅ OPTIMIZATION: Get all locally stored questions with caching
+    /// ✅ OPTIMIZATION: Get all locally stored questions with caching (THREAD-SAFE)
     func getLocalQuestions() -> [[String: Any]] {
+        // This method is read-only and uses cache, so it's safe without queue
+        // The cache is updated atomically inside storageQueue.sync blocks
+        return getLocalQuestionsUnsafe()
+    }
+
+    /// ⚠️ UNSAFE: Direct read without queue synchronization (use only when already in queue)
+    private func getLocalQuestionsUnsafe() -> [[String: Any]] {
         // Check if we have a valid cache
         if let cached = cachedQuestions {
             #if DEBUG
@@ -1523,45 +1536,90 @@ class QuestionLocalStorage {
     // MARK: - Cleanup
 
     /// Remove a question from local storage (e.g., when confirmed synced with server)
+    /// Also updates ShortTermStatusService to remove the question's contribution to weakness tracking
+    /// ✅ THREAD-SAFE: Uses serial queue to prevent race conditions
     func removeQuestion(withId id: String) {
-        var questions = getLocalQuestions()
-        questions.removeAll { ($0["id"] as? String) == id }
+        storageQueue.sync {
+            var questions = getLocalQuestionsUnsafe()  // Direct read without queue (already in queue)
 
-        if let data = try? JSONSerialization.data(withJSONObject: questions) {
-            userDefaults.set(data, forKey: questionsKey)
-            print("💾 [QuestionLocalStorage] Removed question \(id)")
+            // ✅ Extract weakness metadata BEFORE deletion
+            let questionToDelete = questions.first { ($0["id"] as? String) == id }
+            let weaknessKey = questionToDelete?["weaknessKey"] as? String
+            let errorType = questionToDelete?["errorType"] as? String
+            let isCorrect = questionToDelete?["isCorrect"] as? Bool ?? true
+
+            print("💾 [QuestionLocalStorage] Removing question \(id)")
+            if let key = weaknessKey {
+                print("   Weakness Key: \(key)")
+                print("   Error Type: \(errorType ?? "NONE")")
+                print("   Is Correct: \(isCorrect)")
+            }
+
+            // Remove from storage
+            questions.removeAll { ($0["id"] as? String) == id }
+
+            if let data = try? JSONSerialization.data(withJSONObject: questions) {
+                userDefaults.set(data, forKey: questionsKey)
+                // ✅ FIX: Invalidate cache after deletion to ensure consistency
+                cachedQuestions = questions  // Update cache with new data
+                cacheLastModified = Date()
+                print("💾 [QuestionLocalStorage] Removed question from storage and updated cache")
+
+                // ✅ NEW: Update ShortTermStatusService if this was a mistake question
+                if !isCorrect {
+                    Task { @MainActor in
+                        ShortTermStatusService.shared.removeQuestionFromWeakness(
+                            questionId: id,
+                            weaknessKey: weaknessKey,
+                            errorType: errorType
+                        )
+                    }
+                    print("   ✅ Updated ShortTermStatusService to remove question contribution")
+                } else {
+                    print("   ℹ️ Question was correct - no weakness tracking update needed")
+                }
+            }
         }
     }
 
     /// Clear all local questions (e.g., on logout)
+    /// ✅ THREAD-SAFE: Uses serial queue to prevent race conditions
     func clearAll() {
-        userDefaults.removeObject(forKey: questionsKey)
+        storageQueue.sync {
+            userDefaults.removeObject(forKey: questionsKey)
 
-        // ✅ CRITICAL: Invalidate in-memory cache to prevent returning stale data
-        cachedQuestions = nil
-        cacheLastModified = nil
+            // ✅ CRITICAL: Invalidate in-memory cache to prevent returning stale data
+            cachedQuestions = nil
+            cacheLastModified = nil
 
-        print("💾 [QuestionLocalStorage] Cleared all local questions")
-        print("🔄 [QuestionLocalStorage] Cache invalidated")
+            print("💾 [QuestionLocalStorage] Cleared all local questions")
+            print("🔄 [QuestionLocalStorage] Cache invalidated")
+        }
     }
 
     /// Sync with server: Remove local questions that exist on server
+    /// ✅ THREAD-SAFE: Uses serial queue to prevent race conditions
     func syncWithServer(serverQuestionIds: [String]) {
-        var questions = getLocalQuestions()
-        let initialCount = questions.count
+        storageQueue.sync {
+            var questions = getLocalQuestionsUnsafe()  // Direct read without queue (already in queue)
+            let initialCount = questions.count
 
-        // ✅ FIX: Remove questions that are NOT on server (keep questions that ARE on server)
-        questions.removeAll { question in
-            if let id = question["id"] as? String {
-                return !serverQuestionIds.contains(id)  // Keep if on server, remove if not
+            // ✅ FIX: Remove questions that are NOT on server (keep questions that ARE on server)
+            questions.removeAll { question in
+                if let id = question["id"] as? String {
+                    return !serverQuestionIds.contains(id)  // Keep if on server, remove if not
+                }
+                return true  // Remove questions without valid IDs
             }
-            return true  // Remove questions without valid IDs
-        }
 
-        if questions.count != initialCount {
-            if let data = try? JSONSerialization.data(withJSONObject: questions) {
-                userDefaults.set(data, forKey: questionsKey)
-                print("💾 [QuestionLocalStorage] Synced with server: removed \(initialCount - questions.count) questions")
+            if questions.count != initialCount {
+                if let data = try? JSONSerialization.data(withJSONObject: questions) {
+                    userDefaults.set(data, forKey: questionsKey)
+                    // Update cache
+                    cachedQuestions = questions
+                    cacheLastModified = Date()
+                    print("💾 [QuestionLocalStorage] Synced with server: removed \(initialCount - questions.count) questions")
+                }
             }
         }
     }

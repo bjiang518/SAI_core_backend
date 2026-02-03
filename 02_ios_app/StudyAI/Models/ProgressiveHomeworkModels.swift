@@ -30,6 +30,7 @@ struct ImageRegion: Codable {
 struct ProgressiveQuestion: Codable, Identifiable {
     let id: Int
     let questionNumber: String?
+    let pageNumber: Int?  // NEW: Track which page this question is from (for multi-page homework)
 
     // Hierarchical support
     let isParent: Bool?
@@ -49,6 +50,7 @@ struct ProgressiveQuestion: Codable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id
         case questionNumber = "question_number"
+        case pageNumber = "pageNumber"  // NEW: Page number for batch parsing
         case isParent = "is_parent"
         case hasSubquestions = "has_subquestions"
         case parentContent = "parent_content"

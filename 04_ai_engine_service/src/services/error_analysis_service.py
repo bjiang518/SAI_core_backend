@@ -25,11 +25,11 @@ class ErrorAnalysisService:
 
     async def analyze_error(self, question_data):
         """
-        Analyze error with hierarchical taxonomy
+        Analyze error with hierarchical taxonomy (with optional image support)
 
         Args:
             question_data: Dict with question_text, student_answer,
-                          correct_answer, subject, image_data (optional)
+                          correct_answer, subject, question_image_base64 (optional)
 
         Returns:
             Dict with base_branch, detailed_branch, error_type, specific_issue,
@@ -39,18 +39,46 @@ class ErrorAnalysisService:
         student_answer = question_data.get('student_answer', '')
         correct_answer = question_data.get('correct_answer', '')
         subject = question_data.get('subject', 'Math')  # Default to Math
+        question_image_base64 = question_data.get('question_image_base64')  # ✅ NEW: Extract image
 
         analysis_prompt = self._build_analysis_prompt(
             question_text, student_answer, correct_answer, subject
         )
 
         try:
+            # ✅ NEW: Build messages with Vision API support if image present
+            messages = [
+                {"role": "system", "content": self._get_system_prompt(subject)}
+            ]
+
+            # ✅ NEW: Use Vision API if image present, otherwise text-only
+            if question_image_base64:
+                print(f"📸 [ErrorAnalysis] Using Vision API for image-based question")
+                messages.append({
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": analysis_prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{question_image_base64}"
+                            }
+                        }
+                    ]
+                })
+            else:
+                # Text-only (existing behavior)
+                messages.append({
+                    "role": "user",
+                    "content": analysis_prompt
+                })
+
             response = await self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": self._get_system_prompt(subject)},
-                    {"role": "user", "content": analysis_prompt}
-                ],
+                messages=messages,
                 response_format={"type": "json_object"},
                 temperature=0.2,  # Low temperature for consistent categorization
                 max_tokens=600  # Increased for hierarchical data

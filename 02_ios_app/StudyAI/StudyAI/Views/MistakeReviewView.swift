@@ -7,6 +7,8 @@
 
 import SwiftUI
 import Lottie
+import PDFKit  // ✅ For PDF export functionality
+import AVFoundation  // ✅ For iOS system unlock sound
 
 // MARK: - Practice Generation Errors
 
@@ -1092,137 +1094,217 @@ struct PracticeQuestionsView: View {
     @State private var expandedQuestions: Set<UUID> = []
     @State private var currentAnswers: [UUID: String] = [:]
     @State private var gradedQuestions: [UUID: GradeResult] = [:] // UUID -> GradeResult
-    @State private var showingGradedAlert = false
-    @State private var lastGradedResult: (correct: Int, total: Int)?
 
-    struct GradeResult {
+    // ✅ PDF Export state
+    @StateObject private var pdfGenerator = PDFGeneratorService()
+    @State private var showingPDFPreview = false
+    @State private var pdfDocument: PDFDocument?
+
+    // ✅ Mark Progress Slider state
+    @State private var slideOffset: CGFloat = 0
+    @State private var isSliding = false
+    @State private var hasTriggeredMarkProgress = false
+    @State private var hasMarkedProgress = false
+
+    // ✅ NEW: Mastery celebration state
+    @StateObject private var statusService = ShortTermStatusService.shared
+    @State private var showingMasteryCelebration = false
+    @State private var masteredWeakness: String? = nil
+
+    struct GradeResult: Equatable {
         let isCorrect: Bool
         let correctAnswer: String
         let feedback: String
+        let wasInstantGraded: Bool  // ✅ NEW: Track if graded instantly vs AI
+        let matchScore: Double?  // ✅ NEW: Matching score (if instant graded)
     }
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Header
-                    VStack(spacing: 8) {
-                        Image(systemName: "brain.head.profile")
-                            .font(.system(size: 48))
-                            .foregroundColor(.blue)
-
-                        Text("Targeted Practice")
-                            .font(.title)
-                            .fontWeight(.bold)
-
-                        Text("\(questions.count) questions based on your mistakes")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding()
-                    .onAppear {
-                        #if DEBUG
-                        print("🎯 ============================================")
-                        print("🎯 PRACTICE QUESTIONS VIEW LOADED")
-                        print("🎯 ============================================")
-                        print("📊 Total Questions: \(questions.count)")
-                        print("📚 Subject: \(subject)")
-                        print("")
-                        for (index, question) in questions.enumerated() {
-                            print("📝 Question #\(index + 1):")
-                            print("   Type: \(question.type.rawValue)")
-                            print("   Difficulty: \(question.difficulty)")
-                            print("   Question: \(question.question.prefix(80))...")
-                            print("   Correct Answer: \(question.correctAnswer)")
-                            if let options = question.options {
-                                print("   Options: \(options)")
-                            }
-                            print("")
+            mainContent
+                .navigationTitle(subject)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            dismiss()
                         }
-                        print("🎯 ============================================")
-                        #endif
                     }
-
-                    // Progress indicator
-                    if !gradedQuestions.isEmpty {
-                        HStack {
-                            Text("Progress: \(gradedQuestions.count)/\(questions.count) answered")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Text("\(correctCount)/\(gradedQuestions.count) correct")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(correctCount == gradedQuestions.count ? .green : .orange)
-                        }
-                        .padding(.horizontal)
-                    }
-
-                    // Questions with type-based rendering
-                    ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
-                        PracticeQuestionCard(
-                            questionNumber: index + 1,
-                            question: question,
+                }
+                .fullScreenCover(isPresented: $showingPDFPreview) {
+                    if let document = pdfDocument {
+                        PracticePDFPreviewView(
+                            questions: questions,
                             subject: subject,
-                            isExpanded: expandedQuestions.contains(question.id),
-                            currentAnswer: currentAnswers[question.id] ?? "",
-                            gradeResult: gradedQuestions[question.id],
-                            onToggleExpand: {
-                                toggleExpand(question.id)
-                            },
-                            onAnswerChange: { newAnswer in
-                                currentAnswers[question.id] = newAnswer
-                            },
-                            onSubmitAnswer: {
-                                Task {
-                                    await submitAnswer(for: question)
-                                }
-                            }
+                            generationType: "Targeted Practice"
                         )
                     }
-
-                    // Final summary button
-                    if gradedQuestions.count == questions.count {
-                        Button(action: {
-                            showingGradedAlert = true
-                        }) {
-                            HStack {
-                                Image(systemName: "chart.bar.doc.horizontal")
-                                    .font(.title3)
-                                Text("View Final Summary")
-                                    .font(.body)
-                                    .fontWeight(.semibold)
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(Color.green)
-                            .cornerRadius(12)
-                        }
-                        .padding(.horizontal)
+                }
+                .onChange(of: statusService.recentMasteries.count) { _, _ in
+                    if let latestMastery = statusService.recentMasteries.last {
+                        handleMasteryAchievement(latestMastery)
                     }
                 }
-                .padding()
-            }
-            .navigationTitle(subject)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-            .alert("Practice Complete!", isPresented: $showingGradedAlert) {
-                Button("Done", role: .cancel) {
-                    dismiss()
-                }
-            } message: {
-                if let result = lastGradedResult {
-                    Text("You got \(result.correct) out of \(result.total) questions correct (\(Int(Double(result.correct)/Double(result.total) * 100))%)")
-                }
+        }
+        .overlay {
+            if showingMasteryCelebration, let weakness = masteredWeakness {
+                masteryCelebrationView(for: weakness)
             }
         }
+    }
+
+    // MARK: - Main Content
+
+    private var mainContent: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                headerSection
+                progressIndicator
+                questionsList
+
+                if gradedQuestions.count == questions.count {
+                    accuracyCardWithSlideToMark
+                        .padding(.horizontal)
+                        .transition(.opacity)
+                }
+
+                pdfExportButton
+            }
+            .padding()
+        }
+    }
+
+    private var headerSection: some View {
+        VStack(spacing: 8) {
+            Text("Targeted Practice")
+                .font(.title)
+                .fontWeight(.bold)
+
+            Text("\(questions.count) questions based on your mistakes")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .onAppear {
+            logPracticeQuestionsDebug()
+        }
+    }
+
+    @ViewBuilder
+    private var progressIndicator: some View {
+        if !gradedQuestions.isEmpty {
+            HStack {
+                Text("Progress: \(gradedQuestions.count)/\(questions.count) answered")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("\(correctCount)/\(gradedQuestions.count) correct")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(correctCount == gradedQuestions.count ? .green : .orange)
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    private var questionsList: some View {
+        ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
+            PracticeQuestionCard(
+                questionNumber: index + 1,
+                question: question,
+                subject: subject,
+                isExpanded: expandedQuestions.contains(question.id),
+                currentAnswer: currentAnswers[question.id] ?? "",
+                gradeResult: gradedQuestions[question.id],
+                onToggleExpand: {
+                    toggleExpand(question.id)
+                },
+                onAnswerChange: { newAnswer in
+                    currentAnswers[question.id] = newAnswer
+                },
+                onSubmitAnswer: {
+                    Task {
+                        await submitAnswer(for: question)
+                    }
+                }
+            )
+        }
+    }
+
+    private var pdfExportButton: some View {
+        Button(action: {
+            Task {
+                await generatePDF()
+            }
+        }) {
+            HStack {
+                if pdfGenerator.isGenerating {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.8)
+                    Text("Exporting... \(Int(pdfGenerator.generationProgress * 100))%")
+                        .font(.body)
+                        .fontWeight(.semibold)
+                } else {
+                    Image(systemName: "doc.fill")
+                        .font(.title3)
+                    Text("Export to PDF")
+                        .font(.body)
+                        .fontWeight(.semibold)
+                }
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(
+                LinearGradient(
+                    colors: pdfGenerator.isGenerating ? [Color.gray, Color.gray.opacity(0.8)] : [Color.blue, Color.blue.opacity(0.8)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(12)
+            .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
+        }
+        .disabled(pdfGenerator.isGenerating)
+        .padding(.horizontal)
+    }
+
+    // MARK: - Helper Methods
+
+    private func logPracticeQuestionsDebug() {
+        #if DEBUG
+        print("🎯 ============================================")
+        print("🎯 PRACTICE QUESTIONS VIEW LOADED")
+        print("🎯 ============================================")
+        print("📊 Total Questions: \(questions.count)")
+        print("📚 Subject: \(subject)")
+        print("")
+        for (index, question) in questions.enumerated() {
+            print("📝 Question #\(index + 1):")
+            print("   Type: \(question.type.rawValue)")
+            print("   Difficulty: \(question.difficulty)")
+            print("   Question: \(question.question.prefix(80))...")
+            print("   Correct Answer: \(question.correctAnswer)")
+            if let options = question.options {
+                print("   Options: \(options)")
+            }
+            print("")
+        }
+        print("🎯 ============================================")
+        #endif
+    }
+
+    private func handleMasteryAchievement(_ mastery: (key: String, timestamp: Date)) {
+        masteredWeakness = formatWeaknessKey(mastery.key)
+        showingMasteryCelebration = true
+
+        // Play success sound
+        AudioServicesPlaySystemSound(1054)
+
+        // Haptic feedback
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
     }
 
     private var correctCount: Int {
@@ -1250,11 +1332,81 @@ struct PracticeQuestionsView: View {
         print("🔹 Question Type: \(question.type.rawValue)")
         print("🔹 Question Text: \(question.question.prefix(100))...")
         print("🔹 Student Answer: \(userAnswer)")
+        print("🔹 Correct Answer: \(question.correctAnswer)")
         print("🔹 Subject: \(subject)")
-        print("🔹 Using Deep Reasoning: true")
-        print("🔹 Model Provider: gemini")
         print("")
-        print("⏳ Sending request to NetworkService.gradeSingleQuestion()...")
+        #endif
+
+        // ✅ OPTIMIZATION: Try client-side matching first
+        // Convert array options to dictionary format if needed
+        let optionsDict: [String: String]?
+        if let optionsArray = question.options {
+            // Convert ["option1", "option2", "option3"] to ["A": "option1", "B": "option2", "C": "option3"]
+            let letters = ["A", "B", "C", "D", "E", "F", "G", "H"]
+            optionsDict = Dictionary(uniqueKeysWithValues: zip(letters.prefix(optionsArray.count), optionsArray))
+        } else {
+            optionsDict = nil
+        }
+
+        let matchResult = AnswerMatchingService.shared.matchAnswer(
+            userAnswer: userAnswer,
+            correctAnswer: question.correctAnswer,
+            questionType: question.type.rawValue,
+            options: optionsDict
+        )
+
+        #if DEBUG
+        print("🎯 Matching Result:")
+        print("   Match Score: \(String(format: "%.1f%%", matchResult.matchScore * 100))")
+        print("   Is Exact Match: \(matchResult.isExactMatch)")
+        print("   Should Skip AI: \(matchResult.shouldSkipAIGrading)")
+        print("")
+        #endif
+
+        // If match score >= 90%, grade instantly without AI call
+        if matchResult.shouldSkipAIGrading {
+            #if DEBUG
+            print("⚡ INSTANT GRADING (score >= 90%)")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print("✅ Skipping AI grading - instant match detected!")
+            print("📤 ============================================")
+            #endif
+
+            // Instant grade result (curve to 100% correct if >= 90%)
+            let instantFeedback: String
+            if matchResult.isExactMatch {
+                instantFeedback = "Perfect! Your answer is exactly correct."
+            } else {
+                instantFeedback = "Correct! Your answer matches the expected solution."
+            }
+
+            await MainActor.run {
+                gradedQuestions[question.id] = GradeResult(
+                    isCorrect: true,  // Curve to 100% if >= 90%
+                    correctAnswer: question.correctAnswer,
+                    feedback: instantFeedback,
+                    wasInstantGraded: true,
+                    matchScore: matchResult.matchScore
+                )
+
+                #if DEBUG
+                print("💾 Stored INSTANT grade result for question \(question.id)")
+                print("📈 Progress: \(gradedQuestions.count)/\(questions.count) answered")
+                #endif
+
+                // Haptic feedback - success
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+            }
+
+            return  // Skip AI grading
+        }
+
+        // If match score < 90%, send to AI for deep analysis
+        #if DEBUG
+        print("🤖 AI GRADING (score < 90%)")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("⏳ Sending to Gemini deep mode for analysis...")
         #endif
 
         // Use backend API for grading (supports semantic understanding, partial credit, etc.)
@@ -1266,17 +1418,18 @@ struct PracticeQuestionsView: View {
                 questionType: question.type.rawValue,
                 contextImageBase64: nil,
                 parentQuestionContent: nil,
-                useDeepReasoning: true,  // Pro Mode grading
+                useDeepReasoning: true,  // Gemini deep mode for nuanced grading
                 modelProvider: "gemini"
             )
 
             #if DEBUG
             print("")
-            print("✅ RECEIVED GRADING RESPONSE")
+            print("✅ RECEIVED AI GRADING RESPONSE")
             print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             if let grade = response.grade {
                 print("📊 Grade Result:")
                 print("   ✓ Is Correct: \(grade.isCorrect ? "✅ YES" : "❌ NO")")
+                print("   ✓ Score: \(String(format: "%.1f%%", grade.score * 100))")
                 print("   ✓ Correct Answer: \(grade.correctAnswer ?? question.correctAnswer)")
                 print("   ✓ Feedback Length: \(grade.feedback.count) characters")
                 print("")
@@ -1297,24 +1450,15 @@ struct PracticeQuestionsView: View {
                     gradedQuestions[question.id] = GradeResult(
                         isCorrect: grade.isCorrect,
                         correctAnswer: grade.correctAnswer ?? question.correctAnswer,
-                        feedback: grade.feedback
+                        feedback: grade.feedback,
+                        wasInstantGraded: false,  // AI graded
+                        matchScore: matchResult.matchScore
                     )
 
                     #if DEBUG
-                    print("💾 Stored grade result for question \(question.id)")
+                    print("💾 Stored AI grade result for question \(question.id)")
                     print("📈 Progress: \(gradedQuestions.count)/\(questions.count) answered")
                     #endif
-
-                    // Update final result if all questions answered
-                    if gradedQuestions.count == questions.count {
-                        let correct = gradedQuestions.values.filter { $0.isCorrect }.count
-                        lastGradedResult = (correct: correct, total: questions.count)
-
-                        #if DEBUG
-                        print("🎊 ALL QUESTIONS COMPLETED!")
-                        print("📊 Final Score: \(correct)/\(questions.count) (\(Int(Double(correct)/Double(questions.count) * 100))%)")
-                        #endif
-                    }
 
                     // Haptic feedback
                     let generator = UINotificationFeedbackGenerator()
@@ -1324,7 +1468,7 @@ struct PracticeQuestionsView: View {
         } catch {
             #if DEBUG
             print("❌ ============================================")
-            print("❌ GRADING FAILED")
+            print("❌ AI GRADING FAILED")
             print("❌ ============================================")
             print("Error: \(error.localizedDescription)")
             print("Full error: \(error)")
@@ -1332,6 +1476,354 @@ struct PracticeQuestionsView: View {
             #endif
             print("❌ Failed to grade answer: \(error.localizedDescription)")
             // Could show error alert here
+        }
+    }
+
+    // MARK: - Accuracy Card with Slide to Mark Progress
+
+    private var accuracyCardWithSlideToMark: some View {
+        let correctCount = gradedQuestions.values.filter { $0.isCorrect }.count
+        let incorrectCount = gradedQuestions.count - correctCount
+        let accuracy = gradedQuestions.isEmpty ? 0.0 : (Double(correctCount) / Double(gradedQuestions.count)) * 100
+
+        return VStack(spacing: 20) {
+            // Top section: Accuracy stats
+            VStack(spacing: 16) {
+                // Big accuracy percentage
+                Text(String(format: "%.0f%%", accuracy))
+                    .font(.system(size: 56, weight: .bold))
+                    .foregroundColor(.green)
+
+                Text("Accuracy")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+
+                Divider()
+                    .padding(.vertical, 8)
+
+                // Detailed stats (horizontal)
+                HStack(spacing: 24) {
+                    VStack(spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.green)
+                            Text("\(correctCount)")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                        }
+                        Text("Correct")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    VStack(spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.red)
+                            Text("\(incorrectCount)")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                        }
+                        Text("Incorrect")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding(.top, 20)
+
+            // Bottom section: Slide to mark progress
+            if !hasMarkedProgress {
+                slideToMarkProgressTrack
+                    .padding(.bottom, 20)
+            } else {
+                // Progress already marked indicator
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.green)
+                    Text("Progress Already Marked")
+                        .font(.headline)
+                        .foregroundColor(.green)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color.green.opacity(0.1))
+                .cornerRadius(12)
+                .padding(.bottom, 20)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(20)
+        .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 6)
+    }
+
+    // Slide to mark progress track (Liquid Glass Style)
+    private var slideToMarkProgressTrack: some View {
+        GeometryReader { geometry in
+            let trackWidth = geometry.size.width
+            let sliderWidth: CGFloat = 60
+            let maxOffset = trackWidth - sliderWidth - 8
+
+            ZStack(alignment: .leading) {
+                // Background track - Liquid Glass Effect
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 30)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                    .frame(height: 60)
+
+                // Progress fill (grows as user slides)
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(Color.blue.opacity(0.1))
+                    .frame(width: slideOffset + sliderWidth + 4, height: 60)
+                    .opacity(slideOffset > 0 ? 1.0 : 0.0)
+
+                // Instruction text (fades as slider moves)
+                HStack {
+                    Spacer()
+                    Text("Slide to Mark Progress")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary.opacity(0.6))
+                        .opacity(1.0 - (slideOffset / maxOffset))
+                    Spacer()
+                }
+                .frame(height: 60)
+
+                // Sliding button - Magnifying Glass Effect
+                ZStack {
+                    Circle()
+                        .fill(.regularMaterial)
+                        .frame(width: sliderWidth, height: sliderWidth)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
+                        )
+                        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary)
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary.opacity(0.6))
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary.opacity(0.3))
+                    }
+                }
+                .offset(x: slideOffset + 4, y: 0)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            let newOffset = max(0, min(value.translation.width, maxOffset))
+                            withAnimation(.interactiveSpring()) {
+                                slideOffset = newOffset
+                                isSliding = true
+                            }
+
+                            if newOffset >= maxOffset * 0.95 && !hasTriggeredMarkProgress {
+                                hasTriggeredMarkProgress = true
+                                markProgress()
+
+                                // iOS unlock sound effect
+                                AudioServicesPlaySystemSound(1100)
+
+                                // Haptic feedback
+                                let generator = UINotificationFeedbackGenerator()
+                                generator.notificationOccurred(.success)
+
+                                // Reset slider with animation
+                                withAnimation(.spring()) {
+                                    slideOffset = 0
+                                    isSliding = false
+                                }
+                            }
+                        }
+                        .onEnded { _ in
+                            withAnimation(.spring()) {
+                                slideOffset = 0
+                                isSliding = false
+                            }
+                            hasTriggeredMarkProgress = false
+                        }
+                )
+            }
+        }
+        .frame(height: 60)
+    }
+
+    // MARK: - Mark Progress
+
+    private func markProgress() {
+        guard !hasMarkedProgress else { return }
+        hasMarkedProgress = true
+
+        print("📊 [MarkProgress] Marking progress for \(questions.count) practice questions")
+
+        // Update ShortTermStatusService based on correctness
+        for question in questions {
+            guard let gradeResult = gradedQuestions[question.id] else { continue }
+
+            // Get error keys from the question (if available)
+            if let baseBranch = question.baseBranch,
+               let detailedBranch = question.detailedBranch {
+                let weaknessKey = "\(subject)/\(baseBranch)/\(detailedBranch)"
+
+                if gradeResult.isCorrect {
+                    // Record correct attempt - reduces weakness value
+                    print("✅ [MarkProgress] Correct answer for: \(weaknessKey)")
+                    ShortTermStatusService.shared.recordCorrectAttempt(
+                        key: weaknessKey,
+                        retryType: .firstTime,
+                        questionId: question.id.uuidString
+                    )
+                } else {
+                    // Record mistake - increases weakness value
+                    print("❌ [MarkProgress] Incorrect answer for: \(weaknessKey)")
+                    if let errorType = question.errorType {
+                        ShortTermStatusService.shared.recordMistake(
+                            key: weaknessKey,
+                            errorType: errorType,
+                            questionId: question.id.uuidString
+                        )
+                    }
+                }
+            } else {
+                print("⚠️ [MarkProgress] Question \(question.id) missing error taxonomy keys")
+            }
+        }
+
+        print("✅ [MarkProgress] Progress marked successfully")
+    }
+
+    // MARK: - PDF Export
+
+    private func generatePDF() async {
+        let document = await pdfGenerator.generatePracticePDF(
+            questions: questions,
+            subject: subject,
+            generationType: "Targeted Practice"
+        )
+
+        await MainActor.run {
+            self.pdfDocument = document
+            if document != nil {
+                self.showingPDFPreview = true
+            }
+        }
+    }
+
+    // MARK: - Mastery Celebration
+
+    /// Format weakness key for user-friendly display
+    /// Example: "Mathematics/Algebra - Foundations/Linear Equations - One Variable" → "Linear Equations in Algebra"
+    private func formatWeaknessKey(_ key: String) -> String {
+        let components = key.split(separator: "/").map(String.init)
+
+        if components.count >= 3 {
+            // Extract detailed branch (last component) and base branch (middle component)
+            let detailedBranch = components[2]
+                .replacingOccurrences(of: " - ", with: " in ")
+            let baseBranch = components[1]
+                .replacingOccurrences(of: " - ", with: " ")
+
+            return "\(detailedBranch) (\(baseBranch))"
+        } else if components.count == 2 {
+            // Fallback: just use the last component
+            return components[1].replacingOccurrences(of: " - ", with: " ")
+        } else {
+            // Fallback: use the whole key
+            return key
+        }
+    }
+
+    /// Celebration view for mastered weakness
+    @ViewBuilder
+    private func masteryCelebrationView(for weakness: String) -> some View {
+        ZStack {
+            // Semi-transparent background
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    dismissCelebration()
+                }
+
+            // Celebration card
+            VStack(spacing: 24) {
+                // Trophy icon with animation
+                Image(systemName: "trophy.fill")
+                    .font(.system(size: 80))
+                    .foregroundColor(.yellow)
+                    .shadow(color: .yellow.opacity(0.5), radius: 20, x: 0, y: 0)
+                    .scaleEffect(showingMasteryCelebration ? 1.0 : 0.1)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.5), value: showingMasteryCelebration)
+
+                VStack(spacing: 12) {
+                    Text("You Mastered a Weakness!")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+
+                    Text(weakness)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.green)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+
+                    Text("Keep up the great work!")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
+
+                // Dismiss button
+                Button(action: {
+                    dismissCelebration()
+                }) {
+                    Text("Continue")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.green, Color.green.opacity(0.8)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal)
+            }
+            .padding(32)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+            )
+            .padding(.horizontal, 40)
+        }
+        .transition(.opacity.combined(with: .scale))
+    }
+
+    private func dismissCelebration() {
+        withAnimation(.easeOut(duration: 0.3)) {
+            showingMasteryCelebration = false
+        }
+
+        // Clear the mastery from the service after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            statusService.clearRecentMasteries()
+            masteredWeakness = nil
         }
     }
 }
@@ -1395,15 +1887,6 @@ struct PracticeQuestionCard: View {
                             Text(question.type.displayName)
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-
-                            // Difficulty badge
-                            Text(question.difficulty)
-                                .font(.caption)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.orange.opacity(0.2))
-                                .foregroundColor(.orange)
-                                .cornerRadius(4)
                         }
                     }
 
@@ -1569,20 +2052,55 @@ struct PracticeQuestionCard: View {
                         // Explanation
                         if let result = gradeResult {
                             HStack(alignment: .top, spacing: 8) {
-                                Image(systemName: "bubble.left.fill")
-                                    .foregroundColor(.purple)
+                                Image(systemName: result.wasInstantGraded ? "bolt.fill" : "brain.head.profile")
+                                    .foregroundColor(result.wasInstantGraded ? .yellow : .purple)
                                     .font(.system(size: 16))
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Explanation")
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.secondary)
+                                    HStack(spacing: 6) {
+                                        Text("Explanation")
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.secondary)
+
+                                        // ✅ NEW: Badge showing grading method
+                                        if result.wasInstantGraded {
+                                            HStack(spacing: 3) {
+                                                Image(systemName: "bolt.fill")
+                                                    .font(.system(size: 8))
+                                                Text("Instant")
+                                                    .font(.system(size: 9))
+                                                    .fontWeight(.semibold)
+                                            }
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(
+                                                Capsule()
+                                                    .fill(Color.yellow)
+                                            )
+                                        } else {
+                                            HStack(spacing: 3) {
+                                                Image(systemName: "brain.head.profile")
+                                                    .font(.system(size: 8))
+                                                Text("AI Analyzed")
+                                                    .font(.system(size: 9))
+                                                    .fontWeight(.semibold)
+                                            }
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(
+                                                Capsule()
+                                                    .fill(Color.purple)
+                                            )
+                                        }
+                                    }
                                     Text(result.feedback)
                                         .font(.body)
                                 }
                             }
                             .padding(12)
-                            .background(Color.purple.opacity(0.05))
+                            .background(result.wasInstantGraded ? Color.yellow.opacity(0.05) : Color.purple.opacity(0.05))
                             .cornerRadius(8)
                         }
                     }

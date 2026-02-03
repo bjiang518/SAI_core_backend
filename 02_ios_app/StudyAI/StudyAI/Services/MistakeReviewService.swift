@@ -353,14 +353,47 @@ class MistakeReviewService: ObservableObject {
         let allMistakes = questionLocalStorage.getMistakeQuestions(subject: subject)
         let filteredMistakes = filterByTimeRange(allMistakes, timeRange: timeRange)
 
+        // ✅ DEBUG: Inspect what's actually stored in the first few mistakes
+        print("\n🔍 [DEBUG] getBaseBranches called for subject: \(subject)")
+        print("   Total mistakes after time filter: \(filteredMistakes.count)")
+
+        for (index, mistake) in filteredMistakes.prefix(5).enumerated() {
+            let baseBranch = mistake["baseBranch"] as? String
+            let detailedBranch = mistake["detailedBranch"] as? String
+            let weaknessKey = mistake["weaknessKey"] as? String
+            let subject = mistake["subject"] as? String
+            let questionPreview = (mistake["questionText"] as? String)?.prefix(40) ?? "N/A"
+            let errorAnalysisStatus = mistake["errorAnalysisStatus"] as? String
+            let archivedAt = mistake["archivedAt"] as? String
+
+            print("\n   📋 Mistake #\(index + 1):")
+            print("      Subject: '\(subject ?? "NIL")'")
+            print("      baseBranch: '\(baseBranch ?? "NIL")'")
+            print("      detailedBranch: '\(detailedBranch ?? "NIL")'")
+            print("      weaknessKey: '\(weaknessKey ?? "NIL")'")
+            print("      errorAnalysisStatus: '\(errorAnalysisStatus ?? "NIL")'")
+            print("      archivedAt: '\(archivedAt ?? "NIL")'")
+            print("      Question: '\(questionPreview)...'")
+        }
+
         // Group by base branch
         var branchGroups: [String: [[String: Any]]] = [:]
+        var filteredOutCount = 0
+
         for mistake in filteredMistakes {
             guard let baseBranch = mistake["baseBranch"] as? String, !baseBranch.isEmpty else {
+                filteredOutCount += 1
                 continue
             }
             branchGroups[baseBranch, default: []].append(mistake)
         }
+
+        print("\n   ✅ Grouped into \(branchGroups.count) base branches")
+        print("   ⚠️ Filtered out \(filteredOutCount) mistakes (empty baseBranch)")
+        for (branch, mistakes) in branchGroups.sorted(by: { $0.value.count > $1.value.count }) {
+            print("      - \(branch): \(mistakes.count) mistakes")
+        }
+        print("")
 
         // Convert to BaseBranchCount with detailed branches
         return branchGroups.map { baseBranch, mistakes in
@@ -370,7 +403,14 @@ class MistakeReviewService: ObservableObject {
                 mistakeCount: mistakes.count,
                 detailedBranches: detailedBranches
             )
-        }.sorted { $0.mistakeCount > $1.mistakeCount }
+        }.sorted {
+            // Primary sort: by mistake count (descending)
+            if $0.mistakeCount != $1.mistakeCount {
+                return $0.mistakeCount > $1.mistakeCount
+            }
+            // Secondary sort: alphabetically by base branch name
+            return $0.baseBranch < $1.baseBranch
+        }
     }
 
     /// Get detailed branches with counts for a base branch
@@ -398,7 +438,14 @@ class MistakeReviewService: ObservableObject {
 
         return branchCounts.map { branch, count in
             DetailedBranchCount(detailedBranch: branch, mistakeCount: count)
-        }.sorted { $0.mistakeCount > $1.mistakeCount }
+        }.sorted {
+            // Primary sort: by mistake count (descending)
+            if $0.mistakeCount != $1.mistakeCount {
+                return $0.mistakeCount > $1.mistakeCount
+            }
+            // Secondary sort: alphabetically by detailed branch name
+            return $0.detailedBranch < $1.detailedBranch
+        }
     }
 
     /// Get error type counts with optional filters

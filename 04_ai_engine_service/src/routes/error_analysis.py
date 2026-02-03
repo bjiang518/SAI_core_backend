@@ -18,6 +18,7 @@ class ErrorAnalysisRequest(BaseModel):
     correctAnswer: str = Field(..., alias="correct_answer")
     subject: Optional[str] = "General"
     questionId: Optional[str] = Field(None, alias="question_id")
+    questionImageBase64: Optional[str] = Field(None, alias="question_image_base64")  # ✅ NEW: Image support
 
     class Config:
         populate_by_name = True  # Allow both camelCase and snake_case
@@ -41,7 +42,7 @@ class ErrorAnalysisResponse(BaseModel):
 @router.post("/analyze", response_model=ErrorAnalysisResponse)
 async def analyze_single_error(request: ErrorAnalysisRequest):
     """
-    Analyze a single wrong answer to determine error type
+    Analyze a single wrong answer to determine error type (with optional image support)
     """
     # Convert camelCase to snake_case for service
     question_data = {
@@ -49,7 +50,8 @@ async def analyze_single_error(request: ErrorAnalysisRequest):
         "student_answer": request.studentAnswer,
         "correct_answer": request.correctAnswer,
         "subject": request.subject,
-        "question_id": request.questionId
+        "question_id": request.questionId,
+        "question_image_base64": request.questionImageBase64  # ✅ NEW: Pass image if present
     }
     result = await error_service.analyze_error(question_data)
     return result
@@ -57,7 +59,7 @@ async def analyze_single_error(request: ErrorAnalysisRequest):
 @router.post("/analyze-batch", response_model=List[ErrorAnalysisResponse])
 async def analyze_batch_errors(request: BatchErrorAnalysisRequest):
     """
-    Analyze multiple wrong answers in parallel
+    Analyze multiple wrong answers in parallel (with optional image support)
     """
     # Convert each question from camelCase to snake_case
     questions_data = [
@@ -66,7 +68,8 @@ async def analyze_batch_errors(request: BatchErrorAnalysisRequest):
             "student_answer": q.studentAnswer,
             "correct_answer": q.correctAnswer,
             "subject": q.subject,
-            "question_id": q.questionId
+            "question_id": q.questionId,
+            "question_image_base64": q.questionImageBase64  # ✅ NEW: Pass image if present
         }
         for q in request.questions
     ]

@@ -14,29 +14,26 @@ struct QuestionGenerationView: View {
     @StateObject private var questionService = QuestionGenerationService.shared
     @StateObject private var authService = AuthenticationService.shared
     @StateObject private var profileService = ProfileService.shared
-    @StateObject private var mistakeService = MistakeReviewService()
     @StateObject private var archiveService = QuestionArchiveService.shared
     @StateObject private var libraryService = LibraryDataService.shared
+    @StateObject private var mistakeService = MistakeReviewService()  // ✅ ADDED: Missing property
     @State private var inputSubject = ""
     @State private var selectedTemplate: TemplateType = .randomPractice
     @State private var showingQuestionsList = false
     @State private var generatedQuestions: [QuestionGenerationService.GeneratedQuestion] = []
     @State private var showingErrorAlert = false
     @State private var errorMessage = ""
-    @State private var availableMistakes: [MistakeQuestion] = []
     @State private var availableConversations: [[String: Any]] = []  // Use actual conversation objects
     @State private var availableQuestions: [QuestionSummary] = []
+    @State private var availableMistakes: [MistakeQuestion] = []  // ✅ ADDED: Missing property
     @State private var selectedConversations: Set<String> = []
     @State private var selectedQuestions: Set<String> = []
-    @State private var selectedMistakes: Set<String> = [] // Add selected mistakes tracking
     @State private var selectedDifficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty = .intermediate
     @State private var questionCount = 5
     @State private var selectedQuestionType: QuestionGenerationService.GeneratedQuestion.QuestionType = .any
-    @State private var selectedMistakeNotebook = ""
     @State private var selectedArchiveSession = ""
     @State private var isLoadingData = false
     @State private var selectedSubject = ""
-    @State private var showingMistakeSelection = false // Add mistake selection sheet state
     @State private var showingArchiveSelection = false // Add archive selection sheet state
     @State private var showingInfoAlert = false // Add info alert state
     @Environment(\.dismiss) private var dismiss
@@ -46,13 +43,11 @@ struct QuestionGenerationView: View {
 
     enum TemplateType: String, CaseIterable {
         case randomPractice = "random"
-        case fromMistakes = "mistake_based"
         case fromArchives = "conversation_based"
 
         var displayName: String {
             switch self {
             case .randomPractice: return NSLocalizedString("questionGeneration.template.randomPractice", comment: "")
-            case .fromMistakes: return NSLocalizedString("questionGeneration.template.fromMistakes", comment: "")
             case .fromArchives: return NSLocalizedString("questionGeneration.template.fromArchives", comment: "")
             }
         }
@@ -60,7 +55,6 @@ struct QuestionGenerationView: View {
         var description: String {
             switch self {
             case .randomPractice: return NSLocalizedString("questionGeneration.description.randomPractice", comment: "")
-            case .fromMistakes: return NSLocalizedString("questionGeneration.description.fromMistakes", comment: "")
             case .fromArchives: return NSLocalizedString("questionGeneration.description.fromArchives", comment: "")
             }
         }
@@ -68,7 +62,6 @@ struct QuestionGenerationView: View {
         var iconName: String {
             switch self {
             case .randomPractice: return "dice.fill"
-            case .fromMistakes: return "xmark.circle.fill"
             case .fromArchives: return "books.vertical.fill"
             }
         }
@@ -76,7 +69,6 @@ struct QuestionGenerationView: View {
         var color: Color {
             switch self {
             case .randomPractice: return .blue
-            case .fromMistakes: return .orange
             case .fromArchives: return .green
             }
         }
@@ -134,14 +126,9 @@ struct QuestionGenerationView: View {
                     .fontWeight(.semibold)
                 }
             }
-            .sheet(isPresented: $showingQuestionsList) {
+            // ✅ CHANGED: Use fullScreenCover instead of sheet for fixed view
+            .fullScreenCover(isPresented: $showingQuestionsList) {
                 GeneratedQuestionsListView(questions: generatedQuestions)
-            }
-            .sheet(isPresented: $showingMistakeSelection) {
-                MistakeSelectionView(
-                    mistakes: availableMistakes,
-                    selectedMistakes: $selectedMistakes
-                )
             }
             .sheet(isPresented: $showingArchiveSelection) {
                 ArchiveSelectionView(
@@ -190,13 +177,6 @@ struct QuestionGenerationView: View {
                 RandomQuestionConfig(
                     availableSubjects: dataAdapter.getMostCommonSubjects(),
                     selectedSubject: $selectedSubject
-                )
-            case .fromMistakes:
-                MistakeBasedConfig(
-                    mistakes: availableMistakes,
-                    isLoading: isLoadingData,
-                    selectedMistakes: $selectedMistakes,
-                    onShowSelection: { showingMistakeSelection = true }
                 )
             case .fromArchives:
                 ArchiveBasedConfig(
@@ -475,7 +455,7 @@ struct QuestionGenerationView: View {
             do {
                 // Load mistakes - fetch them properly like MistakeReviewView does
                 // Use nil subject to get all mistakes across all subjects
-                await mistakeService.fetchMistakes(subject: nil, timeRange: .thisMonth)
+                await mistakeService.fetchMistakes(subject: nil, timeRange: MistakeTimeRange.thisMonth)
                 let allMistakes = mistakeService.mistakes
 
                 // Load conversations from LibraryDataService
@@ -506,8 +486,6 @@ struct QuestionGenerationView: View {
         switch selectedTemplate {
         case .randomPractice:
             return true
-        case .fromMistakes:
-            return !selectedMistakes.isEmpty
         case .fromArchives:
             return !selectedConversations.isEmpty || !selectedQuestions.isEmpty
         }
@@ -549,75 +527,51 @@ struct QuestionGenerationView: View {
 
         switch selectedTemplate {
         case .randomPractice:
+            // ✅ NEW: Determine primary subject
             let mostCommonSubjects = dataAdapter.getMostCommonSubjects()
-
             let primarySubject = !selectedSubject.isEmpty ? selectedSubject : (mostCommonSubjects.first ?? NSLocalizedString("questionGeneration.defaultSubject.mathematics", comment: ""))
 
-            let focusAreas = dataAdapter.getFocusAreas()
+            print("🎯 [QuestionGen] === PERSONALIZED RANDOM GENERATION ===")
+            print("   Selected subject: \(primarySubject)")
 
-            let focusNotes = focusAreas.isEmpty ?
-                NSLocalizedString("questionGeneration.focusNotes.diversePractice", comment: "") :
-                String.localizedStringWithFormat(NSLocalizedString("questionGeneration.focusNotes.improvementAreas", comment: ""), focusAreas.joined(separator: ", "))
+            // ✅ NEW: Extract weakness topics from short-term status
+            let weaknessTopics = dataAdapter.getWeaknessTopics(for: primarySubject)
+
+            // ✅ NEW: Mix 80% weakness + 20% mastery for balanced practice
+            let mixedTopics = dataAdapter.getMixedTopicsWithMastery(
+                for: primarySubject,
+                weaknessTopics: weaknessTopics
+            )
+
+            // ✅ NEW: Personalized focus notes from actual student struggles
+            let focusNotes = dataAdapter.getPersonalizedFocusNotes(for: primarySubject)
+
+            // ✅ NEW: Adaptive difficulty suggestion (user can still override)
+            let adaptiveDifficulty = dataAdapter.getAdaptiveDifficulty(for: primarySubject)
+
+            print("📊 [QuestionGen] Adaptive difficulty recommendation: \(adaptiveDifficulty.rawValue)")
+            print("   User-selected difficulty: \(selectedDifficulty.rawValue)")
+            print("   Using: \(selectedDifficulty.rawValue) (user preference)")
 
             let config = QuestionGenerationService.RandomQuestionsConfig(
-                topics: mostCommonSubjects.isEmpty ? [primarySubject] : mostCommonSubjects,
-                focusNotes: focusNotes,
-                difficulty: selectedDifficulty,
+                topics: mixedTopics.isEmpty ? [primarySubject] : mixedTopics,  // ✅ Dynamic from short-term status
+                focusNotes: focusNotes,  // ✅ Personalized focus notes
+                difficulty: selectedDifficulty,  // User can override adaptive difficulty
                 questionCount: questionCount,
                 questionType: selectedQuestionType
             )
+
+            print("✅ [QuestionGen] Final config:")
+            print("   Topics: \(config.topics)")
+            print("   Focus: \(focusNotes.prefix(100))...")
+            print("   Difficulty: \(config.difficulty.rawValue)")
+            print("   Count: \(config.questionCount)")
+            print("   Type: \(config.questionType.rawValue)")
+            print("========================================\n")
 
 
             let result = await questionService.generateRandomQuestions(
                 subject: primarySubject,
-                config: config,
-                userProfile: userProfile
-            )
-
-            switch result {
-            case .success(let questions):
-                return questions
-            case .failure(let error):
-                throw error
-            }
-
-        case .fromMistakes:
-            guard !selectedMistakes.isEmpty else {
-                throw NSError(domain: "QuestionGeneration", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("questionGeneration.noMistakes", comment: "")])
-            }
-
-            // Filter to only selected mistakes
-            let selectedMistakeObjects = availableMistakes.filter { selectedMistakes.contains($0.id) }
-
-            // Convert selected mistake data using the adapter
-            let mistakeData = selectedMistakeObjects.map { mistake in
-                QuestionGenerationService.MistakeData(
-                    originalQuestion: mistake.question,
-                    userAnswer: mistake.studentAnswer,
-                    correctAnswer: mistake.correctAnswer,
-                    errorType: mistake.errorType,  // From error analysis
-                    baseBranch: mistake.baseBranch,  // From error analysis
-                    detailedBranch: mistake.detailedBranch,  // From error analysis
-                    specificIssue: mistake.specificIssue,  // From error analysis
-                    questionImageUrl: nil  // Archive doesn't store original image URLs
-                )
-            }
-
-            // Get the most common subject from selected mistakes
-            let mistakeSubjects = Array(Set(selectedMistakeObjects.map { $0.subject }))
-            let primarySubject = mistakeSubjects.first ?? NSLocalizedString("questionGeneration.defaultSubject.mathematics", comment: "")
-
-            let config = QuestionGenerationService.RandomQuestionsConfig(
-                topics: mistakeSubjects,
-                focusNotes: NSLocalizedString("questionGeneration.focusNotes.addressMistakes", comment: ""),
-                difficulty: selectedDifficulty,
-                questionCount: questionCount,
-                questionType: selectedQuestionType
-            )
-
-            let result = await questionService.generateMistakeBasedQuestions(
-                subject: primarySubject,
-                mistakes: mistakeData,
                 config: config,
                 userProfile: userProfile
             )

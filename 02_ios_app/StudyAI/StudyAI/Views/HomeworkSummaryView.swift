@@ -10,7 +10,7 @@ import SwiftUI
 
 struct HomeworkSummaryView: View {
     let parseResults: ParseHomeworkQuestionsResponse
-    let originalImage: UIImage
+    let originalImages: [UIImage]  // ✅ Changed from single image to array
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppState
@@ -51,7 +51,7 @@ struct HomeworkSummaryView: View {
         .navigationDestination(isPresented: $showDigitalHomework) {
             DigitalHomeworkView(
                 parseResults: parseResults,
-                originalImage: originalImage
+                originalImages: originalImages  // ✅ Pass array of images
             )
             .environmentObject(appState)
         }
@@ -64,8 +64,8 @@ struct HomeworkSummaryView: View {
                 print("   Found existing homework in state: \(stateManager.currentState)")
 
                 // ✅ KEY: Compare incoming image with stored homework to detect if it's NEW
-                // Generate hash for incoming image
-                let incomingImageData = originalImage.jpegData(compressionQuality: 0.1)
+                // Generate hash for incoming image (use first image for comparison)
+                let incomingImageData = originalImages.first?.jpegData(compressionQuality: 0.1)
                 let incomingHash = "\(incomingImageData?.hashValue ?? 0)"
                 let existingHash = stateManager.currentHomework?.homeworkHash ?? ""
 
@@ -83,7 +83,7 @@ struct HomeworkSummaryView: View {
                     print("   🆕 NEW homework detected (hashes differ)")
                     print("   Reason: User parsed a different image from camera")
                     print("   Calling parseHomework() to reset and parse new homework")
-                    stateManager.parseHomework(parseResults: parseResults, image: originalImage)
+                    stateManager.parseHomework(parseResults: parseResults, image: originalImages.first ?? UIImage())
                     return
                 }
             }
@@ -91,7 +91,7 @@ struct HomeworkSummaryView: View {
             // No existing homework - this is first parse
             print("   No existing homework found")
             print("   Calling parseHomework() for initial homework")
-            stateManager.parseHomework(parseResults: parseResults, image: originalImage)
+            stateManager.parseHomework(parseResults: parseResults, image: originalImages.first ?? UIImage())
             print("   ✅ State initialized: \(stateManager.currentState)")
         }
         // ✅ NEW: Resume prompt alert
@@ -102,7 +102,7 @@ struct HomeworkSummaryView: View {
             }
             Button(NSLocalizedString("homeworkSummary.resumePrompt.startFresh", comment: "Start Fresh"), role: .destructive) {
                 stateManager.startFresh()
-                stateManager.parseHomework(parseResults: parseResults, image: originalImage)
+                stateManager.parseHomework(parseResults: parseResults, image: originalImages.first ?? UIImage())
                 showDigitalHomework = true
             }
         } message: {
@@ -343,6 +343,7 @@ struct QuestionPreviewRow: View {
                     ProgressiveQuestion(
                         id: 1,
                         questionNumber: "1",
+                        pageNumber: nil,  // No page number for preview
                         isParent: true,
                         hasSubquestions: true,
                         parentContent: "Solve the following problems:",
@@ -363,6 +364,7 @@ struct QuestionPreviewRow: View {
                     ProgressiveQuestion(
                         id: 2,
                         questionNumber: "2",
+                        pageNumber: nil,  // No page number for preview
                         isParent: false,
                         hasSubquestions: false,
                         parentContent: nil,
@@ -379,7 +381,7 @@ struct QuestionPreviewRow: View {
                 processedImageDimensions: nil,
                 handwritingEvaluation: nil
             ),
-            originalImage: UIImage(systemName: "photo")!
+            originalImages: [UIImage(systemName: "photo")!]  // ✅ Changed to array
         )
     }
 }

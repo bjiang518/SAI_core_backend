@@ -1144,6 +1144,12 @@ Generate now:"""
 
         unique_source_tags = list(set(all_source_tags))
 
+        # ✅ FIX: Initialize variables BEFORE the if block to prevent UnboundLocalError
+        # These variables are used later in f-strings, so they must always be defined
+        most_common_error = None
+        most_common_topic_area = None
+        most_common_specific_topic = None
+
         # ✅ OPTIMIZED: Build error pattern analysis using hierarchical taxonomy
         error_analysis_section = ""
         if has_error_analysis:

@@ -8,6 +8,7 @@
 
 import Foundation
 import Combine
+import UIKit  // ✅ Required for UIImage operations
 
 class ErrorAnalysisQueueService: ObservableObject {
     static let shared = ErrorAnalysisQueueService()
@@ -18,26 +19,69 @@ class ErrorAnalysisQueueService: ObservableObject {
     private let localStorage = QuestionLocalStorage.shared
     private var analysisTask: Task<Void, Never>?
 
+    // ✅ NEW: Queue to accumulate questions while analysis is running
+    private var pendingQuestions: [[String: Any]] = []
+    private let queueLock = NSLock()
+
     private init() {}
 
     // MARK: - Public API
 
     /// Queue error analysis for newly graded wrong questions
     /// Called immediately after Pass 1 grading completes
+    /// ✅ ACCUMULATES questions if analysis is already running (prevents cancellation)
     func queueErrorAnalysisAfterGrading(sessionId: String, wrongQuestions: [[String: Any]]) {
         guard !wrongQuestions.isEmpty else {
             print("📊 [ErrorAnalysis] No wrong answers - skipping Pass 2")
             return
         }
 
-        print("📊 [ErrorAnalysis] Queuing Pass 2 for \(wrongQuestions.count) wrong answers")
+        print("📊 [ErrorAnalysis] Received \(wrongQuestions.count) wrong answers for Pass 2")
 
-        // Cancel previous analysis if running
-        analysisTask?.cancel()
+        // ✅ FIXED: Filter by analysis status, not just existence in storage
+        let analyzedQuestionIds = Set(getAnalyzedQuestionIds())
+        print("📊 [ErrorAnalysis] Found \(analyzedQuestionIds.count) already-analyzed question IDs")
+
+        let unanalyzedWrongQuestions = wrongQuestions.filter { question in
+            guard let questionId = question["id"] as? String else {
+                print("⚠️ [ErrorAnalysis] Question has no ID - skipping")
+                return false
+            }
+
+            let isAnalyzed = analyzedQuestionIds.contains(questionId)
+            if isAnalyzed {
+                print("  ✓ [ErrorAnalysis] Question \(questionId.prefix(8))... already analyzed - SKIP")
+                return false
+            } else {
+                print("  ✓ [ErrorAnalysis] Question \(questionId.prefix(8))... needs analysis - QUEUE")
+                return true
+            }
+        }
+
+        guard !unanalyzedWrongQuestions.isEmpty else {
+            print("✅ [ErrorAnalysis] All wrong answers already analyzed - skipping Pass 2")
+            return
+        }
+
+        print("📊 [ErrorAnalysis] Queuing Pass 2 for \(unanalyzedWrongQuestions.count) unanalyzed wrong answers (filtered from \(wrongQuestions.count) total)")
+
+        // ✅ NEW: If analysis is already running, add to pending queue
+        queueLock.lock()
+        let currentlyAnalyzing = isAnalyzing
+        if currentlyAnalyzing {
+            print("⏳ [ErrorAnalysis] Analysis already running - adding \(unanalyzedWrongQuestions.count) questions to pending queue")
+            pendingQuestions.append(contentsOf: unanalyzedWrongQuestions)
+            queueLock.unlock()
+            return
+        }
+        queueLock.unlock()
 
         // Start background analysis
         analysisTask = Task {
-            await analyzeBatch(sessionId: sessionId, questions: wrongQuestions)
+            await analyzeBatch(sessionId: sessionId, questions: unanalyzedWrongQuestions)
+
+            // ✅ NEW: Process pending questions after completion
+            await processPendingQuestions()
         }
     }
 
@@ -60,16 +104,44 @@ class ErrorAnalysisQueueService: ObservableObject {
 
     /// Extract concepts for CORRECT answers to reduce weakness values
     /// Called immediately after grading for correct answers
+    /// ✅ FILTER: Skip questions that have already been ANALYZED (not just archived)
     func queueConceptExtractionForCorrectAnswers(sessionId: String, correctQuestions: [[String: Any]]) {
         guard !correctQuestions.isEmpty else {
             print("📊 [ConceptExtraction] No correct answers - skipping")
             return
         }
 
-        print("📊 [ConceptExtraction] Queuing concept extraction for \(correctQuestions.count) correct answers")
+        print("📊 [ConceptExtraction] Received \(correctQuestions.count) correct answers for concept extraction")
+
+        // ✅ FIXED: Filter by analysis status, not just existence in storage
+        let analyzedQuestionIds = Set(getAnalyzedQuestionIds())
+        print("📊 [ConceptExtraction] Found \(analyzedQuestionIds.count) already-analyzed question IDs")
+
+        let unanalyzedCorrectQuestions = correctQuestions.filter { question in
+            guard let questionId = question["id"] as? String else {
+                print("⚠️ [ConceptExtraction] Question has no ID - skipping")
+                return false
+            }
+
+            let isAnalyzed = analyzedQuestionIds.contains(questionId)
+            if isAnalyzed {
+                print("  ✓ [ConceptExtraction] Question \(questionId.prefix(8))... already analyzed - SKIP")
+                return false
+            } else {
+                print("  ✓ [ConceptExtraction] Question \(questionId.prefix(8))... needs analysis - QUEUE")
+                return true
+            }
+        }
+
+        guard !unanalyzedCorrectQuestions.isEmpty else {
+            print("✅ [ConceptExtraction] All correct answers already analyzed - skipping concept extraction")
+            return
+        }
+
+        print("📊 [ConceptExtraction] Queuing concept extraction for \(unanalyzedCorrectQuestions.count) unanalyzed correct answers (filtered from \(correctQuestions.count) total)")
 
         Task {
-            await extractConceptsBatch(sessionId: sessionId, questions: correctQuestions)
+            await extractConceptsBatch(sessionId: sessionId, questions: unanalyzedCorrectQuestions)
         }
     }
 
@@ -153,6 +225,27 @@ class ErrorAnalysisQueueService: ObservableObject {
 
     // MARK: - Private Implementation
 
+    /// Process pending questions that accumulated during analysis
+    private func processPendingQuestions() async {
+        queueLock.lock()
+        guard !pendingQuestions.isEmpty else {
+            queueLock.unlock()
+            return
+        }
+
+        let questionsToProcess = pendingQuestions
+        pendingQuestions = []  // Clear the queue
+        queueLock.unlock()
+
+        print("📊 [ErrorAnalysis] Processing \(questionsToProcess.count) pending questions from queue")
+
+        // Process the accumulated questions
+        await analyzeBatch(sessionId: "queued-batch", questions: questionsToProcess)
+
+        // Recursively check for more pending questions (in case more were added during this batch)
+        await processPendingQuestions()
+    }
+
     private func analyzeBatch(sessionId: String, questions: [[String: Any]]) async {
         await MainActor.run {
             isAnalyzing = true
@@ -181,15 +274,38 @@ class ErrorAnalysisQueueService: ObservableObject {
                 let subject = question["subject"] as? String ?? "General"
                 let questionId = question["id"] as? String
 
+                // ✅ NEW: Extract and encode image if present
+                let questionImageBase64: String? = {
+                    guard let imageUrl = question["questionImageUrl"] as? String,
+                          !imageUrl.isEmpty else {
+                        return nil
+                    }
+
+                    // Load image from file system
+                    if let image = ProModeImageStorage.shared.loadImage(from: imageUrl),
+                       let jpegData = image.jpegData(compressionQuality: 0.85) {
+                        print("   📸 [ErrorAnalysis] Including image for Q: '\(questionText.prefix(30))...'")
+                        return jpegData.base64EncodedString()
+                    }
+
+                    return nil
+                }()
+
                 print("📝 [ErrorAnalysis] Building request for Q: '\(questionText.prefix(50))...'")
                 print("   Student: '\(studentAnswer.prefix(30))...', Correct: '\(correctAnswer.prefix(30))...'")
+                if questionImageBase64 != nil {
+                    print("   📸 Image: YES (base64 encoded)")
+                } else {
+                    print("   📸 Image: NO")
+                }
 
                 return ErrorAnalysisRequest(
                     questionText: questionText,
                     studentAnswer: studentAnswer,
                     correctAnswer: correctAnswer,
                     subject: subject,
-                    questionId: questionId
+                    questionId: questionId,
+                    questionImageBase64: questionImageBase64
                 )
             }
 
@@ -339,6 +455,25 @@ class ErrorAnalysisQueueService: ObservableObject {
         _ = localStorage.saveQuestions(allQuestions)
     }
 
+    /// Get question IDs that have already been analyzed (status = "completed" or "processing")
+    /// Used to prevent duplicate error analysis for the same question
+    private func getAnalyzedQuestionIds() -> [String] {
+        let allQuestions = localStorage.getLocalQuestions()
+        return allQuestions.compactMap { question in
+            guard let questionId = question["id"] as? String else {
+                return nil
+            }
+
+            // Check if question has already been analyzed
+            let status = question["errorAnalysisStatus"] as? String ?? ""
+            if status == "completed" || status == "processing" {
+                return questionId  // Already analyzed or being analyzed
+            }
+
+            return nil  // Needs analysis (status is nil, "", or "failed")
+        }
+    }
+
     // MARK: - Correct Answer Processing
     // NOTE: Correct answer processing is now handled by queueConceptExtractionForCorrectAnswers()
     // which uses the new hierarchical taxonomy (baseBranch/detailedBranch) instead of the old
@@ -353,6 +488,7 @@ struct ErrorAnalysisRequest: Codable {
     let correctAnswer: String
     let subject: String
     let questionId: String?
+    let questionImageBase64: String?  // ✅ NEW: Image support for visual questions
 }
 
 struct ErrorAnalysisResponse: Codable {

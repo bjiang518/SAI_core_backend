@@ -18,12 +18,15 @@ struct DigitalHomeworkView: View {
     // MARK: - Properties
 
     let parseResults: ParseHomeworkQuestionsResponse
-    let originalImage: UIImage
+    let originalImages: [UIImage]  // ✅ Changed to array to support multi-page homework
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = DigitalHomeworkViewModel()
     @Namespace private var animationNamespace
+
+    // ✅ NEW: Track selected image for annotation (card stack)
+    @State private var selectedImageIndex: Int = 0
 
     // ✅ NEW: Revert confirmation alert
     @State private var showRevertConfirmation = false
@@ -36,9 +39,10 @@ struct DigitalHomeworkView: View {
     @State private var showMistakeDetectionAlert = false
     @State private var detectedMistakeIds: [Int] = []
 
-    // ✅ NEW: Regrade functionality
-    @State private var showRegradingAlert = false
-    @State private var isRegrading = false
+    // ✅ NEW: Deletion mode state
+    @State private var isDeletionMode = false
+    @State private var selectedQuestionsForDeletion: Set<Int> = []
+    @State private var showDeletionConfirmation = false
 
     // MARK: - Body
 
@@ -55,13 +59,25 @@ struct DigitalHomeworkView: View {
                     .navigationTitle(NSLocalizedString("proMode.title", comment: "Digital Homework"))
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
-                        // ✅ Select All button (left side, only in archive mode)
+                        // ✅ Select All button (left side, only in archive or deletion mode)
                         ToolbarItem(placement: .navigationBarLeading) {
                             if viewModel.isArchiveMode {
                                 Button(action: {
                                     viewModel.toggleSelectAll()
                                 }) {
                                     Text(viewModel.isAllSelected ? NSLocalizedString("proMode.deselectAll", comment: "Deselect All") : NSLocalizedString("proMode.selectAll", comment: "Select All"))
+                                        .font(.subheadline)
+                                }
+                            } else if isDeletionMode {
+                                // ✅ NEW: Select All for deletion mode
+                                Button(action: {
+                                    if selectedQuestionsForDeletion.count == viewModel.questions.count {
+                                        selectedQuestionsForDeletion.removeAll()
+                                    } else {
+                                        selectedQuestionsForDeletion = Set(viewModel.questions.map { $0.question.id })
+                                    }
+                                }) {
+                                    Text(selectedQuestionsForDeletion.count == viewModel.questions.count ? NSLocalizedString("proMode.deselectAll", comment: "Deselect All") : NSLocalizedString("proMode.selectAll", comment: "Select All"))
                                         .font(.subheadline)
                                 }
                             }
@@ -72,6 +88,13 @@ struct DigitalHomeworkView: View {
                                 // Archive mode: show cancel button
                                 Button(NSLocalizedString("proMode.cancel", comment: "Cancel")) {
                                     viewModel.toggleArchiveMode()
+                                }
+                                .foregroundColor(.red)
+                            } else if isDeletionMode {
+                                // ✅ NEW: Deletion mode: show cancel button
+                                Button(NSLocalizedString("proMode.cancel", comment: "Cancel")) {
+                                    isDeletionMode = false
+                                    selectedQuestionsForDeletion.removeAll()
                                 }
                                 .foregroundColor(.red)
                             } else if viewModel.allQuestionsGraded {
@@ -85,6 +108,15 @@ struct DigitalHomeworkView: View {
                             } else {
                                 // Before grading: show menu
                                 Menu {
+                                    // ✅ NEW: Select to Delete option
+                                    Button(action: {
+                                        isDeletionMode = true
+                                    }) {
+                                        Label("Select to Delete", systemImage: "trash")
+                                    }
+
+                                    Divider()
+
                                     Button(action: {
                                         viewModel.showImageInFullScreen = true
                                     }) {
@@ -116,8 +148,8 @@ struct DigitalHomeworkView: View {
         // State is managed globally and persists across navigation
         .fullScreenCover(isPresented: $viewModel.showImageInFullScreen) {
             ImageZoomView(
-                image: originalImage,
-                title: NSLocalizedString("proMode.viewOriginalImage", comment: "View Original Image"),
+                image: originalImages[safe: selectedImageIndex] ?? originalImages[0],  // ✅ Use selected image from stack
+                title: String(format: NSLocalizedString("proMode.viewOriginalImage", comment: "View Original Image") + " (Page %d/%d)", selectedImageIndex + 1, originalImages.count),
                 isPresented: $viewModel.showImageInFullScreen
             )
         }
@@ -145,15 +177,14 @@ struct DigitalHomeworkView: View {
         } message: {
             Text("Do you want me to analyze them? (Results will be ready soon in the mistake review)")
         }
-        .alert("Regrade with Deep Analysis", isPresented: $showRegradingAlert) {
+        // ✅ NEW: Deletion confirmation alert
+        .alert("Delete \(selectedQuestionsForDeletion.count) Question\(selectedQuestionsForDeletion.count == 1 ? "" : "s")?", isPresented: $showDeletionConfirmation) {
             Button("Cancel", role: .cancel) { }
-            Button("Regrade", role: .none) {
-                Task {
-                    await performRegrade()
-                }
+            Button("Delete", role: .destructive) {
+                deleteSelectedQuestions()
             }
         } message: {
-            Text("This will send your homework to AI for a more detailed evaluation using Gemini's advanced analysis. This may take longer but provides deeper insights and more accurate scoring.")
+            Text("This will permanently remove the selected question\(selectedQuestionsForDeletion.count == 1 ? "" : "s") from this homework session. This action cannot be undone.")
         }
     }
 
@@ -184,6 +215,14 @@ struct DigitalHomeworkView: View {
                                     .transition(.move(edge: .top).combined(with: .opacity))
                             }
 
+                            // ✅ NEW: Delete selected button (only in deletion mode)
+                            if isDeletionMode {
+                                deleteSelectedButtonSection
+                                    .padding(.horizontal)
+                                    .padding(.top, 12)
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                            }
+
                             // Question list
                             LazyVStack(spacing: 12) {
                                 ForEach(viewModel.questions) { questionWithGrade in
@@ -192,6 +231,8 @@ struct DigitalHomeworkView: View {
                                         croppedImage: viewModel.getCroppedImage(for: questionWithGrade.question.id),
                                         isArchiveMode: viewModel.isArchiveMode,
                                         isSelected: viewModel.selectedQuestionIds.contains(questionWithGrade.question.id),
+                                        isDeletionMode: isDeletionMode,  // ✅ NEW: Pass deletion mode state
+                                        isSelectedForDeletion: selectedQuestionsForDeletion.contains(questionWithGrade.question.id),  // ✅ NEW: Pass deletion selection state
                                         modelType: viewModel.selectedAIModel,
                                         onAskAI: { subquestion in  // ✅ UPDATED: Accept optional subquestion
                                             viewModel.askAIForHelp(
@@ -228,6 +269,17 @@ struct DigitalHomeworkView: View {
                                         onToggleSelection: {
                                             viewModel.toggleQuestionSelection(questionId: questionWithGrade.question.id)
                                         },
+                                        onToggleDeletionSelection: {  // ✅ NEW: Deletion selection callback
+                                            if selectedQuestionsForDeletion.contains(questionWithGrade.question.id) {
+                                                selectedQuestionsForDeletion.remove(questionWithGrade.question.id)
+                                            } else {
+                                                selectedQuestionsForDeletion.insert(questionWithGrade.question.id)
+                                            }
+                                        },
+                                        onLongPress: {  // ✅ NEW: Long press to enter deletion mode
+                                            isDeletionMode = true
+                                            selectedQuestionsForDeletion.insert(questionWithGrade.question.id)
+                                        },
                                         onRemoveImage: {
                                             // Find and delete the annotation for this question
                                             if let questionNumber = questionWithGrade.question.questionNumber,
@@ -253,7 +305,8 @@ struct DigitalHomeworkView: View {
                             // Bottom section: accuracy card + progress button (inside ScrollView)
                             if viewModel.allQuestionsGraded && !viewModel.isArchiveMode {
                                 gradingCompletedScrollableSection
-                                    .padding()
+                                    .padding(.horizontal)
+                                    .padding(.top, 16)
                                     .transition(.opacity)
                             }
 
@@ -287,7 +340,6 @@ struct DigitalHomeworkView: View {
                let handwriting = parseResults.handwritingEvaluation,
                handwriting.hasHandwriting {
                 HandwritingEvaluationExpandableCard(evaluation: handwriting)
-                    .padding(.horizontal)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
@@ -332,6 +384,37 @@ struct DigitalHomeworkView: View {
         }
         .disabled(viewModel.selectedQuestionIds.isEmpty)
         .opacity(viewModel.selectedQuestionIds.isEmpty ? 0.5 : 1.0)
+    }
+
+    // MARK: - Delete Selected Button Section
+
+    private var deleteSelectedButtonSection: some View {
+        Button(action: {
+            // Show confirmation alert
+            showDeletionConfirmation = true
+        }) {
+            HStack(spacing: 12) {
+                Image(systemName: "trash.fill")
+                    .font(.title3)
+                Text("Delete \(selectedQuestionsForDeletion.count) Question\(selectedQuestionsForDeletion.count == 1 ? "" : "s")")
+                    .font(.headline)
+                    .fontWeight(.bold)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                LinearGradient(
+                    colors: [Color.red, Color.red.opacity(0.8)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(12)
+            .shadow(color: Color.red.opacity(0.3), radius: 6, x: 0, y: 3)
+        }
+        .disabled(selectedQuestionsForDeletion.isEmpty)
+        .opacity(selectedQuestionsForDeletion.isEmpty ? 0.5 : 1.0)
     }
 
     // MARK: - Accuracy Stat Card (正确率统计卡片)
@@ -760,16 +843,21 @@ struct DigitalHomeworkView: View {
 
     private var thumbnailSection: some View {
         VStack(spacing: 0) {
-            // 缩略图预览 (占满整个1/3空间)
-            AnnotatableImageView(
-                image: originalImage,
-                annotations: viewModel.annotations,
-                selectedAnnotationId: $viewModel.selectedAnnotationId,
-                isInteractive: false
-            )
-            .matchedGeometryEffect(id: "homeworkImage", in: animationNamespace)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.black.opacity(0.3))
+            // ✅ NEW: Card stack for multiple images OR single image view
+            if originalImages.count > 1 {
+                imageCardStack
+            } else {
+                // Single image view (original behavior)
+                AnnotatableImageView(
+                    image: originalImages[0],
+                    annotations: viewModel.annotations,
+                    selectedAnnotationId: $viewModel.selectedAnnotationId,
+                    isInteractive: false
+                )
+                .matchedGeometryEffect(id: "homeworkImage", in: animationNamespace)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black.opacity(0.3))
+            }
 
             // 添加标注按钮
             Button(action: {
@@ -800,6 +888,110 @@ struct DigitalHomeworkView: View {
         }
     }
 
+    // MARK: - Image Card Stack (多页作业图片栈)
+
+    private var imageCardStack: some View {
+        GeometryReader { geometry in
+            ZStack {
+                Color.black.opacity(0.3)
+
+                // Display all images in a stack (no individual gestures on cards)
+                ForEach(Array(originalImages.enumerated()), id: \.offset) { index, image in
+                    let offset = CGFloat(index - selectedImageIndex)
+                    let isSelected = index == selectedImageIndex
+
+                    AnnotatableImageView(
+                        image: image,
+                        annotations: viewModel.annotations,
+                        selectedAnnotationId: $viewModel.selectedAnnotationId,
+                        isInteractive: false
+                    )
+                    .scaleEffect(isSelected ? 1.0 : 0.92)  // Selected card is full size, others slightly smaller
+                    .offset(x: offset * 25, y: abs(offset) * 8)  // Stack effect with horizontal and vertical offset
+                    .opacity(isSelected ? 1.0 : 0.7)  // Dim non-selected cards
+                    .zIndex(Double(originalImages.count - abs(Int(offset))))  // Selected card on top
+                    .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selectedImageIndex)
+                    .allowsHitTesting(false)  // ✅ FIX: Disable hit testing on cards to let gesture overlay handle swipes
+                }
+
+                // ✅ FIX: Transparent gesture overlay on top of entire stack
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 30)
+                            .onEnded { value in
+                                let threshold: CGFloat = 50
+
+                                // Swipe left to go to next image
+                                if value.translation.width < -threshold && selectedImageIndex < originalImages.count - 1 {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                        selectedImageIndex += 1
+                                    }
+
+                                    // Haptic feedback
+                                    let generator = UIImpactFeedbackGenerator(style: .light)
+                                    generator.impactOccurred()
+                                }
+                                // Swipe right to go to previous image
+                                else if value.translation.width > threshold && selectedImageIndex > 0 {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                        selectedImageIndex -= 1
+                                    }
+
+                                    // Haptic feedback
+                                    let generator = UIImpactFeedbackGenerator(style: .light)
+                                    generator.impactOccurred()
+                                }
+                            }
+                    )
+
+                // Page indicator dots at bottom
+                VStack {
+                    Spacer()
+                    HStack(spacing: 8) {
+                        ForEach(0..<originalImages.count, id: \.self) { index in
+                            Circle()
+                                .fill(index == selectedImageIndex ? Color.blue : Color.white.opacity(0.5))
+                                .frame(width: index == selectedImageIndex ? 10 : 8, height: index == selectedImageIndex ? 10 : 8)
+                                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                                .onTapGesture {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                        selectedImageIndex = index
+                                    }
+
+                                    // Haptic feedback
+                                    let generator = UIImpactFeedbackGenerator(style: .light)
+                                    generator.impactOccurred()
+                                }
+                        }
+                    }
+                    .padding(.bottom, 12)
+                }
+
+                // Page counter label in top-right corner
+                VStack {
+                    HStack {
+                        Spacer()
+                        Text(String(format: NSLocalizedString("proMode.pageCounter", comment: "Page X/Y"), selectedImageIndex + 1, originalImages.count))
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(Color.black.opacity(0.6))
+                            )
+                            .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                            .padding(.trailing, 12)
+                            .padding(.top, 8)
+                    }
+                    Spacer()
+                }
+            }
+        }
+    }
+
     // MARK: - Annotation Full Screen Mode (全屏标注模式)
 
     private var annotationFullScreenMode: some View {
@@ -810,7 +1002,7 @@ struct DigitalHomeworkView: View {
                     // ✅ CRITICAL FIX: AnnotatableImageView now handles BOTH image AND interactive overlay
                     // with unified coordinate system (scale/offset applied to both)
                     AnnotatableImageView(
-                        image: originalImage,
+                        image: originalImages[safe: selectedImageIndex] ?? originalImages[0],  // ✅ Use selected image
                         annotations: viewModel.annotations,
                         selectedAnnotationId: $viewModel.selectedAnnotationId,
                         isInteractive: true,  // ✅ Enable interactive mode
@@ -1228,8 +1420,8 @@ struct DigitalHomeworkView: View {
     }
 
     private var modelDisplayName: String {
-        let model = viewModel.selectedAIModel == "gemini" ? "Gemini 3.0" : "GPT-4o-mini"
-        let mode = viewModel.useDeepReasoning ? " · 深度批改" : ""
+        let model = viewModel.selectedAIModel == "gemini" ? "Gemini" : "GPT-4o-mini"
+        let mode = viewModel.useDeepReasoning ? " · \(NSLocalizedString("proMode.deepMode", comment: ""))" : ""
         return model + mode
     }
 
@@ -1330,6 +1522,32 @@ struct DigitalHomeworkView: View {
         }
     }
 
+    // MARK: - Question Deletion
+
+    /// Delete selected questions from the homework session
+    private func deleteSelectedQuestions() {
+        guard !selectedQuestionsForDeletion.isEmpty else {
+            print("⚠️ deleteSelectedQuestions called with empty selection")
+            return
+        }
+
+        print("🗑️ Deleting \(selectedQuestionsForDeletion.count) questions from homework session")
+
+        // Remove questions from ViewModel
+        viewModel.deleteQuestions(questionIds: Array(selectedQuestionsForDeletion))
+
+        // Clear selection and exit deletion mode
+        selectedQuestionsForDeletion.removeAll()
+        isDeletionMode = false
+
+        // Haptic feedback
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+
+        print("✅ Successfully deleted \(selectedQuestionsForDeletion.count) questions")
+        selectedQuestionsForDeletion.removeAll()
+    }
+
     // MARK: - Mistake Detection & Analysis
 
     /// Archive and analyze detected mistakes
@@ -1420,10 +1638,22 @@ struct DigitalHomeworkView: View {
             let archivedQuestions = try await QuestionArchiveService.shared.archiveQuestions(archiveRequest)
             AppLogger.archiving.info("✅ Archived \(archivedQuestions.count) questions successfully")
 
+            // ✅ DEBUG: Show archived question IDs and subjects
+            #if DEBUG
+            print("\n🔍 [DEBUG] ARCHIVED QUESTIONS:")
+            for (index, archived) in archivedQuestions.enumerated() {
+                print("   [\(index + 1)] ID: \(archived.id.prefix(8))... | Subject: \(archived.subject)")
+            }
+            print("")
+            #endif
+
             // Convert to dictionary format for error analysis
+            // ✅ FIX: Map archived IDs and subject into wrongQuestions dictionary
             AppLogger.errorAnalysis.errorAnalysis("Converting to error analysis format...")
-            let wrongQuestions: [[String: Any]] = parsedQuestions.map { question in
+            let wrongQuestions: [[String: Any]] = zip(archivedQuestions, parsedQuestions).map { (archived, question) in
                 var dict: [String: Any] = [
+                    "id": archived.id,  // ✅ CRITICAL: Add question ID from archived question
+                    "subject": archived.subject,  // ✅ CRITICAL: Add subject for error analysis
                     "questionText": question.questionText,
                     "studentAnswer": question.studentAnswer ?? "",
                     "correctAnswer": question.correctAnswer ?? "",
@@ -1441,6 +1671,22 @@ struct DigitalHomeworkView: View {
                 return dict
             }
 
+            // ✅ DEBUG: Verify wrongQuestions have IDs and subject
+            #if DEBUG
+            print("\n🔍 [DEBUG] ERROR ANALYSIS PAYLOAD:")
+            print("   Total questions: \(wrongQuestions.count)")
+            for (index, question) in wrongQuestions.prefix(3).enumerated() {
+                let id = question["id"] as? String ?? "NIL"
+                let subject = question["subject"] as? String ?? "NIL"
+                let questionText = (question["questionText"] as? String ?? "").prefix(30)
+                print("   [\(index + 1)] ID: \(id.prefix(8))... | Subject: \(subject) | Q: '\(questionText)...'")
+            }
+            if wrongQuestions.count > 3 {
+                print("   ... and \(wrongQuestions.count - 3) more")
+            }
+            print("")
+            #endif
+
             // Generate session ID for this mistake batch
             let sessionId = UUID().uuidString
             AppLogger.errorAnalysis.errorAnalysis("Generated session ID: \(sessionId)")
@@ -1448,6 +1694,14 @@ struct DigitalHomeworkView: View {
             // Queue error analysis for these mistakes
             await MainActor.run {
                 AppLogger.errorAnalysis.errorAnalysis("Queueing error analysis...")
+
+                // ✅ DEBUG: Log before queueing
+                #if DEBUG
+                print("🔍 [DEBUG] Calling ErrorAnalysisQueueService.queueErrorAnalysisAfterGrading")
+                print("   Session ID: \(sessionId)")
+                print("   Questions count: \(wrongQuestions.count)")
+                #endif
+
                 ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
                     sessionId: sessionId,
                     wrongQuestions: wrongQuestions
@@ -1474,37 +1728,6 @@ struct DigitalHomeworkView: View {
         }
     }
 
-    // MARK: - Regrade Functionality
-
-    /// Regrade homework with Gemini's deep mode
-    private func performRegrade() async {
-        let logger = AppLogger.homework
-        logger.homeworkRegrade("=== Starting Regrade ===")
-        await MainActor.run { isRegrading = true }
-
-        guard let imageData = originalImage.jpegData(compressionQuality: 0.8) else {
-            logger.error("Failed to convert image")
-            await MainActor.run { isRegrading = false }
-            return
-        }
-
-        let result = await NetworkService.shared.processHomeworkImagesBatch(
-            base64Images: [imageData.base64EncodedString()],
-            prompt: "Comprehensive re-evaluation with enhanced grading criteria.",
-            subject: parseResults.subject,
-            parsingMode: "detail",
-            modelProvider: "gemini"
-        )
-
-        await MainActor.run {
-            isRegrading = false
-            let generator = UINotificationFeedbackGenerator()
-            generator.notificationOccurred(result.success ? .success : .error)
-        }
-
-        logger.homeworkRegrade(result.success ? "✅ Regrade complete" : "❌ Regrade failed")
-    }
-
 }
 
 // MARK: - Question Card Component
@@ -1514,6 +1737,8 @@ struct QuestionCard: View {
     let croppedImage: UIImage?
     let isArchiveMode: Bool
     let isSelected: Bool
+    let isDeletionMode: Bool  // ✅ NEW: Deletion mode flag
+    let isSelectedForDeletion: Bool  // ✅ NEW: Selection state in deletion mode
     let modelType: String  // ✅ NEW: Track AI model for loading indicator
     let onAskAI: (ProgressiveSubquestion?) -> Void  // ✅ UPDATED: Accept optional subquestion
     let onArchive: () -> Void
@@ -1521,6 +1746,8 @@ struct QuestionCard: View {
     let onRegrade: () -> Void  // ✅ NEW: Regrade this question
     let onRegradeSubquestion: ((String) -> Void)?  // ✅ NEW: Regrade specific subquestion
     let onToggleSelection: () -> Void
+    let onToggleDeletionSelection: () -> Void  // ✅ NEW: Toggle deletion selection
+    let onLongPress: () -> Void  // ✅ NEW: Long press gesture callback
     let onRemoveImage: () -> Void  // NEW: callback to remove image
 
     var body: some View {
@@ -1531,6 +1758,17 @@ struct QuestionCard: View {
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                         .font(.title2)
                         .foregroundColor(isSelected ? .blue : .gray)
+                        .frame(width: 44, height: 44)
+                }
+                .transition(.scale.combined(with: .opacity))
+            }
+
+            // ✅ NEW: Checkbox for deletion mode
+            if isDeletionMode {
+                Button(action: onToggleDeletionSelection) {
+                    Image(systemName: isSelectedForDeletion ? "checkmark.circle.fill" : "circle")
+                        .font(.title2)
+                        .foregroundColor(isSelectedForDeletion ? .red : .gray)
                         .frame(width: 44, height: 44)
                 }
                 .transition(.scale.combined(with: .opacity))
@@ -1564,12 +1802,16 @@ struct QuestionCard: View {
                     Spacer()
 
                     // Grade badge (if graded) or loading indicator (if grading)
-                    if let grade = questionWithGrade.grade {
-                        HomeworkGradeBadge(grade: grade)
-                    } else if questionWithGrade.isGrading {
+                    // ✅ NEW: Hide grade during regrading with fade animation
+                    if questionWithGrade.isGrading {
                         GradingLoadingIndicator(modelType: modelType)
+                            .transition(.scale.combined(with: .opacity))
+                    } else if let grade = questionWithGrade.grade {
+                        HomeworkGradeBadge(grade: grade)
+                            .transition(.scale.combined(with: .opacity))
                     }
                 }
+                .animation(.easeInOut(duration: 0.3), value: questionWithGrade.isGrading)  // ✅ Animate grade badge changes
 
                 // Cropped image (if available)
                 if let image = croppedImage {
@@ -1673,7 +1915,7 @@ struct QuestionCard: View {
                                 .font(.caption)
                         }
                         .buttonStyle(.bordered)
-                        .disabled(questionWithGrade.isArchived)  // ✅ NEW: Disable for archived questions
+                        .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)  // ✅ Disable during grading
 
                         Button(action: onRegrade) {
                             Label("Regrade", systemImage: "arrow.triangle.2.circlepath")
@@ -1681,35 +1923,47 @@ struct QuestionCard: View {
                         }
                         .buttonStyle(.bordered)
                         .tint(.purple)
-                        .disabled(questionWithGrade.isArchived)
+                        .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)  // ✅ Disable during grading to prevent multi-press
 
                         Button(action: onArchive) {
                             Label(questionWithGrade.isArchived ? NSLocalizedString("proMode.archived", comment: "Archived") : NSLocalizedString("proMode.archive", comment: "Archive"), systemImage: questionWithGrade.isArchived ? "checkmark.circle" : "archivebox")
                                 .font(.caption)
                         }
                         .buttonStyle(.bordered)
-                        .disabled(questionWithGrade.isArchived)  // ✅ NEW: Disable for archived questions
+                        .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)  // ✅ Disable during grading
                     }
                 }
             }
             .padding()
             .frame(maxWidth: .infinity)
-            .opacity(questionWithGrade.isArchived ? 0.7 : 1.0)  // ✅ NEW: Slightly transparent for archived questions
+            // ✅ NEW: Dim card during regrading, slight transparency for archived
+            .opacity(questionWithGrade.isGrading ? 0.5 : (questionWithGrade.isArchived ? 0.7 : 1.0))
+            .animation(.easeInOut(duration: 0.3), value: questionWithGrade.isGrading)  // ✅ Smooth dimming animation
         }
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(questionWithGrade.isArchived ? Color(.secondarySystemBackground) : Color(.systemBackground))  // ✅ NEW: Different background for archived
+                // ✅ NEW: Lowlight background during regrading
+                .fill(questionWithGrade.isGrading ? Color(.tertiarySystemBackground) : (questionWithGrade.isArchived ? Color(.secondarySystemBackground) : Color(.systemBackground)))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(isSelected ? Color.blue : (questionWithGrade.isArchived ? Color.green.opacity(0.3) : Color.clear), lineWidth: 2)  // ✅ NEW: Green border for archived
+                        .stroke(
+                            isSelectedForDeletion ? Color.red : (isSelected ? Color.blue : (questionWithGrade.isArchived ? Color.green.opacity(0.3) : Color.clear)),  // ✅ NEW: Red border for deletion selection
+                            lineWidth: 2
+                        )
                 )
         )
-        .shadow(color: .black.opacity(isSelected ? 0.1 : 0.05), radius: 4, x: 0, y: 2)
+        .animation(.easeInOut(duration: 0.3), value: questionWithGrade.isGrading)  // ✅ Smooth background animation
+        .shadow(color: .black.opacity(isSelected || isSelectedForDeletion ? 0.1 : 0.05), radius: 4, x: 0, y: 2)
         .contentShape(Rectangle())
         .onTapGesture {
             if isArchiveMode {
                 onToggleSelection()
+            } else if isDeletionMode {
+                onToggleDeletionSelection()
             }
+        }
+        .onLongPressGesture {  // ✅ NEW: Long press to enter deletion mode
+            onLongPress()
         }
     }
 
@@ -2075,17 +2329,20 @@ struct SubquestionRow: View {
 
                 Spacer()
 
-                // ✅ UPDATED: Show loading indicator or score
+                // ✅ UPDATED: Show loading indicator or score, hide score during regrading
                 if isGrading {
                     GradingLoadingIndicator(modelType: modelType)
                         .scaleEffect(0.6)
+                        .transition(.scale.combined(with: .opacity))
                 } else if let grade = grade {
                     Text(String(format: "%.0f%%", grade.score * 100))
                         .font(.caption2)
                         .fontWeight(.semibold)
                         .foregroundColor(grade.isCorrect ? .green : .orange)
+                        .transition(.scale.combined(with: .opacity))
                 }
             }
+            .animation(.easeInOut(duration: 0.3), value: isGrading)  // ✅ Animate score badge changes
 
             // Correct Answer (if graded and available) - shown BEFORE feedback
             if let grade = grade, let correctAnswer = grade.correctAnswer, !correctAnswer.isEmpty {
@@ -2142,7 +2399,7 @@ struct SubquestionRow: View {
                                         .font(.caption)
                                 }
                                 .buttonStyle(.bordered)
-                                .disabled(isArchived)  // ✅ NEW: Disable for archived subquestions
+                                .disabled(isArchived || isGrading)  // ✅ Disable during grading
 
                                 // ✅ NEW: Regrade button
                                 Button(action: onRegrade) {
@@ -2151,7 +2408,7 @@ struct SubquestionRow: View {
                                 }
                                 .buttonStyle(.bordered)
                                 .tint(.purple)
-                                .disabled(isArchived)  // ✅ NEW: Disable for archived subquestions
+                                .disabled(isArchived || isGrading)  // ✅ Disable during grading to prevent multi-press
 
                                 // ✅ NEW: Archive button with action sheet
                                 Button(action: {
@@ -2161,7 +2418,7 @@ struct SubquestionRow: View {
                                         .font(.caption)
                                 }
                                 .buttonStyle(.bordered)
-                                .disabled(isArchived)  // ✅ NEW: Disable for archived subquestions
+                                .disabled(isArchived || isGrading)  // ✅ Disable during grading
                             }
                         }
                     }
@@ -2171,16 +2428,19 @@ struct SubquestionRow: View {
         }
         .padding(.leading, 16)
         .padding(8)  // ✅ NEW: Add padding for background
+        // ✅ NEW: Dim subquestion during regrading
+        .opacity(isGrading ? 0.5 : (isArchived ? 0.8 : 1.0))
+        .animation(.easeInOut(duration: 0.3), value: isGrading)
         .background(
-            // ✅ NEW: Different background for archived subquestions
+            // ✅ NEW: Lowlight background during regrading, different background for archived
             RoundedRectangle(cornerRadius: 8)
-                .fill(isArchived ? Color.green.opacity(0.05) : Color.clear)
+                .fill(isGrading ? Color(.quaternarySystemFill) : (isArchived ? Color.green.opacity(0.05) : Color.clear))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(isArchived ? Color.green.opacity(0.4) : Color.clear, lineWidth: 2)
                 )
         )
-        .opacity(isArchived ? 0.8 : 1.0)  // ✅ NEW: Slightly transparent for archived
+        .animation(.easeInOut(duration: 0.3), value: isGrading)
         .confirmationDialog(
             "Archive Options",
             isPresented: $showArchiveOptions,
@@ -2557,6 +2817,7 @@ struct GradingLoadingIndicator: View {
                     ProgressiveQuestion(
                         id: 1,
                         questionNumber: "1",
+                        pageNumber: nil,  // No page number for single-page preview
                         isParent: false,
                         hasSubquestions: false,
                         parentContent: nil,
@@ -2573,7 +2834,7 @@ struct GradingLoadingIndicator: View {
                 processedImageDimensions: nil,
                 handwritingEvaluation: nil
             ),
-            originalImage: UIImage(systemName: "photo")!
+            originalImages: [UIImage(systemName: "photo")!, UIImage(systemName: "photo.fill")!]  // ✅ Changed to array with 2 images to test card stack
         )
     }
 }

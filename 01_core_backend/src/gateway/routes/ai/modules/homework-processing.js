@@ -187,6 +187,53 @@ class HomeworkProcessingRoutes {
       }
     }, this.parseHomeworkQuestions.bind(this));
 
+    // Progressive grading - Phase 1 BATCH: Parse multiple homework pages (2+ images)
+    this.fastify.post('/api/ai/parse-homework-questions-batch', {
+      schema: {
+        description: 'Parse multiple homework images (Progressive Phase 1 - Batch) - Use when 2+ pages',
+        tags: ['AI', 'Homework', 'Progressive', 'Batch'],
+        body: {
+          type: 'object',
+          required: ['base64_images'],
+          properties: {
+            base64_images: {
+              type: 'array',
+              items: { type: 'string' },
+              minItems: 2,  // Minimum 2 images for batch (use single endpoint for 1 image)
+              maxItems: 4   // Maximum 4 pages per batch
+            },
+            parsing_mode: { type: 'string', enum: ['standard', 'detailed'], default: 'standard' },
+            model_provider: { type: 'string', enum: ['openai', 'gemini'], default: 'openai' },
+            subject: { type: 'string' }
+          }
+        }
+      },
+      config: {
+        rateLimit: {
+          max: 10,  // Lower limit for batch requests (more expensive)
+          timeWindow: '1 hour',
+          keyGenerator: async (request) => {
+            const userId = await this.authHelper.getUserIdFromToken(request);
+            return userId || request.ip;
+          },
+          addHeaders: {
+            'x-ratelimit-limit': true,
+            'x-ratelimit-remaining': true,
+            'x-ratelimit-reset': true,
+            'retry-after': true
+          },
+          errorResponseBuilder: (request, context) => {
+            return {
+              error: 'Rate limit exceeded',
+              code: 'RATE_LIMIT_EXCEEDED',
+              message: `You can only batch parse ${context.max} homework sets per hour. Please try again later.`,
+              retryAfter: context.after
+            };
+          }
+        }
+      }
+    }, this.parseHomeworkQuestionsBatch.bind(this));
+
     // Progressive grading - Phase 2: Grade single question
     this.fastify.post('/api/ai/grade-question', {
       schema: {
@@ -513,6 +560,140 @@ class HomeworkProcessingRoutes {
       const duration = Date.now() - startTime;
       this.fastify.log.error(`❌ Question parsing failed: ${error.message}`);
       return this.handleProxyError(reply, error);
+    }
+  }
+
+  /**
+   * Parse multiple homework images (Phase 1 - Batch)
+   * Used when user submits 2+ pages for Pro Mode
+   */
+  async parseHomeworkQuestionsBatch(request, reply) {
+    const startTime = Date.now();
+    const { base64_images, parsing_mode = 'standard', model_provider = 'openai', subject } = request.body;
+
+    try {
+      this.fastify.log.info(`📚 Batch parsing: ${base64_images.length} pages`);
+
+      // Parse all images in parallel for speed
+      const parsePromises = base64_images.map((base64_image, index) => {
+        const pageStartTime = Date.now();
+        return this.aiClient.proxyRequest(
+          'POST',
+          '/api/v1/parse-homework-questions',
+          {
+            base64_image,
+            parsing_mode,
+            model_provider,
+            subject,
+            skip_bbox_detection: true  // Pro Mode doesn't need bounding boxes
+          },
+          { 'Content-Type': 'application/json' }
+        ).then(result => {
+          const pageDuration = Date.now() - pageStartTime;
+          this.fastify.log.info(`✅ Page ${index + 1}/${base64_images.length} parsed in ${pageDuration}ms`);
+          return {
+            index,
+            ...result.data,
+            _pageProcessTime: pageDuration
+          };
+        }).catch(error => {
+          this.fastify.log.error(`❌ Page ${index + 1} parsing failed: ${error.message}`);
+          return {
+            index,
+            success: false,
+            error: error.message
+          };
+        });
+      });
+
+      const results = await Promise.all(parsePromises);
+
+      // Check if all pages failed
+      const successfulPages = results.filter(r => r.success !== false);
+      if (successfulPages.length === 0) {
+        throw new Error('All pages failed to parse');
+      }
+
+      // Combine all parsed questions from all pages
+      const allQuestions = [];
+      let combinedSubject = subject;
+      let combinedSubjectConfidence = 0;
+      let questionIdOffset = 0;
+      let totalProcessTime = 0;
+      let handwritingEvaluation = null;  // Take from first page
+
+      for (const result of results.sort((a, b) => a.index - b.index)) {
+        if (result.success === false) {
+          this.fastify.log.warn(`⚠️ Skipping failed page ${result.index + 1}`);
+          continue;
+        }
+
+        if (result.questions && Array.isArray(result.questions)) {
+          // Add page number to each question and renumber globally
+          const pageQuestions = result.questions.map((q, qIndex) => ({
+            ...q,
+            id: questionIdOffset + qIndex + 1,  // Global question numbering
+            pageNumber: result.index + 1,  // Track which page this question is from
+            questionNumber: q.questionNumber || `${questionIdOffset + qIndex + 1}`  // Fallback numbering
+          }));
+
+          allQuestions.push(...pageQuestions);
+          questionIdOffset += result.questions.length;
+        }
+
+        // Use subject from first successful page if not provided
+        if (result.index === 0 && result.subject) {
+          combinedSubject = result.subject;
+          combinedSubjectConfidence = result.subject_confidence || result.subjectConfidence || 0;
+        }
+
+        // Take handwriting evaluation from first page
+        if (result.index === 0 && result.handwriting_evaluation) {
+          handwritingEvaluation = result.handwriting_evaluation;
+          this.fastify.log.info(`🔍 [BATCH HANDWRITING DEBUG] Captured from page 1: ${JSON.stringify(handwritingEvaluation)}`);
+        }
+
+        // Accumulate processing time
+        totalProcessTime += result._pageProcessTime || 0;
+      }
+
+      const duration = Date.now() - startTime;
+      this.fastify.log.info(`✅ Batch parsing completed: ${allQuestions.length} questions from ${successfulPages.length}/${base64_images.length} pages in ${duration}ms`);
+
+      return reply.send({
+        success: true,
+        subject: combinedSubject,
+        subject_confidence: combinedSubjectConfidence,
+        subjectConfidence: combinedSubjectConfidence,  // Backward compatibility
+        total_questions: allQuestions.length,
+        totalQuestions: allQuestions.length,  // Backward compatibility
+        total_pages: base64_images.length,
+        successful_pages: successfulPages.length,
+        questions: allQuestions,
+        handwriting_evaluation: handwritingEvaluation,  // From first page
+        processing_time_ms: totalProcessTime,
+        _gateway: {
+          processTime: duration,
+          service: 'ai-engine',
+          mode: 'batch_progressive_phase1',
+          pagesProcessed: successfulPages.length,
+          pagesTotal: base64_images.length
+        }
+      });
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.fastify.log.error(`❌ Batch question parsing failed: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: 'Batch parsing failed',
+        message: error.message,
+        _gateway: {
+          processTime: duration,
+          service: 'ai-engine',
+          mode: 'batch_progressive_phase1'
+        }
+      });
     }
   }
 

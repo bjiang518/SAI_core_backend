@@ -1012,12 +1012,25 @@ class QuestionGenerationService: ObservableObject {
 
         let tags = dict["tags"] as? [String]
 
+        // ✅ NEW: Extract error taxonomy fields for short-term status tracking
+        let errorType = dict["error_type"] as? String
+        let baseBranch = dict["base_branch"] as? String
+        let detailedBranch = dict["detailed_branch"] as? String
+        let weaknessKey = dict["weakness_key"] as? String
+
         // Debug logging
         print("  📝 Parsed Question:")
         print("     - Type: \(typeString) → \(type.rawValue)")
         print("     - Has options: \(options != nil)")
         if let opts = options {
             print("     - Options count: \(opts.count)")
+        }
+        // ✅ NEW: Log error keys if present
+        if let errorType = errorType {
+            print("     - Error Type: \(errorType)")
+            print("     - Base Branch: \(baseBranch ?? "nil")")
+            print("     - Detailed Branch: \(detailedBranch ?? "nil")")
+            print("     - Weakness Key: \(weaknessKey ?? "nil")")
         }
 
         return GeneratedQuestion(
@@ -1030,7 +1043,12 @@ class QuestionGenerationService: ObservableObject {
             points: points,
             timeEstimate: timeEstimate,
             options: options,
-            tags: tags
+            tags: tags,
+            // ✅ NEW: Pass error taxonomy fields for status tracking
+            errorType: errorType,
+            baseBranch: baseBranch,
+            detailedBranch: detailedBranch,
+            weaknessKey: weaknessKey
         )
     }
 
