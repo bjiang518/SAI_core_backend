@@ -118,6 +118,10 @@ class SessionChatViewModel: ObservableObject {
     private let messageManager = ChatMessageManager.shared
     private let appState = AppState.shared
 
+    // Phase 3: Interactive Mode (Real-time synchronized TTS)
+    private let interactiveTTSService = InteractiveTTSService()
+    private var interactiveModeSettings = InteractiveModeSettings.load()
+
     // MARK: - Private State
 
     private var streamingUpdateTimer: Timer?
@@ -180,6 +184,25 @@ class SessionChatViewModel: ObservableObject {
             print("🟢 ⚠️ Message is empty, returning early")
             return
         }
+
+        // ✅ Phase 3: Check if interactive mode should be used
+        let hasImage = (appState.pendingHomeworkContext?.questionImage != nil) || (selectedImage != nil)
+        let shouldUseInteractive = interactiveModeSettings.shouldUseInteractiveMode(
+            for: messageText,
+            hasImage: hasImage,
+            deepMode: deepMode
+        )
+
+        if shouldUseInteractive {
+            print("🎙️ Interactive mode enabled - using real-time TTS")
+            Task {
+                await sendMessageInteractive()
+            }
+            return
+        }
+
+        print("📝 Using standard streaming mode")
+        // Continue with existing logic below
 
         // Stop any currently playing audio when sending a new message
         ttsQueueService.stopAllTTS()
@@ -751,6 +774,140 @@ class SessionChatViewModel: ObservableObject {
                 errorMessage = "Failed to regenerate diagram: \(response.error ?? "Please try again.")"
             }
         }
+    }
+
+    // MARK: - Phase 3: Interactive Mode (Real-time Synchronized TTS)
+
+    /// Send message using interactive mode with real-time synchronized TTS
+    private func sendMessageInteractive() async {
+        print("🎙️ ============================================")
+        print("🎙️ === SEND MESSAGE INTERACTIVE ===")
+        print("🎙️ ============================================")
+
+        let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        messageText = ""
+        isSubmitting = true
+        errorMessage = ""
+
+        // Clear follow-up suggestions
+        print("🔴 CLEARING aiGeneratedSuggestions at sendMessageInteractive start")
+        aiGeneratedSuggestions = []
+        isStreamingComplete = false
+
+        // Stop any currently playing audio
+        ttsQueueService.stopAllTTS()
+        interactiveTTSService.stop()
+
+        // Get voice ID from current voice settings
+        let voiceSettings = voiceService.currentVoiceSettings
+        let voiceId = voiceSettings.voiceType.elevenLabsVoiceId ?? "zZLmKvCp1i04X8E0FJ8B"
+        print("🎙️ Using voice ID: \(voiceId)")
+
+        // Ensure we have a valid session
+        guard let validSessionId = await networkService.ensureValidSession() else {
+            print("❌ Failed to validate or create session")
+            errorMessage = NSLocalizedString("error.session.creation", comment: "")
+            isSubmitting = false
+            messageText = message  // Restore message so user can retry
+            return
+        }
+
+        print("🎙️ Session ID: \(validSessionId)")
+
+        // Check if homework context has image and persist it
+        let homeworkContext = appState.pendingHomeworkContext
+        if let questionImage = homeworkContext?.questionImage {
+            let messageId = UUID().uuidString
+            if let imageData = questionImage.jpegData(compressionQuality: 0.8) {
+                imageMessages[messageId] = imageData
+                print("🖼️ Stored homework question image with messageId: \(messageId)")
+            }
+
+            // Add message with image marker
+            networkService.conversationHistory.append([
+                "role": "user",
+                "content": message,
+                "hasImage": "true",
+                "messageId": messageId
+            ])
+        } else {
+            // Add user message to history
+            persistMessage(role: "user", content: message)
+        }
+
+        // Show typing indicator
+        showTypingIndicator = true
+
+        // Start interactive streaming
+        await networkService.sendSessionMessageInteractive(
+            sessionId: validSessionId,
+            message: message,
+            voiceId: voiceId,
+            onTextDelta: { [weak self] content in
+                Task { @MainActor in
+                    guard let self = self else { return }
+
+                    // Hide typing indicator as soon as first chunk arrives
+                    if self.showTypingIndicator {
+                        withAnimation {
+                            self.showTypingIndicator = false
+                        }
+                    }
+
+                    // Update streaming message state
+                    self.isActivelyStreaming = true
+                    self.activeStreamingMessage = content
+                }
+            },
+            onAudioChunk: { [weak self] audioBase64 in
+                Task { @MainActor in
+                    guard let self = self else { return }
+                    // Process audio chunk for real-time playback
+                    self.interactiveTTSService.processAudioChunk(audioBase64)
+                }
+            },
+            onComplete: { [weak self] success, fullText in
+                Task { @MainActor in
+                    guard let self = self else { return }
+
+                    print("🎙️ Interactive streaming complete. Success: \(success)")
+
+                    if success, let text = fullText {
+                        // Move streaming message to conversation history
+                        self.networkService.conversationHistory.append([
+                            "role": "assistant",
+                            "content": text
+                        ])
+
+                        // Persist complete message
+                        self.persistMessage(role: "assistant", content: text, addToHistory: false)
+
+                        print("✅ Added assistant message to history (\(text.count) chars)")
+                    } else {
+                        print("❌ Interactive streaming failed")
+                        self.errorMessage = NSLocalizedString("error.message.send", comment: "")
+                    }
+
+                    // Clear streaming state
+                    self.isActivelyStreaming = false
+                    self.activeStreamingMessage = ""
+
+                    withAnimation {
+                        self.isSubmitting = false
+                        self.showTypingIndicator = false
+                        self.isStreamingComplete = true
+                    }
+
+                    // Clear homework context if present
+                    if homeworkContext != nil {
+                        self.appState.clearPendingChatMessage()
+                    }
+
+                    // Refresh session info
+                    self.loadSessionInfo()
+                }
+            }
+        )
     }
 
     // MARK: - Phase 2.2: Message Retry Functionality

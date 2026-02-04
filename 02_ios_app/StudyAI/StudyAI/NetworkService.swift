@@ -1558,6 +1558,206 @@ class NetworkService: ObservableObject {
         }
     }
 
+    // MARK: - Interactive Streaming (Phase 3: Real-time synchronized TTS)
+
+    /// Send message with interactive streaming (text + audio synchronized)
+    /// Uses ElevenLabs WebSocket for real-time TTS generation
+    ///
+    /// - Parameters:
+    ///   - sessionId: The session ID
+    ///   - message: The user message
+    ///   - voiceId: ElevenLabs voice ID (e.g., 'zZLmKvCp1i04X8E0FJ8B' for Max)
+    ///   - systemPrompt: Optional system prompt override
+    ///   - onTextDelta: Callback for each text chunk (accumulated text)
+    ///   - onAudioChunk: Callback for each audio chunk (base64 MP3)
+    ///   - onComplete: Callback when complete (success, full text)
+    @MainActor
+    func sendSessionMessageInteractive(
+        sessionId: String,
+        message: String,
+        voiceId: String,
+        systemPrompt: String? = nil,
+        onTextDelta: @escaping (String) -> Void,
+        onAudioChunk: @escaping (String) -> Void,
+        onComplete: @escaping (Bool, String?) -> Void
+    ) async {
+        guard let url = URL(string: "\(baseURL)/api/ai/sessions/\(sessionId)/interactive-stream") else {
+            AppLogger.error("❌ Invalid interactive streaming URL")
+            onComplete(false, nil)
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 180 // 3 minutes
+
+        // Add auth token
+        if let token = await authService.getValidToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        // Build request payload
+        let payload: [String: Any] = [
+            "message": message,
+            "voiceId": voiceId,
+            "systemPrompt": systemPrompt ?? "You are a helpful AI tutor.",
+            "deepMode": false // Interactive mode not compatible with deep mode
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            AppLogger.error("❌ Failed to encode interactive request: \(error)")
+            onComplete(false, nil)
+            return
+        }
+
+        AppLogger.info("🎙️ Starting interactive streaming session...")
+
+        do {
+            let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                AppLogger.error("❌ Invalid response type")
+                onComplete(false, nil)
+                return
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                AppLogger.error("❌ Interactive streaming failed: \(httpResponse.statusCode)")
+                onComplete(false, nil)
+                return
+            }
+
+            AppLogger.info("✅ Interactive streaming connected")
+
+            var buffer = ""
+            var fullText = ""
+            var streamComplete = false
+
+            // Parse SSE events
+            for try await byte in asyncBytes {
+                let char = String(bytes: [byte], encoding: .utf8) ?? ""
+                buffer += char
+
+                if buffer.hasSuffix("\n\n") {
+                    let lines = buffer.components(separatedBy: "\n")
+
+                    for line in lines {
+                        if line.hasPrefix("data: ") {
+                            let jsonStr = String(line.dropFirst(6))
+                            guard let jsonData = jsonStr.data(using: .utf8) else { continue }
+
+                            do {
+                                let event = try JSONDecoder().decode(InteractiveStreamEvent.self, from: jsonData)
+
+                                switch event.type {
+                                case "connected":
+                                    AppLogger.debug("🔗 Interactive mode connected")
+
+                                case "text_delta":
+                                    if let content = event.content {
+                                        fullText = content
+                                        onTextDelta(content)
+                                    }
+
+                                case "audio_chunk":
+                                    if let audio = event.audio {
+                                        onAudioChunk(audio)
+                                    }
+
+                                case "complete":
+                                    AppLogger.info("✅ Interactive streaming complete")
+                                    streamComplete = true
+                                    onComplete(true, fullText)
+
+                                case "error":
+                                    AppLogger.error("❌ Interactive stream error: \(event.error ?? "Unknown")")
+                                    onComplete(false, fullText.isEmpty ? nil : fullText)
+                                    return
+
+                                default:
+                                    break
+                                }
+                            } catch {
+                                AppLogger.error("❌ Failed to decode interactive event: \(error)")
+                            }
+                        }
+                    }
+
+                    buffer = ""
+                }
+            }
+
+            if !streamComplete {
+                AppLogger.warning("⚠️ Interactive stream ended without completion")
+                onComplete(false, fullText.isEmpty ? nil : fullText)
+            }
+
+        } catch {
+            AppLogger.error("❌ Interactive streaming error: \(error)")
+            onComplete(false, nil)
+        }
+    }
+
+    /// Interactive stream event structure
+    private struct InteractiveStreamEvent: Codable {
+        let type: String
+        let content: String?
+        let audio: String?
+        let error: String?
+        let sessionId: String?
+        let metrics: [String: AnyCodable]?
+
+        enum CodingKeys: String, CodingKey {
+            case type
+            case content
+            case audio
+            case error
+            case sessionId
+            case metrics
+        }
+    }
+
+    /// Helper for decoding arbitrary JSON values
+    private struct AnyCodable: Codable {
+        let value: Any
+
+        init(_ value: Any) {
+            self.value = value
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let intVal = try? container.decode(Int.self) {
+                value = intVal
+            } else if let doubleVal = try? container.decode(Double.self) {
+                value = doubleVal
+            } else if let stringVal = try? container.decode(String.self) {
+                value = stringVal
+            } else if let boolVal = try? container.decode(Bool.self) {
+                value = boolVal
+            } else {
+                value = NSNull()
+            }
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            if let intVal = value as? Int {
+                try container.encode(intVal)
+            } else if let doubleVal = value as? Double {
+                try container.encode(doubleVal)
+            } else if let stringVal = value as? String {
+                try container.encode(stringVal)
+            } else if let boolVal = value as? Bool {
+                try container.encode(boolVal)
+            }
+        }
+    }
+
     // MARK: - AI Response Models
 
     /// Structured AI response with follow-up suggestions
