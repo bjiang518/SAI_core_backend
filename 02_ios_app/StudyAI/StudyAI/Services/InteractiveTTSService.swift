@@ -147,7 +147,23 @@ class InteractiveTTSService: NSObject, ObservableObject {
             try audioFile.read(into: pcmBuffer)
             pcmBuffer.frameLength = frameCount
 
-            logger.debug("✅ Decoded MP3 → PCM: \(frameCount) frames, \(audioFile.processingFormat.sampleRate)Hz")
+            logger.debug("✅ Decoded MP3 → PCM: \(frameCount) frames, \(audioFile.processingFormat.sampleRate)Hz, \(audioFile.processingFormat.channelCount) channels")
+
+            // Convert to engine format if needed (mono → stereo)
+            let finalBuffer: AVAudioPCMBuffer
+            if audioFile.processingFormat.channelCount != audioFormat.channelCount {
+                logger.debug("🔄 Converting \(audioFile.processingFormat.channelCount) channel(s) → \(audioFormat.channelCount) channel(s)")
+
+                guard let convertedBuffer = convertBuffer(pcmBuffer, from: audioFile.processingFormat, to: audioFormat) else {
+                    logger.error("❌ Failed to convert audio format")
+                    try? FileManager.default.removeItem(at: tempURL)
+                    tempFiles.remove(tempURL)
+                    return nil
+                }
+                finalBuffer = convertedBuffer
+            } else {
+                finalBuffer = pcmBuffer
+            }
 
             // Schedule cleanup of temp file after a delay
             Task {
@@ -158,7 +174,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
                 }
             }
 
-            return pcmBuffer
+            return finalBuffer
 
         } catch {
             logger.error("❌ MP3 decode error: \(error)")
@@ -166,6 +182,41 @@ class InteractiveTTSService: NSObject, ObservableObject {
             tempFiles.remove(tempURL)
             return nil
         }
+    }
+
+    /// Convert audio buffer from one format to another (e.g., mono → stereo)
+    /// - Parameters:
+    ///   - buffer: Source PCM buffer
+    ///   - sourceFormat: Source audio format
+    ///   - targetFormat: Target audio format
+    /// - Returns: Converted buffer, or nil if conversion fails
+    private func convertBuffer(_ buffer: AVAudioPCMBuffer, from sourceFormat: AVAudioFormat, to targetFormat: AVAudioFormat) -> AVAudioPCMBuffer? {
+        guard let converter = AVAudioConverter(from: sourceFormat, to: targetFormat) else {
+            logger.error("❌ Failed to create audio converter")
+            return nil
+        }
+
+        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * targetFormat.sampleRate / sourceFormat.sampleRate)
+        guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else {
+            logger.error("❌ Failed to create converted buffer")
+            return nil
+        }
+
+        var error: NSError?
+        let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
+            outStatus.pointee = .haveData
+            return buffer
+        }
+
+        converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputBlock)
+
+        if let error = error {
+            logger.error("❌ Audio conversion error: \(error)")
+            return nil
+        }
+
+        convertedBuffer.frameLength = convertedBuffer.frameCapacity
+        return convertedBuffer
     }
 
     /// Schedule next buffer for playback
