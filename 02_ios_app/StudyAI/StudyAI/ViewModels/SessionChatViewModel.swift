@@ -186,12 +186,23 @@ class SessionChatViewModel: ObservableObject {
         }
 
         // ✅ Phase 3: Check if interactive mode should be used
+        // Reload settings to get latest user preferences
+        interactiveModeSettings = InteractiveModeSettings.load()
+
+        print("🎙️ Interactive Mode Settings:")
+        print("  - Enabled: \(interactiveModeSettings.isEnabled)")
+        print("  - Auto-enable for short queries: \(interactiveModeSettings.autoEnableForShortQueries)")
+        print("  - Short query threshold: \(interactiveModeSettings.shortQueryThreshold) chars")
+        print("  - Message length: \(messageText.count) chars")
+
         let hasImage = (appState.pendingHomeworkContext?.questionImage != nil) || (selectedImage != nil)
         let shouldUseInteractive = interactiveModeSettings.shouldUseInteractiveMode(
             for: messageText,
             hasImage: hasImage,
             deepMode: deepMode
         )
+
+        print("🎙️ Decision: shouldUseInteractive = \(shouldUseInteractive)")
 
         if shouldUseInteractive {
             print("🎙️ Interactive mode enabled - using real-time TTS")
