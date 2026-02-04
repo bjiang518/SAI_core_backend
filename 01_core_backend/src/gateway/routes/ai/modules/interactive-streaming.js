@@ -261,13 +261,21 @@ module.exports = async function (fastify, opts) {
         // Process complete SSE events (ending with \n\n)
         if (buffer.includes('\n\n')) {
           const lines = buffer.split('\n');
+          fastify.log.info(`🔍 [PARSE] Processing ${lines.length} lines from buffer`);
+
+          let dataLineCount = 0;
+          let parsedEventCount = 0;
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
+              dataLineCount++;
               const jsonStr = line.substring(6);
+              fastify.log.debug(`📋 [PARSE] Data line #${dataLineCount}: ${jsonStr.substring(0, 100)}${jsonStr.length > 100 ? '...' : ''}`);
 
               try {
                 const event = JSON.parse(jsonStr);
+                parsedEventCount++;
+                fastify.log.info(`📨 [PARSE] Event #${parsedEventCount} - type: ${event.type}, keys: ${Object.keys(event).join(', ')}`);
 
                 // ─────────────────────────────────────────────
                 // CONTENT EVENT: Text delta from OpenAI
@@ -374,12 +382,17 @@ module.exports = async function (fastify, opts) {
                 }
 
               } catch (parseError) {
-                // Skip invalid JSON
+                fastify.log.warn(`⚠️ [PARSE] JSON parse error on line #${dataLineCount}: ${parseError.message}`);
+                fastify.log.debug(`⚠️ [PARSE] Failed JSON: ${jsonStr.substring(0, 200)}`);
               }
             }
           }
 
+          fastify.log.info(`📊 [PARSE] Summary: ${lines.length} total lines, ${dataLineCount} data lines, ${parsedEventCount} parsed events`);
+
           buffer = '';
+        } else {
+          fastify.log.debug(`⏳ [PARSE] Buffer doesn't contain \\n\\n yet, waiting for more data (buffer size: ${buffer.length})`);
         }
       }
 
