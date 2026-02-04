@@ -892,58 +892,67 @@ struct DigitalHomeworkView: View {
 
     private var imageCardStack: some View {
         GeometryReader { geometry in
+            let cardWidth: CGFloat = geometry.size.width * 0.7  // Selected card width
+            let cardHeight: CGFloat = geometry.size.height * 0.85  // Card height
+            let spacing: CGFloat = 16
+
             ZStack {
                 Color.black.opacity(0.3)
 
-                // Display all images in a stack (no individual gestures on cards)
-                ForEach(Array(originalImages.enumerated()), id: \.offset) { index, image in
-                    let offset = CGFloat(index - selectedImageIndex)
-                    let isSelected = index == selectedImageIndex
+                ScrollViewReader { scrollProxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: spacing) {
+                            ForEach(Array(originalImages.enumerated()), id: \.offset) { index, image in
+                                let isSelected = index == selectedImageIndex
 
-                    AnnotatableImageView(
-                        image: image,
-                        annotations: viewModel.annotations,
-                        selectedAnnotationId: $viewModel.selectedAnnotationId,
-                        isInteractive: false
-                    )
-                    .scaleEffect(isSelected ? 1.0 : 0.92)  // Selected card is full size, others slightly smaller
-                    .offset(x: offset * 25, y: abs(offset) * 8)  // Stack effect with horizontal and vertical offset
-                    .opacity(isSelected ? 1.0 : 0.7)  // Dim non-selected cards
-                    .zIndex(Double(originalImages.count - abs(Int(offset))))  // Selected card on top
-                    .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selectedImageIndex)
-                    .allowsHitTesting(false)  // ✅ FIX: Disable hit testing on cards to let gesture overlay handle swipes
-                }
-
-                // ✅ FIX: Transparent gesture overlay on top of entire stack
-                Color.clear
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 30)
-                            .onEnded { value in
-                                let threshold: CGFloat = 50
-
-                                // Swipe left to go to next image
-                                if value.translation.width < -threshold && selectedImageIndex < originalImages.count - 1 {
+                                Button(action: {
                                     withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                        selectedImageIndex += 1
+                                        selectedImageIndex = index
                                     }
 
                                     // Haptic feedback
                                     let generator = UIImpactFeedbackGenerator(style: .light)
                                     generator.impactOccurred()
+                                }) {
+                                    AnnotatableImageView(
+                                        image: image,
+                                        annotations: viewModel.annotations,
+                                        selectedAnnotationId: $viewModel.selectedAnnotationId,
+                                        isInteractive: false
+                                    )
+                                    .frame(
+                                        width: isSelected ? cardWidth : cardWidth * 0.75,
+                                        height: isSelected ? cardHeight : cardHeight * 0.75
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(isSelected ? Color.blue : Color.clear, lineWidth: isSelected ? 3 : 0)
+                                    )
+                                    .shadow(color: isSelected ? Color.blue.opacity(0.3) : Color.black.opacity(0.2), radius: isSelected ? 12 : 6, x: 0, y: isSelected ? 6 : 3)
+                                    .scaleEffect(isSelected ? 1.0 : 0.95)
+                                    .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selectedImageIndex)
                                 }
-                                // Swipe right to go to previous image
-                                else if value.translation.width > threshold && selectedImageIndex > 0 {
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                        selectedImageIndex -= 1
-                                    }
-
-                                    // Haptic feedback
-                                    let generator = UIImpactFeedbackGenerator(style: .light)
-                                    generator.impactOccurred()
-                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .id(index)
                             }
-                    )
+                        }
+                        .padding(.horizontal, (geometry.size.width - cardWidth) / 2)  // Center first card
+                        .padding(.vertical, (geometry.size.height - cardHeight) / 2)
+                    }
+                    .onChange(of: selectedImageIndex) { oldValue, newValue in
+                        // Auto-scroll to center selected image
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                            scrollProxy.scrollTo(newValue, anchor: .center)
+                        }
+                    }
+                    .onAppear {
+                        // Scroll to first image on appear
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            scrollProxy.scrollTo(0, anchor: .center)
+                        }
+                    }
+                }
 
                 // Page indicator dots at bottom
                 VStack {
@@ -954,15 +963,7 @@ struct DigitalHomeworkView: View {
                                 .fill(index == selectedImageIndex ? Color.blue : Color.white.opacity(0.5))
                                 .frame(width: index == selectedImageIndex ? 10 : 8, height: index == selectedImageIndex ? 10 : 8)
                                 .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                                .onTapGesture {
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                        selectedImageIndex = index
-                                    }
-
-                                    // Haptic feedback
-                                    let generator = UIImpactFeedbackGenerator(style: .light)
-                                    generator.impactOccurred()
-                                }
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedImageIndex)
                         }
                     }
                     .padding(.bottom, 12)

@@ -60,6 +60,11 @@ class FocusSessionService: ObservableObject {
         if isRunning && !isPaused {
             backgroundStartTime = Date()
             print("📱 App entering background - timer at \(formatTime(elapsedTime))")
+
+            // BATTERY OPTIMIZATION: Stop timer to save battery
+            // Time will be recalculated based on actual elapsed time when returning
+            stopTimer()
+            print("🔋 Battery: Stopped focus timer (background)")
         }
     }
 
@@ -84,6 +89,12 @@ class FocusSessionService: ObservableObject {
             if var session = currentSession {
                 session.duration = elapsedTime
                 currentSession = session
+            }
+
+            // BATTERY OPTIMIZATION: Restart timer if session is still active
+            if remainingTime > 0 && !isCompleted {
+                startTimer()
+                print("🔋 Battery: Restarted focus timer (foreground)")
             }
 
             backgroundStartTime = nil

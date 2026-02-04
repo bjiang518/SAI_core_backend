@@ -8,6 +8,7 @@
 
 import Foundation
 import Combine
+import UIKit  // Required for UIApplication lifecycle notifications
 #if canImport(BackgroundTasks)
 import BackgroundTasks  // ✅ Required for Layer 3 background migration (iOS only)
 #endif
@@ -54,6 +55,32 @@ class ShortTermStatusService: ObservableObject {
 
         // Layer 3: Background task registration moved to StudyAIApp.swift
         // (Must be registered before application:didFinishLaunchingWithOptions: completes)
+
+        // BATTERY OPTIMIZATION: Stop timer when app goes to background
+        setupLifecycleObservers()
+    }
+
+    private func setupLifecycleObservers() {
+        // Stop midnight timer when app enters background (saves battery)
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.midnightCheckTimer?.invalidate()
+            self?.midnightCheckTimer = nil
+            self?.logger.debug("🔋 Battery: Stopped midnight timer (background)")
+        }
+
+        // Restart midnight timer when app returns to foreground
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.scheduleMidnightCheck()
+            self?.logger.debug("🔋 Battery: Restarted midnight timer (foreground)")
+        }
     }
 
     // MARK: - Save
