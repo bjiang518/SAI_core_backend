@@ -95,8 +95,14 @@ module.exports = async function (fastify, opts) {
       // ═══════════════════════════════════════════════════════
       // 3. FETCH SESSION HISTORY (TEXT CONTEXT)
       // ═══════════════════════════════════════════════════════
-      const sessionData = await sessionHelper.getSessionWithMessages(sessionId, userId);
-      const previousMessages = sessionData?.messages || [];
+      const { db } = require('../../../../utils/railway-database');
+      const conversationRows = await db.getConversationHistory(sessionId, 50);
+
+      // Transform database rows to OpenAI format: {role: 'user'|'assistant', content: 'text'}
+      const previousMessages = conversationRows.map(row => ({
+        role: row.message_type, // 'user' or 'assistant'
+        content: row.message_text
+      }));
 
       fastify.log.info(`📜 Loaded ${previousMessages.length} previous messages for context`);
 
