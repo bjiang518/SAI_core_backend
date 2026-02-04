@@ -873,6 +873,7 @@ class SessionChatViewModel: ObservableObject {
             onAudioChunk: { [weak self] audioBase64 in
                 Task { @MainActor in
                     guard let self = self else { return }
+                    print("🎙️ [ViewModel] onAudioChunk callback fired - \(audioBase64.count) chars base64")
                     // Process audio chunk for real-time playback
                     self.interactiveTTSService.processAudioChunk(audioBase64)
                 }
