@@ -247,10 +247,15 @@ module.exports = async function (fastify, opts) {
       // 7. DUAL-STREAM PROCESSING
       // ═══════════════════════════════════════════════════════
       fastify.log.info('⚡ [STEP 9] Starting dual-stream processing (OpenAI + ElevenLabs)...');
+      fastify.log.info(`📊 [STEP 9] Response body type: ${typeof openAIResponse.body}`);
+      fastify.log.info(`📊 [STEP 9] Response body is ReadableStream: ${openAIResponse.body instanceof ReadableStream}`);
+
       const reader = openAIResponse.body;
 
+      fastify.log.info('🔄 [STEP 9] Entering stream iteration loop...');
       for await (const chunk of reader) {
         chunkCount++;
+        fastify.log.info(`📦 [STEP 9] Received chunk #${chunkCount}, size: ${chunk.length} bytes`);
         buffer += chunk.toString();
 
         // Process complete SSE events (ending with \n\n)
@@ -377,6 +382,9 @@ module.exports = async function (fastify, opts) {
           buffer = '';
         }
       }
+
+      fastify.log.info(`🏁 [STEP 9] Stream iteration loop completed`);
+      fastify.log.info(`📊 [STEP 9] Final state: chunkCount=${chunkCount}, accumulatedText.length=${accumulatedText.length}, buffer.length=${buffer.length}`);
 
       // ═══════════════════════════════════════════════════════
       // 8. STORE CONVERSATION (TEXT ONLY)
