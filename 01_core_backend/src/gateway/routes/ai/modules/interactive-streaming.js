@@ -8,7 +8,7 @@
  */
 
 const ElevenLabsWebSocketClient = require('../../../services/ElevenLabsWebSocketClient');
-const TextChunker = require('../../utils/TextChunker');
+const TextChunker = require('../../../utils/TextChunker');
 const AuthHelper = require('../utils/auth-helper');
 const SessionHelper = require('../utils/session-helper');
 
