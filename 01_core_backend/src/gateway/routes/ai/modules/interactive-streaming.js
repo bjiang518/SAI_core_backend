@@ -39,8 +39,13 @@ module.exports = async function (fastify, opts) {
       // ═══════════════════════════════════════════════════════
       // 1. AUTHENTICATION & VALIDATION
       // ═══════════════════════════════════════════════════════
+      fastify.log.info('🔐 [STEP 1] Starting authentication...');
       const userId = await authHelper.requireAuth(request, reply);
-      if (!userId) return; // Already sent 401 response
+      if (!userId) {
+        fastify.log.error('❌ [STEP 1] Authentication failed');
+        return; // Already sent 401 response
+      }
+      fastify.log.info(`✅ [STEP 1] Authentication successful - User: ${userId.substring(0, 8)}...`);
 
       const { sessionId } = request.params;
       const {
@@ -51,20 +56,32 @@ module.exports = async function (fastify, opts) {
         deepMode = false
       } = request.body;
 
-      fastify.log.info(`🎙️ Interactive streaming - Session: ${sessionId}, Voice: ${voiceId}, Deep: ${deepMode}`);
+      fastify.log.info(`🎙️ [REQUEST] Interactive streaming request:
+        - Session: ${sessionId}
+        - User: ${userId.substring(0, 8)}...
+        - Voice: ${voiceId}
+        - Model: ${modelId}
+        - Message: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"
+        - Message length: ${message.length} chars
+        - Deep mode: ${deepMode}`);
 
       // Validate inputs
+      fastify.log.info('📋 [STEP 2] Validating input message...');
       if (!message || message.trim().length === 0) {
+        fastify.log.error('❌ [STEP 2] Validation failed - empty message');
         return reply.status(400).send({
           success: false,
           message: 'Message is required',
           code: 'MISSING_MESSAGE'
         });
       }
+      fastify.log.info('✅ [STEP 2] Input validation passed');
 
       // Check ElevenLabs API key
+      fastify.log.info('🔑 [STEP 3] Checking ElevenLabs API key...');
       const elevenlabsApiKey = process.env.ELEVENLABS_API_KEY;
       if (!elevenlabsApiKey || elevenlabsApiKey === 'your-elevenlabs-api-key-here') {
+        fastify.log.error('❌ [STEP 3] ElevenLabs API key not configured');
         fastify.log.warn('⚠️ ElevenLabs API key not configured, falling back to text-only streaming');
         // Could fallback to regular streaming here
         return reply.status(503).send({
@@ -73,10 +90,12 @@ module.exports = async function (fastify, opts) {
           code: 'SERVICE_UNAVAILABLE'
         });
       }
+      fastify.log.info(`✅ [STEP 3] ElevenLabs API key found: ${elevenlabsApiKey.substring(0, 8)}...`);
 
       // ═══════════════════════════════════════════════════════
       // 2. SET UP SSE RESPONSE
       // ═══════════════════════════════════════════════════════
+      fastify.log.info('📡 [STEP 4] Setting up SSE response stream...');
       reply.raw.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -91,12 +110,22 @@ module.exports = async function (fastify, opts) {
         mode: 'interactive',
         timestamp: new Date().toISOString()
       })}\n\n`);
+      fastify.log.info('✅ [STEP 4] SSE stream established and connected event sent');
 
       // ═══════════════════════════════════════════════════════
       // 3. FETCH SESSION HISTORY (TEXT CONTEXT)
       // ═══════════════════════════════════════════════════════
+      fastify.log.info(`💾 [STEP 5] Fetching conversation history from database...`);
       const { db } = require('../../../../utils/railway-database');
-      const conversationRows = await db.getConversationHistory(sessionId, 50);
+
+      let conversationRows;
+      try {
+        conversationRows = await db.getConversationHistory(sessionId, 50);
+        fastify.log.info(`✅ [STEP 5] Database query successful - ${conversationRows.length} messages found`);
+      } catch (dbError) {
+        fastify.log.error(`❌ [STEP 5] Database query failed:`, dbError);
+        throw new Error(`Failed to load conversation history: ${dbError.message}`);
+      }
 
       // Transform database rows to OpenAI format: {role: 'user'|'assistant', content: 'text'}
       const previousMessages = conversationRows.map(row => ({
@@ -104,12 +133,14 @@ module.exports = async function (fastify, opts) {
         content: row.message_text
       }));
 
-      fastify.log.info(`📜 Loaded ${previousMessages.length} previous messages for context`);
+      fastify.log.info(`📜 [STEP 5] Loaded ${previousMessages.length} previous messages for context`);
 
       // ═══════════════════════════════════════════════════════
       // 4. CONNECT TO ELEVENLABS WEBSOCKET
       // ═══════════════════════════════════════════════════════
-      fastify.log.info('🔌 Connecting to ElevenLabs WebSocket...');
+      fastify.log.info(`🔌 [STEP 6] Connecting to ElevenLabs WebSocket...`);
+      fastify.log.info(`   - Voice ID: ${voiceId}`);
+      fastify.log.info(`   - Model ID: ${modelId}`);
 
       elevenWs = new ElevenLabsWebSocketClient(
         voiceId,
@@ -119,6 +150,7 @@ module.exports = async function (fastify, opts) {
 
       // Set up audio chunk forwarding
       elevenWs.onAudioChunk = (chunk) => {
+        fastify.log.debug(`🔊 [AUDIO] Received audio chunk - Size: ${chunk.audio?.length || 0} bytes, Final: ${chunk.isFinal}`);
         reply.raw.write(`data: ${JSON.stringify({
           type: 'audio_chunk',
           audio: chunk.audio,
@@ -128,7 +160,7 @@ module.exports = async function (fastify, opts) {
       };
 
       elevenWs.onError = (error) => {
-        fastify.log.error('❌ ElevenLabs WebSocket error:', error);
+        fastify.log.error('❌ [STEP 6] ElevenLabs WebSocket error:', error);
         reply.raw.write(`data: ${JSON.stringify({
           type: 'error',
           error: 'Audio generation error',
@@ -138,9 +170,9 @@ module.exports = async function (fastify, opts) {
 
       try {
         await elevenWs.connect();
-        fastify.log.info('✅ ElevenLabs WebSocket connected');
+        fastify.log.info('✅ [STEP 6] ElevenLabs WebSocket connected successfully');
       } catch (wsError) {
-        fastify.log.error('❌ Failed to connect to ElevenLabs:', wsError);
+        fastify.log.error(`❌ [STEP 6] Failed to connect to ElevenLabs:`, wsError);
         reply.raw.write(`data: ${JSON.stringify({
           type: 'error',
           error: 'Failed to connect to audio service',
@@ -153,13 +185,18 @@ module.exports = async function (fastify, opts) {
       // ═══════════════════════════════════════════════════════
       // 5. BUILD OPENAI CONTEXT (FULL TEXT HISTORY)
       // ═══════════════════════════════════════════════════════
+      fastify.log.info('🧠 [STEP 7] Building OpenAI context...');
       const openAIMessages = [
         { role: 'system', content: systemPrompt },
         ...previousMessages, // Full conversation history
         { role: 'user', content: message }
       ];
 
-      fastify.log.info(`📤 Sending to OpenAI: ${openAIMessages.length} messages (${message.length} chars new)`);
+      fastify.log.info(`📤 [STEP 7] OpenAI context ready:
+        - System prompt: ${systemPrompt.substring(0, 50)}...
+        - Previous messages: ${previousMessages.length}
+        - New user message: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"
+        - Total messages: ${openAIMessages.length}`);
 
       // ═══════════════════════════════════════════════════════
       // 6. STREAM FROM OPENAI
@@ -167,35 +204,53 @@ module.exports = async function (fastify, opts) {
       const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:8001';
       const streamUrl = `${AI_ENGINE_URL}/api/v1/sessions/${sessionId}/message/stream`;
 
-      const openAIResponse = await fetch(streamUrl, {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Service-Auth': process.env.SERVICE_AUTH_SECRET || ''
-        },
-        body: JSON.stringify({
-          message: message,
-          system_prompt: systemPrompt,
-          deep_mode: deepMode
-        })
-      });
+      fastify.log.info(`🌐 [STEP 8] Connecting to AI Engine...`);
+      fastify.log.info(`   - URL: ${streamUrl}`);
+      fastify.log.info(`   - Deep mode: ${deepMode}`);
 
-      if (!openAIResponse.ok) {
-        throw new Error(`OpenAI stream failed: ${openAIResponse.status}`);
+      let openAIResponse;
+      try {
+        openAIResponse = await fetch(streamUrl, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Service-Auth': process.env.SERVICE_AUTH_SECRET || ''
+          },
+          body: JSON.stringify({
+            message: message,
+            system_prompt: systemPrompt,
+            deep_mode: deepMode
+          })
+        });
+
+        fastify.log.info(`✅ [STEP 8] AI Engine response received - Status: ${openAIResponse.status}`);
+
+        if (!openAIResponse.ok) {
+          const errorText = await openAIResponse.text();
+          fastify.log.error(`❌ [STEP 8] AI Engine returned error: ${openAIResponse.status} - ${errorText}`);
+          throw new Error(`OpenAI stream failed: ${openAIResponse.status} - ${errorText}`);
+        }
+      } catch (fetchError) {
+        fastify.log.error(`❌ [STEP 8] Failed to connect to AI Engine:`, fetchError);
+        throw new Error(`AI Engine connection failed: ${fetchError.message}`);
       }
 
       let accumulatedText = '';
       let buffer = '';
       let streamStartTime = Date.now();
       let firstTokenTime = null;
+      let chunkCount = 0;
+      let ttsChunkCount = 0;
 
       // ═══════════════════════════════════════════════════════
       // 7. DUAL-STREAM PROCESSING
       // ═══════════════════════════════════════════════════════
+      fastify.log.info('⚡ [STEP 9] Starting dual-stream processing (OpenAI + ElevenLabs)...');
       const reader = openAIResponse.body;
 
       for await (const chunk of reader) {
+        chunkCount++;
         buffer += chunk.toString();
 
         // Process complete SSE events (ending with \n\n)
@@ -216,10 +271,11 @@ module.exports = async function (fastify, opts) {
                   if (!firstTokenTime) {
                     firstTokenTime = Date.now();
                     const latency = firstTokenTime - streamStartTime;
-                    fastify.log.info(`⚡ First token: ${latency}ms`);
+                    fastify.log.info(`⚡ [STEP 9] First token received! Latency: ${latency}ms`);
                   }
 
                   accumulatedText = event.content;
+                  fastify.log.debug(`📝 [TEXT] Chunk ${chunkCount}: Accumulated ${accumulatedText.length} chars`);
 
                   // Forward text to iOS immediately
                   reply.raw.write(`data: ${JSON.stringify({
@@ -232,7 +288,8 @@ module.exports = async function (fastify, opts) {
 
                   // Send each new chunk to ElevenLabs
                   for (const chunk of newChunks) {
-                    fastify.log.info(`📤 TTS chunk ${chunker.totalChunks}: "${chunk.substring(0, 50)}${chunk.length > 50 ? '...' : ''}"`);
+                    ttsChunkCount++;
+                    fastify.log.info(`📤 [TTS] Chunk ${ttsChunkCount}/${chunker.totalChunks}: "${chunk.substring(0, 50)}${chunk.length > 50 ? '...' : ''}" (${chunk.length} chars)`);
                     elevenWs.sendTextChunk(chunk, true);
                   }
                 }
@@ -241,25 +298,39 @@ module.exports = async function (fastify, opts) {
                 // END EVENT: OpenAI stream complete
                 // ─────────────────────────────────────────────
                 else if (event.type === 'end') {
-                  fastify.log.info('🏁 OpenAI stream complete, flushing final chunks...');
+                  fastify.log.info(`🏁 [STEP 9] OpenAI stream complete! Total chunks: ${chunkCount}, Total text: ${accumulatedText.length} chars`);
+                  fastify.log.info('📤 [TTS] Flushing remaining text chunks to ElevenLabs...');
 
                   // Flush remaining text
                   const finalChunks = chunker.flush();
+                  fastify.log.info(`📤 [TTS] Final flush returned ${finalChunks.length} chunks`);
+
                   for (const chunk of finalChunks) {
-                    fastify.log.info(`📤 Final TTS chunk: "${chunk.substring(0, 50)}${chunk.length > 50 ? '...' : ''}"`);
+                    ttsChunkCount++;
+                    fastify.log.info(`📤 [TTS] Final chunk ${ttsChunkCount}: "${chunk.substring(0, 50)}${chunk.length > 50 ? '...' : ''}" (${chunk.length} chars)`);
                     elevenWs.sendTextChunk(chunk, true);
                   }
 
                   // Signal end to ElevenLabs
+                  fastify.log.info('🔚 [TTS] Sending end-of-input signal to ElevenLabs...');
                   elevenWs.sendEndOfInput();
 
                   // Wait for final audio chunks (2 seconds)
+                  fastify.log.info('⏳ [TTS] Waiting 2 seconds for final audio chunks...');
                   await new Promise(resolve => setTimeout(resolve, 2000));
+                  fastify.log.info('✅ [TTS] Wait complete');
 
                   // Send completion event
                   const totalTime = Date.now() - streamStartTime;
                   const chunkerStats = chunker.getStats();
                   const wsMetrics = elevenWs.getMetrics();
+
+                  fastify.log.info(`✅ [STEP 9] Streaming complete! Metrics:
+        - Total time: ${totalTime}ms
+        - First token latency: ${firstTokenTime ? firstTokenTime - streamStartTime : 'N/A'}ms
+        - Text chunks: ${chunkerStats.totalChunks}
+        - Audio chunks: ${wsMetrics.audioChunksReceived}
+        - TTFA: ${wsMetrics.ttfa}ms`);
 
                   reply.raw.write(`data: ${JSON.stringify({
                     type: 'complete',
