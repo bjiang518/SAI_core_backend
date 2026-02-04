@@ -796,11 +796,11 @@ class SessionChatViewModel: ObservableObject {
 
         // Stop any currently playing audio
         ttsQueueService.stopAllTTS()
-        interactiveTTSService.stop()
+        interactiveTTSService.stopPlayback()
 
         // Get voice ID from current voice settings
-        let voiceSettings = voiceService.currentVoiceSettings
-        let voiceId = voiceSettings.voiceType.elevenLabsVoiceId ?? "zZLmKvCp1i04X8E0FJ8B"
+        let voiceSettings = voiceService.voiceSettings
+        let voiceId = voiceSettings.voiceType.elevenLabsVoiceId.isEmpty ? "zZLmKvCp1i04X8E0FJ8B" : voiceSettings.voiceType.elevenLabsVoiceId
         print("🎙️ Using voice ID: \(voiceId)")
 
         // Ensure we have a valid session

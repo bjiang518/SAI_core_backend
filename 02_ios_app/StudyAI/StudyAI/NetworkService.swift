@@ -37,6 +37,9 @@ private func profileLog(_ message: String) {
 class NetworkService: ObservableObject {
     static let shared = NetworkService()
 
+    // MARK: - Logger
+    private let logger = AppLogger.network
+
     // Primary: Production Railway backend with integrated AI proxy
     private let baseURL = "https://sai-backend-production.up.railway.app"
 
@@ -1582,7 +1585,7 @@ class NetworkService: ObservableObject {
         onComplete: @escaping (Bool, String?) -> Void
     ) async {
         guard let url = URL(string: "\(baseURL)/api/ai/sessions/\(sessionId)/interactive-stream") else {
-            AppLogger.error("❌ Invalid interactive streaming URL")
+            logger.error("❌ Invalid interactive streaming URL")
             onComplete(false, nil)
             return
         }
@@ -1594,7 +1597,7 @@ class NetworkService: ObservableObject {
         request.timeoutInterval = 180 // 3 minutes
 
         // Add auth token
-        if let token = await authService.getValidToken() {
+        if let token = AuthenticationService.shared.getAuthToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
@@ -1609,29 +1612,29 @@ class NetworkService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         } catch {
-            AppLogger.error("❌ Failed to encode interactive request: \(error)")
+            logger.error("❌ Failed to encode interactive request: \(error)")
             onComplete(false, nil)
             return
         }
 
-        AppLogger.info("🎙️ Starting interactive streaming session...")
+        logger.info("🎙️ Starting interactive streaming session...")
 
         do {
             let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                AppLogger.error("❌ Invalid response type")
+                logger.error("❌ Invalid response type")
                 onComplete(false, nil)
                 return
             }
 
             guard httpResponse.statusCode == 200 else {
-                AppLogger.error("❌ Interactive streaming failed: \(httpResponse.statusCode)")
+                logger.error("❌ Interactive streaming failed: \(httpResponse.statusCode)")
                 onComplete(false, nil)
                 return
             }
 
-            AppLogger.info("✅ Interactive streaming connected")
+            logger.info("✅ Interactive streaming connected")
 
             var buffer = ""
             var fullText = ""
@@ -1655,7 +1658,7 @@ class NetworkService: ObservableObject {
 
                                 switch event.type {
                                 case "connected":
-                                    AppLogger.debug("🔗 Interactive mode connected")
+                                    logger.debug("🔗 Interactive mode connected")
 
                                 case "text_delta":
                                     if let content = event.content {
@@ -1669,12 +1672,12 @@ class NetworkService: ObservableObject {
                                     }
 
                                 case "complete":
-                                    AppLogger.info("✅ Interactive streaming complete")
+                                    logger.info("✅ Interactive streaming complete")
                                     streamComplete = true
                                     onComplete(true, fullText)
 
                                 case "error":
-                                    AppLogger.error("❌ Interactive stream error: \(event.error ?? "Unknown")")
+                                    logger.error("❌ Interactive stream error: \(event.error ?? "Unknown")")
                                     onComplete(false, fullText.isEmpty ? nil : fullText)
                                     return
 
@@ -1682,7 +1685,7 @@ class NetworkService: ObservableObject {
                                     break
                                 }
                             } catch {
-                                AppLogger.error("❌ Failed to decode interactive event: \(error)")
+                                logger.error("❌ Failed to decode interactive event: \(error)")
                             }
                         }
                     }
@@ -1692,12 +1695,12 @@ class NetworkService: ObservableObject {
             }
 
             if !streamComplete {
-                AppLogger.warning("⚠️ Interactive stream ended without completion")
+                logger.warning("⚠️ Interactive stream ended without completion")
                 onComplete(false, fullText.isEmpty ? nil : fullText)
             }
 
         } catch {
-            AppLogger.error("❌ Interactive streaming error: \(error)")
+            logger.error("❌ Interactive streaming error: \(error)")
             onComplete(false, nil)
         }
     }
