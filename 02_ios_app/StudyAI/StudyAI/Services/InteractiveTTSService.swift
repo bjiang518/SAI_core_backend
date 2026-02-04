@@ -29,6 +29,8 @@ class InteractiveTTSService: NSObject, ObservableObject {
 
     // MARK: - Private Properties
 
+    private let logger = AppLogger.forFeature("InteractiveTTS")
+
     private var audioEngine: AVAudioEngine!
     private var playerNode: AVAudioPlayerNode!
     private var audioFormat: AVAudioFormat!
@@ -46,7 +48,10 @@ class InteractiveTTSService: NSObject, ObservableObject {
     }
 
     deinit {
-        cleanupTempFiles()
+        // Cleanup temp files synchronously in deinit
+        for tempFile in tempFiles {
+            try? FileManager.default.removeItem(at: tempFile)
+        }
     }
 
     private func setupAudioEngine() {
@@ -72,9 +77,9 @@ class InteractiveTTSService: NSObject, ObservableObject {
             try audioSession.setActive(true)
 
             try audioEngine.start()
-            AppLogger.debug("✅ AVAudioEngine started successfully for interactive TTS")
+            logger.debug("✅ AVAudioEngine started successfully for interactive TTS")
         } catch {
-            AppLogger.error("❌ Failed to start AVAudioEngine: \(error)")
+            logger.error("❌ Failed to start AVAudioEngine: \(error)")
             errorMessage = "Audio engine initialization failed"
         }
     }
@@ -86,24 +91,24 @@ class InteractiveTTSService: NSObject, ObservableObject {
     func processAudioChunk(_ base64Audio: String) {
         Task { @MainActor in
             guard let audioData = Data(base64Encoded: base64Audio) else {
-                AppLogger.error("❌ Failed to decode base64 audio")
+                logger.error("❌ Failed to decode base64 audio")
                 errorMessage = "Audio decoding failed"
                 return
             }
 
             audioChunksReceived += 1
-            AppLogger.debug("📥 Processing audio chunk #\(audioChunksReceived) (\(audioData.count) bytes)")
+            logger.debug("📥 Processing audio chunk #\(audioChunksReceived) (\(audioData.count) bytes)")
 
             // Decode MP3 to PCM buffer
             if let pcmBuffer = decodeMp3ToPCM(audioData) {
                 audioQueue.append(pcmBuffer)
-                AppLogger.debug("📥 Audio chunk #\(audioChunksReceived) queued (\(audioQueue.count) in queue)")
+                logger.debug("📥 Audio chunk #\(audioChunksReceived) queued (\(audioQueue.count) in queue)")
 
                 if !isSchedulingBuffers {
                     scheduleNextBuffer()
                 }
             } else {
-                AppLogger.error("❌ Failed to decode MP3 audio chunk #\(audioChunksReceived)")
+                logger.error("❌ Failed to decode MP3 audio chunk #\(audioChunksReceived)")
                 errorMessage = "MP3 decoding failed"
             }
         }
@@ -132,7 +137,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
                 pcmFormat: audioFile.processingFormat,
                 frameCapacity: frameCount
             ) else {
-                AppLogger.error("❌ Failed to create PCM buffer")
+                logger.error("❌ Failed to create PCM buffer")
                 try? FileManager.default.removeItem(at: tempURL)
                 tempFiles.remove(tempURL)
                 return nil
@@ -142,7 +147,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
             try audioFile.read(into: pcmBuffer)
             pcmBuffer.frameLength = frameCount
 
-            AppLogger.debug("✅ Decoded MP3 → PCM: \(frameCount) frames, \(audioFile.processingFormat.sampleRate)Hz")
+            logger.debug("✅ Decoded MP3 → PCM: \(frameCount) frames, \(audioFile.processingFormat.sampleRate)Hz")
 
             // Schedule cleanup of temp file after a delay
             Task {
@@ -156,7 +161,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
             return pcmBuffer
 
         } catch {
-            AppLogger.error("❌ MP3 decode error: \(error)")
+            logger.error("❌ MP3 decode error: \(error)")
             try? FileManager.default.removeItem(at: tempURL)
             tempFiles.remove(tempURL)
             return nil
@@ -168,7 +173,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
         guard !audioQueue.isEmpty else {
             isSchedulingBuffers = false
             if isPlaying {
-                AppLogger.debug("🎵 Audio queue empty, playback continuing until last buffer finishes")
+                logger.debug("🎵 Audio queue empty, playback continuing until last buffer finishes")
             }
             return
         }
@@ -187,7 +192,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
         if !playerNode.isPlaying {
             playerNode.play()
             isPlaying = true
-            AppLogger.debug("▶️ Audio playback started")
+            logger.debug("▶️ Audio playback started")
         }
     }
 
@@ -201,7 +206,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
         isPlaying = false
         isPaused = false
         audioChunksReceived = 0
-        AppLogger.debug("⏹️ Audio playback stopped, queue cleared")
+        logger.debug("⏹️ Audio playback stopped, queue cleared")
     }
 
     /// Pause playback (maintains queue)
@@ -209,7 +214,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
         playerNode.pause()
         isPlaying = false
         isPaused = true
-        AppLogger.debug("⏸️ Audio playback paused")
+        logger.debug("⏸️ Audio playback paused")
     }
 
     /// Resume playback
@@ -218,7 +223,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
             playerNode.play()
             isPlaying = true
             isPaused = false
-            AppLogger.debug("▶️ Audio playback resumed")
+            logger.debug("▶️ Audio playback resumed")
         }
     }
 
@@ -228,16 +233,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
         audioQueue.removeAll()
         audioChunksReceived = 0
         errorMessage = nil
-        AppLogger.debug("🔄 Interactive TTS service reset")
-    }
-
-    // MARK: - Cleanup
-
-    private func cleanupTempFiles() {
-        for tempFile in tempFiles {
-            try? FileManager.default.removeItem(at: tempFile)
-        }
-        tempFiles.removeAll()
+        logger.debug("🔄 Interactive TTS service reset")
     }
 
     // MARK: - Metrics

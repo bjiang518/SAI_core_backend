@@ -14,6 +14,8 @@ struct InteractiveModeSettingsView: View {
     @State private var settings = InteractiveModeSettings.load()
     @Environment(\.dismiss) private var dismiss
 
+    private let logger = AppLogger.forFeature("InteractiveMode")
+
     var body: some View {
         NavigationView {
             Form {
@@ -22,7 +24,7 @@ struct InteractiveModeSettingsView: View {
                     Toggle("Enable Interactive Mode", isOn: $settings.isEnabled)
                         .onChange(of: settings.isEnabled) { _, _ in
                             settings.save()
-                            AppLogger.debug("💾 Interactive mode toggled: \(settings.isEnabled)")
+                            logger.debug("💾 Interactive mode toggled: \(settings.isEnabled)")
                         }
                 } header: {
                     Text("Interactive Mode")
@@ -110,7 +112,7 @@ struct InteractiveModeSettingsView: View {
                     // Information section
                     Section {
                         VStack(alignment: .leading, spacing: 12) {
-                            InfoRow(
+                            InteractiveModeInfoRow(
                                 icon: "waveform",
                                 title: "Real-time Audio",
                                 description: "Hear AI responses as they're being generated"
@@ -118,7 +120,7 @@ struct InteractiveModeSettingsView: View {
 
                             Divider()
 
-                            InfoRow(
+                            InteractiveModeInfoRow(
                                 icon: "bolt.fill",
                                 title: "Low Latency",
                                 description: "Typical time-to-first-audio: <800ms"
@@ -126,7 +128,7 @@ struct InteractiveModeSettingsView: View {
 
                             Divider()
 
-                            InfoRow(
+                            InteractiveModeInfoRow(
                                 icon: "chart.bar.fill",
                                 title: "Data Usage",
                                 description: "~0.5-1.0 MB audio per interactive session"
@@ -134,7 +136,7 @@ struct InteractiveModeSettingsView: View {
 
                             Divider()
 
-                            InfoRow(
+                            InteractiveModeInfoRow(
                                 icon: "dollarsign.circle.fill",
                                 title: "Cost Impact",
                                 description: "~$0.001 per interactive session"
@@ -161,7 +163,7 @@ struct InteractiveModeSettingsView: View {
 
 // MARK: - Supporting Views
 
-struct InfoRow: View {
+private struct InteractiveModeInfoRow: View {
     let icon: String
     let title: String
     let description: String
