@@ -255,8 +255,12 @@ module.exports = async function (fastify, opts) {
       fastify.log.info('🔄 [STEP 9] Entering stream iteration loop...');
       for await (const chunk of reader) {
         chunkCount++;
-        fastify.log.info(`📦 [STEP 9] Received chunk #${chunkCount}, size: ${chunk.length} bytes`);
-        buffer += chunk.toString();
+        const chunkStr = chunk.toString();
+        fastify.log.info(`📦 [STEP 9] Received chunk #${chunkCount}, size: ${chunk.length} bytes, string length: ${chunkStr.length}`);
+        fastify.log.info(`📝 [STEP 9] Chunk preview (first 500 chars): ${chunkStr.substring(0, 500)}`);
+        fastify.log.info(`📝 [STEP 9] Chunk preview (last 100 chars): ${chunkStr.substring(Math.max(0, chunkStr.length - 100))}`);
+        fastify.log.info(`🔍 [STEP 9] Contains \\n\\n: ${chunkStr.includes('\n\n')}, Contains \\n: ${chunkStr.includes('\n')}`);
+        buffer += chunkStr;
 
         // Process complete SSE events (ending with \n\n)
         if (buffer.includes('\n\n')) {
