@@ -108,7 +108,20 @@ class EnhancedTTSService: NSObject, ObservableObject {
             // Continue anyway - the system will use default settings
         }
     }
-    
+
+    // BATTERY OPTIMIZATION: Deactivate audio session to allow device to enter low-power modes
+    private func deactivateAudioSession() {
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            // Use .notifyOthersOnDeactivation to allow other apps to resume audio
+            try audioSession.setActive(false, options: [.notifyOthersOnDeactivation])
+            print("🔋 Battery: Deactivated audio session (not in use)")
+        } catch {
+            print("⚠️ Failed to deactivate audio session: \(error)")
+            // Non-critical error - continue anyway
+        }
+    }
+
     private func loadVoiceSettings() {
         currentVoiceSettings = VoiceSettings.load()
     }
@@ -213,7 +226,10 @@ class EnhancedTTSService: NSObject, ObservableObject {
         progressTimer?.invalidate()
         progressTimer = nil
         speechQueue.removeAll()
-        
+
+        // BATTERY OPTIMIZATION: Deactivate audio session when not in use
+        deactivateAudioSession()
+
         DispatchQueue.main.async {
             self.isSpeaking = false
             self.isPaused = false
@@ -520,6 +536,9 @@ extension EnhancedTTSService: AVAudioPlayerDelegate {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     self.processRequest(nextRequest)
                 }
+            } else {
+                // BATTERY OPTIMIZATION: Deactivate audio session when queue is empty
+                self.deactivateAudioSession()
             }
         }
     }

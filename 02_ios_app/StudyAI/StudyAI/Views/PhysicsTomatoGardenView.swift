@@ -139,6 +139,36 @@ class TomatoPhysicsScene: SKScene {
 
         // Start motion detection
         startMotionDetection()
+
+        // Setup app lifecycle observers for battery optimization
+        setupLifecycleObservers()
+    }
+
+    private func setupLifecycleObservers() {
+        // Stop accelerometer when app enters background (BATTERY OPTIMIZATION)
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.motionManager.stopAccelerometerUpdates()
+            print("🔋 Battery: Stopped accelerometer (background)")
+        }
+
+        // Restart accelerometer when app returns to foreground
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.startMotionDetection()
+            print("🔋 Battery: Restarted accelerometer (foreground)")
+        }
+    }
+
+    deinit {
+        // Remove observers when scene is deallocated
+        NotificationCenter.default.removeObserver(self)
     }
 
     private func setupPhysicsWorld() {
@@ -156,12 +186,12 @@ class TomatoPhysicsScene: SKScene {
         // Clear existing nodes
         removeAllChildren()
 
-        // Add tomatoes with grid-based positioning to avoid gaps
-        let maxTomatoes = min(tomatoes.count, 50)
+        // BATTERY OPTIMIZATION: Limit to 25 tomatoes to reduce physics calculations
+        let maxTomatoes = min(tomatoes.count, 25)
 
         if maxTomatoes > 0 {
             // Calculate grid layout
-            let columns = 6
+            let columns = 5
             let rows = Int(ceil(Double(maxTomatoes) / Double(columns)))
             let spacing: CGFloat = 10
             let tomatoSize: CGFloat = 60
@@ -295,7 +325,8 @@ class TomatoPhysicsScene: SKScene {
             return
         }
 
-        motionManager.accelerometerUpdateInterval = 0.02  // 50 Hz
+        // BATTERY OPTIMIZATION: Reduce from 50Hz to 30Hz (still smooth but uses less power)
+        motionManager.accelerometerUpdateInterval = 0.033  // 30 Hz (was 0.02 / 50 Hz)
 
         motionManager.startAccelerometerUpdates(to: .main) { [weak self] (data, error) in
             guard let self = self, let data = data else { return }
