@@ -253,13 +253,19 @@ module.exports = async function (fastify, opts) {
       const reader = openAIResponse.body;
 
       fastify.log.info('🔄 [STEP 9] Entering stream iteration loop...');
+
+      // Create TextDecoder for proper UTF-8 decoding of Uint8Array chunks
+      const decoder = new TextDecoder('utf-8');
+
       for await (const chunk of reader) {
         chunkCount++;
-        const chunkStr = chunk.toString();
-        fastify.log.info(`📦 [STEP 9] Received chunk #${chunkCount}, size: ${chunk.length} bytes, string length: ${chunkStr.length}`);
-        fastify.log.info(`📝 [STEP 9] Chunk preview (first 500 chars): ${chunkStr.substring(0, 500)}`);
-        fastify.log.info(`📝 [STEP 9] Chunk preview (last 100 chars): ${chunkStr.substring(Math.max(0, chunkStr.length - 100))}`);
-        fastify.log.info(`🔍 [STEP 9] Contains \\n\\n: ${chunkStr.includes('\n\n')}, Contains \\n: ${chunkStr.includes('\n')}`);
+
+        // Properly decode Uint8Array to string
+        const chunkStr = decoder.decode(chunk, { stream: true });
+
+        fastify.log.info(`📦 [STEP 9] Received chunk #${chunkCount}, size: ${chunk.length} bytes`);
+        fastify.log.debug(`📝 [STEP 9] Chunk preview: ${chunkStr.substring(0, 200)}`);
+
         buffer += chunkStr;
 
         // Process complete SSE events (ending with \n\n)
