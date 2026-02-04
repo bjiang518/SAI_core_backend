@@ -1656,6 +1656,8 @@ class NetworkService: ObservableObject {
                             do {
                                 let event = try JSONDecoder().decode(InteractiveStreamEvent.self, from: jsonData)
 
+                                logger.debug("📨 [Interactive] Event type: \(event.type)")
+
                                 switch event.type {
                                 case "connected":
                                     logger.debug("🔗 Interactive mode connected")
@@ -1663,12 +1665,16 @@ class NetworkService: ObservableObject {
                                 case "text_delta":
                                     if let content = event.content {
                                         fullText = content
+                                        logger.debug("📝 [Interactive] Text delta: \(content.count) chars")
                                         onTextDelta(content)
                                     }
 
                                 case "audio_chunk":
                                     if let audio = event.audio {
+                                        logger.info("🔊 [Interactive] Audio chunk received: \(audio.count) chars base64")
                                         onAudioChunk(audio)
+                                    } else {
+                                        logger.warning("⚠️ [Interactive] audio_chunk event but no audio data")
                                     }
 
                                 case "complete":
@@ -3604,7 +3610,103 @@ class NetworkService: ObservableObject {
 
         return (true, "Session archived locally with \(processedConversation.messageCount) messages", conversationData)
     }
-    
+
+    // MARK: - Backend Archive with Summary & Behavior Analysis (NEW)
+
+    /// Archive session to backend and receive AI-generated summary + behavior insights
+    /// Returns: (success, summary, behaviorInsights, message)
+    func archiveSessionToBackend(
+        sessionId: String,
+        title: String? = nil,
+        topic: String? = nil,
+        subject: String? = nil,
+        notes: String? = nil
+    ) async -> (success: Bool, summary: String?, behaviorInsights: [String: Any]?, message: String) {
+
+        // Check authentication
+        guard AuthenticationService.shared.getAuthToken() != nil else {
+            print("❌ Authentication required to archive session")
+            return (false, nil, nil, "Authentication required")
+        }
+
+        print("📦 === ARCHIVING SESSION TO BACKEND ===")
+        print("🆔 Session ID: \(sessionId)")
+        print("📝 Title: \(title ?? "Auto-generated")")
+        print("📚 Subject: \(subject ?? "General")")
+
+        let archiveURL = "\(baseURL)/api/ai/sessions/\(sessionId)/archive"
+        guard let url = URL(string: archiveURL) else {
+            print("❌ Invalid archive URL")
+            return (false, nil, nil, "Invalid URL")
+        }
+
+        // Build request body
+        var requestData: [String: Any] = [:]
+        if let title = title { requestData["title"] = title }
+        if let topic = topic { requestData["topic"] = topic }
+        if let subject = subject { requestData["subject"] = subject }
+        if let notes = notes { requestData["notes"] = notes }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60.0  // Longer timeout for AI analysis
+
+        // Add authentication header
+        addAuthHeader(to: &request)
+
+        do {
+            if !requestData.isEmpty {
+                request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+            }
+
+            print("📡 Archiving session to backend...")
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                print("✅ Archive Response Status: \(httpResponse.statusCode)")
+
+                if httpResponse.statusCode == 200 {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+
+                        let summary = json["summary"] as? String
+                        let behaviorInsights = json["behaviorInsights"] as? [String: Any]
+
+                        print("🎉 === SESSION ARCHIVED TO BACKEND ===")
+                        print("📝 Summary: \(summary ?? "No summary generated")")
+                        if let insights = behaviorInsights {
+                            print("🧠 Behavior Insights:")
+                            print("   - Frustration Level: \(insights["frustrationLevel"] ?? "N/A")")
+                            print("   - Has Red Flags: \(insights["hasRedFlags"] ?? "N/A")")
+                            print("   - Engagement Score: \(insights["engagementScore"] ?? "N/A")")
+                            print("   - Curiosity Count: \(insights["curiosityCount"] ?? "N/A")")
+                        }
+
+                        return (true, summary, behaviorInsights, "Session archived successfully")
+                    }
+                } else if httpResponse.statusCode == 404 {
+                    print("❌ Session not found on backend")
+                    return (false, nil, nil, "Session not found")
+                } else if httpResponse.statusCode == 400 {
+                    print("❌ Cannot archive empty session")
+                    return (false, nil, nil, "Cannot archive empty session")
+                } else if httpResponse.statusCode == 401 {
+                    print("❌ Authentication expired in archiveSessionToBackend")
+                    return (false, nil, nil, "Authentication expired")
+                }
+
+                let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                print("❌ Archive Failed HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
+                return (false, nil, nil, "HTTP \(httpResponse.statusCode)")
+            }
+
+            return (false, nil, nil, "No HTTP response")
+        } catch {
+            print("❌ Session archive to backend failed: \(error.localizedDescription)")
+            return (false, nil, nil, error.localizedDescription)
+        }
+    }
+
     // MARK: - Conversation Processing for Archive
     
     /// Result structure for processed conversation content

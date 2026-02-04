@@ -90,6 +90,21 @@ class InteractiveTTSService: NSObject, ObservableObject {
     /// - Parameter base64Audio: Base64-encoded MP3 audio data
     func processAudioChunk(_ base64Audio: String) {
         Task { @MainActor in
+            logger.info("📥 [InteractiveTTS] processAudioChunk called with \(base64Audio.count) chars base64")
+
+            // Ensure audio engine is running
+            if !audioEngine.isRunning {
+                logger.warning("⚠️ [InteractiveTTS] Audio engine not running, restarting...")
+                do {
+                    try audioEngine.start()
+                    logger.info("✅ [InteractiveTTS] Audio engine restarted")
+                } catch {
+                    logger.error("❌ [InteractiveTTS] Failed to restart audio engine: \(error)")
+                    errorMessage = "Audio engine failed to start"
+                    return
+                }
+            }
+
             guard let audioData = Data(base64Encoded: base64Audio) else {
                 logger.error("❌ Failed to decode base64 audio")
                 errorMessage = "Audio decoding failed"
