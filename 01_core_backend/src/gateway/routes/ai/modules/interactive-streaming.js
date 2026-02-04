@@ -39,7 +39,9 @@ module.exports = async function (fastify, opts) {
       // ═══════════════════════════════════════════════════════
       // 1. AUTHENTICATION & VALIDATION
       // ═══════════════════════════════════════════════════════
-      const userId = authHelper.getUserId(request);
+      const userId = await authHelper.requireAuth(request, reply);
+      if (!userId) return; // Already sent 401 response
+
       const { sessionId } = request.params;
       const {
         message,
