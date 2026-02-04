@@ -28,6 +28,7 @@ struct SessionChatView: View {
     @State private var showingArchiveDialog = false
     @State private var showingArchiveSuccess = false
     @State private var showingVoiceSettings = false
+    @State private var showingInteractiveModeSettings = false  // Phase 3: Interactive Mode
     @State private var showingCamera = false
     @State private var showingImageInputSheet = false
     @State private var showingExistingSessionAlert = false
@@ -151,6 +152,11 @@ struct SessionChatView: View {
                         voiceService.toggleVoiceEnabled()
                     }
 
+                    // Phase 3: Interactive Mode Settings
+                    Button("Interactive Mode Settings") {
+                        showingInteractiveModeSettings = true
+                    }
+
                     Divider()
 
                     Button(NSLocalizedString("chat.menu.archiveSession", comment: "")) {
@@ -181,6 +187,9 @@ struct SessionChatView: View {
             }
             .sheet(isPresented: $showingVoiceSettings) {
                 VoiceSettingsView()
+            }
+            .sheet(isPresented: $showingInteractiveModeSettings) {
+                InteractiveModeSettingsView()
             }
             .sheet(isPresented: $showingCamera) {
                 ImageSourceSelectionView(selectedImage: $viewModel.selectedImage, isPresented: $showingCamera)

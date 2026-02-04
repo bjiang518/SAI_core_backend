@@ -892,9 +892,8 @@ struct DigitalHomeworkView: View {
 
     private var imageCardStack: some View {
         GeometryReader { geometry in
-            let cardWidth: CGFloat = geometry.size.width * 0.7  // Selected card width
-            let cardHeight: CGFloat = geometry.size.height * 0.85  // Card height
-            let spacing: CGFloat = 16
+            let maxCardHeight: CGFloat = geometry.size.height * 0.9  // Maximum height available
+            let spacing: CGFloat = 8  // ✅ FIX: Reduced spacing between pages
 
             ZStack {
                 Color.black.opacity(0.3)
@@ -904,6 +903,12 @@ struct DigitalHomeworkView: View {
                         HStack(spacing: spacing) {
                             ForEach(Array(originalImages.enumerated()), id: \.offset) { index, image in
                                 let isSelected = index == selectedImageIndex
+
+                                // ✅ FIX: Calculate card size based on image aspect ratio
+                                let imageSize = image.size
+                                let aspectRatio = imageSize.width / imageSize.height
+                                let cardHeight = isSelected ? maxCardHeight : maxCardHeight * 0.7
+                                let cardWidth = cardHeight * aspectRatio
 
                                 Button(action: {
                                     withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
@@ -920,10 +925,9 @@ struct DigitalHomeworkView: View {
                                         selectedAnnotationId: $viewModel.selectedAnnotationId,
                                         isInteractive: false
                                     )
-                                    .frame(
-                                        width: isSelected ? cardWidth : cardWidth * 0.75,
-                                        height: isSelected ? cardHeight : cardHeight * 0.75
-                                    )
+                                    .aspectRatio(aspectRatio, contentMode: .fit)  // ✅ FIX: Maintain image aspect ratio
+                                    .frame(width: cardWidth, height: cardHeight)
+                                    .background(Color.white)  // ✅ Add white background for image
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 12)
@@ -937,8 +941,8 @@ struct DigitalHomeworkView: View {
                                 .id(index)
                             }
                         }
-                        .padding(.horizontal, (geometry.size.width - cardWidth) / 2)  // Center first card
-                        .padding(.vertical, (geometry.size.height - cardHeight) / 2)
+                        .padding(.horizontal, max((geometry.size.width - (maxCardHeight * (originalImages[safe: 0]?.size.width ?? 1) / (originalImages[safe: 0]?.size.height ?? 1))) / 2, 20))  // ✅ Center with minimum padding
+                        .padding(.vertical, (geometry.size.height - maxCardHeight) / 2)
                     }
                     .onChange(of: selectedImageIndex) { oldValue, newValue in
                         // Auto-scroll to center selected image
