@@ -888,7 +888,7 @@ const db = {
           embedding,
           behavior_summary,
           notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14, $15::jsonb, $16::jsonb, $17)
         RETURNING *
       `;
 
@@ -905,12 +905,12 @@ const db = {
         hash,
         true,
         summary || null,  // AI-generated summary
-        keyTopics || null,  // JSONB - pass array directly
-        learningOutcomes || null,  // JSONB - pass array directly
+        keyTopics ? JSON.stringify(keyTopics) : null,  // JSONB with ::jsonb cast needs JSON string
+        learningOutcomes ? JSON.stringify(learningOutcomes) : null,  // JSONB with ::jsonb cast needs JSON string
         duration || null,
         totalTokens || null,
-        embedding || null,
-        behaviorSummary || null,  // JSONB - pass object directly
+        embedding ? JSON.stringify(embedding) : null,  // JSONB with ::jsonb cast needs JSON string
+        behaviorSummary ? JSON.stringify(behaviorSummary) : null,  // JSONB with ::jsonb cast needs JSON string
         notes || null
       ];
 
@@ -1366,7 +1366,7 @@ const db = {
           embedding,
           behavior_summary,
           notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14, $15::jsonb, $16::jsonb, $17)
         RETURNING *
       `;
 
@@ -1383,12 +1383,12 @@ const db = {
         hash,
         true,
         summary || null,  // AI-generated summary
-        keyTopics || null,  // JSONB - pass array directly
-        learningOutcomes || null,  // JSONB - pass array directly
+        keyTopics ? JSON.stringify(keyTopics) : null,  // JSONB with ::jsonb cast needs JSON string
+        learningOutcomes ? JSON.stringify(learningOutcomes) : null,  // JSONB with ::jsonb cast needs JSON string
         duration || null,
         totalTokens || null,
-        embedding || null,
-        behaviorSummary || null,  // JSONB - pass object directly
+        embedding ? JSON.stringify(embedding) : null,  // JSONB with ::jsonb cast needs JSON string
+        behaviorSummary ? JSON.stringify(behaviorSummary) : null,  // JSONB with ::jsonb cast needs JSON string
         notes || null
       ];
 
