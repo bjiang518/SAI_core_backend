@@ -905,12 +905,12 @@ const db = {
         hash,
         true,
         summary || null,  // AI-generated summary
-        keyTopics ? JSON.stringify(keyTopics) : null,
-        learningOutcomes ? JSON.stringify(learningOutcomes) : null,
+        keyTopics || null,  // JSONB - pass array directly
+        learningOutcomes || null,  // JSONB - pass array directly
         duration || null,
         totalTokens || null,
         embedding || null,
-        behaviorSummary ? JSON.stringify(behaviorSummary) : null,
+        behaviorSummary || null,  // JSONB - pass object directly
         notes || null
       ];
 
@@ -1370,12 +1370,12 @@ const db = {
         hash,
         true,
         summary || null,  // AI-generated summary
-        keyTopics ? JSON.stringify(keyTopics) : null,
-        learningOutcomes ? JSON.stringify(learningOutcomes) : null,
+        keyTopics || null,  // JSONB - pass array directly
+        learningOutcomes || null,  // JSONB - pass array directly
         duration || null,
         totalTokens || null,
         embedding || null,
-        behaviorSummary ? JSON.stringify(behaviorSummary) : null,
+        behaviorSummary || null,  // JSONB - pass object directly
         notes || null
       ];
 
@@ -3091,18 +3091,22 @@ async function runDatabaseMigrations() {
       logger.debug(`⚠️ Could not add summary to archived_conversations_new: ${error.message}`);
     }
 
+    // Drop and recreate key_topics as JSONB (in case it exists as TEXT[] from earlier schema)
     try {
-      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS key_topics TEXT');
-      logger.debug('✅ Added key_topics column to archived_conversations_new table');
+      await db.query('ALTER TABLE archived_conversations_new DROP COLUMN IF EXISTS key_topics');
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN key_topics JSONB');
+      logger.debug('✅ Recreated key_topics column as JSONB in archived_conversations_new table');
     } catch (error) {
-      logger.debug(`⚠️ Could not add key_topics to archived_conversations_new: ${error.message}`);
+      logger.debug(`⚠️ Could not recreate key_topics as JSONB: ${error.message}`);
     }
 
+    // Drop and recreate learning_outcomes as JSONB (in case it exists as TEXT[] from earlier schema)
     try {
-      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS learning_outcomes TEXT');
-      logger.debug('✅ Added learning_outcomes column to archived_conversations_new table');
+      await db.query('ALTER TABLE archived_conversations_new DROP COLUMN IF EXISTS learning_outcomes');
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN learning_outcomes JSONB');
+      logger.debug('✅ Recreated learning_outcomes column as JSONB in archived_conversations_new table');
     } catch (error) {
-      logger.debug(`⚠️ Could not add learning_outcomes to archived_conversations_new: ${error.message}`);
+      logger.debug(`⚠️ Could not recreate learning_outcomes as JSONB: ${error.message}`);
     }
 
     try {
