@@ -96,6 +96,11 @@ class InteractiveTTSService: NSObject, ObservableObject {
             if !audioEngine.isRunning {
                 logger.warning("⚠️ [InteractiveTTS] Audio engine not running, restarting...")
                 do {
+                    // Reactivate audio session first
+                    let audioSession = AVAudioSession.sharedInstance()
+                    try audioSession.setActive(true)
+                    logger.info("✅ [InteractiveTTS] Audio session reactivated")
+
                     try audioEngine.start()
                     logger.info("✅ [InteractiveTTS] Audio engine restarted")
                 } catch {
@@ -276,6 +281,18 @@ class InteractiveTTSService: NSObject, ObservableObject {
         // Start playback if not already playing
         if !playerNode.isPlaying {
             logger.info("▶️ [Schedule] Starting audio playback...")
+
+            // Ensure audio session is active before playing
+            do {
+                let audioSession = AVAudioSession.sharedInstance()
+                if !audioSession.isOtherAudioPlaying {
+                    try audioSession.setActive(true)
+                    logger.info("✅ [Schedule] Audio session activated")
+                }
+            } catch {
+                logger.error("❌ [Schedule] Failed to activate audio session: \(error)")
+            }
+
             playerNode.play()
             isPlaying = true
             logger.info("✅ [Schedule] Audio playback started!")
