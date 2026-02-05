@@ -288,6 +288,26 @@ struct HomeworkThumbnailCard: View {
                             .padding(8)
                         }
                     }
+                    .overlay(alignment: .bottomTrailing) {
+                        // ✅ NEW: Multi-page indicator badge
+                        if record.isMultiPage {
+                            HStack(spacing: 4) {
+                                Image(systemName: "doc.on.doc.fill")
+                                    .font(.system(size: 11))
+                                Text("\(record.pageCount)")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(Color.blue.gradient)
+                                    .shadow(color: .black.opacity(0.3), radius: 2)
+                            )
+                            .padding(8)
+                        }
+                    }
 
                     // Metadata Section
                     VStack(alignment: .leading, spacing: 8) {

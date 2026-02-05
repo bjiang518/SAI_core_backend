@@ -779,6 +779,23 @@ struct LibraryItemRow: View {
                 .foregroundColor(.secondary)
                 .lineLimit(3)
 
+            // ✅ NEW: Red flag indicator for conversations with behavior concerns
+            if let conversationItem = item as? ConversationLibraryItem,
+               conversationItem.hasRedFlags {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                    Text("Needs attention")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .foregroundColor(.red)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.red.opacity(0.1))
+                .clipShape(Capsule())
+            }
+
             // Item type label with action hint
             HStack {
                 Text(labelForItem(item))

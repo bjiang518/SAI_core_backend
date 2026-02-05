@@ -129,6 +129,9 @@ class SessionChatViewModel: ObservableObject {
     private let useStreaming = true
     private var cancellables = Set<AnyCancellable>()
 
+    // ✅ NEW: Timing metrics for latency measurement
+    private var firstTextArrivalTime: Date?
+
     // MARK: - Initialization
 
     init() {
@@ -809,6 +812,10 @@ class SessionChatViewModel: ObservableObject {
         ttsQueueService.stopAllTTS()
         interactiveTTSService.stopPlayback()
 
+        // ✅ Reset timing metrics for new message
+        firstTextArrivalTime = nil
+        interactiveTTSService.reset()
+
         // Get voice ID from current voice settings
         let voiceSettings = voiceService.voiceSettings
         let voiceId = voiceSettings.voiceType.elevenLabsVoiceId.isEmpty ? "zZLmKvCp1i04X8E0FJ8B" : voiceSettings.voiceType.elevenLabsVoiceId
@@ -858,6 +865,12 @@ class SessionChatViewModel: ObservableObject {
                 Task { @MainActor in
                     guard let self = self else { return }
 
+                    // ✅ Track timing for first text arrival
+                    if self.firstTextArrivalTime == nil {
+                        self.firstTextArrivalTime = Date()
+                        print("⏱️ [TIMING] First text arrived")
+                    }
+
                     // Hide typing indicator as soon as first chunk arrives
                     if self.showTypingIndicator {
                         withAnimation {
@@ -873,6 +886,14 @@ class SessionChatViewModel: ObservableObject {
             onAudioChunk: { [weak self] audioBase64 in
                 Task { @MainActor in
                     guard let self = self else { return }
+
+                    // ✅ Log latency from first text to first audio
+                    if let firstTextTime = self.firstTextArrivalTime,
+                       self.interactiveTTSService.audioChunksReceived == 0 {
+                        let latency = Date().timeIntervalSince(firstTextTime) * 1000
+                        print("⏱️ [TIMING] First audio chunk arrived - Latency from first text: \(Int(latency))ms")
+                    }
+
                     print("🎙️ [ViewModel] onAudioChunk callback fired - \(audioBase64.count) chars base64")
                     // Process audio chunk for real-time playback
                     self.interactiveTTSService.processAudioChunk(audioBase64)

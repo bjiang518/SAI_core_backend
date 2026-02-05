@@ -173,6 +173,9 @@
 		7B2248C12F33167C006ADD93 /* InteractiveModeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248C02F33167C006ADD93 /* InteractiveModeSettingsView.swift */; };
 		7B2248C22F33167C006ADD93 /* InteractiveModeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248C02F33167C006ADD93 /* InteractiveModeSettingsView.swift */; };
 		7B2248C32F33167C006ADD93 /* InteractiveModeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248C02F33167C006ADD93 /* InteractiveModeSettingsView.swift */; };
+		7B2248D12F340790006ADD93 /* VerticalPagesViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248D02F340790006ADD93 /* VerticalPagesViewer.swift */; };
+		7B2248D22F340790006ADD93 /* VerticalPagesViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248D02F340790006ADD93 /* VerticalPagesViewer.swift */; };
+		7B2248D32F340790006ADD93 /* VerticalPagesViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248D02F340790006ADD93 /* VerticalPagesViewer.swift */; };
 		7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
@@ -563,6 +566,7 @@
 		7B2248B82F331644006ADD93 /* InteractiveTTSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InteractiveTTSService.swift; path = StudyAI/Services/InteractiveTTSService.swift; sourceTree = SOURCE_ROOT; };
 		7B2248BC2F331667006ADD93 /* InteractiveModeSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveModeSettings.swift; sourceTree = "<group>"; };
 		7B2248C02F33167C006ADD93 /* InteractiveModeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InteractiveModeSettingsView.swift; path = StudyAI/Views/InteractiveModeSettingsView.swift; sourceTree = SOURCE_ROOT; };
+		7B2248D02F340790006ADD93 /* VerticalPagesViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VerticalPagesViewer.swift; path = StudyAI/Views/VerticalPagesViewer.swift; sourceTree = SOURCE_ROOT; };
 		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCropper.swift; sourceTree = "<group>"; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
 		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
@@ -946,6 +950,7 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7B2248D02F340790006ADD93 /* VerticalPagesViewer.swift */,
 				7B2248C02F33167C006ADD93 /* InteractiveModeSettingsView.swift */,
 				7B2248A02F2DCDAC006ADD93 /* LoadingAnimationView.swift */,
 				7B2248902F2D8DFE006ADD93 /* CompactSubjectSelector.swift */,
@@ -1479,6 +1484,7 @@
 				7B8E9E972EAB50F400E83DA8 /* HomeworkImageDetailView.swift in Sources */,
 				45678901234567890123DDEF /* CameraViewModel.swift in Sources */,
 				3B0419DAC7D9493DB3C35B7F /* SubjectBreakdownView.swift in Sources */,
+				7B2248D32F340790006ADD93 /* VerticalPagesViewer.swift in Sources */,
 				7BD664D32ECA908300E09E55 /* ProgressiveHomeworkModels.swift in Sources */,
 				3703A418AA10464CA1AC3132 /* SubjectDetailView.swift in Sources */,
 				MIST1234567890123456ABCD /* MistakeReviewView.swift in Sources */,
@@ -1575,6 +1581,7 @@
 				7BD668A22ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */,
 				7B2248C12F33167C006ADD93 /* InteractiveModeSettingsView.swift in Sources */,
 				7B8353402EA6F11400199AC3 /* SecureLogger.swift in Sources */,
+				7B2248D22F340790006ADD93 /* VerticalPagesViewer.swift in Sources */,
 				7BDE56E22EC31A7A004A8629 /* EssayGradingModels.swift in Sources */,
 				7B8353412EA6F11400199AC3 /* ErrorBoundary.swift in Sources */,
 				7BDE56672EC1C64D004A8629 /* StreamingMessageService.swift in Sources */,
@@ -1682,6 +1689,7 @@
 				7B83533D2EA6F11400199AC3 /* ErrorBoundary.swift in Sources */,
 				7B2248A52F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */,
 				7B2248AF2F2F4A8D006ADD93 /* DebugSettings.swift in Sources */,
+				7B2248D12F340790006ADD93 /* VerticalPagesViewer.swift in Sources */,
 				7B8E9E9E2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				7BDE56E62EC31A8B004A8629 /* LaTeXToHTMLConverter.swift in Sources */,
 				7BD6687D2ED05FD400E09E55 /* ZoomableImageView.swift in Sources */,

@@ -31,8 +31,8 @@ module.exports = async function (fastify, opts) {
     const controller = new AbortController();
     let elevenWs = null;
     const chunker = new TextChunker({
-      minChars: 30,
-      maxChars: 120
+      minChars: 10,  // ✅ Reduced from 30 to 10 for faster audio generation start
+      maxChars: 80   // ✅ Reduced from 120 to 80 for more frequent audio chunks
     });
 
     try {

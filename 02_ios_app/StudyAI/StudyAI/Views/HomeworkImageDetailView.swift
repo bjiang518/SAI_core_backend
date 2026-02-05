@@ -57,17 +57,22 @@ struct HomeworkImageDetailView: View {
                 Color.black
                     .ignoresSafeArea()
 
-                // Native Photo Viewer with paging
-                NativePhotoPageViewer(
-                    records: records,
-                    initialIndex: initialIndex,
-                    currentIndex: $currentIndex,
-                    onSingleTap: {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            isToolbarVisible.toggle()
-                        }
+                // ✅ NEW: Horizontal TabView for switching between homework decks
+                TabView(selection: $currentIndex) {
+                    ForEach(Array(records.enumerated()), id: \.element.id) { index, record in
+                        // ✅ Each deck gets a vertical page viewer
+                        VerticalPagesViewer(
+                            record: record,
+                            onToolbarToggle: {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    isToolbarVisible.toggle()
+                                }
+                            }
+                        )
+                        .tag(index)
                     }
-                )
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))  // Hide default page dots
                 .ignoresSafeArea()
 
                 // Metadata Overlay (bottom)
@@ -89,16 +94,7 @@ struct HomeworkImageDetailView: View {
                 }
                 .ignoresSafeArea(edges: .bottom)
 
-                // Page Indicator (top center) - only show if multiple images
-                if hasMultipleImages && isToolbarVisible {
-                    VStack {
-                        pageIndicator
-                            .padding(.top, 8)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-
-                        Spacer()
-                    }
-                }
+                // ✅ REMOVED: Deck indicator dots (no longer needed)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -242,6 +238,16 @@ struct HomeworkImageDetailView: View {
                     label: NSLocalizedString("homeworkImageDetail.questions", value: "Questions", comment: ""),
                     value: "\(currentRecord.questionCount)"
                 )
+
+                // ✅ NEW: Show page count for multi-page homework
+                if currentRecord.isMultiPage {
+                    HomeworkStatItem(
+                        icon: "doc.on.doc.fill",
+                        label: NSLocalizedString("homeworkImageDetail.pages", value: "Pages", comment: ""),
+                        value: "\(currentRecord.pageCount)",
+                        color: .blue
+                    )
+                }
 
                 if let correctCount = currentRecord.correctCount {
                     HomeworkStatItem(

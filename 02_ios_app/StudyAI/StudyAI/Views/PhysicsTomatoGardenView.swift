@@ -152,7 +152,6 @@ class TomatoPhysicsScene: SKScene {
             queue: .main
         ) { [weak self] _ in
             self?.motionManager.stopAccelerometerUpdates()
-            print("🔋 Battery: Stopped accelerometer (background)")
         }
 
         // Restart accelerometer when app returns to foreground
@@ -162,7 +161,6 @@ class TomatoPhysicsScene: SKScene {
             queue: .main
         ) { [weak self] _ in
             self?.startMotionDetection()
-            print("🔋 Battery: Restarted accelerometer (foreground)")
         }
     }
 

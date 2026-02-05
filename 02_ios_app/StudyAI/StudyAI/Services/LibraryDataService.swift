@@ -846,19 +846,28 @@ struct ConversationLibraryItem: LibraryItem {
     var itemType: LibraryItemType {
         // Determine if this is actually a homework session or conversation
         // Check for conversation indicators first
-        if data["topic"] != nil || 
-           data["conversationContent"] != nil || 
+        if data["topic"] != nil ||
+           data["conversationContent"] != nil ||
            data["messages"] != nil ||
            (data["type"] as? String) == "conversation" {
             return .conversation
         }
-        
+
         // Then check for homework session indicators
         if data["aiParsingResult"] != nil || data["questions"] != nil {
             return .question // Treat homework sessions as question type
         }
-        
+
         return .conversation
+    }
+
+    // ✅ NEW: Computed property to check for red flags
+    var hasRedFlags: Bool {
+        if let behaviorData = data["behaviorSummary"] as? [String: Any],
+           let hasRedFlags = behaviorData["hasRedFlags"] as? Bool {
+            return hasRedFlags
+        }
+        return false
     }
     
     var preview: String {
@@ -880,6 +889,12 @@ struct ConversationLibraryItem: LibraryItem {
             } else {
                 print("      • \(key): \(type(of: value))")
             }
+        }
+
+        // ✅ NEW: Priority 1 - Use AI-generated summary if available
+        if let summary = data["summary"] as? String, !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            print("   ✨ Using AI-generated summary: \(summary)")
+            return summary
         }
 
         // For homework sessions, show question details

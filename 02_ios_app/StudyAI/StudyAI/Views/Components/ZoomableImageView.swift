@@ -18,6 +18,7 @@ struct AnnotatableImageView: View {
 
     var annotationsBinding: Binding<[QuestionAnnotation]>?
     var availableQuestionNumbers: [String]?
+    var pageIndex: Int = 0  // ✅ NEW: Track which page this image is on
 
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
@@ -107,7 +108,8 @@ struct AnnotatableImageView: View {
                 selectedAnnotationId: $selectedAnnotationId,
                 fittedImageSize: fittedSize,
                 scale: scale,
-                availableNumbers: available
+                availableNumbers: available,
+                pageIndex: pageIndex  // ✅ Pass page index
             )
         } else {
             readOnlyAnnotationsOverlay(fittedSize: fittedSize)
@@ -180,6 +182,7 @@ struct AnnotationOverlay: View {
     let fittedImageSize: CGSize
     let scale: CGFloat
     let availableNumbers: [String]
+    let pageIndex: Int  // ✅ NEW: Track which page we're annotating
 
     @State private var newColorIndex = 0
 
@@ -220,7 +223,7 @@ struct AnnotationOverlay: View {
         let color = colorPalette[newColorIndex % colorPalette.count]
         newColorIndex += 1
 
-        let ann = QuestionAnnotation.from(rect: rect, in: fittedImageSize, color: color)
+        let ann = QuestionAnnotation.from(rect: rect, in: fittedImageSize, color: color, pageIndex: pageIndex)  // ✅ Pass pageIndex
 
         // ✅ FIX: Do NOT auto-assign question number - user must select manually
         // This prevents confusion with pseudo/auto-generated labels
@@ -384,12 +387,13 @@ extension CGRect {
 // MARK: - QuestionAnnotation Helpers
 
 extension QuestionAnnotation {
-    static func from(rect: CGRect, in size: CGSize, color: Color = .blue) -> QuestionAnnotation {
+    static func from(rect: CGRect, in size: CGSize, color: Color = .blue, pageIndex: Int = 0) -> QuestionAnnotation {
         QuestionAnnotation(
             topLeft: [Double(rect.minX / size.width), Double(rect.minY / size.height)],
             bottomRight: [Double(rect.maxX / size.width), Double(rect.maxY / size.height)],
             questionNumber: nil,
-            color: color
+            color: color,
+            pageIndex: pageIndex  // ✅ NEW: Include page index
         )
     }
 
