@@ -133,12 +133,18 @@ class SessionHelper {
             {
               role: 'system',
               content: `You are an AI assistant that analyzes educational conversations. Extract:
-1. A 2-3 paragraph summary
+1. A concise summary (max 15 words) suitable for a list view
 2. Key topics discussed (as array)
 3. Learning outcomes achieved (as array)
 4. Estimated conversation duration in minutes
 
-Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes": [...], "estimatedDuration": number}`
+Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes": [...], "estimatedDuration": number}
+
+Summary guidelines:
+- Max 15 words
+- Format: "[Subject] - [main activity/topic]"
+- Examples: "Math - solving quadratic equations", "Biology - photosynthesis process and ATP production"
+- Be specific but concise`
             },
             {
               role: 'user',
@@ -191,7 +197,7 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
    */
   generateBasicAnalysis(conversationHistory, sessionInfo, totalTokens = 0) {
     return {
-      summary: `Educational conversation about ${sessionInfo.subject || 'academic topics'} with ${conversationHistory.length} messages exchanged between student and AI tutor.`,
+      summary: `${sessionInfo.subject || 'General'} - interactive learning session`,
       keyTopics: [sessionInfo.subject || 'General Discussion'],
       learningOutcomes: ['Interactive learning session completed'],
       estimatedDuration: Math.ceil(conversationHistory.length * 0.5), // Estimate 30 seconds per message
