@@ -820,14 +820,16 @@ const db = {
    */
   async archiveConversation(conversationData) {
     try {
-      logger.info('📦 [archiveConversation] Starting with data:', {
+      // Log input data as JSON string for Railway
+      logger.info('📦 [archiveConversation] Starting with data: ' + JSON.stringify({
         userId: conversationData.userId?.substring(0, 8),
         sessionId: conversationData.sessionId?.substring(0, 8),
         subject: conversationData.subject,
         hasSummary: !!conversationData.summary,
+        summaryPreview: conversationData.summary?.substring(0, 100),
         hasConversationHistory: !!conversationData.conversationHistory,
         conversationHistoryType: Array.isArray(conversationData.conversationHistory) ? 'array' : typeof conversationData.conversationHistory
-      });
+      }));
 
       const {
         userId,
@@ -858,7 +860,7 @@ const db = {
         conversationContent = conversationHistory;
         logger.info(`📝 Using string conversation content (${conversationContent.length} chars)`);
       } else {
-        logger.error('❌ Invalid conversationHistory format:', typeof conversationHistory);
+        logger.error('❌ Invalid conversationHistory format: ' + typeof conversationHistory);
         throw new Error('conversationHistory must be array or string');
       }
 
@@ -912,30 +914,40 @@ const db = {
         notes || null
       ];
 
-      logger.info('💾 Inserting into database with values:', {
+      // Log values as JSON string for Railway
+      logger.info('💾 Inserting into database: ' + JSON.stringify({
         userId: values[0]?.substring(0, 8),
         sessionId: values[1]?.substring(0, 8),
         subject: values[2],
         title: values[3],
         topic: values[4],
         contentLength: values[5]?.length,
+        encryptedLength: values[6]?.length,
+        hash: values[7],
+        isEncrypted: values[8],
         hasSummary: !!values[9],
         summaryLength: values[9]?.length,
         hasKeyTopics: !!values[10],
-        hasBehaviorSummary: !!values[15]
-      });
+        hasLearningOutcomes: !!values[11],
+        duration: values[12],
+        totalTokens: values[13],
+        hasEmbedding: !!values[14],
+        hasBehaviorSummary: !!values[15],
+        hasNotes: !!values[16]
+      }));
 
       const result = await this.query(query, values);
       logger.info('✅ [archiveConversation] Successfully saved to database');
       return result.rows[0];
     } catch (error) {
-      logger.error('❌ [archiveConversation] Database insert failed:', {
+      // Log error as JSON string for Railway
+      logger.error('❌ [archiveConversation] Database insert failed: ' + JSON.stringify({
         errorMessage: error.message,
         errorCode: error.code,
         errorDetail: error.detail,
         errorHint: error.hint,
         errorStack: error.stack?.substring(0, 500)
-      });
+      }));
       throw error;
     }
   },
@@ -1273,14 +1285,16 @@ const db = {
    */
   async archiveConversation(conversationData) {
     try {
-      logger.info('📦 [archiveConversation] Starting with data:', {
+      // Log input data as JSON string for Railway
+      logger.info('📦 [archiveConversation] Starting with data: ' + JSON.stringify({
         userId: conversationData.userId?.substring(0, 8),
         sessionId: conversationData.sessionId?.substring(0, 8),
         subject: conversationData.subject,
         hasSummary: !!conversationData.summary,
+        summaryPreview: conversationData.summary?.substring(0, 100),
         hasConversationHistory: !!conversationData.conversationHistory,
         conversationHistoryType: Array.isArray(conversationData.conversationHistory) ? 'array' : typeof conversationData.conversationHistory
-      });
+      }));
 
       const {
         userId,
@@ -1311,7 +1325,7 @@ const db = {
         conversationContent = conversationHistory;
         logger.info(`📝 Using string conversation content (${conversationContent.length} chars)`);
       } else {
-        logger.error('❌ Invalid conversationHistory format:', typeof conversationHistory);
+        logger.error('❌ Invalid conversationHistory format: ' + typeof conversationHistory);
         throw new Error('conversationHistory must be array or string');
       }
 
@@ -1365,30 +1379,40 @@ const db = {
         notes || null
       ];
 
-      logger.info('💾 Inserting into database with values:', {
+      // Log values as JSON string for Railway
+      logger.info('💾 Inserting into database: ' + JSON.stringify({
         userId: values[0]?.substring(0, 8),
         sessionId: values[1]?.substring(0, 8),
         subject: values[2],
         title: values[3],
         topic: values[4],
         contentLength: values[5]?.length,
+        encryptedLength: values[6]?.length,
+        hash: values[7],
+        isEncrypted: values[8],
         hasSummary: !!values[9],
         summaryLength: values[9]?.length,
         hasKeyTopics: !!values[10],
-        hasBehaviorSummary: !!values[15]
-      });
+        hasLearningOutcomes: !!values[11],
+        duration: values[12],
+        totalTokens: values[13],
+        hasEmbedding: !!values[14],
+        hasBehaviorSummary: !!values[15],
+        hasNotes: !!values[16]
+      }));
 
       const result = await this.query(query, values);
       logger.info('✅ [archiveConversation] Successfully saved to database');
       return result.rows[0];
     } catch (error) {
-      logger.error('❌ [archiveConversation] Database insert failed:', {
+      // Log error as JSON string for Railway
+      logger.error('❌ [archiveConversation] Database insert failed: ' + JSON.stringify({
         errorMessage: error.message,
         errorCode: error.code,
         errorDetail: error.detail,
         errorHint: error.hint,
         errorStack: error.stack?.substring(0, 500)
-      });
+      }));
       throw error;
     }
   },
