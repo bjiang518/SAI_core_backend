@@ -243,9 +243,15 @@ const db = {
         }
 
         // Not retryable or max retries exceeded
-        logger.error('❌ Database query error:', error);
-        logger.error('Query:', text.substring(0, 200));
-        logger.error('Params:', params);
+        logger.error('❌ Database query error: ' + JSON.stringify({
+          errorMessage: error.message,
+          errorCode: error.code,
+          errorDetail: error.detail,
+          errorHint: error.hint,
+          errorPosition: error.position
+        }));
+        logger.error('Query: ' + text.substring(0, 500));
+        logger.error('Params: ' + JSON.stringify(params));
         throw error;
       }
     }
