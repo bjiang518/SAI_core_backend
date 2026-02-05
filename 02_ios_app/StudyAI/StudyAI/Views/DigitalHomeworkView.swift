@@ -850,9 +850,10 @@ struct DigitalHomeworkView: View {
                 // Single image view (original behavior)
                 AnnotatableImageView(
                     image: originalImages[0],
-                    annotations: viewModel.annotations,
+                    annotations: viewModel.annotations.filter { $0.pageIndex == 0 },  // ✅ Filter by page
                     selectedAnnotationId: $viewModel.selectedAnnotationId,
-                    isInteractive: false
+                    isInteractive: false,
+                    pageIndex: 0  // ✅ Pass page index
                 )
                 .matchedGeometryEffect(id: "homeworkImage", in: animationNamespace)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -921,9 +922,10 @@ struct DigitalHomeworkView: View {
                                 }) {
                                     AnnotatableImageView(
                                         image: image,
-                                        annotations: viewModel.annotations,
+                                        annotations: viewModel.annotations.filter { $0.pageIndex == index },  // ✅ Filter by page
                                         selectedAnnotationId: $viewModel.selectedAnnotationId,
-                                        isInteractive: false
+                                        isInteractive: false,
+                                        pageIndex: index  // ✅ Pass page index
                                     )
                                     .aspectRatio(aspectRatio, contentMode: .fit)  // ✅ FIX: Maintain image aspect ratio
                                     .frame(width: cardWidth, height: cardHeight)
@@ -1008,11 +1010,12 @@ struct DigitalHomeworkView: View {
                     // with unified coordinate system (scale/offset applied to both)
                     AnnotatableImageView(
                         image: originalImages[safe: selectedImageIndex] ?? originalImages[0],  // ✅ Use selected image
-                        annotations: viewModel.annotations,
+                        annotations: viewModel.annotations.filter { $0.pageIndex == selectedImageIndex },  // ✅ Filter by page
                         selectedAnnotationId: $viewModel.selectedAnnotationId,
                         isInteractive: true,  // ✅ Enable interactive mode
                         annotationsBinding: viewModel.annotationsBinding,  // ✅ Pass binding for editing
-                        availableQuestionNumbers: viewModel.availableQuestionNumbers  // ✅ Pass question numbers
+                        availableQuestionNumbers: viewModel.availableQuestionNumbers,  // ✅ Pass question numbers
+                        pageIndex: selectedImageIndex  // ✅ Pass current page index
                     )
                     .matchedGeometryEffect(id: "homeworkImage", in: animationNamespace)
                     .background(Color.black)

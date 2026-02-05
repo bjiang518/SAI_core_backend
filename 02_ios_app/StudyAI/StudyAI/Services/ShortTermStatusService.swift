@@ -69,7 +69,6 @@ class ShortTermStatusService: ObservableObject {
         ) { [weak self] _ in
             self?.midnightCheckTimer?.invalidate()
             self?.midnightCheckTimer = nil
-            self?.logger.debug("🔋 Battery: Stopped midnight timer (background)")
         }
 
         // Restart midnight timer when app returns to foreground
@@ -79,7 +78,6 @@ class ShortTermStatusService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             self?.scheduleMidnightCheck()
-            self?.logger.debug("🔋 Battery: Restarted midnight timer (foreground)")
         }
     }
 

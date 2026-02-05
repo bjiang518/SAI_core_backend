@@ -13,8 +13,9 @@ import SwiftUI
 /// Represents a saved homework image with metadata
 struct HomeworkImageRecord: Codable, Identifiable {
     let id: String
-    let imageFileName: String           // Local file path in Documents
-    let thumbnailFileName: String       // Thumbnail for grid view
+    let imageFileNames: [String]        // ✅ UPDATED: Array of image files for multi-page support
+    let thumbnailFileName: String       // Thumbnail for grid view (first page)
+    let pageCount: Int                  // ✅ NEW: Number of pages in this homework deck
     let submittedDate: Date             // When it was graded
     let subject: String                 // Auto-detected subject
     let accuracy: Float                 // Performance percentage (0.0 - 1.0)
@@ -31,7 +32,52 @@ struct HomeworkImageRecord: Codable, Identifiable {
     // ✅ NEW: Pro Mode digital homework data (stored as JSON)
     let proModeData: Data?              // Serialized DigitalHomeworkData for Pro Mode homework
 
+    // ✅ Backward compatibility - return first image filename
+    var imageFileName: String {
+        imageFileNames.first ?? ""
+    }
+
+    // ✅ Check if this is a multi-page homework deck
+    var isMultiPage: Bool {
+        pageCount > 1
+    }
+
     // Custom initializer with default value for imageHash
+    init(
+        id: String,
+        imageFileNames: [String],
+        thumbnailFileName: String,
+        pageCount: Int,
+        submittedDate: Date,
+        subject: String,
+        accuracy: Float,
+        questionCount: Int,
+        imageHash: String? = nil,
+        correctCount: Int? = nil,
+        incorrectCount: Int? = nil,
+        totalPoints: Float? = nil,
+        maxPoints: Float? = nil,
+        rawQuestions: [String]? = nil,
+        proModeData: Data? = nil
+    ) {
+        self.id = id
+        self.imageFileNames = imageFileNames
+        self.thumbnailFileName = thumbnailFileName
+        self.pageCount = pageCount
+        self.submittedDate = submittedDate
+        self.subject = subject
+        self.accuracy = accuracy
+        self.questionCount = questionCount
+        self.imageHash = imageHash
+        self.correctCount = correctCount
+        self.incorrectCount = incorrectCount
+        self.totalPoints = totalPoints
+        self.maxPoints = maxPoints
+        self.rawQuestions = rawQuestions
+        self.proModeData = proModeData
+    }
+
+    // ✅ Backward compatibility initializer (for migration from single-image records)
     init(
         id: String,
         imageFileName: String,
@@ -46,11 +92,12 @@ struct HomeworkImageRecord: Codable, Identifiable {
         totalPoints: Float? = nil,
         maxPoints: Float? = nil,
         rawQuestions: [String]? = nil,
-        proModeData: Data? = nil  // ✅ NEW: Pro Mode digital homework data
+        proModeData: Data? = nil
     ) {
         self.id = id
-        self.imageFileName = imageFileName
+        self.imageFileNames = [imageFileName]
         self.thumbnailFileName = thumbnailFileName
+        self.pageCount = 1
         self.submittedDate = submittedDate
         self.subject = subject
         self.accuracy = accuracy
@@ -61,7 +108,7 @@ struct HomeworkImageRecord: Codable, Identifiable {
         self.totalPoints = totalPoints
         self.maxPoints = maxPoints
         self.rawQuestions = rawQuestions
-        self.proModeData = proModeData  // ✅ NEW
+        self.proModeData = proModeData
     }
 
     var accuracyPercentage: String {
@@ -100,6 +147,77 @@ struct HomeworkImageRecord: Codable, Identifiable {
         default:
             return "book.closed.fill"
         }
+    }
+
+    // ✅ Custom Codable implementation for backward compatibility
+    enum CodingKeys: String, CodingKey {
+        case id
+        case imageFileNames
+        case imageFileName  // Old key for backward compatibility
+        case thumbnailFileName
+        case pageCount
+        case submittedDate
+        case subject
+        case accuracy
+        case questionCount
+        case imageHash
+        case correctCount
+        case incorrectCount
+        case totalPoints
+        case maxPoints
+        case rawQuestions
+        case proModeData
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(String.self, forKey: .id)
+        thumbnailFileName = try container.decode(String.self, forKey: .thumbnailFileName)
+        submittedDate = try container.decode(Date.self, forKey: .submittedDate)
+        subject = try container.decode(String.self, forKey: .subject)
+        accuracy = try container.decode(Float.self, forKey: .accuracy)
+        questionCount = try container.decode(Int.self, forKey: .questionCount)
+
+        // ✅ Backward compatibility: try new format first, fallback to old format
+        if let fileNames = try? container.decode([String].self, forKey: .imageFileNames) {
+            imageFileNames = fileNames
+            pageCount = try container.decodeIfPresent(Int.self, forKey: .pageCount) ?? fileNames.count
+        } else if let fileName = try? container.decode(String.self, forKey: .imageFileName) {
+            // Old format: single imageFileName
+            imageFileNames = [fileName]
+            pageCount = 1
+        } else {
+            throw DecodingError.dataCorruptedError(forKey: .imageFileNames, in: container, debugDescription: "Missing both imageFileNames and imageFileName")
+        }
+
+        imageHash = try container.decodeIfPresent(String.self, forKey: .imageHash)
+        correctCount = try container.decodeIfPresent(Int.self, forKey: .correctCount)
+        incorrectCount = try container.decodeIfPresent(Int.self, forKey: .incorrectCount)
+        totalPoints = try container.decodeIfPresent(Float.self, forKey: .totalPoints)
+        maxPoints = try container.decodeIfPresent(Float.self, forKey: .maxPoints)
+        rawQuestions = try container.decodeIfPresent([String].self, forKey: .rawQuestions)
+        proModeData = try container.decodeIfPresent(Data.self, forKey: .proModeData)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(id, forKey: .id)
+        try container.encode(imageFileNames, forKey: .imageFileNames)
+        try container.encode(thumbnailFileName, forKey: .thumbnailFileName)
+        try container.encode(pageCount, forKey: .pageCount)
+        try container.encode(submittedDate, forKey: .submittedDate)
+        try container.encode(subject, forKey: .subject)
+        try container.encode(accuracy, forKey: .accuracy)
+        try container.encode(questionCount, forKey: .questionCount)
+        try container.encodeIfPresent(imageHash, forKey: .imageHash)
+        try container.encodeIfPresent(correctCount, forKey: .correctCount)
+        try container.encodeIfPresent(incorrectCount, forKey: .incorrectCount)
+        try container.encodeIfPresent(totalPoints, forKey: .totalPoints)
+        try container.encodeIfPresent(maxPoints, forKey: .maxPoints)
+        try container.encodeIfPresent(rawQuestions, forKey: .rawQuestions)
+        try container.encodeIfPresent(proModeData, forKey: .proModeData)
     }
 }
 

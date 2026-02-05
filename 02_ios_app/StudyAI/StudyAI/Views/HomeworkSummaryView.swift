@@ -83,7 +83,7 @@ struct HomeworkSummaryView: View {
                     print("   🆕 NEW homework detected (hashes differ)")
                     print("   Reason: User parsed a different image from camera")
                     print("   Calling parseHomework() to reset and parse new homework")
-                    stateManager.parseHomework(parseResults: parseResults, image: originalImages.first ?? UIImage())
+                    stateManager.parseHomework(parseResults: parseResults, images: originalImages)  // ✅ UPDATED: Pass array
                     return
                 }
             }
@@ -91,7 +91,7 @@ struct HomeworkSummaryView: View {
             // No existing homework - this is first parse
             print("   No existing homework found")
             print("   Calling parseHomework() for initial homework")
-            stateManager.parseHomework(parseResults: parseResults, image: originalImages.first ?? UIImage())
+            stateManager.parseHomework(parseResults: parseResults, images: originalImages)  // ✅ UPDATED: Pass array
             print("   ✅ State initialized: \(stateManager.currentState)")
         }
         // ✅ NEW: Resume prompt alert
@@ -102,7 +102,7 @@ struct HomeworkSummaryView: View {
             }
             Button(NSLocalizedString("homeworkSummary.resumePrompt.startFresh", comment: "Start Fresh"), role: .destructive) {
                 stateManager.startFresh()
-                stateManager.parseHomework(parseResults: parseResults, image: originalImages.first ?? UIImage())
+                stateManager.parseHomework(parseResults: parseResults, images: originalImages)  // ✅ UPDATED: Pass array
                 showDigitalHomework = true
             }
         } message: {

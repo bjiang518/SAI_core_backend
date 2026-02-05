@@ -115,7 +115,6 @@ class EnhancedTTSService: NSObject, ObservableObject {
             let audioSession = AVAudioSession.sharedInstance()
             // Use .notifyOthersOnDeactivation to allow other apps to resume audio
             try audioSession.setActive(false, options: [.notifyOthersOnDeactivation])
-            print("🔋 Battery: Deactivated audio session (not in use)")
         } catch {
             print("⚠️ Failed to deactivate audio session: \(error)")
             // Non-critical error - continue anyway

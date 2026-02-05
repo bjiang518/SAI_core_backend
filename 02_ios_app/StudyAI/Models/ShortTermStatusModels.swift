@@ -15,10 +15,64 @@ struct ShortTermStatus: Codable {
     var activeWeaknesses: [String: WeaknessValue] = [:]
     var lastUpdated: Date = Date()
 
-    // ✅ Handwriting tracking (for report generation)
+    // ✅ EXISTING: Handwriting tracking (for report generation)
     var recentHandwritingScore: Float?           // Latest score (0-10)
     var recentHandwritingFeedback: String?       // Latest feedback
     var recentHandwritingDate: Date?             // When recorded
+
+    // ✅ NEW: Conversation behavior signals (for parent reports)
+    var conversationBehaviorSignals: [ConversationBehaviorSignal] = []
+}
+
+// MARK: - Conversation Behavior Signal (NEW)
+// Per-conversation behavior tracking for parent report generation
+
+struct ConversationBehaviorSignal: Codable, Identifiable {
+    let id: UUID
+    let sessionId: String?
+    let archivedConversationId: String?
+    let recordedAt: Date
+
+    // Engagement metrics
+    let questionCount: Int
+    let followUpDepth: Int           // 0-5 scale
+    let activeDuration: Int          // Minutes
+
+    // Emotional indicators
+    let frustrationLevel: Int        // 0-5 scale
+    let frustrationKeywords: [String]
+    let hasHarmfulLanguage: Bool
+    let harmfulKeywords: [String]
+    let confidenceLevel: String      // "low" | "moderate" | "high"
+
+    // Learning patterns
+    let curiosityIndicators: [String]
+    let persistenceLevel: String     // "low" | "moderate" | "high"
+    let helpSeekingFrequency: Int
+
+    // Struggle areas
+    let confusionTopics: [String]
+    let reExplanationNeeded: [String]
+    let conceptualDifficulty: String  // "low" | "moderate" | "high"
+
+    // Performance indicators
+    let understandingProgression: String  // "improving" | "stable" | "declining"
+    let ahaMoments: Int
+    let errorPatterns: [String]
+
+    // Quick access
+    let hasRedFlags: Bool
+    let engagementScore: Double      // 0.0-1.0
+
+    enum CodingKeys: String, CodingKey {
+        case id, sessionId, archivedConversationId, recordedAt
+        case questionCount, followUpDepth, activeDuration
+        case frustrationLevel, frustrationKeywords, hasHarmfulLanguage, harmfulKeywords, confidenceLevel
+        case curiosityIndicators, persistenceLevel, helpSeekingFrequency
+        case confusionTopics, reExplanationNeeded, conceptualDifficulty
+        case understandingProgression, ahaMoments, errorPatterns
+        case hasRedFlags, engagementScore
+    }
 }
 
 struct WeaknessValue: Codable {

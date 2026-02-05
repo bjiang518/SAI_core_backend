@@ -24,7 +24,7 @@ enum DigitalHomeworkState: String, Codable {
 struct DigitalHomeworkData: Codable {
     let homeworkHash: String  // Unique identifier for this homework
     let parseResults: ParseHomeworkQuestionsResponse
-    let originalImageData: Data  // Store as Data for in-memory persistence
+    let originalImageDataArray: [Data]  // ✅ UPDATED: Store multiple images as Data array
     var questions: [ProgressiveQuestionWithGrade]
     var annotations: [QuestionAnnotation]
     var croppedImages: [Int: Data]  // questionId -> image data (for in-memory storage)
@@ -36,8 +36,38 @@ struct DigitalHomeworkData: Codable {
     // Progress tracking
     var hasMarkedProgress: Bool = false
 
+    // ✅ Custom initializer
+    init(
+        homeworkHash: String,
+        parseResults: ParseHomeworkQuestionsResponse,
+        originalImageDataArray: [Data],
+        questions: [ProgressiveQuestionWithGrade],
+        annotations: [QuestionAnnotation],
+        croppedImages: [Int: Data],
+        createdAt: Date,
+        lastModified: Date,
+        hasMarkedProgress: Bool = false
+    ) {
+        self.homeworkHash = homeworkHash
+        self.parseResults = parseResults
+        self.originalImageDataArray = originalImageDataArray
+        self.questions = questions
+        self.annotations = annotations
+        self.croppedImages = croppedImages
+        self.createdAt = createdAt
+        self.lastModified = lastModified
+        self.hasMarkedProgress = hasMarkedProgress
+    }
+
+    // ✅ Backward compatibility: return first image
     var originalImage: UIImage? {
-        return UIImage(data: originalImageData)
+        guard let firstImageData = originalImageDataArray.first else { return nil }
+        return UIImage(data: firstImageData)
+    }
+
+    // ✅ NEW: Get all original images
+    var originalImages: [UIImage] {
+        return originalImageDataArray.compactMap { UIImage(data: $0) }
     }
 
     func getCroppedImage(for questionId: Int) -> UIImage? {
@@ -70,6 +100,57 @@ struct DigitalHomeworkData: Codable {
         // ✅ CRITICAL FIX: Reset progress tracking when reverting grades
         // This prevents double-counting when user reverts and regrades
         hasMarkedProgress = false
+    }
+
+    // ✅ Custom Codable implementation for backward compatibility
+    enum CodingKeys: String, CodingKey {
+        case homeworkHash
+        case parseResults
+        case originalImageDataArray
+        case originalImageData  // Old key for backward compatibility
+        case questions
+        case annotations
+        case croppedImages
+        case createdAt
+        case lastModified
+        case hasMarkedProgress
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        homeworkHash = try container.decode(String.self, forKey: .homeworkHash)
+        parseResults = try container.decode(ParseHomeworkQuestionsResponse.self, forKey: .parseResults)
+        questions = try container.decode([ProgressiveQuestionWithGrade].self, forKey: .questions)
+        annotations = try container.decode([QuestionAnnotation].self, forKey: .annotations)
+        croppedImages = try container.decode([Int: Data].self, forKey: .croppedImages)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        lastModified = try container.decode(Date.self, forKey: .lastModified)
+        hasMarkedProgress = try container.decodeIfPresent(Bool.self, forKey: .hasMarkedProgress) ?? false
+
+        // ✅ Backward compatibility: try new format first, fallback to old format
+        if let imageDataArray = try? container.decode([Data].self, forKey: .originalImageDataArray) {
+            originalImageDataArray = imageDataArray
+        } else if let singleImageData = try? container.decode(Data.self, forKey: .originalImageData) {
+            // Old format: single image
+            originalImageDataArray = [singleImageData]
+        } else {
+            throw DecodingError.dataCorruptedError(forKey: .originalImageDataArray, in: container, debugDescription: "Missing image data")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(homeworkHash, forKey: .homeworkHash)
+        try container.encode(parseResults, forKey: .parseResults)
+        try container.encode(originalImageDataArray, forKey: .originalImageDataArray)
+        try container.encode(questions, forKey: .questions)
+        try container.encode(annotations, forKey: .annotations)
+        try container.encode(croppedImages, forKey: .croppedImages)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(lastModified, forKey: .lastModified)
+        try container.encode(hasMarkedProgress, forKey: .hasMarkedProgress)
     }
 }
 
@@ -111,8 +192,11 @@ class DigitalHomeworkStateManager: ObservableObject {
     }
 
     /// Parse new homework - State transition: Any → Nothing → Parsed
-    func parseHomework(parseResults: ParseHomeworkQuestionsResponse, image: UIImage) {
-        let newHash = generateHomeworkHash(image: image)
+    func parseHomework(parseResults: ParseHomeworkQuestionsResponse, images: [UIImage]) {
+        // ✅ Generate hash from first image for consistency
+        guard let firstImage = images.first else { return }
+
+        let newHash = generateHomeworkHash(image: firstImage)
 
         // Check if this is a NEW homework (different image from current)
         if let existingHash = currentHomeworkHash, existingHash != newHash {
@@ -125,10 +209,9 @@ class DigitalHomeworkStateManager: ObservableObject {
             return
         }
 
-        // Convert image to data
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            return
-        }
+        // Convert all images to data
+        let imageDataArray = images.compactMap { $0.jpegData(compressionQuality: 0.8) }
+        guard !imageDataArray.isEmpty else { return }
 
         // Create ungraded questions
         let ungradedQuestions = parseResults.questions.map { question in
@@ -145,7 +228,7 @@ class DigitalHomeworkStateManager: ObservableObject {
         let homeworkData = DigitalHomeworkData(
             homeworkHash: newHash,
             parseResults: parseResults,
-            originalImageData: imageData,
+            originalImageDataArray: imageDataArray,  // ✅ UPDATED: Use array
             questions: ungradedQuestions,
             annotations: [],
             croppedImages: [:],

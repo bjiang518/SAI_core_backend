@@ -62,6 +62,9 @@ final class HomeworkImageStorageService: ObservableObject {
     // MARK: - Save Homework Image
 
     /// Save a homework image with metadata
+    // MARK: - Save Operations
+
+    /// Save a single homework image
     func saveHomeworkImage(
         _ image: UIImage,
         subject: String,
@@ -72,14 +75,47 @@ final class HomeworkImageStorageService: ObservableObject {
         totalPoints: Float? = nil,
         maxPoints: Float? = nil,
         rawQuestions: [String]? = nil,
-        proModeData: Data? = nil  // ✅ NEW: Pro Mode digital homework data
+        proModeData: Data? = nil
     ) -> HomeworkImageRecord? {
-        logger.debug("Starting save process for homework image")
+        // ✅ Call multi-image version with single image
+        return saveHomeworkImages(
+            [image],
+            subject: subject,
+            accuracy: accuracy,
+            questionCount: questionCount,
+            correctCount: correctCount,
+            incorrectCount: incorrectCount,
+            totalPoints: totalPoints,
+            maxPoints: maxPoints,
+            rawQuestions: rawQuestions,
+            proModeData: proModeData
+        )
+    }
+
+    /// ✅ NEW: Save multiple homework images as a deck (for multi-page homework)
+    func saveHomeworkImages(
+        _ images: [UIImage],
+        subject: String,
+        accuracy: Float,
+        questionCount: Int,
+        correctCount: Int? = nil,
+        incorrectCount: Int? = nil,
+        totalPoints: Float? = nil,
+        maxPoints: Float? = nil,
+        rawQuestions: [String]? = nil,
+        proModeData: Data? = nil
+    ) -> HomeworkImageRecord? {
+        guard !images.isEmpty else {
+            logger.error("Cannot save empty image array")
+            return nil
+        }
+
+        logger.debug("Starting save process for \(images.count) homework image(s)")
         logger.debug("  Subject: \(subject), Accuracy: \(String(format: "%.1f%%", accuracy * 100))")
         logger.debug("  Questions: \(questionCount), Correct: \(correctCount ?? 0), Incorrect: \(incorrectCount ?? 0)")
 
-        // Generate hash for deduplication
-        guard let imageHash = generateImageHash(image) else {
+        // Generate hash from first image for deduplication
+        guard let imageHash = generateImageHash(images[0]) else {
             logger.error("Failed to generate image hash")
             return nil
         }
@@ -103,28 +139,38 @@ final class HomeworkImageStorageService: ObservableObject {
         }
 
         let recordId = UUID().uuidString
-        let imageFileName = "\(recordId).jpg"
-        let thumbnailFileName = "\(recordId)_thumb.jpg"
+        var savedFileNames: [String] = []
 
-        let imageURL = homeworkImagesDirectory.appendingPathComponent(imageFileName)
+        // ✅ Save each page
+        for (index, image) in images.enumerated() {
+            let pageFileName = "\(recordId)_page\(index + 1).jpg"
+            let imageURL = homeworkImagesDirectory.appendingPathComponent(pageFileName)
+
+            // Compress and save image (80% quality)
+            guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+                logger.warning("Failed to compress image page \(index + 1)")
+                continue
+            }
+
+            do {
+                try imageData.write(to: imageURL)
+                savedFileNames.append(pageFileName)
+                logger.debug("✓ Saved page \(index + 1): \(pageFileName) (\(imageData.count / 1024)KB)")
+            } catch {
+                logger.error("Failed to save page \(index + 1): \(error.localizedDescription)")
+            }
+        }
+
+        guard !savedFileNames.isEmpty else {
+            logger.error("Failed to save any images")
+            return nil
+        }
+
+        // Generate and save thumbnail from first page
+        let thumbnailFileName = "\(recordId)_thumb.jpg"
         let thumbnailURL = thumbnailsDirectory.appendingPathComponent(thumbnailFileName)
 
-        // Compress and save full image (80% quality)
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            logger.error("Failed to compress image")
-            return nil
-        }
-
-        do {
-            try imageData.write(to: imageURL)
-            logger.debug("✓ Saved full image: \(imageFileName) (\(imageData.count / 1024)KB)")
-        } catch {
-            logger.error("Failed to save image: \(error.localizedDescription)")
-            return nil
-        }
-
-        // Generate and save thumbnail (300x300)
-        if let thumbnail = generateThumbnail(from: image, size: CGSize(width: 300, height: 300)),
+        if let thumbnail = generateThumbnail(from: images[0], size: CGSize(width: 300, height: 300)),
            let thumbnailData = thumbnail.jpegData(compressionQuality: 0.7) {
             do {
                 try thumbnailData.write(to: thumbnailURL)
@@ -134,11 +180,12 @@ final class HomeworkImageStorageService: ObservableObject {
             }
         }
 
-        // Create metadata record with hash
+        // Create metadata record
         let record = HomeworkImageRecord(
             id: recordId,
-            imageFileName: imageFileName,
+            imageFileNames: savedFileNames,
             thumbnailFileName: thumbnailFileName,
+            pageCount: savedFileNames.count,
             submittedDate: Date(),
             subject: subject,
             accuracy: accuracy,
@@ -149,27 +196,33 @@ final class HomeworkImageStorageService: ObservableObject {
             totalPoints: totalPoints,
             maxPoints: maxPoints,
             rawQuestions: rawQuestions,
-            proModeData: proModeData  // ✅ NEW: Store Pro Mode data
+            proModeData: proModeData
         )
 
         // Add to array and save metadata
         homeworkImages.insert(record, at: 0) // Insert at beginning (most recent first)
         saveMetadata()
 
-        logger.info("✅ Homework image saved successfully: \(recordId)")
+        logger.info("✅ Homework image(s) saved successfully: \(recordId)")
+        logger.debug("  Total pages saved: \(savedFileNames.count)")
         logger.debug("  Total images in album: \(self.homeworkImages.count)")
         return record
     }
 
     // MARK: - Load/Retrieve Images
 
-    /// Load a full-size homework image
+    /// Load a full-size homework image (backward compatibility - loads first page)
     func loadHomeworkImage(record: HomeworkImageRecord) -> UIImage? {
-        let imageURL = homeworkImagesDirectory.appendingPathComponent(record.imageFileName)
+        return loadImageByFileName(record.imageFileName)
+    }
+
+    /// ✅ NEW: Load an image by filename (supports multi-page)
+    func loadImageByFileName(_ fileName: String) -> UIImage? {
+        let imageURL = homeworkImagesDirectory.appendingPathComponent(fileName)
 
         guard let imageData = try? Data(contentsOf: imageURL),
               let image = UIImage(data: imageData) else {
-            print("⚠️ Failed to load image: \(record.imageFileName)")
+            logger.warning("Failed to load image: \(fileName)")
             return nil
         }
 

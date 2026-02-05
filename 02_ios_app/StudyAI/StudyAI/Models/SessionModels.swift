@@ -272,6 +272,18 @@ enum SubjectCategory: String, CaseIterable, Codable {
 
 // MARK: - Archived Conversation Models
 
+// Behavior Summary for parent reports
+struct BehaviorSummary: Codable {
+    let frustrationLevel: Int              // 0-5
+    let hasRedFlags: Bool
+    let engagementScore: Double            // 0.0-1.0
+    let curiosityCount: Int?               // Optional: Number of curiosity indicators
+
+    enum CodingKeys: String, CodingKey {
+        case frustrationLevel, hasRedFlags, engagementScore, curiosityCount
+    }
+}
+
 struct ArchivedConversation: Codable, Identifiable {
     let id: String
     let userId: String
@@ -280,13 +292,21 @@ struct ArchivedConversation: Codable, Identifiable {
     let conversationContent: String
     let archivedDate: Date
     let createdAt: Date
-    let diagrams: [[String: Any]]?  // ✅ NEW: Store diagram data
+    let diagrams: [[String: Any]]?  // ✅ EXISTING: Store diagram data
+
+    // ✅ NEW: AI-generated summary and analysis fields
+    let summary: String?                    // AI-generated summary (50-100 chars)
+    let keyTopics: [String]?               // Key topics discussed
+    let learningOutcomes: [String]?        // Learning outcomes achieved
+    let estimatedDuration: Int?            // Session duration in minutes
+    let behaviorSummary: BehaviorSummary?  // Behavior insights
 
     enum CodingKeys: String, CodingKey {
         case id, userId, subject, topic, conversationContent, archivedDate, createdAt, diagrams
+        case summary, keyTopics, learningOutcomes, estimatedDuration, behaviorSummary
     }
 
-    init(id: String, userId: String, subject: String, topic: String?, conversationContent: String, archivedDate: Date, createdAt: Date, diagrams: [[String: Any]]? = nil) {
+    init(id: String, userId: String, subject: String, topic: String?, conversationContent: String, archivedDate: Date, createdAt: Date, diagrams: [[String: Any]]? = nil, summary: String? = nil, keyTopics: [String]? = nil, learningOutcomes: [String]? = nil, estimatedDuration: Int? = nil, behaviorSummary: BehaviorSummary? = nil) {
         self.id = id
         self.userId = userId
         self.subject = subject
@@ -295,6 +315,11 @@ struct ArchivedConversation: Codable, Identifiable {
         self.archivedDate = archivedDate
         self.createdAt = createdAt
         self.diagrams = diagrams
+        self.summary = summary
+        self.keyTopics = keyTopics
+        self.learningOutcomes = learningOutcomes
+        self.estimatedDuration = estimatedDuration
+        self.behaviorSummary = behaviorSummary
     }
 
     init(from decoder: Decoder) throws {
@@ -313,6 +338,13 @@ struct ArchivedConversation: Codable, Identifiable {
         } else {
             diagrams = nil
         }
+
+        // NEW: Decode summary fields
+        summary = try container.decodeIfPresent(String.self, forKey: .summary)
+        keyTopics = try container.decodeIfPresent([String].self, forKey: .keyTopics)
+        learningOutcomes = try container.decodeIfPresent([String].self, forKey: .learningOutcomes)
+        estimatedDuration = try container.decodeIfPresent(Int.self, forKey: .estimatedDuration)
+        behaviorSummary = try container.decodeIfPresent(BehaviorSummary.self, forKey: .behaviorSummary)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -330,6 +362,13 @@ struct ArchivedConversation: Codable, Identifiable {
             let diagramsData = try? JSONSerialization.data(withJSONObject: diagrams)
             try container.encodeIfPresent(diagramsData, forKey: .diagrams)
         }
+
+        // NEW: Encode summary fields
+        try container.encodeIfPresent(summary, forKey: .summary)
+        try container.encodeIfPresent(keyTopics, forKey: .keyTopics)
+        try container.encodeIfPresent(learningOutcomes, forKey: .learningOutcomes)
+        try container.encodeIfPresent(estimatedDuration, forKey: .estimatedDuration)
+        try container.encodeIfPresent(behaviorSummary, forKey: .behaviorSummary)
     }
 }
 

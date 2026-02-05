@@ -3509,14 +3509,23 @@ class NetworkService: ObservableObject {
     
     /// Archive a session conversation to LOCAL storage only (with image processing)
     func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil, diagrams: [String: DiagramGenerationResponse]? = nil) async -> (success: Bool, message: String, conversation: [String: Any]?) {
-        print("📦 === ARCHIVE CONVERSATION SESSION (LOCAL-ONLY) ===")
+        print("📦 === ARCHIVE CONVERSATION SESSION ===")
         print("📁 Session ID: \(sessionId)")
         print("📝 Title: \(title ?? "Auto-generated")")
         print("🏷️ Topic: \(topic ?? "Auto-generated from subject")")
         print("📚 Subject: \(subject ?? "General")")
         print("💭 Notes: \(notes ?? "None")")
 
-        // ✅ LOCAL-ONLY: Process conversation to handle images
+        // ✅ STEP 1: Try to call backend for AI-generated summary and behavior analysis
+        let backendResult = await archiveSessionToBackend(
+            sessionId: sessionId,
+            title: title,
+            topic: topic,
+            subject: subject,
+            notes: notes
+        )
+
+        // ✅ STEP 2: Process conversation to handle images
         let processedConversation = await processConversationForArchive()
         print("🔍 Processed conversation: \(processedConversation.messageCount) messages")
         print("📷 Images processed: \(processedConversation.imagesProcessed)")
@@ -3524,10 +3533,10 @@ class NetworkService: ObservableObject {
             print("📝 Image summaries created: \(processedConversation.imageSummariesCreated)")
         }
 
-        // Generate local UUID for conversation
+        // ✅ STEP 3: Generate local UUID for conversation
         let conversationId = UUID().uuidString
 
-        // Build conversation data
+        // ✅ STEP 4: Build conversation data with backend summary if available
         var conversationData: [String: Any] = [
             "id": conversationId,
             "subject": subject ?? "General",
@@ -3539,6 +3548,22 @@ class NetworkService: ObservableObject {
             "hasImageSummaries": processedConversation.imagesProcessed > 0,
             "imageCount": processedConversation.imagesProcessed
         ]
+
+        // ✅ STEP 5: Add AI-generated summary if backend call succeeded
+        if backendResult.success, let summary = backendResult.summary {
+            conversationData["summary"] = summary
+            print("✨ Added AI-generated summary: \(summary.prefix(100))...")
+        } else {
+            print("⚠️ No AI summary available (backend call failed or not authenticated)")
+        }
+
+        // ✅ STEP 6: Add behavior insights if available
+        if let behaviorInsights = backendResult.behaviorInsights {
+            conversationData["behaviorSummary"] = behaviorInsights
+            if let hasRedFlags = behaviorInsights["hasRedFlags"] as? Bool, hasRedFlags {
+                print("🚨 Conversation has red flags detected")
+            }
+        }
 
         // ✅ NEW: Save diagram data for retrieval in library
         if let diagrams = diagrams, !diagrams.isEmpty {
@@ -3599,16 +3624,24 @@ class NetworkService: ObservableObject {
         print("   - Topic: \(conversationData["topic"] ?? "N/A")")
         print("   - Message count: \(processedConversation.messageCount)")
 
-        // ✅ Save to local storage ONLY - no server request
+        // ✅ Save to local storage with backend summary (if available)
         ConversationLocalStorage.shared.saveConversation(conversationData)
 
-        print("✅ [Archive] Saved conversation to LOCAL storage only (ID: \(conversationId))")
-        print("   💡 [Archive] Use 'Sync with Server' to upload to backend")
+        let hasSummary = conversationData["summary"] != nil
+        let summaryStatus = hasSummary ? "with AI summary" : "without AI summary (offline mode)"
+
+        print("✅ [Archive] Saved conversation to local storage (ID: \(conversationId))")
+        print("   📝 Summary: \(summaryStatus)")
+        print("   💬 Messages: \(processedConversation.messageCount)")
 
         // Invalidate cache so fresh data is loaded
         invalidateCache()
 
-        return (true, "Session archived locally with \(processedConversation.messageCount) messages", conversationData)
+        let message = hasSummary
+            ? "Session archived with \(processedConversation.messageCount) messages and AI summary"
+            : "Session archived locally with \(processedConversation.messageCount) messages (offline mode)"
+
+        return (true, message, conversationData)
     }
 
     // MARK: - Backend Archive with Summary & Behavior Analysis (NEW)

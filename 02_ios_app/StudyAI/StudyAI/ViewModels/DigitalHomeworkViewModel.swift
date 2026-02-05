@@ -114,6 +114,11 @@ class DigitalHomeworkViewModel: ObservableObject {
         return stateManager.currentHomework?.originalImage
     }
 
+    // ✅ NEW: Get all original images (for multi-page homework)
+    var originalImages: [UIImage] {
+        return stateManager.currentHomework?.originalImages ?? []
+    }
+
     var subject: String {
         return stateManager.currentHomework?.parseResults.subject ?? ""
     }
@@ -214,13 +219,13 @@ class DigitalHomeworkViewModel: ObservableObject {
         // If not, set it now (fallback for migration)
         if stateManager.currentState == .nothing {
             logger.warning("State is .nothing - calling parseHomework()")
-            stateManager.parseHomework(parseResults: parseResults, image: originalImage)
+            stateManager.parseHomework(parseResults: parseResults, images: originalImages)  // ✅ UPDATED: Pass array
         }
     }
 
     // MARK: - Annotation Management
 
-    func addAnnotation(at point: CGPoint, imageSize: CGSize) {
+    func addAnnotation(at point: CGPoint, imageSize: CGSize, pageIndex: Int = 0) {
         guard originalImage != nil else { return }
 
         // Calculate normalized coordinates
@@ -240,7 +245,8 @@ class DigitalHomeworkViewModel: ObservableObject {
             topLeft: normalizedTopLeft,
             bottomRight: normalizedBottomRight,
             questionNumber: nil,
-            color: annotationColor(for: annotations.count)
+            color: annotationColor(for: annotations.count),
+            pageIndex: pageIndex  // ✅ NEW: Include page index
         )
 
         // Update global state
@@ -251,7 +257,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         selectedAnnotationId = newAnnotation.id
 
         if Self.isDebugMode {
-            logger.debug("Created annotation at (\(Int(point.x)), \(Int(point.y)))")
+            logger.debug("Created annotation at (\(Int(point.x)), \(Int(point.y))) on page \(pageIndex)")
         }
     }
 
@@ -425,9 +431,9 @@ class DigitalHomeworkViewModel: ObservableObject {
             return
         }
 
-        // Only save if we have an image
-        guard let image = originalImage else {
-            logger.debug("No original image to save")
+        // ✅ UPDATED: Only save if we have images (plural for multi-page)
+        guard !originalImages.isEmpty else {
+            logger.debug("No original images to save")
             return
         }
 
@@ -462,11 +468,11 @@ class DigitalHomeworkViewModel: ObservableObject {
             }
         }
 
-        logger.info("Saving graded homework to album: \(subject), \(questionCount) questions")
+        logger.info("Saving \(originalImages.count) page(s) of graded homework to album: \(subject), \(questionCount) questions")
 
-        // Save to storage
-        let record = homeworkImageStorage.saveHomeworkImage(
-            image,
+        // ✅ UPDATED: Save all pages as a homework deck
+        let record = homeworkImageStorage.saveHomeworkImages(
+            originalImages,  // ✅ Pass entire array of images
             subject: subject,
             accuracy: accuracy,
             questionCount: questionCount,
@@ -475,11 +481,11 @@ class DigitalHomeworkViewModel: ObservableObject {
             totalPoints: nil,  // Digital Homework doesn't use points
             maxPoints: nil,
             rawQuestions: rawQuestions.isEmpty ? nil : rawQuestions,
-            proModeData: proModeData  // ✅ NEW: Save Pro Mode data
+            proModeData: proModeData
         )
 
         if record != nil {
-            logger.info("Digital homework auto-saved to album: \(subject), \(questionCount) questions")
+            logger.info("Digital homework auto-saved to album as \(originalImages.count)-page deck: \(subject), \(questionCount) questions")
         } else {
             logger.error("Failed to auto-save digital homework (might be duplicate)")
         }
@@ -1863,7 +1869,8 @@ struct QuestionAnnotation: Identifiable, Codable {
     var topLeft: [Double]       // Normalized [0-1] coordinates
     var bottomRight: [Double]   // Normalized [0-1] coordinates
     var questionNumber: String? // Maps to question number (not id)
-    let colorIndex: Int         // ✅ CHANGED: Store color index instead of Color
+    let colorIndex: Int         // Store color index instead of Color
+    var pageIndex: Int = 0      // ✅ NEW: Track which page this annotation belongs to
 
     // ✅ NEW: Computed property to get Color from index
     var color: Color {
@@ -1872,16 +1879,17 @@ struct QuestionAnnotation: Identifiable, Codable {
     }
 
     // ✅ NEW: Custom initializer to support old API
-    init(id: UUID = UUID(), topLeft: [Double], bottomRight: [Double], questionNumber: String?, colorIndex: Int) {
+    init(id: UUID = UUID(), topLeft: [Double], bottomRight: [Double], questionNumber: String?, colorIndex: Int, pageIndex: Int = 0) {
         self.id = id
         self.topLeft = topLeft
         self.bottomRight = bottomRight
         self.questionNumber = questionNumber
         self.colorIndex = colorIndex
+        self.pageIndex = pageIndex
     }
 
     // ✅ NEW: Convenience initializer with Color (for backward compatibility)
-    init(topLeft: [Double], bottomRight: [Double], questionNumber: String?, color: Color) {
+    init(topLeft: [Double], bottomRight: [Double], questionNumber: String?, color: Color, pageIndex: Int = 0) {
         // Map color to index (approximate - just use sequential index)
         let colors: [Color] = [.blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint]
         let colorIndex = colors.firstIndex(of: color) ?? 0
@@ -1891,7 +1899,8 @@ struct QuestionAnnotation: Identifiable, Codable {
             topLeft: topLeft,
             bottomRight: bottomRight,
             questionNumber: questionNumber,
-            colorIndex: colorIndex
+            colorIndex: colorIndex,
+            pageIndex: pageIndex
         )
     }
 }

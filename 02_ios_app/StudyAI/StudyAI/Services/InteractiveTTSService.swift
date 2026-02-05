@@ -40,6 +40,10 @@ class InteractiveTTSService: NSObject, ObservableObject {
     // Temporary file tracking for cleanup
     private var tempFiles: Set<URL> = []
 
+    // ✅ NEW: Timing metrics for latency measurement
+    private var firstAudioChunkTime: Date?
+    private var firstPlaybackStartTime: Date?
+
     // MARK: - Initialization
 
     override init() {
@@ -91,6 +95,12 @@ class InteractiveTTSService: NSObject, ObservableObject {
     func processAudioChunk(_ base64Audio: String) {
         Task { @MainActor in
             logger.info("📥 [InteractiveTTS] processAudioChunk called with \(base64Audio.count) chars base64")
+
+            // ✅ Track timing for first audio chunk
+            if firstAudioChunkTime == nil {
+                firstAudioChunkTime = Date()
+                logger.info("⏱️ [TIMING] First audio chunk received")
+            }
 
             // Ensure audio engine is running
             if !audioEngine.isRunning {
@@ -282,6 +292,17 @@ class InteractiveTTSService: NSObject, ObservableObject {
         if !playerNode.isPlaying {
             logger.info("▶️ [Schedule] Starting audio playback...")
 
+            // ✅ Track timing for first playback start
+            if firstPlaybackStartTime == nil {
+                firstPlaybackStartTime = Date()
+                if let firstChunkTime = firstAudioChunkTime {
+                    let latency = Date().timeIntervalSince(firstChunkTime) * 1000
+                    logger.info("⏱️ [TIMING] First playback started - Latency from first chunk: \(Int(latency))ms")
+                } else {
+                    logger.info("⏱️ [TIMING] First playback started")
+                }
+            }
+
             // Ensure audio session is active before playing
             do {
                 let audioSession = AVAudioSession.sharedInstance()
@@ -338,6 +359,11 @@ class InteractiveTTSService: NSObject, ObservableObject {
         audioQueue.removeAll()
         audioChunksReceived = 0
         errorMessage = nil
+
+        // ✅ Reset timing metrics
+        firstAudioChunkTime = nil
+        firstPlaybackStartTime = nil
+
         logger.debug("🔄 Interactive TTS service reset")
     }
 
