@@ -914,6 +914,19 @@ const db = {
         notes || null
       ];
 
+      // ✅ DEBUG: Log actual types and values to identify malformed JSON
+      logger.info('🔍 DEBUG - Data types being inserted: ' + JSON.stringify({
+        keyTopics_type: Array.isArray(keyTopics) ? 'array' : typeof keyTopics,
+        keyTopics_value: keyTopics,
+        learningOutcomes_type: Array.isArray(learningOutcomes) ? 'array' : typeof learningOutcomes,
+        learningOutcomes_value: learningOutcomes,
+        embedding_type: Array.isArray(embedding) ? 'array' : typeof embedding,
+        embedding_hasValue: !!embedding,
+        embedding_length: Array.isArray(embedding) ? embedding.length : 0,
+        behaviorSummary_type: typeof behaviorSummary,
+        behaviorSummary_keys: behaviorSummary ? Object.keys(behaviorSummary) : []
+      }));
+
       // Log values as JSON string for Railway
       logger.info('💾 Inserting into database: ' + JSON.stringify({
         userId: values[0]?.substring(0, 8),
@@ -1378,6 +1391,19 @@ const db = {
         behaviorSummary || null,  // JSONB - pass object directly
         notes || null
       ];
+
+      // ✅ DEBUG: Log actual types and values to identify malformed JSON
+      logger.info('🔍 DEBUG - Data types being inserted: ' + JSON.stringify({
+        keyTopics_type: Array.isArray(keyTopics) ? 'array' : typeof keyTopics,
+        keyTopics_value: keyTopics,
+        learningOutcomes_type: Array.isArray(learningOutcomes) ? 'array' : typeof learningOutcomes,
+        learningOutcomes_value: learningOutcomes,
+        embedding_type: Array.isArray(embedding) ? 'array' : typeof embedding,
+        embedding_hasValue: !!embedding,
+        embedding_length: Array.isArray(embedding) ? embedding.length : 0,
+        behaviorSummary_type: typeof behaviorSummary,
+        behaviorSummary_keys: behaviorSummary ? Object.keys(behaviorSummary) : []
+      }));
 
       // Log values as JSON string for Railway
       logger.info('💾 Inserting into database: ' + JSON.stringify({
@@ -3163,6 +3189,22 @@ async function runDatabaseMigrations() {
       logger.debug('✅ Added is_encrypted column to archived_conversations_new table');
     } catch (error) {
       logger.debug(`⚠️ Could not add is_encrypted to archived_conversations_new: ${error.message}`);
+    }
+
+    // ✅ DEBUG: Query actual column types after migrations
+    try {
+      const columnTypes = await db.query(`
+        SELECT column_name, data_type, udt_name
+        FROM information_schema.columns
+        WHERE table_name = 'archived_conversations_new'
+        AND column_name IN ('key_topics', 'learning_outcomes', 'embedding', 'behavior_summary')
+        ORDER BY column_name
+      `);
+      logger.info('📋 Column types in archived_conversations_new: ' + JSON.stringify(
+        columnTypes.rows.map(r => ({ name: r.column_name, type: r.data_type, udt: r.udt_name }))
+      ));
+    } catch (error) {
+      logger.debug(`⚠️ Could not query column types: ${error.message}`);
     }
 
     // Create indexes with proper error handling
