@@ -3071,6 +3071,13 @@ async function runDatabaseMigrations() {
 
     // ✅ NEW: Add columns for AI summary and behavior analysis
     try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS session_id UUID REFERENCES sessions(id) ON DELETE SET NULL');
+      logger.debug('✅ Added session_id column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add session_id to archived_conversations_new: ${error.message}`);
+    }
+
+    try {
       await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS title VARCHAR(200)');
       logger.debug('✅ Added title column to archived_conversations_new table');
     } catch (error) {
