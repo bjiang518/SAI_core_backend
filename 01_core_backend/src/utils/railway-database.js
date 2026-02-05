@@ -819,85 +819,125 @@ const db = {
    * Archive a conversation (chat session) to archived_conversations_new
    */
   async archiveConversation(conversationData) {
-    const {
-      userId,
-      sessionId,
-      subject,
-      title,
-      topic,
-      conversationHistory,
-      summary,
-      keyTopics,
-      learningOutcomes,
-      duration,
-      totalTokens,
-      embedding,
-      behaviorSummary,
-      notes
-    } = conversationData;
+    try {
+      logger.info('📦 [archiveConversation] Starting with data:', {
+        userId: conversationData.userId?.substring(0, 8),
+        sessionId: conversationData.sessionId?.substring(0, 8),
+        subject: conversationData.subject,
+        hasSummary: !!conversationData.summary,
+        hasConversationHistory: !!conversationData.conversationHistory,
+        conversationHistoryType: Array.isArray(conversationData.conversationHistory) ? 'array' : typeof conversationData.conversationHistory
+      });
 
-    // Convert conversation history array to text
-    let conversationContent = '';
-    if (conversationHistory && Array.isArray(conversationHistory)) {
-      conversationContent = conversationHistory.map(msg => {
-        const role = msg.message_type === 'user' ? 'USER' : 'AI';
-        return `${role}: ${msg.message_text || ''}`;
-      }).join('\n\n');
-    } else if (typeof conversationHistory === 'string') {
-      conversationContent = conversationHistory;
-    }
-
-    // PRIVACY: Encrypt conversation content before storing
-    const { encrypted, hash } = encryptionService.encryptConversation(conversationContent);
-
-    // ✅ ENHANCED: Add new columns for summary and behavior analysis
-    const query = `
-      INSERT INTO archived_conversations_new (
-        user_id,
-        session_id,
+      const {
+        userId,
+        sessionId,
         subject,
         title,
         topic,
-        conversation_content,
-        encrypted_content,
-        content_hash,
-        is_encrypted,
+        conversationHistory,
         summary,
-        key_topics,
-        learning_outcomes,
-        estimated_duration,
-        total_tokens,
+        keyTopics,
+        learningOutcomes,
+        duration,
+        totalTokens,
         embedding,
-        behavior_summary,
+        behaviorSummary,
         notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-      RETURNING *
-    `;
+      } = conversationData;
 
-    // Store both encrypted and plaintext for migration compatibility
-    // TODO: Remove conversation_content after full encryption migration
-    const values = [
-      userId,
-      sessionId,
-      subject,
-      title || `${subject} Session`,
-      topic,
-      conversationContent,
-      encrypted,
-      hash,
-      true,
-      summary || null,  // AI-generated summary
-      keyTopics ? JSON.stringify(keyTopics) : null,
-      learningOutcomes ? JSON.stringify(learningOutcomes) : null,
-      duration || null,
-      totalTokens || null,
-      embedding || null,
-      behaviorSummary ? JSON.stringify(behaviorSummary) : null,
-      notes || null
-    ];
+      // Convert conversation history array to text
+      let conversationContent = '';
+      if (conversationHistory && Array.isArray(conversationHistory)) {
+        conversationContent = conversationHistory.map(msg => {
+          const role = msg.message_type === 'user' ? 'USER' : 'AI';
+          return `${role}: ${msg.message_text || ''}`;
+        }).join('\n\n');
+        logger.info(`📝 Converted ${conversationHistory.length} messages to text (${conversationContent.length} chars)`);
+      } else if (typeof conversationHistory === 'string') {
+        conversationContent = conversationHistory;
+        logger.info(`📝 Using string conversation content (${conversationContent.length} chars)`);
+      } else {
+        logger.error('❌ Invalid conversationHistory format:', typeof conversationHistory);
+        throw new Error('conversationHistory must be array or string');
+      }
 
-    const result = await this.query(query, values);
-    return result.rows[0];
+      // PRIVACY: Encrypt conversation content before storing
+      const { encrypted, hash } = encryptionService.encryptConversation(conversationContent);
+      logger.info('🔐 Encrypted conversation content');
+
+      // ✅ ENHANCED: Add new columns for summary and behavior analysis
+      const query = `
+        INSERT INTO archived_conversations_new (
+          user_id,
+          session_id,
+          subject,
+          title,
+          topic,
+          conversation_content,
+          encrypted_content,
+          content_hash,
+          is_encrypted,
+          summary,
+          key_topics,
+          learning_outcomes,
+          estimated_duration,
+          total_tokens,
+          embedding,
+          behavior_summary,
+          notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        RETURNING *
+      `;
+
+      // Store both encrypted and plaintext for migration compatibility
+      // TODO: Remove conversation_content after full encryption migration
+      const values = [
+        userId,
+        sessionId,
+        subject,
+        title || `${subject} Session`,
+        topic,
+        conversationContent,
+        encrypted,
+        hash,
+        true,
+        summary || null,  // AI-generated summary
+        keyTopics ? JSON.stringify(keyTopics) : null,
+        learningOutcomes ? JSON.stringify(learningOutcomes) : null,
+        duration || null,
+        totalTokens || null,
+        embedding || null,
+        behaviorSummary ? JSON.stringify(behaviorSummary) : null,
+        notes || null
+      ];
+
+      logger.info('💾 Inserting into database with values:', {
+        userId: values[0]?.substring(0, 8),
+        sessionId: values[1]?.substring(0, 8),
+        subject: values[2],
+        title: values[3],
+        topic: values[4],
+        contentLength: values[5]?.length,
+        hasSummary: !!values[9],
+        summaryLength: values[9]?.length,
+        hasKeyTopics: !!values[10],
+        hasBehaviorSummary: !!values[15]
+      });
+
+      const result = await this.query(query, values);
+      logger.info('✅ [archiveConversation] Successfully saved to database');
+      return result.rows[0];
+    } catch (error) {
+      logger.error('❌ [archiveConversation] Database insert failed:', {
+        errorMessage: error.message,
+        errorCode: error.code,
+        errorDetail: error.detail,
+        errorHint: error.hint,
+        errorStack: error.stack?.substring(0, 500)
+      });
+      throw error;
+    }
   },
 
   /**
@@ -1232,85 +1272,125 @@ const db = {
    * Archive a conversation (chat session) to archived_conversations_new
    */
   async archiveConversation(conversationData) {
-    const {
-      userId,
-      sessionId,
-      subject,
-      title,
-      topic,
-      conversationHistory,
-      summary,
-      keyTopics,
-      learningOutcomes,
-      duration,
-      totalTokens,
-      embedding,
-      behaviorSummary,
-      notes
-    } = conversationData;
+    try {
+      logger.info('📦 [archiveConversation] Starting with data:', {
+        userId: conversationData.userId?.substring(0, 8),
+        sessionId: conversationData.sessionId?.substring(0, 8),
+        subject: conversationData.subject,
+        hasSummary: !!conversationData.summary,
+        hasConversationHistory: !!conversationData.conversationHistory,
+        conversationHistoryType: Array.isArray(conversationData.conversationHistory) ? 'array' : typeof conversationData.conversationHistory
+      });
 
-    // Convert conversation history array to text
-    let conversationContent = '';
-    if (conversationHistory && Array.isArray(conversationHistory)) {
-      conversationContent = conversationHistory.map(msg => {
-        const role = msg.message_type === 'user' ? 'USER' : 'AI';
-        return `${role}: ${msg.message_text || ''}`;
-      }).join('\n\n');
-    } else if (typeof conversationHistory === 'string') {
-      conversationContent = conversationHistory;
-    }
-
-    // PRIVACY: Encrypt conversation content before storing
-    const { encrypted, hash } = encryptionService.encryptConversation(conversationContent);
-
-    // ✅ ENHANCED: Add new columns for summary and behavior analysis
-    const query = `
-      INSERT INTO archived_conversations_new (
-        user_id,
-        session_id,
+      const {
+        userId,
+        sessionId,
         subject,
         title,
         topic,
-        conversation_content,
-        encrypted_content,
-        content_hash,
-        is_encrypted,
+        conversationHistory,
         summary,
-        key_topics,
-        learning_outcomes,
-        estimated_duration,
-        total_tokens,
+        keyTopics,
+        learningOutcomes,
+        duration,
+        totalTokens,
         embedding,
-        behavior_summary,
+        behaviorSummary,
         notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-      RETURNING *
-    `;
+      } = conversationData;
 
-    // Store both encrypted and plaintext for migration compatibility
-    // TODO: Remove conversation_content after full encryption migration
-    const values = [
-      userId,
-      sessionId,
-      subject,
-      title || `${subject} Session`,
-      topic,
-      conversationContent,
-      encrypted,
-      hash,
-      true,
-      summary || null,  // AI-generated summary
-      keyTopics ? JSON.stringify(keyTopics) : null,
-      learningOutcomes ? JSON.stringify(learningOutcomes) : null,
-      duration || null,
-      totalTokens || null,
-      embedding || null,
-      behaviorSummary ? JSON.stringify(behaviorSummary) : null,
-      notes || null
-    ];
+      // Convert conversation history array to text
+      let conversationContent = '';
+      if (conversationHistory && Array.isArray(conversationHistory)) {
+        conversationContent = conversationHistory.map(msg => {
+          const role = msg.message_type === 'user' ? 'USER' : 'AI';
+          return `${role}: ${msg.message_text || ''}`;
+        }).join('\n\n');
+        logger.info(`📝 Converted ${conversationHistory.length} messages to text (${conversationContent.length} chars)`);
+      } else if (typeof conversationHistory === 'string') {
+        conversationContent = conversationHistory;
+        logger.info(`📝 Using string conversation content (${conversationContent.length} chars)`);
+      } else {
+        logger.error('❌ Invalid conversationHistory format:', typeof conversationHistory);
+        throw new Error('conversationHistory must be array or string');
+      }
 
-    const result = await this.query(query, values);
-    return result.rows[0];
+      // PRIVACY: Encrypt conversation content before storing
+      const { encrypted, hash } = encryptionService.encryptConversation(conversationContent);
+      logger.info('🔐 Encrypted conversation content');
+
+      // ✅ ENHANCED: Add new columns for summary and behavior analysis
+      const query = `
+        INSERT INTO archived_conversations_new (
+          user_id,
+          session_id,
+          subject,
+          title,
+          topic,
+          conversation_content,
+          encrypted_content,
+          content_hash,
+          is_encrypted,
+          summary,
+          key_topics,
+          learning_outcomes,
+          estimated_duration,
+          total_tokens,
+          embedding,
+          behavior_summary,
+          notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        RETURNING *
+      `;
+
+      // Store both encrypted and plaintext for migration compatibility
+      // TODO: Remove conversation_content after full encryption migration
+      const values = [
+        userId,
+        sessionId,
+        subject,
+        title || `${subject} Session`,
+        topic,
+        conversationContent,
+        encrypted,
+        hash,
+        true,
+        summary || null,  // AI-generated summary
+        keyTopics ? JSON.stringify(keyTopics) : null,
+        learningOutcomes ? JSON.stringify(learningOutcomes) : null,
+        duration || null,
+        totalTokens || null,
+        embedding || null,
+        behaviorSummary ? JSON.stringify(behaviorSummary) : null,
+        notes || null
+      ];
+
+      logger.info('💾 Inserting into database with values:', {
+        userId: values[0]?.substring(0, 8),
+        sessionId: values[1]?.substring(0, 8),
+        subject: values[2],
+        title: values[3],
+        topic: values[4],
+        contentLength: values[5]?.length,
+        hasSummary: !!values[9],
+        summaryLength: values[9]?.length,
+        hasKeyTopics: !!values[10],
+        hasBehaviorSummary: !!values[15]
+      });
+
+      const result = await this.query(query, values);
+      logger.info('✅ [archiveConversation] Successfully saved to database');
+      return result.rows[0];
+    } catch (error) {
+      logger.error('❌ [archiveConversation] Database insert failed:', {
+        errorMessage: error.message,
+        errorCode: error.code,
+        errorDetail: error.detail,
+        errorHint: error.hint,
+        errorStack: error.stack?.substring(0, 500)
+      });
+      throw error;
+    }
   },
 
   /**
