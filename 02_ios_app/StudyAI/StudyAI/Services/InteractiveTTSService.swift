@@ -112,18 +112,20 @@ class InteractiveTTSService: NSObject, ObservableObject {
             }
 
             audioChunksReceived += 1
-            logger.debug("📥 Processing audio chunk #\(audioChunksReceived) (\(audioData.count) bytes)")
+            logger.info("📥 [InteractiveTTS] Processing audio chunk #\(audioChunksReceived) (\(audioData.count) bytes)")
 
             // Decode MP3 to PCM buffer
+            logger.info("🎵 [InteractiveTTS] Calling decodeMp3ToPCM for chunk #\(audioChunksReceived)...")
             if let pcmBuffer = decodeMp3ToPCM(audioData) {
                 audioQueue.append(pcmBuffer)
-                logger.debug("📥 Audio chunk #\(audioChunksReceived) queued (\(audioQueue.count) in queue)")
+                logger.info("✅ [InteractiveTTS] Chunk #\(audioChunksReceived) decoded and queued (queue size: \(audioQueue.count))")
 
                 if !isSchedulingBuffers {
+                    logger.info("▶️ [InteractiveTTS] Starting buffer scheduling...")
                     scheduleNextBuffer()
                 }
             } else {
-                logger.error("❌ Failed to decode MP3 audio chunk #\(audioChunksReceived)")
+                logger.error("❌ [InteractiveTTS] Failed to decode MP3 audio chunk #\(audioChunksReceived)")
                 errorMessage = "MP3 decoding failed"
             }
         }
@@ -133,26 +135,33 @@ class InteractiveTTSService: NSObject, ObservableObject {
     /// - Parameter mp3Data: Raw MP3 audio data
     /// - Returns: PCM buffer ready for playback, or nil if decoding fails
     private func decodeMp3ToPCM(_ mp3Data: Data) -> AVAudioPCMBuffer? {
+        logger.info("🎵 [Decode] decodeMp3ToPCM called with \(mp3Data.count) bytes")
+
         // Create temporary file for MP3 data (AVAudioFile requires file-based input)
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("mp3")
 
+        logger.info("🎵 [Decode] Temp file path: \(tempURL.path)")
+
         do {
             // Write MP3 data to temp file
             try mp3Data.write(to: tempURL)
             tempFiles.insert(tempURL)
+            logger.info("✅ [Decode] MP3 data written to temp file")
 
             // Open audio file
             let audioFile = try AVAudioFile(forReading: tempURL)
             let frameCount = UInt32(audioFile.length)
+
+            logger.info("✅ [Decode] Audio file opened - \(frameCount) frames, \(audioFile.processingFormat.sampleRate)Hz, \(audioFile.processingFormat.channelCount) channels")
 
             // Create PCM buffer matching the file's format
             guard let pcmBuffer = AVAudioPCMBuffer(
                 pcmFormat: audioFile.processingFormat,
                 frameCapacity: frameCount
             ) else {
-                logger.error("❌ Failed to create PCM buffer")
+                logger.error("❌ [Decode] Failed to create PCM buffer")
                 try? FileManager.default.removeItem(at: tempURL)
                 tempFiles.remove(tempURL)
                 return nil
@@ -162,21 +171,23 @@ class InteractiveTTSService: NSObject, ObservableObject {
             try audioFile.read(into: pcmBuffer)
             pcmBuffer.frameLength = frameCount
 
-            logger.debug("✅ Decoded MP3 → PCM: \(frameCount) frames, \(audioFile.processingFormat.sampleRate)Hz, \(audioFile.processingFormat.channelCount) channels")
+            logger.info("✅ [Decode] Read \(frameCount) frames into buffer")
 
             // Convert to engine format if needed (mono → stereo)
             let finalBuffer: AVAudioPCMBuffer
             if audioFile.processingFormat.channelCount != audioFormat.channelCount {
-                logger.debug("🔄 Converting \(audioFile.processingFormat.channelCount) channel(s) → \(audioFormat.channelCount) channel(s)")
+                logger.info("🔄 [Decode] Converting \(audioFile.processingFormat.channelCount) channel(s) → \(audioFormat.channelCount) channel(s)")
 
                 guard let convertedBuffer = convertBuffer(pcmBuffer, from: audioFile.processingFormat, to: audioFormat) else {
-                    logger.error("❌ Failed to convert audio format")
+                    logger.error("❌ [Decode] Failed to convert audio format")
                     try? FileManager.default.removeItem(at: tempURL)
                     tempFiles.remove(tempURL)
                     return nil
                 }
+                logger.info("✅ [Decode] Format conversion successful")
                 finalBuffer = convertedBuffer
             } else {
+                logger.info("ℹ️ [Decode] No format conversion needed")
                 finalBuffer = pcmBuffer
             }
 
@@ -189,10 +200,11 @@ class InteractiveTTSService: NSObject, ObservableObject {
                 }
             }
 
+            logger.info("✅ [Decode] Successfully decoded MP3 → PCM")
             return finalBuffer
 
         } catch {
-            logger.error("❌ MP3 decode error: \(error)")
+            logger.error("❌ [Decode] MP3 decode error: \(error.localizedDescription)")
             try? FileManager.default.removeItem(at: tempURL)
             tempFiles.remove(tempURL)
             return nil
@@ -236,10 +248,14 @@ class InteractiveTTSService: NSObject, ObservableObject {
 
     /// Schedule next buffer for playback
     private func scheduleNextBuffer() {
+        logger.info("🔄 [Schedule] scheduleNextBuffer called - queue size: \(audioQueue.count)")
+
         guard !audioQueue.isEmpty else {
             isSchedulingBuffers = false
             if isPlaying {
-                logger.debug("🎵 Audio queue empty, playback continuing until last buffer finishes")
+                logger.info("🎵 [Schedule] Audio queue empty, playback continuing until last buffer finishes")
+            } else {
+                logger.info("ℹ️ [Schedule] Audio queue empty and not playing")
             }
             return
         }
@@ -247,18 +263,24 @@ class InteractiveTTSService: NSObject, ObservableObject {
         isSchedulingBuffers = true
         let buffer = audioQueue.removeFirst()
 
+        logger.info("📋 [Schedule] Scheduling buffer with \(buffer.frameLength) frames")
+
         // Schedule buffer with completion handler for chaining
         playerNode.scheduleBuffer(buffer) { [weak self] in
             Task { @MainActor in
+                self?.logger.info("✅ [Schedule] Buffer playback completed, scheduling next...")
                 self?.scheduleNextBuffer()
             }
         }
 
         // Start playback if not already playing
         if !playerNode.isPlaying {
+            logger.info("▶️ [Schedule] Starting audio playback...")
             playerNode.play()
             isPlaying = true
-            logger.debug("▶️ Audio playback started")
+            logger.info("✅ [Schedule] Audio playback started!")
+        } else {
+            logger.info("ℹ️ [Schedule] Player already playing, buffer added to queue")
         }
     }
 
