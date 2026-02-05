@@ -29,6 +29,11 @@ class MentalHealthReportGenerator {
             let conversations = await this.getConversationsForPeriod(userId, startDate, endDate);
             conversations = conversations || [];
 
+            // ✅ NEW: Get conversation behavior signals from short_term_status
+            let behaviorSignals = await this.getBehaviorSignalsForPeriod(userId, startDate, endDate);
+            behaviorSignals = behaviorSignals || [];
+            logger.info(`📊 Retrieved ${behaviorSignals.length} conversation behavior signals`);
+
             // Step 3: Get previous period data for comparison
             const previousStart = new Date(startDate);
             previousStart.setDate(previousStart.getDate() - 7);
@@ -42,7 +47,8 @@ class MentalHealthReportGenerator {
                 questions,
                 conversations,
                 previousQuestions,
-                studentAge
+                studentAge,
+                behaviorSignals  // ✅ NEW: Pass behavior signals to analysis
             );
 
             // Ensure analysis has required properties
@@ -105,6 +111,37 @@ class MentalHealthReportGenerator {
 
         const result = await db.query(query, [userId, startDate, endDate]);
         return result.rows;
+    }
+
+    /**
+     * ✅ NEW: Get conversation behavior signals from short_term_status
+     * Returns array of behavior signals within date range
+     */
+    async getBehaviorSignalsForPeriod(userId, startDate, endDate) {
+        const query = `
+            SELECT conversation_behavior_signals
+            FROM short_term_status
+            WHERE user_id = $1
+        `;
+
+        const result = await db.query(query, [userId]);
+
+        // Extract signals array from JSONB
+        if (result.rows.length === 0 || !result.rows[0].conversation_behavior_signals) {
+            return [];
+        }
+
+        const allSignals = result.rows[0].conversation_behavior_signals;
+
+        // Filter signals within date range
+        const filteredSignals = allSignals.filter(signal => {
+            if (!signal.recordedAt) return false;
+            const signalDate = new Date(signal.recordedAt);
+            return signalDate >= new Date(startDate) && signalDate <= new Date(endDate);
+        });
+
+        logger.info(`📊 Retrieved ${filteredSignals.length}/${allSignals.length} behavior signals for period`);
+        return filteredSignals;
     }
 
     /**
@@ -222,14 +259,19 @@ class MentalHealthReportGenerator {
 
     /**
      * Analyze wellbeing indicators
+     * ✅ ENHANCED: Now uses conversation_behavior_signals from short_term_status
      */
-    analyzeWellbeing(questions, conversations, previousQuestions, studentAge) {
+    analyzeWellbeing(questions, conversations, previousQuestions, studentAge, behaviorSignals = []) {
         // Ensure we have arrays, not undefined
         questions = questions || [];
         conversations = conversations || [];
         previousQuestions = previousQuestions || [];
+        behaviorSignals = behaviorSignals || [];
 
         const thresholds = this.getAgeThresholds(studentAge);
+
+        // ✅ NEW: Calculate aggregated metrics from behavior signals
+        const behaviorMetrics = this.aggregateBehaviorSignals(behaviorSignals);
 
         // === LEARNING ATTITUDE ===
         const totalQuestions = questions.length;
@@ -250,9 +292,12 @@ class MentalHealthReportGenerator {
             });
         }
 
-        // Curiosity
+        // ✅ ENHANCED: Use behavior signals for curiosity if available, else fallback to text analysis
         let totalCuriosity = 0;
-        if (conversations && conversations.length > 0) {
+        if (behaviorMetrics.totalCuriosity > 0) {
+            totalCuriosity = behaviorMetrics.totalCuriosity;
+            logger.info(`📊 Using behavior signals for curiosity: ${totalCuriosity} indicators`);
+        } else if (conversations && conversations.length > 0) {
             conversations.forEach(c => {
                 if (c && c.conversation_content) {
                     totalCuriosity += this.detectCuriosity(c.conversation_content);
@@ -347,9 +392,18 @@ class MentalHealthReportGenerator {
         }
 
         // Frustration detection
+        // ✅ ENHANCED: Use behavior signals if available, else fallback to text analysis
         let totalFrustration = 0;
         let totalEffort = 0;
-        if (conversations && conversations.length > 0) {
+        let frustrationTrend = 'stable';
+
+        if (behaviorSignals.length > 0) {
+            // Use aggregated behavior metrics
+            totalFrustration = behaviorMetrics.avgFrustrationLevel * behaviorSignals.length;
+            frustrationTrend = behaviorMetrics.frustrationTrend;
+            logger.info(`📊 Using behavior signals for frustration: avg=${behaviorMetrics.avgFrustrationLevel.toFixed(2)}, trend=${frustrationTrend}`);
+        } else if (conversations && conversations.length > 0) {
+            // Fallback to text analysis
             conversations.forEach(c => {
                 if (c && c.conversation_content) {
                     totalFrustration += this.detectFrustration(c.conversation_content);
@@ -358,11 +412,11 @@ class MentalHealthReportGenerator {
             });
         }
 
-        if (totalFrustration > (conversations ? conversations.length : 0)) {
+        if (totalFrustration > (behaviorSignals.length || conversations.length)) {
             redFlags.push({
                 level: 'warning',
                 title: 'High Frustration Indicators',
-                description: `Detected ${totalFrustration} frustration markers in conversations.`,
+                description: `Detected ${Math.round(totalFrustration)} frustration markers${frustrationTrend === 'increasing' ? ' with increasing trend' : ''}.`,
                 action: 'Break problems into smaller steps. Celebrate small wins. Consider taking breaks.'
             });
         } else if (totalFrustration === 0) {
@@ -371,17 +425,27 @@ class MentalHealthReportGenerator {
         }
 
         // Harmful language detection
+        // ✅ ENHANCED: Use behavior signals if available, else fallback to text analysis
         let harmfulLanguageDetected = [];
-        if (conversations && conversations.length > 0) {
+        let hasRedFlags = false;
+
+        if (behaviorSignals.length > 0) {
+            // Use behavior signals
+            hasRedFlags = behaviorSignals.some(signal => signal.hasRedFlags);
+            harmfulLanguageDetected = behaviorMetrics.harmfulKeywords;
+            logger.info(`📊 Using behavior signals for harmful language: hasRedFlags=${hasRedFlags}, keywords=${harmfulLanguageDetected.length}`);
+        } else if (conversations && conversations.length > 0) {
+            // Fallback to text analysis
             conversations.forEach(c => {
                 if (c && c.conversation_content) {
                     const harmful = this.detectHarmfulLanguage(c.conversation_content);
                     harmfulLanguageDetected = harmfulLanguageDetected.concat(harmful);
                 }
             });
+            hasRedFlags = harmfulLanguageDetected.length > 0;
         }
 
-        if (harmfulLanguageDetected.length > 0) {
+        if (hasRedFlags || harmfulLanguageDetected.length > 0) {
             redFlags.push({
                 level: 'urgent',
                 title: '🚨 Harmful Language Detected',
@@ -427,6 +491,85 @@ class MentalHealthReportGenerator {
             activityChange,
             studentAge,
             harmfulLanguageCount: harmfulLanguageDetected.length
+        };
+    }
+
+    /**
+     * ✅ NEW: Aggregate behavior signals for report generation
+     * Calculates metrics from conversation_behavior_signals array
+     */
+    aggregateBehaviorSignals(behaviorSignals) {
+        if (!behaviorSignals || behaviorSignals.length === 0) {
+            return {
+                avgFrustrationLevel: 0,
+                frustrationTrend: 'stable',
+                totalCuriosity: 0,
+                harmfulKeywords: [],
+                avgEngagementScore: 0,
+                hasRedFlags: false
+            };
+        }
+
+        // Calculate average frustration level
+        const frustrationLevels = behaviorSignals.map(s => s.frustrationLevel || 0);
+        const avgFrustrationLevel = frustrationLevels.reduce((sum, val) => sum + val, 0) / frustrationLevels.length;
+
+        // Calculate frustration trend (first half vs second half)
+        let frustrationTrend = 'stable';
+        if (behaviorSignals.length >= 4) {
+            const midpoint = Math.floor(behaviorSignals.length / 2);
+            const firstHalf = frustrationLevels.slice(0, midpoint);
+            const secondHalf = frustrationLevels.slice(midpoint);
+
+            const firstAvg = firstHalf.reduce((sum, val) => sum + val, 0) / firstHalf.length;
+            const secondAvg = secondHalf.reduce((sum, val) => sum + val, 0) / secondHalf.length;
+
+            const diff = secondAvg - firstAvg;
+
+            if (diff > 0.5) {
+                frustrationTrend = 'increasing';
+            } else if (diff < -0.5) {
+                frustrationTrend = 'decreasing';
+            }
+        }
+
+        // Count total curiosity indicators
+        const totalCuriosity = behaviorSignals.reduce((sum, signal) => {
+            return sum + (signal.curiosityIndicators?.length || 0);
+        }, 0);
+
+        // Collect unique harmful keywords
+        const harmfulKeywordsSet = new Set();
+        behaviorSignals.forEach(signal => {
+            if (signal.harmfulKeywords && signal.harmfulKeywords.length > 0) {
+                signal.harmfulKeywords.forEach(keyword => harmfulKeywordsSet.add(keyword));
+            }
+        });
+        const harmfulKeywords = Array.from(harmfulKeywordsSet);
+
+        // Calculate average engagement score
+        const engagementScores = behaviorSignals.map(s => s.engagementScore || 0);
+        const avgEngagementScore = engagementScores.reduce((sum, val) => sum + val, 0) / engagementScores.length;
+
+        // Check if any session has red flags
+        const hasRedFlags = behaviorSignals.some(signal => signal.hasRedFlags === true);
+
+        logger.info(`📊 Behavior signal aggregation:`, {
+            avgFrustrationLevel: avgFrustrationLevel.toFixed(2),
+            frustrationTrend,
+            totalCuriosity,
+            harmfulKeywords: harmfulKeywords.length,
+            avgEngagementScore: avgEngagementScore.toFixed(2),
+            hasRedFlags
+        });
+
+        return {
+            avgFrustrationLevel,
+            frustrationTrend,
+            totalCuriosity,
+            harmfulKeywords,
+            avgEngagementScore,
+            hasRedFlags
         };
     }
 

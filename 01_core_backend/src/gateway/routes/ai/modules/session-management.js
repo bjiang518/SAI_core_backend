@@ -9,9 +9,11 @@
 const AIServiceClient = require('../../../services/ai-client');
 const AuthHelper = require('../utils/auth-helper');
 const SessionHelper = require('../utils/session-helper');
+const BehaviorAnalyzer = require('../utils/behavior-analyzer');
 const { TUTORING_SYSTEM_PROMPT, MATH_FORMATTING_SYSTEM_PROMPT } = require('../utils/prompts');
 const PIIMasking = require('../../../../utils/pii-masking');
 const aiEngineCircuitBreaker = require('../../../../utils/ai-engine-client');
+const { v4: uuidv4 } = require('uuid');
 
 class SessionManagementRoutes {
   constructor(fastify) {
@@ -761,13 +763,23 @@ LANGUAGE: ${languageInstruction}`;
         });
       }
 
-      // Analyze conversation using helper
+      // EXISTING: Analyze conversation using helper
       const analysis = await this.sessionHelper.analyzeConversationForArchiving(
         conversationHistory,
         sessionInfo
       );
 
-      // Archive to database
+      // NEW: Extract behavior signals using BehaviorAnalyzer
+      const behaviorAnalyzer = new BehaviorAnalyzer();
+      const behaviorSignals = await behaviorAnalyzer.analyzeStudentBehavior(
+        conversationHistory,
+        sessionInfo
+      );
+
+      // Calculate engagement score for quick access
+      const engagementScore = behaviorAnalyzer.calculateEngagementScore(behaviorSignals.engagement);
+
+      // Archive to database with enhanced data
       const archiveResult = await db.archiveConversation({
         userId: authenticatedUserId,
         sessionId: sessionId,
@@ -781,8 +793,60 @@ LANGUAGE: ${languageInstruction}`;
         learningOutcomes: analysis.learningOutcomes,
         duration: analysis.estimatedDuration,
         totalTokens: analysis.totalTokens,
-        embedding: analysis.embedding
+        embedding: analysis.embedding,
+        behaviorSummary: behaviorSignals  // NEW: Add behavior summary
       });
+
+      // NEW: Store behavior signals in short_term_status table
+      const behaviorSignalRecord = {
+        id: uuidv4(),
+        sessionId: sessionId,
+        archivedConversationId: archiveResult.id,
+        recordedAt: new Date().toISOString(),
+
+        // Engagement metrics
+        questionCount: behaviorSignals.engagement.questionCount,
+        followUpDepth: behaviorSignals.engagement.followUpDepth,
+        activeDuration: behaviorSignals.engagement.activeDuration,
+
+        // Emotional indicators
+        frustrationLevel: behaviorSignals.emotionalState.frustrationLevel,
+        frustrationKeywords: behaviorSignals.emotionalState.frustrationKeywords,
+        hasHarmfulLanguage: behaviorSignals.emotionalState.hasHarmfulLanguage,
+        harmfulKeywords: behaviorSignals.emotionalState.harmfulKeywords,
+        confidenceLevel: behaviorSignals.emotionalState.confidenceLevel,
+
+        // Learning patterns
+        curiosityIndicators: behaviorSignals.learningPatterns.curiosityIndicators,
+        persistenceLevel: behaviorSignals.learningPatterns.persistenceLevel,
+        helpSeekingFrequency: behaviorSignals.learningPatterns.helpSeekingFrequency,
+
+        // Struggle areas
+        confusionTopics: behaviorSignals.struggleAreas.confusionTopics,
+        reExplanationNeeded: behaviorSignals.struggleAreas.reExplanationNeeded,
+        conceptualDifficulty: behaviorSignals.struggleAreas.conceptualDifficulty,
+
+        // Performance indicators
+        understandingProgression: behaviorSignals.performanceIndicators.understandingProgression,
+        ahaMoments: behaviorSignals.performanceIndicators.ahaMoments,
+        errorPatterns: behaviorSignals.performanceIndicators.errorPatterns,
+
+        // Quick access
+        hasRedFlags: behaviorSignals.emotionalState.hasHarmfulLanguage,
+        engagementScore: engagementScore
+      };
+
+      // Insert or update short_term_status with behavior signals
+      await db.query(`
+        INSERT INTO short_term_status (user_id, conversation_behavior_signals, last_updated)
+        VALUES ($1, $2::jsonb, NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+          conversation_behavior_signals =
+            COALESCE(short_term_status.conversation_behavior_signals, '[]'::jsonb) || $2::jsonb,
+          last_updated = NOW()
+      `, [authenticatedUserId, JSON.stringify([behaviorSignalRecord])]);
+
+      this.fastify.log.info(`✅ Behavior signals stored: Frustration=${behaviorSignals.emotionalState.frustrationLevel}, RedFlags=${behaviorSignals.emotionalState.hasHarmfulLanguage}`);
 
       const duration = Date.now() - startTime;
 
@@ -792,6 +856,15 @@ LANGUAGE: ${languageInstruction}`;
         session_id: sessionId,
         summary: analysis.summary,
         message_count: conversationHistory.length,
+
+        // NEW: Return behavior insights to iOS
+        behaviorInsights: {
+          frustrationLevel: behaviorSignals.emotionalState.frustrationLevel,
+          hasRedFlags: behaviorSignals.emotionalState.hasHarmfulLanguage,
+          engagementScore: engagementScore,
+          curiosityCount: behaviorSignals.learningPatterns.curiosityIndicators.length
+        },
+
         _gateway: {
           processTime: duration,
           service: 'gateway-database'
