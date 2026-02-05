@@ -821,30 +821,81 @@ const db = {
   async archiveConversation(conversationData) {
     const {
       userId,
+      sessionId,
       subject,
+      title,
       topic,
-      conversationContent
+      conversationHistory,
+      summary,
+      keyTopics,
+      learningOutcomes,
+      duration,
+      totalTokens,
+      embedding,
+      behaviorSummary,
+      notes
     } = conversationData;
+
+    // Convert conversation history array to text
+    let conversationContent = '';
+    if (conversationHistory && Array.isArray(conversationHistory)) {
+      conversationContent = conversationHistory.map(msg => {
+        const role = msg.message_type === 'user' ? 'USER' : 'AI';
+        return `${role}: ${msg.message_text || ''}`;
+      }).join('\n\n');
+    } else if (typeof conversationHistory === 'string') {
+      conversationContent = conversationHistory;
+    }
 
     // PRIVACY: Encrypt conversation content before storing
     const { encrypted, hash } = encryptionService.encryptConversation(conversationContent);
 
+    // ✅ ENHANCED: Add new columns for summary and behavior analysis
     const query = `
       INSERT INTO archived_conversations_new (
         user_id,
+        session_id,
         subject,
+        title,
         topic,
         conversation_content,
         encrypted_content,
         content_hash,
-        is_encrypted
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        is_encrypted,
+        summary,
+        key_topics,
+        learning_outcomes,
+        estimated_duration,
+        total_tokens,
+        embedding,
+        behavior_summary,
+        notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *
     `;
 
     // Store both encrypted and plaintext for migration compatibility
     // TODO: Remove conversation_content after full encryption migration
-    const values = [userId, subject, topic, conversationContent, encrypted, hash, true];
+    const values = [
+      userId,
+      sessionId,
+      subject,
+      title || `${subject} Session`,
+      topic,
+      conversationContent,
+      encrypted,
+      hash,
+      true,
+      summary || null,  // AI-generated summary
+      keyTopics ? JSON.stringify(keyTopics) : null,
+      learningOutcomes ? JSON.stringify(learningOutcomes) : null,
+      duration || null,
+      totalTokens || null,
+      embedding || null,
+      behaviorSummary ? JSON.stringify(behaviorSummary) : null,
+      notes || null
+    ];
+
     const result = await this.query(query, values);
     return result.rows[0];
   },
@@ -1183,30 +1234,81 @@ const db = {
   async archiveConversation(conversationData) {
     const {
       userId,
+      sessionId,
       subject,
+      title,
       topic,
-      conversationContent
+      conversationHistory,
+      summary,
+      keyTopics,
+      learningOutcomes,
+      duration,
+      totalTokens,
+      embedding,
+      behaviorSummary,
+      notes
     } = conversationData;
+
+    // Convert conversation history array to text
+    let conversationContent = '';
+    if (conversationHistory && Array.isArray(conversationHistory)) {
+      conversationContent = conversationHistory.map(msg => {
+        const role = msg.message_type === 'user' ? 'USER' : 'AI';
+        return `${role}: ${msg.message_text || ''}`;
+      }).join('\n\n');
+    } else if (typeof conversationHistory === 'string') {
+      conversationContent = conversationHistory;
+    }
 
     // PRIVACY: Encrypt conversation content before storing
     const { encrypted, hash } = encryptionService.encryptConversation(conversationContent);
 
+    // ✅ ENHANCED: Add new columns for summary and behavior analysis
     const query = `
       INSERT INTO archived_conversations_new (
         user_id,
+        session_id,
         subject,
+        title,
         topic,
         conversation_content,
         encrypted_content,
         content_hash,
-        is_encrypted
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        is_encrypted,
+        summary,
+        key_topics,
+        learning_outcomes,
+        estimated_duration,
+        total_tokens,
+        embedding,
+        behavior_summary,
+        notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *
     `;
 
     // Store both encrypted and plaintext for migration compatibility
     // TODO: Remove conversation_content after full encryption migration
-    const values = [userId, subject, topic, conversationContent, encrypted, hash, true];
+    const values = [
+      userId,
+      sessionId,
+      subject,
+      title || `${subject} Session`,
+      topic,
+      conversationContent,
+      encrypted,
+      hash,
+      true,
+      summary || null,  // AI-generated summary
+      keyTopics ? JSON.stringify(keyTopics) : null,
+      learningOutcomes ? JSON.stringify(learningOutcomes) : null,
+      duration || null,
+      totalTokens || null,
+      embedding || null,
+      behaviorSummary ? JSON.stringify(behaviorSummary) : null,
+      notes || null
+    ];
+
     const result = await this.query(query, values);
     return result.rows[0];
   },
@@ -2862,7 +2964,92 @@ async function runDatabaseMigrations() {
     } catch (error) {
       logger.debug(`⚠️ Could not add archived_date to archived_conversations_new: ${error.message}`);
     }
-    
+
+    // ✅ NEW: Add columns for AI summary and behavior analysis
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS title VARCHAR(200)');
+      logger.debug('✅ Added title column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add title to archived_conversations_new: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS summary TEXT');
+      logger.debug('✅ Added summary column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add summary to archived_conversations_new: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS key_topics TEXT');
+      logger.debug('✅ Added key_topics column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add key_topics to archived_conversations_new: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS learning_outcomes TEXT');
+      logger.debug('✅ Added learning_outcomes column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add learning_outcomes to archived_conversations_new: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS estimated_duration INTEGER');
+      logger.debug('✅ Added estimated_duration column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add estimated_duration to archived_conversations_new: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS total_tokens INTEGER');
+      logger.debug('✅ Added total_tokens column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add total_tokens to archived_conversations_new: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS embedding TEXT');
+      logger.debug('✅ Added embedding column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add embedding to archived_conversations_new: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS behavior_summary JSONB');
+      logger.debug('✅ Added behavior_summary column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add behavior_summary to archived_conversations_new: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS notes TEXT');
+      logger.debug('✅ Added notes column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add notes to archived_conversations_new: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS encrypted_content TEXT');
+      logger.debug('✅ Added encrypted_content column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add encrypted_content to archived_conversations_new: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)');
+      logger.debug('✅ Added content_hash column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add content_hash to archived_conversations_new: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS is_encrypted BOOLEAN DEFAULT FALSE');
+      logger.debug('✅ Added is_encrypted column to archived_conversations_new table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add is_encrypted to archived_conversations_new: ${error.message}`);
+    }
+
     // Create indexes with proper error handling
     try {
       await db.query('CREATE INDEX IF NOT EXISTS idx_archived_conversations_new_user_date ON archived_conversations_new(user_id, archived_date DESC)');
@@ -3371,6 +3558,126 @@ async function runDatabaseMigrations() {
       logger.debug('   - Performance tracking and analytics');
     } else {
       logger.debug('✅ Parent report narratives migration already applied');
+    }
+
+    // ============================================
+    // MIGRATION: Short-Term Status Table (2025-02-03)
+    // ============================================
+    const shortTermStatusCheck = await db.query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_name = 'short_term_status'
+      AND table_schema = 'public'
+    `);
+
+    if (shortTermStatusCheck.rows.length === 0) {
+      logger.debug('📋 Creating short_term_status table for weakness tracking...');
+
+      await db.query(`
+        CREATE TABLE short_term_status (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+          -- Existing: Weakness tracking
+          active_weaknesses JSONB DEFAULT '{}',
+          last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+          -- Existing: Handwriting tracking
+          recent_handwriting_score FLOAT,
+          recent_handwriting_feedback TEXT,
+          recent_handwriting_date TIMESTAMP WITH TIME ZONE,
+
+          -- NEW: Conversation behavior signals (array of signals)
+          conversation_behavior_signals JSONB DEFAULT '[]',
+
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+
+        -- Create indexes for better query performance
+        CREATE INDEX IF NOT EXISTS idx_short_term_status_user_id
+          ON short_term_status(user_id);
+        CREATE INDEX IF NOT EXISTS idx_short_term_status_last_updated
+          ON short_term_status(user_id, last_updated DESC);
+
+        -- Add UNIQUE constraint on user_id (one row per user)
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_short_term_status_user_unique
+          ON short_term_status(user_id);
+
+        -- Add comments
+        COMMENT ON TABLE short_term_status IS 'Short-term status tracking: weaknesses, handwriting, and conversation behavior signals';
+        COMMENT ON COLUMN short_term_status.active_weaknesses IS 'Active weaknesses JSONB (keys = subject/topic/concept paths)';
+        COMMENT ON COLUMN short_term_status.conversation_behavior_signals IS 'Array of conversation behavior signals for parent reports';
+      `);
+
+      // Record the migration as completed
+      await db.query(`
+        INSERT INTO migration_history (migration_name)
+        VALUES ('006_short_term_status_table')
+        ON CONFLICT (migration_name) DO NOTHING;
+      `);
+
+      logger.debug('✅ Short-term status table created successfully!');
+    } else {
+      logger.debug('✅ Short-term status table already exists');
+
+      // Ensure conversation_behavior_signals column exists
+      try {
+        await db.query(`
+          ALTER TABLE short_term_status
+          ADD COLUMN IF NOT EXISTS conversation_behavior_signals JSONB DEFAULT '[]';
+        `);
+        logger.debug('✅ Added conversation_behavior_signals column to short_term_status');
+      } catch (error) {
+        logger.debug(`⚠️ Could not add conversation_behavior_signals: ${error.message}`);
+      }
+    }
+
+    // ============================================
+    // MIGRATION: Archived Conversations Summary (2025-02-03)
+    // ============================================
+    const archivedConversationsSummaryCheck = await db.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'archived_conversations_new'
+      AND column_name = 'summary'
+      AND table_schema = 'public'
+    `);
+
+    if (archivedConversationsSummaryCheck.rows.length === 0) {
+      logger.debug('📋 Adding summary columns to archived_conversations_new...');
+
+      await db.query(`
+        -- Add summary and behavior analysis columns
+        ALTER TABLE archived_conversations_new
+        ADD COLUMN IF NOT EXISTS summary TEXT,
+        ADD COLUMN IF NOT EXISTS key_topics TEXT[],
+        ADD COLUMN IF NOT EXISTS learning_outcomes TEXT[],
+        ADD COLUMN IF NOT EXISTS estimated_duration INT,
+        ADD COLUMN IF NOT EXISTS behavior_summary JSONB;
+
+        -- Add comments
+        COMMENT ON COLUMN archived_conversations_new.summary IS 'AI-generated conversation summary (50-100 chars)';
+        COMMENT ON COLUMN archived_conversations_new.key_topics IS 'Array of key topics discussed';
+        COMMENT ON COLUMN archived_conversations_new.learning_outcomes IS 'Array of learning outcomes achieved';
+        COMMENT ON COLUMN archived_conversations_new.estimated_duration IS 'Estimated session duration in minutes';
+        COMMENT ON COLUMN archived_conversations_new.behavior_summary IS 'JSONB summary of student behavior signals';
+      `);
+
+      // Record the migration as completed
+      await db.query(`
+        INSERT INTO migration_history (migration_name)
+        VALUES ('007_archived_conversations_summary')
+        ON CONFLICT (migration_name) DO NOTHING;
+      `);
+
+      logger.debug('✅ Archived conversations summary migration completed!');
+      logger.debug('📊 Archived conversations now support:');
+      logger.debug('   - AI-generated summaries for Library display');
+      logger.debug('   - Key topics and learning outcomes');
+      logger.debug('   - Estimated session duration');
+      logger.debug('   - Behavior signal summaries');
+    } else {
+      logger.debug('✅ Archived conversations summary migration already applied');
     }
 
     // ============================================
