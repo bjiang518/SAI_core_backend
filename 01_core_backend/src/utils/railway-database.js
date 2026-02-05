@@ -3149,11 +3149,13 @@ async function runDatabaseMigrations() {
       logger.debug(`⚠️ Could not add total_tokens to archived_conversations_new: ${error.message}`);
     }
 
+    // Drop and recreate embedding as JSONB (was TEXT, causing array conversion errors)
     try {
-      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN IF NOT EXISTS embedding TEXT');
-      logger.debug('✅ Added embedding column to archived_conversations_new table');
+      await db.query('ALTER TABLE archived_conversations_new DROP COLUMN IF EXISTS embedding');
+      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN embedding JSONB');
+      logger.debug('✅ Recreated embedding column as JSONB in archived_conversations_new table');
     } catch (error) {
-      logger.debug(`⚠️ Could not add embedding to archived_conversations_new: ${error.message}`);
+      logger.debug(`⚠️ Could not recreate embedding as JSONB: ${error.message}`);
     }
 
     try {
