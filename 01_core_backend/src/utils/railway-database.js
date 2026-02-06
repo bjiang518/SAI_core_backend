@@ -3123,22 +3123,52 @@ async function runDatabaseMigrations() {
       logger.debug(`⚠️ Could not add summary to archived_conversations_new: ${error.message}`);
     }
 
-    // Drop and recreate key_topics as JSONB (in case it exists as TEXT[] from earlier schema)
+    // Ensure key_topics is JSONB (check type before recreating)
     try {
-      await db.query('ALTER TABLE archived_conversations_new DROP COLUMN IF EXISTS key_topics');
-      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN key_topics JSONB');
-      logger.debug('✅ Recreated key_topics column as JSONB in archived_conversations_new table');
+      const keyTopicsCheck = await db.query(`
+        SELECT data_type FROM information_schema.columns
+        WHERE table_name = 'archived_conversations_new'
+        AND column_name = 'key_topics'
+      `);
+
+      if (keyTopicsCheck.rows.length === 0) {
+        // Column doesn't exist, create it
+        await db.query('ALTER TABLE archived_conversations_new ADD COLUMN key_topics JSONB');
+        logger.debug('✅ Created key_topics column as JSONB');
+      } else if (keyTopicsCheck.rows[0].data_type !== 'jsonb') {
+        // Column exists with wrong type, recreate it
+        await db.query('ALTER TABLE archived_conversations_new DROP COLUMN key_topics');
+        await db.query('ALTER TABLE archived_conversations_new ADD COLUMN key_topics JSONB');
+        logger.debug('✅ Recreated key_topics column as JSONB (was ' + keyTopicsCheck.rows[0].data_type + ')');
+      } else {
+        logger.debug('✅ key_topics column already exists as JSONB');
+      }
     } catch (error) {
-      logger.debug(`⚠️ Could not recreate key_topics as JSONB: ${error.message}`);
+      logger.debug(`⚠️ Could not ensure key_topics as JSONB: ${error.message}`);
     }
 
-    // Drop and recreate learning_outcomes as JSONB (in case it exists as TEXT[] from earlier schema)
+    // Ensure learning_outcomes is JSONB (check type before recreating)
     try {
-      await db.query('ALTER TABLE archived_conversations_new DROP COLUMN IF EXISTS learning_outcomes');
-      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN learning_outcomes JSONB');
-      logger.debug('✅ Recreated learning_outcomes column as JSONB in archived_conversations_new table');
+      const learningOutcomesCheck = await db.query(`
+        SELECT data_type FROM information_schema.columns
+        WHERE table_name = 'archived_conversations_new'
+        AND column_name = 'learning_outcomes'
+      `);
+
+      if (learningOutcomesCheck.rows.length === 0) {
+        // Column doesn't exist, create it
+        await db.query('ALTER TABLE archived_conversations_new ADD COLUMN learning_outcomes JSONB');
+        logger.debug('✅ Created learning_outcomes column as JSONB');
+      } else if (learningOutcomesCheck.rows[0].data_type !== 'jsonb') {
+        // Column exists with wrong type, recreate it
+        await db.query('ALTER TABLE archived_conversations_new DROP COLUMN learning_outcomes');
+        await db.query('ALTER TABLE archived_conversations_new ADD COLUMN learning_outcomes JSONB');
+        logger.debug('✅ Recreated learning_outcomes column as JSONB (was ' + learningOutcomesCheck.rows[0].data_type + ')');
+      } else {
+        logger.debug('✅ learning_outcomes column already exists as JSONB');
+      }
     } catch (error) {
-      logger.debug(`⚠️ Could not recreate learning_outcomes as JSONB: ${error.message}`);
+      logger.debug(`⚠️ Could not ensure learning_outcomes as JSONB: ${error.message}`);
     }
 
     try {
@@ -3155,13 +3185,28 @@ async function runDatabaseMigrations() {
       logger.debug(`⚠️ Could not add total_tokens to archived_conversations_new: ${error.message}`);
     }
 
-    // Drop and recreate embedding as JSONB (was TEXT, causing array conversion errors)
+    // Ensure embedding is JSONB (check type before recreating)
     try {
-      await db.query('ALTER TABLE archived_conversations_new DROP COLUMN IF EXISTS embedding');
-      await db.query('ALTER TABLE archived_conversations_new ADD COLUMN embedding JSONB');
-      logger.debug('✅ Recreated embedding column as JSONB in archived_conversations_new table');
+      const embeddingCheck = await db.query(`
+        SELECT data_type FROM information_schema.columns
+        WHERE table_name = 'archived_conversations_new'
+        AND column_name = 'embedding'
+      `);
+
+      if (embeddingCheck.rows.length === 0) {
+        // Column doesn't exist, create it
+        await db.query('ALTER TABLE archived_conversations_new ADD COLUMN embedding JSONB');
+        logger.debug('✅ Created embedding column as JSONB');
+      } else if (embeddingCheck.rows[0].data_type !== 'jsonb') {
+        // Column exists with wrong type, recreate it
+        await db.query('ALTER TABLE archived_conversations_new DROP COLUMN embedding');
+        await db.query('ALTER TABLE archived_conversations_new ADD COLUMN embedding JSONB');
+        logger.debug('✅ Recreated embedding column as JSONB (was ' + embeddingCheck.rows[0].data_type + ')');
+      } else {
+        logger.debug('✅ embedding column already exists as JSONB');
+      }
     } catch (error) {
-      logger.debug(`⚠️ Could not recreate embedding as JSONB: ${error.message}`);
+      logger.debug(`⚠️ Could not ensure embedding as JSONB: ${error.message}`);
     }
 
     try {
@@ -3199,7 +3244,7 @@ async function runDatabaseMigrations() {
       logger.debug(`⚠️ Could not add is_encrypted to archived_conversations_new: ${error.message}`);
     }
 
-    // ✅ DEBUG: Query actual column types after migrations
+    // ✅ DEBUG: Query actual column types after migrations (debug level only)
     try {
       const columnTypes = await db.query(`
         SELECT column_name, data_type, udt_name
@@ -3208,7 +3253,7 @@ async function runDatabaseMigrations() {
         AND column_name IN ('key_topics', 'learning_outcomes', 'embedding', 'behavior_summary')
         ORDER BY column_name
       `);
-      logger.info('📋 Column types in archived_conversations_new: ' + JSON.stringify(
+      logger.debug('📋 Column types in archived_conversations_new: ' + JSON.stringify(
         columnTypes.rows.map(r => ({ name: r.column_name, type: r.data_type, udt: r.udt_name }))
       ));
     } catch (error) {
