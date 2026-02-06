@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mental Health Report - {{studentName}}</title>
+    <style>{{{inlineCSS}}}</style>
+</head>
+<body>
+    <div class="container">
+        {{> header
+            reportTitle="Mental Health & Wellbeing Report"
+            studentName=studentName
+            reportPeriod=reportPeriod
+        }}
+
+        <!-- Red Flag Alerts -->
+        {{#if hasRedFlags}}
+        <div class="alert alert-danger">
+            <h2>🚨 Concerns Detected</h2>
+            {{#each redFlagAlerts}}
+            <div style="margin-top: 12px;">
+                <strong>{{this.type}}</strong>: {{this.message}}
+                <br><em>Date: {{formatDate this.date}}</em>
+                {{#if this.suggestedAction}}
+                <br><strong>Action:</strong> {{this.suggestedAction}}
+                {{/if}}
+            </div>
+            {{/each}}
+        </div>
+        {{else}}
+        <div class="alert alert-success">
+            <h2>✅ No Concerns Detected</h2>
+            <p>Great news! No concerning patterns detected during this period.
+            {{studentName}} is showing healthy engagement and emotional balance.</p>
+        </div>
+        {{/if}}
+
+        <!-- Engagement Quality -->
+        <div class="section">
+            <h2>💪 Engagement Quality</h2>
+
+            {{#if engagementScore}}
+            <div class="grade">{{engagementGrade}}</div>
+            <p style="text-align: center;"><strong>Overall Score:</strong> {{engagementScore}}/1.0</p>
+
+            <h3>Breakdown:</h3>
+            <ul>
+                <li>
+                    {{statusIcon curiosityStatus}}
+                    <strong>Curiosity:</strong>
+                    {{default curiosityLabel "No data"}}
+                    {{#if curiosityPercent}}({{curiosityPercent}}% of sessions){{/if}}
+                </li>
+                <li>
+                    {{statusIcon persistenceStatus}}
+                    <strong>Persistence:</strong>
+                    {{default persistenceLabel "No data"}}
+                    {{#if persistencePercent}}({{persistencePercent}}% of sessions){{/if}}
+                </li>
+                <li>
+                    {{statusIcon followUpStatus}}
+                    <strong>Follow-up Depth:</strong>
+                    {{default followUpLabel "No data"}}
+                    {{#if followUpDepth}}({{followUpDepth}}/5){{/if}}
+                </li>
+            </ul>
+
+            {{#if recommendations}}
+            <p><strong>💡 Recommendation:</strong> {{recommendations}}</p>
+            {{/if}}
+            {{else}}
+            <p class="no-data">No engagement data available for this period.</p>
+            {{/if}}
+        </div>
+
+        <!-- Emotional Wellbeing Timeline -->
+        <div class="section">
+            <h2>🎭 Emotional Wellbeing Timeline</h2>
+            {{#if emotionalTimeline}}
+            {{> timeline items=emotionalTimeline}}
+            <p style="margin-top: 16px;"><strong>📊 Trend:</strong> {{emotionalTrend}}</p>
+            {{else}}
+            <p class="no-data">No emotional timeline data available for this period.</p>
+            {{/if}}
+        </div>
+
+        <!-- Positive Learning Patterns -->
+        {{#if hasPositivePatterns}}
+        <div class="section" style="background: #f0fdf4;">
+            <h2>🎯 Positive Learning Patterns</h2>
+            <ul>
+                {{#if ahaMoments}}
+                <li>⚡ <strong>{{ahaMoments}} Aha Moments</strong> in past 2 weeks - Making connections!</li>
+                {{/if}}
+                {{#if curiosityIndicators}}
+                <li>🔍 <strong>{{curiosityIndicators}} Curiosity Indicators</strong> - High engagement with material</li>
+                {{/if}}
+                {{#if persistenceSessions}}
+                <li>💪 <strong>{{persistenceSessions.high}}/{{persistenceSessions.total}} sessions</strong> showed high persistence</li>
+                {{/if}}
+            </ul>
+        </div>
+        {{/if}}
+
+        <!-- Parent Actions -->
+        <div class="section">
+            <h2>📋 Suggested Actions for Parents</h2>
+            {{#if parentActions}}
+            <ol>
+                {{#each parentActions}}
+                <li><strong>{{this.title}}:</strong> {{this.description}}</li>
+                {{/each}}
+            </ol>
+            {{else}}
+            <p class="no-data">No specific actions recommended at this time. Continue current approach!</p>
+            {{/if}}
+        </div>
+
+        {{> footer generatedAtFormatted=generatedAtFormatted appVersion=appVersion}}
+    </div>
+</body>
+</html>

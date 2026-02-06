@@ -1581,7 +1581,7 @@ class NetworkService: ObservableObject {
         voiceId: String,
         systemPrompt: String? = nil,
         onTextDelta: @escaping (String) -> Void,
-        onAudioChunk: @escaping (String) -> Void,
+        onAudioChunk: @escaping (String, Data?) -> Void,  // ✅ Added alignment data parameter
         onComplete: @escaping (Bool, String?) -> Void
     ) async {
         guard let url = URL(string: "\(baseURL)/api/ai/sessions/\(sessionId)/interactive-stream") else {
@@ -1672,7 +1672,14 @@ class NetworkService: ObservableObject {
                                 case "audio_chunk":
                                     if let audio = event.audio {
                                         logger.info("🔊 [Interactive] Audio chunk received: \(audio.count) chars base64")
-                                        onAudioChunk(audio)
+
+                                        // ✅ Convert alignment to Data for passing to callback
+                                        var alignmentData: Data? = nil
+                                        if let alignment = event.alignment {
+                                            alignmentData = try? JSONEncoder().encode(alignment)
+                                        }
+
+                                        onAudioChunk(audio, alignmentData)
                                     } else {
                                         logger.warning("⚠️ [Interactive] audio_chunk event but no audio data")
                                     }
@@ -1716,6 +1723,7 @@ class NetworkService: ObservableObject {
         let type: String
         let content: String?
         let audio: String?
+        let alignment: AlignmentData?  // ✅ NEW: Character timing data from ElevenLabs
         let error: String?
         let sessionId: String?
         let metrics: [String: AnyCodable]?
@@ -1724,9 +1732,23 @@ class NetworkService: ObservableObject {
             case type
             case content
             case audio
+            case alignment
             case error
             case sessionId
             case metrics
+        }
+    }
+
+    /// Alignment data from ElevenLabs
+    private struct AlignmentData: Codable {
+        let characters: [String]?
+        let characterStartTimesMs: [Double]?
+        let characterEndTimesMs: [Double]?
+
+        enum CodingKeys: String, CodingKey {
+            case characters
+            case characterStartTimesMs = "character_start_times_ms"
+            case characterEndTimesMs = "character_end_times_ms"
         }
     }
 
