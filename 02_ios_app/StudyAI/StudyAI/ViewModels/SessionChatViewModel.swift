@@ -122,6 +122,9 @@ class SessionChatViewModel: ObservableObject {
     private let interactiveTTSService = InteractiveTTSService()
     private var interactiveModeSettings = InteractiveModeSettings.load()
 
+    // Phase 3.1: Synchronized text rendering
+    private let textRenderer = SynchronizedTextRenderer()
+
     // MARK: - Private State
 
     private var streamingUpdateTimer: Timer?
@@ -132,10 +135,22 @@ class SessionChatViewModel: ObservableObject {
     // ✅ NEW: Timing metrics for latency measurement
     private var firstTextArrivalTime: Date?
 
+    // ✅ NEW: Flag to track if synchronized rendering is active
+    private var isSynchronizing: Bool = false
+
     // MARK: - Initialization
 
     init() {
         setupNetworkMonitoring()
+
+        // ✅ NEW: Observe textRenderer.visibleText changes and update activeStreamingMessage
+        textRenderer.$visibleText
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] visibleText in
+                guard let self = self, self.isSynchronizing else { return }
+                self.activeStreamingMessage = visibleText
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Phase 2.3: Network Monitoring Setup
@@ -816,6 +831,10 @@ class SessionChatViewModel: ObservableObject {
         firstTextArrivalTime = nil
         interactiveTTSService.reset()
 
+        // ✅ Start synchronized text rendering session
+        textRenderer.startSession()
+        isSynchronizing = true
+
         // Get voice ID from current voice settings
         let voiceSettings = voiceService.voiceSettings
         let voiceId = voiceSettings.voiceType.elevenLabsVoiceId.isEmpty ? "zZLmKvCp1i04X8E0FJ8B" : voiceSettings.voiceType.elevenLabsVoiceId
@@ -878,12 +897,15 @@ class SessionChatViewModel: ObservableObject {
                         }
                     }
 
-                    // Update streaming message state
+                    // ✅ NEW: Set full text in renderer (but don't show yet - wait for audio)
+                    self.textRenderer.setFullText(content)
+
+                    // Update streaming message state with visible text from renderer
                     self.isActivelyStreaming = true
-                    self.activeStreamingMessage = content
+                    self.activeStreamingMessage = self.textRenderer.visibleText
                 }
             },
-            onAudioChunk: { [weak self] audioBase64 in
+            onAudioChunk: { [weak self] audioBase64, alignmentData in
                 Task { @MainActor in
                     guard let self = self else { return }
 
@@ -892,11 +914,26 @@ class SessionChatViewModel: ObservableObject {
                        self.interactiveTTSService.audioChunksReceived == 0 {
                         let latency = Date().timeIntervalSince(firstTextTime) * 1000
                         print("⏱️ [TIMING] First audio chunk arrived - Latency from first text: \(Int(latency))ms")
+
+                        // ✅ NEW: Signal renderer that audio playback is starting
+                        self.textRenderer.audioPlaybackStarted()
+                    }
+
+                    // ✅ NEW: Process alignment data for text synchronization
+                    if let alignment = alignmentData {
+                        // Extract text chunk corresponding to this audio
+                        // For now, use the current fullText from renderer
+                        let textChunk = self.textRenderer.fullText
+                        self.textRenderer.processAudioChunk(text: textChunk, alignmentData: alignment)
+                        print("🎬 [Sync] Processed audio chunk with alignment data")
                     }
 
                     print("🎙️ [ViewModel] onAudioChunk callback fired - \(audioBase64.count) chars base64")
                     // Process audio chunk for real-time playback
                     self.interactiveTTSService.processAudioChunk(audioBase64)
+
+                    // ✅ NEW: Update activeStreamingMessage with renderer's visible text
+                    self.activeStreamingMessage = self.textRenderer.visibleText
                 }
             },
             onComplete: { [weak self] success, fullText in
@@ -904,6 +941,10 @@ class SessionChatViewModel: ObservableObject {
                     guard let self = self else { return }
 
                     print("🎙️ Interactive streaming complete. Success: \(success)")
+
+                    // ✅ NEW: Complete text rendering - show all remaining text
+                    self.textRenderer.complete()
+                    self.isSynchronizing = false
 
                     if success, let text = fullText {
                         // Move streaming message to conversation history

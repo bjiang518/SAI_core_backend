@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Report - {{studentName}}</title>
+    <style>{{{inlineCSS}}}</style>
+</head>
+<body>
+    <div class="container">
+        {{> header
+            reportTitle="📊 Student Activity Report"
+            studentName=studentName
+            reportPeriod=reportPeriod
+        }}
+
+        <!-- Key Metrics -->
+        <div class="section">
+            <h2>This Week's Activity</h2>
+            <div class="metrics-grid">
+                {{> metrics-card
+                    label="Questions"
+                    value=(default totalQuestions 0)
+                    sublabel=(default weekOverWeekChange.questionsText "")
+                }}
+                {{> metrics-card
+                    label="Chat Sessions"
+                    value=(default totalChats 0)
+                }}
+                {{> metrics-card
+                    label="Active Days"
+                    value=(default activeDays 0)
+                    sublabel=(concat "out of " totalDays)
+                }}
+                {{> metrics-card
+                    label="Study Time"
+                    value=(default estimatedMinutes 0)
+                    sublabel="minutes"
+                }}
+            </div>
+        </div>
+
+        <!-- Subject Breakdown -->
+        <div class="section">
+            <h2>Subject Distribution</h2>
+            {{#if subjects}}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Subject</th>
+                        <th style="text-align: center;">Questions</th>
+                        <th style="text-align: center;">Accuracy</th>
+                        <th style="text-align: center;">Homework</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each subjects}}
+                    <tr>
+                        <td><strong>{{this.name}}</strong></td>
+                        <td style="text-align: center;">{{this.count}}</td>
+                        <td style="text-align: center;">{{percent this.accuracy}}</td>
+                        <td style="text-align: center;">{{this.homeworkCount}}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+            {{else}}
+            <p class="no-data">No subject data available for this period.</p>
+            {{/if}}
+        </div>
+
+        <!-- Chat Activity -->
+        {{#if chatsBySubject}}
+        <div class="section">
+            <h2>Chat Sessions by Subject</h2>
+            <ul>
+                {{#each chatsBySubject}}
+                <li><strong>{{@key}}:</strong> {{this}} sessions</li>
+                {{/each}}
+            </ul>
+        </div>
+        {{/if}}
+
+        <!-- Week-over-Week Comparison -->
+        {{#if weekOverWeekChange}}
+        <div class="section">
+            <h2>📈 Week-over-Week Trend</h2>
+            <ul>
+                {{#if weekOverWeekChange.questionsChange}}
+                <li>
+                    Questions:
+                    {{#if (gt weekOverWeekChange.questionsChange 0)}}
+                    ⬆️ +{{weekOverWeekChange.questionsChange}} from last week
+                    {{else if (lt weekOverWeekChange.questionsChange 0)}}
+                    ⬇️ {{weekOverWeekChange.questionsChange}} from last week
+                    {{else}}
+                    ➡️ Same as last week
+                    {{/if}}
+                </li>
+                {{/if}}
+                {{#if weekOverWeekChange.accuracyChange}}
+                <li>
+                    Accuracy:
+                    {{#if (gt weekOverWeekChange.accuracyChange 0)}}
+                    ⬆️ +{{round weekOverWeekChange.accuracyChange 1}}% improvement
+                    {{else if (lt weekOverWeekChange.accuracyChange 0)}}
+                    ⬇️ {{round weekOverWeekChange.accuracyChange 1}}% decline
+                    {{else}}
+                    ➡️ Stable
+                    {{/if}}
+                </li>
+                {{/if}}
+                {{#if weekOverWeekChange.engagementTrend}}
+                <li>Overall Engagement: {{weekOverWeekChange.engagementTrend}}</li>
+                {{/if}}
+            </ul>
+        </div>
+        {{/if}}
+
+        <!-- Summary -->
+        <div class="section">
+            <h2>Summary</h2>
+            {{#if summary}}
+            <p>{{summary}}</p>
+            {{else}}
+            <p>{{studentName}} completed {{default totalQuestions 0}} questions across
+            {{default activeDays 0}} active days this week.</p>
+            {{/if}}
+        </div>
+
+        {{> footer generatedAtFormatted=generatedAtFormatted appVersion=appVersion}}
+    </div>
+</body>
+</html>

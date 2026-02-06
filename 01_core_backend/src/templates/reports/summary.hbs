@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Summary - {{studentName}}</title>
+    <style>{{{inlineCSS}}}</style>
+</head>
+<body>
+    <div class="container">
+        {{> header
+            reportTitle="📋 Weekly Summary"
+            studentName=studentName
+            reportPeriod=reportPeriod
+        }}
+
+        <!-- Executive Summary -->
+        <div class="section">
+            <h2>Executive Summary</h2>
+            {{#if executiveSummary}}
+            <p style="font-size: 18px; line-height: 1.8;">{{executiveSummary}}</p>
+            {{else}}
+            <p class="no-data">No summary available for this period.</p>
+            {{/if}}
+        </div>
+
+        <!-- Key Highlights -->
+        {{#if highlights}}
+        <div class="section" style="background: #f0fdf4;">
+            <h2>✨ This Week's Highlights</h2>
+            <ul>
+                {{#each highlights}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ul>
+        </div>
+        {{/if}}
+
+        <!-- Areas of Focus -->
+        {{#if areasOfFocus}}
+        <div class="section" style="background: #fef3c7;">
+            <h2>🎯 Areas Needing Attention</h2>
+            <ul>
+                {{#each areasOfFocus}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ul>
+        </div>
+        {{/if}}
+
+        <!-- Action Items -->
+        <div class="section">
+            <h2>📋 Action Items for Parents</h2>
+            {{#if actionItems}}
+            <ol style="font-size: 17px; line-height: 2;">
+                {{#each actionItems}}
+                <li><strong>{{this.title}}:</strong> {{this.description}}</li>
+                {{/each}}
+            </ol>
+            {{else}}
+            <p class="no-data">No specific actions needed. Keep up the great work!</p>
+            {{/if}}
+        </div>
+
+        <!-- Celebration -->
+        {{#if celebration}}
+        <div class="section" style="background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%); text-align: center;">
+            <h2 style="font-size: 28px;">🌟 Celebration</h2>
+            <p style="font-size: 20px; margin-top: 16px;">{{celebration}}</p>
+        </div>
+        {{/if}}
+
+        {{> footer generatedAtFormatted=generatedAtFormatted appVersion=appVersion}}
+    </div>
+</body>
+</html>

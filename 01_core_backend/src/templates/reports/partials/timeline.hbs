@@ -1,0 +1,11 @@
+<div class="timeline">
+    {{#each items}}
+    <div class="timeline-item">
+        <strong>{{this.date}}</strong>
+        <div>{{this.visual}} {{this.description}}</div>
+        {{#if this.note}}
+        <em>Note: {{this.note}}</em>
+        {{/if}}
+    </div>
+    {{/each}}
+</div>
