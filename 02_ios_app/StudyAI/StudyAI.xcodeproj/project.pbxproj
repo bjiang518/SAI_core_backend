@@ -448,6 +448,9 @@
 		PRVSTGS901234567890ABCD /* PrivacySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRVSTGVW1234567890ABCD /* PrivacySettingsView.swift */; };
 		SYNC1234567890123456ABCD /* StorageSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SYNCFILE1234567890ABCD12 /* StorageSyncService.swift */; };
 		TRMSRVC901234567890ABCD /* TermsOfServiceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRMSRVVW1234567890ABCD /* TermsOfServiceView.swift */; };
+		D107F714CBFF40BB9C000436 /* SynchronizedTextRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 144BF1CD8B2345EFBFB9415E /* SynchronizedTextRenderer.swift */; };
+		E6429D03DD164AFCA282DB92 /* SynchronizedTextRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 144BF1CD8B2345EFBFB9415E /* SynchronizedTextRenderer.swift */; };
+		BD398A73126149B3BFB4FB4D /* SynchronizedTextRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 144BF1CD8B2345EFBFB9415E /* SynchronizedTextRenderer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -710,6 +713,7 @@
 		PRVSTGVW1234567890ABCD /* PrivacySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivacySettingsView.swift; path = StudyAI/Views/PrivacySettingsView.swift; sourceTree = SOURCE_ROOT; };
 		SYNCFILE1234567890ABCD12 /* StorageSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StorageSyncService.swift; path = StudyAI/Services/StorageSyncService.swift; sourceTree = SOURCE_ROOT; };
 		TRMSRVVW1234567890ABCD /* TermsOfServiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TermsOfServiceView.swift; path = StudyAI/Views/TermsOfServiceView.swift; sourceTree = SOURCE_ROOT; };
+		144BF1CD8B2345EFBFB9415E /* SynchronizedTextRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SynchronizedTextRenderer.swift; path = StudyAI/Services/SynchronizedTextRenderer.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -884,7 +888,8 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				7B2248B82F331644006ADD93 /* InteractiveTTSService.swift */,
+								144BF1CD8B2345EFBFB9415E /* SynchronizedTextRenderer.swift */,
+7B2248B82F331644006ADD93 /* InteractiveTTSService.swift */,
 				7B2248B42F309BEC006ADD93 /* AnswerMatchingService.swift */,
 				7B2248AC2F2F4A8D006ADD93 /* DebugSettings.swift */,
 				7B2248A82F2DDF1F006ADD93 /* MistakeDetectionHelper.swift */,
@@ -1585,7 +1590,8 @@
 				7BDE56E22EC31A7A004A8629 /* EssayGradingModels.swift in Sources */,
 				7B8353412EA6F11400199AC3 /* ErrorBoundary.swift in Sources */,
 				7BDE56672EC1C64D004A8629 /* StreamingMessageService.swift in Sources */,
-				7B2248B92F331644006ADD93 /* InteractiveTTSService.swift in Sources */,
+								D107F714CBFF40BB9C000436 /* SynchronizedTextRenderer.swift in Sources */,
+7B2248B92F331644006ADD93 /* InteractiveTTSService.swift in Sources */,
 				7BDE567E2EC1C6E5004A8629 /* PomodoroCalendarService.swift in Sources */,
 				7BDE56682EC1C64D004A8629 /* TTSQueueService.swift in Sources */,
 				7B2248812F26F838006ADD93 /* ShortTermStatusService.swift in Sources */,

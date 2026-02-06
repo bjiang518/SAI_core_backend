@@ -14,6 +14,7 @@
 
 import Foundation
 import Combine
+import SwiftUI
 
 /// Alignment data from ElevenLabs for a single audio chunk
 struct AudioAlignment: Codable {
