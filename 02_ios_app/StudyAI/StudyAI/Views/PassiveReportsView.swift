@@ -59,6 +59,16 @@ struct PassiveReportsView: View {
             }
             .navigationTitle("Parent Reports")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showTestingAlert = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.blue)
+                    }
+                }
+            }
             .alert("Testing Mode", isPresented: $showTestingAlert) {
                 Button("Generate Weekly Report") {
                     Task {
