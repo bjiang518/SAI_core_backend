@@ -265,6 +265,49 @@ class ParentReportsRoutes {
                 }
             }
         }, this.getAnonymizedAnalytics.bind(this));
+
+        // Enable automated weekly parent reports
+        this.fastify.post('/api/parent-reports/enable', {
+            schema: {
+                description: 'Enable automated weekly parent reports for user',
+                tags: ['Parent Reports', 'Settings'],
+                body: {
+                    type: 'object',
+                    properties: {
+                        timezone: { type: 'string', default: 'UTC' },
+                        reportDay: { type: 'integer', default: 0 },  // 0 = Sunday
+                        reportHour: { type: 'integer', default: 21 }  // 9 PM
+                    }
+                },
+                response: {
+                    200: {
+                        type: 'object',
+                        properties: {
+                            success: { type: 'boolean' },
+                            message: { type: 'string' },
+                            nextReportTime: { type: 'string' }
+                        }
+                    }
+                }
+            }
+        }, this.enableParentReports.bind(this));
+
+        // Disable automated weekly parent reports
+        this.fastify.post('/api/parent-reports/disable', {
+            schema: {
+                description: 'Disable automated weekly parent reports for user',
+                tags: ['Parent Reports', 'Settings'],
+                response: {
+                    200: {
+                        type: 'object',
+                        properties: {
+                            success: { type: 'boolean' },
+                            message: { type: 'string' }
+                        }
+                    }
+                }
+            }
+        }, this.disableParentReports.bind(this));
     }
 
 
@@ -1555,6 +1598,144 @@ class ParentReportsRoutes {
                 code: 'ANONYMIZED_ANALYTICS_ERROR',
                 details: error.message
             });
+        }
+    }
+
+    /**
+     * Enable automated weekly parent reports
+     */
+    async enableParentReports(request, reply) {
+        try {
+            const { timezone = 'UTC', reportDay = 0, reportHour = 21 } = request.body;
+
+            // Get authenticated user ID
+            const authenticatedUserId = await this.getUserIdFromToken(request);
+            if (!authenticatedUserId) {
+                return reply.status(401).send({
+                    success: false,
+                    error: 'Authentication required to enable parent reports',
+                    code: 'AUTHENTICATION_REQUIRED'
+                });
+            }
+
+            this.fastify.log.info(`📊 === ENABLE PARENT REPORTS REQUEST ===`);
+            this.fastify.log.info(`👤 User ID: ${authenticatedUserId}`);
+            this.fastify.log.info(`🌍 Timezone: ${timezone}`);
+            this.fastify.log.info(`📅 Report schedule: Day ${reportDay}, Hour ${reportHour}`);
+
+            // Update profiles table with parent reports settings
+            const updateQuery = `
+                UPDATE profiles
+                SET
+                    parent_reports_enabled = true,
+                    auto_sync_enabled = true,
+                    report_day_of_week = $1,
+                    report_time_hour = $2,
+                    timezone = $3,
+                    updated_at = NOW()
+                WHERE user_id = $4
+            `;
+
+            await db.query(updateQuery, [reportDay, reportHour, timezone, authenticatedUserId]);
+
+            this.fastify.log.info(`✅ Parent reports enabled for user ${authenticatedUserId}`);
+
+            // Calculate next report time
+            const nextReportTime = this.calculateNextReportTime(timezone, reportDay, reportHour);
+
+            return reply.send({
+                success: true,
+                message: 'Parent reports enabled successfully',
+                nextReportTime: nextReportTime.toISOString()
+            });
+
+        } catch (error) {
+            this.fastify.log.error('❌ Enable parent reports error:', error);
+            return reply.status(500).send({
+                success: false,
+                error: 'Failed to enable parent reports',
+                code: 'ENABLE_REPORTS_ERROR',
+                details: error.message
+            });
+        }
+    }
+
+    /**
+     * Disable automated weekly parent reports
+     */
+    async disableParentReports(request, reply) {
+        try {
+            // Get authenticated user ID
+            const authenticatedUserId = await this.getUserIdFromToken(request);
+            if (!authenticatedUserId) {
+                return reply.status(401).send({
+                    success: false,
+                    error: 'Authentication required to disable parent reports',
+                    code: 'AUTHENTICATION_REQUIRED'
+                });
+            }
+
+            this.fastify.log.info(`📊 === DISABLE PARENT REPORTS REQUEST ===`);
+            this.fastify.log.info(`👤 User ID: ${authenticatedUserId}`);
+
+            // Update profiles table to disable parent reports
+            const updateQuery = `
+                UPDATE profiles
+                SET
+                    parent_reports_enabled = false,
+                    auto_sync_enabled = false,
+                    updated_at = NOW()
+                WHERE user_id = $1
+            `;
+
+            await db.query(updateQuery, [authenticatedUserId]);
+
+            this.fastify.log.info(`✅ Parent reports disabled for user ${authenticatedUserId}`);
+
+            return reply.send({
+                success: true,
+                message: 'Parent reports disabled successfully'
+            });
+
+        } catch (error) {
+            this.fastify.log.error('❌ Disable parent reports error:', error);
+            return reply.status(500).send({
+                success: false,
+                error: 'Failed to disable parent reports',
+                code: 'DISABLE_REPORTS_ERROR',
+                details: error.message
+            });
+        }
+    }
+
+    /**
+     * Calculate next report time based on timezone and schedule
+     */
+    calculateNextReportTime(timezone, reportDay, reportHour) {
+        try {
+            const now = new Date();
+
+            // Get current day of week (0 = Sunday, 6 = Saturday)
+            const currentDay = now.getDay();
+
+            // Calculate days until next report day
+            let daysUntilReport = reportDay - currentDay;
+            if (daysUntilReport <= 0) {
+                daysUntilReport += 7; // Next week
+            }
+
+            // Create next report date
+            const nextReportDate = new Date(now);
+            nextReportDate.setDate(now.getDate() + daysUntilReport);
+            nextReportDate.setHours(reportHour, 0, 0, 0);
+
+            return nextReportDate;
+        } catch (error) {
+            this.fastify.log.error('Error calculating next report time:', error);
+            // Return a week from now as fallback
+            const fallback = new Date();
+            fallback.setDate(fallback.getDate() + 7);
+            return fallback;
         }
     }
 }

@@ -68,6 +68,10 @@ struct ContentView: View {
     @State private var isCheckingConsent = false
     @State private var hasCheckedConsentOnce = false
 
+    // Parent Reports Onboarding
+    @State private var showingParentReportsOnboarding = false
+    @State private var hasCheckedParentReportsOnboarding = false
+
     var body: some View {
         ZStack {
             // Main content
@@ -89,6 +93,24 @@ struct ContentView: View {
                                 requiresParentalConsent = false
 
                                 // User data will be updated automatically after consent verification
+                            }
+                        )
+                    }
+                    .sheet(isPresented: $showingParentReportsOnboarding) {
+                        ParentReportsOnboardingView(
+                            onComplete: {
+                                // Save completion state
+                                var settings = ParentReportSettings.load()
+                                settings.hasSeenOnboarding = true
+                                settings.save()
+                                showingParentReportsOnboarding = false
+                            },
+                            onSkip: {
+                                // Mark as seen but not enabled
+                                var settings = ParentReportSettings.load()
+                                settings.hasSeenOnboarding = true
+                                settings.save()
+                                showingParentReportsOnboarding = false
                             }
                         )
                     }
@@ -133,10 +155,13 @@ struct ContentView: View {
             // Check parental consent when user authenticates
             if isAuthenticated {
                 checkParentalConsent()
+                // Check parent reports onboarding after consent
+                checkParentReportsOnboarding()
             } else {
                 // Reset consent state on logout
                 hasCheckedConsentOnce = false
                 requiresParentalConsent = false
+                hasCheckedParentReportsOnboarding = false
             }
         }
         .onAppear {
@@ -191,6 +216,30 @@ struct ContentView: View {
         // Date of birth is verified on the backend based on profile data
         // Pass nil here - backend will use stored profile information
         return nil
+    }
+
+    // MARK: - Parent Reports Onboarding Check
+
+    private func checkParentReportsOnboarding() {
+        guard !hasCheckedParentReportsOnboarding else { return }
+        hasCheckedParentReportsOnboarding = true
+
+        // Check if user has already seen the onboarding
+        let settings = ParentReportSettings.load()
+        if settings.hasSeenOnboarding {
+            print("✅ [ContentView] Parent reports onboarding already completed")
+            return
+        }
+
+        // Wait 2 seconds after login, then show onboarding
+        // (give time for parental consent if needed)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            // Only show if no other modals are active
+            if !self.showingParentalConsent && !self.showingFaceIDReauth {
+                print("📊 [ContentView] Showing parent reports onboarding")
+                self.showingParentReportsOnboarding = true
+            }
+        }
     }
 
     // MARK: - App Lifecycle Handling

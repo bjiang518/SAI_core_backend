@@ -1571,6 +1571,7 @@ class NetworkService: ObservableObject {
     ///   - message: The user message
     ///   - voiceId: ElevenLabs voice ID (e.g., 'zZLmKvCp1i04X8E0FJ8B' for Max)
     ///   - systemPrompt: Optional system prompt override
+    ///   - deepMode: If true, uses o4 model for deeper reasoning (default: false)
     ///   - onTextDelta: Callback for each text chunk (accumulated text)
     ///   - onAudioChunk: Callback for each audio chunk (base64 MP3)
     ///   - onComplete: Callback when complete (success, full text)
@@ -1580,6 +1581,7 @@ class NetworkService: ObservableObject {
         message: String,
         voiceId: String,
         systemPrompt: String? = nil,
+        deepMode: Bool = false,
         onTextDelta: @escaping (String) -> Void,
         onAudioChunk: @escaping (String, Data?) -> Void,  // ✅ Added alignment data parameter
         onComplete: @escaping (Bool, String?) -> Void
@@ -1606,7 +1608,7 @@ class NetworkService: ObservableObject {
             "message": message,
             "voiceId": voiceId,
             "systemPrompt": systemPrompt ?? "You are a helpful AI tutor.",
-            "deepMode": false // Interactive mode not compatible with deep mode
+            "deepMode": deepMode  // ✅ Now supports deep mode with interactive streaming
         ]
 
         do {
@@ -5277,6 +5279,106 @@ class NetworkService: ObservableObject {
         } catch {
             print("❌ [Network] Decoding error: \(error)")
             throw error
+        }
+    }
+
+    // MARK: - Parent Reports Settings
+
+    /// Enable automated weekly parent reports
+    /// - Parameters:
+    ///   - timezone: User's timezone identifier (e.g., "America/Los_Angeles")
+    ///   - reportDay: Day of week for reports (0 = Sunday, 6 = Saturday)
+    ///   - reportHour: Hour of day for reports (0-23)
+    /// - Returns: Result with success status and next report time
+    func enableParentReports(timezone: String, reportDay: Int, reportHour: Int) async -> (success: Bool, message: String, nextReportTime: String?) {
+        let endpoint = "/api/parent-reports/enable"
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            return (false, "Invalid URL", nil)
+        }
+
+        let requestBody: [String: Any] = [
+            "timezone": timezone,
+            "reportDay": reportDay,
+            "reportHour": reportHour
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            print("❌ [ParentReports] Failed to encode request: \(error)")
+            return (false, "Failed to encode request", nil)
+        }
+
+        do {
+            let (data, response) = try await performRequest(request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return (false, "Invalid response", nil)
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                print("❌ [ParentReports] Enable failed: HTTP \(httpResponse.statusCode)")
+                return (false, "Server error", nil)
+            }
+
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let success = json["success"] as? Bool ?? false
+                let message = json["message"] as? String ?? ""
+                let nextReportTime = json["nextReportTime"] as? String
+
+                print("✅ [ParentReports] Enabled successfully. Next report: \(nextReportTime ?? "N/A")")
+                return (success, message, nextReportTime)
+            }
+
+            return (false, "Invalid response format", nil)
+        } catch {
+            print("❌ [ParentReports] Enable error: \(error)")
+            return (false, "Network error: \(error.localizedDescription)", nil)
+        }
+    }
+
+    /// Disable automated weekly parent reports
+    /// - Returns: Result with success status and message
+    func disableParentReports() async -> (success: Bool, message: String) {
+        let endpoint = "/api/parent-reports/disable"
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            return (false, "Invalid URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+
+        do {
+            let (data, response) = try await performRequest(request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return (false, "Invalid response")
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                print("❌ [ParentReports] Disable failed: HTTP \(httpResponse.statusCode)")
+                return (false, "Server error")
+            }
+
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let success = json["success"] as? Bool ?? false
+                let message = json["message"] as? String ?? ""
+
+                print("✅ [ParentReports] Disabled successfully")
+                return (success, message)
+            }
+
+            return (false, "Invalid response format")
+        } catch {
+            print("❌ [ParentReports] Disable error: \(error)")
+            return (false, "Network error: \(error.localizedDescription)")
         }
     }
 }

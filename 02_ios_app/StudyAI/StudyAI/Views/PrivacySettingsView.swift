@@ -20,6 +20,12 @@ struct PrivacySettingsView: View {
     @State private var showingPrivacyPolicy = false
     @State private var showingTermsOfService = false
 
+    // Parent Reports State
+    @State private var parentReportsSettings = ParentReportSettings.load()
+    @State private var isEnablingReports = false
+    @State private var isSyncing = false
+    @State private var lastSyncDate: Date?
+
     var body: some View {
         NavigationView {
             List {
@@ -77,6 +83,93 @@ struct PrivacySettingsView: View {
                     } header: {
                         Text(NSLocalizedString("privacy.settings.coppaCompliance", comment: ""))
                     }
+                }
+
+                // Parent Reports Section
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle(isOn: $parentReportsSettings.parentReportsEnabled) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Automated Weekly Reports")
+                                    .font(.headline)
+                                Text("Generate parent reports every Sunday at 9 PM")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .disabled(isEnablingReports)
+                        .onChange(of: parentReportsSettings.parentReportsEnabled) { _, newValue in
+                            handleParentReportsToggle(enabled: newValue)
+                        }
+
+                        if parentReportsSettings.parentReportsEnabled {
+                            Divider()
+                                .padding(.vertical, 4)
+
+                            Toggle(isOn: $parentReportsSettings.autoSyncEnabled) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Background Homework Sync")
+                                        .font(.subheadline)
+                                    Text("Automatically sync homework data for reports")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+
+                            Divider()
+                                .padding(.vertical, 4)
+
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Last Sync")
+                                        .font(.subheadline)
+                                    if let lastSync = parentReportsSettings.lastSyncTimestamp {
+                                        Text(lastSync, style: .relative)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        Text("Never")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                Spacer()
+                                Button(action: {
+                                    manualSync()
+                                }) {
+                                    if isSyncing {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle())
+                                    } else {
+                                        Text("Sync Now")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                    }
+                                }
+                                .disabled(isSyncing)
+                            }
+
+                            if parentReportsSettings.parentReportsEnabled {
+                                Divider()
+                                    .padding(.vertical, 4)
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Next Report")
+                                        .font(.subheadline)
+                                    Text(parentReportsSettings.nextReportDescription())
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 8)
+                } header: {
+                    Text("Parent Reports")
+                } footer: {
+                    Text(parentReportsSettings.parentReportsEnabled ?
+                         "Reports are generated every Sunday at 9 PM using homework data synced throughout the week." :
+                         "Enable automated weekly parent reports to track learning progress.")
                 }
 
                 // Data Privacy Section
@@ -301,6 +394,81 @@ struct PrivacySettingsView: View {
         // TODO: Implement account deletion
         // Call /api/user/delete-my-data endpoint
         print("Delete account requested")
+    }
+
+    // MARK: - Parent Reports Methods
+
+    private func handleParentReportsToggle(enabled: Bool) {
+        isEnablingReports = true
+
+        Task {
+            if enabled {
+                // Enable parent reports on backend
+                let result = await networkService.enableParentReports(
+                    timezone: TimeZone.current.identifier,
+                    reportDay: 0,  // Sunday
+                    reportHour: 21  // 9 PM
+                )
+
+                await MainActor.run {
+                    isEnablingReports = false
+
+                    if result.success {
+                        print("✅ [PrivacySettings] Parent reports enabled successfully")
+                        parentReportsSettings.parentReportsEnabled = true
+                        parentReportsSettings.autoSyncEnabled = true
+                        parentReportsSettings.save()
+                    } else {
+                        print("❌ [PrivacySettings] Failed to enable parent reports: \(result.message)")
+                        // Revert toggle
+                        parentReportsSettings.parentReportsEnabled = false
+                    }
+                }
+            } else {
+                // Disable parent reports on backend
+                let result = await networkService.disableParentReports()
+
+                await MainActor.run {
+                    isEnablingReports = false
+
+                    if result.success {
+                        print("✅ [PrivacySettings] Parent reports disabled successfully")
+                        parentReportsSettings.parentReportsEnabled = false
+                        parentReportsSettings.autoSyncEnabled = false
+                        parentReportsSettings.save()
+                    } else {
+                        print("❌ [PrivacySettings] Failed to disable parent reports: \(result.message)")
+                        // Revert toggle
+                        parentReportsSettings.parentReportsEnabled = true
+                    }
+                }
+            }
+        }
+    }
+
+    private func manualSync() {
+        isSyncing = true
+
+        Task {
+            do {
+                print("🔄 [PrivacySettings] Starting manual sync...")
+                let result = try await StorageSyncService.shared.syncAllToServer()
+
+                await MainActor.run {
+                    isSyncing = false
+                    parentReportsSettings.updateLastSync()
+                    parentReportsSettings.save()
+                    lastSyncDate = Date()
+
+                    print("✅ [PrivacySettings] Manual sync completed: \(result.totalSynced) items synced")
+                }
+            } catch {
+                await MainActor.run {
+                    isSyncing = false
+                    print("❌ [PrivacySettings] Manual sync failed: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 }
 
