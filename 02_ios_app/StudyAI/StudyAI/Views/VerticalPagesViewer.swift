@@ -3,7 +3,7 @@
 //  StudyAI
 //
 //  Vertical scrolling viewer for multiple pages within a homework deck
-//  - Swipe up/down to navigate pages
+//  - iOS Photos app quality vertical scrolling
 //  - Pinch to zoom on any page
 //  - Single tap to show/hide toolbar
 //
@@ -31,30 +31,12 @@ struct VerticalPagesViewer: View {
                 Text("Failed to load pages")
                     .foregroundColor(.white)
             } else {
-                // ✅ Vertical ScrollView for pages
-                ScrollViewReader { scrollProxy in
-                    ScrollView(.vertical, showsIndicators: false) {
-                        LazyVStack(spacing: 0) {
-                            ForEach(Array(loadedImages.enumerated()), id: \.offset) { index, image in
-                                // Each page fills the screen
-                                GeometryReader { geometry in
-                                    ZoomableImagePage(
-                                        image: image,
-                                        onTap: onToolbarToggle
-                                    )
-                                    .frame(width: geometry.size.width, height: geometry.size.height)
-                                    // Track visible page
-                                    .onAppear {
-                                        currentPageIndex = index
-                                    }
-                                }
-                                .frame(height: UIScreen.main.bounds.height)
-                                .id(index)
-                            }
-                        }
-                    }
-                    .scrollTargetBehavior(.paging)  // iOS 17+ snap to page
-                }
+                // ✅ iOS-quality vertical paging with UIViewRepresentable
+                NativeVerticalImagePager(
+                    images: loadedImages,
+                    currentPage: $currentPageIndex,
+                    onTap: onToolbarToggle
+                )
             }
         }
         .onAppear {
@@ -83,59 +65,41 @@ struct VerticalPagesViewer: View {
     }
 }
 
-/// Zoomable image page with pinch-to-zoom and tap gesture
-struct ZoomableImagePage: UIViewRepresentable {
-    let image: UIImage
+// MARK: - Native iOS-Quality Vertical Image Pager
+
+/// UIKit-based vertical paging scroll view for iOS Photos app quality
+struct NativeVerticalImagePager: UIViewRepresentable {
+    let images: [UIImage]
+    @Binding var currentPage: Int
     let onTap: () -> Void
 
     func makeUIView(context: Context) -> UIScrollView {
         let scrollView = UIScrollView()
         scrollView.delegate = context.coordinator
-        scrollView.minimumZoomScale = 1.0
-        scrollView.maximumZoomScale = 4.0
-        scrollView.zoomScale = 1.0  // ✅ Start at 1.0 (will be adjusted in updateImageLayout)
-        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.isPagingEnabled = true
         scrollView.showsVerticalScrollIndicator = false
-        scrollView.backgroundColor = .clear
-        scrollView.bouncesZoom = true
-        scrollView.isScrollEnabled = false  // ✅ Disable scrolling until zoomed
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.backgroundColor = .black
+        scrollView.bounces = true
+        scrollView.alwaysBounceVertical = true
 
-        let imageView = UIImageView(image: image)
-        imageView.contentMode = .scaleAspectFit
-        imageView.isUserInteractionEnabled = true
-        imageView.tag = 100  // Tag to find it later
+        // Add container view for all pages
+        let containerView = UIView()
+        containerView.backgroundColor = .clear
+        containerView.tag = 999  // Tag to find it later
+        scrollView.addSubview(containerView)
 
-        // Add tap gesture
-        let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap))
-        imageView.addGestureRecognizer(tapGesture)
-
-        // Add double-tap to zoom gesture
-        let doubleTapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDoubleTap(_:)))
-        doubleTapGesture.numberOfTapsRequired = 2
-        imageView.addGestureRecognizer(doubleTapGesture)
-
-        // Require double-tap to fail before single tap
-        tapGesture.require(toFail: doubleTapGesture)
-
-        scrollView.addSubview(imageView)
-
-        // Layout
-        context.coordinator.imageView = imageView
+        // Store references
         context.coordinator.scrollView = scrollView
+        context.coordinator.containerView = containerView
+        context.coordinator.setupPages()
 
         return scrollView
     }
 
     func updateUIView(_ uiView: UIScrollView, context: Context) {
-        // Update image if needed
-        if let imageView = uiView.viewWithTag(100) as? UIImageView {
-            imageView.image = image
-
-            // Update frame to fit image
-            DispatchQueue.main.async {
-                context.coordinator.updateImageLayout()
-            }
-        }
+        // Update if images changed
+        context.coordinator.updatePages()
     }
 
     func makeCoordinator() -> Coordinator {
@@ -143,91 +107,199 @@ struct ZoomableImagePage: UIViewRepresentable {
     }
 
     class Coordinator: NSObject, UIScrollViewDelegate {
-        let parent: ZoomableImagePage
+        let parent: NativeVerticalImagePager
         weak var scrollView: UIScrollView?
-        weak var imageView: UIImageView?
+        weak var containerView: UIView?
+        var pageViews: [ZoomablePageView] = []
 
-        init(_ parent: ZoomableImagePage) {
+        init(_ parent: NativeVerticalImagePager) {
             self.parent = parent
         }
 
-        func viewForZooming(in scrollView: UIScrollView) -> UIView? {
-            return imageView
+        func setupPages() {
+            guard let scrollView = scrollView,
+                  let containerView = containerView else { return }
+
+            // Clear existing pages
+            pageViews.forEach { $0.removeFromSuperview() }
+            pageViews.removeAll()
+
+            let screenHeight = UIScreen.main.bounds.height
+            let screenWidth = UIScreen.main.bounds.width
+
+            // Create a page view for each image
+            for (index, image) in parent.images.enumerated() {
+                let pageView = ZoomablePageView(image: image, onTap: parent.onTap)
+                pageView.frame = CGRect(
+                    x: 0,
+                    y: CGFloat(index) * screenHeight,
+                    width: screenWidth,
+                    height: screenHeight
+                )
+                containerView.addSubview(pageView)
+                pageViews.append(pageView)
+            }
+
+            // Set container and scroll view sizes
+            let totalHeight = CGFloat(parent.images.count) * screenHeight
+            containerView.frame = CGRect(x: 0, y: 0, width: screenWidth, height: totalHeight)
+            scrollView.contentSize = CGSize(width: screenWidth, height: totalHeight)
         }
 
-        @objc func handleTap() {
-            parent.onTap()
-        }
-
-        @objc func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
-            guard let scrollView = scrollView else { return }
-
-            if scrollView.zoomScale > scrollView.minimumZoomScale {
-                // Zoom out
-                scrollView.setZoomScale(scrollView.minimumZoomScale, animated: true)
-            } else {
-                // Zoom in to 2x at tap location
-                let location = gesture.location(in: imageView)
-                let zoomRect = zoomRectForScale(scale: 2.0, center: location)
-                scrollView.zoom(to: zoomRect, animated: true)
+        func updatePages() {
+            // Re-setup if needed
+            if pageViews.count != parent.images.count {
+                setupPages()
             }
         }
 
-        private func zoomRectForScale(scale: CGFloat, center: CGPoint) -> CGRect {
-            guard let scrollView = scrollView else { return .zero }
+        // Track current page
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            let pageHeight = scrollView.bounds.height
+            let currentPage = Int((scrollView.contentOffset.y + pageHeight / 2) / pageHeight)
 
-            var zoomRect = CGRect.zero
-            zoomRect.size.height = scrollView.frame.size.height / scale
-            zoomRect.size.width = scrollView.frame.size.width / scale
-            zoomRect.origin.x = center.x - (zoomRect.size.width / 2.0)
-            zoomRect.origin.y = center.y - (zoomRect.size.height / 2.0)
-            return zoomRect
+            if currentPage != parent.currentPage && currentPage >= 0 && currentPage < parent.images.count {
+                DispatchQueue.main.async {
+                    self.parent.currentPage = currentPage
+                }
+            }
         }
 
-        func updateImageLayout() {
-            guard let scrollView = scrollView,
-                  let imageView = imageView,
-                  let image = imageView.image else { return }
+        // Reset zoom when page changes
+        func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+            // Reset zoom on all pages except current
+            let pageHeight = scrollView.bounds.height
+            let currentPage = Int((scrollView.contentOffset.y + pageHeight / 2) / pageHeight)
 
-            let scrollViewSize = scrollView.bounds.size
-            let imageSize = image.size
-
-            // Calculate scale to fit
-            let widthScale = scrollViewSize.width / imageSize.width
-            let heightScale = scrollViewSize.height / imageSize.height
-            let minScale = min(widthScale, heightScale)
-
-            // ✅ FIX: Set both minimum and current zoom scale to fit the image properly
-            scrollView.minimumZoomScale = minScale
-            scrollView.maximumZoomScale = minScale * 4.0
-            scrollView.zoomScale = minScale  // ✅ Start at minimum zoom (fit to screen)
-
-            // Set frame
-            let scaledSize = CGSize(width: imageSize.width * minScale, height: imageSize.height * minScale)
-            imageView.frame = CGRect(
-                x: (scrollViewSize.width - scaledSize.width) / 2,
-                y: (scrollViewSize.height - scaledSize.height) / 2,
-                width: scaledSize.width,
-                height: scaledSize.height
-            )
-
-            scrollView.contentSize = scaledSize
+            for (index, pageView) in pageViews.enumerated() {
+                if index != currentPage {
+                    pageView.resetZoom()
+                }
+            }
         }
+    }
+}
 
-        // Center image after zooming
-        func scrollViewDidZoom(_ scrollView: UIScrollView) {
-            guard let imageView = imageView else { return }
+// MARK: - Zoomable Page View (UIKit)
 
-            // ✅ FIX: Enable scrolling only when zoomed in
-            scrollView.isScrollEnabled = scrollView.zoomScale > scrollView.minimumZoomScale
+/// Individual page with zoom capability
+class ZoomablePageView: UIScrollView, UIScrollViewDelegate {
+    private let imageView: UIImageView
+    private let image: UIImage
+    private let onTap: () -> Void
 
-            let offsetX = max((scrollView.bounds.width - scrollView.contentSize.width) * 0.5, 0)
-            let offsetY = max((scrollView.bounds.height - scrollView.contentSize.height) * 0.5, 0)
+    init(image: UIImage, onTap: @escaping () -> Void) {
+        self.image = image
+        self.onTap = onTap
+        self.imageView = UIImageView(image: image)
 
-            imageView.center = CGPoint(
-                x: scrollView.contentSize.width * 0.5 + offsetX,
-                y: scrollView.contentSize.height * 0.5 + offsetY
-            )
+        super.init(frame: .zero)
+
+        // Configure scroll view for zooming
+        self.delegate = self
+        self.minimumZoomScale = 1.0
+        self.maximumZoomScale = 4.0
+        self.showsVerticalScrollIndicator = false
+        self.showsHorizontalScrollIndicator = false
+        self.backgroundColor = .black
+        self.bouncesZoom = true
+
+        // Configure image view
+        imageView.contentMode = .scaleAspectFit
+        imageView.isUserInteractionEnabled = true
+        imageView.backgroundColor = .black
+
+        // Add tap gesture
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+        imageView.addGestureRecognizer(tapGesture)
+
+        // Add double-tap to zoom
+        let doubleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
+        doubleTapGesture.numberOfTapsRequired = 2
+        imageView.addGestureRecognizer(doubleTapGesture)
+
+        // Require double-tap to fail before single tap
+        tapGesture.require(toFail: doubleTapGesture)
+
+        addSubview(imageView)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+
+        // Calculate image size to fit screen
+        let imageSize = image.size
+        let viewSize = bounds.size
+
+        let widthRatio = viewSize.width / imageSize.width
+        let heightRatio = viewSize.height / imageSize.height
+        let ratio = min(widthRatio, heightRatio)
+
+        let scaledWidth = imageSize.width * ratio
+        let scaledHeight = imageSize.height * ratio
+
+        // ✅ Center the image perfectly
+        imageView.frame = CGRect(
+            x: (viewSize.width - scaledWidth) / 2,
+            y: (viewSize.height - scaledHeight) / 2,
+            width: scaledWidth,
+            height: scaledHeight
+        )
+
+        contentSize = viewSize  // Content size = view size when not zoomed
+    }
+
+    // MARK: - UIScrollViewDelegate
+
+    func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+        return imageView
+    }
+
+    func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        // Center image after zoom
+        let offsetX = max((bounds.width - contentSize.width) * 0.5, 0)
+        let offsetY = max((bounds.height - contentSize.height) * 0.5, 0)
+
+        imageView.center = CGPoint(
+            x: contentSize.width * 0.5 + offsetX,
+            y: contentSize.height * 0.5 + offsetY
+        )
+    }
+
+    // MARK: - Gestures
+
+    @objc private func handleTap() {
+        onTap()
+    }
+
+    @objc private func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
+        if zoomScale > minimumZoomScale {
+            // Zoom out
+            setZoomScale(minimumZoomScale, animated: true)
+        } else {
+            // Zoom in to 2x at tap location
+            let location = gesture.location(in: imageView)
+            let zoomRect = zoomRectForScale(scale: 2.0, center: location)
+            zoom(to: zoomRect, animated: true)
+        }
+    }
+
+    private func zoomRectForScale(scale: CGFloat, center: CGPoint) -> CGRect {
+        var zoomRect = CGRect.zero
+        zoomRect.size.height = bounds.height / scale
+        zoomRect.size.width = bounds.width / scale
+        zoomRect.origin.x = center.x - (zoomRect.width / 2.0)
+        zoomRect.origin.y = center.y - (zoomRect.height / 2.0)
+        return zoomRect
+    }
+
+    func resetZoom() {
+        if zoomScale != minimumZoomScale {
+            setZoomScale(minimumZoomScale, animated: true)
         }
     }
 }
