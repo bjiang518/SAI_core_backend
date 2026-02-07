@@ -52,10 +52,10 @@ struct ParentReportsView: View {
             } message: {
                 Text(NSLocalizedString("parentReport.instructions.message", comment: ""))
             }
-            .sheet(item: $selectedReport) { report in
+            .fullScreenCover(item: $selectedReport) { report in
                 ReportDetailView(report: report)
                     .onAppear {
-                        print("🔍 ReportDetailView sheet appeared with report: \(report.id)")
+                        print("🔍 ReportDetailView fullScreenCover appeared with report: \(report.id)")
                     }
             }
             .onAppear {

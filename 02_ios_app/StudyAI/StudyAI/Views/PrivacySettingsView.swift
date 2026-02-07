@@ -25,6 +25,7 @@ struct PrivacySettingsView: View {
     @State private var isEnablingReports = false
     @State private var isSyncing = false
     @State private var lastSyncDate: Date?
+    @State private var showingOnboarding = false
 
     var body: some View {
         NavigationView {
@@ -306,6 +307,31 @@ struct PrivacySettingsView: View {
             .sheet(isPresented: $showingTermsOfService) {
                 TermsOfServiceView()
             }
+            .sheet(isPresented: $showingOnboarding) {
+                ParentReportsOnboardingView(
+                    onComplete: {
+                        // Save completion state and enable reports
+                        var settings = ParentReportSettings.load()
+                        settings.hasSeenOnboarding = true
+                        settings.save()
+                        showingOnboarding = false
+
+                        // Now actually enable the reports since onboarding completed
+                        parentReportsSettings.parentReportsEnabled = true
+                        handleParentReportsToggle(enabled: true)
+                    },
+                    onSkip: {
+                        // Mark as seen but don't enable
+                        var settings = ParentReportSettings.load()
+                        settings.hasSeenOnboarding = true
+                        settings.save()
+                        showingOnboarding = false
+
+                        // Revert toggle since they skipped
+                        parentReportsSettings.parentReportsEnabled = false
+                    }
+                )
+            }
             .alert(NSLocalizedString("privacy.settings.exportDataAlert.title", comment: ""), isPresented: $showingDataExport) {
                 Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
                 Button(NSLocalizedString("privacy.settings.exportDataAlert.button", comment: "")) {
@@ -399,6 +425,17 @@ struct PrivacySettingsView: View {
     // MARK: - Parent Reports Methods
 
     private func handleParentReportsToggle(enabled: Bool) {
+        if enabled {
+            // Check if onboarding has been seen
+            let settings = ParentReportSettings.load()
+            if !settings.hasSeenOnboarding {
+                print("📊 [PrivacySettings] Showing onboarding before enabling reports")
+                showingOnboarding = true
+                return  // Don't proceed with enabling yet - onboarding will handle it
+            }
+        }
+
+        // Proceed with actual enable/disable
         isEnablingReports = true
 
         Task {
