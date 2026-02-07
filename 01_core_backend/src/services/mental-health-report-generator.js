@@ -875,7 +875,7 @@ class MentalHealthReportGenerator {
 
                 ${analysis.focusCapability.status !== 'healthy' && analysis.focusCapability.status !== 'moderate' ? `
                     <div class="parent-note">
-                        <div class="parent-note-title">💡 Focus Recommendation:</div>
+                        <div class="parent-note-title">Focus Recommendation:</div>
                         Encourage your child to study at the same time each day, even if just 15 minutes.
                         Consistency matters more than duration. Use a visual timer to make study time visible.
                     </div>
@@ -906,7 +906,7 @@ class MentalHealthReportGenerator {
                 <!-- POSITIVE INDICATORS -->
                 ${analysis.emotionalWellbeing.positiveIndicators.length > 0 ? `
                     <div class="positive-section">
-                        <div class="positive-title">✅ Positive Indicators</div>
+                        <div class="positive-title">Positive Indicators</div>
                         <ul class="positive-list">
                             ${analysis.emotionalWellbeing.positiveIndicators.map(ind => `
                                 <li>${ind}</li>
@@ -922,7 +922,7 @@ class MentalHealthReportGenerator {
 
                 ${analysis.emotionalWellbeing.redFlags.length === 0 ? `
                     <div class="positive-section">
-                        <div class="positive-title">✨ Overall: Healthy Learning Experience</div>
+                        <div class="positive-title">Overall: Healthy Learning Experience</div>
                         <p style="color: #155724; margin-top: 8px;">
                             Your child appears to be in a good mental state regarding their learning.
                             They show ${analysis.learningAttitude.score >= 0.7 ? 'strong' : 'steady'} effort and engagement.
@@ -931,7 +931,7 @@ class MentalHealthReportGenerator {
                     </div>
                 ` : `
                     <div class="parent-note">
-                        <div class="parent-note-title">📋 Next Steps:</div>
+                        <div class="parent-note-title">Next Steps:</div>
                         <ol style="margin-left: 20px; color: #1565C0;">
                             <li>Talk to your child about their learning experience</li>
                             <li>Consider reducing pressure and celebrating effort over perfection</li>
@@ -942,10 +942,6 @@ class MentalHealthReportGenerator {
                 `}
             </div>
         </div>
-
-        <footer>
-            Mental Health Report | Local Processing Only (No Data Stored)
-        </footer>
     </div>
 </body>
 </html>

@@ -632,10 +632,6 @@ class ActivityReportGenerator {
                 </div>
             </div>
         </div>
-
-        <footer>
-            Generated Activity Report | Local Processing Only (No Data Stored)
-        </footer>
     </div>
 
     <script>
