@@ -658,56 +658,153 @@ struct ProfessionalReportCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header with icon and title
             HStack(spacing: 12) {
-                Image(systemName: report.icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(report.color)
-                    .frame(width: 36, height: 36)
-                    .background(report.color.opacity(0.1))
-                    .cornerRadius(8)
+                // Icon with colored background
+                ZStack {
+                    Circle()
+                        .fill(report.color.opacity(0.15))
+                        .frame(width: 44, height: 44)
 
-                VStack(alignment: .leading, spacing: 2) {
+                    Image(systemName: report.icon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(report.color)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    // Report title
                     Text(report.displayName)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.primary)
 
-                    if let wordCount = report.wordCount {
-                        Text("\(wordCount) words")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    // Metadata row
+                    HStack(spacing: 8) {
+                        if let wordCount = report.wordCount {
+                            Label("\(wordCount) words", systemImage: "doc.text")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+
+                        if let generationTime = report.generationTimeMs {
+                            Text("•")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text("\(generationTime)ms")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
 
                 Spacer()
 
+                // Chevron indicator
                 Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.secondary.opacity(0.5))
             }
 
-            // Narrative preview (clean, no formatting)
+            // Content preview with better formatting
             Text(narrativePreview)
-                .font(.caption)
-                .lineLimit(3)
+                .font(.subheadline)
+                .lineLimit(2)
                 .foregroundColor(.secondary)
+                .lineSpacing(4)
 
-            Divider()
-                .opacity(0.5)
+            // Show insight count if available
+            if let insights = report.keyInsights, !insights.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "lightbulb.fill")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                    Text("\(insights.count) key insight\(insights.count == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    // Show recommendation count
+                    if let recs = report.recommendations, !recs.isEmpty {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                        Text("\(recs.count) recommendation\(recs.count == 1 ? "" : "s")")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.top, 4)
+            }
         }
-        .padding(12)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(10)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(report.color.opacity(0.2), lineWidth: 1)
+        )
     }
 
     private var narrativePreview: String {
-        let cleaned = report.narrativeContent
-            .replacingOccurrences(of: "#", with: "")
-            .replacingOccurrences(of: "*", with: "")
-            .replacingOccurrences(of: "_", with: "")
+        // Extract text from HTML content
+        let cleaned = stripHTMLTags(from: report.narrativeContent)
+            .replacingOccurrences(of: "\n\n", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
+        // Get first 150 characters of actual text content
         if cleaned.count > 150 {
             return String(cleaned.prefix(150)) + "..."
         }
-        return cleaned
+        return cleaned.isEmpty ? "Tap to view full report" : cleaned
+    }
+
+    /// Strip HTML tags and extract plain text content
+    private func stripHTMLTags(from html: String) -> String {
+        // Remove <!DOCTYPE>, <html>, <head>, <style>, <script> sections
+        var text = html
+
+        // Remove everything in <head>...</head>
+        if let headRange = text.range(of: "<head[^>]*>.*?</head>", options: [.regularExpression, .caseInsensitive]) {
+            text.removeSubrange(headRange)
+        }
+
+        // Remove <style>...</style> blocks
+        while let styleRange = text.range(of: "<style[^>]*>.*?</style>", options: [.regularExpression, .caseInsensitive]) {
+            text.removeSubrange(styleRange)
+        }
+
+        // Remove <script>...</script> blocks
+        while let scriptRange = text.range(of: "<script[^>]*>.*?</script>", options: [.regularExpression, .caseInsensitive]) {
+            text.removeSubrange(scriptRange)
+        }
+
+        // Replace common block-level tags with spaces/newlines
+        text = text.replacingOccurrences(of: "</p>", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "<br>", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "<br/>", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "<br />", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "</div>", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "</h1>", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "</h2>", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "</h3>", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "</li>", with: "\n", options: .caseInsensitive)
+
+        // Remove all remaining HTML tags
+        text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+
+        // Decode HTML entities
+        text = text.replacingOccurrences(of: "&nbsp;", with: " ")
+        text = text.replacingOccurrences(of: "&amp;", with: "&")
+        text = text.replacingOccurrences(of: "&lt;", with: "<")
+        text = text.replacingOccurrences(of: "&gt;", with: ">")
+        text = text.replacingOccurrences(of: "&quot;", with: "\"")
+        text = text.replacingOccurrences(of: "&#39;", with: "'")
+
+        // Clean up excessive whitespace
+        text = text.replacingOccurrences(of: "[ \\t]+", with: " ", options: .regularExpression)
+        text = text.replacingOccurrences(of: "\\n\\s*\\n\\s*\\n+", with: "\n\n", options: .regularExpression)
+
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
