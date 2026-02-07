@@ -243,15 +243,22 @@ const db = {
         }
 
         // Not retryable or max retries exceeded
-        logger.error('❌ Database query error: ' + JSON.stringify({
-          errorMessage: error.message,
-          errorCode: error.code,
-          errorDetail: error.detail,
-          errorHint: error.hint,
-          errorPosition: error.position
-        }));
-        logger.error('Query: ' + text.substring(0, 500));
-        logger.error('Params: ' + JSON.stringify(params));
+        // Don't log expected column-not-found errors (these are handled by fallback queries)
+        const isExpectedMigrationError = error.code === '42703' || error.code === '42701';
+
+        if (isExpectedMigrationError) {
+          logger.debug('⚠️ Database query error (expected): ' + error.message);
+        } else {
+          logger.error('❌ Database query error: ' + JSON.stringify({
+            errorMessage: error.message,
+            errorCode: error.code,
+            errorDetail: error.detail,
+            errorHint: error.hint,
+            errorPosition: error.position
+          }));
+          logger.error('Query: ' + text.substring(0, 500));
+          logger.error('Params: ' + JSON.stringify(params));
+        }
         throw error;
       }
     }
@@ -3078,6 +3085,13 @@ async function runDatabaseMigrations() {
       logger.debug('✅ Added tags column to questions table');
     } catch (error) {
       logger.debug(`⚠️ Could not add tags to questions: ${error.message}`);
+    }
+
+    try {
+      await db.query('ALTER TABLE questions ADD COLUMN IF NOT EXISTS ai_answer TEXT');
+      logger.debug('✅ Added ai_answer column to questions table');
+    } catch (error) {
+      logger.debug(`⚠️ Could not add ai_answer to questions: ${error.message}`);
     }
 
     try {

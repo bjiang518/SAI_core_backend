@@ -152,20 +152,20 @@ module.exports = async function (fastify, opts) {
       `;
       const countResult = await db.query(countQuery, [userId]);
       const stats = countResult.rows[0];
-      logger.info(`📊 [DEBUG] Database check for user ${userId.substring(0, 8)}...`);
-      logger.info(`   Total questions in DB: ${stats.question_count}`);
-      logger.info(`   Subjects in DB: ${stats.subject_count}`);
-      logger.info(`   Date range in DB: ${stats.earliest_date} to ${stats.latest_date}`);
+      logger.debug(`📊 [DEBUG] Database check for user ${userId.substring(0, 8)}...`);
+      logger.debug(`   Total questions in DB: ${stats.question_count}`);
+      logger.debug(`   Subjects in DB: ${stats.subject_count}`);
+      logger.debug(`   Date range in DB: ${stats.earliest_date} to ${stats.latest_date}`);
 
       // DEBUG: Check conversations
       const convCountQuery = `
         SELECT COUNT(*) as conversation_count FROM archived_conversations_new WHERE user_id = $1
       `;
       const convResult = await db.query(convCountQuery, [userId]);
-      logger.info(`   Total conversations in DB: ${convResult.rows[0].conversation_count}`);
+      logger.debug(`   Total conversations in DB: ${convResult.rows[0].conversation_count}`);
 
       // Generate reports
-      logger.info(`🚀 [DEBUG] Starting report generation...`);
+      logger.debug(`🚀 [DEBUG] Starting report generation...`);
       const result = await reportGenerator.generateAllReports(userId, period, dateRange);
 
       const duration = Date.now() - startTime;
@@ -260,15 +260,15 @@ module.exports = async function (fastify, opts) {
       const totalBatchQuery = `SELECT COUNT(*) as total FROM parent_report_batches WHERE user_id = $1`;
       const totalBatchResult = await db.query(totalBatchQuery, [userId]);
       const totalBatches = totalBatchResult.rows[0]?.total || 0;
-      logger.info(`📊 [DEBUG] Total batches in DB for user: ${totalBatches}`);
+      logger.debug(`📊 [DEBUG] Total batches in DB for user: ${totalBatches}`);
 
       if (totalBatches === 0) {
-        logger.warn(`⚠️ [DEBUG] No batches found for user ${userId.substring(0, 8)}...`);
-        logger.warn(`   This likely means report generation hasn't been called or failed`);
+        logger.debug(`⚠️ [DEBUG] No batches found for user ${userId.substring(0, 8)}...`);
+        logger.debug(`   This likely means report generation hasn't been called or failed`);
         // Check if there are ANY batches in the database at all
         const anyBatchQuery = `SELECT COUNT(*) as total FROM parent_report_batches`;
         const anyBatchResult = await db.query(anyBatchQuery);
-        logger.warn(`   Total batches in entire DB: ${anyBatchResult.rows[0]?.total || 0}`);
+        logger.debug(`   Total batches in entire DB: ${anyBatchResult.rows[0]?.total || 0}`);
       }
 
       // Build query with optional period filter
@@ -311,13 +311,13 @@ module.exports = async function (fastify, opts) {
       query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       queryParams.push(limit, offset);
 
-      logger.info(`📊 [DEBUG] Query: ${query.substring(0, 100)}...`);
-      logger.info(`📊 [DEBUG] Query params: [${queryParams[0].substring(0, 8)}..., ${queryParams.slice(1).join(', ')}]`);
+      logger.debug(`📊 [DEBUG] Query: ${query.substring(0, 100)}...`);
+      logger.debug(`📊 [DEBUG] Query params: [${queryParams[0].substring(0, 8)}..., ${queryParams.slice(1).join(', ')}]`);
 
       // Execute query
       const result = await db.query(query, queryParams);
 
-      logger.info(`✅ [DEBUG] Query returned ${result.rows.length} batches`);
+      logger.debug(`✅ [DEBUG] Query returned ${result.rows.length} batches`);
 
       // Get total count for pagination
       let countQuery = `

@@ -1571,6 +1571,7 @@ class NetworkService: ObservableObject {
     ///   - message: The user message
     ///   - voiceId: ElevenLabs voice ID (e.g., 'zZLmKvCp1i04X8E0FJ8B' for Max)
     ///   - systemPrompt: Optional system prompt override
+    ///   - deepMode: If true, uses o4 model for deeper reasoning (default: false)
     ///   - onTextDelta: Callback for each text chunk (accumulated text)
     ///   - onAudioChunk: Callback for each audio chunk (base64 MP3)
     ///   - onComplete: Callback when complete (success, full text)
@@ -1580,6 +1581,7 @@ class NetworkService: ObservableObject {
         message: String,
         voiceId: String,
         systemPrompt: String? = nil,
+        deepMode: Bool = false,
         onTextDelta: @escaping (String) -> Void,
         onAudioChunk: @escaping (String, Data?) -> Void,  // ✅ Added alignment data parameter
         onComplete: @escaping (Bool, String?) -> Void
@@ -1606,7 +1608,7 @@ class NetworkService: ObservableObject {
             "message": message,
             "voiceId": voiceId,
             "systemPrompt": systemPrompt ?? "You are a helpful AI tutor.",
-            "deepMode": false // Interactive mode not compatible with deep mode
+            "deepMode": deepMode  // ✅ Now supports deep mode with interactive streaming
         ]
 
         do {

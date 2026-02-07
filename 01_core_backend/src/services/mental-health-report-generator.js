@@ -32,7 +32,7 @@ class MentalHealthReportGenerator {
             // ✅ NEW: Get conversation behavior signals from short_term_status
             let behaviorSignals = await this.getBehaviorSignalsForPeriod(userId, startDate, endDate);
             behaviorSignals = behaviorSignals || [];
-            logger.info(`📊 Retrieved ${behaviorSignals.length} conversation behavior signals`);
+            logger.debug(`📊 Retrieved ${behaviorSignals.length} conversation behavior signals`);
 
             // Step 3: Get previous period data for comparison
             const previousStart = new Date(startDate);
@@ -140,7 +140,7 @@ class MentalHealthReportGenerator {
             return signalDate >= new Date(startDate) && signalDate <= new Date(endDate);
         });
 
-        logger.info(`📊 Retrieved ${filteredSignals.length}/${allSignals.length} behavior signals for period`);
+        logger.debug(`📊 Retrieved ${filteredSignals.length}/${allSignals.length} behavior signals for period`);
         return filteredSignals;
     }
 
@@ -296,7 +296,7 @@ class MentalHealthReportGenerator {
         let totalCuriosity = 0;
         if (behaviorMetrics.totalCuriosity > 0) {
             totalCuriosity = behaviorMetrics.totalCuriosity;
-            logger.info(`📊 Using behavior signals for curiosity: ${totalCuriosity} indicators`);
+            logger.debug(`📊 Using behavior signals for curiosity: ${totalCuriosity} indicators`);
         } else if (conversations && conversations.length > 0) {
             conversations.forEach(c => {
                 if (c && c.conversation_content) {
@@ -401,7 +401,7 @@ class MentalHealthReportGenerator {
             // Use aggregated behavior metrics
             totalFrustration = behaviorMetrics.avgFrustrationLevel * behaviorSignals.length;
             frustrationTrend = behaviorMetrics.frustrationTrend;
-            logger.info(`📊 Using behavior signals for frustration: avg=${behaviorMetrics.avgFrustrationLevel.toFixed(2)}, trend=${frustrationTrend}`);
+            logger.debug(`📊 Using behavior signals for frustration: avg=${behaviorMetrics.avgFrustrationLevel.toFixed(2)}, trend=${frustrationTrend}`);
         } else if (conversations && conversations.length > 0) {
             // Fallback to text analysis
             conversations.forEach(c => {
@@ -433,7 +433,7 @@ class MentalHealthReportGenerator {
             // Use behavior signals
             hasRedFlags = behaviorSignals.some(signal => signal.hasRedFlags);
             harmfulLanguageDetected = behaviorMetrics.harmfulKeywords;
-            logger.info(`📊 Using behavior signals for harmful language: hasRedFlags=${hasRedFlags}, keywords=${harmfulLanguageDetected.length}`);
+            logger.debug(`📊 Using behavior signals for harmful language: hasRedFlags=${hasRedFlags}, keywords=${harmfulLanguageDetected.length}`);
         } else if (conversations && conversations.length > 0) {
             // Fallback to text analysis
             conversations.forEach(c => {
@@ -554,7 +554,7 @@ class MentalHealthReportGenerator {
         // Check if any session has red flags
         const hasRedFlags = behaviorSignals.some(signal => signal.hasRedFlags === true);
 
-        logger.info(`📊 Behavior signal aggregation:`, {
+        logger.debug(`📊 Behavior signal aggregation:`, {
             avgFrustrationLevel: avgFrustrationLevel.toFixed(2),
             frustrationTrend,
             totalCuriosity,
