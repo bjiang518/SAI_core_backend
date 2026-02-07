@@ -78,7 +78,7 @@ class SynchronizedTextRenderer: ObservableObject {
 
     /// Start a new synchronized rendering session
     func startSession() {
-        logger.info("🎬 Starting synchronized rendering")
+        logger.info("🎬 Starting new synchronized rendering session")
         reset()
         isSynchronizing = true
     }
@@ -89,6 +89,7 @@ class SynchronizedTextRenderer: ObservableObject {
         fullText = text
         visibleText = "" // Hide all text initially
         currentCharIndex = 0
+        logger.info("📝 Set full text: \(text.count) chars")
     }
 
     /// Process an audio chunk with alignment data
@@ -96,13 +97,16 @@ class SynchronizedTextRenderer: ObservableObject {
     ///   - text: Text corresponding to this audio chunk
     ///   - alignmentData: Optional alignment timing data from ElevenLabs
     func processAudioChunk(text: String, alignmentData: Data?) {
+        logger.info("🎵 Processing audio chunk: \(text.count) chars")
+
         // Parse alignment data if available
         var alignment: AudioAlignment?
         if let data = alignmentData {
             do {
                 alignment = try JSONDecoder().decode(AudioAlignment.self, from: data)
+                logger.info("✅ Parsed alignment data: \(alignment?.characters?.count ?? 0) chars")
             } catch {
-                logger.warning("⚠️ Failed to parse alignment")
+                logger.warning("⚠️ Failed to parse alignment data: \(error)")
             }
         }
 
@@ -131,6 +135,10 @@ class SynchronizedTextRenderer: ObservableObject {
             if let lastEndTime = endTimes.last {
                 totalAudioDurationMs = lastEndTime + totalAudioDurationMs
             }
+
+            logger.info("📊 Total character timings: \(characterTimings.count), duration: \(totalAudioDurationMs)ms")
+        } else {
+            logger.warning("⚠️ No valid alignment data, will use fallback timing")
         }
 
         // Start revealing if not already started
@@ -144,14 +152,14 @@ class SynchronizedTextRenderer: ObservableObject {
     func audioPlaybackStarted() {
         if audioStartTime == nil {
             audioStartTime = Date()
-            logger.info("▶️ Audio started - revealing text")
+            logger.info("▶️ Audio playback started - beginning text reveal")
             startRevealingText()
         }
     }
 
     /// Stop synchronization and show all text immediately
     func complete() {
-        logger.info("🏁 Text reveal complete")
+        logger.info("🏁 Synchronization complete - showing full text")
         stopRevealTimer()
         visibleText = fullText
         isSynchronizing = false
@@ -159,6 +167,7 @@ class SynchronizedTextRenderer: ObservableObject {
 
     /// Reset state for new session
     func reset() {
+        logger.info("🔄 Resetting synchronized text renderer")
         stopRevealTimer()
         visibleText = ""
         fullText = ""

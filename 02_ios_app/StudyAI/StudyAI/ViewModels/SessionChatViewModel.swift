@@ -224,9 +224,8 @@ class SessionChatViewModel: ObservableObject {
 
         if shouldUseInteractive {
             print("🎙️ Interactive mode enabled - using real-time TTS")
-            print("🧠 Deep Mode: \(deepMode)")
             Task {
-                await sendMessageInteractive(deepMode: deepMode)
+                await sendMessageInteractive()
             }
             return
         }
@@ -809,12 +808,10 @@ class SessionChatViewModel: ObservableObject {
     // MARK: - Phase 3: Interactive Mode (Real-time Synchronized TTS)
 
     /// Send message using interactive mode with real-time synchronized TTS
-    /// - Parameter deepMode: If true, uses o4 model for deeper reasoning (default: false)
-    private func sendMessageInteractive(deepMode: Bool = false) async {
+    private func sendMessageInteractive() async {
         print("🎙️ ============================================")
         print("🎙️ === SEND MESSAGE INTERACTIVE ===")
         print("🎙️ ============================================")
-        print("🎙️ Deep Mode: \(deepMode)")
 
         let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         messageText = ""
@@ -883,7 +880,6 @@ class SessionChatViewModel: ObservableObject {
             sessionId: validSessionId,
             message: message,
             voiceId: voiceId,
-            deepMode: deepMode,
             onTextDelta: { [weak self] content in
                 Task { @MainActor in
                     guard let self = self else { return }
@@ -904,9 +900,9 @@ class SessionChatViewModel: ObservableObject {
                     // ✅ NEW: Set full text in renderer (but don't show yet - wait for audio)
                     self.textRenderer.setFullText(content)
 
-                    // Update streaming state (text will be revealed via Combine observer)
+                    // Update streaming message state with visible text from renderer
                     self.isActivelyStreaming = true
-                    // ❌ REMOVED: Don't manually update activeStreamingMessage - let Combine handle it
+                    self.activeStreamingMessage = self.textRenderer.visibleText
                 }
             },
             onAudioChunk: { [weak self] audioBase64, alignmentData in
@@ -925,51 +921,64 @@ class SessionChatViewModel: ObservableObject {
 
                     // ✅ NEW: Process alignment data for text synchronization
                     if let alignment = alignmentData {
+                        // Extract text chunk corresponding to this audio
+                        // For now, use the current fullText from renderer
                         let textChunk = self.textRenderer.fullText
                         self.textRenderer.processAudioChunk(text: textChunk, alignmentData: alignment)
+                        print("🎬 [Sync] Processed audio chunk with alignment data")
                     }
 
+                    print("🎙️ [ViewModel] onAudioChunk callback fired - \(audioBase64.count) chars base64")
                     // Process audio chunk for real-time playback
                     self.interactiveTTSService.processAudioChunk(audioBase64)
+
+                    // ✅ NEW: Update activeStreamingMessage with renderer's visible text
+                    self.activeStreamingMessage = self.textRenderer.visibleText
                 }
             },
             onComplete: { [weak self] success, fullText in
                 Task { @MainActor in
                     guard let self = self else { return }
 
-                    print("🎙️ Text streaming complete. Audio continues...")
+                    print("🎙️ Interactive streaming complete. Success: \(success)")
+
+                    // ✅ NEW: Complete text rendering - show all remaining text
+                    self.textRenderer.complete()
+                    self.isSynchronizing = false
 
                     if success, let text = fullText {
-                        // Persist complete message to conversation history
+                        // Move streaming message to conversation history
                         self.networkService.conversationHistory.append([
                             "role": "assistant",
                             "content": text
                         ])
+
+                        // Persist complete message
                         self.persistMessage(role: "assistant", content: text, addToHistory: false)
 
-                        // Schedule cleanup after audio finishes (estimate based on text length)
-                        let estimatedDuration = Double(text.count) / 15.0 // 15 chars/sec
-                        DispatchQueue.main.asyncAfter(deadline: .now() + estimatedDuration + 2.0) {
-                            self.textRenderer.complete()
-                            self.isSynchronizing = false
-                            self.isActivelyStreaming = false
-                            self.activeStreamingMessage = ""
-                            self.loadSessionInfo()
-                        }
+                        print("✅ Added assistant message to history (\(text.count) chars)")
                     } else {
+                        print("❌ Interactive streaming failed")
                         self.errorMessage = NSLocalizedString("error.message.send", comment: "")
                     }
 
-                    // Update UI immediately (don't wait for audio)
+                    // Clear streaming state
+                    self.isActivelyStreaming = false
+                    self.activeStreamingMessage = ""
+
                     withAnimation {
                         self.isSubmitting = false
                         self.showTypingIndicator = false
                         self.isStreamingComplete = true
                     }
 
+                    // Clear homework context if present
                     if homeworkContext != nil {
                         self.appState.clearPendingChatMessage()
                     }
+
+                    // Refresh session info
+                    self.loadSessionInfo()
                 }
             }
         )
