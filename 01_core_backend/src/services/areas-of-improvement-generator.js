@@ -75,8 +75,7 @@ class AreasOfImprovementGenerator {
             return result.rows;
         } catch (error) {
             // Fallback query without ai_answer if column doesn't exist
-            // Check for PostgreSQL column not found errors (error code 42703)
-            if (error.code === '42703' || error.message.includes('ai_answer') || error.message.includes('does not exist')) {
+            if (error.message.includes('ai_answer')) {
                 logger.warn(`⚠️ ai_answer column not found, using fallback query`);
                 const fallbackQuery = `
                     SELECT

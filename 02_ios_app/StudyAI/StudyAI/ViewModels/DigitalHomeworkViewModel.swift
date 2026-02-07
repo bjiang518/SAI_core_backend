@@ -494,23 +494,16 @@ class DigitalHomeworkViewModel: ObservableObject {
     // MARK: - Image Cropping
 
     private func cropImageForAnnotation(_ annotation: QuestionAnnotation) {
-        // ✅ FIX: Use the correct image based on annotation's pageIndex
-        guard annotation.pageIndex < originalImages.count else {
-            logger.error("Invalid pageIndex \(annotation.pageIndex) for annotation")
-            return
-        }
-
-        let imageForThisPage = originalImages[annotation.pageIndex]
-
-        guard let questionNumber = annotation.questionNumber,
+        guard let originalImage = originalImage,
+              let questionNumber = annotation.questionNumber,
               let questionId = parseResults?.questions.first(where: { $0.questionNumber == questionNumber })?.id else {
             return
         }
 
         // ✅ OPTIMIZATION 1: Normalize image orientation BEFORE cropping
         // This fixes rotation bugs where EXIF orientation causes wrong crops
-        guard let normalizedImage = imageForThisPage.normalizedOrientation() else {
-            logger.error("Failed to normalize image orientation for Q\(questionNumber) on page \(annotation.pageIndex)")
+        guard let normalizedImage = originalImage.normalizedOrientation() else {
+            logger.error("Failed to normalize image orientation for Q\(questionNumber)")
             return
         }
 
@@ -543,7 +536,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                     let compressedSize = jpegData.count
                     let savings = originalSize > 0 ? (1.0 - Double(compressedSize) / Double(originalSize)) * 100 : 0
                     if Self.isDebugMode {
-                        logger.debug("Cropped image for Q\(questionNumber) from page \(annotation.pageIndex) (id: \(questionId))")
+                        logger.debug("Cropped image for Q\(questionNumber) (id: \(questionId))")
                         logger.debug("Compressed: \(originalSize / 1024)KB → \(compressedSize / 1024)KB (saved \(Int(savings))%)")
                     }
                 } else {
@@ -553,7 +546,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 logger.error("Failed to compress image to JPEG for Q\(questionNumber)")
             }
         } else {
-            logger.error("Failed to crop image for Q\(questionNumber) on page \(annotation.pageIndex)")
+            logger.error("Failed to crop image for Q\(questionNumber)")
         }
     }
 

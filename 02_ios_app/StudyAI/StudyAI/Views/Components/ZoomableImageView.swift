@@ -35,17 +35,8 @@ struct AnnotatableImageView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: fittedSize.width, height: fittedSize.height)
-                    .gesture(
-                        // ✅ FIX: Only allow zoom/pan gestures when NOT in interactive mode
-                        // In interactive mode, gestures are used for annotation boxes
-                        isInteractive ? nil : zoomGesture().simultaneously(with: panGesture())
-                    )
-                    .onTapGesture(count: 2) {
-                        // ✅ FIX: Only allow double-tap zoom when NOT in interactive mode
-                        if !isInteractive {
-                            doubleTap()
-                        }
-                    }
+                    .gesture(zoomGesture().simultaneously(with: panGesture()))
+                    .onTapGesture(count: 2) { doubleTap() }
                     .overlay(
                         overlayForImage(fittedSize: fittedSize)
                     )
