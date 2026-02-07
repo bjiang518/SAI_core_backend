@@ -204,6 +204,33 @@ class PassiveReportsViewModel: ObservableObject {
 
             print("✅ [PassiveReports] Loaded \(weeklyBatches.count) weekly + \(monthlyBatches.count) monthly batches")
 
+            // Debug: Show details of each batch
+            if !weeklyBatches.isEmpty {
+                print("📊 [DEBUG] Weekly Batches:")
+                for batch in weeklyBatches {
+                    print("   - ID: \(batch.id)")
+                    print("     Period: \(batch.period)")
+                    print("     Date Range: \(batch.startDate) to \(batch.endDate)")
+                    print("     Status: \(batch.status)")
+                    print("     Report Count: \(batch.reportCount ?? 0)")
+                    print("     Overall Grade: \(batch.overallGrade ?? "N/A")")
+                    print("     One-line Summary: \(batch.oneLineSummary ?? "N/A")")
+                }
+            }
+
+            if !monthlyBatches.isEmpty {
+                print("📊 [DEBUG] Monthly Batches:")
+                for batch in monthlyBatches {
+                    print("   - ID: \(batch.id)")
+                    print("     Period: \(batch.period)")
+                    print("     Date Range: \(batch.startDate) to \(batch.endDate)")
+                    print("     Status: \(batch.status)")
+                    print("     Report Count: \(batch.reportCount ?? 0)")
+                    print("     Overall Grade: \(batch.overallGrade ?? "N/A")")
+                    print("     One-line Summary: \(batch.oneLineSummary ?? "N/A")")
+                }
+            }
+
         } catch {
             isLoadingBatches = false
             errorMessage = error.localizedDescription
@@ -309,6 +336,35 @@ class PassiveReportsViewModel: ObservableObject {
             isLoadingDetails = false
 
             print("✅ [PassiveReports] Loaded \(detailedReports.count) reports for batch \(batchId)")
+
+            // Debug: Show full details of all reports
+            print("📊 [DEBUG] Report Details for Batch \(batchId):")
+            for (index, report) in detailedReports.enumerated() {
+                print("\n   [\(index + 1)/\(detailedReports.count)] Report Type: \(report.reportType)")
+                print("     Display Name: \(report.displayName)")
+                print("     Word Count: \(report.wordCount ?? 0)")
+                print("     Generation Time: \(report.generationTimeMs ?? 0)ms")
+                print("     AI Model: \(report.aiModelUsed ?? "N/A")")
+                print("     Generated At: \(report.generatedAt)")
+
+                // Show content preview (first 200 chars)
+                let preview = report.narrativeContent.prefix(200)
+                print("     Content Preview: \(preview)...")
+
+                if let insights = report.keyInsights {
+                    print("     Key Insights: \(insights.count) items")
+                    for insight in insights {
+                        print("       - \(insight)")
+                    }
+                }
+
+                if let recommendations = report.recommendations {
+                    print("     Recommendations: \(recommendations.count) items")
+                    for rec in recommendations {
+                        print("       - [\(rec.priority)] \(rec.title)")
+                    }
+                }
+            }
 
         } catch {
             isLoadingDetails = false
