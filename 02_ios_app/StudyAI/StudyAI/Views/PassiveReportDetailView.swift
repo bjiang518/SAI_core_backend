@@ -290,14 +290,18 @@ struct HTMLView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
-        let webView = WKWebView()
+        let config = WKWebViewConfiguration()
+        let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.scrollView.isScrollEnabled = false // Disable internal scrolling
         webView.scrollView.bounces = false
         webView.isOpaque = false
         webView.backgroundColor = .clear
 
-        // Observe content size changes
+        // Add message handler ONCE in makeUIView
+        config.userContentController.add(context.coordinator, name: "heightChanged")
+
+        // Store reference
         context.coordinator.webView = webView
 
         // Load HTML with proper viewport settings for mobile
