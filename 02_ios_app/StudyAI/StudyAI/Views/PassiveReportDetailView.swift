@@ -112,31 +112,6 @@ struct ReportDetailSheet: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    // Report header
-                    HStack(spacing: 12) {
-                        Image(systemName: report.icon)
-                            .font(.largeTitle)
-                            .foregroundColor(report.color)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(report.displayName)
-                                .font(.title2)
-                                .fontWeight(.bold)
-
-                            if let wordCount = report.wordCount {
-                                Text("\(wordCount) words")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-
-                        Spacer()
-                    }
-                    .padding(.horizontal)
-                    .padding(.top)
-
-                    Divider()
-
                     // Full narrative content with HTML rendering
                     HTMLView(htmlContent: report.narrativeContent)
                         .frame(minHeight: 400)
@@ -151,13 +126,9 @@ struct ReportDetailSheet: View {
                     if let recommendations = report.recommendations, !recommendations.isEmpty {
                         recommendationsSection(recommendations: recommendations)
                     }
-
-                    // Generation metadata
-                    generationMetadata
                 }
                 .padding(.bottom, 24)
             }
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
@@ -251,50 +222,6 @@ struct ReportDetailSheet: View {
                 .cornerRadius(8)
                 .padding(.horizontal)
             }
-        }
-    }
-
-    private var generationMetadata: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Report Details")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(.secondary)
-                .padding(.horizontal)
-
-            VStack(spacing: 4) {
-                if let aiModel = report.aiModelUsed {
-                    metadataRow(label: "AI Model", value: aiModel)
-                }
-
-                if let generationTime = report.generationTimeMs {
-                    metadataRow(label: "Generation Time", value: "\(generationTime)ms")
-                }
-
-                Group {
-                    let formatter = DateFormatter()
-                    let _ = formatter.dateStyle = .medium
-                    let _ = formatter.timeStyle = .short
-                    let dateStr = formatter.string(from: report.generatedAt)
-                    metadataRow(label: "Generated", value: dateStr)
-                }
-            }
-            .padding()
-            .background(Color(.tertiarySystemBackground))
-            .cornerRadius(8)
-            .padding(.horizontal)
-        }
-    }
-
-    private func metadataRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
-            Spacer()
-            Text(value)
-                .font(.caption)
-                .foregroundColor(.primary)
         }
     }
 
@@ -655,156 +582,32 @@ struct ProfessionalReportCard: View {
     let report: PassiveReport
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with icon and title
-            HStack(spacing: 12) {
-                // Icon with colored background
-                ZStack {
-                    Circle()
-                        .fill(report.color.opacity(0.15))
-                        .frame(width: 44, height: 44)
+        HStack(spacing: 12) {
+            // Small icon
+            Image(systemName: report.icon)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(report.color)
+                .frame(width: 32, height: 32)
+                .background(report.color.opacity(0.1))
+                .cornerRadius(8)
 
-                    Image(systemName: report.icon)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(report.color)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    // Report title
-                    Text(report.displayName)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.primary)
-
-                    // Metadata row
-                    HStack(spacing: 8) {
-                        if let wordCount = report.wordCount {
-                            Label("\(wordCount) words", systemImage: "doc.text")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-
-                        if let generationTime = report.generationTimeMs {
-                            Text("•")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            Text("\(generationTime)ms")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-
-                Spacer()
-
-                // Chevron indicator
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary.opacity(0.5))
-            }
-
-            // Content preview with better formatting
-            Text(narrativePreview)
+            // Report name only
+            Text(report.displayName)
                 .font(.subheadline)
-                .lineLimit(2)
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
+
+            Spacer()
+
+            // Chevron indicator
+            Image(systemName: "chevron.right")
+                .font(.caption)
                 .foregroundColor(.secondary)
-                .lineSpacing(4)
-
-            // Show insight count if available
-            if let insights = report.keyInsights, !insights.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "lightbulb.fill")
-                        .font(.caption2)
-                        .foregroundColor(.orange)
-                    Text("\(insights.count) key insight\(insights.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    Spacer()
-
-                    // Show recommendation count
-                    if let recs = report.recommendations, !recs.isEmpty {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption2)
-                            .foregroundColor(.green)
-                        Text("\(recs.count) recommendation\(recs.count == 1 ? "" : "s")")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.top, 4)
-            }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(report.color.opacity(0.2), lineWidth: 1)
-        )
-    }
-
-    private var narrativePreview: String {
-        // Extract text from HTML content
-        let cleaned = stripHTMLTags(from: report.narrativeContent)
-            .replacingOccurrences(of: "\n\n", with: " ")
-            .replacingOccurrences(of: "\n", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // Get first 150 characters of actual text content
-        if cleaned.count > 150 {
-            return String(cleaned.prefix(150)) + "..."
-        }
-        return cleaned.isEmpty ? "Tap to view full report" : cleaned
-    }
-
-    /// Strip HTML tags and extract plain text content
-    private func stripHTMLTags(from html: String) -> String {
-        // Remove <!DOCTYPE>, <html>, <head>, <style>, <script> sections
-        var text = html
-
-        // Remove everything in <head>...</head>
-        if let headRange = text.range(of: "<head[^>]*>.*?</head>", options: [.regularExpression, .caseInsensitive]) {
-            text.removeSubrange(headRange)
-        }
-
-        // Remove <style>...</style> blocks
-        while let styleRange = text.range(of: "<style[^>]*>.*?</style>", options: [.regularExpression, .caseInsensitive]) {
-            text.removeSubrange(styleRange)
-        }
-
-        // Remove <script>...</script> blocks
-        while let scriptRange = text.range(of: "<script[^>]*>.*?</script>", options: [.regularExpression, .caseInsensitive]) {
-            text.removeSubrange(scriptRange)
-        }
-
-        // Replace common block-level tags with spaces/newlines
-        text = text.replacingOccurrences(of: "</p>", with: "\n", options: .caseInsensitive)
-        text = text.replacingOccurrences(of: "<br>", with: "\n", options: .caseInsensitive)
-        text = text.replacingOccurrences(of: "<br/>", with: "\n", options: .caseInsensitive)
-        text = text.replacingOccurrences(of: "<br />", with: "\n", options: .caseInsensitive)
-        text = text.replacingOccurrences(of: "</div>", with: "\n", options: .caseInsensitive)
-        text = text.replacingOccurrences(of: "</h1>", with: "\n", options: .caseInsensitive)
-        text = text.replacingOccurrences(of: "</h2>", with: "\n", options: .caseInsensitive)
-        text = text.replacingOccurrences(of: "</h3>", with: "\n", options: .caseInsensitive)
-        text = text.replacingOccurrences(of: "</li>", with: "\n", options: .caseInsensitive)
-
-        // Remove all remaining HTML tags
-        text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-
-        // Decode HTML entities
-        text = text.replacingOccurrences(of: "&nbsp;", with: " ")
-        text = text.replacingOccurrences(of: "&amp;", with: "&")
-        text = text.replacingOccurrences(of: "&lt;", with: "<")
-        text = text.replacingOccurrences(of: "&gt;", with: ">")
-        text = text.replacingOccurrences(of: "&quot;", with: "\"")
-        text = text.replacingOccurrences(of: "&#39;", with: "'")
-
-        // Clean up excessive whitespace
-        text = text.replacingOccurrences(of: "[ \\t]+", with: " ", options: .regularExpression)
-        text = text.replacingOccurrences(of: "\\n\\s*\\n\\s*\\n+", with: "\n\n", options: .regularExpression)
-
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(10)
     }
 }
+

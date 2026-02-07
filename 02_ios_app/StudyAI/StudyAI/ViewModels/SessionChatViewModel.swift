@@ -864,15 +864,22 @@ class SessionChatViewModel: ObservableObject {
             }
 
             // Add message with image marker
-            networkService.conversationHistory.append([
+            var messageDict: [String: String] = [
                 "role": "user",
                 "content": message,
                 "hasImage": "true",
                 "messageId": messageId
-            ])
+            ]
+
+            // ✅ Add deep mode flag if active
+            if deepMode {
+                messageDict["deepMode"] = "true"
+            }
+
+            networkService.conversationHistory.append(messageDict)
         } else {
             // Add user message to history
-            persistMessage(role: "user", content: message)
+            persistMessage(role: "user", content: message, deepMode: deepMode)
         }
 
         // Show typing indicator
@@ -940,28 +947,32 @@ class SessionChatViewModel: ObservableObject {
                     print("🎙️ Text streaming complete. Audio continues...")
 
                     if success, let text = fullText {
-                        // Persist complete message to conversation history
-                        self.networkService.conversationHistory.append([
-                            "role": "assistant",
-                            "content": text
-                        ])
+                        // ⚠️ CRITICAL: DON'T add to conversationHistory yet!
+                        // The synchronized text is still revealing. Only persist to database.
                         self.persistMessage(role: "assistant", content: text, addToHistory: false)
 
-                        // ⚠️ CRITICAL: DON'T clear isSynchronizing here!
-                        // The timer needs it to keep revealing text
-                        // Only clear isActivelyStreaming to stop showing streaming UI
-                        self.isActivelyStreaming = false
-                        print("✅ Persisted message, timer continues revealing text")
+                        // ⚠️ CRITICAL: Keep isSynchronizing = true AND isActivelyStreaming = true
+                        // So the streaming message continues to display with synchronized text
+                        // (Don't set isActivelyStreaming = false here!)
+                        print("✅ Persisted message to DB, keeping UI synchronized with audio")
 
                         // Schedule cleanup AFTER audio finishes (estimate based on text length)
                         let estimatedDuration = Double(text.count) / 15.0 // 15 chars/sec
                         DispatchQueue.main.asyncAfter(deadline: .now() + estimatedDuration + 2.0) {
-                            // NOW it's safe to clear synchronization and complete rendering
+                            // NOW it's safe to:
+                            // 1. Complete text rendering (show all text immediately)
                             self.textRenderer.complete()
+                            // 2. Add to conversation history (so it shows in regular message list)
+                            self.networkService.conversationHistory.append([
+                                "role": "assistant",
+                                "content": text
+                            ])
+                            // 3. Clear synchronization state
                             self.isSynchronizing = false
+                            self.isActivelyStreaming = false
                             self.activeStreamingMessage = ""
                             self.loadSessionInfo()
-                            print("🏁 Audio complete - final cleanup")
+                            print("🏁 Audio complete - added to history and cleared sync state")
                         }
                     } else {
                         self.isActivelyStreaming = false
