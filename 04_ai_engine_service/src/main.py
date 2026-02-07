@@ -1682,6 +1682,7 @@ async def send_session_message(
         logger.debug(f"💬 Message: {request.message[:100]}...")
         logger.debug(f"🌍 Language: {request.language}")
         logger.debug(f"🎯 System prompt provided: {request.system_prompt is not None}")
+        logger.debug(f"🧠 Deep Mode: {request.deep_mode} ({'o4-mini' if request.deep_mode else 'intelligent routing'})")  # ✅ NEW: Log deep mode
         logger.debug(f"🔍 Using NON-STREAMING endpoint")
         logger.debug(f"💡 For streaming, use: /api/v1/sessions/{session_id}/message/stream")
 
@@ -1723,24 +1724,46 @@ async def send_session_message(
         # Get conversation context for AI
         context_messages = session.get_context_for_api(system_prompt)
 
-        # 🚀 INTELLIGENT MODEL ROUTING: Select optimal model
-        selected_model, max_tokens = select_chat_model(
-            message=request.message,
-            subject=session.subject,
-            conversation_length=len(session.messages)
-        )
+        # ✅ NEW: Support deep mode (o4-mini for complex reasoning)
+        if request.deep_mode:
+            selected_model = "o4-mini"  # Deep reasoning model
+            max_tokens = 4000  # More tokens for complex reasoning
+            logger.debug(f"🧠 Deep mode enabled - using o4-mini (complex reasoning)")
+        elif request.image_data:
+            selected_model = "gpt-4o-mini"  # Vision-capable model
+            max_tokens = 4096
+            logger.debug(f"🖼️ Image detected - forcing gpt-4o-mini (vision-capable)")
+        else:
+            # 🚀 INTELLIGENT MODEL ROUTING: Select optimal model
+            selected_model, max_tokens = select_chat_model(
+                message=request.message,
+                subject=session.subject,
+                conversation_length=len(session.messages)
+            )
 
         logger.debug(f"🤖 Calling OpenAI (NON-STREAMING) with {len(context_messages)} context messages...")
         logger.debug(f"🚀 Selected model: {selected_model} (max_tokens: {max_tokens})")
 
         # Call OpenAI with full conversation context and dynamic model selection
-        response = await ai_service.client.chat.completions.create(
-            model=selected_model,  # 🚀 Dynamic model selection
-            messages=context_messages,
-            temperature=0.3,
-            max_tokens=max_tokens,  # 🚀 Dynamic token limit
-            stream=False  # 🔍 DEBUG: Explicitly showing non-streaming
-        )
+        # ✅ FIX: Use max_completion_tokens for o4/o1 models (reasoning models)
+        # ✅ FIX: o4/o1 models only support temperature=1 (no customization)
+        openai_params = {
+            "model": selected_model,  # 🚀 Dynamic model selection
+            "messages": context_messages,
+            "stream": False  # 🔍 DEBUG: Explicitly showing non-streaming
+        }
+
+        # Reasoning models (o4, o1) require special parameters
+        if selected_model.startswith('o4') or selected_model.startswith('o1'):
+            openai_params["max_completion_tokens"] = max_tokens
+            openai_params["temperature"] = 1  # ✅ o4/o1 ONLY support temperature=1
+            logger.debug(f"🧠 Using max_completion_tokens={max_tokens}, temperature=1 for reasoning model {selected_model}")
+        else:
+            openai_params["max_tokens"] = max_tokens  # 🚀 Dynamic token limit
+            openai_params["temperature"] = 0.3  # Standard models support custom temperature
+            logger.debug(f"💬 Using max_tokens={max_tokens}, temperature=0.3 for standard model {selected_model}")
+
+        response = await ai_service.client.chat.completions.create(**openai_params)
 
         ai_response = response.choices[0].message.content
         tokens_used = response.usage.total_tokens
@@ -2027,13 +2050,25 @@ async def send_session_message_stream(
                 yield f"data: {_json.dumps(start_event)}\n\n"
 
                 # Call OpenAI with streaming and dynamic model selection
-                stream = await ai_service.client.chat.completions.create(
-                    model=selected_model,  # 🚀 Dynamic model selection
-                    messages=context_messages,
-                    temperature=0.3,
-                    max_tokens=max_tokens,  # 🚀 Dynamic token limit
-                    stream=True  # 🔍 DEBUG: Streaming enabled!
-                )
+                # ✅ FIX: Use max_completion_tokens for o4/o1 models (reasoning models)
+                # ✅ FIX: o4/o1 models only support temperature=1 (no customization)
+                openai_params = {
+                    "model": selected_model,  # 🚀 Dynamic model selection
+                    "messages": context_messages,
+                    "stream": True  # 🔍 DEBUG: Streaming enabled!
+                }
+
+                # Reasoning models (o4, o1) require special parameters
+                if selected_model.startswith('o4') or selected_model.startswith('o1'):
+                    openai_params["max_completion_tokens"] = max_tokens
+                    openai_params["temperature"] = 1  # ✅ o4/o1 ONLY support temperature=1
+                    logger.debug(f"🧠 Streaming with max_completion_tokens={max_tokens}, temperature=1 for reasoning model {selected_model}")
+                else:
+                    openai_params["max_tokens"] = max_tokens  # 🚀 Dynamic token limit
+                    openai_params["temperature"] = 0.3  # Standard models support custom temperature
+                    logger.debug(f"💬 Streaming with max_tokens={max_tokens}, temperature=0.3 for standard model {selected_model}")
+
+                stream = await ai_service.client.chat.completions.create(**openai_params)
 
                 # Stream the response
                 async for chunk in stream:
