@@ -126,9 +126,34 @@ struct PassiveReportsView: View {
                     PassiveReportBatchCard(batch: batch)
                 }
                 .buttonStyle(PlainButtonStyle())
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        batchToDelete = batch
+                        showDeleteConfirmation = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
             }
         }
         .padding(.horizontal, 20)
+        .alert("Delete Report?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {
+                batchToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let batch = batchToDelete {
+                    Task {
+                        await viewModel.deleteBatch(batch)
+                        batchToDelete = nil
+                    }
+                }
+            }
+        } message: {
+            if let batch = batchToDelete {
+                Text("Are you sure you want to delete the \(batch.period) report from \(formatDateRange(batch))?")
+            }
+        }
     }
 
     private var loadingView: some View {
@@ -170,6 +195,14 @@ struct PassiveReportsView: View {
 
     private var batches: [PassiveReportBatch] {
         selectedPeriod == .weekly ? viewModel.weeklyBatches : viewModel.monthlyBatches
+    }
+
+    private func formatDateRange(_ batch: PassiveReportBatch) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        let start = formatter.string(from: batch.startDate)
+        let end = formatter.string(from: batch.endDate)
+        return "\(start) - \(end)"
     }
 }
 
