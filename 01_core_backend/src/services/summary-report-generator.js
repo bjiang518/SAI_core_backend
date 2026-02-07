@@ -460,14 +460,10 @@ class SummaryReportGenerator {
 
             <!-- Next Steps -->
             <div style="background: #E3F2FD; padding: 15px; border-radius: 8px; border-left: 3px solid #2196F3; color: #1565C0;">
-                <strong>💬 Questions?</strong> Review the detailed reports above (Activity, Areas of Improvement, Mental Health)
+                <strong>Questions?</strong> Review the detailed reports above (Activity, Areas of Improvement, Mental Health)
                 for specific insights and recommendations.
             </div>
         </div>
-
-        <footer>
-            Summary Report | Local Processing Only (No Data Stored)
-        </footer>
     </div>
 </body>
 </html>

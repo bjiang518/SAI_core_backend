@@ -568,7 +568,7 @@ class AreasOfImprovementGenerator {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎯 ${studentName}'s Areas for Improvement</h1>
+            <h1>${studentName}'s Areas for Improvement</h1>
             <p>Subject-Specific Weakness Analysis</p>
         </div>
 
@@ -610,10 +610,10 @@ class AreasOfImprovementGenerator {
                         if (errors.length === 0) return '';
 
                         const errorLabels = {
-                            calculation_error: '🔢 Calculation Errors',
-                            concept_mismatch: '💡 Concept Misunderstandings',
-                            grammar_spelling: '✏️ Grammar & Spelling',
-                            incomplete: '⏸️ Incomplete Answers'
+                            calculation_error: 'Calculation Errors',
+                            concept_mismatch: 'Concept Misunderstandings',
+                            grammar_spelling: 'Grammar & Spelling',
+                            incomplete: 'Incomplete Answers'
                         };
 
                         return `
@@ -633,7 +633,7 @@ class AreasOfImprovementGenerator {
                                     ${errors.length > 2 ? `<div style="color: #999; font-size: 12px; margin-top: 8px;">... and ${errors.length - 2} more</div>` : ''}
                                 </div>
                                 <div class="suggestion">
-                                    💡 How to help: ${this.getSuggestion(errorType)}
+                                    How to help: ${this.getSuggestion(errorType)}
                                 </div>
                             </div>
                         `;
@@ -641,7 +641,7 @@ class AreasOfImprovementGenerator {
 
                     <!-- Parent Action -->
                     <div class="parent-action">
-                        <div class="parent-action-title">📋 Parent Action Item</div>
+                        <div class="parent-action-title">Parent Action Item</div>
                         <div class="parent-action-content">
                             Practice 10-15 minutes daily focusing on ${subject.subject} fundamentals.
                             Emphasize understanding over speed. Review the examples above together and ask
@@ -651,15 +651,11 @@ class AreasOfImprovementGenerator {
                 </div>
             `).join('') : `
                 <div class="no-issues">
-                    <p><strong>✅ Excellent!</strong> No significant learning challenges detected this week.</p>
+                    <p><strong>Excellent!</strong> No significant learning challenges detected this week.</p>
                     <p style="margin-top: 10px; font-size: 14px;">Your child is showing strong understanding across all subjects. Keep up the great learning!</p>
                 </div>
             `}
         </div>
-
-        <footer>
-            Areas of Improvement Report | Local Processing Only (No Data Stored)
-        </footer>
     </div>
 </body>
 </html>
