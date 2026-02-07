@@ -453,10 +453,7 @@ struct HTMLView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            // Setup message handler after navigation finishes
-            webView.configuration.userContentController.add(self, name: "heightChanged")
-
-            // Measure content height
+            // Message handler is already registered in makeUIView - just measure height
             webView.evaluateJavaScript("document.body.scrollHeight") { [weak self] result, error in
                 if let height = result as? CGFloat {
                     DispatchQueue.main.async {
