@@ -15,6 +15,7 @@ struct PassiveReportDetailView: View {
 
     @StateObject private var viewModel = PassiveReportsViewModel()
     @State private var selectedReport: PassiveReport?
+    @State private var executiveSummaryHeight: CGFloat = 200
 
     var body: some View {
         ScrollView {
@@ -37,8 +38,8 @@ struct PassiveReportDetailView: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.secondary)
 
-                                HTMLView(htmlContent: executiveSummary.narrativeContent)
-                                    .frame(minHeight: 200)
+                                HTMLView(htmlContent: executiveSummary.narrativeContent, contentHeight: $executiveSummaryHeight)
+                                    .frame(height: max(executiveSummaryHeight, 200))
                             }
                             .padding()
                             .background(Color(.secondarySystemBackground))
@@ -107,24 +108,23 @@ struct PassiveReportDetailView: View {
 struct ReportDetailSheet: View {
     let report: PassiveReport
     @Environment(\.dismiss) var dismiss
-    @State private var contentSize: CGSize = .zero
+    @State private var htmlContentHeight: CGFloat = 600
 
     var body: some View {
         NavigationView {
             GeometryReader { geometry in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
-                        // Full narrative content with HTML rendering - NO horizontal padding
-                        HTMLView(htmlContent: report.narrativeContent)
-                            .frame(minHeight: 400)
+                        // Full narrative content with HTML rendering - dynamic height
+                        HTMLView(htmlContent: report.narrativeContent, contentHeight: $htmlContentHeight)
+                            .frame(height: max(htmlContentHeight, 400))
                             .background(
                                 GeometryReader { htmlGeometry in
                                     Color.clear.onAppear {
-                                        contentSize = htmlGeometry.size
                                         print("📐 [HTMLView Geometry]")
                                         print("   Frame size: \(htmlGeometry.size)")
                                         print("   Frame origin: \(htmlGeometry.frame(in: .global).origin)")
-                                        print("   Safe area insets: \(geometry.safeAreaInsets)")
+                                        print("   Calculated height: \(htmlContentHeight)")
                                     }
                                 }
                             )
@@ -282,11 +282,23 @@ struct MarkdownView: View {
 /// WebView renderer for HTML content (reports from backend)
 struct HTMLView: UIViewRepresentable {
     let htmlContent: String
+    @Binding var contentHeight: CGFloat
+
+    init(htmlContent: String, contentHeight: Binding<CGFloat> = .constant(0)) {
+        self.htmlContent = htmlContent
+        self._contentHeight = contentHeight
+    }
 
     func makeUIView(context: Context) -> WKWebView {
         let webView = WKWebView()
         webView.navigationDelegate = context.coordinator
         webView.scrollView.isScrollEnabled = false // Disable internal scrolling
+        webView.scrollView.bounces = false
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+
+        // Observe content size changes
+        context.coordinator.webView = webView
 
         // Load HTML with proper viewport settings for mobile
         let htmlString = """
@@ -325,23 +337,39 @@ struct HTMLView: UIViewRepresentable {
         </head>
         <body>
             \(htmlContent)
+            <script>
+                // Send content height to Swift
+                function updateHeight() {
+                    const height = document.body.scrollHeight;
+                    window.webkit.messageHandlers.heightChanged.postMessage(height);
+                }
+
+                // Update height when content loads and when images load
+                window.addEventListener('load', updateHeight);
+                document.addEventListener('DOMContentLoaded', updateHeight);
+
+                // Observe image loading
+                const images = document.querySelectorAll('img');
+                images.forEach(img => {
+                    img.addEventListener('load', updateHeight);
+                });
+
+                // Initial update
+                setTimeout(updateHeight, 100);
+                setTimeout(updateHeight, 500);
+                setTimeout(updateHeight, 1000);
+            </script>
         </body>
         </html>
         """
 
         webView.loadHTMLString(htmlString, baseURL: nil)
 
-        // Debug: Log webview size
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            print("🌐 [WKWebView] Size: \(webView.frame.size)")
-            print("🌐 [WKWebView] Content size: \(webView.scrollView.contentSize)")
-        }
-
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // Update HTML content when it changes
+        // Only reload if content actually changed
         let htmlString = """
         <!DOCTYPE html>
         <html>
@@ -378,6 +406,28 @@ struct HTMLView: UIViewRepresentable {
         </head>
         <body>
             \(htmlContent)
+            <script>
+                // Send content height to Swift
+                function updateHeight() {
+                    const height = document.body.scrollHeight;
+                    window.webkit.messageHandlers.heightChanged.postMessage(height);
+                }
+
+                // Update height when content loads and when images load
+                window.addEventListener('load', updateHeight);
+                document.addEventListener('DOMContentLoaded', updateHeight);
+
+                // Observe image loading
+                const images = document.querySelectorAll('img');
+                images.forEach(img => {
+                    img.addEventListener('load', updateHeight);
+                });
+
+                // Initial update
+                setTimeout(updateHeight, 100);
+                setTimeout(updateHeight, 500);
+                setTimeout(updateHeight, 1000);
+            </script>
         </body>
         </html>
         """
@@ -386,11 +436,41 @@ struct HTMLView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(contentHeight: $contentHeight)
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate {
-        // Handle any web view navigation if needed
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+        var contentHeight: Binding<CGFloat>
+        weak var webView: WKWebView?
+
+        init(contentHeight: Binding<CGFloat>) {
+            self.contentHeight = contentHeight
+            super.init()
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            // Setup message handler after navigation finishes
+            webView.configuration.userContentController.add(self, name: "heightChanged")
+
+            // Measure content height
+            webView.evaluateJavaScript("document.body.scrollHeight") { [weak self] result, error in
+                if let height = result as? CGFloat {
+                    DispatchQueue.main.async {
+                        self?.contentHeight.wrappedValue = height
+                        print("🌐 [WKWebView] Content height updated: \(height)")
+                    }
+                }
+            }
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            if message.name == "heightChanged", let height = message.body as? CGFloat {
+                DispatchQueue.main.async {
+                    self.contentHeight.wrappedValue = height
+                    print("🌐 [WKWebView] Content height from JS: \(height)")
+                }
+            }
+        }
     }
 }
 
