@@ -107,27 +107,71 @@ struct PassiveReportDetailView: View {
 struct ReportDetailSheet: View {
     let report: PassiveReport
     @Environment(\.dismiss) var dismiss
+    @State private var contentSize: CGSize = .zero
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    // Full narrative content with HTML rendering
-                    HTMLView(htmlContent: report.narrativeContent)
-                        .frame(minHeight: 400)
-                        .padding(.horizontal)
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        // Full narrative content with HTML rendering - NO horizontal padding
+                        HTMLView(htmlContent: report.narrativeContent)
+                            .frame(minHeight: 400)
+                            .background(
+                                GeometryReader { htmlGeometry in
+                                    Color.clear.onAppear {
+                                        contentSize = htmlGeometry.size
+                                        print("📐 [HTMLView Geometry]")
+                                        print("   Frame size: \(htmlGeometry.size)")
+                                        print("   Frame origin: \(htmlGeometry.frame(in: .global).origin)")
+                                        print("   Safe area insets: \(geometry.safeAreaInsets)")
+                                    }
+                                }
+                            )
 
-                    // Key Insights section
-                    if let insights = report.keyInsights, !insights.isEmpty {
-                        insightsSection(insights: insights)
-                    }
+                        // Key Insights section
+                        if let insights = report.keyInsights, !insights.isEmpty {
+                            insightsSection(insights: insights)
+                        }
 
-                    // Recommendations section
-                    if let recommendations = report.recommendations, !recommendations.isEmpty {
-                        recommendationsSection(recommendations: recommendations)
+                        // Recommendations section
+                        if let recommendations = report.recommendations, !recommendations.isEmpty {
+                            recommendationsSection(recommendations: recommendations)
+                        }
                     }
+                    .padding(.bottom, 24)
                 }
-                .padding(.bottom, 24)
+                .onAppear {
+                    print("\n========================================")
+                    print("📄 [ReportDetailSheet] DISPLAYING FULL REPORT")
+                    print("========================================")
+                    print("Report Type: \(report.reportType)")
+                    print("Display Name: \(report.displayName)")
+                    print("Generated At: \(report.generatedAt)")
+                    print("AI Model: \(report.aiModelUsed ?? "N/A")")
+                    print("Word Count: \(report.wordCount ?? 0)")
+                    print("Generation Time: \(report.generationTimeMs ?? 0)ms")
+                    print("\n📐 Screen Geometry:")
+                    print("   Screen size: \(geometry.size)")
+                    print("   Safe area insets: \(geometry.safeAreaInsets)")
+                    print("   Content width available: \(geometry.size.width)")
+                    print("   Content height available: \(geometry.size.height)")
+
+                    if let insights = report.keyInsights, !insights.isEmpty {
+                        print("\n💡 Key Insights: \(insights.count) items")
+                        for (index, insight) in insights.enumerated() {
+                            print("   \(index + 1). \(insight)")
+                        }
+                    }
+
+                    if let recommendations = report.recommendations, !recommendations.isEmpty {
+                        print("\n✅ Recommendations: \(recommendations.count) items")
+                        for rec in recommendations {
+                            print("   [\(rec.priority)] \(rec.title)")
+                        }
+                    }
+                    print("========================================\n")
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -135,36 +179,6 @@ struct ReportDetailSheet: View {
                         dismiss()
                     }
                 }
-            }
-            .onAppear {
-                print("\n========================================")
-                print("📄 [ReportDetailSheet] DISPLAYING FULL REPORT")
-                print("========================================")
-                print("Report Type: \(report.reportType)")
-                print("Display Name: \(report.displayName)")
-                print("Generated At: \(report.generatedAt)")
-                print("AI Model: \(report.aiModelUsed ?? "N/A")")
-                print("\n--- NARRATIVE CONTENT (FULL) ---")
-                print(report.narrativeContent)
-                print("--- END NARRATIVE CONTENT ---\n")
-
-                if let insights = report.keyInsights, !insights.isEmpty {
-                    print("--- KEY INSIGHTS ---")
-                    for (index, insight) in insights.enumerated() {
-                        print("\(index + 1). \(insight)")
-                    }
-                    print("--- END KEY INSIGHTS ---\n")
-                }
-
-                if let recommendations = report.recommendations, !recommendations.isEmpty {
-                    print("--- RECOMMENDATIONS ---")
-                    for rec in recommendations {
-                        print("[\(rec.priority)] \(rec.title)")
-                        print("   \(rec.description)")
-                    }
-                    print("--- END RECOMMENDATIONS ---\n")
-                }
-                print("========================================\n")
             }
         }
     }
@@ -272,6 +286,7 @@ struct HTMLView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let webView = WKWebView()
         webView.navigationDelegate = context.coordinator
+        webView.scrollView.isScrollEnabled = false // Disable internal scrolling
 
         // Load HTML with proper viewport settings for mobile
         let htmlString = """
@@ -279,16 +294,32 @@ struct HTMLView: UIViewRepresentable {
         <html>
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <style>
                 body {
                     margin: 0;
-                    padding: 16px;
+                    padding: 0;
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-                    background-color: #f5f5f5;
+                    background-color: transparent;
+                    width: 100%;
+                    overflow-x: hidden;
                 }
                 * {
                     box-sizing: border-box;
+                    max-width: 100%;
+                }
+                /* Override any container max-widths from backend HTML */
+                .container, div[style*="max-width"] {
+                    max-width: 100% !important;
+                    width: 100% !important;
+                    margin-left: 0 !important;
+                    margin-right: 0 !important;
+                }
+                /* Ensure all content scales properly */
+                img, table, pre, code {
+                    max-width: 100%;
+                    width: auto;
+                    height: auto;
                 }
             </style>
         </head>
@@ -299,6 +330,13 @@ struct HTMLView: UIViewRepresentable {
         """
 
         webView.loadHTMLString(htmlString, baseURL: nil)
+
+        // Debug: Log webview size
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            print("🌐 [WKWebView] Size: \(webView.frame.size)")
+            print("🌐 [WKWebView] Content size: \(webView.scrollView.contentSize)")
+        }
+
         return webView
     }
 
@@ -309,16 +347,32 @@ struct HTMLView: UIViewRepresentable {
         <html>
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <style>
                 body {
                     margin: 0;
-                    padding: 16px;
+                    padding: 0;
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-                    background-color: #f5f5f5;
+                    background-color: transparent;
+                    width: 100%;
+                    overflow-x: hidden;
                 }
                 * {
                     box-sizing: border-box;
+                    max-width: 100%;
+                }
+                /* Override any container max-widths from backend HTML */
+                .container, div[style*="max-width"] {
+                    max-width: 100% !important;
+                    width: 100% !important;
+                    margin-left: 0 !important;
+                    margin-right: 0 !important;
+                }
+                /* Ensure all content scales properly */
+                img, table, pre, code {
+                    max-width: 100%;
+                    width: auto;
+                    height: auto;
                 }
             </style>
         </head>
