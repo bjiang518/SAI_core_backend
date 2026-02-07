@@ -31,39 +31,34 @@ struct PassiveReportsView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // Period Picker (Weekly/Monthly)
-                periodPicker
-
-                // Content based on loading state
-                if viewModel.isLoadingBatches {
-                    loadingView
-                } else if batches.isEmpty {
-                    emptyStateView
-                } else {
-                    batchListView
-                }
-            }
-            .navigationTitle(NSLocalizedString("reports.passive.title", value: "Scheduled Reports", comment: ""))
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showTestingAlert = true }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "sparkles")
-                            Text("Generate")
-                        }
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.blue)
-                        .cornerRadius(6)
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Header section with subtitle
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Weekly and monthly learning insights")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
-                    .disabled(viewModel.isGenerating)
-                    .opacity(viewModel.isGenerating ? 0.6 : 1.0)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 16)
+
+                    // Period Picker (Weekly/Monthly) - moved into scroll view
+                    periodPicker
+
+                    // Content based on loading state
+                    if viewModel.isLoadingBatches {
+                        loadingView
+                    } else if batches.isEmpty {
+                        emptyStateView
+                    } else {
+                        batchesContent
+                    }
                 }
             }
+            .navigationTitle("Parent Reports")
+            .navigationBarTitleDisplayMode(.inline)
             .alert("Testing Mode", isPresented: $showTestingAlert) {
                 Button("Generate Weekly Report") {
                     Task {
@@ -100,55 +95,40 @@ struct PassiveReportsView: View {
     // MARK: - Subviews
 
     private var periodPicker: some View {
-        Picker("Period", selection: $selectedPeriod) {
+        HStack(spacing: 12) {
             ForEach(ReportPeriod.allCases, id: \.self) { period in
-                Text(period.localizedName).tag(period)
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedPeriod = period
+                    }
+                }) {
+                    Text(period.localizedName)
+                        .font(.system(size: 15, weight: selectedPeriod == period ? .semibold : .regular))
+                        .foregroundColor(selectedPeriod == period ? .white : .primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            selectedPeriod == period ?
+                                Color.blue : Color(.secondarySystemBackground)
+                        )
+                        .cornerRadius(10)
+                }
             }
         }
-        .pickerStyle(.segmented)
-        .padding()
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
     }
 
-    private var batchListView: some View {
-        List {
+    private var batchesContent: some View {
+        LazyVStack(spacing: 12) {
             ForEach(batches) { batch in
                 NavigationLink(destination: PassiveReportDetailView(batch: batch)) {
                     PassiveReportBatchCard(batch: batch)
                 }
                 .buttonStyle(PlainButtonStyle())
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
             }
-            .onDelete(perform: { indexSet in
-                for index in indexSet {
-                    let batch = batches[index]
-                    batchToDelete = batch
-                    showDeleteConfirmation = true
-                }
-            })
         }
-        .listStyle(.plain)
-        .confirmationDialog(
-            "Delete Report",
-            isPresented: $showDeleteConfirmation,
-            presenting: batchToDelete
-        ) { batch in
-            Button("Delete", role: .destructive) {
-                Task {
-                    await viewModel.deleteBatch(batch)
-                    batchToDelete = nil
-                }
-            }
-        } message: { batch in
-            let periodText = batch.period.capitalized
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "MMM d"
-            let startDate = dateFormatter.string(from: batch.startDate)
-            let endDate = dateFormatter.string(from: batch.endDate)
-
-            return Text("Are you sure you want to delete the \(periodText) report for \(startDate) - \(endDate)? This action cannot be undone.")
-        }
+        .padding(.horizontal, 20)
     }
 
     private var loadingView: some View {
@@ -164,51 +144,26 @@ struct PassiveReportsView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 24) {
-            Image(systemName: "doc.text.magnifyingglass")
+            Image(systemName: "chart.bar.doc.horizontal")
                 .font(.system(size: 70))
                 .foregroundColor(.gray.opacity(0.5))
 
             VStack(spacing: 8) {
-                Text(NSLocalizedString("reports.passive.empty.title", value: "No Reports Yet", comment: ""))
+                Text("No Reports Available")
                     .font(.title2)
                     .fontWeight(.semibold)
 
                 Text(selectedPeriod == .weekly ?
-                    NSLocalizedString("reports.passive.empty.weekly", value: "Weekly reports are generated every Sunday at 10 PM", comment: "") :
-                    NSLocalizedString("reports.passive.empty.monthly", value: "Monthly reports are generated on the 1st of each month", comment: ""))
+                    "Weekly reports are generated every Sunday at 10 PM. Check back soon!" :
+                    "Monthly reports are generated on the 1st of each month.")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
-
-            // Test generation button (will be visible during development)
-            if showTestingAlert {
-                Button(action: {
-                    Task {
-                        await viewModel.triggerManualGeneration(period: selectedPeriod.rawValue.lowercased())
-                    }
-                }) {
-                    HStack {
-                        if viewModel.isGenerating {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
-                        } else {
-                            Image(systemName: "plus.circle.fill")
-                        }
-                        Text("Generate Test Report")
-                    }
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color.blue)
-                    .cornerRadius(10)
-                }
-                .disabled(viewModel.isGenerating)
-            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
     }
 
     // MARK: - Helpers
@@ -295,10 +250,10 @@ struct PassiveReportBatchCard: View {
             }
             .foregroundColor(.blue)
         }
-        .padding()
+        .padding(16)
         .background(Color(.systemBackground))
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
 
     // MARK: - Helper Views
