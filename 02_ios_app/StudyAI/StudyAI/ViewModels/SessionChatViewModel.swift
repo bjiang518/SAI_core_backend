@@ -811,18 +811,12 @@ class SessionChatViewModel: ObservableObject {
     /// Send message using interactive mode with real-time synchronized TTS
     /// - Parameter deepMode: If true, uses o4 model for deeper reasoning (default: false)
     private func sendMessageInteractive(deepMode: Bool = false) async {
-        print("🎙️ ============================================")
-        print("🎙️ === SEND MESSAGE INTERACTIVE ===")
-        print("🎙️ ============================================")
-        print("🎙️ Deep Mode: \(deepMode)")
-
         let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         messageText = ""
         isSubmitting = true
         errorMessage = ""
 
         // Clear follow-up suggestions
-        print("🔴 CLEARING aiGeneratedSuggestions at sendMessageInteractive start")
         aiGeneratedSuggestions = []
         isStreamingComplete = false
 
@@ -841,18 +835,14 @@ class SessionChatViewModel: ObservableObject {
         // Get voice ID from current voice settings
         let voiceSettings = voiceService.voiceSettings
         let voiceId = voiceSettings.voiceType.elevenLabsVoiceId.isEmpty ? "zZLmKvCp1i04X8E0FJ8B" : voiceSettings.voiceType.elevenLabsVoiceId
-        print("🎙️ Using voice ID: \(voiceId)")
 
         // Ensure we have a valid session
         guard let validSessionId = await networkService.ensureValidSession() else {
-            print("❌ Failed to validate or create session")
             errorMessage = NSLocalizedString("error.session.creation", comment: "")
             isSubmitting = false
             messageText = message  // Restore message so user can retry
             return
         }
-
-        print("🎙️ Session ID: \(validSessionId)")
 
         // Check if homework context has image and persist it
         let homeworkContext = appState.pendingHomeworkContext
@@ -860,7 +850,6 @@ class SessionChatViewModel: ObservableObject {
             let messageId = UUID().uuidString
             if let imageData = questionImage.jpegData(compressionQuality: 0.8) {
                 imageMessages[messageId] = imageData
-                print("🖼️ Stored homework question image with messageId: \(messageId)")
             }
 
             // Add message with image marker
@@ -898,7 +887,6 @@ class SessionChatViewModel: ObservableObject {
                     // ✅ Track timing for first text arrival
                     if self.firstTextArrivalTime == nil {
                         self.firstTextArrivalTime = Date()
-                        print("⏱️ [TIMING] First text arrived")
                     }
 
                     // Hide typing indicator as soon as first chunk arrives
@@ -923,9 +911,6 @@ class SessionChatViewModel: ObservableObject {
                     // ✅ Log latency from first text to first audio
                     if let firstTextTime = self.firstTextArrivalTime,
                        self.interactiveTTSService.audioChunksReceived == 0 {
-                        let latency = Date().timeIntervalSince(firstTextTime) * 1000
-                        print("⏱️ [TIMING] First audio chunk arrived - Latency from first text: \(Int(latency))ms")
-
                         // ✅ NEW: Signal renderer that audio playback is starting
                         self.textRenderer.audioPlaybackStarted()
                     }
@@ -944,8 +929,6 @@ class SessionChatViewModel: ObservableObject {
                 Task { @MainActor in
                     guard let self = self else { return }
 
-                    print("🎙️ Text streaming complete. Audio continues...")
-
                     if success, let text = fullText {
                         // ⚠️ CRITICAL: DON'T add to conversationHistory yet!
                         // The synchronized text is still revealing. Only persist to database.
@@ -954,7 +937,6 @@ class SessionChatViewModel: ObservableObject {
                         // ⚠️ CRITICAL: Keep isSynchronizing = true AND isActivelyStreaming = true
                         // So the streaming message continues to display with synchronized text
                         // (Don't set isActivelyStreaming = false here!)
-                        print("✅ Persisted message to DB, keeping UI synchronized with audio")
 
                         // Schedule cleanup AFTER audio finishes (estimate based on text length)
                         let estimatedDuration = Double(text.count) / 15.0 // 15 chars/sec
@@ -972,7 +954,6 @@ class SessionChatViewModel: ObservableObject {
                             self.isActivelyStreaming = false
                             self.activeStreamingMessage = ""
                             self.loadSessionInfo()
-                            print("🏁 Audio complete - added to history and cleared sync state")
                         }
                     } else {
                         self.isActivelyStreaming = false

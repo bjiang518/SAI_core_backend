@@ -1827,7 +1827,6 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0) 
 
     # Very short messages (likely greetings/acknowledgments)
     if msg_length < 30:
-        logger.debug(f"🚀 [MODEL ROUTING] Phase 1: Short message ({msg_length} chars) → gpt-3.5-turbo")
         return ("gpt-3.5-turbo", 500)
 
     # Greetings and acknowledgments (exact matches)
@@ -1836,7 +1835,6 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0) 
         'got it', 'i see', 'understood', 'yes', 'no', 'maybe'
     ]
     if msg in greeting_patterns or msg.startswith(tuple(greeting_patterns)):
-        logger.debug(f"🚀 [MODEL ROUTING] Phase 1: Greeting/acknowledgment → gpt-3.5-turbo")
         return ("gpt-3.5-turbo", 500)
 
     # ============================================================================
@@ -1858,8 +1856,6 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0) 
     ]
 
     if any(keyword in msg for keyword in complex_keywords):
-        logger.debug(f"🎓 [MODEL ROUTING] Phase 2: Complex educational query → gpt-4o-mini")
-        logger.debug(f"   Keywords detected: {[kw for kw in complex_keywords if kw in msg]}")
         return ("gpt-4o-mini", 1500)
 
     # Medium complexity indicators → gpt-4o-mini for quality
@@ -1869,7 +1865,6 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0) 
     ]
 
     if any(keyword in msg for keyword in medium_keywords):
-        logger.debug(f"📚 [MODEL ROUTING] Phase 2: Educational explanation → gpt-4o-mini")
         return ("gpt-4o-mini", 1200)
 
     # ============================================================================
@@ -1879,7 +1874,6 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0) 
     # STEM subjects: Always use gpt-4o-mini for accuracy
     stem_subjects = ['mathematics', 'physics', 'chemistry', 'biology', 'computer science']
     if subject and subject.lower() in stem_subjects:
-        logger.debug(f"🔬 [MODEL ROUTING] STEM subject ({subject}) → gpt-4o-mini")
         return ("gpt-4o-mini", 1500)
 
     # ============================================================================
@@ -1888,14 +1882,12 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0) 
 
     # Long messages (>150 chars) likely need quality responses
     if msg_length > 150:
-        logger.debug(f"📝 [MODEL ROUTING] Long query ({msg_length} chars) → gpt-4o-mini")
         return ("gpt-4o-mini", 1500)
 
     # ============================================================================
     # DEFAULT: Fast model for simple clarifications
     # ============================================================================
 
-    logger.debug(f"⚡ [MODEL ROUTING] Default: Simple clarification → gpt-3.5-turbo")
     return ("gpt-3.5-turbo", 800)
 
 
@@ -1921,19 +1913,9 @@ async def send_session_message_stream(
     🔍 DEBUG: This is the STREAMING endpoint
     """
     try:
-        logger.debug(f"🟢 === SESSION MESSAGE (STREAMING) ===")
-        logger.debug(f"📨 Session ID: {session_id}")
-        logger.debug(f"💬 Message: {request.message[:100]}...")
-        logger.debug(f"🌍 Language: {request.language}")
-        logger.debug(f"🎯 System prompt provided: {request.system_prompt is not None}")
-        logger.debug(f"📚 Question context provided: {request.question_context is not None}")
-        logger.debug(f"🧠 Deep Mode: {request.deep_mode} ({'o4-mini' if request.deep_mode else 'intelligent routing'})")  # ✅ NEW: Log deep mode
-        logger.debug(f"🔍 Using STREAMING endpoint")
-
         # Get or create the session
         session = await session_service.get_session(session_id)
         if not session:
-            logger.debug(f"⚠️ Session {session_id} not found, creating new session...")
             # Auto-create session with default subject
             session = await session_service.create_session(
                 student_id="auto_created",
@@ -1942,7 +1924,6 @@ async def send_session_message_stream(
             # Override the session ID to match the requested one
             session.session_id = session_id
             session_service.sessions[session_id] = session
-            logger.debug(f"✅ Auto-created session: {session_id}")
 
         # Add user message to session
         await session_service.add_message_to_session(
@@ -1954,18 +1935,9 @@ async def send_session_message_stream(
         # 🆕 CHECK FOR HOMEWORK CONTEXT (for grade correction support)
         is_homework_followup = request.question_context is not None
 
-        if is_homework_followup:
-            logger.debug(f"📚 === HOMEWORK FOLLOW-UP DETECTED (STREAMING) ===")
-            logger.debug(f"📚 Question context keys: {list(request.question_context.keys())}")
-            logger.debug(f"📚 Current grade: {request.question_context.get('current_grade')}")
-            logger.debug(f"📚 Student answer: {request.question_context.get('student_answer')}")
-            logger.debug(f"📚 Correct answer: {request.question_context.get('correct_answer')}")
-
         # COST OPTIMIZATION: Use provided system prompt if available, otherwise create one
         if request.system_prompt:
-            # Use the cached system prompt from gateway (saves ~200 tokens!)
             system_prompt = request.system_prompt
-            logger.debug(f"💰 Using cached system prompt from gateway ({len(system_prompt)} chars) - saves ~200 tokens!")
         elif is_homework_followup:
             # 🆕 HOMEWORK FOLLOWUP: Use specialized prompt with grade validation
             system_prompt = prompt_service.create_homework_followup_prompt(
@@ -1973,7 +1945,6 @@ async def send_session_message_stream(
                 student_message=request.message,
                 session_id=session_id
             )
-            logger.debug(f"📚 Created homework followup prompt with grade validation ({len(system_prompt)} chars)")
         else:
             # Fallback to creating system prompt (legacy behavior)
             system_prompt = prompt_service.create_enhanced_prompt(
@@ -1981,17 +1952,12 @@ async def send_session_message_stream(
                 subject_string=request.subject or session.subject,
                 context={"student_id": session.student_id, "language": request.language}
             )
-            logger.debug(f"⚠️ Creating system prompt (legacy mode) - consider sending system_prompt from gateway")
 
         # Get conversation context for API
         context_messages = session.get_context_for_api(system_prompt)
 
         # ✅ CRITICAL: Add image to context if provided (homework question with image)
         if request.image_data:
-            logger.debug(f"🖼️ === IMAGE DETECTED IN REQUEST ===")
-            logger.debug(f"🖼️ Image data length: {len(request.image_data)} chars")
-            logger.debug(f"🖼️ Adding image to latest user message in context")
-
             # Find the last user message in context_messages and add image
             for i in range(len(context_messages) - 1, -1, -1):
                 if context_messages[i].get("role") == "user":
@@ -2009,7 +1975,6 @@ async def send_session_message_stream(
                             }
                         }
                     ]
-                    logger.debug(f"✅ Successfully added image to user message at index {i}")
                     break
 
         # 🚀 INTELLIGENT MODEL ROUTING: Select optimal model
@@ -2019,20 +1984,15 @@ async def send_session_message_stream(
         if request.deep_mode:
             selected_model = "o4-mini"  # Deep reasoning model
             max_tokens = 4000  # More tokens for complex reasoning
-            logger.debug(f"🧠 Deep mode enabled - using o4-mini (complex reasoning)")
         elif request.image_data:
             selected_model = "gpt-4o-mini"  # Vision-capable model
             max_tokens = 4096
-            logger.debug(f"🖼️ Image detected - forcing gpt-4o-mini (vision-capable)")
         else:
             selected_model, max_tokens = select_chat_model(
                 message=request.message,
                 subject=session.subject,
                 conversation_length=len(session.messages)
             )
-
-        logger.debug(f"🤖 Calling OpenAI with STREAMING enabled and {len(context_messages)} context messages...")
-        logger.debug(f"🚀 Selected model: {selected_model} (max_tokens: {max_tokens})")
 
         # Create streaming generator
         async def stream_generator():
@@ -2062,11 +2022,9 @@ async def send_session_message_stream(
                 if selected_model.startswith('o4') or selected_model.startswith('o1'):
                     openai_params["max_completion_tokens"] = max_tokens
                     openai_params["temperature"] = 1  # ✅ o4/o1 ONLY support temperature=1
-                    logger.debug(f"🧠 Streaming with max_completion_tokens={max_tokens}, temperature=1 for reasoning model {selected_model}")
                 else:
                     openai_params["max_tokens"] = max_tokens  # 🚀 Dynamic token limit
                     openai_params["temperature"] = 0.3  # Standard models support custom temperature
-                    logger.debug(f"💬 Streaming with max_tokens={max_tokens}, temperature=0.3 for standard model {selected_model}")
 
                 stream = await ai_service.client.chat.completions.create(**openai_params)
 
@@ -2093,8 +2051,6 @@ async def send_session_message_stream(
                                 content=accumulated_content
                             )
 
-                            logger.debug(f"✅ Streaming complete: {len(accumulated_content)} chars")
-
                             # 🚀 OPTIMIZATION: Send end event IMMEDIATELY (don't wait for suggestions)
                             end_event = {
                                 'type': 'end',
@@ -2103,10 +2059,8 @@ async def send_session_message_stream(
                                 'session_id': session_id
                             }
                             yield f"data: {_json.dumps(end_event)}\n\n"
-                            logger.debug(f"📤 Sent 'end' event (user sees completion immediately)")
 
                             # Generate AI follow-up suggestions in background (non-blocking perceived completion)
-                            logger.debug(f"⏳ Generating follow-up suggestions in background...")
                             suggestions = await generate_follow_up_suggestions(
                                 ai_response=accumulated_content,
                                 user_message=request.message,
@@ -2125,8 +2079,6 @@ async def send_session_message_stream(
                                                 'key': str(sug.get('key', '')),
                                                 'value': str(sug.get('value', ''))
                                             })
-                                        else:
-                                            logger.debug(f"⚠️ Skipping invalid suggestion: {type(sug)} - {sug}")
 
                                     if serializable_suggestions:
                                         suggestions_event = {
@@ -2135,15 +2087,8 @@ async def send_session_message_stream(
                                             'session_id': session_id
                                         }
                                         yield f"data: {_json.dumps(suggestions_event)}\n\n"
-                                        logger.debug(f"💡 Sent {len(serializable_suggestions)} follow-up suggestions")
-                                    else:
-                                        logger.debug(f"ℹ️ No valid suggestions after filtering")
                                 except Exception as sug_error:
                                     logger.debug(f"❌ Error sending suggestions: {type(sug_error).__name__}: {sug_error}")
-                                    logger.debug(f"🔍 Suggestions type: {type(suggestions)}")
-                                    logger.debug(f"🔍 Suggestions content: {suggestions}")
-                            else:
-                                logger.debug(f"ℹ️ No suggestions generated")
 
                             # Break after sending all events
                             break
