@@ -73,10 +73,25 @@ struct PassiveReportDetailView: View {
         .navigationTitle(periodTitle)
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            print("📖 [PassiveReportDetail] Opening batch details")
+            print("   Batch ID: \(batch.id)")
+            print("   Period: \(batch.period)")
+            print("   Date Range: \(batch.startDate) to \(batch.endDate)")
+            print("   Expected Report Count: \(batch.reportCount ?? 0)")
+
             await viewModel.loadBatchDetails(batchId: batch.id)
+
+            print("📖 [PassiveReportDetail] Batch details loaded")
+            print("   Actual Reports Loaded: \(viewModel.detailedReports.count)")
         }
         .fullScreenCover(item: $selectedReport) { report in
             ReportDetailSheet(report: report)
+                .onAppear {
+                    print("📄 [PassiveReportDetail] Opening individual report")
+                    print("   Report Type: \(report.reportType)")
+                    print("   Display Name: \(report.displayName)")
+                    print("   Word Count: \(report.wordCount ?? 0)")
+                }
         }
     }
 
@@ -149,6 +164,36 @@ struct ReportDetailSheet: View {
                         dismiss()
                     }
                 }
+            }
+            .onAppear {
+                print("\n========================================")
+                print("📄 [ReportDetailSheet] DISPLAYING FULL REPORT")
+                print("========================================")
+                print("Report Type: \(report.reportType)")
+                print("Display Name: \(report.displayName)")
+                print("Generated At: \(report.generatedAt)")
+                print("AI Model: \(report.aiModelUsed ?? "N/A")")
+                print("\n--- NARRATIVE CONTENT (FULL) ---")
+                print(report.narrativeContent)
+                print("--- END NARRATIVE CONTENT ---\n")
+
+                if let insights = report.keyInsights, !insights.isEmpty {
+                    print("--- KEY INSIGHTS ---")
+                    for (index, insight) in insights.enumerated() {
+                        print("\(index + 1). \(insight)")
+                    }
+                    print("--- END KEY INSIGHTS ---\n")
+                }
+
+                if let recommendations = report.recommendations, !recommendations.isEmpty {
+                    print("--- RECOMMENDATIONS ---")
+                    for rec in recommendations {
+                        print("[\(rec.priority)] \(rec.title)")
+                        print("   \(rec.description)")
+                    }
+                    print("--- END RECOMMENDATIONS ---\n")
+                }
+                print("========================================\n")
             }
         }
     }
