@@ -5005,6 +5005,72 @@ async function runDatabaseMigrations() {
       // Don't throw - allow app to continue
     }
 
+    // ============================================
+    // MIGRATION 014: Parent Reports Settings (2026-02-07)
+    // ============================================
+    const parentReportsSettingsCheck = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '014_add_parent_reports_settings'
+    `);
+
+    if (parentReportsSettingsCheck.rows.length === 0) {
+      logger.debug('📋 Applying parent reports settings migration...');
+
+      try {
+        // Add parent reports configuration columns to profiles table
+        await db.query(`
+          ALTER TABLE profiles
+          ADD COLUMN IF NOT EXISTS parent_reports_enabled BOOLEAN DEFAULT false,
+          ADD COLUMN IF NOT EXISTS auto_sync_enabled BOOLEAN DEFAULT false,
+          ADD COLUMN IF NOT EXISTS report_day_of_week INTEGER DEFAULT 0,
+          ADD COLUMN IF NOT EXISTS report_time_hour INTEGER DEFAULT 21,
+          ADD COLUMN IF NOT EXISTS timezone VARCHAR(100) DEFAULT 'UTC';
+        `);
+
+        // Create index for efficient cron job queries
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_profiles_parent_reports
+          ON profiles (parent_reports_enabled, timezone, report_day_of_week, report_time_hour)
+          WHERE parent_reports_enabled = true;
+        `);
+
+        // Add column comments for documentation
+        await db.query(`
+          COMMENT ON COLUMN profiles.parent_reports_enabled IS 'Whether automated weekly parent reports are enabled';
+          COMMENT ON COLUMN profiles.auto_sync_enabled IS 'Whether to automatically sync homework data in background';
+          COMMENT ON COLUMN profiles.report_day_of_week IS 'Day of week for automated reports (0=Sunday, 6=Saturday)';
+          COMMENT ON COLUMN profiles.report_time_hour IS 'Hour of day for automated reports (0-23, user local time)';
+          COMMENT ON COLUMN profiles.timezone IS 'User timezone for scheduling reports (e.g., America/Los_Angeles)';
+        `);
+
+        // Record migration completion
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('014_add_parent_reports_settings')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+
+        logger.debug('✅ Parent reports settings migration completed successfully!');
+        logger.debug('📊 Added columns:');
+        logger.debug('   - parent_reports_enabled (enable/disable automated reports)');
+        logger.debug('   - auto_sync_enabled (enable/disable auto-sync)');
+        logger.debug('   - report_day_of_week (day of week for reports)');
+        logger.debug('   - report_time_hour (hour for report generation)');
+        logger.debug('   - timezone (user timezone for scheduling)');
+      } catch (parentReportsError) {
+        logger.error('❌ Error in parent reports settings migration:', parentReportsError.message);
+        logger.error(parentReportsError);
+        // Record migration as complete to prevent retry loops
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('014_add_parent_reports_settings')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+        logger.debug('✅ Parent reports settings migration marked as complete (with errors)');
+      }
+    } else {
+      logger.debug('✅ Parent reports settings migration already applied');
+    }
+
   } catch (error) {
     logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has
