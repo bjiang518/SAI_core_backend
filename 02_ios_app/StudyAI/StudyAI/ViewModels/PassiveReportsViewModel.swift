@@ -208,35 +208,6 @@ class PassiveReportsViewModel: ObservableObject {
 
             isLoadingBatches = false
 
-            print("✅ [PassiveReports] Loaded \(weeklyBatches.count) weekly + \(monthlyBatches.count) monthly batches")
-
-            // Debug: Show details of each batch
-            if !weeklyBatches.isEmpty {
-                print("📊 [DEBUG] Weekly Batches:")
-                for batch in weeklyBatches {
-                    print("   - ID: \(batch.id)")
-                    print("     Period: \(batch.period)")
-                    print("     Date Range: \(batch.startDate) to \(batch.endDate)")
-                    print("     Status: \(batch.status)")
-                    print("     Report Count: \(batch.reportCount ?? 0)")
-                    print("     Overall Grade: \(batch.overallGrade ?? "N/A")")
-                    print("     One-line Summary: \(batch.oneLineSummary ?? "N/A")")
-                }
-            }
-
-            if !monthlyBatches.isEmpty {
-                print("📊 [DEBUG] Monthly Batches:")
-                for batch in monthlyBatches {
-                    print("   - ID: \(batch.id)")
-                    print("     Period: \(batch.period)")
-                    print("     Date Range: \(batch.startDate) to \(batch.endDate)")
-                    print("     Status: \(batch.status)")
-                    print("     Report Count: \(batch.reportCount ?? 0)")
-                    print("     Overall Grade: \(batch.overallGrade ?? "N/A")")
-                    print("     One-line Summary: \(batch.oneLineSummary ?? "N/A")")
-                }
-            }
-
         } catch {
             // Ignore cancellation errors from pull-to-refresh
             if (error as NSError).code == NSURLErrorCancelled {
@@ -268,9 +239,6 @@ class PassiveReportsViewModel: ObservableObject {
         let token = AuthenticationService.shared.getAuthToken()
         if let authToken = token {
             request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
-            print("🔐 [PassiveReports] Auth token retrieved: \(authToken.prefix(20))...")
-        } else {
-            print("⚠️ [PassiveReports] No auth token found - user may not be logged in")
         }
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -346,37 +314,6 @@ class PassiveReportsViewModel: ObservableObject {
             detailedReports = detailResponse.reports
 
             isLoadingDetails = false
-
-            print("✅ [PassiveReports] Loaded \(detailedReports.count) reports for batch \(batchId)")
-
-            // Debug: Show full details of all reports
-            print("📊 [DEBUG] Report Details for Batch \(batchId):")
-            for (index, report) in detailedReports.enumerated() {
-                print("\n   [\(index + 1)/\(detailedReports.count)] Report Type: \(report.reportType)")
-                print("     Display Name: \(report.displayName)")
-                print("     Word Count: \(report.wordCount ?? 0)")
-                print("     Generation Time: \(report.generationTimeMs ?? 0)ms")
-                print("     AI Model: \(report.aiModelUsed ?? "N/A")")
-                print("     Generated At: \(report.generatedAt)")
-
-                // Show content preview (first 200 chars)
-                let preview = report.narrativeContent.prefix(200)
-                print("     Content Preview: \(preview)...")
-
-                if let insights = report.keyInsights {
-                    print("     Key Insights: \(insights.count) items")
-                    for insight in insights {
-                        print("       - \(insight)")
-                    }
-                }
-
-                if let recommendations = report.recommendations {
-                    print("     Recommendations: \(recommendations.count) items")
-                    for rec in recommendations {
-                        print("       - [\(rec.priority)] \(rec.title)")
-                    }
-                }
-            }
 
         } catch {
             isLoadingDetails = false

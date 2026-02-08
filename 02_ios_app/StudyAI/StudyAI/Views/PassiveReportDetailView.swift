@@ -74,25 +74,10 @@ struct PassiveReportDetailView: View {
         .navigationTitle(periodTitle)
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            print("📖 [PassiveReportDetail] Opening batch details")
-            print("   Batch ID: \(batch.id)")
-            print("   Period: \(batch.period)")
-            print("   Date Range: \(batch.startDate) to \(batch.endDate)")
-            print("   Expected Report Count: \(batch.reportCount ?? 0)")
-
             await viewModel.loadBatchDetails(batchId: batch.id)
-
-            print("📖 [PassiveReportDetail] Batch details loaded")
-            print("   Actual Reports Loaded: \(viewModel.detailedReports.count)")
         }
         .fullScreenCover(item: $selectedReport) { report in
             ReportDetailSheet(report: report)
-                .onAppear {
-                    print("📄 [PassiveReportDetail] Opening individual report")
-                    print("   Report Type: \(report.reportType)")
-                    print("   Display Name: \(report.displayName)")
-                    print("   Word Count: \(report.wordCount ?? 0)")
-                }
         }
     }
 
@@ -118,16 +103,6 @@ struct ReportDetailSheet: View {
                         // Full narrative content with HTML rendering - dynamic height
                         HTMLView(htmlContent: report.narrativeContent, contentHeight: $htmlContentHeight)
                             .frame(height: max(htmlContentHeight, 400))
-                            .background(
-                                GeometryReader { htmlGeometry in
-                                    Color.clear.onAppear {
-                                        print("📐 [HTMLView Geometry]")
-                                        print("   Frame size: \(htmlGeometry.size)")
-                                        print("   Frame origin: \(htmlGeometry.frame(in: .global).origin)")
-                                        print("   Calculated height: \(htmlContentHeight)")
-                                    }
-                                }
-                            )
 
                         // Key Insights section
                         if let insights = report.keyInsights, !insights.isEmpty {
@@ -140,37 +115,6 @@ struct ReportDetailSheet: View {
                         }
                     }
                     .padding(.bottom, 24)
-                }
-                .onAppear {
-                    print("\n========================================")
-                    print("📄 [ReportDetailSheet] DISPLAYING FULL REPORT")
-                    print("========================================")
-                    print("Report Type: \(report.reportType)")
-                    print("Display Name: \(report.displayName)")
-                    print("Generated At: \(report.generatedAt)")
-                    print("AI Model: \(report.aiModelUsed ?? "N/A")")
-                    print("Word Count: \(report.wordCount ?? 0)")
-                    print("Generation Time: \(report.generationTimeMs ?? 0)ms")
-                    print("\n📐 Screen Geometry:")
-                    print("   Screen size: \(geometry.size)")
-                    print("   Safe area insets: \(geometry.safeAreaInsets)")
-                    print("   Content width available: \(geometry.size.width)")
-                    print("   Content height available: \(geometry.size.height)")
-
-                    if let insights = report.keyInsights, !insights.isEmpty {
-                        print("\n💡 Key Insights: \(insights.count) items")
-                        for (index, insight) in insights.enumerated() {
-                            print("   \(index + 1). \(insight)")
-                        }
-                    }
-
-                    if let recommendations = report.recommendations, !recommendations.isEmpty {
-                        print("\n✅ Recommendations: \(recommendations.count) items")
-                        for rec in recommendations {
-                            print("   [\(rec.priority)] \(rec.title)")
-                        }
-                    }
-                    print("========================================\n")
                 }
             }
             .toolbar {
