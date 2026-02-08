@@ -27,7 +27,8 @@ const AIModularRoutes = require('./routes/ai'); // NEW: Modular AI routes with A
 const ArchiveRoutes = require('./routes/archive-routes');
 const AuthRoutes = require('./routes/auth-routes');
 const ProgressRoutes = require('./routes/progress-routes');
-const ParentReportsRoutes = require('./routes/parent-reports');
+// DISABLED: Traditional parent reports (replaced by passive reports system)
+// const ParentReportsRoutes = require('./routes/parent-reports');
 const HealthRoutes = require('./routes/health');
 const MusicRoutes = require('./routes/music-routes'); // NEW: Focus music library management
 const { serviceAuth } = require('./middleware/service-auth');
@@ -420,10 +421,28 @@ if (features.useGateway) {
   // Progress tracking routes
   new ProgressRoutes(fastify);
 
-  // Parent Reports routes - NEW
-  new ParentReportsRoutes(fastify);
+  // ========================================================================
+  // PARENT REPORTS: Traditional routes DISABLED in favor of Passive Reports
+  // ========================================================================
+  // The traditional parent reports system (parent-reports.js) has been
+  // disabled in favor of the new passive reports system (passive-reports.js).
+  //
+  // Passive reports provide:
+  // - Automated weekly/monthly generation
+  // - 8 specialized report types (executive summary, academic performance, etc.)
+  // - Better UI experience with batch management
+  // - More efficient data aggregation
+  //
+  // Traditional routes commented out but preserved for reference:
+  // new ParentReportsRoutes(fastify);
+  //
+  // If you need to re-enable traditional reports:
+  // 1. Uncomment the line above
+  // 2. Uncomment the import at the top of this file (line 31)
+  // 3. Test thoroughly as some endpoints may conflict
+  // ========================================================================
 
-  // Passive Reports routes - NEW: Scheduled weekly/monthly reports
+  // Passive Reports routes - ACTIVE: Scheduled weekly/monthly reports
   fastify.register(require('./routes/passive-reports'));
 
   // AI Engine proxy routes - NEW: Use modular routes with Assistants API support
