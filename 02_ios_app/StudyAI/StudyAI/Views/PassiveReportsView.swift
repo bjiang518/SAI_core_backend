@@ -14,6 +14,9 @@ struct PassiveReportsView: View {
     @State private var showTestingAlert = false
     @State private var batchToDelete: PassiveReportBatch?
     @State private var showDeleteConfirmation = false
+    @State private var isEditMode = false
+    @State private var selectedBatches: Set<String> = []
+    @State private var showActionSheet = false
 
     enum ReportPeriod: String, CaseIterable {
         case weekly = "Weekly"
@@ -61,13 +64,40 @@ struct PassiveReportsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showTestingAlert = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.blue)
+                    HStack(spacing: 16) {
+                        // Generate button
+                        Button {
+                            showTestingAlert = true
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundColor(.blue)
+                        }
+
+                        // Three-dot menu
+                        Button {
+                            showActionSheet = true
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .foregroundColor(.blue)
+                        }
                     }
                 }
+
+                // Edit mode: Cancel button
+                if isEditMode {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Cancel") {
+                            isEditMode = false
+                            selectedBatches.removeAll()
+                        }
+                    }
+                }
+            }
+            .confirmationDialog("Options", isPresented: $showActionSheet, titleVisibility: .hidden) {
+                Button("Edit Reports") {
+                    isEditMode = true
+                }
+                Button("Cancel", role: .cancel) {}
             }
             .alert("Testing Mode", isPresented: $showTestingAlert) {
                 Button("Generate Weekly Report") {
@@ -130,39 +160,56 @@ struct PassiveReportsView: View {
     }
 
     private var batchesContent: some View {
-        LazyVStack(spacing: 12) {
-            ForEach(batches) { batch in
-                NavigationLink(destination: PassiveReportDetailView(batch: batch)) {
-                    PassiveReportBatchCard(batch: batch)
-                }
-                .buttonStyle(PlainButtonStyle())
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    Button(role: .destructive) {
-                        batchToDelete = batch
-                        showDeleteConfirmation = true
-                    } label: {
-                        Label("Delete", systemImage: "trash")
+        VStack(spacing: 12) {
+            LazyVStack(spacing: 12) {
+                ForEach(batches) { batch in
+                    if isEditMode {
+                        // Edit mode: Checkbox + Card (not tappable)
+                        HStack(spacing: 12) {
+                            Button {
+                                toggleSelection(batch)
+                            } label: {
+                                Image(systemName: selectedBatches.contains(batch.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(selectedBatches.contains(batch.id) ? .blue : .gray)
+                                    .font(.system(size: 24))
+                            }
+
+                            PassiveReportBatchCard(batch: batch)
+                        }
+                    } else {
+                        // Normal mode: NavigationLink
+                        NavigationLink(destination: PassiveReportDetailView(batch: batch)) {
+                            PassiveReportBatchCard(batch: batch)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                 }
+            }
+
+            // Delete button in edit mode
+            if isEditMode && !selectedBatches.isEmpty {
+                Button {
+                    showDeleteConfirmation = true
+                } label: {
+                    Text("Delete \(selectedBatches.count) Report\(selectedBatches.count > 1 ? "s" : "")")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.red)
+                        .cornerRadius(12)
+                }
+                .padding(.top, 8)
             }
         }
         .padding(.horizontal, 20)
-        .alert("Delete Report?", isPresented: $showDeleteConfirmation) {
-            Button("Cancel", role: .cancel) {
-                batchToDelete = nil
-            }
+        .alert("Delete Reports?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
-                if let batch = batchToDelete {
-                    Task {
-                        await viewModel.deleteBatch(batch)
-                        batchToDelete = nil
-                    }
-                }
+                deleteSelectedBatches()
             }
         } message: {
-            if let batch = batchToDelete {
-                Text("Are you sure you want to delete the \(batch.period) report from \(formatDateRange(batch))?")
-            }
+            Text("Are you sure you want to delete \(selectedBatches.count) report\(selectedBatches.count > 1 ? "s" : "")? This action cannot be undone.")
         }
     }
 
@@ -213,6 +260,30 @@ struct PassiveReportsView: View {
         let start = formatter.string(from: batch.startDate)
         let end = formatter.string(from: batch.endDate)
         return "\(start) - \(end)"
+    }
+
+    private func toggleSelection(_ batch: PassiveReportBatch) {
+        if selectedBatches.contains(batch.id) {
+            selectedBatches.remove(batch.id)
+        } else {
+            selectedBatches.insert(batch.id)
+        }
+    }
+
+    private func deleteSelectedBatches() {
+        Task {
+            // Get batches to delete
+            let batchesToDelete = batches.filter { selectedBatches.contains($0.id) }
+
+            // Delete each batch
+            for batch in batchesToDelete {
+                await viewModel.deleteBatch(batch)
+            }
+
+            // Exit edit mode and clear selection
+            isEditMode = false
+            selectedBatches.removeAll()
+        }
     }
 }
 

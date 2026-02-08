@@ -335,13 +335,10 @@ module.exports = async function (fastify, opts) {
                   }
 
                   // Signal end to ElevenLabs
-                  fastify.log.info('🔚 [TTS] Sending end-of-input signal to ElevenLabs...');
                   elevenWs.sendEndOfInput();
 
                   // Wait for final audio chunks (2 seconds)
-                  fastify.log.info('⏳ [TTS] Waiting 2 seconds for final audio chunks...');
                   await new Promise(resolve => setTimeout(resolve, 2000));
-                  fastify.log.info('✅ [TTS] Wait complete');
 
                   // Send completion event
                   const totalTime = Date.now() - streamStartTime;

@@ -187,6 +187,12 @@ class PassiveReportsViewModel: ObservableObject {
 
     /// Load all report batches (both weekly and monthly)
     func loadAllBatches() async {
+        // Skip if already loading to prevent cancellation errors on pull-to-refresh
+        guard !isLoadingBatches else {
+            print("⚠️ [PassiveReports] Already loading batches, skipping duplicate request")
+            return
+        }
+
         isLoadingBatches = true
         errorMessage = nil
 
@@ -232,6 +238,12 @@ class PassiveReportsViewModel: ObservableObject {
             }
 
         } catch {
+            // Ignore cancellation errors from pull-to-refresh
+            if (error as NSError).code == NSURLErrorCancelled {
+                print("ℹ️ [PassiveReports] Request cancelled (likely pull-to-refresh)")
+                isLoadingBatches = false
+                return
+            }
             isLoadingBatches = false
             errorMessage = error.localizedDescription
             showError = true
