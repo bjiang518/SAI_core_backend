@@ -16,7 +16,6 @@ struct PassiveReportsView: View {
     @State private var showDeleteConfirmation = false
     @State private var isEditMode = false
     @State private var selectedBatches: Set<String> = []
-    @State private var showActionSheet = false
 
     enum ReportPeriod: String, CaseIterable {
         case weekly = "Weekly"
@@ -73,9 +72,15 @@ struct PassiveReportsView: View {
                                 .foregroundColor(.blue)
                         }
 
-                        // Three-dot menu
-                        Button {
-                            showActionSheet = true
+                        // Three-dot dropdown menu
+                        Menu {
+                            Button {
+                                print("🔧 [EditMode] Entering edit mode")
+                                isEditMode = true
+                                print("🔧 [EditMode] isEditMode = \(isEditMode)")
+                            } label: {
+                                Label("Edit Reports", systemImage: "checkmark.circle")
+                            }
                         } label: {
                             Image(systemName: "ellipsis.circle")
                                 .foregroundColor(.blue)
@@ -92,14 +97,6 @@ struct PassiveReportsView: View {
                         }
                     }
                 }
-            }
-            .confirmationDialog("Options", isPresented: $showActionSheet, titleVisibility: .hidden) {
-                Button("Edit Reports") {
-                    print("🔧 [EditMode] Entering edit mode")
-                    isEditMode = true
-                    print("🔧 [EditMode] isEditMode = \(isEditMode)")
-                }
-                Button("Cancel", role: .cancel) {}
             }
             .alert("Testing Mode", isPresented: $showTestingAlert) {
                 Button("Generate Weekly Report") {
