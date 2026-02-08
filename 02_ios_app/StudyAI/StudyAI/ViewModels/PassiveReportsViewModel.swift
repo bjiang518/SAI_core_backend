@@ -412,20 +412,36 @@ class PassiveReportsViewModel: ObservableObject {
                              userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
             }
 
+            print("🗑️ [PassiveReports] DELETE request:")
+            print("   URL: \(url.absoluteString)")
+            print("   Batch ID: \(batch.id)")
+
             var request = URLRequest(url: url)
             request.httpMethod = "DELETE"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             // Add authentication
-            if let token = AuthenticationService.shared.getAuthToken() {
-                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            let token = AuthenticationService.shared.getAuthToken()
+            if let authToken = token {
+                request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+                print("   Auth: ✅ Token present")
+            } else {
+                print("   Auth: ❌ No token")
             }
 
-            let (_, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw NSError(domain: "PassiveReportsViewModel", code: -1,
                              userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+            }
+
+            print("🗑️ [PassiveReports] DELETE response:")
+            print("   Status: \(httpResponse.statusCode)")
+
+            // Print response body for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("   Body: \(responseString)")
             }
 
             guard httpResponse.statusCode == 200 else {
