@@ -795,7 +795,12 @@
 "chat.menu.voiceSettings" = "语音设置";
 "chat.menu.enableVoice" = "启用语音";
 "chat.menu.disableVoice" = "禁用语音";
+"chat.menu.synchronizedAudio" = "同步语音";
 "chat.menu.archiveSession" = "归档会话";
+
+// Common
+"common.yes" = "是";
+"common.no" = "否";
 
 // Archive Dialog
 "chat.archive.title" = "归档会话";

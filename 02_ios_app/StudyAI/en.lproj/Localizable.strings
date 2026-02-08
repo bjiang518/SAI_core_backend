@@ -866,7 +866,12 @@
 "chat.menu.voiceSettings" = "Voice Settings";
 "chat.menu.enableVoice" = "Enable Voice";
 "chat.menu.disableVoice" = "Disable Voice";
+"chat.menu.synchronizedAudio" = "Synchronized Audio";
 "chat.menu.archiveSession" = "Archive Session";
+
+// Common
+"common.yes" = "Yes";
+"common.no" = "No";
 
 // Archive Dialog
 "chat.archive.title" = "Archive Session";

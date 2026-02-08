@@ -2,8 +2,24 @@
 //  ReportFetcher.swift
 //  StudyAI
 //
+//  ⚠️ DEPRECATED: Traditional Report Fetcher - BACKEND ENDPOINTS DISABLED
+//
 //  Service focused on fetching existing reports and narrative content
 //  Handles retrieval operations with caching support
+//
+//  STATUS: Service code is functional but backend endpoints are NOT registered
+//
+//  BACKEND ENDPOINTS (DISABLED):
+//  - GET /api/reports/:reportId/narrative (called on line ~33)
+//  - GET /api/reports/:reportId
+//  - GET /api/reports/student/:studentId
+//
+//  REPLACEMENT: Use PassiveReportsViewModel.swift instead
+//  - Calls GET /api/reports/passive/batches/:batchId (ACTIVE)
+//  - Provides 8 specialized report types
+//
+//  PRESERVED: Code kept intact for reference
+//
 //
 
 import Foundation

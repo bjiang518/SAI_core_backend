@@ -790,13 +790,13 @@ struct MixedLaTeXView: View {
     }
 }
 
-// MARK: - Comprehensive Markdown + LaTeX Renderer
+// MARK: - Simplified Markdown + LaTeX Text Renderer
 
 /// A view that renders both markdown formatting AND LaTeX math expressions
 /// Supports:
 /// - Markdown: **bold**, *italic*, ## headers, lists, links
 /// - LaTeX: $math$, $$display math$$, \[...\], \(...\), Greek letters, equations
-struct MarkdownLaTeXText: View {
+public struct MarkdownLaTeXText: View {
     let content: String
     let fontSize: CGFloat
     let isStreaming: Bool
@@ -805,15 +805,15 @@ struct MarkdownLaTeXText: View {
     @State private var hasLaTeX = false
     @State private var lastCheckedContent = ""
 
-    init(_ content: String, fontSize: CGFloat = 16, isStreaming: Bool = false) {
+    public init(_ content: String, fontSize: CGFloat = 16, isStreaming: Bool = false) {
         self.content = content
         self.fontSize = fontSize
         self.isStreaming = isStreaming
     }
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // During streaming: show simplified view
+            // During streaming: show simplified plain text (no LaTeX parsing)
             if isStreaming {
                 streamingView
             }
@@ -837,22 +837,20 @@ struct MarkdownLaTeXText: View {
             }
         }
         .onChange(of: isStreaming) { oldValue, newValue in
-            // When streaming completes, detect LaTeX in the final content
-            if !newValue && oldValue {
+            // When streaming completes (true → false), detect LaTeX in final content
+            if oldValue && !newValue {
                 detectLaTeX()
             }
         }
     }
 
-    // MARK: - Streaming View (Simple + Fast)
+    // MARK: - Streaming View (Simplified)
 
     @ViewBuilder
     private var streamingView: some View {
-        // During streaming: show RAW text without any processing
-        // NO SimpleMathRenderer (causes symbol flickering)
-        // NO markdown processing (causes instability)
-        // JUST plain text - process after streaming completes
-        Text(content)
+        // ✅ SIMPLIFIED: Show plain text during streaming (no LaTeX parsing)
+        // This eliminates ALL WebView creation/destruction during streaming
+        Text(SimpleMathRenderer.renderMathText(content))
             .font(.system(size: fontSize))
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
@@ -996,7 +994,7 @@ struct MarkdownLaTeXText: View {
             }
 
             // Check for header (# to ######)
-            if let _ = trimmed.range(of: "^(#{1,6})\\s+(.+)$", options: .regularExpression),
+            if let headerMatch = trimmed.range(of: "^(#{1,6})\\s+(.+)$", options: .regularExpression),
                let hashRange = trimmed.range(of: "^#{1,6}", options: .regularExpression) {
                 // End current list if any
                 if !currentListItems.isEmpty {
@@ -1030,23 +1028,5 @@ struct MarkdownLaTeXText: View {
         }
 
         return components
-    }
-
-    enum ContentBlock {
-        case markdown(MarkdownComponent)
-        case latex(String)
-    }
-
-    private func parseMarkdownAndLaTeX(_ text: String) -> [ContentBlock] {
-        // This is a simplified version - you can enhance it to handle interleaved LaTeX and markdown
-        // For now, treat each line as either markdown or LaTeX
-        var blocks: [ContentBlock] = []
-        let components = parseMarkdownComponents(text)
-
-        for component in components {
-            blocks.append(.markdown(component))
-        }
-
-        return blocks
     }
 }

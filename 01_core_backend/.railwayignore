@@ -7,3 +7,4 @@ tests/
 coverage/
 .env.local
 .env.*.local
+data/music/

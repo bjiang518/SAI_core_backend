@@ -746,7 +746,12 @@
 "chat.menu.voiceSettings" = "語音設定";
 "chat.menu.enableVoice" = "啟用語音";
 "chat.menu.disableVoice" = "停用語音";
+"chat.menu.synchronizedAudio" = "同步語音";
 "chat.menu.archiveSession" = "封存會話";
+
+// Common
+"common.yes" = "是";
+"common.no" = "否";
 
 // Archive Dialog
 "chat.archive.title" = "封存會話";

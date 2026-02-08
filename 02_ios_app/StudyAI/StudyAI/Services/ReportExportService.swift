@@ -2,7 +2,23 @@
 //  ReportExportService.swift
 //  StudyAI
 //
+//  ⚠️ DEPRECATED: Traditional Report Export Service - DEPENDS ON DISABLED ENDPOINTS
+//
 //  Service for handling report export and sharing functionality
+//
+//  STATUS: Service code is functional but depends on ParentReportService
+//          which uses disabled backend endpoints
+//
+//  DEPENDENCIES (DEPRECATED):
+//  - ParentReportService.shared.fetchNarrative() (line ~43)
+//  - Uses GET /api/reports/:reportId/narrative (DISABLED)
+//
+//  REPLACEMENT: Export functionality not yet implemented for passive reports
+//  - PassiveReportsView currently displays reports in-app only
+//  - Future: Add PDF export for passive reports
+//
+//  PRESERVED: Code kept intact for reference
+//
 //
 
 import Foundation

@@ -2,10 +2,8 @@
 //  InteractiveModeSettings.swift
 //  StudyAI
 //
-//  Settings model for Interactive Mode
-//  Phase 3: iOS AVAudioEngine Integration
-//
-//  Manages when interactive mode (real-time synchronized TTS) is enabled
+//  Settings model for Interactive Mode (Synchronized Audio)
+//  Simplified to a single toggle
 //
 
 import Foundation
@@ -13,32 +11,8 @@ import Foundation
 struct InteractiveModeSettings: Codable {
     // MARK: - Main Settings
 
-    /// Master toggle for interactive mode
+    /// Master toggle for synchronized audio (默认关闭 - Default: No)
     var isEnabled: Bool = false
-
-    /// Automatically enable for short queries
-    var autoEnableForShortQueries: Bool = true
-
-    /// Character threshold for "short query" (default: 200 chars)
-    var shortQueryThreshold: Int = 200
-
-    // MARK: - Automatic Disabling Conditions
-
-    /// Disable interactive mode for deep thinking (o4-mini takes 2-5 minutes, no streaming)
-    var disableForDeepMode: Bool = true
-
-    /// Disable for image-based queries (vision processing causes delays)
-    var disableForImages: Bool = true
-
-    /// Disable for long responses (text-first better for studying long content)
-    var disableForLongResponses: Bool = true
-
-    /// Character threshold for "long response" (default: 1000 chars)
-    var longResponseThreshold: Int = 1000
-
-    // MARK: - Logger
-
-    private static let logger = AppLogger.forFeature("InteractiveMode")
 
     // MARK: - Persistence
 
@@ -57,49 +31,14 @@ struct InteractiveModeSettings: Codable {
     func save() {
         if let data = try? JSONEncoder().encode(self) {
             UserDefaults.standard.set(data, forKey: InteractiveModeSettings.userDefaultsKey)
-            Self.logger.debug("💾 Interactive mode settings saved")
         }
     }
 
     // MARK: - Decision Logic
 
-    /// Determine if interactive mode should be used for a given query
-    /// - Parameters:
-    ///   - text: User's message text
-    ///   - hasImage: Whether message includes an image
-    ///   - deepMode: Whether deep thinking mode is active
-    /// - Returns: True if interactive mode should be used
-    func shouldUseInteractiveMode(for text: String, hasImage: Bool, deepMode: Bool) -> Bool {
-        // Master toggle
-        guard isEnabled else {
-            return false
-        }
-
-        // Disable for deep mode (o4-mini)
-        if deepMode && disableForDeepMode {
-            Self.logger.debug("🚫 Interactive mode disabled: Deep thinking mode active")
-            return false
-        }
-
-        // Disable for images
-        if hasImage && disableForImages {
-            Self.logger.debug("🚫 Interactive mode disabled: Image query")
-            return false
-        }
-
-        // Auto-enable for short queries
-        if autoEnableForShortQueries && text.count <= shortQueryThreshold {
-            Self.logger.debug("✅ Interactive mode enabled: Short query (\(text.count) chars)")
-            return true
-        }
-
-        // User explicitly enabled, and query not too long
-        if !disableForLongResponses || text.count <= longResponseThreshold {
-            Self.logger.debug("✅ Interactive mode enabled: User preference")
-            return true
-        }
-
-        Self.logger.debug("🚫 Interactive mode disabled: Query too long (\(text.count) chars)")
-        return false
+    /// Determine if interactive mode should be used
+    /// - Returns: True if synchronized audio is enabled
+    func shouldUseInteractiveMode() -> Bool {
+        return isEnabled
     }
 }

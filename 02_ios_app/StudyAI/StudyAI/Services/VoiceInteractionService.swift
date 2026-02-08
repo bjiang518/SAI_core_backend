@@ -10,7 +10,12 @@ import Combine
 import AVFoundation
 
 class VoiceInteractionService: ObservableObject {
-    
+
+    // MARK: - Debug Mode
+
+    /// Enable verbose logging for debugging (default: false)
+    private static let debugMode = false
+
     // MARK: - Published Properties
     
     @Published var interactionState: VoiceInteractionState = .idle
@@ -170,7 +175,9 @@ class VoiceInteractionService: ObservableObject {
     }
     
     func stopVoiceInput() {
+        if Self.debugMode {
         print("🎙️ VoiceInteractionService: stopVoiceInput called")
+            }
         
         // Don't clear completion handler yet - let the speech service finish processing
         speechRecognitionService.stopListening()
@@ -190,16 +197,24 @@ class VoiceInteractionService: ObservableObject {
     }
     
     func speakText(_ text: String, autoSpeak: Bool = false) {
+        if Self.debugMode {
         print("🎙️ VoiceInteractionService: speakText() called with: '\(text)', autoSpeak: \(autoSpeak)")
+            }
+        if Self.debugMode {
         print("🎙️ VoiceInteractionService: isVoiceEnabled = \(isVoiceEnabled)")
+            }
         guard isVoiceEnabled else { 
+            if Self.debugMode {
             print("🎙️ VoiceInteractionService: Voice is disabled, not speaking")
+            }
             return 
         }
         
         // Always stop previous speech when starting new speech (interruption behavior)
         if interactionState == .speaking {
+            if Self.debugMode {
             print("🎙️ VoiceInteractionService: Interrupting current speech to start new message")
+            }
             stopSpeech()
         }
         
@@ -208,7 +223,9 @@ class VoiceInteractionService: ObservableObject {
             self.interactionState = .speaking
         }
         
+        if Self.debugMode {
         print("🎙️ VoiceInteractionService: Using premium TTS service for enhanced voice quality")
+            }
         speakTextWithBestService(text)
     }
     
@@ -219,10 +236,14 @@ class VoiceInteractionService: ObservableObject {
     private func speakTextWithBestService(_ text: String) {
         // Use enhanced TTS for premium voice types (Elsa, friendly, professional)
         if shouldUseEnhancedTTS(for: voiceSettings.voiceType) {
+            if Self.debugMode {
             print("🎙️ VoiceInteractionService: Using EnhancedTTSService for premium voice: \(voiceSettings.voiceType)")
+            }
             enhancedTTSService.speak(text, with: voiceSettings)
         } else {
+            if Self.debugMode {
             print("🎙️ VoiceInteractionService: Using system TTS for voice: \(voiceSettings.voiceType)")
+            }
             textToSpeechService.speakWithQueue(text, with: voiceSettings)
         }
     }
@@ -247,7 +268,9 @@ class VoiceInteractionService: ObservableObject {
     }
     
     func stopSpeech() {
+        if Self.debugMode {
         print("🎙️ VoiceInteractionService: Stopping all speech")
+            }
         textToSpeechService.stopSpeech()
         enhancedTTSService.stopSpeech()
         
@@ -266,7 +289,9 @@ class VoiceInteractionService: ObservableObject {
         
         // Stop current speech if voice character changed
         if previousVoiceType != settings.voiceType {
+            if Self.debugMode {
             print("🎙️ VoiceInteractionService: Voice character changed from \(previousVoiceType.displayName) to \(settings.voiceType.displayName), stopping current speech")
+            }
             stopSpeech()
             
             // Update interaction state to reflect the change
@@ -284,12 +309,16 @@ class VoiceInteractionService: ObservableObject {
     // MARK: - Message Tracking
     
     func setCurrentSpeakingMessage(_ messageId: String) {
+        if Self.debugMode {
         print("🎙️ VoiceInteractionService: Setting current speaking message: \(messageId)")
+            }
         currentSpeakingMessageId = messageId
     }
     
     func clearCurrentSpeakingMessage() {
+        if Self.debugMode {
         print("🎙️ VoiceInteractionService: Clearing current speaking message")
+            }
         currentSpeakingMessageId = nil
     }
     
@@ -320,14 +349,22 @@ class VoiceInteractionService: ObservableObject {
     // MARK: - Private Methods
     
     private func handleVoiceInputResult(_ result: VoiceInputResult) {
+        if Self.debugMode {
         print("🎙️ VoiceInteractionService: handleVoiceInputResult called")
+            }
+        if Self.debugMode {
         print("🎙️ Result text: '\(result.recognizedText)'")
+            }
+        if Self.debugMode {
         print("🎙️ Is final: \(result.isFinal)")
+            }
         
         lastRecognizedText = result.recognizedText
         
         if result.isFinal {
+            if Self.debugMode {
             print("🎙️ VoiceInteractionService: Calling completion handler with: '\(result.recognizedText)'")
+            }
             // Call completion handler
             currentVoiceInputCompletion?(result.recognizedText)
             currentVoiceInputCompletion = nil

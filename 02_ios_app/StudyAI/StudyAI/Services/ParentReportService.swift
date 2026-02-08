@@ -2,8 +2,27 @@
 //  ParentReportService.swift
 //  StudyAI
 //
-//  Service coordinator for parent reports functionality
+//  ⚠️ DEPRECATED: Traditional Parent Reports Service - BACKEND ENDPOINTS DISABLED
+//
+//  Service coordinator for traditional parent reports functionality
 //  Acts as a façade over specialized report services
+//
+//  STATUS: Service code is functional but backend endpoints are NOT registered
+//
+//  BACKEND ENDPOINTS (DISABLED):
+//  - POST /api/reports/generate
+//  - GET /api/reports/:reportId
+//  - GET /api/reports/student/:studentId
+//  - GET /api/reports/:reportId/narrative
+//  - GET /api/reports/:reportId/export
+//
+//  REPLACEMENT: Use PassiveReportsViewModel.swift instead
+//  - PassiveReportsViewModel works with backend passive-reports.js (ACTIVE)
+//  - Provides 8 specialized report types
+//  - Better automated scheduling (weekly/monthly)
+//
+//  PRESERVED: Code kept intact for reference
+//
 //
 
 import Foundation
