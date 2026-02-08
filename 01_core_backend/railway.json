@@ -15,5 +15,8 @@
     "staging": {
       "name": "studyai-core-backend-staging"
     }
+  },
+  "service": {
+    "rootDirectory": "/01_core_backend"
   }
 }
