@@ -95,7 +95,9 @@ struct PassiveReportsView: View {
             }
             .confirmationDialog("Options", isPresented: $showActionSheet, titleVisibility: .hidden) {
                 Button("Edit Reports") {
+                    print("🔧 [EditMode] Entering edit mode")
                     isEditMode = true
+                    print("🔧 [EditMode] isEditMode = \(isEditMode)")
                 }
                 Button("Cancel", role: .cancel) {}
             }
