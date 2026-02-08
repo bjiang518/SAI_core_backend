@@ -418,7 +418,7 @@ class PassiveReportsViewModel: ObservableObject {
 
             var request = URLRequest(url: url)
             request.httpMethod = "DELETE"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            // Note: Don't set Content-Type for DELETE requests (no body)
 
             // Add authentication
             let token = AuthenticationService.shared.getAuthToken()
