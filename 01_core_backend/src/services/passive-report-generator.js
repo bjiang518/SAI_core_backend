@@ -377,7 +377,11 @@ class PassiveReportGenerator {
     async fetchStudentProfile(userId) {
         const query = `
             SELECT
-                COALESCE(p.name, u.name) as name,
+                COALESCE(
+                    p.display_name,
+                    NULLIF(CONCAT(p.first_name, ' ', p.last_name), ' '),
+                    u.name
+                ) as name,
                 p.grade_level,
                 p.date_of_birth,
                 p.learning_style
