@@ -1,4 +1,47 @@
 /**
+ * ========================================================================
+ * ⚠️ DEPRECATED: Traditional Parent Reports API Routes - CURRENTLY DISABLED
+ * ========================================================================
+ *
+ * This file contains the traditional parent reports system which has been
+ * DISABLED in favor of the new passive reports system (passive-reports.js).
+ *
+ * STATUS: Routes are NOT registered in gateway/index.js (commented out)
+ *
+ * WHY DISABLED:
+ * - Replaced by passive reports system with better UX
+ * - Passive reports provide 8 specialized report types vs 1 generic report
+ * - Better automated scheduling (weekly/monthly)
+ * - Simpler batch management for iOS client
+ *
+ * WHAT THIS FILE CONTAINS (16 endpoints - ALL DISABLED):
+ * - POST   /api/reports/generate              - Generate comprehensive report
+ * - GET    /api/reports/:reportId             - Get existing report
+ * - GET    /api/reports/student/:studentId    - List reports for student
+ * - GET    /api/reports/:reportId/status      - Get generation status
+ * - GET    /api/reports/:reportId/export      - Export as PDF/JSON
+ * - POST   /api/reports/:reportId/email       - Email report
+ * - POST   /api/reports/:reportId/share       - Generate shareable link
+ * - GET    /api/reports/:reportId/narrative   - Get human-readable narrative
+ * - GET    /api/reports/student/:studentId/narratives - List narratives
+ * - DELETE /api/reports/cleanup               - Cleanup expired reports
+ * - GET    /api/reports/analytics             - Get report analytics
+ * - GET    /api/reports/analytics/anonymized  - GDPR-compliant analytics
+ * - POST   /api/parent-reports/enable         - Enable automated reports
+ * - POST   /api/parent-reports/disable        - Disable automated reports
+ *
+ * TO RE-ENABLE:
+ * 1. Uncomment route registration in gateway/index.js (line ~437)
+ * 2. Uncomment import statement in gateway/index.js (line ~31)
+ * 3. Test thoroughly - some endpoints may conflict with passive reports
+ * 4. Update iOS app to use these endpoints instead of passive reports
+ *
+ * PRESERVED: Code is kept intact for reference and potential future use
+ *
+ * ========================================================================
+ */
+
+/**
  * StudyAI Parent Reports API Routes
  * Handles parent report generation, retrieval, and management
  * LOCAL-FIRST: All data aggregation happens on iOS client
