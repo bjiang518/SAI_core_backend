@@ -378,9 +378,10 @@ class PassiveReportGenerator {
         const query = `
             SELECT
                 COALESCE(
-                    p.display_name,
-                    NULLIF(CONCAT(p.first_name, ' ', p.last_name), ' '),
-                    u.name
+                    NULLIF(TRIM(p.display_name), ''),
+                    NULLIF(TRIM(CONCAT(COALESCE(p.first_name, ''), ' ', COALESCE(p.last_name, ''))), ''),
+                    u.name,
+                    'Student'
                 ) as name,
                 p.grade_level,
                 p.date_of_birth,
