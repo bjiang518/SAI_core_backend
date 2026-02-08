@@ -2,8 +2,29 @@
 //  ParentReportsView.swift
 //  StudyAI
 //
-//  Main view for parent report generation and management
-//  Provides date range selection and report display functionality
+//  ⚠️ DEPRECATED: Traditional Parent Reports View - BACKEND ENDPOINTS DISABLED
+//
+//  This view uses the traditional parent reports system which has been
+//  DISABLED on the backend in favor of PassiveReportsView (passive reports).
+//
+//  STATUS: View code is functional but backend endpoints are NOT registered
+//
+//  BACKEND ENDPOINTS (DISABLED):
+//  - POST /api/reports/generate (used by ReportGenerator.swift)
+//  - GET /api/reports/:reportId (used by ReportFetcher.swift)
+//  - GET /api/reports/student/:studentId
+//
+//  REPLACEMENT: Use PassiveReportsView.swift instead
+//  - PassiveReportsView provides 8 specialized report types
+//  - Better automated scheduling (weekly/monthly)
+//  - Simpler batch management
+//
+//  TO RE-ENABLE:
+//  1. Re-enable backend routes in 01_core_backend/src/gateway/index.js
+//  2. Test thoroughly to avoid conflicts with passive reports
+//
+//  PRESERVED: Code kept intact for reference
+//
 //
 
 import SwiftUI

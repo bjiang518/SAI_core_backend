@@ -2,8 +2,23 @@
 //  ReportGenerator.swift
 //  StudyAI
 //
+//  ⚠️ DEPRECATED: Traditional Report Generator - BACKEND ENDPOINT DISABLED
+//
 //  Service focused on report generation functionality
 //  Handles API communication for creating new reports
+//
+//  STATUS: Service code is functional but backend endpoint is NOT registered
+//
+//  BACKEND ENDPOINT (DISABLED):
+//  - POST /api/reports/generate (called on line ~73)
+//
+//  REPLACEMENT: Use PassiveReportsViewModel.swift instead
+//  - Calls POST /api/reports/passive/generate-now (ACTIVE)
+//  - Generates 8 specialized report types
+//  - Better automated scheduling
+//
+//  PRESERVED: Code kept intact for reference
+//
 //
 
 import Foundation

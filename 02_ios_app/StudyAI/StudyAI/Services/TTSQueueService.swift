@@ -16,6 +16,11 @@ import Combine
 @MainActor
 class TTSQueueService: ObservableObject {
 
+    // MARK: - Debug Mode
+
+    /// Enable verbose logging for debugging (default: false)
+    private static let debugMode = false
+
     // MARK: - Singleton
 
     static let shared = TTSQueueService()
@@ -111,7 +116,9 @@ class TTSQueueService: ObservableObject {
         queueStorage.append(newItem)
         updateQueueSize()
 
+        if Self.debugMode {
         print("🎵 [TTSQueueService] Enqueued TTS chunk: \(text.count) chars, queue size: \(effectiveQueueSize), memory: \(getTotalQueueMemory()/1024)KB")
+        }
 
         // Start playing if not already playing
         if !isPlayingTTS {
@@ -125,7 +132,9 @@ class TTSQueueService: ObservableObject {
     /// **Phase 3.4**: Uses optimized dequeue operation
     func playNextTTSChunk() {
         guard effectiveQueueSize > 0 else {
+            if Self.debugMode {
             print("🎵 [TTSQueueService] TTS queue empty, stopping playback")
+            }
             isPlayingTTS = false
             currentSessionIdForTTS = nil
             compactQueueIfNeeded()
@@ -135,13 +144,17 @@ class TTSQueueService: ObservableObject {
         // ✅ SAFETY CHECK: Ensure current session matches the TTS session
         guard let ttsSessionId = currentSessionIdForTTS,
               ttsSessionId == networkService.currentSessionId else {
+            if Self.debugMode {
             print("🎵 [TTSQueueService] Session mismatch - clearing TTS queue (TTS: \(currentSessionIdForTTS ?? "nil"), Current: \(networkService.currentSessionId ?? "nil"))")
+            }
             clearQueue()
             return
         }
 
         guard voiceService.isVoiceEnabled else {
+            if Self.debugMode {
             print("🎵 [TTSQueueService] Voice disabled, clearing TTS queue")
+            }
             clearQueue()
             return
         }
@@ -154,7 +167,9 @@ class TTSQueueService: ObservableObject {
 
         isPlayingTTS = true
 
+        if Self.debugMode {
         print("🎵 [TTSQueueService] Playing TTS chunk: \(nextItem.text.count) chars, remaining in queue: \(effectiveQueueSize)")
+        }
 
         // Set as current speaking message
         voiceService.setCurrentSpeakingMessage(nextItem.messageId)
@@ -168,7 +183,9 @@ class TTSQueueService: ObservableObject {
 
     /// Stop all TTS playback and clear queue
     func stopAllTTS() {
+        if Self.debugMode {
         print("🎵 [TTSQueueService] Stopping all TTS playback")
+        }
         voiceService.stopSpeech()
         clearQueue()
     }
@@ -178,7 +195,9 @@ class TTSQueueService: ObservableObject {
     /// - Parameter sessionId: Session ID to clear TTS for
     func clearTTSQueueForSession(_ sessionId: String) {
         if currentSessionIdForTTS == sessionId {
+            if Self.debugMode {
             print("🎵 [TTSQueueService] Clearing TTS queue for session: \(sessionId)")
+            }
             stopAllTTS()
         }
     }

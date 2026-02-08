@@ -207,20 +207,7 @@ class SessionChatViewModel: ObservableObject {
         // Reload settings to get latest user preferences
         interactiveModeSettings = InteractiveModeSettings.load()
 
-        print("🎙️ Interactive Mode Settings:")
-        print("  - Enabled: \(interactiveModeSettings.isEnabled)")
-        print("  - Auto-enable for short queries: \(interactiveModeSettings.autoEnableForShortQueries)")
-        print("  - Short query threshold: \(interactiveModeSettings.shortQueryThreshold) chars")
-        print("  - Message length: \(messageText.count) chars")
-
-        let hasImage = (appState.pendingHomeworkContext?.questionImage != nil) || (selectedImage != nil)
-        let shouldUseInteractive = interactiveModeSettings.shouldUseInteractiveMode(
-            for: messageText,
-            hasImage: hasImage,
-            deepMode: deepMode
-        )
-
-        print("🎙️ Decision: shouldUseInteractive = \(shouldUseInteractive)")
+        let shouldUseInteractive = interactiveModeSettings.shouldUseInteractiveMode()
 
         if shouldUseInteractive {
             print("🎙️ Interactive mode enabled - using real-time TTS")
@@ -1505,5 +1492,59 @@ class SessionChatViewModel: ObservableObject {
         streamingUpdateTimer?.invalidate()
         streamingUpdateTimer = nil
         pendingStreamingUpdate = false
+    }
+
+    // MARK: - Public Stop Generation Method
+
+    /// Stop the current AI generation and keep content as-is
+    func stopGeneration() {
+        print("🛑 [Generation] ========== STOP GENERATION CALLED ==========")
+        print("🛑 [Generation] User stopped generation - keeping partial content")
+        print("🛑 [Generation] State before stop:")
+        print("🛑 [Generation]   - isActivelyStreaming: \(isActivelyStreaming)")
+        print("🛑 [Generation]   - activeStreamingMessage length: \(activeStreamingMessage.count)")
+        print("🛑 [Generation]   - isSubmitting: \(isSubmitting)")
+        print("🛑 [Generation]   - showTypingIndicator: \(showTypingIndicator)")
+
+        // Cancel any pending streaming updates
+        cancelStreamingUpdates()
+        print("🛑 [Generation] Cancelled streaming updates")
+
+        // Save the current partial content to conversation history
+        if !activeStreamingMessage.isEmpty {
+            print("🛑 [Generation] Partial content exists - saving to history")
+            // Add the partial message to conversation history
+            let partialMessage: [String: String] = [
+                "role": "assistant",
+                "content": activeStreamingMessage
+            ]
+
+            // Add to NetworkService history (so it appears in chat)
+            DispatchQueue.main.async {
+                self.networkService.conversationHistory.append(partialMessage)
+                print("🛑 [Generation] Added partial message to history")
+                print("🛑 [Generation] Total messages in history: \(self.networkService.conversationHistory.count)")
+            }
+
+            print("🛑 [Generation] Saved partial content: \(activeStreamingMessage.prefix(100))...")
+        } else {
+            print("🛑 [Generation] No partial content to save (activeStreamingMessage is empty)")
+        }
+
+        // Clear streaming state
+        print("🛑 [Generation] Clearing streaming state...")
+        activeStreamingMessage = ""
+        isActivelyStreaming = false
+        showTypingIndicator = false
+        isSubmitting = false
+
+        // Mark streaming as complete so continuation buttons appear
+        isStreamingComplete = true
+
+        print("🛑 [Generation] State after stop:")
+        print("🛑 [Generation]   - isActivelyStreaming: \(isActivelyStreaming)")
+        print("🛑 [Generation]   - isSubmitting: \(isSubmitting)")
+        print("🛑 [Generation]   - isStreamingComplete: \(isStreamingComplete)")
+        print("🛑 [Generation] ========== STOP GENERATION COMPLETE ==========")
     }
 }

@@ -12,6 +12,12 @@ import Combine
 // MARK: - Session Chat View (Refactored)
 
 struct SessionChatView: View {
+
+    // MARK: - Debug Mode
+
+    /// Enable verbose logging for debugging (default: false)
+    private static let debugMode = false
+
     // Services
     @StateObject private var networkService = NetworkService.shared
     @StateObject private var voiceService = VoiceInteractionService.shared
@@ -28,7 +34,6 @@ struct SessionChatView: View {
     @State private var showingArchiveDialog = false
     @State private var showingArchiveSuccess = false
     @State private var showingVoiceSettings = false
-    @State private var showingInteractiveModeSettings = false  // Phase 3: Interactive Mode
     @State private var showingCamera = false
     @State private var showingImageInputSheet = false
     @State private var showingExistingSessionAlert = false
@@ -37,6 +42,9 @@ struct SessionChatView: View {
     @State private var showingPermissionAlert = false
     @State private var showingArchiveInfo = false
     @State private var exampleCardScale: CGFloat = 0.8
+
+    // Synchronized audio toggle
+    @State private var interactiveModeSettings = InteractiveModeSettings.load()
 
     // Avatar and TTS State
     @State private var topAvatarState: AIAvatarState = .idle
@@ -152,10 +160,11 @@ struct SessionChatView: View {
                         voiceService.toggleVoiceEnabled()
                     }
 
-                    // Phase 3: Interactive Mode Settings
-                    Button("Interactive Mode Settings") {
-                        showingInteractiveModeSettings = true
-                    }
+                    // Synchronized Audio Toggle
+                    Toggle(NSLocalizedString("chat.menu.synchronizedAudio", comment: ""), isOn: $interactiveModeSettings.isEnabled)
+                        .onChange(of: interactiveModeSettings.isEnabled) { _, _ in
+                            interactiveModeSettings.save()
+                        }
 
                     Divider()
 
@@ -187,9 +196,6 @@ struct SessionChatView: View {
             }
             .sheet(isPresented: $showingVoiceSettings) {
                 VoiceSettingsView()
-            }
-            .sheet(isPresented: $showingInteractiveModeSettings) {
-                InteractiveModeSettingsView()
             }
             .sheet(isPresented: $showingCamera) {
                 ImageSourceSelectionView(selectedImage: $viewModel.selectedImage, isPresented: $showingCamera)
@@ -363,7 +369,9 @@ struct SessionChatView: View {
                 // ✅ FIX: Clear spoken messages when session changes (new session started)
                 if oldSessionId != newSessionId {
                     spokenMessageIds.removeAll()
+                    if Self.debugMode {
                     print("🔄 [TTS] Cleared spoken messages for new session (old: \(oldSessionId ?? "nil"), new: \(newSessionId ?? "nil"))")
+                    }
                 }
             }
     }
@@ -432,19 +440,25 @@ struct SessionChatView: View {
                 }
                 .onReceive(voiceService.$interactionState) { state in
                     // Update avatar state when TTS actually starts/stops speaking
+                    if Self.debugMode {
                     print("🎭 [Avatar] VoiceService state changed: \(state)")
                     print("🎭 [Avatar] Current speaking message: \(voiceService.currentSpeakingMessageId ?? "nil")")
                     print("🎭 [Avatar] Latest AI message: \(latestAIMessageId ?? "nil")")
+                    }
 
                     switch state {
                     case .speaking:
                         // Audio is actively playing - update to speaking state
+                        if Self.debugMode {
                         print("🎭 [Avatar] Setting to .speaking state")
+                        }
                         topAvatarState = .speaking
                     case .idle:
                         // Audio stopped - return to idle
                         if topAvatarState == .speaking {
+                            if Self.debugMode {
                             print("🎭 [Avatar] Setting to .idle state (was speaking)")
+                            }
                             topAvatarState = .idle
                         }
                     default:
@@ -722,6 +736,66 @@ struct SessionChatView: View {
     
     private var modernMessageInputView: some View {
         VStack(spacing: 12) {
+            // ✅ Stop generation button - Stable position above input box
+            if viewModel.isActivelyStreaming && !viewModel.activeStreamingMessage.isEmpty {
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        print("🛑 [StopButton] User tapped stop button")
+                        print("🛑 [StopButton] Current streaming message length: \(viewModel.activeStreamingMessage.count)")
+
+                        viewModel.stopGeneration()
+
+                        print("🛑 [StopButton] Generation stopped - checking state")
+                        print("🛑 [StopButton] isActivelyStreaming: \(viewModel.isActivelyStreaming)")
+                        print("🛑 [StopButton] isSubmitting: \(viewModel.isSubmitting)")
+
+                        // ✅ Enhanced haptic feedback - success notification
+                        let notificationFeedback = UINotificationFeedbackGenerator()
+                        notificationFeedback.notificationOccurred(.success)
+
+                        // ✅ Secondary impact for emphasis
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                            impactFeedback.impactOccurred()
+                            print("🛑 [StopButton] Haptic feedback completed")
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "stop.circle.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text(NSLocalizedString("chat.stopGenerating", value: "Stop Generating", comment: ""))
+                                .font(.system(size: 14, weight: .medium))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.red.opacity(0.9), Color.red.opacity(0.7)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(20)
+                        .shadow(color: Color.red.opacity(0.3), radius: 4, x: 0, y: 2)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .onAppear {
+                        print("🛑 [StopButton] Stop button appeared in stable position")
+                    }
+                    .onDisappear {
+                        print("🛑 [StopButton] Stop button disappeared")
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.8).combined(with: .opacity).combined(with: .move(edge: .bottom)),
+                    removal: .opacity
+                ))
+            }
+
             // Conversation continuation buttons (like ChatGPT)
             // ✅ Only show when streaming is complete AND there's an assistant message
             if !networkService.conversationHistory.isEmpty &&
@@ -798,10 +872,9 @@ struct SessionChatView: View {
                                 }
                             },
                             onStateChange: { isHolding, isActivated in
-                                // ✅ Update ViewModel state so overlay can react
+                                // Update ViewModel state so overlay can react
                                 viewModel.isHolding = isHolding
                                 viewModel.isActivated = isActivated
-                                print("🔵 [SessionChatView] State changed: holding=\(isHolding), activated=\(isActivated)")
                             }
                         )
                         .disabled(viewModel.isSubmitting && !viewModel.messageText.isEmpty)
@@ -877,7 +950,9 @@ struct SessionChatView: View {
                     (viewModel.aiGeneratedSuggestions.allSatisfy { responseIsChinese == detectChinese(in: $0.key) })
 
                 if viewModel.isStreamingComplete && !viewModel.aiGeneratedSuggestions.isEmpty && suggestionsMatchLanguage {
-                    ForEach(viewModel.aiGeneratedSuggestions, id: \.id) { suggestion in
+                    // ✅ STABILITY FIX: Sort suggestions alphabetically to maintain consistent order and prevent blinking/position switching
+                    let sortedSuggestions = viewModel.aiGeneratedSuggestions.sorted { $0.key.localizedCompare($1.key) == .orderedAscending }
+                    ForEach(sortedSuggestions, id: \.id) { suggestion in
                         // Skip the regenerate suggestion if we already showed it above
                         if suggestion.value == "__REGENERATE_DIAGRAM__" {
                             EmptyView()
@@ -901,7 +976,9 @@ struct SessionChatView: View {
                     // Fallback to manually-generated contextual buttons (localized)
                     // Only show if there's no diagram (diagram gets regenerate button instead)
                     let contextButtons = generateContextualButtons(for: lastMessage)
-                    ForEach(contextButtons, id: \.self) { buttonTitle in
+                    // ✅ STABILITY FIX: Sort buttons alphabetically to prevent position switching
+                    let sortedButtons = contextButtons.sorted { $0.localizedCompare($1) == .orderedAscending }
+                    ForEach(sortedButtons, id: \.self) { buttonTitle in
                         Button(buttonTitle) {
                             isMessageInputFocused = false  // Dismiss keyboard if visible
                             viewModel.messageText = generateContextualPrompt(for: buttonTitle, lastMessage: lastMessage)
@@ -1618,11 +1695,15 @@ struct SessionChatView: View {
               let message = userInfo["message"] as? String,
               let voiceTypeRaw = userInfo["voiceType"] as? String,
               let voiceType = VoiceType(rawValue: voiceTypeRaw) else {
+            if Self.debugMode {
             print("⚠️ [Avatar] handleAIMessageAppeared: Missing notification data")
+            }
             return
         }
 
+        if Self.debugMode {
         print("📢 [Avatar] AI message appeared: messageId=\(messageId), length=\(message.count)")
+        }
 
         // Update latest message info
         latestAIMessageId = messageId
@@ -1631,7 +1712,9 @@ struct SessionChatView: View {
 
         // DON'T auto-play here - let the streaming TTS queue handle it
         // The avatar should only play when user taps it
+        if Self.debugMode {
         print("ℹ️ [Avatar] Not auto-playing - letting TTS queue handle playback")
+        }
 
         // Set to idle initially - will change to .speaking when TTS actually plays
         topAvatarState = .idle
@@ -1639,12 +1722,16 @@ struct SessionChatView: View {
 
     /// Toggle TTS playback when avatar is tapped
     private func toggleTopAvatarTTS() {
+        if Self.debugMode {
         print("🔵🔵🔵 [Avatar] toggleTopAvatarTTS CALLED - Button was tapped!")
+        }
 
         guard !latestAIMessage.isEmpty else {
+            if Self.debugMode {
             print("⚠️ [Avatar] toggleTopAvatarTTS: No message to play - latestAIMessage is empty")
             print("⚠️ [Avatar] hasConversationStarted: \(hasConversationStarted)")
             print("⚠️ [Avatar] conversationHistory count: \(networkService.conversationHistory.count)")
+            }
 
             // Still provide haptic feedback so user knows tap was detected
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -1656,13 +1743,17 @@ struct SessionChatView: View {
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
 
+        if Self.debugMode {
         print("👆 [Avatar] Avatar tapped - message available")
         print("👆 [Avatar] VoiceService state: \(voiceService.interactionState)")
         print("👆 [Avatar] Latest message length: \(latestAIMessage.count)")
+        }
 
         // If any audio is currently playing, stop it
         if voiceService.interactionState == .speaking {
+            if Self.debugMode {
             print("🛑 [Avatar] Stopping current audio")
+            }
 
             // Stronger haptic feedback for stopping
             let notificationFeedback = UINotificationFeedbackGenerator()
@@ -1674,8 +1765,10 @@ struct SessionChatView: View {
         } else {
             // ✅ FIX: Check if this message has already been spoken
             if let messageId = latestAIMessageId, spokenMessageIds.contains(messageId) {
+                if Self.debugMode {
                 print("⏭️ [Avatar] Message already spoken - skipping TTS (ID: \(messageId))")
                 print("⏭️ [Avatar] Already spoken count: \(spokenMessageIds.count)")
+                }
 
                 // Provide different haptic feedback to indicate it was already spoken
                 let notificationFeedback = UINotificationFeedbackGenerator()
@@ -1684,7 +1777,9 @@ struct SessionChatView: View {
             }
 
             // No audio playing and not yet spoken - start playing the latest message
+            if Self.debugMode {
             print("▶️ [Avatar] Starting playback of latest message")
+            }
 
             // Success haptic feedback for starting playback
             let notificationFeedback = UINotificationFeedbackGenerator()
@@ -1697,58 +1792,80 @@ struct SessionChatView: View {
     /// Play the latest AI message
     private func playLatestMessage() {
         guard !latestAIMessage.isEmpty else {
+            if Self.debugMode {
             print("⚠️ [Avatar] playLatestMessage: No message to play")
+            }
             return
         }
 
+        if Self.debugMode {
         print("🎬 [Avatar] playLatestMessage called")
         print("🎬 [Avatar] Message ID: \(latestAIMessageId ?? "nil")")
         print("🎬 [Avatar] Message length: \(latestAIMessage.count)")
+        }
 
         // Stop any currently playing audio first
+        if Self.debugMode {
         print("🎬 [Avatar] Stopping any existing TTS")
+        }
         ttsQueueService.stopAllTTS()
 
         // Set this message as the current speaking message
+        if Self.debugMode {
         print("🎬 [Avatar] Setting current speaking message")
+        }
         voiceService.setCurrentSpeakingMessage(latestAIMessageId ?? "")
 
         // ✅ FIX: Mark this message as spoken
         if let messageId = latestAIMessageId {
             spokenMessageIds.insert(messageId)
+            if Self.debugMode {
             print("✅ [Avatar] Marked message as spoken (ID: \(messageId))")
             print("✅ [Avatar] Total spoken messages: \(spokenMessageIds.count)")
+            }
         }
 
         // Start TTS - state will update to .speaking via onReceive when audio actually starts
+        if Self.debugMode {
         print("🎬 [Avatar] Calling speakText with autoSpeak=false")
+        }
         voiceService.speakText(latestAIMessage, autoSpeak: false)
 
         // Temporarily show processing state (will switch to speaking when audio starts)
+        if Self.debugMode {
         print("🎬 [Avatar] Setting state to .processing")
+        }
         topAvatarState = .processing
     }
 
     /// Update avatar state based on current speaking state
     private func updateTopAvatarState() {
+        if Self.debugMode {
         print("🔄 [Avatar] updateTopAvatarState called")
         print("🔄 [Avatar] VoiceService state: \(voiceService.interactionState)")
         print("🔄 [Avatar] Current speaking ID: \(voiceService.currentSpeakingMessageId ?? "nil")")
         print("🔄 [Avatar] Latest AI message ID: \(latestAIMessageId ?? "nil")")
         print("🔄 [Avatar] Current avatar state: \(topAvatarState)")
+        }
 
         // Check if audio is actually playing (not just queued)
         if voiceService.interactionState == .speaking &&
            voiceService.currentSpeakingMessageId == latestAIMessageId {
+            if Self.debugMode {
             print("🔄 [Avatar] Conditions met: Setting to .speaking")
+            }
             topAvatarState = .speaking
         } else if voiceService.interactionState == .speaking {
             // Audio is playing but not the latest message
+            if Self.debugMode {
             print("🔄 [Avatar] Audio playing but not latest message")
+            }
             topAvatarState = .idle  // Or keep current state
         } else {
             // No audio playing
+            if Self.debugMode {
             print("🔄 [Avatar] No audio playing: Setting to .idle")
+            }
             topAvatarState = .idle
         }
     }
@@ -1773,7 +1890,9 @@ struct SessionChatView: View {
 
     /// Handle diagram generation request from follow-up suggestion
     private func handleDiagramGenerationRequest(_ suggestion: NetworkService.FollowUpSuggestion) {
+        if Self.debugMode {
         print("📊 Diagram generation requested: \(suggestion.key)")
+        }
 
         Task {
             // Use the ViewModel's diagram generation method
