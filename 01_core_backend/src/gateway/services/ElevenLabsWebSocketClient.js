@@ -168,14 +168,10 @@ class ElevenLabsWebSocketClient {
       if (message.audio) {
         if (!this.firstAudioChunkTime) {
           this.firstAudioChunkTime = Date.now();
-          const ttfa = this.firstAudioChunkTime - this.connectionStartTime;
-          console.log(`🎵 First audio chunk received! TTFA: ${ttfa}ms`);
+          // TTFA metric tracked silently for monitoring
         }
 
         this.audioChunksReceived++;
-
-        const audioSize = message.audio.length;
-        console.log(`🔊 Audio chunk #${this.audioChunksReceived} received (${audioSize} bytes base64)`);
 
         if (this.onAudioChunk) {
           this.onAudioChunk({
