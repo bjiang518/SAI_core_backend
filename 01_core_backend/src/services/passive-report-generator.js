@@ -377,12 +377,13 @@ class PassiveReportGenerator {
     async fetchStudentProfile(userId) {
         const query = `
             SELECT
-                COALESCE(
-                    NULLIF(TRIM(p.display_name), ''),
-                    NULLIF(TRIM(CONCAT(COALESCE(p.first_name, ''), ' ', COALESCE(p.last_name, ''))), ''),
-                    u.name,
-                    'Student'
-                ) as name,
+                CASE
+                    WHEN p.display_name IS NOT NULL AND TRIM(p.display_name) != '' THEN TRIM(p.display_name)
+                    WHEN p.first_name IS NOT NULL AND p.last_name IS NOT NULL THEN TRIM(p.first_name || ' ' || p.last_name)
+                    WHEN p.first_name IS NOT NULL THEN TRIM(p.first_name)
+                    WHEN u.name IS NOT NULL THEN u.name
+                    ELSE 'Student'
+                END as name,
                 p.grade_level,
                 p.date_of_birth,
                 p.learning_style
