@@ -22,8 +22,10 @@ struct SessionChatView: View {
     @StateObject private var networkService = NetworkService.shared
     @StateObject private var voiceService = VoiceInteractionService.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
-    @StateObject private var messageManager = ChatMessageManager.shared
-    @StateObject private var streamingService = StreamingMessageService.shared
+    // ✅ OPTIMIZATION: Removed unused services (functionality accessed via viewModel)
+    // These services are used by SessionChatViewModel, no need to initialize here
+    // @StateObject private var messageManager = ChatMessageManager.shared  // ❌ REMOVED
+    // @StateObject private var streamingService = StreamingMessageService.shared  // ❌ REMOVED
     @StateObject private var ttsQueueService = TTSQueueService.shared
     @StateObject private var viewModel = SessionChatViewModel()
     @ObservedObject private var appState = AppState.shared
@@ -428,10 +430,11 @@ struct SessionChatView: View {
                         voiceType: latestAIMessage.isEmpty ? voiceService.voiceSettings.voiceType : latestAIVoiceType
                     )
                     .frame(width: 30, height: 30)
-                    .offset(x: 0, y: 20)  // Move avatar UP 30 pixels within the tap circle
+                    .offset(x: 0, y: 20)  // Move avatar UP within the tap circle
                     .allowsHitTesting(false)  // Avatar doesn't intercept taps - let circle handle it
                 }
-                .offset(x: 5, y: -110)  // Position the whole group at top-left corner (moved up by 30 more pixels)
+                .offset(x: 15, y: -90)  // ✅ FIX: Adjusted position to avoid toolbar overlap
+                .zIndex(10)  // ✅ FIX: Ensure avatar is above other UI elements
                 .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AIMessageAppeared"))) { notification in
                     handleAIMessageAppeared(notification)
                 }
