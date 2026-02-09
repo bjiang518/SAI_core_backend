@@ -145,7 +145,7 @@ class ThemeManager: ObservableObject {
         case .day, .night:
             return .clear  // Use gradient in Day/Night mode
         case .cute:
-            return DesignTokens.Colors.Cute.pink  // Solid pink in Cute mode
+            return DesignTokens.Colors.Cute.yellow  // Solid yellow in Cute mode
         }
     }
 
@@ -166,6 +166,24 @@ class ThemeManager: ObservableObject {
             return DesignTokens.Colors.primary
         case .cute:
             return .white  // White icons on black tab bar
+        }
+    }
+
+    var tabBarSelectedItemColor: Color {
+        switch currentTheme {
+        case .day, .night:
+            return DesignTokens.Colors.primary
+        case .cute:
+            return .black  // Black icon when selected (on white selection box)
+        }
+    }
+
+    var tabBarSelectionBoxColor: Color {
+        switch currentTheme {
+        case .day, .night:
+            return .clear
+        case .cute:
+            return .white  // White selection box in Cute mode
         }
     }
 

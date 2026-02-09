@@ -558,6 +558,7 @@ struct QuickActionCard_New: View {
     @State private var rotationAngle: Double = 0
     @State private var scale: CGFloat = 1.0
     @Environment(\.colorScheme) var colorScheme  // ✅ Detect dark mode
+    @StateObject private var themeManager = ThemeManager.shared  // ✅ Cute Mode: Solid colors
 
     // Default initializer without Lottie animation
     init(icon: String, title: String, subtitle: String, color: Color, action: @escaping () -> Void) {
@@ -605,7 +606,11 @@ struct QuickActionCard_New: View {
                     // Only show circular background for SF Symbols, not Lottie
                     if lottieAnimation == nil {
                         Circle()
-                            .fill(color.opacity(isPressed ? 0.3 : 0.15))
+                            .fill(
+                                themeManager.currentTheme == .cute ?
+                                    Color.white.opacity(isPressed ? 0.3 : 0.2) :  // White circle in Cute mode
+                                    color.opacity(isPressed ? 0.3 : 0.15)
+                            )
                             .frame(width: 50, height: 50)
                             .scaleEffect(isPressed ? 0.9 : 1.0)
                     }
@@ -622,7 +627,11 @@ struct QuickActionCard_New: View {
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 22))
-                            .foregroundColor(isPressed ? color.opacity(0.7) : color)
+                            .foregroundColor(
+                                themeManager.currentTheme == .cute ?
+                                    .white :  // White icon in Cute mode
+                                    (isPressed ? color.opacity(0.7) : color)
+                            )
                             .rotationEffect(.degrees(rotationAngle))
                             .scaleEffect(scale)
                     }
@@ -651,50 +660,74 @@ struct QuickActionCard_New: View {
                 VStack(spacing: 4) {
                     Text(title)
                         .font(DesignTokens.Typography.title3)
-                        .foregroundColor(.primary)
+                        .foregroundColor(
+                            themeManager.currentTheme == .cute ?
+                                .white :  // White text in Cute mode
+                                .primary
+                        )
                         .fontWeight(.medium)
                         .lineLimit(1)
 
                     Text(subtitle)
                         .font(DesignTokens.Typography.caption1)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(
+                            themeManager.currentTheme == .cute ?
+                                .white.opacity(0.9) :  // White translucent text in Cute mode
+                                .secondary
+                        )
                         .lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity)
             .frame(height: 120)
             .background(
-                ZStack {
-                    // Brighter card background for light mode
-                    colorScheme == .dark ?
-                        DesignTokens.Colors.cardBackground :
-                        Color.white
+                Group {
+                    // Cute Mode: SOLID color background
+                    // Day/Night Mode: Gradient overlay
+                    if themeManager.currentTheme == .cute {
+                        color  // Solid vivid color
+                    } else {
+                        ZStack {
+                            // Brighter card background for light mode
+                            colorScheme == .dark ?
+                                DesignTokens.Colors.cardBackground :
+                                Color.white
 
-                    // More vibrant gradient overlay with increased opacity for light mode
-                    LinearGradient(
-                        colors: [
-                            color.opacity(colorScheme == .dark ? 0.12 : 0.25),
-                            color.opacity(colorScheme == .dark ? 0.05 : 0.15),
-                            Color.clear
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+                            // More vibrant gradient overlay with increased opacity for light mode
+                            LinearGradient(
+                                colors: [
+                                    color.opacity(colorScheme == .dark ? 0.12 : 0.25),
+                                    color.opacity(colorScheme == .dark ? 0.05 : 0.15),
+                                    Color.clear
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        }
+                    }
                 }
             )
             .cornerRadius(18)
             .overlay(
                 RoundedRectangle(cornerRadius: 18)
                     .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                color.opacity(isPressed ? (colorScheme == .dark ? 0.5 : 0.6) : (colorScheme == .dark ? 0.3 : 0.4)),
-                                color.opacity(isPressed ? (colorScheme == .dark ? 0.3 : 0.4) : (colorScheme == .dark ? 0.15 : 0.25))
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: isPressed ? 2.5 : 1.5
+                        // Cute Mode: BOLD WHITE border
+                        // Day/Night Mode: Gradient border
+                        themeManager.currentTheme == .cute ?
+                            LinearGradient(
+                                colors: [.white, .white],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ) :
+                            LinearGradient(
+                                colors: [
+                                    color.opacity(isPressed ? (colorScheme == .dark ? 0.5 : 0.6) : (colorScheme == .dark ? 0.3 : 0.4)),
+                                    color.opacity(isPressed ? (colorScheme == .dark ? 0.3 : 0.4) : (colorScheme == .dark ? 0.15 : 0.25))
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                        lineWidth: themeManager.currentTheme == .cute ? 4 : (isPressed ? 2.5 : 1.5)  // Bold border in Cute mode
                     )
             )
             .shadow(
