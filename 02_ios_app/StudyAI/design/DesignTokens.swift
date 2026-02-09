@@ -117,6 +117,36 @@ struct DesignTokens {
             static let light = Color(red: 1.0, green: 0.45, blue: 0.75)    // Bright vibrant pink
             static let dark = Color(red: 0.85, green: 0.4, blue: 0.65)     // Darker muted pink
         }
+
+        // MARK: - Cute Mode Colors (Pastel Palette inspired by Routio)
+        struct Cute {
+            // Pastel Colors
+            static let pink = Color(hex: "FFB3D9")           // Pastel Pink
+            static let pinkLight = Color(hex: "FFC1E0")      // Light Pastel Pink
+            static let blue = Color(hex: "A8D8EA")           // Pastel Blue
+            static let blueLight = Color(hex: "B3E5FC")      // Light Pastel Blue
+            static let yellow = Color(hex: "FFF4A3")         // Pastel Yellow
+            static let yellowLight = Color(hex: "FFFACD")    // Light Pastel Yellow
+            static let mint = Color(hex: "B8E6D5")           // Pastel Mint
+            static let mintLight = Color(hex: "C8F5E3")      // Light Pastel Mint
+            static let lavender = Color(hex: "E1D4F5")       // Pastel Lavender
+            static let lavenderLight = Color(hex: "DDD1F0")  // Light Pastel Lavender
+            static let peach = Color(hex: "FFD6BA")          // Pastel Peach
+            static let peachLight = Color(hex: "FFE5D0")     // Light Pastel Peach
+
+            // Background Colors
+            static let backgroundCream = Color(hex: "FFF8F0")      // Cream background
+            static let backgroundSoftPink = Color(hex: "FFF0F5")   // Soft pink background
+
+            // Contrast Elements
+            static let buttonBlack = Color(hex: "000000")          // Black for buttons/cards
+            static let textOnBlack = Color(hex: "FFFFFF")          // White text on black
+            static let softBlack = Color(hex: "2D2D2D")            // Soft black alternative
+
+            // Text Colors for Cute Mode
+            static let textPrimary = Color(hex: "2D2D2D")          // Soft black for readability
+            static let textSecondary = Color(hex: "666666")        // Gray for secondary text
+        }
     }
 
     // MARK: - Adaptive Colors for Dark Mode Support
