@@ -174,9 +174,28 @@ class ElevenLabsWebSocketClient {
         this.audioChunksReceived++;
 
         if (this.onAudioChunk) {
+          // ✅ Transform ElevenLabs alignment data to iOS format
+          let transformedAlignment = null;
+          if (message.alignment) {
+            const { characters, character_start_times_seconds, character_end_times_seconds } = message.alignment;
+
+            // Convert seconds to milliseconds and transform field names for iOS
+            if (characters && character_start_times_seconds && character_end_times_seconds) {
+              transformedAlignment = {
+                characters: characters,
+                character_start_times_ms: character_start_times_seconds.map(t => t * 1000),
+                character_end_times_ms: character_end_times_seconds.map(t => t * 1000)
+              };
+
+              console.log(`🎯 [Alignment] Transformed ${characters.length} characters (seconds → milliseconds)`);
+            } else {
+              console.warn('⚠️ [Alignment] ElevenLabs sent alignment but missing character/timing arrays');
+            }
+          }
+
           this.onAudioChunk({
             audio: message.audio,
-            alignment: message.normalizedAlignment || null,
+            alignment: transformedAlignment,
             isFinal: message.isFinal || false
           });
         }
