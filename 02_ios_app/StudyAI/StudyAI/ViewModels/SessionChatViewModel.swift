@@ -917,9 +917,14 @@ class SessionChatViewModel: ObservableObject {
                         // So the streaming message continues to display with synchronized text
                         // (Don't set isActivelyStreaming = false here!)
 
-                        // Schedule cleanup AFTER audio finishes (estimate based on text length)
-                        let estimatedDuration = Double(text.count) / 15.0 // 15 chars/sec
-                        DispatchQueue.main.asyncAfter(deadline: .now() + estimatedDuration + 2.0) {
+                        // ✅ Use actual audio duration from alignment data
+                        // This ensures LaTeX renders immediately after audio/text complete
+                        let actualDuration = self.textRenderer.estimatedAudioDuration
+                        let bufferTime = 1.0 // Small buffer for final audio processing
+
+                        print("⏱️ [Completion] Scheduling cleanup in \(actualDuration + bufferTime) seconds")
+
+                        DispatchQueue.main.asyncAfter(deadline: .now() + actualDuration + bufferTime) {
                             // NOW it's safe to:
                             // 1. Complete text rendering (show all text immediately)
                             self.textRenderer.complete()

@@ -248,7 +248,7 @@ class FullLaTeXRenderer: ObservableObject {
                 mjx-container[display="true"] {
                     display: block !important;
                     text-align: center;
-                    margin: 0.5em 0 !important;
+                    margin: 0.2em 0 !important;  /* Reduced from 0.5em for tighter spacing */
                 }
                 /* Force text color in all MathJax elements */
                 mjx-math, mjx-mtext, mjx-mi, mjx-mn, mjx-mo {
