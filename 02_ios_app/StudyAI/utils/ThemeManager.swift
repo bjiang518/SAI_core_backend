@@ -138,6 +138,37 @@ class ThemeManager: ObservableObject {
         }
     }
 
+    // MARK: - Greeting Card Background
+
+    var greetingCardBackground: Color {
+        switch currentTheme {
+        case .day, .night:
+            return .clear  // Use gradient in Day/Night mode
+        case .cute:
+            return DesignTokens.Colors.Cute.pink  // Solid pink in Cute mode
+        }
+    }
+
+    // MARK: - Tab Bar Background
+
+    var tabBarBackground: Color {
+        switch currentTheme {
+        case .day, .night:
+            return .clear  // Use system default
+        case .cute:
+            return DesignTokens.Colors.Cute.tabBarBackground  // Black in Cute mode
+        }
+    }
+
+    var tabBarItemColor: Color {
+        switch currentTheme {
+        case .day, .night:
+            return DesignTokens.Colors.primary
+        case .cute:
+            return .white  // White icons on black tab bar
+        }
+    }
+
     // MARK: - Feature Card Colors
 
     func featureCardColor(_ featureName: String) -> Color {

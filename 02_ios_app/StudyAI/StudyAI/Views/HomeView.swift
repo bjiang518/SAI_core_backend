@@ -15,6 +15,7 @@ struct HomeView: View {
     @StateObject private var voiceService = VoiceInteractionService.shared
     @StateObject private var greetingVoice = GreetingVoiceService.shared
     @StateObject private var parentModeManager = ParentModeManager.shared
+    @StateObject private var themeManager = ThemeManager.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @ObservedObject private var profileService = ProfileService.shared
     @State private var userName = ""
@@ -69,13 +70,7 @@ struct HomeView: View {
                 }
                 .padding(.vertical, DesignTokens.Spacing.md)
             }
-            .background(
-                // Clean background - blue for day mode, light grey for dark mode
-                (colorScheme == .dark ?
-                    Color(red: 0.18, green: 0.18, blue: 0.20) :  // Light grey for dark mode
-                    Color(red: 0.93, green: 0.96, blue: 1.0))    // Clear blue for day mode
-                    .ignoresSafeArea()
-            )
+            .background(themeManager.backgroundColor.ignoresSafeArea())
             .navigationBarHidden(true)
             .onAppear {
                 // Load user name from ProfileService - always show display name or first name
@@ -153,81 +148,84 @@ struct HomeView: View {
         VStack(spacing: DesignTokens.Spacing.md) {
             // Greeting card with gradient background - synced with voice type
             ZStack(alignment: .trailing) {
-                // Dynamic gradient based on selected voice type - adaptive for dark mode
+                // Dynamic gradient based on theme - Cute Mode uses solid pink
                 RoundedRectangle(cornerRadius: 24)
                     .fill(
-                        LinearGradient(
-                            colors: {
-                                switch greetingVoice.currentVoiceType {
-                                case .adam:
-                                    return colorScheme == .dark ? [
-                                        // Adam Dark Mode - much darker, muted blues
-                                        Color(hex: "0C1844"),  // Very dark navy (custom)
-                                        Color(hex: "1E3A8A"),  // navy-900
-                                        Color(hex: "1E40AF")   // blue-800
-                                    ] : [
-                                        // Adam Light Mode - original bright blues
-                                        Color(hex: "38BDF8"),  // sky-400
-                                        Color(hex: "3B82F6"),  // blue-500
-                                        Color(hex: "4F46E5")   // indigo-600
-                                    ]
-                                case .eva:
-                                    return colorScheme == .dark ? [
-                                        // Eva Dark Mode - much darker, richer purples
-                                        Color(hex: "2D0A4E"),  // Very dark purple (custom)
-                                        Color(hex: "581C87"),  // purple-900
-                                        Color(hex: "6B21A8")   // purple-800
-                                    ] : [
-                                        // Eva Light Mode - original bright purples
-                                        Color(hex: "F0ABFC"),  // fuchsia-300
-                                        Color(hex: "A855F7"),  // purple-500
-                                        Color(hex: "7C3AED")   // violet-600
-                                    ]
-                                case .max:
-                                    return colorScheme == .dark ? [
-                                        // Max Dark Mode - darker oranges
-                                        Color(hex: "7C2D12"),  // orange-900
-                                        Color(hex: "9A3412"),  // orange-800
-                                        Color(hex: "C2410C")   // orange-700
-                                    ] : [
-                                        // Max Light Mode - bright oranges
-                                        Color(hex: "FB923C"),  // orange-400
-                                        Color(hex: "F97316"),  // orange-500
-                                        Color(hex: "EA580C")   // orange-600
-                                    ]
-                                case .mia:
-                                    return colorScheme == .dark ? [
-                                        // Mia Dark Mode - darker pinks
-                                        Color(hex: "831843"),  // pink-900
-                                        Color(hex: "9F1239"),  // pink-800
-                                        Color(hex: "BE123C")   // pink-700
-                                    ] : [
-                                        // Mia Light Mode - bright pinks
-                                        Color(hex: "F9A8D4"),  // pink-300
-                                        Color(hex: "EC4899"),  // pink-500
-                                        Color(hex: "DB2777")   // pink-600
-                                    ]
-                                }
-                            }(),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+                        themeManager.currentTheme == .cute ?
+                            // Cute Mode: Solid pink background
+                            LinearGradient(
+                                colors: [themeManager.greetingCardBackground, themeManager.greetingCardBackground],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ) :
+                            // Day/Night Mode: Voice-based gradients
+                            LinearGradient(
+                                colors: {
+                                    switch greetingVoice.currentVoiceType {
+                                    case .adam:
+                                        return colorScheme == .dark ? [
+                                            Color(hex: "0C1844"),
+                                            Color(hex: "1E3A8A"),
+                                            Color(hex: "1E40AF")
+                                        ] : [
+                                            Color(hex: "38BDF8"),
+                                            Color(hex: "3B82F6"),
+                                            Color(hex: "4F46E5")
+                                        ]
+                                    case .eva:
+                                        return colorScheme == .dark ? [
+                                            Color(hex: "2D0A4E"),
+                                            Color(hex: "581C87"),
+                                            Color(hex: "6B21A8")
+                                        ] : [
+                                            Color(hex: "F0ABFC"),
+                                            Color(hex: "A855F7"),
+                                            Color(hex: "7C3AED")
+                                        ]
+                                    case .max:
+                                        return colorScheme == .dark ? [
+                                            Color(hex: "7C2D12"),
+                                            Color(hex: "9A3412"),
+                                            Color(hex: "C2410C")
+                                        ] : [
+                                            Color(hex: "FB923C"),
+                                            Color(hex: "F97316"),
+                                            Color(hex: "EA580C")
+                                        ]
+                                    case .mia:
+                                        return colorScheme == .dark ? [
+                                            Color(hex: "831843"),
+                                            Color(hex: "9F1239"),
+                                            Color(hex: "BE123C")
+                                        ] : [
+                                            Color(hex: "F9A8D4"),
+                                            Color(hex: "EC4899"),
+                                            Color(hex: "DB2777")
+                                        ]
+                                    }
+                                }(),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                     )
                     .shadow(
-                        color: colorScheme == .dark ?
-                            Color.white.opacity(0.1) :  // Subtle light shadow in dark mode
-                            {
-                                switch greetingVoice.currentVoiceType {
-                                case .adam:
-                                    return DesignTokens.Colors.aiBlue.opacity(0.4)
-                                case .eva:
-                                    return Color.purple.opacity(0.4)
-                                case .max:
-                                    return Color.orange.opacity(0.4)
-                                case .mia:
-                                    return Color.pink.opacity(0.4)
-                                }
-                            }(),
+                        color: themeManager.currentTheme == .cute ?
+                            Color.black.opacity(0.2) :
+                            (colorScheme == .dark ?
+                                Color.white.opacity(0.1) :
+                                {
+                                    switch greetingVoice.currentVoiceType {
+                                    case .adam:
+                                        return DesignTokens.Colors.aiBlue.opacity(0.4)
+                                    case .eva:
+                                        return Color.purple.opacity(0.4)
+                                    case .max:
+                                        return Color.orange.opacity(0.4)
+                                    case .mia:
+                                        return Color.pink.opacity(0.4)
+                                    }
+                                }()
+                            ),
                         radius: 12,
                         x: 0,
                         y: 6
@@ -417,12 +415,12 @@ extension HomeView {
                 GridItem(.flexible(), spacing: DesignTokens.Spacing.md)
             ], spacing: DesignTokens.Spacing.md) {
 
-                // Rainbow Card 1: Red (Adaptive)
+                // Card 1: Homework Grader (Pink in Cute Mode)
                 QuickActionCard_New(
                     icon: "camera.fill",
                     title: NSLocalizedString("home.homeworkGrader", comment: ""),
                     subtitle: NSLocalizedString("home.scanAndGrade", comment: ""),
-                    color: colorScheme == .dark ? DesignTokens.Colors.rainbowRed.dark : DesignTokens.Colors.rainbowRed.light,
+                    color: themeManager.featureCardColor("homework"),
                     lottieAnimation: "Checklist",
                     lottieScale: 0.29,
                     action: {
@@ -434,12 +432,12 @@ extension HomeView {
                     }
                 )
 
-                // Rainbow Card 2: Orange (Adaptive)
+                // Card 2: Chat (Yellow in Cute Mode)
                 QuickActionCard_New(
                     icon: "message.fill",
                     title: NSLocalizedString("home.chat", comment: ""),
                     subtitle: NSLocalizedString("home.conversationalAI", comment: ""),
-                    color: colorScheme == .dark ? DesignTokens.Colors.rainbowOrange.dark : DesignTokens.Colors.rainbowOrange.light,
+                    color: themeManager.featureCardColor("chat"),
                     lottieAnimation: "Chat",
                     lottieScale: 0.2,
                     action: {
@@ -451,23 +449,23 @@ extension HomeView {
                     }
                 )
 
-                // Rainbow Card 3: Yellow (Adaptive)
+                // Card 3: Library (Lavender in Cute Mode)
                 QuickActionCard_New(
                     icon: "books.vertical.fill",
                     title: NSLocalizedString("home.library", comment: ""),
                     subtitle: NSLocalizedString("home.studySessions", comment: ""),
-                    color: colorScheme == .dark ? DesignTokens.Colors.rainbowYellow.dark : DesignTokens.Colors.rainbowYellow.light,
+                    color: themeManager.featureCardColor("library"),
                     lottieAnimation: "Books",
                     lottieScale: 0.12,
                     action: { onSelectTab(.library) }
                 )
 
-                // Rainbow Card 4: Green (Adaptive)
+                // Card 4: Progress (Mint in Cute Mode)
                 QuickActionCard_New(
                     icon: "chart.bar.fill",
                     title: NSLocalizedString("home.progress", comment: ""),
                     subtitle: NSLocalizedString("home.trackLearning", comment: ""),
-                    color: colorScheme == .dark ? DesignTokens.Colors.rainbowGreen.dark : DesignTokens.Colors.rainbowGreen.light,
+                    color: themeManager.featureCardColor("progress"),
                     lottieAnimation: "Chart Graph",
                     lottieScale: 0.45,
                     action: { onSelectTab(.progress) }
@@ -487,17 +485,17 @@ extension HomeView {
                 .foregroundColor(.primary)
                 .padding(.horizontal, DesignTokens.Spacing.xl)
 
-            // Rainbow Card 5: Blue (Adaptive)
+            // Card 5: Practice (Blue in Cute Mode)
             HorizontalActionButton(
                 icon: "doc.text.fill",
                 title: NSLocalizedString("home.practice", comment: ""),
                 subtitle: NSLocalizedString("home.practiceDescription", comment: ""),
-                color: colorScheme == .dark ? DesignTokens.Colors.rainbowBlue.dark : DesignTokens.Colors.rainbowBlue.light,
+                color: themeManager.featureCardColor("practice"),
                 action: { showingQuestionGeneration = true }
             )
             .padding(.horizontal, DesignTokens.Spacing.xl)
 
-            // Rainbow Card 6: Indigo (Adaptive)
+            // Card 6: Mistake Review
             HorizontalActionButton(
                 icon: "xmark.circle.fill",
                 title: NSLocalizedString("home.mistakeReview", comment: ""),
@@ -507,12 +505,12 @@ extension HomeView {
             )
             .padding(.horizontal, DesignTokens.Spacing.xl)
 
-            // Rainbow Card 7: Violet (Adaptive)
+            // Card 7: Parent Reports (Peach in Cute Mode)
             HorizontalActionButton(
                 icon: "figure.2.and.child.holdinghands",
                 title: NSLocalizedString("home.parentReports", comment: ""),
                 subtitle: NSLocalizedString("home.parentReportsDescription", comment: ""),
-                color: colorScheme == .dark ? DesignTokens.Colors.rainbowViolet.dark : DesignTokens.Colors.rainbowViolet.light,
+                color: themeManager.featureCardColor("reports"),
                 action: {
                     if parentModeManager.requiresAuthentication(for: .parentReports) {
                         showingParentAuthForReports = true
@@ -523,7 +521,7 @@ extension HomeView {
             )
             .padding(.horizontal, DesignTokens.Spacing.xl)
 
-            // Rainbow Card 8: Pink/Magenta (Adaptive) - Homework Album
+            // Card 8: Homework Album
             HorizontalActionButton(
                 icon: "photo.on.rectangle.angled",
                 title: NSLocalizedString("home.homeworkAlbum", comment: ""),
@@ -533,7 +531,7 @@ extension HomeView {
             )
             .padding(.horizontal, DesignTokens.Spacing.xl)
 
-            // Rainbow Card 9: Teal (Adaptive) - Focus Mode
+            // Card 9: Focus Mode
             HorizontalActionButton(
                 icon: "brain.head.profile",
                 title: NSLocalizedString("home.focusMode", comment: ""),

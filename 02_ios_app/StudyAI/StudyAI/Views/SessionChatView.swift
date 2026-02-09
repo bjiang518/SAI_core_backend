@@ -21,6 +21,7 @@ struct SessionChatView: View {
     // Services
     @StateObject private var networkService = NetworkService.shared
     @StateObject private var voiceService = VoiceInteractionService.shared
+    @StateObject private var themeManager = ThemeManager.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     // ✅ OPTIMIZATION: Removed unused services (functionality accessed via viewModel)
     // These services are used by SessionChatViewModel, no need to initialize here
@@ -110,7 +111,7 @@ struct SessionChatView: View {
     private var baseContent: some View {
         AnyView(
             ZStack {
-                Color(.systemBackground)  // Keep main background
+                themeManager.backgroundColor
                     .ignoresSafeArea(.all, edges: .bottom)  // Only ignore safe area at bottom, not top
                 contentVStack
             }

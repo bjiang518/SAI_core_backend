@@ -13,6 +13,7 @@ import BackgroundTasks
 struct StudyAIApp: App {
     @AppStorage("appLanguage") private var appLanguage: String = "en"
     @StateObject private var deepLinkHandler = PomodoroDeepLinkHandler.shared
+    @StateObject private var themeManager = ThemeManager.shared
 
     init() {
         // ✅ TODO: For cleaner console logs, add to Xcode scheme:
@@ -31,6 +32,7 @@ struct StudyAIApp: App {
             ContentView()
                 .environment(\.locale, Locale(identifier: appLanguage))
                 .environmentObject(deepLinkHandler)
+                .preferredColorScheme(themeManager.currentTheme.colorScheme)
                 .onOpenURL { url in
                     // 处理Google登录
                     GIDSignIn.sharedInstance.handle(url)
