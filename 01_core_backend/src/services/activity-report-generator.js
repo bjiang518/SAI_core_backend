@@ -17,14 +17,15 @@ class ActivityReportGenerator {
     /**
      * Generate activity report HTML for a student
      * @param {String} userId - User ID
-     * @param {Date} startDate - Week start date
-     * @param {Date} endDate - Week end date
+     * @param {Date} startDate - Period start date
+     * @param {Date} endDate - Period end date
      * @param {String} studentName - Student's name (for personalization)
      * @param {Number} studentAge - Student's age (for age-appropriate content)
+     * @param {String} period - Report period ('weekly' or 'monthly')
      * @returns {Promise<String>} HTML report
      */
-    async generateActivityReport(userId, startDate, endDate, studentName, studentAge) {
-        logger.info(`📊 Generating Activity Report for ${userId.substring(0, 8)}... (${studentName}, Age: ${studentAge})`);
+    async generateActivityReport(userId, startDate, endDate, studentName, studentAge, period = 'weekly') {
+        logger.info(`📊 Generating ${period} Activity Report for ${userId.substring(0, 8)}... (${studentName}, Age: ${studentAge})`);
 
         try {
             // Step 1: Aggregate questions data
@@ -33,14 +34,14 @@ class ActivityReportGenerator {
             // Step 2: Aggregate conversations data
             const conversationsData = await this.aggregateConversationsData(userId, startDate, endDate);
 
-            // Step 3: Fetch previous week data for comparison
-            const previousWeekData = await this.getPreviousWeekData(userId, startDate);
+            // Step 3: Fetch previous period data for comparison
+            const previousPeriodData = await this.getPreviousPeriodData(userId, startDate, period);
 
             // Step 4: Calculate metrics
-            const metrics = this.calculateActivityMetrics(questionsData, conversationsData, previousWeekData);
+            const metrics = this.calculateActivityMetrics(questionsData, conversationsData, previousPeriodData, period);
 
             // Step 5: Generate HTML
-            const html = this.generateActivityHTML(metrics, studentName);
+            const html = this.generateActivityHTML(metrics, studentName, period);
 
             logger.info(`✅ Activity Report generated: ${metrics.totalQuestions} questions, ${metrics.totalChats} chats`);
 
@@ -94,11 +95,16 @@ class ActivityReportGenerator {
     }
 
     /**
-     * Fetch previous week's aggregated data for comparison
+     * Fetch previous period's aggregated data for comparison
+     * @param {String} userId - User ID
+     * @param {Date} currentStartDate - Current period start date
+     * @param {String} period - 'weekly' or 'monthly'
      */
-    async getPreviousWeekData(userId, currentStartDate) {
+    async getPreviousPeriodData(userId, currentStartDate, period = 'weekly') {
+        const daysToLookback = period === 'monthly' ? 30 : 7;
+
         const previousStart = new Date(currentStartDate);
-        previousStart.setDate(previousStart.getDate() - 7);
+        previousStart.setDate(previousStart.getDate() - daysToLookback);
 
         const previousEnd = new Date(currentStartDate);
         previousEnd.setDate(previousEnd.getDate() - 1);
@@ -133,8 +139,9 @@ class ActivityReportGenerator {
 
     /**
      * Calculate activity metrics from aggregated data
+     * @param {String} period - 'weekly' or 'monthly'
      */
-    calculateActivityMetrics(questions, conversations, previousWeekData) {
+    calculateActivityMetrics(questions, conversations, previousPeriodData, period = 'weekly') {
         // Basic counts
         const totalQuestions = questions.length;
         const totalChats = conversations.length;
@@ -195,13 +202,13 @@ class ActivityReportGenerator {
             chatsBySubject[subject] = (chatsBySubject[subject] || 0) + 1;
         });
 
-        // Calculate week-over-week changes
+        // Calculate period-over-period changes
         let previousTotalQuestions = 0;
-        previousWeekData.forEach(row => {
+        previousPeriodData.forEach(row => {
             if (row.subject === 'CHATS') return;
             previousTotalQuestions += row.subjectCount || 0;
         });
-        const previousChats = previousWeekData.find(r => r.subject === 'CHATS')?.subjectCount || 0;
+        const previousChats = previousPeriodData.find(r => r.subject === 'CHATS')?.subjectCount || 0;
 
         const questionsChange = totalQuestions - previousTotalQuestions;
         const chatsChange = totalChats - previousChats;
@@ -214,7 +221,7 @@ class ActivityReportGenerator {
             subjectBreakdown,
             subjectAccuracy,
             chatsBySubject,
-            weekOverWeek: {
+            periodComparison: {
                 questionsChange,
                 chatsChange,
                 questionsChangePercent: previousTotalQuestions > 0
@@ -227,8 +234,12 @@ class ActivityReportGenerator {
 
     /**
      * Generate HTML for activity report
+     * @param {String} period - 'weekly' or 'monthly'
      */
-    generateActivityHTML(metrics, studentName) {
+    generateActivityHTML(metrics, studentName, period = 'weekly') {
+        const periodLabel = period === 'monthly' ? 'Monthly' : 'Weekly';
+        const timePhrase = period === 'monthly' ? 'this month' : 'this week';
+        const comparisonLabel = period === 'monthly' ? 'Month-over-Month' : 'Week-over-Week';
         const subjectArray = Object.entries(metrics.subjectBreakdown)
             .map(([name, data]) => ({
                 name,
@@ -535,7 +546,7 @@ class ActivityReportGenerator {
     <div class="container">
         <div class="header">
             <h1>📊 ${studentName}'s Activity Report</h1>
-            <p>Weekly Learning Summary</p>
+            <p>${periodLabel} Learning Summary</p>
         </div>
 
         <div class="content">
@@ -589,17 +600,17 @@ class ActivityReportGenerator {
                 </div>
             </div>
 
-            <!-- Week-over-Week Comparison -->
+            <!-- Period-over-Period Comparison -->
             <div class="section">
-                <h2 class="section-title">Week-over-Week Comparison</h2>
+                <h2 class="section-title">${comparisonLabel} Comparison</h2>
                 <div class="week-comparison">
                     <div class="week-comparison-item">
                         <span class="week-comparison-label">Questions:</span>
                         <span class="week-comparison-value">
                             ${metrics.totalQuestions}
-                            <span class="trend-indicator trend-${metrics.weekOverWeek.engagementTrend}">
-                                ${metrics.weekOverWeek.questionsChange > 0 ? '↑' : metrics.weekOverWeek.questionsChange < 0 ? '↓' : '→'}
-                                ${Math.abs(metrics.weekOverWeek.questionsChange)} (${metrics.weekOverWeek.questionsChangePercent > 0 ? '+' : ''}${metrics.weekOverWeek.questionsChangePercent}%)
+                            <span class="trend-indicator trend-${metrics.periodComparison.engagementTrend}">
+                                ${metrics.periodComparison.questionsChange > 0 ? '↑' : metrics.periodComparison.questionsChange < 0 ? '↓' : '→'}
+                                ${Math.abs(metrics.periodComparison.questionsChange)} (${metrics.periodComparison.questionsChangePercent > 0 ? '+' : ''}${metrics.periodComparison.questionsChangePercent}%)
                             </span>
                         </span>
                     </div>
@@ -607,16 +618,16 @@ class ActivityReportGenerator {
                         <span class="week-comparison-label">Chat Sessions:</span>
                         <span class="week-comparison-value">
                             ${metrics.totalChats}
-                            <span class="trend-indicator trend-${metrics.weekOverWeek.chatsChange > 0 ? 'increasing' : metrics.weekOverWeek.chatsChange < 0 ? 'decreasing' : 'stable'}">
-                                ${metrics.weekOverWeek.chatsChange > 0 ? '↑' : metrics.weekOverWeek.chatsChange < 0 ? '↓' : '→'}
-                                ${Math.abs(metrics.weekOverWeek.chatsChange)}
+                            <span class="trend-indicator trend-${metrics.periodComparison.chatsChange > 0 ? 'increasing' : metrics.periodComparison.chatsChange < 0 ? 'decreasing' : 'stable'}">
+                                ${metrics.periodComparison.chatsChange > 0 ? '↑' : metrics.periodComparison.chatsChange < 0 ? '↓' : '→'}
+                                ${Math.abs(metrics.periodComparison.chatsChange)}
                             </span>
                         </span>
                     </div>
                     <div class="week-comparison-item">
                         <span class="week-comparison-label">Engagement Trend:</span>
-                        <span class="week-comparison-value trend-${metrics.weekOverWeek.engagementTrend}">
-                            ${metrics.weekOverWeek.engagementTrend.charAt(0).toUpperCase() + metrics.weekOverWeek.engagementTrend.slice(1)}
+                        <span class="week-comparison-value trend-${metrics.periodComparison.engagementTrend}">
+                            ${metrics.periodComparison.engagementTrend.charAt(0).toUpperCase() + metrics.periodComparison.engagementTrend.slice(1)}
                         </span>
                     </div>
                 </div>
@@ -626,7 +637,7 @@ class ActivityReportGenerator {
             <div class="section">
                 <h2 class="section-title">Summary</h2>
                 <div class="summary-text">
-                    Your child had ${metrics.weekOverWeek.engagementTrend === 'increasing' ? 'strong' : metrics.weekOverWeek.engagementTrend === 'decreasing' ? 'reduced' : 'steady'} engagement this week with
+                    Your child had ${metrics.periodComparison.engagementTrend === 'increasing' ? 'strong' : metrics.periodComparison.engagementTrend === 'decreasing' ? 'reduced' : 'steady'} engagement ${timePhrase} with
                     ${metrics.totalQuestions} questions across ${subjectArray.length} subjects. They were active ${metrics.activeDays} days and spent approximately
                     ${metrics.estimatedMinutes} minutes studying. ${metrics.totalChats > 0 ? `They also had ${metrics.totalChats} chat sessions seeking additional help.` : ''}
                 </div>

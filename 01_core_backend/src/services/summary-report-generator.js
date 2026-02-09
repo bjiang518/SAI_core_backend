@@ -14,13 +14,19 @@ const logger = require('../utils/logger');
 class SummaryReportGenerator {
     /**
      * Generate summary report HTML from other reports' data
+     * @param {Object} activityData - Activity report data
+     * @param {Object} improvementData - Improvement report data
+     * @param {Object} mentalHealthData - Mental health report data
+     * @param {String} studentName - Student's name
+     * @param {String} period - Report period ('weekly' or 'monthly')
+     * @returns {String} HTML report
      */
-    generateSummaryReport(activityData, improvementData, mentalHealthData, studentName = '[Student]') {
-        logger.info(`📋 Generating Summary Report...`);
+    generateSummaryReport(activityData, improvementData, mentalHealthData, studentName = '[Student]', period = 'weekly') {
+        logger.info(`📋 Generating ${period} Summary Report...`);
 
         try {
-            const analysis = this.synthesizeReports(activityData, improvementData, mentalHealthData, studentName);
-            const html = this.generateSummaryHTML(analysis);
+            const analysis = this.synthesizeReports(activityData, improvementData, mentalHealthData, studentName, period);
+            const html = this.generateSummaryHTML(analysis, period);
 
             logger.info(`✅ Summary Report generated`);
 
@@ -34,8 +40,11 @@ class SummaryReportGenerator {
 
     /**
      * Synthesize data from all three reports
+     * @param {String} period - 'weekly' or 'monthly'
      */
-    synthesizeReports(activityData, improvementData, mentalHealthData, studentName) {
+    synthesizeReports(activityData, improvementData, mentalHealthData, studentName, period = 'weekly') {
+        const periodLabel = period === 'monthly' ? 'month' : 'week';
+        const comparisonLabel = period === 'monthly' ? 'last month' : 'last week';
         // Extract key metrics
         const engagement = activityData.totalQuestions >= 20 ? 'strong' : activityData.totalQuestions >= 10 ? 'moderate' : 'low';
         const improvements = Object.keys(improvementData.bySubject || {}).length;
@@ -53,9 +62,9 @@ class SummaryReportGenerator {
         // Find biggest win
         let biggestWin = '';
         if (activityData.totalQuestions >= 50) {
-            biggestWin = `Completed ${activityData.totalQuestions} questions this week`;
-        } else if (activityData.weekOverWeek.questionsChange > 30) {
-            biggestWin = `Increased activity by ${activityData.weekOverWeek.questionsChange} questions`;
+            biggestWin = `Completed ${activityData.totalQuestions} questions this ${periodLabel}`;
+        } else if (activityData.periodComparison && activityData.periodComparison.questionsChange > 30) {
+            biggestWin = `Increased activity by ${activityData.periodComparison.questionsChange} questions`;
         } else if (mentalHealthData.learningAttitude.score >= 0.7) {
             biggestWin = 'Showing strong learning attitude and curiosity';
         } else if (Object.keys(improvementData.bySubject).every(s => improvementData.bySubject[s].trend === 'improving')) {
@@ -88,7 +97,7 @@ class SummaryReportGenerator {
         } else {
             actionItems.push({
                 priority: 'medium',
-                text: `Celebrate ${studentName}'s ${mentalHealthData.focusCapability.activeDays}-day active week! Keep the momentum.`
+                text: `Celebrate ${studentName}'s ${mentalHealthData.focusCapability.activeDays}-day active ${periodLabel}! Keep the momentum.`
             });
         }
 
@@ -114,7 +123,7 @@ class SummaryReportGenerator {
         let narrative = '';
 
         if (overallTone === 'positive') {
-            narrative = `This was an excellent week for ${studentName}! They demonstrated strong engagement with ${activityData.totalQuestions} questions across ` +
+            narrative = `This was an excellent ${periodLabel} for ${studentName}! They demonstrated strong engagement with ${activityData.totalQuestions} questions across ` +
                 `${Object.keys(activityData.subjectBreakdown).length} subjects. ${
                     mentalHealthData.learningAttitude.score >= 0.7 ?
                     'Their learning attitude is particularly noteworthy - they show curiosity and persistence.' :
@@ -123,11 +132,11 @@ class SummaryReportGenerator {
                     improvementData.totalMistakes === 0 ?
                     'No significant learning challenges detected.' :
                     improvementData.totalMistakes > activityData.totalQuestions * 0.3 ?
-                    `Some challenges remain in ${improveThemArray[0]} and other areas, but these are opportunities for focused practice.` :
+                    `Some challenges remain but these are opportunities for focused practice.` :
                     `A few areas for practice remain, but overall progress is strong.`
                 }`;
         } else if (overallTone === 'balanced') {
-            narrative = `${studentName} had a steady week with ${activityData.totalQuestions} questions completed. While engagement was consistent, ` +
+            narrative = `${studentName} had a steady ${periodLabel} with ${activityData.totalQuestions} questions completed. While engagement was consistent, ` +
                 `there are some learning challenges in ${Object.entries(improvementData.bySubject || {})
                 .sort((a, b) => b[1].totalMistakes - a[1].totalMistakes)
                 .slice(0, 2)
@@ -137,7 +146,7 @@ class SummaryReportGenerator {
                     'Emotionally, they seem stable and engaged.' :
                     'There are some concerns about their learning experience that we recommend addressing.'}`;
         } else {
-            narrative = `${studentName} completed ${activityData.totalQuestions} questions this week. ` +
+            narrative = `${studentName} completed ${activityData.totalQuestions} questions this ${periodLabel}. ` +
                 `We've identified several areas needing attention, particularly in ${Object.entries(improvementData.bySubject || {})
                 .sort((a, b) => b[1].totalMistakes - a[1].totalMistakes)[0][0]}. ` +
                 `${hasRedFlags ?
@@ -161,8 +170,11 @@ class SummaryReportGenerator {
 
     /**
      * Generate HTML for summary report
+     * @param {String} period - 'weekly' or 'monthly'
      */
-    generateSummaryHTML(analysis) {
+    generateSummaryHTML(analysis, period = 'weekly') {
+        const periodLabel = period === 'monthly' ? 'Monthly' : 'Weekly';
+        const timePhrase = period === 'monthly' ? 'Month' : 'Week';
         const toneColors = {
             positive: '#28A745',
             balanced: '#FFC107',
@@ -406,14 +418,14 @@ class SummaryReportGenerator {
 <body>
     <div class="container">
         <div class="header">
-            <h1>📋 Weekly Summary</h1>
-            <p>Complete Learning Overview for the Week</p>
+            <h1>📋 ${periodLabel} Summary</h1>
+            <p>Complete Learning Overview for the ${timePhrase}</p>
         </div>
 
         <div class="content">
             <!-- Tone Badge -->
             <div class="tone-badge tone-${analysis.overallTone}">
-                ${toneEmojis[analysis.overallTone]} ${analysis.overallTone.charAt(0).toUpperCase() + analysis.overallTone.slice(1)} Week
+                ${toneEmojis[analysis.overallTone]} ${analysis.overallTone.charAt(0).toUpperCase() + analysis.overallTone.slice(1)} ${timePhrase}
             </div>
 
             <!-- Main Narrative -->
@@ -443,13 +455,13 @@ class SummaryReportGenerator {
 
             <!-- Win Celebration -->
             <div class="win-section">
-                <div class="win-title">🎉 This Week's Win</div>
+                <div class="win-title">🎉 This ${timePhrase}'s Win</div>
                 <div class="win-text">${analysis.biggestWin}</div>
             </div>
 
             <!-- Action Items -->
             <div class="action-items">
-                <div class="action-items-title">📝 Action Items for Next Week</div>
+                <div class="action-items-title">📝 Action Items for Next ${timePhrase}</div>
                 ${analysis.actionItems.map((item, i) => `
                     <div class="action-item action-priority-${item.priority}">
                         <div class="action-badge">${i + 1}</div>

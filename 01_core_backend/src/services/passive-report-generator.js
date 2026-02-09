@@ -6,9 +6,10 @@
  * - 4 focused reports per batch: Activity, Areas of Improvement, Mental Health, Summary
  * - HTML output with professional styling and Chart.js visualizations
  * - Local-only processing (no persistent analysis storage for privacy)
- * - Weekly generation only (no monthly)
+ * - ✅ UPDATED: Supports both weekly AND monthly generation
  * - Concrete, data-driven insights (no artificial content)
  * - Red flag detection for mental health concerns
+ * - Period-aware language and benchmarks
  */
 
 const { v4: uuidv4 } = require('uuid');
@@ -120,24 +121,25 @@ class PassiveReportGenerator {
     }
 
     /**
-     * Generate 4 focused reports for a user (WEEKLY ONLY)
+     * Generate 4 focused reports for a user
+     * ✅ UPDATED: Now supports both 'weekly' and 'monthly' periods
      * @param {String} userId - User ID
-     * @param {String} period - 'weekly' (monthly no longer supported)
+     * @param {String} period - 'weekly' or 'monthly'
      * @param {Object} dateRange - { startDate, endDate }
      * @returns {Promise<Object>} Generated batch info
      */
     async generateAllReports(userId, period, dateRange) {
         const startTime = Date.now();
 
-        // Only support weekly reports
-        if (period !== 'weekly') {
-            logger.warn(`⚠️ Monthly reports no longer supported. Switching to weekly.`);
+        // ✅ UPDATED: Accept both weekly and monthly
+        if (period !== 'weekly' && period !== 'monthly') {
+            logger.warn(`⚠️ Invalid period '${period}'. Defaulting to weekly.`);
             period = 'weekly';
         }
 
-        logger.info(`📊 Starting passive report generation (NEW 4-REPORT SYSTEM)`);
+        logger.info(`📊 Starting passive report generation (PERIOD-AWARE SYSTEM)`);
         logger.info(`   User: ${userId}`);
-        logger.info(`   Period: ${period} (weekly only)`);
+        logger.info(`   Period: ${period}`);
         logger.info(`   Date range: ${dateRange.startDate.toISOString().split('T')[0]} - ${dateRange.endDate.toISOString().split('T')[0]}`);
 
         try {
@@ -202,15 +204,16 @@ class PassiveReportGenerator {
             // Get student name to pass to all report generators
             const studentName = studentProfile.name || '[Student]';
 
-            // Report 1: Activity Report
+            // Report 1: Activity Report (✅ Now period-aware)
             try {
-                logger.info(`   • Generating Activity Report...`);
+                logger.info(`   • Generating ${period} Activity Report...`);
                 const activityHTML = await this.activityGenerator.generateActivityReport(
                     userId,
                     dateRange.startDate,
                     dateRange.endDate,
                     studentName,
-                    studentAge
+                    studentAge,
+                    period  // ✅ Pass period for context-aware language
                 );
 
                 if (activityHTML) {
@@ -228,15 +231,16 @@ class PassiveReportGenerator {
                 reportDetails.push(`❌ Activity Report: ${error.message}`);
             }
 
-            // Report 2: Areas of Improvement Report
+            // Report 2: Areas of Improvement Report (✅ Now period-aware)
             try {
-                logger.info(`   • Generating Areas of Improvement Report...`);
+                logger.info(`   • Generating ${period} Areas of Improvement Report...`);
                 const improvementHTML = await this.improvementGenerator.generateAreasOfImprovementReport(
                     userId,
                     dateRange.startDate,
                     dateRange.endDate,
                     studentName,
-                    studentAge
+                    studentAge,
+                    period  // ✅ Pass period
                 );
 
                 if (improvementHTML) {
@@ -254,15 +258,16 @@ class PassiveReportGenerator {
                 reportDetails.push(`❌ Areas of Improvement: ${error.message}`);
             }
 
-            // Report 3: Mental Health Report
+            // Report 3: Mental Health Report (✅ Now period-aware)
             try {
-                logger.info(`   • Generating Mental Health Report...`);
+                logger.info(`   • Generating ${period} Mental Health Report...`);
                 const mentalHealthHTML = await this.mentalHealthGenerator.generateMentalHealthReport(
                     userId,
                     dateRange.startDate,
                     dateRange.endDate,
                     studentAge,
-                    studentName
+                    studentName,
+                    period  // ✅ Pass period
                 );
 
                 if (mentalHealthHTML) {
@@ -280,9 +285,9 @@ class PassiveReportGenerator {
                 reportDetails.push(`❌ Mental Health Report: ${error.message}`);
             }
 
-            // Report 4: Summary Report (depends on data from previous reports)
+            // Report 4: Summary Report (depends on data from previous reports) (✅ Now period-aware)
             try {
-                logger.info(`   • Generating Summary Report...`);
+                logger.info(`   • Generating ${period} Summary Report...`);
 
                 // Fetch student data for summary synthesis
                 const questions = await this.fetchQuestionsForPeriod(userId, dateRange.startDate, dateRange.endDate);
@@ -292,7 +297,8 @@ class PassiveReportGenerator {
                     questions,
                     conversations,
                     studentName,
-                    studentAge
+                    studentAge,
+                    period  // ✅ Pass period
                 );
 
                 if (summaryHTML) {
@@ -300,7 +306,7 @@ class PassiveReportGenerator {
                         batchId,
                         'summary',
                         summaryHTML,
-                        `Weekly Summary Report for ${dateRange.startDate.toISOString().split('T')[0]}`
+                        `${period === 'weekly' ? 'Weekly' : 'Monthly'} Summary Report for ${dateRange.startDate.toISOString().split('T')[0]}`
                     );
                     generatedReports.push(report);
                     reportDetails.push('✅ Summary Report');
@@ -426,8 +432,9 @@ class PassiveReportGenerator {
 
     /**
      * Generate summary report by synthesizing data
+     * ✅ UPDATED: Now period-aware
      */
-    async generateSummaryReport(questions, conversations, studentName, studentAge) {
+    async generateSummaryReport(questions, conversations, studentName, studentAge, period = 'weekly') {
         // Basic data structure for summary
         const activityData = {
             totalQuestions: questions.length,
@@ -460,13 +467,14 @@ class PassiveReportGenerator {
             }
         };
 
-        // Use the summary generator
+        // Use the summary generator (✅ Now period-aware)
         const summaryGenerator = new SummaryReportGenerator();
         return summaryGenerator.generateSummaryReport(
             activityData,
             improvementData,
             mentalHealthData,
-            studentName
+            studentName,
+            period  // ✅ Pass period for context-aware language
         );
     }
 

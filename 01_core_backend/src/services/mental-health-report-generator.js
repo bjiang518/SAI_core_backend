@@ -16,9 +16,16 @@ const logger = require('../utils/logger');
 class MentalHealthReportGenerator {
     /**
      * Generate mental health report HTML
+     * @param {String} userId - User ID
+     * @param {Date} startDate - Period start date
+     * @param {Date} endDate - Period end date
+     * @param {Number} studentAge - Student's age (for age-appropriate thresholds)
+     * @param {String} studentName - Student's name
+     * @param {String} period - Report period ('weekly' or 'monthly')
+     * @returns {Promise<String>} HTML report
      */
-    async generateMentalHealthReport(userId, startDate, endDate, studentAge = 7, studentName = '[Student]') {
-        logger.info(`💭 Generating Mental Health Report for ${userId.substring(0, 8)}... (${studentName}, Age: ${studentAge})`);
+    async generateMentalHealthReport(userId, startDate, endDate, studentAge = 7, studentName = '[Student]', period = 'weekly') {
+        logger.info(`💭 Generating ${period} Mental Health Report for ${userId.substring(0, 8)}... (${studentName}, Age: ${studentAge})`);
 
         try {
             // Step 1: Get questions for this period
@@ -35,8 +42,9 @@ class MentalHealthReportGenerator {
             logger.debug(`📊 Retrieved ${behaviorSignals.length} conversation behavior signals`);
 
             // Step 3: Get previous period data for comparison
+            const daysToLookback = period === 'monthly' ? 30 : 7;
             const previousStart = new Date(startDate);
-            previousStart.setDate(previousStart.getDate() - 7);
+            previousStart.setDate(previousStart.getDate() - daysToLookback);
             const previousEnd = new Date(startDate);
             previousEnd.setDate(previousEnd.getDate() - 1);
             let previousQuestions = await this.getQuestionsForPeriod(userId, previousStart, previousEnd);
@@ -48,7 +56,8 @@ class MentalHealthReportGenerator {
                 conversations,
                 previousQuestions,
                 studentAge,
-                behaviorSignals  // ✅ NEW: Pass behavior signals to analysis
+                behaviorSignals,  // ✅ NEW: Pass behavior signals to analysis
+                period  // ✅ Pass period for context-aware thresholds
             );
 
             // Ensure analysis has required properties
@@ -60,7 +69,7 @@ class MentalHealthReportGenerator {
             }
 
             // Step 5: Generate HTML
-            const html = this.generateMentalHealthHTML(analysis, studentName);
+            const html = this.generateMentalHealthHTML(analysis, studentName, period);
 
             logger.info(`✅ Mental Health Report generated: ${(analysis.redFlags || []).length} flags detected`);
 
@@ -224,32 +233,37 @@ class MentalHealthReportGenerator {
 
     /**
      * Get age-appropriate thresholds
+     * @param {Number} age - Student's age
+     * @param {String} period - 'weekly' or 'monthly'
      */
-    getAgeThresholds(age) {
+    getAgeThresholds(age, period = 'weekly') {
+        // Scale expected active days based on period
+        const dayMultiplier = period === 'monthly' ? 4 : 1;  // 4 weeks in a month
+
         if (age <= 5) {
             return {
-                expectedActiveDays: 3,  // 3+ days/week is good
+                expectedActiveDays: 3 * dayMultiplier,  // 3+ days/week → 12+ days/month
                 expectedSessionLength: 15,  // minutes
                 expectedAccuracy: 0.65,
                 focusConsistency: 0.4   // 40% consistency okay for young kids
             };
         } else if (age <= 8) {
             return {
-                expectedActiveDays: 4,
+                expectedActiveDays: 4 * dayMultiplier,
                 expectedSessionLength: 20,
                 expectedAccuracy: 0.70,
                 focusConsistency: 0.6
             };
         } else if (age <= 11) {
             return {
-                expectedActiveDays: 5,
+                expectedActiveDays: 5 * dayMultiplier,
                 expectedSessionLength: 30,
                 expectedAccuracy: 0.75,
                 focusConsistency: 0.7
             };
         } else {
             return {
-                expectedActiveDays: 6,
+                expectedActiveDays: 6 * dayMultiplier,
                 expectedSessionLength: 45,
                 expectedAccuracy: 0.80,
                 focusConsistency: 0.8
@@ -260,15 +274,17 @@ class MentalHealthReportGenerator {
     /**
      * Analyze wellbeing indicators
      * ✅ ENHANCED: Now uses conversation_behavior_signals from short_term_status
+     * @param {String} period - 'weekly' or 'monthly'
      */
-    analyzeWellbeing(questions, conversations, previousQuestions, studentAge, behaviorSignals = []) {
+    analyzeWellbeing(questions, conversations, previousQuestions, studentAge, behaviorSignals = [], period = 'weekly') {
         // Ensure we have arrays, not undefined
         questions = questions || [];
         conversations = conversations || [];
         previousQuestions = previousQuestions || [];
         behaviorSignals = behaviorSignals || [];
 
-        const thresholds = this.getAgeThresholds(studentAge);
+        const thresholds = this.getAgeThresholds(studentAge, period);
+        const totalDaysInPeriod = period === 'monthly' ? 30 : 7;
 
         // ✅ NEW: Calculate aggregated metrics from behavior signals
         const behaviorMetrics = this.aggregateBehaviorSignals(behaviorSignals);
@@ -344,18 +360,18 @@ class MentalHealthReportGenerator {
                 .filter(q => q && q.archived_at)
                 .map(q => new Date(q.archived_at).toISOString().split('T')[0])
         ).size;
-        const focusConsistency = activeDays / 7;
+        const focusConsistency = activeDays / totalDaysInPeriod;
         const focusStatus = focusConsistency >= thresholds.focusConsistency ? 'healthy' :
                            focusConsistency >= thresholds.focusConsistency * 0.7 ? 'moderate' :
                            'needs_improvement';
 
         let focusIndicators = [];
         if (focusStatus === 'healthy') {
-            focusIndicators.push(`Child is active ${activeDays}/7 days (healthy pattern)`);
+            focusIndicators.push(`Child is active ${activeDays}/${totalDaysInPeriod} days (healthy pattern)`);
         } else if (focusStatus === 'moderate') {
-            focusIndicators.push(`Child is active ${activeDays}/7 days (room for consistency)`);
+            focusIndicators.push(`Child is active ${activeDays}/${totalDaysInPeriod} days (room for consistency)`);
         } else {
-            focusIndicators.push(`Child is active only ${activeDays}/7 days (inconsistent pattern)`);
+            focusIndicators.push(`Child is active only ${activeDays}/${totalDaysInPeriod} days (inconsistent pattern)`);
         }
 
         // Session pattern analysis
@@ -575,8 +591,10 @@ class MentalHealthReportGenerator {
 
     /**
      * Generate HTML for mental health report
+     * @param {String} period - 'weekly' or 'monthly'
      */
-    generateMentalHealthHTML(analysis, studentName) {
+    generateMentalHealthHTML(analysis, studentName, period = 'weekly') {
+        const periodLabel = period === 'monthly' ? 'Monthly' : 'Weekly';
         const redFlagLevelColors = {
             urgent: '#DC3545',
             warning: '#FFC107',
@@ -829,7 +847,7 @@ class MentalHealthReportGenerator {
     <div class="container">
         <div class="header">
             <h1>💭 ${studentName}'s Mental Health & Wellbeing Report</h1>
-            <p>Learning Attitude, Focus, and Emotional Assessment</p>
+            <p>${periodLabel} Learning Attitude, Focus, and Emotional Assessment</p>
         </div>
 
         <div class="content">
