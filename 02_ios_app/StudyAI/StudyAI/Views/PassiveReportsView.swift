@@ -16,6 +16,7 @@ struct PassiveReportsView: View {
     @State private var showDeleteConfirmation = false
     @State private var isEditMode = false
     @State private var selectedBatches: Set<String> = []
+    @State private var showingReportsInfo = false
 
     enum ReportPeriod: String, CaseIterable {
         case weekly = "Weekly"
@@ -62,6 +63,16 @@ struct PassiveReportsView: View {
             .navigationTitle("Parent Reports")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Info button
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if !isEditMode {
+                        Button(action: { showingReportsInfo = true }) {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.blue)
+                        }
+                    }
+                }
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 16) {
                         // Generate button
@@ -97,6 +108,11 @@ struct PassiveReportsView: View {
                         }
                     }
                 }
+            }
+            .alert(NSLocalizedString("passiveReports.info.title", comment: ""), isPresented: $showingReportsInfo) {
+                Button(NSLocalizedString("common.ok", comment: "")) { }
+            } message: {
+                Text(NSLocalizedString("passiveReports.info.message", comment: ""))
             }
             .alert("Testing Mode", isPresented: $showTestingAlert) {
                 Button("Generate Weekly Report") {
