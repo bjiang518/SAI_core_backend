@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct PassiveReportsView: View {
     @StateObject private var viewModel = PassiveReportsViewModel()
@@ -140,9 +141,24 @@ struct PassiveReportsView: View {
             }
             .task {
                 await viewModel.loadAllBatches()
+                // Start monitoring for new reports
+                viewModel.startReportMonitoring()
             }
             .refreshable {
                 await viewModel.loadAllBatches()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                // Check for new reports when app comes to foreground
+                Task {
+                    await viewModel.checkForNewReportsNow()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenParentReports"))) { notification in
+                // Handle notification tap to open specific report
+                print("📊 [PassiveReports] Received notification tap - reloading reports")
+                Task {
+                    await viewModel.loadAllBatches()
+                }
             }
         }
     }

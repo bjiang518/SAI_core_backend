@@ -1555,3 +1555,12 @@
 "pdfPreview.print" = "列印";
 "pdfPreview.email" = "郵件";
 "pdfPreview.share" = "分享";
+
+// Theme Settings
+"theme.title" = "外觀";
+"theme.day" = "日間模式";
+"theme.night" = "夜間模式";
+"theme.cute" = "可愛模式";
+"theme.description.day" = "經典淺色主題，適合白天使用";
+"theme.description.night" = "深色主題，適合弱光環境";
+"theme.description.cute" = "柔和的粉彩色，帶來俏皮體驗";

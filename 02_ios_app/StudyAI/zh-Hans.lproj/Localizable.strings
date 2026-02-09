@@ -1551,7 +1551,16 @@
 "proMode.grading.complete" = "🎉 批改完成！";
 
 // PDF Preview
-"pdfPreview.title" = "PDF 預覽";
-"pdfPreview.print" = "列印";
-"pdfPreview.email" = "郵件";
+"pdfPreview.title" = "PDF 预览";
+"pdfPreview.print" = "打印";
+"pdfPreview.email" = "邮件";
 "pdfPreview.share" = "分享";
+
+// Theme Settings
+"theme.title" = "外观";
+"theme.day" = "日间模式";
+"theme.night" = "夜间模式";
+"theme.cute" = "可爱模式";
+"theme.description.day" = "经典浅色主题，适合白天使用";
+"theme.description.night" = "深色主题，适合弱光环境";
+"theme.description.cute" = "柔和的粉彩色，带来俏皮体验";

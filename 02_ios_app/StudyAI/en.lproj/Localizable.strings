@@ -1584,3 +1584,12 @@
 "pdfPreview.print" = "Print";
 "pdfPreview.email" = "Email";
 "pdfPreview.share" = "Share";
+
+// Theme Settings
+"theme.title" = "Appearance";
+"theme.day" = "Day Mode";
+"theme.night" = "Night Mode";
+"theme.cute" = "Cute Mode";
+"theme.description.day" = "Classic light theme for daytime use";
+"theme.description.night" = "Dark theme for low-light environments";
+"theme.description.cute" = "Soft pastel colors for a playful experience";
