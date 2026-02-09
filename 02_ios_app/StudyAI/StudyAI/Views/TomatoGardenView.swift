@@ -16,6 +16,7 @@ struct TomatoGardenView: View {
     @State private var showDeleteConfirmation = false
     @State private var tomatoToDelete: Tomato?
     @State private var showPhysicsGarden = false
+    @State private var showingGardenInfo = false
 
     enum FilterOption: String, CaseIterable {
         case all = "全部"
@@ -62,15 +63,26 @@ struct TomatoGardenView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showPhysicsGarden = true }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "sparkles")
-                            Text("物理模式")
-                                .font(.subheadline.weight(.semibold))
+                    HStack(spacing: 16) {
+                        Button(action: { showingGardenInfo = true }) {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.blue)
                         }
-                        .foregroundColor(.purple)
+                        Button(action: { showPhysicsGarden = true }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "sparkles")
+                                Text("物理模式")
+                                    .font(.subheadline.weight(.semibold))
+                            }
+                            .foregroundColor(.purple)
+                        }
                     }
                 }
+            }
+            .alert(NSLocalizedString("tomatoGarden.info.title", comment: ""), isPresented: $showingGardenInfo) {
+                Button(NSLocalizedString("common.ok", comment: "")) { }
+            } message: {
+                Text(NSLocalizedString("tomatoGarden.info.message", comment: ""))
             }
             .fullScreenCover(isPresented: $showPhysicsGarden) {
                 PhysicsTomatoGardenView()

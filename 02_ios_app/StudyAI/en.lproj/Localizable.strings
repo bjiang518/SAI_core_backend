@@ -661,6 +661,25 @@
 "progress.loadingProgress" = "Loading your progress...";
 "progress.unableToLoadData" = "Unable to Load Data";
 "progress.tryAgain" = "Try Again";
+"progress.info.title" = "How to Use Learning Progress";
+"progress.info.message" = "📊 Understanding Your Progress:\n\n• Timeframe Filter: Tap the three-dot menu to switch between Current Week, Current Month, or All Time\n• Subject Breakdown: View your performance across different subjects with accuracy percentages\n• Color-Coded Cards: Each subject shows questions answered, accuracy rate, and trend indicators (↑ improving, → stable, ↓ needs work)\n• Tap any subject card to see detailed analytics and personalized insights\n\n🎯 Tips:\n• Pull down to refresh your latest progress\n• Check your daily streak to stay motivated\n• Focus on subjects with lower accuracy for improvement";
+
+"tomatoGarden.info.title" = "About Tomato Garden";
+"tomatoGarden.info.message" = "🍅 Your Tomato Collection:\n\n• Each completed focus session earns you a tomato\n• Filter by time (Today, This Week) or by tomato type\n• Three tomato varieties:\n  - Classic Tomato: Standard 25-minute sessions\n  - Curly Vine Tomato: Deep focus sessions\n  - Cute Tomato: Short focus sessions\n\n✨ Physics Mode:\nTap the physics mode button to see your tomatoes with physics-based animations and interactions!\n\n🏆 Milestones:\nCollect more tomatoes to unlock achievement milestones and track your focus journey.";
+
+"passiveReports.info.title" = "About Parent Reports";
+"passiveReports.info.message" = "📊 Automated Learning Insights:\n\n• Weekly/Monthly Reports: Switch between report periods using the tabs\n• Tap '+' to manually generate a new report batch\n• Each batch contains 8 specialized reports:\n  1. Executive Summary - Overall performance overview\n  2. Academic Performance - Subject-wise analysis\n  3. Learning Behavior - Study habits and patterns\n  4. Motivation & Emotional - Engagement indicators\n  5. Progress Trajectory - Improvement trends\n  6. Social Learning - Collaboration insights\n  7. Risk & Opportunity - Areas needing attention\n  8. Action Plan - Personalized recommendations\n\n💡 Tips:\n• Reports analyze your study sessions, archived conversations, and practice results\n• Tap any report card to view detailed insights\n• Use Edit mode to manage or delete old report batches";
+
+"library.info.title" = "How to Use Library";
+"library.info.message" = "📚 Your Learning Archive:\n\n• Content Types: Switch between All Sessions, Questions Only, or Conversations Only using the tabs\n• Search: Use the search bar to find specific content\n• Quick Filters: Filter by subject, date range, or content with images\n• Advanced Search: Tap the three-dot menu for detailed filtering options\n• Subject Filter: Filter content by specific subjects from the menu\n\n💡 Tips:\n• Pull down to refresh your library content\n• Tap any item to view full details, answers, and explanations\n• Use 'Clear Filters' from the menu to reset all active filters\n• Statistics at the top show your total questions and conversations";
+
+"homeworkResults.info.title" = "Understanding Your Results";
+"homeworkResults.info.message" = "📝 Homework Analysis Results:\n\n• Question Cards: Tap any card to expand and see full details, answers, and explanations\n• Checkboxes: Select questions you want to archive for later review\n• Color Indicators:\n  - Green: Correct answer\n  - Orange: Partially correct\n  - Red: Incorrect answer\n• Archive Button: Tap the book icon to save selected questions to your library\n\n💡 Tips:\n• Review incorrect answers carefully to understand mistakes\n• Use archived questions for focused practice later\n• Each question can be expanded to see step-by-step solutions\n• Progress is automatically tracked for learning analytics";
+
+
+
+
+
 "progress.yourLearningJourney" = "Your Learning Journey";
 "progress.pointsToday" = "Points Today";
 "progress.streak" = "Streak";

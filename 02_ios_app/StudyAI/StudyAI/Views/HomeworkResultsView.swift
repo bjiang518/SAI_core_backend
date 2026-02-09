@@ -22,6 +22,7 @@ struct HomeworkResultsView: View {
     @State private var hasMarkedProgress = false
     @State private var hasAlreadySavedImage = false
     @State private var showingNoQuestionsAlert = false
+    @State private var showingResultsInfo = false
     @StateObject private var questionArchiveService = QuestionArchiveService.shared
 
     @ObservedObject private var pointsManager = PointsEarningManager.shared
@@ -118,6 +119,13 @@ struct HomeworkResultsView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showingResultsInfo = true }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                    }
+                }
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         // ✅ Validate that questions are selected
@@ -135,6 +143,11 @@ struct HomeworkResultsView: View {
                     }
                     .disabled(isArchiving)
                 }
+            }
+            .alert(NSLocalizedString("homeworkResults.info.title", comment: ""), isPresented: $showingResultsInfo) {
+                Button(NSLocalizedString("common.ok", comment: "")) { }
+            } message: {
+                Text(NSLocalizedString("homeworkResults.info.message", comment: ""))
             }
             .sheet(isPresented: $showingQuestionArchiveDialog) {
                 QuestionArchiveView(

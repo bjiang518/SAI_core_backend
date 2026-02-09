@@ -54,6 +54,7 @@ struct UnifiedLibraryView: View {
     // New state for content type filtering
     @State private var selectedContentType: ContentTypeFilter = .all
     @State private var showFilterIndicator = false
+    @State private var showingLibraryInfo = false
 
     // Quick filter states
     @State private var activeQuickDateFilter: DateRange?
@@ -238,6 +239,13 @@ struct UnifiedLibraryView: View {
         .navigationTitle(NSLocalizedString("library.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showingLibraryInfo = true }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                    }
+                }
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button(NSLocalizedString("library.refreshLibrary", comment: "")) {
@@ -272,6 +280,11 @@ struct UnifiedLibraryView: View {
                         Image(systemName: "ellipsis.circle")
                     }
                 }
+            }
+            .alert(NSLocalizedString("library.info.title", comment: ""), isPresented: $showingLibraryInfo) {
+                Button(NSLocalizedString("common.ok", comment: "")) { }
+            } message: {
+                Text(NSLocalizedString("library.info.message", comment: ""))
             }
             .refreshable {
                 await refreshContent()

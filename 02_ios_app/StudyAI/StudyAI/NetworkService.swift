@@ -1673,12 +1673,21 @@ class NetworkService: ObservableObject {
 
                                 case "audio_chunk":
                                     if let audio = event.audio {
-                                        logger.info("🔊 [Interactive] Audio chunk received: \(audio.count) chars base64")
+                                        let timestamp = Date()
+                                        let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
+                                        logger.info("[\(timestampStr)] 🔊 Audio chunk: \(audio.count) chars base64, hasAlignment: \(event.alignment != nil)")
 
                                         // ✅ Convert alignment to Data for passing to callback
                                         var alignmentData: Data? = nil
                                         if let alignment = event.alignment {
                                             alignmentData = try? JSONEncoder().encode(alignment)
+                                            if let chars = alignment.characters {
+                                                logger.info("[\(timestampStr)] ✅ Alignment data present: \(chars.count) characters")
+                                            } else {
+                                                logger.warning("[\(timestampStr)] ⚠️ Alignment present but no character array")
+                                            }
+                                        } else {
+                                            logger.warning("[\(timestampStr)] ⚠️ No alignment data in audio_chunk event")
                                         }
 
                                         onAudioChunk(audio, alignmentData)
@@ -1709,9 +1718,17 @@ class NetworkService: ObservableObject {
                 }
             }
 
+            // ✅ FIX: If stream ended naturally with text content, treat as success
+            // Backend sometimes doesn't send explicit "complete" event
             if !streamComplete {
-                logger.warning("⚠️ Interactive stream ended without completion")
-                onComplete(false, fullText.isEmpty ? nil : fullText)
+                if !fullText.isEmpty {
+                    logger.warning("⚠️ Interactive stream ended without 'complete' event - treating as success (has content)")
+                    streamComplete = true
+                    onComplete(true, fullText)
+                } else {
+                    logger.warning("⚠️ Interactive stream ended without completion (no content)")
+                    onComplete(false, nil)
+                }
             }
 
         } catch {
