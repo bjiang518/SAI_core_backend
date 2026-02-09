@@ -316,13 +316,14 @@ struct MainTabView: View {
             }
             .tag(MainTab.library.rawValue)
         }
-        .tint(themeManager.tabBarItemColor)  // ✅ Cute Mode: White icons
-        .toolbarBackground(themeManager.tabBarBackground, for: .tabBar)  // ✅ Cute Mode: Black background
-        .toolbarBackground(.visible, for: .tabBar)  // ✅ Ensure background is visible
         .onChange(of: appState.selectedTab) { oldTab, newTab in
             // Tab selection changed - update session activity
             sessionManager.updateActivity()
             print("🔐 [MainTabView] Tab changed: \(oldTab) → \(newTab), session activity updated")
+        }
+        .onChange(of: themeManager.currentTheme) { _, _ in
+            // Theme changed - reconfigure tab bar
+            configureTabBarAppearance()
         }
         .onAppear {
             configureTabBarAppearance()

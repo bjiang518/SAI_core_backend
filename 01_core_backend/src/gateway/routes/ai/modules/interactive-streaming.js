@@ -263,7 +263,7 @@ module.exports = async function (fastify, opts) {
         // Properly decode Uint8Array to string
         const chunkStr = decoder.decode(chunk, { stream: true });
 
-        fastify.log.info(`📦 [STEP 9] Received chunk #${chunkCount}, size: ${chunk.length} bytes`);
+        // Remove verbose logging: fastify.log.info(`📦 [STEP 9] Received chunk #${chunkCount}, size: ${chunk.length} bytes`);
         fastify.log.debug(`📝 [STEP 9] Chunk preview: ${chunkStr.substring(0, 200)}`);
 
         buffer += chunkStr;
@@ -271,7 +271,7 @@ module.exports = async function (fastify, opts) {
         // Process complete SSE events (ending with \n\n)
         if (buffer.includes('\n\n')) {
           const lines = buffer.split('\n');
-          fastify.log.info(`🔍 [PARSE] Processing ${lines.length} lines from buffer`);
+          // Remove verbose logging: fastify.log.info(`🔍 [PARSE] Processing ${lines.length} lines from buffer`);
 
           let dataLineCount = 0;
           let parsedEventCount = 0;
@@ -280,12 +280,12 @@ module.exports = async function (fastify, opts) {
             if (line.startsWith('data: ')) {
               dataLineCount++;
               const jsonStr = line.substring(6);
-              fastify.log.debug(`📋 [PARSE] Data line #${dataLineCount}: ${jsonStr.substring(0, 100)}${jsonStr.length > 100 ? '...' : ''}`);
+              // Remove verbose logging: fastify.log.debug(`📋 [PARSE] Data line #${dataLineCount}: ${jsonStr.substring(0, 100)}${jsonStr.length > 100 ? '...' : ''}`);
 
               try {
                 const event = JSON.parse(jsonStr);
                 parsedEventCount++;
-                fastify.log.info(`📨 [PARSE] Event #${parsedEventCount} - type: ${event.type}, keys: ${Object.keys(event).join(', ')}`);
+                // Remove verbose logging: fastify.log.info(`📨 [PARSE] Event #${parsedEventCount} - type: ${event.type}, keys: ${Object.keys(event).join(', ')}`);
 
                 // ─────────────────────────────────────────────
                 // CONTENT EVENT: Text delta from OpenAI
@@ -312,7 +312,8 @@ module.exports = async function (fastify, opts) {
                   // Send each new chunk to ElevenLabs
                   for (const chunk of newChunks) {
                     ttsChunkCount++;
-                    fastify.log.info(`📤 [TTS] Chunk ${ttsChunkCount}/${chunker.totalChunks}: "${chunk.substring(0, 50)}${chunk.length > 50 ? '...' : ''}" (${chunk.length} chars)`);
+                    // Reduce verbosity - only log on debug level
+                    fastify.log.debug(`📤 [TTS] Chunk ${ttsChunkCount}/${chunker.totalChunks}: "${chunk.substring(0, 50)}${chunk.length > 50 ? '...' : ''}" (${chunk.length} chars)`);
                     elevenWs.sendTextChunk(chunk, true);
                   }
                 }
@@ -322,15 +323,16 @@ module.exports = async function (fastify, opts) {
                 // ─────────────────────────────────────────────
                 else if (event.type === 'end') {
                   fastify.log.info(`🏁 [STEP 9] OpenAI stream complete! Total chunks: ${chunkCount}, Total text: ${accumulatedText.length} chars`);
-                  fastify.log.info('📤 [TTS] Flushing remaining text chunks to ElevenLabs...');
+                  // Remove verbose logging: fastify.log.info('📤 [TTS] Flushing remaining text chunks to ElevenLabs...');
 
                   // Flush remaining text
                   const finalChunks = chunker.flush();
-                  fastify.log.info(`📤 [TTS] Final flush returned ${finalChunks.length} chunks`);
+                  // Remove verbose logging: fastify.log.info(`📤 [TTS] Final flush returned ${finalChunks.length} chunks`);
 
                   for (const chunk of finalChunks) {
                     ttsChunkCount++;
-                    fastify.log.info(`📤 [TTS] Final chunk ${ttsChunkCount}: "${chunk.substring(0, 50)}${chunk.length > 50 ? '...' : ''}" (${chunk.length} chars)`);
+                    // Reduce verbosity - only log on debug level
+                    fastify.log.debug(`📤 [TTS] Final chunk ${ttsChunkCount}: "${chunk.substring(0, 50)}${chunk.length > 50 ? '...' : ''}" (${chunk.length} chars)`);
                     elevenWs.sendTextChunk(chunk, true);
                   }
 
@@ -345,6 +347,7 @@ module.exports = async function (fastify, opts) {
                   const chunkerStats = chunker.getStats();
                   const wsMetrics = elevenWs.getMetrics();
 
+                  // Keep only summary metrics log
                   fastify.log.info(`✅ [STEP 9] Streaming complete! Metrics:
         - Total time: ${totalTime}ms
         - First token latency: ${firstTokenTime ? firstTokenTime - streamStartTime : 'N/A'}ms
@@ -364,7 +367,7 @@ module.exports = async function (fastify, opts) {
                     }
                   })}\n\n`);
 
-                  fastify.log.info(`✅ Interactive streaming complete - ${totalTime}ms, ${chunkerStats.totalChunks} text chunks, ${wsMetrics.audioChunksReceived} audio chunks`);
+                  // Remove duplicate log: fastify.log.info(`✅ Interactive streaming complete - ${totalTime}ms, ${chunkerStats.totalChunks} text chunks, ${wsMetrics.audioChunksReceived} audio chunks`);
                 }
 
                 // ─────────────────────────────────────────────
@@ -390,16 +393,16 @@ module.exports = async function (fastify, opts) {
 
               } catch (parseError) {
                 fastify.log.warn(`⚠️ [PARSE] JSON parse error on line #${dataLineCount}: ${parseError.message}`);
-                fastify.log.debug(`⚠️ [PARSE] Failed JSON: ${jsonStr.substring(0, 200)}`);
+                // Remove verbose debug: fastify.log.debug(`⚠️ [PARSE] Failed JSON: ${jsonStr.substring(0, 200)}`);
               }
             }
           }
 
-          fastify.log.info(`📊 [PARSE] Summary: ${lines.length} total lines, ${dataLineCount} data lines, ${parsedEventCount} parsed events`);
+          // Remove verbose logging: fastify.log.info(`📊 [PARSE] Summary: ${lines.length} total lines, ${dataLineCount} data lines, ${parsedEventCount} parsed events`);
 
           buffer = '';
         } else {
-          fastify.log.debug(`⏳ [PARSE] Buffer doesn't contain \\n\\n yet, waiting for more data (buffer size: ${buffer.length})`);
+          // Remove verbose logging: fastify.log.debug(`⏳ [PARSE] Buffer doesn't contain \\n\\n yet, waiting for more data (buffer size: ${buffer.length})`);
         }
       }
 

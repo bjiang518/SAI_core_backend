@@ -299,7 +299,11 @@ struct HomeView: View {
                 Text(NSLocalizedString("home.todaysProgress", comment: ""))
                     .font(.title3)
                     .fontWeight(.bold)
-                    .foregroundColor(.primary)
+                    .foregroundColor(
+                        themeManager.currentTheme == .cute ?
+                            Color.gray :  // Grey in Cute mode
+                            .primary
+                    )
 
                 HStack(spacing: DesignTokens.Spacing.md) {
                     if todayTotalQuestions > 0 {
@@ -407,7 +411,11 @@ extension HomeView {
             Text(NSLocalizedString("home.quickActions", comment: ""))
                 .font(.title3)
                 .fontWeight(.bold)
-                .foregroundColor(.primary)
+                .foregroundColor(
+                    themeManager.currentTheme == .cute ?
+                        Color.gray :  // Grey in Cute mode
+                        .primary
+                )
                 .padding(.horizontal, DesignTokens.Spacing.xl)
 
             LazyVGrid(columns: [
@@ -482,7 +490,11 @@ extension HomeView {
             Text(NSLocalizedString("home.moreFeatures", comment: ""))
                 .font(.title3)
                 .fontWeight(.bold)
-                .foregroundColor(.primary)
+                .foregroundColor(
+                    themeManager.currentTheme == .cute ?
+                        Color.gray :  // Grey in Cute mode
+                        .primary
+                )
                 .padding(.horizontal, DesignTokens.Spacing.xl)
 
             // Card 5: Practice (Blue in Cute Mode)
@@ -608,7 +620,7 @@ struct QuickActionCard_New: View {
                         Circle()
                             .fill(
                                 themeManager.currentTheme == .cute ?
-                                    Color.white.opacity(isPressed ? 0.3 : 0.2) :  // White circle in Cute mode
+                                    Color.white.opacity(0.3) :  // White circle in Cute mode
                                     color.opacity(isPressed ? 0.3 : 0.15)
                             )
                             .frame(width: 50, height: 50)
@@ -629,7 +641,7 @@ struct QuickActionCard_New: View {
                             .font(.system(size: 22))
                             .foregroundColor(
                                 themeManager.currentTheme == .cute ?
-                                    .white :  // White icon in Cute mode
+                                    Color(hex: "4A4A4A") :  // Dark grey icon in Cute mode
                                     (isPressed ? color.opacity(0.7) : color)
                             )
                             .rotationEffect(.degrees(rotationAngle))
@@ -662,7 +674,7 @@ struct QuickActionCard_New: View {
                         .font(DesignTokens.Typography.title3)
                         .foregroundColor(
                             themeManager.currentTheme == .cute ?
-                                .white :  // White text in Cute mode
+                                Color(hex: "4A4A4A") :  // Dark grey in Cute mode
                                 .primary
                         )
                         .fontWeight(.medium)
@@ -672,7 +684,7 @@ struct QuickActionCard_New: View {
                         .font(DesignTokens.Typography.caption1)
                         .foregroundColor(
                             themeManager.currentTheme == .cute ?
-                                .white.opacity(0.9) :  // White translucent text in Cute mode
+                                Color(hex: "6B6B6B") :  // Medium grey in Cute mode
                                 .secondary
                         )
                         .lineLimit(1)
@@ -708,28 +720,6 @@ struct QuickActionCard_New: View {
                 }
             )
             .cornerRadius(18)
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .strokeBorder(
-                        // Cute Mode: BOLD WHITE border
-                        // Day/Night Mode: Gradient border
-                        themeManager.currentTheme == .cute ?
-                            LinearGradient(
-                                colors: [.white, .white],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ) :
-                            LinearGradient(
-                                colors: [
-                                    color.opacity(isPressed ? (colorScheme == .dark ? 0.5 : 0.6) : (colorScheme == .dark ? 0.3 : 0.4)),
-                                    color.opacity(isPressed ? (colorScheme == .dark ? 0.3 : 0.4) : (colorScheme == .dark ? 0.15 : 0.25))
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                        lineWidth: themeManager.currentTheme == .cute ? 4 : (isPressed ? 2.5 : 1.5)  // Bold border in Cute mode
-                    )
-            )
             .shadow(
                 color: colorScheme == .dark ?
                     Color.white.opacity(isPressed ? 0.15 : 0.08) :  // Light shadow in dark mode
