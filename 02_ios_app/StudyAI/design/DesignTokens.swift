@@ -118,21 +118,21 @@ struct DesignTokens {
             static let dark = Color(red: 0.85, green: 0.4, blue: 0.65)     // Darker muted pink
         }
 
-        // MARK: - Cute Mode Colors (Pastel Palette inspired by Routio)
+        // MARK: - Cute Mode Colors (Solid & Vivid - Routio Style)
         struct Cute {
-            // Pastel Colors
-            static let pink = Color(hex: "FFB3D9")           // Pastel Pink
-            static let pinkLight = Color(hex: "FFC1E0")      // Light Pastel Pink
-            static let blue = Color(hex: "A8D8EA")           // Pastel Blue
-            static let blueLight = Color(hex: "B3E5FC")      // Light Pastel Blue
-            static let yellow = Color(hex: "FFF4A3")         // Pastel Yellow
-            static let yellowLight = Color(hex: "FFFACD")    // Light Pastel Yellow
-            static let mint = Color(hex: "B8E6D5")           // Pastel Mint
-            static let mintLight = Color(hex: "C8F5E3")      // Light Pastel Mint
-            static let lavender = Color(hex: "E1D4F5")       // Pastel Lavender
-            static let lavenderLight = Color(hex: "DDD1F0")  // Light Pastel Lavender
-            static let peach = Color(hex: "FFD6BA")          // Pastel Peach
-            static let peachLight = Color(hex: "FFE5D0")     // Light Pastel Peach
+            // Solid Vivid Pastel Colors (more saturated than before)
+            static let pink = Color(hex: "FF85C1")           // Vivid Pink (was FFB3D9)
+            static let pinkLight = Color(hex: "FFB3D9")      // Light variant
+            static let blue = Color(hex: "7EC8E3")           // Vivid Blue (was A8D8EA)
+            static let blueLight = Color(hex: "A8D8EA")      // Light variant
+            static let yellow = Color(hex: "FFE066")         // Vivid Yellow (was FFF4A3)
+            static let yellowLight = Color(hex: "FFF4A3")    // Light variant
+            static let mint = Color(hex: "7FDBCA")           // Vivid Mint (was B8E6D5)
+            static let mintLight = Color(hex: "B8E6D5")      // Light variant
+            static let lavender = Color(hex: "C9A0DC")       // Vivid Lavender (was E1D4F5)
+            static let lavenderLight = Color(hex: "E1D4F5")  // Light variant
+            static let peach = Color(hex: "FFB6A3")          // Vivid Peach (was FFD6BA)
+            static let peachLight = Color(hex: "FFD6BA")     // Light variant
 
             // Background Colors
             static let backgroundCream = Color(hex: "FFF8F0")      // Cream background
@@ -142,6 +142,9 @@ struct DesignTokens {
             static let buttonBlack = Color(hex: "000000")          // Black for buttons/cards
             static let textOnBlack = Color(hex: "FFFFFF")          // White text on black
             static let softBlack = Color(hex: "2D2D2D")            // Soft black alternative
+
+            // Tab Bar
+            static let tabBarBackground = Color(hex: "000000")     // Black tab bar background
 
             // Text Colors for Cute Mode
             static let textPrimary = Color(hex: "2D2D2D")          // Soft black for readability

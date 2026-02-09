@@ -236,6 +236,7 @@ struct MainTabView: View {
     let onLogout: () -> Void
     @StateObject private var appState = AppState.shared
     @StateObject private var sessionManager = SessionManager.shared  // ✅ Track user activity
+    @StateObject private var themeManager = ThemeManager.shared  // ✅ Cute Mode: Black tab bar
 
     var body: some View {
         TabView(selection: Binding(
@@ -315,7 +316,9 @@ struct MainTabView: View {
             }
             .tag(MainTab.library.rawValue)
         }
-        .tint(.blue)
+        .tint(themeManager.tabBarItemColor)  // ✅ Cute Mode: White icons
+        .toolbarBackground(themeManager.tabBarBackground, for: .tabBar)  // ✅ Cute Mode: Black background
+        .toolbarBackground(.visible, for: .tabBar)  // ✅ Ensure background is visible
         .onChange(of: appState.selectedTab) { oldTab, newTab in
             // Tab selection changed - update session activity
             sessionManager.updateActivity()

@@ -895,18 +895,10 @@ class SessionChatViewModel: ObservableObject {
                 Task { @MainActor in
                     guard let self = self else { return }
 
-                    // ✅ Log latency from first text to first audio
-                    if let firstTextTime = self.firstTextArrivalTime,
-                       self.interactiveTTSService.audioChunksReceived == 0 {
-                        // ✅ NEW: Signal renderer that audio playback is starting
-                        self.textRenderer.audioPlaybackStarted()
-                    }
-
-                    // ✅ NEW: Process alignment data for text synchronization
-                    if let alignment = alignmentData {
-                        let textChunk = self.textRenderer.fullText
-                        self.textRenderer.processAudioChunk(text: textChunk, alignmentData: alignment)
-                    }
+                    // ✅ Always process audio chunk to ensure text reveal starts
+                    // processAudioChunk handles both alignment-based and fallback modes
+                    let textChunk = self.textRenderer.fullText
+                    self.textRenderer.processAudioChunk(text: textChunk, alignmentData: alignmentData)
 
                     // Process audio chunk for real-time playback
                     self.interactiveTTSService.processAudioChunk(audioBase64)
