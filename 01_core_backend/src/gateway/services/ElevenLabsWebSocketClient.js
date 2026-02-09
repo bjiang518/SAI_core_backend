@@ -139,7 +139,8 @@ class ElevenLabsWebSocketClient {
     };
 
     this.ws.send(JSON.stringify(message));
-    console.log(`📤 Sent text chunk (${text.length} chars): "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+    // Remove verbose logging - only log on debug level
+    // console.log(`📤 Sent text chunk (${text.length} chars): "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
   }
 
   /**
@@ -156,7 +157,8 @@ class ElevenLabsWebSocketClient {
       try_trigger_generation: false
     }));
 
-    console.log('✅ Sent end-of-input signal to ElevenLabs');
+    // Remove verbose logging - only log on debug level
+    // console.log('✅ Sent end-of-input signal to ElevenLabs');
   }
 
   /**
@@ -176,23 +178,11 @@ class ElevenLabsWebSocketClient {
 
         this.audioChunksReceived++;
 
-        // 🔍 DEBUG: Log raw message structure for first chunk
-        if (this.audioChunksReceived === 1) {
-          console.log('🔍 [DEBUG] First audio chunk - message keys:', Object.keys(message));
-          console.log('🔍 [DEBUG] Has alignment field?', message.alignment !== undefined);
-          console.log('🔍 [DEBUG] Has normalizedAlignment field?', message.normalizedAlignment !== undefined);
-
-          if (message.alignment) {
-            console.log('🔍 [DEBUG] alignment keys:', Object.keys(message.alignment));
-            console.log('🔍 [DEBUG] alignment.characters:', message.alignment.characters);
-            console.log('🔍 [DEBUG] alignment.character_start_times_seconds:', message.alignment.character_start_times_seconds);
-          }
-
-          if (message.normalizedAlignment) {
-            console.log('🔍 [DEBUG] normalizedAlignment keys:', Object.keys(message.normalizedAlignment));
-            console.log('🔍 [DEBUG] normalizedAlignment.characters:', message.normalizedAlignment.characters);
-          }
-        }
+        // Remove verbose debug logging - only log once for verification
+        // if (this.audioChunksReceived === 1) {
+        //   console.log('🔍 [DEBUG] First audio chunk - message keys:', Object.keys(message));
+        //   ...
+        // }
 
         if (this.onAudioChunk) {
           // ✅ Transform ElevenLabs alignment data to iOS format
@@ -219,12 +209,13 @@ class ElevenLabsWebSocketClient {
                 character_end_times_ms: charEndTimesMs      // calculated from start + duration
               };
 
-              console.log(`🎯 [Alignment] Transformed ${chars.length} characters (ElevenLabs → iOS format)`);
+              // Reduce verbosity - only log on debug or first chunk
+              if (this.audioChunksReceived === 1) {
+                console.log(`🎯 [Alignment] Transformed ${chars.length} characters (ElevenLabs → iOS format)`);
+              }
             } else {
               console.warn('⚠️ [Alignment] ElevenLabs sent alignment but missing character/timing arrays');
-              console.warn('🔍 [DEBUG] chars:', chars);
-              console.warn('🔍 [DEBUG] charStartTimesMs:', charStartTimesMs);
-              console.warn('🔍 [DEBUG] charDurationsMs:', charDurationsMs);
+              // Remove verbose debug logs
             }
           }
 

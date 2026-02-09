@@ -145,7 +145,7 @@ class ThemeManager: ObservableObject {
         case .day, .night:
             return .clear  // Use gradient in Day/Night mode
         case .cute:
-            return DesignTokens.Colors.Cute.yellow  // Solid yellow in Cute mode
+            return DesignTokens.Colors.Cute.blue  // Solid blue in Cute mode
         }
     }
 
