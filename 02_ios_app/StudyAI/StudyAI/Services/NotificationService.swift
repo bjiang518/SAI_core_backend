@@ -206,6 +206,109 @@ class NotificationService: NSObject, ObservableObject {
             }
         }
     }
+
+    // MARK: - Parent Report Notifications
+
+    /// Send notification when a new parent report is available
+    /// - Parameters:
+    ///   - period: Report period (weekly/monthly)
+    ///   - reportCount: Number of reports in the batch (usually 8)
+    ///   - overallGrade: Optional overall grade (A/B/C)
+    func sendParentReportAvailableNotification(period: String, reportCount: Int, overallGrade: String? = nil) {
+        guard settings.isEnabled else {
+            print("📱 NotificationService: Notifications disabled, skipping parent report notification")
+            return
+        }
+
+        let identifier = "com.studyai.parentReport.\(period).\(UUID().uuidString)"
+
+        // Create notification content
+        let content = UNMutableNotificationContent()
+
+        // Title based on period
+        if period.lowercased() == "weekly" {
+            content.title = "📊 Weekly Report Ready!"
+        } else {
+            content.title = "📊 Monthly Report Ready!"
+        }
+
+        // Body with grade if available
+        if let grade = overallGrade {
+            content.body = "Your \(period) learning report is ready! Overall grade: \(grade). Tap to view \(reportCount) detailed insights."
+        } else {
+            content.body = "Your \(period) learning report is ready! Tap to view \(reportCount) detailed insights about progress and areas of improvement."
+        }
+
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "PARENT_REPORT"
+
+        // Add user info to help with navigation
+        content.userInfo = [
+            "reportType": "parent_report",
+            "period": period,
+            "reportCount": reportCount
+        ]
+
+        // Deliver immediately
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+
+        // Create request
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+        // Add notification
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("📱 NotificationService: Failed to send parent report notification: \(error)")
+            } else {
+                print("📱 NotificationService: Sent parent report notification for \(period) report with \(reportCount) insights")
+            }
+        }
+    }
+
+    /// Schedule a reminder to check parent reports
+    /// - Parameter delay: Delay in seconds (default: 1 hour = 3600 seconds)
+    func scheduleParentReportCheckReminder(delay: TimeInterval = 3600) {
+        guard settings.isEnabled else {
+            print("📱 NotificationService: Notifications disabled, skipping report check reminder")
+            return
+        }
+
+        let identifier = "com.studyai.parentReport.checkReminder"
+
+        // Cancel any existing reminder first
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
+
+        // Create notification content
+        let content = UNMutableNotificationContent()
+        content.title = "📊 Check Your Learning Reports"
+        content.body = "New weekly or monthly reports may be available. Tap to view your progress!"
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "PARENT_REPORT_REMINDER"
+
+        // Create trigger with delay
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false)
+
+        // Create request
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+        // Add notification
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("📱 NotificationService: Failed to schedule report check reminder: \(error)")
+            } else {
+                print("📱 NotificationService: Scheduled report check reminder for \(Int(delay / 60)) minutes from now")
+            }
+        }
+    }
+
+    /// Cancel pending parent report check reminders
+    func cancelParentReportCheckReminder() {
+        let identifier = "com.studyai.parentReport.checkReminder"
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
+        print("📱 NotificationService: Cancelled parent report check reminder")
+    }
 }
 
 // MARK: - UNUserNotificationCenterDelegate
@@ -233,10 +336,24 @@ extension NotificationService: UNUserNotificationCenterDelegate {
 
         // Handle different notification types here
         let identifier = response.notification.request.identifier
+        let userInfo = response.notification.request.content.userInfo
 
         if identifier.hasPrefix(studyReminderIdentifierPrefix) {
             // User tapped study reminder - could open app to specific view
             print("📱 NotificationService: Study reminder tapped")
+        } else if identifier.hasPrefix("com.studyai.parentReport") {
+            // User tapped parent report notification
+            print("📱 NotificationService: Parent report notification tapped")
+
+            // Post notification to open parent reports view
+            NotificationCenter.default.post(
+                name: NSNotification.Name("OpenParentReports"),
+                object: nil,
+                userInfo: userInfo
+            )
+        } else if identifier.hasPrefix("com.studyai.homeworkComplete") {
+            // User tapped homework completion notification
+            print("📱 NotificationService: Homework completion notification tapped")
         }
 
         completionHandler()

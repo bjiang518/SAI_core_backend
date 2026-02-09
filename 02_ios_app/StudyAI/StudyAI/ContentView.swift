@@ -352,6 +352,7 @@ struct ModernProfileView: View {
     @State private var showingStorageControl = false
     @State private var showingPrivacySettings = false
     @State private var showingDebugSettings = false
+    @State private var showingThemeSelection = false
     @State private var refreshID = UUID()  // Force refresh when profile updates
 
     var body: some View {
@@ -518,6 +519,13 @@ struct ModernProfileView: View {
                         showingLanguageSettings = true
                     }) {
                         SettingsRow(icon: "globe", title: NSLocalizedString("settings.language", comment: ""), color: .blue)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: {
+                        showingThemeSelection = true
+                    }) {
+                        SettingsRow(icon: "paintpalette.fill", title: NSLocalizedString("theme.title", comment: ""), color: .pink)
                     }
                     .buttonStyle(.plain)
 
@@ -722,6 +730,9 @@ struct ModernProfileView: View {
         }
         .sheet(isPresented: $showingPrivacySettings) {
             PrivacySettingsView()
+        }
+        .sheet(isPresented: $showingThemeSelection) {
+            ThemeSelectionView()
         }
         // TODO: Add DebugSettings.swift to Xcode project to enable debug settings menu
         // #if DEBUG

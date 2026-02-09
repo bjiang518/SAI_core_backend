@@ -181,9 +181,28 @@ class PassiveReportsViewModel: ObservableObject {
     // MARK: - Private Properties
 
     private let networkService = NetworkService.shared
+    private let notificationService = NotificationService.shared
+    private let reportChecker = ReportAvailabilityChecker.shared
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Public Methods
+
+    /// Start background report checking (call when user logs in or app starts)
+    func startReportMonitoring() {
+        print("📊 [PassiveReports] Starting report monitoring")
+        reportChecker.startPeriodicChecking()
+    }
+
+    /// Stop background report checking (call when user logs out)
+    func stopReportMonitoring() {
+        print("📊 [PassiveReports] Stopping report monitoring")
+        reportChecker.stopPeriodicChecking()
+    }
+
+    /// Check for new reports immediately (call when app comes to foreground)
+    func checkForNewReportsNow() async {
+        await reportChecker.checkForNewReports()
+    }
 
     /// Load all report batches (both weekly and monthly)
     func loadAllBatches() async {
@@ -389,6 +408,13 @@ class PassiveReportsViewModel: ObservableObject {
             print("✅ [PassiveReports] Manual generation complete: \(result.reportCount) reports in \(result.generationTimeMs)ms")
             print("✅ [PassiveReports] Batch ID: \(result.batchId)")
             print("🔄 [PassiveReports] Reloading batches to show new report...")
+
+            // Send notification for new report
+            notificationService.sendParentReportAvailableNotification(
+                period: period,
+                reportCount: result.reportCount,
+                overallGrade: nil
+            )
 
             // Reload batches to show new report
             await loadAllBatches()

@@ -41,14 +41,17 @@ class ElevenLabsWebSocketClient {
     this.connectionStartTime = Date.now();
 
     // Build WebSocket URL with query parameters
+    // Note: Adding apply_text_normalization=on to potentially enable alignment data
     const url = `wss://api.elevenlabs.io/v1/text-to-speech/${this.voiceId}/stream-input?` +
       `model_id=${this.modelId}&` +
       `output_format=mp3_44100_128&` +
-      `optimize_streaming_latency=4`;
+      `optimize_streaming_latency=4&` +
+      `apply_text_normalization=on`;  // ← May enable alignment data
 
     console.log(`🔌 Connecting to ElevenLabs WebSocket...`);
     console.log(`   Voice ID: ${this.voiceId}`);
     console.log(`   Model: ${this.modelId}`);
+    console.log(`   URL: ${url.replace(this.voiceId, '***')}`);
 
     this.ws = new WebSocket(url, {
       headers: {
@@ -173,6 +176,24 @@ class ElevenLabsWebSocketClient {
 
         this.audioChunksReceived++;
 
+        // 🔍 DEBUG: Log raw message structure for first chunk
+        if (this.audioChunksReceived === 1) {
+          console.log('🔍 [DEBUG] First audio chunk - message keys:', Object.keys(message));
+          console.log('🔍 [DEBUG] Has alignment field?', message.alignment !== undefined);
+          console.log('🔍 [DEBUG] Has normalizedAlignment field?', message.normalizedAlignment !== undefined);
+
+          if (message.alignment) {
+            console.log('🔍 [DEBUG] alignment keys:', Object.keys(message.alignment));
+            console.log('🔍 [DEBUG] alignment.characters:', message.alignment.characters);
+            console.log('🔍 [DEBUG] alignment.character_start_times_seconds:', message.alignment.character_start_times_seconds);
+          }
+
+          if (message.normalizedAlignment) {
+            console.log('🔍 [DEBUG] normalizedAlignment keys:', Object.keys(message.normalizedAlignment));
+            console.log('🔍 [DEBUG] normalizedAlignment.characters:', message.normalizedAlignment.characters);
+          }
+        }
+
         if (this.onAudioChunk) {
           // ✅ Transform ElevenLabs alignment data to iOS format
           let transformedAlignment = null;
@@ -190,6 +211,9 @@ class ElevenLabsWebSocketClient {
               console.log(`🎯 [Alignment] Transformed ${characters.length} characters (seconds → milliseconds)`);
             } else {
               console.warn('⚠️ [Alignment] ElevenLabs sent alignment but missing character/timing arrays');
+              console.warn('🔍 [DEBUG] characters:', characters);
+              console.warn('🔍 [DEBUG] character_start_times_seconds:', character_start_times_seconds);
+              console.warn('🔍 [DEBUG] character_end_times_seconds:', character_end_times_seconds);
             }
           }
 

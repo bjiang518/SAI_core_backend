@@ -175,6 +175,12 @@ module.exports = async function (fastify, opts) {
         logger.info(`   Batch ID: ${result.id}`);
         logger.info(`   Reports: ${result.report_count}`);
         logger.info(`   Time: ${result.generation_time_ms}ms`);
+
+        // TODO: Send push notification to user's device
+        // This is where you'd integrate with APNs or Firebase Cloud Messaging
+        // For now, we rely on the iOS app's polling mechanism
+        logger.debug(`📱 [TODO] Push notification would be sent here for batch ${result.id}`);
+
         return reply.send({
           success: true,
           message: 'Reports generated successfully',
