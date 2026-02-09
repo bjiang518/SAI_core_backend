@@ -48,14 +48,23 @@ struct SessionChatView: View {
     // Synchronized audio toggle
     @State private var interactiveModeSettings = InteractiveModeSettings.load()
 
-    // Avatar and TTS State
-    @State private var topAvatarState: AIAvatarState = .idle
-    @State private var latestAIMessageId: String?
-    @State private var latestAIMessage: String = ""
-    @State private var latestAIVoiceType: VoiceType = .adam
+    // Avatar and TTS State - Consolidated
+    @State private var avatarState = AvatarState()
 
-    // ✅ FIX: Track which messages have been spoken to prevent duplicates
-    @State private var spokenMessageIds: Set<String> = []
+    // MARK: - Avatar State Struct
+    private struct AvatarState {
+        var animationState: AIAvatarState = .idle
+        var latestMessageId: String?
+        var latestMessage: String = ""
+        var voiceType: VoiceType = .adam
+        var spokenMessageIds: Set<String> = []
+
+        var hasMessageToPlay: Bool { !latestMessage.isEmpty }
+        var isLatestMessageSpoken: Bool {
+            guard let messageId = latestMessageId else { return false }
+            return spokenMessageIds.contains(messageId)
+        }
+    }
 
     // Focus state
     @FocusState private var isMessageInputFocused: Bool
@@ -337,13 +346,13 @@ struct SessionChatView: View {
             .onChange(of: viewModel.showTypingIndicator) { _, isTyping in
                 // Update avatar to show waiting state when AI is thinking (typing indicator)
                 if isTyping {
-                    topAvatarState = .waiting  // Blinking + shrinking pulse
+        avatarState.animationState = .waiting  // Blinking + shrinking pulse
                 }
             }
             .onChange(of: viewModel.isActivelyStreaming) { _, isStreaming in
                 // Update avatar to show processing state when streaming text
                 if isStreaming {
-                    topAvatarState = .processing  // Fast animation, no effects
+        avatarState.animationState = .processing  // Fast animation, no effects
                 }
             }
             .onChange(of: viewModel.isArchiving) { wasArchiving, isArchiving in
@@ -370,7 +379,7 @@ struct SessionChatView: View {
             .onChange(of: networkService.currentSessionId) { oldSessionId, newSessionId in
                 // ✅ FIX: Clear spoken messages when session changes (new session started)
                 if oldSessionId != newSessionId {
-                    spokenMessageIds.removeAll()
+                    avatarState.spokenMessageIds.removeAll()
                     if Self.debugMode {
                     print("🔄 [TTS] Cleared spoken messages for new session (old: \(oldSessionId ?? "nil"), new: \(newSessionId ?? "nil"))")
                     }
@@ -426,8 +435,8 @@ struct SessionChatView: View {
 
                     // Visual avatar - positioned to align with tap area
                     AIAvatarAnimation(
-                        state: topAvatarState,
-                        voiceType: latestAIMessage.isEmpty ? voiceService.voiceSettings.voiceType : latestAIVoiceType
+                        state: avatarState.animationState,
+                        voiceType: avatarState.latestMessage.isEmpty ? voiceService.voiceSettings.voiceType : avatarState.voiceType
                     )
                     .frame(width: 30, height: 30)
                     .offset(x: 0, y: 20)  // Move avatar UP within the tap circle
@@ -446,7 +455,7 @@ struct SessionChatView: View {
                     if Self.debugMode {
                     print("🎭 [Avatar] VoiceService state changed: \(state)")
                     print("🎭 [Avatar] Current speaking message: \(voiceService.currentSpeakingMessageId ?? "nil")")
-                    print("🎭 [Avatar] Latest AI message: \(latestAIMessageId ?? "nil")")
+                    print("🎭 [Avatar] Latest AI message: \(avatarState.latestMessageId ?? "nil")")
                     }
 
                     switch state {
@@ -455,14 +464,14 @@ struct SessionChatView: View {
                         if Self.debugMode {
                         print("🎭 [Avatar] Setting to .speaking state")
                         }
-                        topAvatarState = .speaking
+                        avatarState.animationState = .speaking
                     case .idle:
                         // Audio stopped - return to idle
-                        if topAvatarState == .speaking {
+                        if avatarState.animationState == .speaking {
                             if Self.debugMode {
                             print("🎭 [Avatar] Setting to .idle state (was speaking)")
                             }
-                            topAvatarState = .idle
+                            avatarState.animationState = .idle
                         }
                     default:
                         break
@@ -1709,9 +1718,9 @@ struct SessionChatView: View {
         }
 
         // Update latest message info
-        latestAIMessageId = messageId
-        latestAIMessage = message
-        latestAIVoiceType = voiceType
+        avatarState.latestMessageId = messageId
+        avatarState.latestMessage = message
+        avatarState.voiceType = voiceType
 
         // DON'T auto-play here - let the streaming TTS queue handle it
         // The avatar should only play when user taps it
@@ -1720,7 +1729,7 @@ struct SessionChatView: View {
         }
 
         // Set to idle initially - will change to .speaking when TTS actually plays
-        topAvatarState = .idle
+        avatarState.animationState = .idle
     }
 
     /// Toggle TTS playback when avatar is tapped
@@ -1729,9 +1738,9 @@ struct SessionChatView: View {
         print("🔵🔵🔵 [Avatar] toggleTopAvatarTTS CALLED - Button was tapped!")
         }
 
-        guard !latestAIMessage.isEmpty else {
+        guard !avatarState.latestMessage.isEmpty else {
             if Self.debugMode {
-            print("⚠️ [Avatar] toggleTopAvatarTTS: No message to play - latestAIMessage is empty")
+            print("⚠️ [Avatar] toggleTopAvatarTTS: No message to play - latestMessage is empty")
             print("⚠️ [Avatar] hasConversationStarted: \(hasConversationStarted)")
             print("⚠️ [Avatar] conversationHistory count: \(networkService.conversationHistory.count)")
             }
@@ -1749,7 +1758,7 @@ struct SessionChatView: View {
         if Self.debugMode {
         print("👆 [Avatar] Avatar tapped - message available")
         print("👆 [Avatar] VoiceService state: \(voiceService.interactionState)")
-        print("👆 [Avatar] Latest message length: \(latestAIMessage.count)")
+        print("👆 [Avatar] Latest message length: \(avatarState.latestMessage.count)")
         }
 
         // If any audio is currently playing, stop it
@@ -1764,13 +1773,13 @@ struct SessionChatView: View {
 
             voiceService.stopSpeech()
             ttsQueueService.stopAllTTS()  // Stop any queued TTS as well
-            topAvatarState = .idle
+            avatarState.animationState = .idle
         } else {
             // ✅ FIX: Check if this message has already been spoken
-            if let messageId = latestAIMessageId, spokenMessageIds.contains(messageId) {
+            if let messageId = avatarState.latestMessageId, avatarState.spokenMessageIds.contains(messageId) {
                 if Self.debugMode {
                 print("⏭️ [Avatar] Message already spoken - skipping TTS (ID: \(messageId))")
-                print("⏭️ [Avatar] Already spoken count: \(spokenMessageIds.count)")
+                print("⏭️ [Avatar] Already spoken count: \(avatarState.spokenMessageIds.count)")
                 }
 
                 // Provide different haptic feedback to indicate it was already spoken
@@ -1794,7 +1803,7 @@ struct SessionChatView: View {
 
     /// Play the latest AI message
     private func playLatestMessage() {
-        guard !latestAIMessage.isEmpty else {
+        guard !avatarState.latestMessage.isEmpty else {
             if Self.debugMode {
             print("⚠️ [Avatar] playLatestMessage: No message to play")
             }
@@ -1803,8 +1812,8 @@ struct SessionChatView: View {
 
         if Self.debugMode {
         print("🎬 [Avatar] playLatestMessage called")
-        print("🎬 [Avatar] Message ID: \(latestAIMessageId ?? "nil")")
-        print("🎬 [Avatar] Message length: \(latestAIMessage.count)")
+        print("🎬 [Avatar] Message ID: \(avatarState.latestMessageId ?? "nil")")
+        print("🎬 [Avatar] Message length: \(avatarState.latestMessage.count)")
         }
 
         // Stop any currently playing audio first
@@ -1817,14 +1826,14 @@ struct SessionChatView: View {
         if Self.debugMode {
         print("🎬 [Avatar] Setting current speaking message")
         }
-        voiceService.setCurrentSpeakingMessage(latestAIMessageId ?? "")
+        voiceService.setCurrentSpeakingMessage(avatarState.latestMessageId ?? "")
 
         // ✅ FIX: Mark this message as spoken
-        if let messageId = latestAIMessageId {
-            spokenMessageIds.insert(messageId)
+        if let messageId = avatarState.latestMessageId {
+            avatarState.spokenMessageIds.insert(messageId)
             if Self.debugMode {
             print("✅ [Avatar] Marked message as spoken (ID: \(messageId))")
-            print("✅ [Avatar] Total spoken messages: \(spokenMessageIds.count)")
+            print("✅ [Avatar] Total spoken messages: \(avatarState.spokenMessageIds.count)")
             }
         }
 
@@ -1832,13 +1841,13 @@ struct SessionChatView: View {
         if Self.debugMode {
         print("🎬 [Avatar] Calling speakText with autoSpeak=false")
         }
-        voiceService.speakText(latestAIMessage, autoSpeak: false)
+        voiceService.speakText(avatarState.latestMessage, autoSpeak: false)
 
         // Temporarily show processing state (will switch to speaking when audio starts)
         if Self.debugMode {
         print("🎬 [Avatar] Setting state to .processing")
         }
-        topAvatarState = .processing
+        avatarState.animationState = .processing
     }
 
     /// Update avatar state based on current speaking state
@@ -1847,13 +1856,13 @@ struct SessionChatView: View {
         print("🔄 [Avatar] updateTopAvatarState called")
         print("🔄 [Avatar] VoiceService state: \(voiceService.interactionState)")
         print("🔄 [Avatar] Current speaking ID: \(voiceService.currentSpeakingMessageId ?? "nil")")
-        print("🔄 [Avatar] Latest AI message ID: \(latestAIMessageId ?? "nil")")
+        print("🔄 [Avatar] Latest AI message ID: \(avatarState.latestMessageId ?? "nil")")
         print("🔄 [Avatar] Current avatar state: \(topAvatarState)")
         }
 
         // Check if audio is actually playing (not just queued)
         if voiceService.interactionState == .speaking &&
-           voiceService.currentSpeakingMessageId == latestAIMessageId {
+           voiceService.currentSpeakingMessageId == avatarState.latestMessageId {
             if Self.debugMode {
             print("🔄 [Avatar] Conditions met: Setting to .speaking")
             }
@@ -1863,13 +1872,13 @@ struct SessionChatView: View {
             if Self.debugMode {
             print("🔄 [Avatar] Audio playing but not latest message")
             }
-            topAvatarState = .idle  // Or keep current state
+            avatarState.animationState = .idle  // Or keep current state
         } else {
             // No audio playing
             if Self.debugMode {
             print("🔄 [Avatar] No audio playing: Setting to .idle")
             }
-            topAvatarState = .idle
+            avatarState.animationState = .idle
         }
     }
 

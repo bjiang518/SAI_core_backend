@@ -16,29 +16,37 @@ const logger = require('../utils/logger');
 class AreasOfImprovementGenerator {
     /**
      * Generate areas of improvement report HTML
+     * @param {String} userId - User ID
+     * @param {Date} startDate - Period start date
+     * @param {Date} endDate - Period end date
+     * @param {String} studentName - Student's name
+     * @param {Number} studentAge - Student's age
+     * @param {String} period - Report period ('weekly' or 'monthly')
+     * @returns {Promise<String>} HTML report
      */
-    async generateAreasOfImprovementReport(userId, startDate, endDate, studentName, studentAge) {
-        logger.info(`🎯 Generating Areas of Improvement Report for ${userId.substring(0, 8)}... (${studentName}, Age: ${studentAge})`);
+    async generateAreasOfImprovementReport(userId, startDate, endDate, studentName, studentAge, period = 'weekly') {
+        logger.info(`🎯 Generating ${period} Areas of Improvement Report for ${userId.substring(0, 8)}... (${studentName}, Age: ${studentAge})`);
 
         try {
-            // Step 1: Get all mistakes this week
-            const mistakesThisWeek = await this.getMistakesForPeriod(userId, startDate, endDate);
+            // Step 1: Get all mistakes this period
+            const mistakesThisPeriod = await this.getMistakesForPeriod(userId, startDate, endDate);
 
-            // Step 2: Get all mistakes last week for comparison
+            // Step 2: Get all mistakes last period for comparison
+            const daysToLookback = period === 'monthly' ? 30 : 7;
             const previousStart = new Date(startDate);
-            previousStart.setDate(previousStart.getDate() - 7);
+            previousStart.setDate(previousStart.getDate() - daysToLookback);
             const previousEnd = new Date(startDate);
             previousEnd.setDate(previousEnd.getDate() - 1);
-            const mistakesLastWeek = await this.getMistakesForPeriod(userId, previousStart, previousEnd);
+            const mistakesLastPeriod = await this.getMistakesForPeriod(userId, previousStart, previousEnd);
 
-            // Step 3: Get help conversations for this week
+            // Step 3: Get help conversations for this period
             const helpConversations = await this.getHelpConversations(userId, startDate, endDate);
 
             // Step 4: Analyze error patterns
-            const analysis = this.analyzeErrorPatterns(mistakesThisWeek, mistakesLastWeek, helpConversations);
+            const analysis = this.analyzeErrorPatterns(mistakesThisPeriod, mistakesLastPeriod, helpConversations);
 
             // Step 5: Generate HTML
-            const html = this.generateImprovementHTML(analysis, studentName);
+            const html = this.generateImprovementHTML(analysis, studentName, period);
 
             logger.info(`✅ Areas of Improvement Report generated: ${Object.keys(analysis.bySubject).length} subjects analyzed`);
 
@@ -220,32 +228,32 @@ class AreasOfImprovementGenerator {
     /**
      * Analyze error patterns and generate insights
      */
-    analyzeErrorPatterns(mistakesThisWeek, mistakesLastWeek, helpConversations) {
+    analyzeErrorPatterns(mistakesThisPeriod, mistakesLastPeriod, helpConversations) {
         const analysis = {
             bySubject: {},
-            totalMistakes: mistakesThisWeek.length,
-            totalMistakesLastWeek: mistakesLastWeek.length
+            totalMistakes: mistakesThisPeriod.length,
+            totalMistakesLastPeriod: mistakesLastPeriod.length
         };
 
-        // Count mistakes last week by subject
-        const lastWeekBySubject = {};
-        mistakesLastWeek.forEach(m => {
+        // Count mistakes last period by subject
+        const lastPeriodBySubject = {};
+        mistakesLastPeriod.forEach(m => {
             const subject = m.subject || 'General';
-            if (!lastWeekBySubject[subject]) {
-                lastWeekBySubject[subject] = 0;
+            if (!lastPeriodBySubject[subject]) {
+                lastPeriodBySubject[subject] = 0;
             }
-            lastWeekBySubject[subject]++;
+            lastPeriodBySubject[subject]++;
         });
 
-        // Analyze this week's mistakes by subject
-        mistakesThisWeek.forEach(mistake => {
+        // Analyze this period's mistakes by subject
+        mistakesThisPeriod.forEach(mistake => {
             const subject = mistake.subject || 'General';
 
             if (!analysis.bySubject[subject]) {
                 analysis.bySubject[subject] = {
                     subject,
                     totalMistakes: 0,
-                    mistakesLastWeek: lastWeekBySubject[subject] || 0,
+                    mistakesLastPeriod: lastPeriodBySubject[subject] || 0,
                     errorTypes: {
                         calculation_error: [],
                         concept_mismatch: [],
@@ -282,7 +290,7 @@ class AreasOfImprovementGenerator {
         // Calculate trends
         Object.keys(analysis.bySubject).forEach(subject => {
             const current = analysis.bySubject[subject].totalMistakes;
-            const previous = analysis.bySubject[subject].mistakesLastWeek;
+            const previous = analysis.bySubject[subject].mistakesLastPeriod;
             analysis.bySubject[subject].trend = current > previous + 2 ? 'increasing'
                 : current < previous - 2 ? 'improving'
                 : 'stable';
@@ -308,8 +316,11 @@ class AreasOfImprovementGenerator {
 
     /**
      * Generate HTML for areas of improvement report
+     * @param {String} period - 'weekly' or 'monthly'
      */
-    generateImprovementHTML(analysis, studentName) {
+    generateImprovementHTML(analysis, studentName, period = 'weekly') {
+        const periodLabel = period === 'monthly' ? 'this month' : 'this week';
+        const comparisonLabel = period === 'monthly' ? 'last month' : 'last week';
         const subjects = Object.values(analysis.bySubject)
             .filter(s => s.totalMistakes > 0)
             .sort((a, b) => b.totalMistakes - a.totalMistakes);
@@ -576,14 +587,14 @@ class AreasOfImprovementGenerator {
             <!-- Overview -->
             <div class="overview">
                 <p>
-                    This report analyzes your child's learning challenges this week.
+                    This report analyzes your child's learning challenges ${periodLabel}.
                     We identified <strong>${analysis.totalMistakes} mistakes</strong> across
                     <strong>${subjects.length} subjects</strong>. Each mistake is categorized by type
                     (calculation, concept, grammar, incomplete) with specific improvement suggestions.
-                    ${analysis.totalMistakes > analysis.totalMistakesLastWeek ?
-                        `<strong style="color: #721C24;">Note: Mistakes increased from ${analysis.totalMistakesLastWeek} last week.</strong>` :
-                        analysis.totalMistakes < analysis.totalMistakesLastWeek ?
-                        `<strong style="color: #155724;">Great news: Mistakes decreased from ${analysis.totalMistakesLastWeek} last week!</strong>` :
+                    ${analysis.totalMistakes > analysis.totalMistakesLastPeriod ?
+                        `<strong style="color: #721C24;">Note: Mistakes increased from ${analysis.totalMistakesLastPeriod} ${comparisonLabel}.</strong>` :
+                        analysis.totalMistakes < analysis.totalMistakesLastPeriod ?
+                        `<strong style="color: #155724;">Great news: Mistakes decreased from ${analysis.totalMistakesLastPeriod} ${comparisonLabel}!</strong>` :
                         ''}
                 </p>
             </div>
@@ -599,7 +610,7 @@ class AreasOfImprovementGenerator {
                             <span class="mistake-count">${subject.totalMistakes} mistakes</span>
                             <span class="trend-badge trend-${subject.trend}">
                                 ${subject.trend === 'improving' ? '↓' : subject.trend === 'increasing' ? '↑' : '→'}
-                                ${Math.abs(subject.trendChange)} vs last week
+                                ${Math.abs(subject.trendChange)} vs ${comparisonLabel}
                             </span>
                         </div>
                     </div>
@@ -651,7 +662,7 @@ class AreasOfImprovementGenerator {
                 </div>
             `).join('') : `
                 <div class="no-issues">
-                    <p><strong>Excellent!</strong> No significant learning challenges detected this week.</p>
+                    <p><strong>Excellent!</strong> No significant learning challenges detected ${periodLabel}.</p>
                     <p style="margin-top: 10px; font-size: 14px;">Your child is showing strong understanding across all subjects. Keep up the great learning!</p>
                 </div>
             `}
