@@ -290,19 +290,7 @@ extension DeepFocusService {
 
     /// 获取使用指南
     func getSetupGuide() -> String {
-        return """
-        🌙 深度专注模式功能：
-
-        ✅ 自动屏蔽App内通知
-        ✅ 自动降低屏幕亮度至50%
-        ✅ 优化音频环境
-        ✅ 一键启用，专注无忧
-
-        💡 进阶技巧（可选）：
-        如需屏蔽所有系统通知，可在控制中心手动启用「勿扰模式」，获得更完整的专注体验。
-
-        也可以对Siri说："开启勿扰模式"
-        """
+        return NSLocalizedString("pomodoro.deepFocusGuide", comment: "Deep focus mode setup guide")
     }
 }
 

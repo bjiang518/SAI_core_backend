@@ -1501,6 +1501,7 @@
 "pomodoro.gotIt" = "知道了";
 "pomodoro.viewSetupGuide" = "查看设置指南";
 "pomodoro.powerSaving" = "省电";
+"pomodoro.deepFocusGuide" = "🌙 深度专注模式功能：\n\n✅ 自动屏蔽App内通知\n✅ 自动降低屏幕亮度至50%\n✅ 优化音频环境\n✅ 一键启用，专注无忧\n\n💡 进阶技巧（可选）：\n如需屏蔽所有系统通知，可在控制中心手动启用「勿扰模式」，获得更完整的专注体验。\n\n也可以对Siri说："开启勿扰模式"";
 
 // Pro Mode - Digital Homework
 "proMode.title" = "数字作业本";

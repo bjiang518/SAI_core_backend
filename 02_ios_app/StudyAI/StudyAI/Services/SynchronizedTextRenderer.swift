@@ -96,14 +96,22 @@ class SynchronizedTextRenderer: ObservableObject {
     ///   - text: Text corresponding to this audio chunk
     ///   - alignmentData: Optional alignment timing data from ElevenLabs
     func processAudioChunk(text: String, alignmentData: Data?) {
+        let timestamp = Date()
+        let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
+
+        logger.info("[\(timestampStr)] 📥 processAudioChunk - text: \(text.count) chars, hasAlignmentData: \(alignmentData != nil)")
+
         // Parse alignment data if available
         var alignment: AudioAlignment?
         if let data = alignmentData {
             do {
                 alignment = try JSONDecoder().decode(AudioAlignment.self, from: data)
+                logger.info("[\(timestampStr)] ✅ Alignment data parsed - chars: \(alignment?.characters?.count ?? 0)")
             } catch {
-                logger.warning("⚠️ Failed to parse alignment")
+                logger.warning("[\(timestampStr)] ⚠️ Failed to parse alignment: \(error)")
             }
+        } else {
+            logger.warning("[\(timestampStr)] ⚠️ No alignment data provided")
         }
 
         // Add to processing queue
@@ -117,6 +125,8 @@ class SynchronizedTextRenderer: ObservableObject {
            chars.count == startTimes.count,
            chars.count == endTimes.count {
 
+            let beforeCount = characterTimings.count
+
             // Append timing data with offset for accumulated audio duration
             for i in 0..<chars.count {
                 let timing = (
@@ -127,15 +137,22 @@ class SynchronizedTextRenderer: ObservableObject {
                 characterTimings.append(timing)
             }
 
+            logger.info("[\(timestampStr)] ✅ Added \(chars.count) character timings (total: \(beforeCount) → \(characterTimings.count))")
+
             // Update total duration
             if let lastEndTime = endTimes.last {
+                let oldDuration = totalAudioDurationMs
                 totalAudioDurationMs = lastEndTime + totalAudioDurationMs
+                logger.info("[\(timestampStr)] ⏱️ Audio duration: \(Int(oldDuration))ms → \(Int(totalAudioDurationMs))ms")
             }
+        } else {
+            logger.warning("[\(timestampStr)] ⚠️ Cannot build timings - alignment validation failed")
         }
 
         // Start revealing if not already started
         if audioStartTime == nil {
             audioStartTime = Date()
+            logger.info("[\(timestampStr)] ▶️ First audio chunk - starting text reveal")
             startRevealingText()
         }
     }
@@ -151,7 +168,9 @@ class SynchronizedTextRenderer: ObservableObject {
 
     /// Stop synchronization and show all text immediately
     func complete() {
-        logger.info("🏁 Text reveal complete")
+        let timestamp = Date()
+        let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
+        logger.info("[\(timestampStr)] 🏁 Text reveal complete - revealed \(visibleText.count)/\(fullText.count) chars")
         stopRevealTimer()
         visibleText = fullText
         isSynchronizing = false
@@ -174,17 +193,22 @@ class SynchronizedTextRenderer: ObservableObject {
 
     /// Start progressive text reveal synchronized with audio timing
     private func startRevealingText() {
+        let timestamp = Date()
+        let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
+
         guard !fullText.isEmpty else {
-            logger.warning("⚠️ No full text set, cannot start reveal")
+            logger.warning("[\(timestampStr)] ⚠️ No full text set, cannot start reveal")
             return
         }
 
-        logger.info("🎬 Starting text reveal animation")
+        logger.info("[\(timestampStr)] 🎬 Starting text reveal animation - fullText: \(fullText.count) chars")
 
         // Use alignment-based reveal if we have timing data
         if !characterTimings.isEmpty {
+            logger.info("[\(timestampStr)] ✅ Using alignment-based reveal (\(characterTimings.count) timings available)")
             startAlignmentBasedReveal()
         } else {
+            logger.warning("[\(timestampStr)] ⚠️ characterTimings is EMPTY - falling back to timer mode")
             // Fallback: Time-based reveal without alignment
             startFallbackReveal()
         }
@@ -231,7 +255,9 @@ class SynchronizedTextRenderer: ObservableObject {
 
     /// Fallback: Reveal text at constant speed without alignment data
     private func startFallbackReveal() {
-        logger.info("⏱️ Using fallback reveal at \(fallbackCharsPerSecond) chars/sec")
+        let timestamp = Date()
+        let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
+        logger.warning("[\(timestampStr)] ⏱️ FALLBACK MODE - Revealing at \(fallbackCharsPerSecond) chars/sec (no alignment data)")
 
         let intervalPerChar = 1.0 / fallbackCharsPerSecond
 

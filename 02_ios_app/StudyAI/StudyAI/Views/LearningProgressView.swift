@@ -21,6 +21,7 @@ struct LearningProgressView: View {
     @State private var selectedTimeframe: TimeframeOption = .currentWeek
     @State private var selectedSubjectFilter: SubjectCategory? = nil
     @State private var loadingTask: Task<Void, Never>? = nil
+    @State private var showingProgressInfo = false
 
     // ✅ Computed properties for today's activity - read directly from PointsEarningManager
     private var todayTotalQuestions: Int {
@@ -101,6 +102,15 @@ struct LearningProgressView: View {
         .navigationTitle(NSLocalizedString("progress.title", comment: "Progress tab title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    showingProgressInfo = true
+                }) {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.blue)
+                }
+            }
+
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     ForEach(TimeframeOption.allCases, id: \.self) { option in
@@ -125,6 +135,11 @@ struct LearningProgressView: View {
                         .foregroundColor(.blue)
                 }
             }
+        }
+        .alert(NSLocalizedString("progress.info.title", comment: ""), isPresented: $showingProgressInfo) {
+            Button(NSLocalizedString("common.ok", comment: "")) { }
+        } message: {
+            Text(NSLocalizedString("progress.info.message", comment: ""))
         }
         .refreshable {
 
