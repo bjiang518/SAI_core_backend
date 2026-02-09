@@ -325,9 +325,44 @@ struct MainTabView: View {
             print("🔐 [MainTabView] Tab changed: \(oldTab) → \(newTab), session activity updated")
         }
         .onAppear {
+            configureTabBarAppearance()
             // MainTabView appeared - update session activity
             sessionManager.updateActivity()
             print("🔐 [MainTabView] MainTabView appeared, session activity updated")
+        }
+    }
+
+    private func configureTabBarAppearance() {
+        if themeManager.currentTheme == .cute {
+            let appearance = UITabBarAppearance()
+            appearance.configureWithOpaqueBackground()
+            appearance.backgroundColor = UIColor.black  // Black background
+
+            // Unselected items (white icon + text)
+            let unselectedAttributes: [NSAttributedString.Key: Any] = [
+                .foregroundColor: UIColor.white
+            ]
+            appearance.stackedLayoutAppearance.normal.iconColor = .white
+            appearance.stackedLayoutAppearance.normal.titleTextAttributes = unselectedAttributes
+
+            // Selected items (black icon + text)
+            let selectedAttributes: [NSAttributedString.Key: Any] = [
+                .foregroundColor: UIColor.black
+            ]
+            appearance.stackedLayoutAppearance.selected.iconColor = .black
+            appearance.stackedLayoutAppearance.selected.titleTextAttributes = selectedAttributes
+
+            // Use a custom badge background for selection indicator
+            appearance.selectionIndicatorTintColor = .white
+
+            UITabBar.appearance().standardAppearance = appearance
+            UITabBar.appearance().scrollEdgeAppearance = appearance
+        } else {
+            // Reset to default for Day/Night mode
+            let appearance = UITabBarAppearance()
+            appearance.configureWithDefaultBackground()
+            UITabBar.appearance().standardAppearance = appearance
+            UITabBar.appearance().scrollEdgeAppearance = appearance
         }
     }
 

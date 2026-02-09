@@ -48,9 +48,21 @@ class SynchronizedTextRenderer: ObservableObject {
 
     /// Total audio duration in seconds (for completion scheduling)
     var estimatedAudioDuration: TimeInterval {
-        // Return actual audio duration from alignment data (in seconds)
-        // Add small buffer for processing and final audio chunks
-        return (totalAudioDurationMs / 1000.0) + 1.0
+        // Calculate time for characters with alignment data
+        let alignmentDuration = totalAudioDurationMs / 1000.0
+
+        // Calculate time for remaining characters (if incomplete alignment)
+        let charsWithAlignment = characterTimings.count
+        let totalChars = fullText.count
+        let remainingChars = max(0, totalChars - charsWithAlignment)
+
+        // Remaining characters use fast fallback speed
+        let fallbackDuration = Double(remainingChars) / fastFallbackCharsPerSecond
+
+        // Total duration = alignment + fallback + small buffer
+        let total = alignmentDuration + fallbackDuration + 1.0
+
+        return total
     }
 
     // MARK: - Private Properties
@@ -79,6 +91,10 @@ class SynchronizedTextRenderer: ObservableObject {
 
     /// Fallback: Characters per second when no alignment data available
     private let fallbackCharsPerSecond: Double = 15.0
+
+    /// Faster fallback for continuation after alignment data exhausted
+    /// This ensures remaining text reveals quickly to catch up with audio completion
+    private let fastFallbackCharsPerSecond: Double = 50.0  // Much faster to catch up
 
     /// Whether to use word-based reveal (vs character-based)
     private let useWordBasedReveal: Bool = true
@@ -224,6 +240,7 @@ class SynchronizedTextRenderer: ObservableObject {
     }
 
     /// Reveal text using ElevenLabs character timing data
+    /// HYBRID MODE: Uses alignment data when available, falls back to timer for remaining chars
     private func startAlignmentBasedReveal() {
         logger.info("⏱️ Using alignment-based reveal with \(characterTimings.count) timings")
 
@@ -252,11 +269,53 @@ class SynchronizedTextRenderer: ObservableObject {
                         let endIndex = min(self.currentCharIndex, self.fullText.count)
                         self.visibleText = String(self.fullText.prefix(endIndex))
 
+                        // ✅ CRITICAL FIX: Check if we've exhausted alignment data but still have text
+                        // If we've revealed all characters with timing data, switch to fallback mode
+                        // to reveal the remaining text
+                        if self.currentCharIndex >= self.characterTimings.count &&
+                           self.currentCharIndex < self.fullText.count {
+                            self.logger.warning("⚠️ Exhausted alignment data at char \(self.currentCharIndex)/\(self.fullText.count)")
+                            self.logger.warning("🔄 Switching to fallback timer for remaining \(self.fullText.count - self.currentCharIndex) chars")
+
+                            // Stop alignment-based timer
+                            self.stopRevealTimer()
+
+                            // Continue with fallback mode for remaining characters
+                            self.startFallbackRevealContinuation()
+                            return
+                        }
+
                         if endIndex >= self.fullText.count {
-                            self.logger.info("✅ All text revealed")
+                            self.logger.info("✅ All text revealed via alignment data")
                             self.complete()
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /// Continuation of fallback reveal after alignment data exhausted
+    /// Starts from currentCharIndex and reveals remaining characters
+    /// Uses faster speed (50 chars/sec) to catch up with audio completion
+    private func startFallbackRevealContinuation() {
+        let timestamp = Date()
+        let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
+        let remaining = fullText.count - currentCharIndex
+        logger.info("[\(timestampStr)] ⏱️ FALLBACK CONTINUATION - Revealing remaining \(remaining) chars at \(fastFallbackCharsPerSecond) chars/sec")
+
+        let intervalPerChar = 1.0 / fastFallbackCharsPerSecond
+
+        revealTimer = Timer.scheduledTimer(withTimeInterval: intervalPerChar, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+
+                if self.currentCharIndex < self.fullText.count {
+                    self.currentCharIndex += 1
+                    self.visibleText = String(self.fullText.prefix(self.currentCharIndex))
+                } else {
+                    self.logger.info("✅ All text revealed via hybrid mode (alignment + fast fallback)")
+                    self.complete()
                 }
             }
         }
