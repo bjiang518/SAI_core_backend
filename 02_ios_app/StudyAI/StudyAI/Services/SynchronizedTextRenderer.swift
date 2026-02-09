@@ -44,6 +44,15 @@ class SynchronizedTextRenderer: ObservableObject {
     /// Whether synchronization is active
     @Published var isSynchronizing: Bool = false
 
+    // MARK: - Public Computed Properties
+
+    /// Total audio duration in seconds (for completion scheduling)
+    var estimatedAudioDuration: TimeInterval {
+        // Return actual audio duration from alignment data (in seconds)
+        // Add small buffer for processing and final audio chunks
+        return (totalAudioDurationMs / 1000.0) + 1.0
+    }
+
     // MARK: - Private Properties
 
     private let logger = AppLogger.forFeature("SyncTextRenderer")
