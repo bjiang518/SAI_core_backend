@@ -197,23 +197,34 @@ class ElevenLabsWebSocketClient {
         if (this.onAudioChunk) {
           // ✅ Transform ElevenLabs alignment data to iOS format
           let transformedAlignment = null;
-          if (message.alignment) {
-            const { characters, character_start_times_seconds, character_end_times_seconds } = message.alignment;
 
-            // Convert seconds to milliseconds and transform field names for iOS
-            if (characters && character_start_times_seconds && character_end_times_seconds) {
+          // Use normalizedAlignment (pre-processed by ElevenLabs)
+          const alignment = message.normalizedAlignment || message.alignment;
+
+          if (alignment) {
+            const { chars, charStartTimesMs, charDurationsMs } = alignment;
+
+            // Validate all required fields exist and are arrays
+            if (chars && charStartTimesMs && charDurationsMs &&
+                Array.isArray(chars) && Array.isArray(charStartTimesMs) && Array.isArray(charDurationsMs) &&
+                chars.length > 0) {
+
+              // Calculate end times from start times + durations
+              const charEndTimesMs = charStartTimesMs.map((start, i) => start + charDurationsMs[i]);
+
+              // Transform to iOS format
               transformedAlignment = {
-                characters: characters,
-                character_start_times_ms: character_start_times_seconds.map(t => t * 1000),
-                character_end_times_ms: character_end_times_seconds.map(t => t * 1000)
+                characters: chars,                          // chars → characters
+                character_start_times_ms: charStartTimesMs, // already in milliseconds!
+                character_end_times_ms: charEndTimesMs      // calculated from start + duration
               };
 
-              console.log(`🎯 [Alignment] Transformed ${characters.length} characters (seconds → milliseconds)`);
+              console.log(`🎯 [Alignment] Transformed ${chars.length} characters (ElevenLabs → iOS format)`);
             } else {
               console.warn('⚠️ [Alignment] ElevenLabs sent alignment but missing character/timing arrays');
-              console.warn('🔍 [DEBUG] characters:', characters);
-              console.warn('🔍 [DEBUG] character_start_times_seconds:', character_start_times_seconds);
-              console.warn('🔍 [DEBUG] character_end_times_seconds:', character_end_times_seconds);
+              console.warn('🔍 [DEBUG] chars:', chars);
+              console.warn('🔍 [DEBUG] charStartTimesMs:', charStartTimesMs);
+              console.warn('🔍 [DEBUG] charDurationsMs:', charDurationsMs);
             }
           }
 
