@@ -1472,6 +1472,7 @@
 "pomodoro.gotIt" = "Got It";
 "pomodoro.viewSetupGuide" = "View Setup Guide";
 "pomodoro.powerSaving" = "Power Saving";
+"pomodoro.deepFocusGuide" = "🌙 Deep Focus Mode Features:\n\n✅ Automatically blocks in-app notifications\n✅ Automatically reduces screen brightness to 50%\n✅ Optimizes audio environment\n✅ One-tap activation, focus effortlessly\n\n💡 Advanced Tip (Optional):\nTo block all system notifications, manually enable \"Do Not Disturb\" in Control Center for a complete focus experience.\n\nYou can also tell Siri: \"Turn on Do Not Disturb\"";
 
 
 // Subject Names

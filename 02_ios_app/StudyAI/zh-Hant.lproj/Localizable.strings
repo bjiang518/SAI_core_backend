@@ -1452,6 +1452,7 @@
 "pomodoro.gotIt" = "知道了";
 "pomodoro.viewSetupGuide" = "查看設置指南";
 "pomodoro.powerSaving" = "省電";
+"pomodoro.deepFocusGuide" = "🌙 深度專注模式功能：\n\n✅ 自動屏蔽App內通知\n✅ 自動降低螢幕亮度至50%\n✅ 優化音訊環境\n✅ 一鍵啟用，專注無憂\n\n💡 進階技巧（選用）：\n如需屏蔽所有系統通知，可在控制中心手動啟用「勿擾模式」，獲得更完整的專注體驗。\n\n也可以對Siri說：「開啟勿擾模式」";
 
 
 // Pro Mode - Digital Homework

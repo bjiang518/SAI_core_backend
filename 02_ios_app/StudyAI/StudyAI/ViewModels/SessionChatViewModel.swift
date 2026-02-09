@@ -1093,6 +1093,9 @@ class SessionChatViewModel: ObservableObject {
                                 }
 
                                 // Clear streaming state and retry UI
+                                let timestamp = Date()
+                                let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
+                                print("[\(timestampStr)] ✅ Streaming complete - setting isActivelyStreaming = false")
                                 self.isActivelyStreaming = false
                                 self.activeStreamingMessage = ""
                                 self.showRetryStreamingButton = false
@@ -1121,6 +1124,10 @@ class SessionChatViewModel: ObservableObject {
 
                             // Show retry UI with partial response
                             print("🔄 Retry available with partial response: \(partialText.count) chars")
+
+                            let timestamp = Date()
+                            let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
+                            print("[\(timestampStr)] ⚠️ Streaming retry - setting isActivelyStreaming = false")
 
                             self.partialResponseText = partialText
                             self.showRetryStreamingButton = true

@@ -280,9 +280,12 @@ class InteractiveTTSService: NSObject, ObservableObject {
     /// - Parameter base64Audio: Base64-encoded MP3 audio data
     func processAudioChunk(_ base64Audio: String) {
         Task { @MainActor in
+            let timestamp = Date()
+            let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
+
             if Self.debugMode {
                 if Self.debugMode {
-                logger.info("📥 [InteractiveTTS] processAudioChunk called with \(base64Audio.count) chars base64")
+                logger.info("[\(timestampStr)] 📥 processAudioChunk called with \(base64Audio.count) chars base64")
                 }
             }
 
@@ -291,34 +294,30 @@ class InteractiveTTSService: NSObject, ObservableObject {
                 firstAudioChunkTime = Date()
                 if Self.debugMode {
                     if Self.debugMode {
-                    logger.info("⏱️ [TIMING] First audio chunk received")
+                    logger.info("[\(timestampStr)] ⏱️ [TIMING] First audio chunk received")
                     }
                 }
             }
 
             // Ensure audio engine is running
             if !audioEngine.isRunning {
-                logger.warning("⚠️ [InteractiveTTS] Audio engine not running, restarting...")
+                logger.warning("[\(timestampStr)] ⚠️ [InteractiveTTS] Audio engine NOT RUNNING - attempting restart...")
                 do {
                     // Reactivate audio session first
                     let audioSession = AVAudioSession.sharedInstance()
                     try audioSession.setActive(true)
-                    if Self.debugMode {
-                        if Self.debugMode {
-                        logger.info("✅ [InteractiveTTS] Audio session reactivated")
-                        }
-                    }
+                    logger.info("[\(timestampStr)] ✅ Audio session reactivated")
 
                     try audioEngine.start()
-                    if Self.debugMode {
-                        if Self.debugMode {
-                        logger.info("✅ [InteractiveTTS] Audio engine restarted")
-                        }
-                    }
+                    logger.info("[\(timestampStr)] ✅ Audio engine restarted successfully")
                 } catch {
-                    logger.error("❌ [InteractiveTTS] Failed to restart audio engine: \(error)")
+                    logger.error("[\(timestampStr)] ❌ Failed to restart audio engine: \(error)")
                     errorMessage = "Audio engine failed to start"
                     return
+                }
+            } else {
+                if Self.debugMode {
+                    logger.info("[\(timestampStr)] ✅ Audio engine running")
                 }
             }
 
@@ -501,20 +500,21 @@ class InteractiveTTSService: NSObject, ObservableObject {
 
     /// Schedule next buffer for playback
     private func scheduleNextBuffer() {
+        let timestamp = Date()
+        let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
+
         if Self.debugMode {
-        logger.info("🔄 [Schedule] scheduleNextBuffer called - queue size: \(audioQueue.count)")
+        logger.info("[\(timestampStr)] 🔄 scheduleNextBuffer - queue size: \(audioQueue.count)")
         }
 
         guard !audioQueue.isEmpty else {
             isSchedulingBuffers = false
             if isPlaying {
                 if Self.debugMode {
-                logger.info("🎵 [Schedule] Audio queue empty, playback continuing until last buffer finishes")
+                logger.info("[\(timestampStr)] ⏸️ Audio queue EMPTY - playback continuing until last buffer finishes")
                 }
             } else {
-                if Self.debugMode {
-                logger.info("ℹ️ [Schedule] Audio queue empty and not playing")
-                }
+                logger.info("[\(timestampStr)] ⏹️ Audio queue EMPTY and not playing - audio complete")
             }
             return
         }
