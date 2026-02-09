@@ -1857,7 +1857,7 @@ struct SessionChatView: View {
         print("🔄 [Avatar] VoiceService state: \(voiceService.interactionState)")
         print("🔄 [Avatar] Current speaking ID: \(voiceService.currentSpeakingMessageId ?? "nil")")
         print("🔄 [Avatar] Latest AI message ID: \(avatarState.latestMessageId ?? "nil")")
-        print("🔄 [Avatar] Current avatar state: \(topAvatarState)")
+        print("🔄 [Avatar] Current avatar state: \(avatarState.animationState)")
         }
 
         // Check if audio is actually playing (not just queued)
@@ -1866,7 +1866,7 @@ struct SessionChatView: View {
             if Self.debugMode {
             print("🔄 [Avatar] Conditions met: Setting to .speaking")
             }
-            topAvatarState = .speaking
+            avatarState.animationState = .speaking
         } else if voiceService.interactionState == .speaking {
             // Audio is playing but not the latest message
             if Self.debugMode {
