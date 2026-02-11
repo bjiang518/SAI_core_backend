@@ -317,16 +317,15 @@ struct MainTabView: View {
                 }
                 .tag(MainTab.library.rawValue)
             }
-            // ✅ OPTIMIZED: Slide iOS TabBar down in Cute mode instead of trying to hide it
-            .offset(y: themeManager.currentTheme == .cute ? 100 : 0)
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: themeManager.currentTheme)
+            // ✅ Hide iOS TabBar in Cute mode
+            .toolbar(themeManager.currentTheme == .cute ? .hidden : .visible, for: .tabBar)
             .onChange(of: appState.selectedTab) { oldTab, newTab in
                 // Tab selection changed - update session activity
                 sessionManager.updateActivity()
                 print("🔐 [MainTabView] Tab changed: \(oldTab) → \(newTab), session activity updated")
             }
             .onChange(of: themeManager.currentTheme) { oldTheme, newTheme in
-                // Theme changed - iOS TabBar automatically slides via .offset() modifier
+                // Theme changed - reconfigure tab bar appearance
                 print("🎨 [MainTabView] Theme changed: \(oldTheme) → \(newTheme)")
                 configureTabBarAppearance()
             }
@@ -353,7 +352,7 @@ struct MainTabView: View {
                     ]
                 )
                 .transition(AnyTransition.move(edge: .bottom).combined(with: .opacity))
-                .zIndex(1)  // ✅ Ensure custom bar appears above offset iOS TabBar
+                .zIndex(1)  // ✅ Ensure custom bar appears above hidden iOS TabBar
             }
         }
         .onAppear {

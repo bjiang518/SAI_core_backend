@@ -28,8 +28,8 @@ struct CuteTabBar: View {
                 // Solid black wavy background with rounded corners
                 WavyTabBarShape(selectedIndex: selectedTab, tabCount: tabs.count)
                     .fill(Color(red: 0.08, green: 0.08, blue: 0.08))  // Much darker, more solid black
-                    .frame(height: 110)  // Further reduced height
-                    .offset(y: 55)  // Move down to 55pt to cover bottom completely
+                    .frame(height: 130)  // Increased height to fully cover iOS tab bar
+                    .offset(y: 65)  // Move down to cover bottom and any visible iOS tab bar
                     .shadow(color: Color.black.opacity(0.3), radius: 15, x: 0, y: -8)
 
                 // Orange bubble for selected item (smooth spring animation)
@@ -93,7 +93,7 @@ struct CuteTabBar: View {
                 bubbleOffset = centerX
             }
         }
-        .frame(height: 100)
+        .frame(height: 120)  // Increased to ensure full coverage of iOS tab bar
         .ignoresSafeArea(.all, edges: .bottom)  // Force ignore safe area
     }
 }

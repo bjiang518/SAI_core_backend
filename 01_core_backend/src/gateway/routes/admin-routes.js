@@ -453,10 +453,11 @@ module.exports = async function (fastify, opts) {
    * This route is only for initial setup. Disable in production!
    */
   fastify.post('/api/admin/setup/create-admin', async (request, reply) => {
-    // Only allow in development
-    if (process.env.NODE_ENV === 'production') {
-      return reply.code(403).send({ success: false, error: 'Not available in production' });
-    }
+    // TEMPORARY: Production check disabled for initial admin user creation
+    // TODO: Re-enable this after creating your admin user!
+    // if (process.env.NODE_ENV === 'production') {
+    //   return reply.code(403).send({ success: false, error: 'Not available in production' });
+    // }
 
     const { email, password, name } = request.body;
 
