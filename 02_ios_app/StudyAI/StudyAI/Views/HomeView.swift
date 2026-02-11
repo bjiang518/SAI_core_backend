@@ -148,18 +148,14 @@ struct HomeView: View {
         VStack(spacing: DesignTokens.Spacing.md) {
             // Greeting card with gradient background - synced with voice type
             ZStack(alignment: .trailing) {
-                // Dynamic gradient based on theme - Cute Mode uses solid pink
+                // Dynamic gradient based on theme - Cute Mode uses solid color
                 RoundedRectangle(cornerRadius: 24)
                     .fill(
                         themeManager.currentTheme == .cute ?
-                            // Cute Mode: Solid pink background
-                            LinearGradient(
-                                colors: [themeManager.greetingCardBackground, themeManager.greetingCardBackground],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ) :
+                            // Cute Mode: Fully solid color (no gradient)
+                            AnyShapeStyle(themeManager.greetingCardBackground) :
                             // Day/Night Mode: Voice-based gradients
-                            LinearGradient(
+                            AnyShapeStyle(LinearGradient(
                                 colors: {
                                     switch greetingVoice.currentVoiceType {
                                     case .adam:
@@ -206,7 +202,7 @@ struct HomeView: View {
                                 }(),
                                 startPoint: .leading,
                                 endPoint: .trailing
-                            )
+                            ))
                     )
                     .shadow(
                         color: themeManager.currentTheme == .cute ?
@@ -264,13 +260,13 @@ struct HomeView: View {
                     VStack(spacing: 2) {
                         Text(greetingText)
                             .font(.body)  // Slightly larger than callout
-                            .foregroundColor(.yellow)
+                            .foregroundColor(Color(white: 0.3))  // Dark grey
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
 
                         Text(userName)
                             .font(.title)  // Slightly larger than title2
-                            .foregroundColor(.yellow)
+                            .foregroundColor(Color(white: 0.3))  // Dark grey
                             .fontWeight(.bold)
                             .lineLimit(1)
                             .minimumScaleFactor(0.5)
@@ -694,10 +690,10 @@ struct QuickActionCard_New: View {
             .frame(height: 120)
             .background(
                 Group {
-                    // Cute Mode: Lighter solid color (70% opacity)
+                    // Cute Mode: Lighter solid color (30% opacity - similar to More Features)
                     // Day/Night Mode: Gradient overlay
                     if themeManager.currentTheme == .cute {
-                        color.opacity(0.7)  // Slightly lighter (70% opacity)
+                        color.opacity(0.3)  // Much lighter (30% opacity)
                     } else {
                         ZStack {
                             // Brighter card background for light mode
