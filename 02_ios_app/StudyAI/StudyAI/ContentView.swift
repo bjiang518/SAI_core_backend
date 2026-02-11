@@ -26,9 +26,9 @@ private func avatarLog(_ message: String) {
 
 // MARK: - Main Tab Enum
 enum MainTab: Int, CaseIterable {
-    case home = 0
+    case chat = 0
     case grader = 1
-    case chat = 2
+    case home = 2
     case progress = 3
     case library = 4
 
@@ -41,7 +41,7 @@ enum MainTab: Int, CaseIterable {
         case .library: return NSLocalizedString("tab.library", comment: "")
         }
     }
-    
+
     var icon: String {
         switch self {
         case .home: return "house.fill"
@@ -239,132 +239,156 @@ struct MainTabView: View {
     @StateObject private var themeManager = ThemeManager.shared  // ✅ Cute Mode: Black tab bar
 
     var body: some View {
-        TabView(selection: Binding(
-            get: { appState.selectedTab.rawValue },
-            set: { appState.selectedTab = MainTab(rawValue: $0) ?? .home }
-        )) {
-            // Home Tab
-            NavigationStack {
-                HomeView(onSelectTab: selectTab)
-                    .onAppear {
-                        sessionManager.updateActivity()
-                    }
-            }
-            .tabItem {
-                Image(systemName: MainTab.home.icon)
-                Text(MainTab.home.title)
-                    .font(.caption2)
-            }
-            .tag(MainTab.home.rawValue)
+        ZStack(alignment: .bottom) {
+            TabView(selection: Binding(
+                get: { appState.selectedTab.rawValue },
+                set: { appState.selectedTab = MainTab(rawValue: $0) ?? .chat }
+            )) {
+                // Chat Tab
+                NavigationStack {
+                    SessionChatView()
+                        .environmentObject(appState)  // ✅ FIX: Pass AppState for "Ask AI" navigation
+                        .onAppear {
+                            sessionManager.updateActivity()
+                        }
+                }
+                .tabItem {
+                    Image(systemName: MainTab.chat.icon)
+                    Text(MainTab.chat.title)
+                        .font(.caption2)
+                }
+                .tag(MainTab.chat.rawValue)
 
-            // Grader Tab
-            NavigationStack {
-                DirectAIHomeworkView()
-                    .environmentObject(appState)  // ✅ FIX: Inject AppState environment object
-                    .onAppear {
-                        sessionManager.updateActivity()
-                    }
-            }
-            .tabItem {
-                Image(systemName: MainTab.grader.icon)
-                Text(MainTab.grader.title)
-                    .font(.caption2)
-            }
-            .tag(MainTab.grader.rawValue)
+                // Grader Tab
+                NavigationStack {
+                    DirectAIHomeworkView()
+                        .environmentObject(appState)  // ✅ FIX: Inject AppState environment object
+                        .onAppear {
+                            sessionManager.updateActivity()
+                        }
+                }
+                .tabItem {
+                    Image(systemName: MainTab.grader.icon)
+                    Text(MainTab.grader.title)
+                        .font(.caption2)
+                }
+                .tag(MainTab.grader.rawValue)
 
-            // Chat Tab
-            NavigationStack {
-                SessionChatView()
-                    .environmentObject(appState)  // ✅ FIX: Pass AppState for "Ask AI" navigation
-                    .onAppear {
-                        sessionManager.updateActivity()
-                    }
-            }
-            .tabItem {
-                Image(systemName: MainTab.chat.icon)
-                Text(MainTab.chat.title)
-                    .font(.caption2)
-            }
-            .tag(MainTab.chat.rawValue)
+                // Home Tab
+                NavigationStack {
+                    HomeView(onSelectTab: selectTab)
+                        .onAppear {
+                            sessionManager.updateActivity()
+                        }
+                }
+                .tabItem {
+                    Image(systemName: MainTab.home.icon)
+                    Text(MainTab.home.title)
+                        .font(.caption2)
+                }
+                .tag(MainTab.home.rawValue)
 
-            // Progress Tab
-            NavigationStack {
-                LearningProgressView()
-                    .onAppear {
-                        sessionManager.updateActivity()
-                    }
-            }
-            .tabItem {
-                Image(systemName: MainTab.progress.icon)
-                Text(MainTab.progress.title)
-                    .font(.caption2)
-            }
-            .tag(MainTab.progress.rawValue)
+                // Progress Tab
+                NavigationStack {
+                    LearningProgressView()
+                        .onAppear {
+                            sessionManager.updateActivity()
+                        }
+                }
+                .tabItem {
+                    Image(systemName: MainTab.progress.icon)
+                    Text(MainTab.progress.title)
+                        .font(.caption2)
+                }
+                .tag(MainTab.progress.rawValue)
 
-            // Library Tab
-            NavigationStack {
-                UnifiedLibraryView()
-                    .environmentObject(appState)  // ✅ FIX: Inject AppState for "Ask AI" feature
-                    .onAppear {
-                        sessionManager.updateActivity()
-                    }
+                // Library Tab
+                NavigationStack {
+                    UnifiedLibraryView()
+                        .environmentObject(appState)  // ✅ FIX: Inject AppState for "Ask AI" feature
+                        .onAppear {
+                            sessionManager.updateActivity()
+                        }
+                }
+                .tabItem {
+                    Image(systemName: MainTab.library.icon)
+                    Text(MainTab.library.title)
+                        .font(.caption2)
+                }
+                .tag(MainTab.library.rawValue)
             }
-            .tabItem {
-                Image(systemName: MainTab.library.icon)
-                Text(MainTab.library.title)
-                    .font(.caption2)
+            // ✅ OPTIMIZED: Slide iOS TabBar down in Cute mode instead of trying to hide it
+            .offset(y: themeManager.currentTheme == .cute ? 100 : 0)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: themeManager.currentTheme)
+            .onChange(of: appState.selectedTab) { oldTab, newTab in
+                // Tab selection changed - update session activity
+                sessionManager.updateActivity()
+                print("🔐 [MainTabView] Tab changed: \(oldTab) → \(newTab), session activity updated")
             }
-            .tag(MainTab.library.rawValue)
-        }
-        .onChange(of: appState.selectedTab) { oldTab, newTab in
-            // Tab selection changed - update session activity
-            sessionManager.updateActivity()
-            print("🔐 [MainTabView] Tab changed: \(oldTab) → \(newTab), session activity updated")
-        }
-        .onChange(of: themeManager.currentTheme) { _, _ in
-            // Theme changed - reconfigure tab bar
-            configureTabBarAppearance()
+            .onChange(of: themeManager.currentTheme) { oldTheme, newTheme in
+                // Theme changed - iOS TabBar automatically slides via .offset() modifier
+                print("🎨 [MainTabView] Theme changed: \(oldTheme) → \(newTheme)")
+                configureTabBarAppearance()
+            }
+            .onAppear {
+                configureTabBarAppearance()
+                // MainTabView appeared - update session activity
+                sessionManager.updateActivity()
+                print("🔐 [MainTabView] MainTabView appeared, session activity updated")
+            }
+
+            // Custom Cute Tab Bar (only shown in Cute Mode)
+            if themeManager.currentTheme == .cute {
+                CuteTabBar(
+                    selectedTab: Binding(
+                        get: { appState.selectedTab.rawValue },
+                        set: { appState.selectedTab = MainTab(rawValue: $0) ?? .chat }
+                    ),
+                    tabs: [
+                        CuteTabBar.TabItem(icon: MainTab.chat.icon, tag: MainTab.chat.rawValue, title: MainTab.chat.title),
+                        CuteTabBar.TabItem(icon: MainTab.grader.icon, tag: MainTab.grader.rawValue, title: MainTab.grader.title),
+                        CuteTabBar.TabItem(icon: MainTab.home.icon, tag: MainTab.home.rawValue, title: MainTab.home.title),
+                        CuteTabBar.TabItem(icon: MainTab.progress.icon, tag: MainTab.progress.rawValue, title: MainTab.progress.title),
+                        CuteTabBar.TabItem(icon: MainTab.library.icon, tag: MainTab.library.rawValue, title: MainTab.library.title)
+                    ]
+                )
+                .transition(AnyTransition.move(edge: .bottom).combined(with: .opacity))
+                .zIndex(1)  // ✅ Ensure custom bar appears above offset iOS TabBar
+            }
         }
         .onAppear {
+            // Ensure tab bar is configured on initial load
             configureTabBarAppearance()
-            // MainTabView appeared - update session activity
-            sessionManager.updateActivity()
-            print("🔐 [MainTabView] MainTabView appeared, session activity updated")
         }
     }
 
     private func configureTabBarAppearance() {
-        if themeManager.currentTheme == .cute {
-            let appearance = UITabBarAppearance()
-            appearance.configureWithOpaqueBackground()
-            appearance.backgroundColor = UIColor.black  // Black background
+        print("🎨 [MainTabView] Configuring tab bar for theme: \(themeManager.currentTheme)")
 
-            // Unselected items (white icon + text)
-            let unselectedAttributes: [NSAttributedString.Key: Any] = [
-                .foregroundColor: UIColor.white
-            ]
-            appearance.stackedLayoutAppearance.normal.iconColor = .white
-            appearance.stackedLayoutAppearance.normal.titleTextAttributes = unselectedAttributes
-
-            // Selected items (black icon + text)
-            let selectedAttributes: [NSAttributedString.Key: Any] = [
-                .foregroundColor: UIColor.black
-            ]
-            appearance.stackedLayoutAppearance.selected.iconColor = .black
-            appearance.stackedLayoutAppearance.selected.titleTextAttributes = selectedAttributes
-
-            // Use a custom badge background for selection indicator
-            appearance.selectionIndicatorTintColor = .white
-
-            UITabBar.appearance().standardAppearance = appearance
-            UITabBar.appearance().scrollEdgeAppearance = appearance
-        } else {
-            // Reset to default for Day/Night mode
+        // ✅ SIMPLIFIED: Configure standard appearance for all themes
+        // iOS TabBar is always visible but offset down in Cute mode
+        DispatchQueue.main.async {
             let appearance = UITabBarAppearance()
             appearance.configureWithDefaultBackground()
+
             UITabBar.appearance().standardAppearance = appearance
             UITabBar.appearance().scrollEdgeAppearance = appearance
         }
+    }
+
+    // Helper function to find UITabBarController in view hierarchy
+    private func findTabBarController(in viewController: UIViewController?) -> UITabBarController? {
+        if let tabBarController = viewController as? UITabBarController {
+            return tabBarController
+        }
+
+        for child in viewController?.children ?? [] {
+            if let found = findTabBarController(in: child) {
+                return found
+            }
+        }
+
+        return nil
     }
 
     private func selectTab(_ tab: MainTab) {

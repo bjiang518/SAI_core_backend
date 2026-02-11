@@ -494,11 +494,16 @@ enum Subject: String, CaseIterable {
 // MARK: - UserProfile Extensions
 
 extension UserProfile {
+    /// Error types for UserProfile operations
+    enum ValidationError: Error {
+        case missingRequiredFields(String)
+    }
+
     /// Create UserProfile from dictionary
     static func fromDictionary(_ dict: [String: Any]) throws -> UserProfile {
         guard let id = dict["id"] as? String ?? dict["userId"] as? String ?? dict["user_id"] as? String,
               let email = dict["email"] as? String else {
-            throw ProfileError.validationError("Missing required profile fields: id and email")
+            throw ValidationError.missingRequiredFields("Missing required profile fields: id and email")
         }
         
         // Handle name field - construct from firstName/lastName if name is not provided
@@ -748,13 +753,12 @@ extension ProfileCompletion {
         } catch {
             // Fallback: return a default ProfileCompletion
             print("⚠️ Failed to decode ProfileCompletion: \(error)")
-            let fallbackDict: [String: Any] = [
-                "percentage": 0,
-                "isComplete": false,
-                "onboardingCompleted": false
-            ]
-            let fallbackData = try! JSONSerialization.data(withJSONObject: fallbackDict)
-            return try! JSONDecoder().decode(ProfileCompletion.self, from: fallbackData)
+            // Return safe default values without force unwrapping
+            return ProfileCompletion(
+                percentage: 0,
+                isComplete: false,
+                onboardingCompleted: false
+            )
         }
     }
 }

@@ -46,6 +46,12 @@ struct SessionChatView: View {
     @State private var showingArchiveInfo = false
     @State private var exampleCardScale: CGFloat = 0.8
 
+    // Keyboard state for bottom padding adjustment
+    @State private var isKeyboardVisible = false
+
+    // ✅ Stable suggestions state - only updates when keyboard is dismissed
+    @State private var stableSuggestions: [NetworkService.FollowUpSuggestion] = []
+
     // Synchronized audio toggle
     @State private var interactiveModeSettings = InteractiveModeSettings.load()
 
@@ -112,12 +118,13 @@ struct SessionChatView: View {
         AnyView(
             ZStack {
                 themeManager.backgroundColor
-                    .ignoresSafeArea(.all, edges: .bottom)  // Only ignore safe area at bottom, not top
+                    .ignoresSafeArea()  // Extend background to all edges
                 contentVStack
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)  // Hide navigation bar background
+            .background(themeManager.backgroundColor)  // Ensure background color extends everywhere
         )
     }
 
@@ -138,11 +145,11 @@ struct SessionChatView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(colorScheme == .dark ? Color(.secondarySystemBackground) : Color.white)
+                        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : (colorScheme == .dark ? Color(.secondarySystemBackground) : Color.white))
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .overlay(
                             RoundedRectangle(cornerRadius: 16)
-                                .stroke(Color.primary.opacity(0.15), lineWidth: 1)
+                                .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.primary.opacity(0.15), lineWidth: 1)
                         )
                     }
                 }
@@ -295,10 +302,31 @@ struct SessionChatView: View {
 
     /// Apply all lifecycle handler modifiers to a view
     private func applyLifecycleHandlers<V: View>(_ content: V) -> some View {
+        applySessionHandlers(
+            applyAvatarHandlers(
+                applySuggestionHandlers(
+                    applyPrimaryHandlers(content)
+                )
+            )
+        )
+    }
+
+    /// Apply primary lifecycle handlers (onAppear, onDisappear, basic changes)
+    private func applyPrimaryHandlers<V: View>(_ content: V) -> some View {
         content
             .onAppear {
                 // Initialize and clear previous session data
                 viewModel.aiGeneratedSuggestions = []
+
+                // ✅ Pre-warm keyboard for faster first appearance
+                // This initializes the keyboard subsystem in the background
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    // Briefly focus and unfocus to initialize keyboard cache
+                    isMessageInputFocused = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        isMessageInputFocused = false
+                    }
+                }
 
                 if let message = appState.pendingChatMessage {
                     viewModel.pendingHomeworkQuestion = message
@@ -344,6 +372,30 @@ struct SessionChatView: View {
                     ttsQueueService.stopAllTTS()
                 }
             }
+    }
+
+    /// Apply suggestion-related handlers
+    private func applySuggestionHandlers<V: View>(_ content: V) -> some View {
+        content
+            .onChange(of: viewModel.aiGeneratedSuggestions) { _, newSuggestions in
+                // ✅ FIX: Only update stable suggestions when keyboard is NOT active
+                // This prevents buttons from switching positions while user is typing
+                if !isMessageInputFocused {
+                    // Sort alphabetically by first letter for stable ordering
+                    stableSuggestions = newSuggestions.sorted { $0.key.localizedCompare($1.key) == .orderedAscending }
+                }
+            }
+            .onChange(of: isMessageInputFocused) { _, isFocused in
+                // ✅ FIX: When keyboard is dismissed, update to latest suggestions
+                if !isFocused && !viewModel.aiGeneratedSuggestions.isEmpty {
+                    stableSuggestions = viewModel.aiGeneratedSuggestions.sorted { $0.key.localizedCompare($1.key) == .orderedAscending }
+                }
+            }
+    }
+
+    /// Apply avatar-related handlers
+    private func applyAvatarHandlers<V: View>(_ content: V) -> some View {
+        content
             .onChange(of: viewModel.showTypingIndicator) { _, isTyping in
                 // Update avatar to show waiting state when AI is thinking (typing indicator)
                 if isTyping {
@@ -356,6 +408,11 @@ struct SessionChatView: View {
         avatarState.animationState = .processing  // Fast animation, no effects
                 }
             }
+    }
+
+    /// Apply session-related handlers (archiving, session changes)
+    private func applySessionHandlers<V: View>(_ content: V) -> some View {
+        content
             .onChange(of: viewModel.isArchiving) { wasArchiving, isArchiving in
                 // Handle archive completion
                 if wasArchiving && !isArchiving {
@@ -482,8 +539,16 @@ struct SessionChatView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            // Modern iOS 26+ safe area handling for input area
-            Color.clear.frame(height: 0)
+            // Padding to lift input box above custom tab bar in cute mode
+            // Animates to 0 when keyboard opens (iOS handles keyboard avoidance)
+            // Standard tab bar is already handled by iOS safe area in day/night mode
+            Color.clear.frame(height: themeManager.currentTheme == .cute && !isKeyboardVisible ? 30 : 0)
+        }
+        .onAppear {
+            setupKeyboardObservers()
+        }
+        .onDisappear {
+            removeKeyboardObservers()
         }
     }
 
@@ -503,7 +568,7 @@ struct SessionChatView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Image(systemName: "book.fill")
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : .blue)
                                 Text("Homework Help Mode")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(.primary)
@@ -516,11 +581,11 @@ struct SessionChatView: View {
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
                                     .frame(maxHeight: 150)
-                                    .background(Color.gray.opacity(0.1))
+                                    .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundCream : Color.gray.opacity(0.1))
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                            .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.blue.opacity(0.3), lineWidth: 1)
                                     )
                             }
 
@@ -552,7 +617,7 @@ struct SessionChatView: View {
                             }
                         }
                         .padding(12)
-                        .background(Color.blue.opacity(0.08))
+                        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue.opacity(0.15) : Color.blue.opacity(0.08))
                         .cornerRadius(12)
                         .padding(.horizontal)
                         .padding(.top, 8)
@@ -803,10 +868,7 @@ struct SessionChatView: View {
                     Spacer()
                 }
                 .padding(.horizontal, 20)
-                .transition(.asymmetric(
-                    insertion: .scale(scale: 0.8).combined(with: .opacity).combined(with: .move(edge: .bottom)),
-                    removal: .opacity
-                ))
+                .transition(.move(edge: .bottom).combined(with: .opacity))  // ✅ Simplified for performance
             }
 
             // Conversation continuation buttons (like ChatGPT)
@@ -815,10 +877,7 @@ struct SessionChatView: View {
                networkService.conversationHistory.last?["role"] == "assistant" &&
                viewModel.isStreamingComplete {
                 conversationContinuationButtons
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.8).combined(with: .opacity).combined(with: .move(edge: .bottom)),
-                        removal: .opacity
-                    ))
+                    .transition(.opacity)  // ✅ Simplified for performance
             }
 
             // WeChat-style voice input or text input
@@ -865,6 +924,8 @@ struct SessionChatView: View {
                             .lineLimit(1...4)
                             .padding(.leading, 16)
                             .padding(.vertical, 8)
+                            .autocorrectionDisabled(false)  // ✅ Enable autocorrection for better performance
+                            .textInputAutocapitalization(.sentences)  // ✅ Explicit capitalization
 
                         // Deep Thinking Gesture Handler (hold & slide for deep mode)
                         DeepThinkingGestureHandler(
@@ -893,24 +954,20 @@ struct SessionChatView: View {
                         .disabled(viewModel.isSubmitting && !viewModel.messageText.isEmpty)
                         .padding(.trailing, 4)
                     }
-                    .background(Color.primary.opacity(0.08))
-                    .cornerRadius(25)
-                    .overlay(
+                    .background(
                         RoundedRectangle(cornerRadius: 25)
-                            .stroke(Color.primary.opacity(0.15), lineWidth: 1)
+                            .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink.opacity(0.5) : Color.primary.opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 25)
+                                    .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.primary.opacity(0.15), lineWidth: 1)
+                            )
                     )
                     .overlay(alignment: .trailing) {
                         // ✅ Deep mode circle overlay - appears OUTSIDE clipped container
+                        // Simplified for better performance
                         if viewModel.isHolding {
                             Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: viewModel.isActivated ? [Color.purple, Color.blue] : [Color.purple.opacity(0.9), Color.blue.opacity(0.7)],
-                                        center: .center,
-                                        startRadius: 10,
-                                        endRadius: 30
-                                    )
-                                )
+                                .fill(viewModel.isActivated ? Color.purple : Color.purple.opacity(0.85))
                                 .frame(width: 60, height: 60)
                                 .overlay(
                                     VStack(spacing: 2) {
@@ -925,7 +982,8 @@ struct SessionChatView: View {
                                 .scaleEffect(viewModel.isActivated ? 1.2 : 1.0)
                                 .offset(x: -22, y: -80)  // Position above send button
                                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.isActivated)
-                                .transition(.scale.combined(with: .opacity))
+                                .transition(.opacity)  // ✅ Simplified transition for better performance
+                                .allowsHitTesting(false)  // ✅ FIX: Don't block emoji variant selector
                         }
                     }
                 }
@@ -958,14 +1016,14 @@ struct SessionChatView: View {
 
                 // ✨ PRIORITY: Display AI-generated suggestions if available AND language matches AND streaming is complete
                 // ✅ FIX: Only show suggestions after streaming completes to prevent position switching
+                // ✅ FIX: Use stable suggestions that don't change while keyboard is active
                 let responseIsChinese = detectChinese(in: lastMessage)
-                let suggestionsMatchLanguage = !viewModel.aiGeneratedSuggestions.isEmpty &&
-                    (viewModel.aiGeneratedSuggestions.allSatisfy { responseIsChinese == detectChinese(in: $0.key) })
+                let suggestionsMatchLanguage = !stableSuggestions.isEmpty &&
+                    (stableSuggestions.allSatisfy { responseIsChinese == detectChinese(in: $0.key) })
 
-                if viewModel.isStreamingComplete && !viewModel.aiGeneratedSuggestions.isEmpty && suggestionsMatchLanguage {
-                    // ✅ STABILITY FIX: Sort suggestions alphabetically to maintain consistent order and prevent blinking/position switching
-                    let sortedSuggestions = viewModel.aiGeneratedSuggestions.sorted { $0.key.localizedCompare($1.key) == .orderedAscending }
-                    ForEach(sortedSuggestions, id: \.id) { suggestion in
+                if viewModel.isStreamingComplete && !stableSuggestions.isEmpty && suggestionsMatchLanguage {
+                    // ✅ STABILITY: Already sorted alphabetically in stableSuggestions
+                    ForEach(stableSuggestions, id: \.id) { suggestion in
                         // Skip the regenerate suggestion if we already showed it above
                         if suggestion.value == "__REGENERATE_DIAGRAM__" {
                             EmptyView()
@@ -1250,20 +1308,40 @@ struct SessionChatView: View {
 
     // Subject-specific background color
     private func subjectBackgroundColor(for subject: String) -> Color {
-        switch subject {
-        case "Mathematics": return Color.blue.opacity(0.08)
-        case "Physics": return Color.purple.opacity(0.08)
-        case "Chemistry": return Color.green.opacity(0.08)
-        case "Biology": return Color.mint.opacity(0.08)
-        case "History": return Color.brown.opacity(0.08)
-        case "Literature": return Color.indigo.opacity(0.08)
-        case "Geography": return Color.teal.opacity(0.08)
-        case "Computer Science": return Color.cyan.opacity(0.08)
-        case "Economics": return Color.orange.opacity(0.08)
-        case "Psychology": return Color.pink.opacity(0.08)
-        case "Philosophy": return Color.gray.opacity(0.08)
-        case "General": return Color.primary.opacity(0.05)
-        default: return Color.primary.opacity(0.05)
+        // In cute mode, use cute mode colors
+        if themeManager.currentTheme == .cute {
+            switch subject {
+            case "Mathematics": return DesignTokens.Colors.Cute.blue.opacity(0.15)
+            case "Physics": return DesignTokens.Colors.Cute.lavender.opacity(0.15)
+            case "Chemistry": return DesignTokens.Colors.Cute.mint.opacity(0.15)
+            case "Biology": return DesignTokens.Colors.Cute.mint.opacity(0.15)
+            case "History": return DesignTokens.Colors.Cute.peach.opacity(0.15)
+            case "Literature": return DesignTokens.Colors.Cute.lavender.opacity(0.15)
+            case "Geography": return DesignTokens.Colors.Cute.mint.opacity(0.15)
+            case "Computer Science": return DesignTokens.Colors.Cute.blue.opacity(0.15)
+            case "Economics": return DesignTokens.Colors.Cute.yellow.opacity(0.15)
+            case "Psychology": return DesignTokens.Colors.Cute.pink.opacity(0.15)
+            case "Philosophy": return DesignTokens.Colors.Cute.lavender.opacity(0.15)
+            case "General": return DesignTokens.Colors.Cute.backgroundCream
+            default: return DesignTokens.Colors.Cute.backgroundCream
+            }
+        } else {
+            // Day/Night mode - use original colors
+            switch subject {
+            case "Mathematics": return Color.blue.opacity(0.08)
+            case "Physics": return Color.purple.opacity(0.08)
+            case "Chemistry": return Color.green.opacity(0.08)
+            case "Biology": return Color.mint.opacity(0.08)
+            case "History": return Color.brown.opacity(0.08)
+            case "Literature": return Color.indigo.opacity(0.08)
+            case "Geography": return Color.teal.opacity(0.08)
+            case "Computer Science": return Color.cyan.opacity(0.08)
+            case "Economics": return Color.orange.opacity(0.08)
+            case "Psychology": return Color.pink.opacity(0.08)
+            case "Philosophy": return Color.gray.opacity(0.08)
+            case "General": return Color.primary.opacity(0.05)
+            default: return Color.primary.opacity(0.05)
+            }
         }
     }
 
@@ -1508,7 +1586,7 @@ struct SessionChatView: View {
                                 }
                             }
                             .padding()
-                            .background(Color.gray.opacity(0.1))
+                            .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color.gray.opacity(0.1))
                             .cornerRadius(12)
                         }
                     }
@@ -1611,7 +1689,7 @@ struct SessionChatView: View {
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.gray.opacity(0.1))
+                    .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundCream : Color.gray.opacity(0.1))
                     .cornerRadius(10)
 
                     Button(NSLocalizedString("chat.archive.buttonTitle", comment: "")) {
@@ -1620,7 +1698,7 @@ struct SessionChatView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(viewModel.isArchiving ? Color.gray : Color.blue)
+                    .background(viewModel.isArchiving ? (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.buttonBlack.opacity(0.5) : Color.gray) : (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : Color.blue))
                     .cornerRadius(10)
                     .disabled(viewModel.isArchiving)
                     .overlay(
@@ -1669,6 +1747,35 @@ struct SessionChatView: View {
 
         // Alternative method using UIKit if focus state doesn't work
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    // MARK: - Keyboard Observers
+
+    private func setupKeyboardObservers() {
+        NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillShowNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            withAnimation(.easeOut(duration: 0.25)) {
+                isKeyboardVisible = true
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillHideNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            withAnimation(.easeOut(duration: 0.25)) {
+                isKeyboardVisible = false
+            }
+        }
+    }
+
+    private func removeKeyboardObservers() {
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
     }
 
     // MARK: - Audio Management
@@ -1921,19 +2028,33 @@ struct SessionChatView: View {
 extension View {
     func modernButtonStyle() -> some View {
         self
+            .modifier(ModernButtonStyleModifier())
+    }
+}
+
+// Create a ViewModifier that has access to ThemeManager
+private struct ModernButtonStyleModifier: ViewModifier {
+    @StateObject private var themeManager = ThemeManager.shared
+
+    func body(content: Content) -> some View {
+        content
             .font(.system(size: 14, weight: .medium))
             .foregroundColor(.white)  // White text for better contrast
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(
                 LinearGradient(
-                    colors: [Color.blue.opacity(0.8), Color.blue.opacity(0.6)],
+                    colors: themeManager.currentTheme == .cute ?
+                        [DesignTokens.Colors.Cute.lavender.opacity(0.8), DesignTokens.Colors.Cute.lavender.opacity(0.6)] :
+                        [Color.blue.opacity(0.8), Color.blue.opacity(0.6)],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
-            )  // Blue gradient background - more distinct than grey
+            )
             .cornerRadius(20)
-            .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)  // Add subtle shadow
+            .shadow(color: themeManager.currentTheme == .cute ?
+                DesignTokens.Colors.Cute.lavender.opacity(0.3) :
+                Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
     }
 }
 
@@ -1955,6 +2076,7 @@ struct WeChatStyleVoiceInput: View {
     let isCameraDisabled: Bool
 
     @StateObject private var speechService = SpeechRecognitionService()
+    @StateObject private var themeManager = ThemeManager.shared
     @State private var isRecording = false
     @State private var isDraggedToCancel = false
     @State private var isDeepModeActivated = false  // ✅ Track deep mode activation
@@ -1996,7 +2118,7 @@ struct WeChatStyleVoiceInput: View {
                         .lineLimit(3)
                 }
                 .padding(.vertical, 16)
-                .background(Color.blue.opacity(0.8))
+                .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.7) : Color.blue.opacity(0.8))
                 .cornerRadius(12)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)

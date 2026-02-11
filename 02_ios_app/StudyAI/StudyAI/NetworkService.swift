@@ -1826,13 +1826,18 @@ class NetworkService: ObservableObject {
     }
 
     /// Follow-up suggestion with key (button label) and value (full prompt)
-    struct FollowUpSuggestion: Codable, Identifiable {
+    struct FollowUpSuggestion: Codable, Identifiable, Equatable {
         let id = UUID()
         let key: String    // Short label for button (e.g., "Show examples")
         let value: String  // Full prompt to send (e.g., "Can you give me concrete examples?")
 
         enum CodingKeys: String, CodingKey {
             case key, value
+        }
+
+        // Equatable conformance - compare by key and value (not id)
+        static func == (lhs: FollowUpSuggestion, rhs: FollowUpSuggestion) -> Bool {
+            return lhs.key == rhs.key && lhs.value == rhs.value
         }
     }
 

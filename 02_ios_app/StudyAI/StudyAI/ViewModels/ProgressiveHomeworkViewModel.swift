@@ -415,7 +415,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
         let questions = state.questions
 
         // Use TaskGroup for controlled concurrency
-        await withTaskGroup(of: (Int, ProgressiveGradeResult?, String?).self) { group in
+        await withTaskGroup(of: (String, ProgressiveGradeResult?, String?).self) { group in
             var activeTaskCount = 0
             var questionIndex = 0
 
@@ -473,7 +473,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     /// Grade a single question (handles both regular and parent questions)
     /// For parent questions: grades all subquestions in parallel
     /// For regular questions: grades the single question
-    private func gradeQuestion(_ questionWithGrade: ProgressiveQuestionWithGrade) async -> (Int, ProgressiveGradeResult?, String?) {
+    private func gradeQuestion(_ questionWithGrade: ProgressiveQuestionWithGrade) async -> (String, ProgressiveGradeResult?, String?) {
         let question = questionWithGrade.question
 
         print("🔥🔥🔥 === gradeQuestion() CALLED for Q\(question.id) ===")
@@ -629,7 +629,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     /// Grade a single subquestion within a parent question
     private func gradeSubquestion(
         subquestion: ProgressiveSubquestion,
-        parentQuestionId: Int
+        parentQuestionId: String
     ) async -> (String, ProgressiveGradeResult?, String?) {
 
         print("   📝 Grading subquestion \(subquestion.id)...")
@@ -727,7 +727,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
 
     // MARK: - Helper Methods
 
-    private func getContextImageBase64(for questionId: Int) async -> String? {
+    private func getContextImageBase64(for questionId: String) async -> String? {
         guard let jpegData = state.croppedImages[questionId] else {
             return nil
         }
@@ -737,7 +737,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     // MARK: - User Actions
 
     /// Navigate to AI chat for help with this question
-    func askAIForHelp(questionId: Int) {
+    func askAIForHelp(questionId: String) {
         print("💬 Opening AI chat for Q\(questionId)")
         // TODO: Navigate to SessionChatView with question context
     }

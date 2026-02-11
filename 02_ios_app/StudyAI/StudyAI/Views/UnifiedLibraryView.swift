@@ -41,6 +41,7 @@ enum ContentTypeFilter: CaseIterable {
 struct UnifiedLibraryView: View {
     @StateObject private var libraryService = LibraryDataService.shared
     @StateObject private var userSession = UserSessionManager.shared
+    @StateObject private var themeManager = ThemeManager.shared
     @EnvironmentObject var appState: AppState  // ✅ FIX: Receive AppState to pass down to QuestionDetailView
 
     @State private var libraryContent = LibraryContent(questions: [], conversations: [], error: nil)
@@ -389,11 +390,11 @@ struct UnifiedLibraryView: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(Color(.systemBackground))
+                    .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemBackground))
                     .cornerRadius(10)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                            .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
                     )
                 }
 
@@ -425,11 +426,11 @@ struct UnifiedLibraryView: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(Color(.systemBackground))
+                    .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemBackground))
                     .cornerRadius(10)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                            .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
                     )
                 }
 
@@ -461,17 +462,17 @@ struct UnifiedLibraryView: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(Color(.systemBackground))
+                    .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemBackground))
                     .cornerRadius(10)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                            .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
                     )
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color(.systemGroupedBackground))
+            .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundCream : Color(.systemGroupedBackground))
 
             // Fixed Stats Header
             if !libraryContent.isEmpty {

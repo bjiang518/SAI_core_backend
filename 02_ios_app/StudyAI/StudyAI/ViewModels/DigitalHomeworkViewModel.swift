@@ -40,7 +40,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     // Archive selection mode
     @Published var isArchiveMode = false
-    @Published var selectedQuestionIds: Set<Int> = []
+    @Published var selectedQuestionIds: Set<String> = []
 
     // Deep reasoning mode (深度批改模式)
     @Published var useDeepReasoning = false
@@ -95,9 +95,9 @@ class DigitalHomeworkViewModel: ObservableObject {
         )
     }
 
-    var croppedImages: [Int: UIImage] {
+    var croppedImages: [String: UIImage] {
         guard let homework = stateManager.currentHomework else { return [:] }
-        var images: [Int: UIImage] = [:]
+        var images: [String: UIImage] = [:]
         for (questionId, _) in homework.croppedImages {
             if let image = homework.getCroppedImage(for: questionId) {
                 images[questionId] = image
@@ -557,7 +557,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         }
     }
 
-    func getCroppedImage(for questionId: Int) -> UIImage? {
+    func getCroppedImage(for questionId: String) -> UIImage? {
         return croppedImages[questionId]
     }
 
@@ -569,7 +569,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         let annotatedQuestionNumbers = Set(annotations.compactMap { $0.questionNumber })
 
         // Get all question IDs that should have images
-        var validQuestionIds = Set<Int>()
+        var validQuestionIds = Set<String>()
         for questionNumber in annotatedQuestionNumbers {
             if let questionId = parseResults?.questions.first(where: { $0.questionNumber == questionNumber })?.id {
                 validQuestionIds.insert(questionId)
@@ -723,7 +723,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     // ✅ NEW: Unified grading result type
     private struct GradingResult {
-        let questionId: Int
+        let questionId: String  // Changed from Int to String
         let grade: ProgressiveGradeResult?
         let error: String?
         let subquestionGrades: [String: ProgressiveGradeResult]
@@ -828,7 +828,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     private func gradeSubquestion(
         subquestion: ProgressiveSubquestion,
-        parentQuestionId: Int
+        parentQuestionId: String  // Changed from Int to String
     ) async -> (String, ProgressiveGradeResult?, String?) {
 
         logger.debug("Grading subquestion \(subquestion.id)...")
@@ -871,7 +871,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         }
     }
 
-    private func getCroppedImageBase64(for questionId: Int) -> String? {
+    private func getCroppedImageBase64(for questionId: String) -> String? {  // Changed from Int to String
         guard let image = croppedImages[questionId],
               let jpegData = image.jpegData(compressionQuality: 0.85) else {
             return nil
@@ -882,7 +882,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     // MARK: - Per-Question Regrading
 
     /// Regrade a single question with Gemini's deep mode for enhanced accuracy
-    func regradeQuestion(questionId: Int) async {
+    func regradeQuestion(questionId: String) async {  // Changed from Int to String
         guard let index = questions.firstIndex(where: { $0.question.id == questionId }) else {
             logger.error("Question \(questionId) not found for regrading")
             return
@@ -976,7 +976,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     }
 
     /// Regrade a specific subquestion with Gemini's deep mode
-    func regradeSubquestion(parentQuestionId: Int, subquestionId: String) async {
+    func regradeSubquestion(parentQuestionId: String, subquestionId: String) async {  // Changed Int to String
         guard let index = questions.firstIndex(where: { $0.question.id == parentQuestionId }) else {
             logger.error("Parent question \(parentQuestionId) not found for subquestion regrade")
             return
@@ -1078,7 +1078,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     // MARK: - User Actions
 
-    func askAIForHelp(questionId: Int, appState: AppState, subquestion: ProgressiveSubquestion? = nil) {
+    func askAIForHelp(questionId: String, appState: AppState, subquestion: ProgressiveSubquestion? = nil) {  // Changed Int to String
         guard let questionWithGrade = questions.first(where: { $0.question.id == questionId }) else {
             logger.error("Question not found: \(questionId)")
             return
@@ -1182,7 +1182,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         }
     }
 
-    func archiveQuestion(questionId: Int) {
+    func archiveQuestion(questionId: String) {  // Changed Int to String
         Task {
             await archiveQuestions([questionId])
 
@@ -1205,7 +1205,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     }
 
     // ✅ NEW: Archive a specific subquestion only
-    func archiveSubquestion(parentQuestionId: Int, subquestionId: String) {
+    func archiveSubquestion(parentQuestionId: String, subquestionId: String) {  // Changed Int to String
         Task {
             await archiveSubquestions(parentQuestionId: parentQuestionId, subquestionIds: [subquestionId])
 
@@ -1228,7 +1228,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     }
 
     /// Archive specific subquestions from a parent question
-    private func archiveSubquestions(parentQuestionId: Int, subquestionIds: [String]) async {
+    private func archiveSubquestions(parentQuestionId: String, subquestionIds: [String]) async {  // Changed Int to String
         guard let userId = AuthenticationService.shared.currentUser?.id else {
             logger.error("User not authenticated")
             return
@@ -1379,7 +1379,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     }
 
     /// Archive questions by their IDs
-    private func archiveQuestions(_ questionIds: [Int]) async {
+    private func archiveQuestions(_ questionIds: [String]) async {
         guard let userId = AuthenticationService.shared.currentUser?.id else {
             logger.error("User not authenticated")
             return
@@ -1389,7 +1389,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         let imageStorage = ProModeImageStorage.shared
         var questionsToArchive: [[String: Any]] = []
-        var subquestionsToArchive: [(parentId: Int, subquestionIds: [String])] = []
+        var subquestionsToArchive: [(parentId: String, subquestionIds: [String])] = []
 
         for questionId in questionIds {
             guard let questionWithGrade = questions.first(where: { $0.question.id == questionId }) else {
@@ -1714,7 +1714,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         }
     }
 
-    func toggleQuestionSelection(questionId: Int) {
+    func toggleQuestionSelection(questionId: String) {
         withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) {
             if selectedQuestionIds.contains(questionId) {
                 selectedQuestionIds.remove(questionId)
@@ -1754,7 +1754,7 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     /// Delete selected questions from the homework session
     /// Unlike archiving, this permanently removes questions from the session
-    func deleteQuestions(questionIds: [Int]) {
+    func deleteQuestions(questionIds: [String]) {  // Changed from [Int] to [String]
         guard !questionIds.isEmpty else {
             logger.warning("deleteQuestions called with empty array")
             return

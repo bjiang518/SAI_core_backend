@@ -10,6 +10,7 @@ import Charts
 
 struct LearningProgressView: View {
     @StateObject private var networkService = NetworkService.shared
+    @StateObject private var themeManager = ThemeManager.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @State private var progressData: [String: Any] = [:]
     @State private var subjectBreakdownData: SubjectBreakdownData?
@@ -237,10 +238,10 @@ struct LearningProgressView: View {
             }
         }
         .padding()
-        .background(Color(.systemGroupedBackground))
+        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemGroupedBackground))
         .cornerRadius(12)
     }
-    
+
     // MARK: - Activity Progress Section (Weekly or Monthly)
 
     @ViewBuilder
@@ -260,10 +261,10 @@ struct LearningProgressView: View {
             }
         }
         .padding()
-        .background(Color(.systemGroupedBackground))
+        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemGroupedBackground))
         .cornerRadius(12)
     }
-    
+
     // MARK: - Subject Breakdown Section (Main Feature)
 
     @ViewBuilder
@@ -290,7 +291,7 @@ struct LearningProgressView: View {
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.blue.opacity(0.1))
+                        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.2) : Color.blue.opacity(0.1))
                         .cornerRadius(8)
                     } else {
                         Button(selectedTimeframe.displayName) {

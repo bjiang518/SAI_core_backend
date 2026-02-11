@@ -457,6 +457,9 @@ if (features.useGateway) {
   // Music library routes for focus music
   fastify.register(MusicRoutes);
 
+  // Admin dashboard routes - NEW: Admin panel API endpoints
+  fastify.register(require('./routes/admin-routes'));
+
   fastify.log.info('✅ API Gateway enabled with enhanced routing and performance optimization');
 } else {
   // Fallback to simple health check only

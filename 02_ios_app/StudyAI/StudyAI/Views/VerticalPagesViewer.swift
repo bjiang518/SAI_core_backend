@@ -228,6 +228,7 @@ class ZoomablePageView: UIScrollView, UIScrollViewDelegate {
         self.showsHorizontalScrollIndicator = false
         self.backgroundColor = .black
         self.bouncesZoom = true
+        self.isScrollEnabled = true  // ✅ Ensure scrolling/zooming is enabled
 
         // Configure image view
         imageView.contentMode = .scaleAspectFit
@@ -247,6 +248,8 @@ class ZoomablePageView: UIScrollView, UIScrollViewDelegate {
         tapGesture.require(toFail: doubleTapGesture)
 
         addSubview(imageView)
+
+        print("📱 [ZoomablePageView] Initialized with zoom: \(minimumZoomScale)-\(maximumZoomScale), image size: \(image.size)")
     }
 
     required init?(coder: NSCoder) {
@@ -260,6 +263,9 @@ class ZoomablePageView: UIScrollView, UIScrollViewDelegate {
         let imageSize = image.size
         let viewSize = bounds.size
 
+        // ✅ Guard against zero bounds (initial layout)
+        guard viewSize.width > 0 && viewSize.height > 0 else { return }
+
         let widthRatio = viewSize.width / imageSize.width
         let heightRatio = viewSize.height / imageSize.height
         let ratio = min(widthRatio, heightRatio)
@@ -267,16 +273,22 @@ class ZoomablePageView: UIScrollView, UIScrollViewDelegate {
         let scaledWidth = imageSize.width * ratio
         let scaledHeight = imageSize.height * ratio
 
-        // ✅ Set imageView frame to scaled size (will be centered by centerImageInScrollView)
-        imageView.frame = CGRect(
-            x: 0,
-            y: 0,
-            width: scaledWidth,
-            height: scaledHeight
-        )
+        // ✅ Only update layout when zoom scale is 1 (not zoomed)
+        // When zoomed, UIScrollView manages the layout
+        if zoomScale == minimumZoomScale {
+            // Set imageView frame to scaled size
+            imageView.frame = CGRect(
+                x: 0,
+                y: 0,
+                width: scaledWidth,
+                height: scaledHeight
+            )
 
-        // ✅ FIX: contentSize should match the imageView size, not the view size
-        contentSize = imageView.frame.size
+            // ✅ CRITICAL: contentSize must be imageView size for zoom calculations
+            contentSize = CGSize(width: scaledWidth, height: scaledHeight)
+
+            print("📱 [layoutSubviews] bounds: \(bounds.size), imageView: \(imageView.frame.size), contentSize: \(contentSize), zoomScale: \(zoomScale)")
+        }
 
         // ✅ Center the image
         centerImageInScrollView()
@@ -358,10 +370,16 @@ struct SinglePageZoomableView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> ZoomablePageView {
         let pageView = ZoomablePageView(image: image, onTap: onTap)
+        pageView.contentInsetAdjustmentBehavior = .never  // ✅ Prevent safe area issues
         return pageView
     }
 
     func updateUIView(_ uiView: ZoomablePageView, context: Context) {
-        // No updates needed
+        // Layout will be handled by layoutSubviews when bounds change
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: ZoomablePageView, context: Context) -> CGSize? {
+        // Use proposed size if available, otherwise full screen
+        return proposal.replacingUnspecifiedDimensions()
     }
 }

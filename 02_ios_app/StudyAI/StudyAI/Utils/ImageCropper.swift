@@ -15,7 +15,7 @@ struct ImageCropper {
 
     /// Represents a region in an image with normalized coordinates
     struct ImageRegion {
-        let questionId: Int
+        let questionId: String
         let topLeft: [Double]       // [x, y] normalized to [0-1]
         let bottomRight: [Double]   // [x, y] normalized to [0-1]
         let description: String
@@ -93,12 +93,12 @@ struct ImageCropper {
         }
 
         // Convert normalized coordinates to pixel coordinates
-        // Step 1: Apply normalized coords to backend image dimensions (implicit via [0-1] range)
-        // Step 2: Scale to original image dimensions
-        let x1 = CGFloat(topLeft[0]) * originalWidth
-        let y1 = CGFloat(topLeft[1]) * originalHeight
-        let x2 = CGFloat(bottomRight[0]) * originalWidth
-        let y2 = CGFloat(bottomRight[1]) * originalHeight
+        // If backend dimensions provided, coordinates are normalized to backend size
+        // We need to scale them to the original full-resolution image
+        let x1 = CGFloat(topLeft[0]) * originalWidth / scaleX
+        let y1 = CGFloat(topLeft[1]) * originalHeight / scaleY
+        let x2 = CGFloat(bottomRight[0]) * originalWidth / scaleX
+        let y2 = CGFloat(bottomRight[1]) * originalHeight / scaleY
 
         // Calculate crop dimensions
         let cropWidth = x2 - x1
@@ -152,9 +152,9 @@ struct ImageCropper {
         regions: [ImageRegion],
         backendImageWidth: Int? = nil,
         backendImageHeight: Int? = nil
-    ) -> [Int: UIImage] {
+    ) -> [String: UIImage] {
 
-        var croppedImages: [Int: UIImage] = [:]
+        var croppedImages: [String: UIImage] = [:]
 
         print("📝 ImageCropper: Batch cropping \(regions.count) regions...")
 

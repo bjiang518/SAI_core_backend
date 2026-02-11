@@ -376,7 +376,8 @@ extension CGRect {
     func clamped(to container: CGSize) -> CGRect {
         var r = self
 
-        let minSize: CGFloat = 40
+        // ✅ Reduced from 40 to 20 to allow smaller, more precise annotations for small questions
+        let minSize: CGFloat = 20
         if r.width < minSize { r.size.width = minSize }
         if r.height < minSize { r.size.height = minSize }
 
