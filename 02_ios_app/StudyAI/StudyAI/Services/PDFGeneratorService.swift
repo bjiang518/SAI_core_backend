@@ -965,8 +965,8 @@ class PDFGeneratorService: ObservableObject {
             }
         }
 
-        // Convert croppedImages from [Int: Data] to [Int: UIImage]
-        var croppedImages: [Int: UIImage] = [:]
+        // Convert croppedImages from [String: Data] to [String: UIImage]
+        var croppedImages: [String: UIImage] = [:]
         for (questionId, imageData) in digitalHomework.croppedImages {
             if let image = UIImage(data: imageData) {
                 croppedImages[questionId] = image

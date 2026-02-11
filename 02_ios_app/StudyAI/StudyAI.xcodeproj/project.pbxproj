@@ -187,6 +187,9 @@
 		7B2249252F39BEF2006ADD93 /* ReportAvailabilityChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2249242F39BEF2006ADD93 /* ReportAvailabilityChecker.swift */; };
 		7B2249262F39BEF2006ADD93 /* ReportAvailabilityChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2249242F39BEF2006ADD93 /* ReportAvailabilityChecker.swift */; };
 		7B2249272F39BEF2006ADD93 /* ReportAvailabilityChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2249242F39BEF2006ADD93 /* ReportAvailabilityChecker.swift */; };
+		7B2249532F3AC54E006ADD93 /* CuteTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2249522F3AC54E006ADD93 /* CuteTabBar.swift */; };
+		7B2249542F3AC54E006ADD93 /* CuteTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2249522F3AC54E006ADD93 /* CuteTabBar.swift */; };
+		7B2249552F3AC54E006ADD93 /* CuteTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2249522F3AC54E006ADD93 /* CuteTabBar.swift */; };
 		7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
@@ -587,7 +590,8 @@
 		7B22491C2F39BE4E006ADD93 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		7B2249202F39BE97006ADD93 /* ThemeSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ThemeSelectionView.swift; path = StudyAI/Views/ThemeSelectionView.swift; sourceTree = SOURCE_ROOT; };
 		7B2249242F39BEF2006ADD93 /* ReportAvailabilityChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportAvailabilityChecker.swift; path = StudyAI/Services/ReportAvailabilityChecker.swift; sourceTree = SOURCE_ROOT; };
-		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCropper.swift; sourceTree = "<group>"; };
+		7B2249522F3AC54E006ADD93 /* CuteTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CuteTabBar.swift; path = StudyAI/Views/CuteTabBar.swift; sourceTree = SOURCE_ROOT; };
+		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageCropper.swift; path = StudyAI/Utils/ImageCropper.swift; sourceTree = SOURCE_ROOT; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
 		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
 		7B74A2E32EB6BBDD002DBE2B /* Bubbles x2.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Bubbles x2.json"; sourceTree = "<group>"; };
@@ -974,6 +978,7 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7B2249522F3AC54E006ADD93 /* CuteTabBar.swift */,
 				7B2249202F39BE97006ADD93 /* ThemeSelectionView.swift */,
 				7B2248EC2F37448F006ADD93 /* ParentReportsOnboardingView.swift */,
 				7B2248D02F340790006ADD93 /* VerticalPagesViewer.swift */,
@@ -1523,6 +1528,7 @@
 				MSTS1234567890123456ABCD /* MistakeReviewService.swift in Sources */,
 				PDFG1234567890123456ABCD /* PDFGeneratorService.swift in Sources */,
 				7BEEB6122E8E3A3200957748 /* DesignTokens.swift in Sources */,
+				7B2249552F3AC54E006ADD93 /* CuteTabBar.swift in Sources */,
 				1C6A1BCA94774E52B859845F /* ViewModifiers.swift in Sources */,
 				PDFP1234567890123456ABCD /* PDFPreviewView.swift in Sources */,
 				7B83523A2E9625C900199AC3 /* ShareAppView.swift in Sources */,
@@ -1578,6 +1584,7 @@
 				7B22485B2F202156006ADD93 /* PassiveReportsViewModel.swift in Sources */,
 				7B2248BE2F331667006ADD93 /* InteractiveModeSettings.swift in Sources */,
 				7B2248B52F309BEC006ADD93 /* AnswerMatchingService.swift in Sources */,
+				7B2249542F3AC54E006ADD93 /* CuteTabBar.swift in Sources */,
 				7B8E9EB72EAF395200E83DA8 /* FaceIDReauthView.swift in Sources */,
 				7B2249222F39BE97006ADD93 /* ThemeSelectionView.swift in Sources */,
 				7B8353452EA6F4F400199AC3 /* LocalReportDataAggregator.swift in Sources */,
@@ -1722,6 +1729,7 @@
 				7BDE566E2EC1C667004A8629 /* SessionChatViewModel.swift in Sources */,
 				7B83533B2EA6F11400199AC3 /* AppLogger.swift in Sources */,
 				7B83533C2EA6F11400199AC3 /* SecureLogger.swift in Sources */,
+				7B2249532F3AC54E006ADD93 /* CuteTabBar.swift in Sources */,
 				7BDE567C2EC1C6C4004A8629 /* PomodoroCalendarView.swift in Sources */,
 				7B2248992F2D8DFE006ADD93 /* CompactSubjectSelector.swift in Sources */,
 				7B22489A2F2D8DFE006ADD93 /* DualSliderFilters.swift in Sources */,

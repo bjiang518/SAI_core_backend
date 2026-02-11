@@ -28,7 +28,7 @@ struct ImageRegion: Codable {
 /// Individual question parsed from homework
 /// Supports both flat questions and hierarchical parent questions
 struct ProgressiveQuestion: Codable, Identifiable {
-    let id: Int
+    let id: String  // Changed from Int to String to support subquestion IDs like "1a", "1b"
     let questionNumber: String?
     let pageNumber: Int?  // NEW: Track which page this question is from (for multi-page homework)
 
@@ -165,7 +165,7 @@ struct GradeSingleQuestionResponse: Codable {
 /// Question with its grade result
 /// Supports both flat questions and hierarchical parent questions
 struct ProgressiveQuestionWithGrade: Identifiable, Codable {
-    let id: Int
+    let id: String  // Changed from Int to String to support subquestion IDs
     let question: ProgressiveQuestion
 
     // For regular questions: single grade
@@ -233,7 +233,7 @@ struct HomeworkGradingState {
     var subject: String?
     var subjectConfidence: Float = 0.0
     var questions: [ProgressiveQuestionWithGrade] = []
-    var croppedImages: [Int: Data] = [:]  // questionId -> JPEG data
+    var croppedImages: [String: Data] = [:]  // Changed key from Int to String - questionId -> JPEG data
 
     /// Progress: 0.0 to 1.0
     var progress: Float {
@@ -327,7 +327,7 @@ struct GradeQuestionRequest: Codable {
 enum ProgressiveGradingError: LocalizedError {
     case parsingFailed(String)
     case gradingFailed(String)
-    case imageCropFailed(Int)  // questionId
+    case imageCropFailed(String)  // Changed from Int to String - questionId
     case networkError(Error)
     case invalidResponse
 

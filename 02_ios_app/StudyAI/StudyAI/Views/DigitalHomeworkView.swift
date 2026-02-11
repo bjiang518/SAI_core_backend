@@ -23,6 +23,7 @@ struct DigitalHomeworkView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = DigitalHomeworkViewModel()
+    @StateObject private var themeManager = ThemeManager.shared  // ✅ Add theme manager for cute mode colors
     @Namespace private var animationNamespace
 
     // ✅ NEW: Track selected image for annotation (card stack)
@@ -37,11 +38,11 @@ struct DigitalHomeworkView: View {
 
     // ✅ NEW: Mistake detection alert
     @State private var showMistakeDetectionAlert = false
-    @State private var detectedMistakeIds: [Int] = []
+    @State private var detectedMistakeIds: [String] = []
 
     // ✅ NEW: Deletion mode state
     @State private var isDeletionMode = false
-    @State private var selectedQuestionsForDeletion: Set<Int> = []
+    @State private var selectedQuestionsForDeletion: Set<String> = []
     @State private var showDeletionConfirmation = false
 
     // MARK: - Body
@@ -496,22 +497,26 @@ struct DigitalHomeworkView: View {
         let accuracy = stats.accuracy
 
         return VStack(spacing: 20) {
-            // Top section: Accuracy stats (bigger)
-            VStack(spacing: 16) {
-                // Big accuracy percentage
-                Text(String(format: "%.0f%%", accuracy))
-                    .font(.system(size: 56, weight: .bold))
-                    .foregroundColor(.green)
+            // Top section: Merged accuracy stats in one line
+            VStack(spacing: 12) {
+                // ✅ MERGED: Accuracy, Correct, and Incorrect in one horizontal line
+                HStack(spacing: 32) {
+                    // Accuracy percentage
+                    VStack(spacing: 4) {
+                        Text(String(format: "%.0f%%", accuracy))
+                            .font(.system(size: 48, weight: .bold))
+                            .foregroundColor(.green)
+                        Text(NSLocalizedString("proMode.accuracy", comment: "Accuracy"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
 
-                Text(NSLocalizedString("proMode.accuracy", comment: "Accuracy"))
-                    .font(.headline)
-                    .foregroundColor(.secondary)
+                    // Vertical divider
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.3))
+                        .frame(width: 1, height: 50)
 
-                Divider()
-                    .padding(.vertical, 8)
-
-                // Detailed stats (horizontal)
-                HStack(spacing: 24) {
+                    // Correct count
                     VStack(spacing: 6) {
                         HStack(spacing: 6) {
                             Image(systemName: "checkmark.circle.fill")
@@ -526,6 +531,7 @@ struct DigitalHomeworkView: View {
                             .foregroundColor(.secondary)
                     }
 
+                    // Partial count (only show if > 0)
                     if partialCount > 0 {
                         VStack(spacing: 6) {
                             HStack(spacing: 6) {
@@ -542,6 +548,7 @@ struct DigitalHomeworkView: View {
                         }
                     }
 
+                    // Incorrect count
                     VStack(spacing: 6) {
                         HStack(spacing: 6) {
                             Image(systemName: "xmark.circle.fill")
@@ -556,6 +563,7 @@ struct DigitalHomeworkView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                .padding(.vertical, 8)
             }
             .padding(.top, 20)
 
@@ -813,13 +821,22 @@ struct DigitalHomeworkView: View {
             .padding(.vertical, 14)
             .background(
                 LinearGradient(
-                    colors: viewModel.isExportingPDF ? [Color.gray, Color.gray.opacity(0.8)] : [Color.blue, Color.blue.opacity(0.8)],
+                    colors: viewModel.isExportingPDF ?
+                        [Color.gray, Color.gray.opacity(0.8)] :
+                        (themeManager.currentTheme == .cute ?
+                            [DesignTokens.Colors.Cute.lavender, DesignTokens.Colors.Cute.lavender.opacity(0.8)] :
+                            [Color.blue, Color.blue.opacity(0.8)]),
                     startPoint: .leading,
                     endPoint: .trailing
                 )
             )
             .cornerRadius(12)
-            .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
+            .shadow(
+                color: themeManager.currentTheme == .cute ?
+                    DesignTokens.Colors.Cute.lavender.opacity(0.3) :
+                    Color.blue.opacity(0.3),
+                radius: 6, x: 0, y: 3
+            )
         }
         .disabled(viewModel.isExportingPDF)
         .opacity(viewModel.isExportingPDF ? 0.8 : 1.0)
@@ -1758,96 +1775,107 @@ struct QuestionCard: View {
     let onLongPress: () -> Void  // ✅ NEW: Long press gesture callback
     let onRemoveImage: () -> Void  // NEW: callback to remove image
 
-    var body: some View {
-        HStack(spacing: 0) {
-            // Checkbox (only in archive mode)
-            if isArchiveMode {
-                Button(action: onToggleSelection) {
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title2)
-                        .foregroundColor(isSelected ? .blue : .gray)
-                        .frame(width: 44, height: 44)
+    // MARK: - Helper Views
+
+    @ViewBuilder
+    private var checkboxSection: some View {
+        // Checkbox (only in archive mode)
+        if isArchiveMode {
+            Button(action: onToggleSelection) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title2)
+                    .foregroundColor(isSelected ? .blue : .gray)
+                    .frame(width: 44, height: 44)
+            }
+            .transition(.scale.combined(with: .opacity))
+        }
+
+        // ✅ NEW: Checkbox for deletion mode
+        if isDeletionMode {
+            Button(action: onToggleDeletionSelection) {
+                Image(systemName: isSelectedForDeletion ? "checkmark.circle.fill" : "circle")
+                    .font(.title2)
+                    .foregroundColor(isSelectedForDeletion ? .red : .gray)
+                    .frame(width: 44, height: 44)
+            }
+            .transition(.scale.combined(with: .opacity))
+        }
+    }
+
+    @ViewBuilder
+    private var questionHeader: some View {
+        HStack {
+            let questionPrefix = NSLocalizedString("proMode.questionPrefix", comment: "Question prefix (Q/题)")
+            Text("\(questionPrefix) \(questionWithGrade.question.questionNumber ?? "?")")
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            // ✅ NEW: Archived badge (if archived)
+            if questionWithGrade.isArchived {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption)
+                    Text(NSLocalizedString("proMode.archived", comment: "Archived"))
+                        .font(.caption)
+                        .fontWeight(.medium)
                 }
-                .transition(.scale.combined(with: .opacity))
+                .foregroundColor(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.green)
+                .cornerRadius(8)
             }
 
-            // ✅ NEW: Checkbox for deletion mode
-            if isDeletionMode {
-                Button(action: onToggleDeletionSelection) {
-                    Image(systemName: isSelectedForDeletion ? "checkmark.circle.fill" : "circle")
-                        .font(.title2)
-                        .foregroundColor(isSelectedForDeletion ? .red : .gray)
-                        .frame(width: 44, height: 44)
-                }
-                .transition(.scale.combined(with: .opacity))
+            Spacer()
+
+            // Grade badge (if graded) or loading indicator (if grading)
+            // ✅ NEW: Hide grade during regrading with fade animation
+            if questionWithGrade.isGrading {
+                GradingLoadingIndicator(modelType: modelType)
+                    .transition(.scale.combined(with: .opacity))
+            } else if let grade = questionWithGrade.grade {
+                HomeworkGradeBadge(grade: grade)
+                    .transition(.scale.combined(with: .opacity))
             }
+        }
+        .animation(.easeInOut(duration: 0.3), value: questionWithGrade.isGrading)
+    }
 
-            // Question content
-            VStack(alignment: .leading, spacing: 12) {
-                // Question header
-                HStack {
-                    let questionPrefix = NSLocalizedString("proMode.questionPrefix", comment: "Question prefix (Q/题)")
-                    Text("\(questionPrefix) \(questionWithGrade.question.questionNumber ?? "?")")
-                        .font(.headline)
-                        .foregroundColor(.primary)
+    @ViewBuilder
+    private var croppedImageSection: some View {
+        if let image = croppedImage {
+            ZStack(alignment: .topTrailing) {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxHeight: 120)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
 
-                    // ✅ NEW: Archived badge (if archived)
-                    if questionWithGrade.isArchived {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                            Text(NSLocalizedString("proMode.archived", comment: "Archived"))
-                                .font(.caption)
-                                .fontWeight(.medium)
-                        }
+                // X button to remove image
+                Button(action: onRemoveImage) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.green)
-                        .cornerRadius(8)
-                    }
-
-                    Spacer()
-
-                    // Grade badge (if graded) or loading indicator (if grading)
-                    // ✅ NEW: Hide grade during regrading with fade animation
-                    if questionWithGrade.isGrading {
-                        GradingLoadingIndicator(modelType: modelType)
-                            .transition(.scale.combined(with: .opacity))
-                    } else if let grade = questionWithGrade.grade {
-                        HomeworkGradeBadge(grade: grade)
-                            .transition(.scale.combined(with: .opacity))
-                    }
+                        .background(
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 24, height: 24)
+                        )
                 }
-                .animation(.easeInOut(duration: 0.3), value: questionWithGrade.isGrading)  // ✅ Animate grade badge changes
+                .offset(x: 8, y: -8)
+            }
+        }
+    }
 
-                // Cropped image (if available)
-                if let image = croppedImage {
-                    ZStack(alignment: .topTrailing) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxHeight: 120)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(8)
+    @ViewBuilder
+    private var questionContentStack: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            questionHeader
+            croppedImageSection
 
-                        // X button to remove image
-                        Button(action: onRemoveImage) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(.white)
-                                .background(
-                                    Circle()
-                                        .fill(Color.red)
-                                        .frame(width: 24, height: 24)
-                                )
-                        }
-                        .offset(x: 8, y: -8)
-                    }
-                }
-
-                // Question content
-                if questionWithGrade.question.isParentQuestion {
+            // Question content - rest of original code stays here
+            if questionWithGrade.question.isParentQuestion {
                     // Parent question with subquestions
                     Text(questionWithGrade.question.parentContent ?? "")
                         .font(.subheadline)
@@ -1947,6 +1975,12 @@ struct QuestionCard: View {
             // ✅ NEW: Dim card during regrading, slight transparency for archived
             .opacity(questionWithGrade.isGrading ? 0.5 : (questionWithGrade.isArchived ? 0.7 : 1.0))
             .animation(.easeInOut(duration: 0.3), value: questionWithGrade.isGrading)  // ✅ Smooth dimming animation
+        }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            checkboxSection
+            questionContentStack
         }
         .background(
             RoundedRectangle(cornerRadius: 12)
@@ -2293,7 +2327,7 @@ struct AnnotationQuestionPreviewCard: View {
 
 struct SubquestionRow: View {
     let subquestion: ProgressiveSubquestion
-    let parentQuestionId: Int  // ✅ NEW: Parent question ID
+    let parentQuestionId: String  // ✅ NEW: Parent question ID
     let grade: ProgressiveGradeResult?
     let isGrading: Bool  // ✅ NEW: Track grading status
     let modelType: String  // ✅ NEW: Track AI model for loading indicator
@@ -2305,6 +2339,7 @@ struct SubquestionRow: View {
 
     @State private var showFeedback = false  // ✅ CHANGED: Collapsed by default
     @State private var showArchiveOptions = false  // ✅ NEW: Show action sheet for archive options
+    @State private var isQuestionExpanded = false  // ✅ NEW: Track if question text is expanded
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -2316,7 +2351,24 @@ struct SubquestionRow: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     // ✅ TYPE-SPECIFIC RENDERING for subquestions
-                    renderSubquestionByType(subquestion: subquestion)
+                    HStack(alignment: .top, spacing: 4) {
+                        renderSubquestionByType(subquestion: subquestion, isExpanded: isQuestionExpanded)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        // ✅ NEW: Expand/collapse button ONLY for long text (>80 chars ~ 2 lines)
+                        if isQuestionTextLong(subquestion: subquestion) {
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    isQuestionExpanded.toggle()
+                                }
+                            }) {
+                                Image(systemName: isQuestionExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                                    .font(.caption2)
+                                    .foregroundColor(.blue.opacity(0.7))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
 
                     // ✅ NEW: Archived badge (if archived)
                     if isArchived {
@@ -2474,7 +2526,7 @@ struct SubquestionRow: View {
 
     /// Render subquestion based on its type
     @ViewBuilder
-    private func renderSubquestionByType(subquestion: ProgressiveSubquestion) -> some View {
+    private func renderSubquestionByType(subquestion: ProgressiveSubquestion, isExpanded: Bool) -> some View {
         let questionType = subquestion.questionType ?? "unknown"
         let questionText = subquestion.questionText
         let studentAnswer = subquestion.studentAnswer
@@ -2482,20 +2534,20 @@ struct SubquestionRow: View {
         VStack(alignment: .leading, spacing: 4) {
             switch questionType {
             case "multiple_choice":
-                renderSubquestionMultipleChoice(questionText: questionText, studentAnswer: studentAnswer)
+                renderSubquestionMultipleChoice(questionText: questionText, studentAnswer: studentAnswer, isExpanded: isExpanded)
 
             case "fill_blank":
-                renderSubquestionFillInBlank(questionText: questionText, studentAnswer: studentAnswer)
+                renderSubquestionFillInBlank(questionText: questionText, studentAnswer: studentAnswer, isExpanded: isExpanded)
 
             case "calculation":
-                renderSubquestionCalculation(questionText: questionText, studentAnswer: studentAnswer)
+                renderSubquestionCalculation(questionText: questionText, studentAnswer: studentAnswer, isExpanded: isExpanded)
 
             case "true_false":
-                renderSubquestionTrueFalse(questionText: questionText, studentAnswer: studentAnswer)
+                renderSubquestionTrueFalse(questionText: questionText, studentAnswer: studentAnswer, isExpanded: isExpanded)
 
             default:
                 // Generic rendering for other types
-                renderSubquestionGeneric(questionText: questionText, studentAnswer: studentAnswer)
+                renderSubquestionGeneric(questionText: questionText, studentAnswer: studentAnswer, isExpanded: isExpanded)
             }
         }
     }
@@ -2503,14 +2555,15 @@ struct SubquestionRow: View {
     // MARK: - Multiple Choice (Subquestion)
 
     @ViewBuilder
-    private func renderSubquestionMultipleChoice(questionText: String, studentAnswer: String) -> some View {
+    private func renderSubquestionMultipleChoice(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             let components = parseMultipleChoiceQuestion(questionText)
 
-            // Question stem
+            // Question stem with expandable text
             Text(components.stem)
                 .font(.caption)
                 .foregroundColor(.primary)
+                .lineLimit(isExpanded ? nil : 2)  // ✅ Limit to 2 lines when collapsed
 
             // Options (compact for subquestions)
             if !components.options.isEmpty {
@@ -2542,11 +2595,12 @@ struct SubquestionRow: View {
     // MARK: - Fill in Blank (Subquestion)
 
     @ViewBuilder
-    private func renderSubquestionFillInBlank(questionText: String, studentAnswer: String) -> some View {
+    private func renderSubquestionFillInBlank(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(questionText)
                 .font(.caption)
                 .foregroundColor(.primary)
+                .lineLimit(isExpanded ? nil : 2)  // ✅ Limit to 2 lines when collapsed
 
             let answers = studentAnswer.components(separatedBy: " | ")
 
@@ -2579,11 +2633,12 @@ struct SubquestionRow: View {
     // MARK: - Calculation (Subquestion)
 
     @ViewBuilder
-    private func renderSubquestionCalculation(questionText: String, studentAnswer: String) -> some View {
+    private func renderSubquestionCalculation(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(questionText)
                 .font(.caption)
                 .foregroundColor(.primary)
+                .lineLimit(isExpanded ? nil : 2)  // ✅ Limit to 2 lines when collapsed
 
             // Work shown (compact)
             Text(studentAnswer)
@@ -2599,11 +2654,12 @@ struct SubquestionRow: View {
     // MARK: - True/False (Subquestion)
 
     @ViewBuilder
-    private func renderSubquestionTrueFalse(questionText: String, studentAnswer: String) -> some View {
+    private func renderSubquestionTrueFalse(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(questionText)
                 .font(.caption)
                 .foregroundColor(.primary)
+                .lineLimit(isExpanded ? nil : 2)  // ✅ Limit to 2 lines when collapsed
 
             // True/False options (compact)
             HStack(spacing: 12) {
@@ -2630,11 +2686,12 @@ struct SubquestionRow: View {
     // MARK: - Generic (Subquestion)
 
     @ViewBuilder
-    private func renderSubquestionGeneric(questionText: String, studentAnswer: String) -> some View {
+    private func renderSubquestionGeneric(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(questionText)
                 .font(.caption)
                 .foregroundColor(.primary)
+                .lineLimit(isExpanded ? nil : 2)  // ✅ Limit to 2 lines when collapsed
 
             if !studentAnswer.isEmpty {
                 // Just show the answer without label for consistency
@@ -2650,6 +2707,23 @@ struct SubquestionRow: View {
     }
 
     // MARK: - Helper Functions (Shared with QuestionCard)
+
+    /// Check if question text is long enough to need expand/collapse
+    /// Heuristic: >80 characters likely exceeds 2 lines in .caption font
+    private func isQuestionTextLong(subquestion: ProgressiveSubquestion) -> Bool {
+        let questionText = subquestion.questionText
+        // Consider multiple choice questions that include options
+        let hasOptions = questionText.contains(") ") && (questionText.contains("A)") || questionText.contains("A."))
+
+        // For multiple choice with options, use higher threshold (already displays options separately)
+        if hasOptions {
+            return questionText.count > 100
+        }
+
+        // For regular text, check if it exceeds ~2 lines worth of characters
+        // At .caption font size (~12pt), roughly 40-50 chars per line on iPhone
+        return questionText.count > 80
+    }
 
     private func parseMultipleChoiceQuestion(_ questionText: String) -> (stem: String, options: [(letter: String, text: String)]) {
         var stem = questionText
@@ -2823,7 +2897,7 @@ struct GradingLoadingIndicator: View {
                 totalQuestions: 3,
                 questions: [
                     ProgressiveQuestion(
-                        id: 1,
+                        id: "1",  // Changed from Int to String
                         questionNumber: "1",
                         pageNumber: nil,  // No page number for single-page preview
                         isParent: false,

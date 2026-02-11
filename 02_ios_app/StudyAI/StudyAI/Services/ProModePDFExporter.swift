@@ -32,7 +32,7 @@ class ProModePDFExporter: ObservableObject {
         questions: [ProgressiveQuestionWithGrade],
         subject: String,
         totalQuestions: Int,
-        croppedImages: [Int: UIImage]
+        croppedImages: [String: UIImage]  // Changed from [Int: UIImage] to [String: UIImage]
     ) async -> PDFDocument? {
         isExporting = true
         exportProgress = 0.0

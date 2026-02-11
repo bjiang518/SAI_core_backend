@@ -150,6 +150,7 @@ class AIHomeworkStateManager: ObservableObject {
 struct DirectAIHomeworkView: View {
     @StateObject private var stateManager = AIHomeworkStateManager.shared
     @StateObject private var rateLimitManager = RateLimitManager.shared
+    @StateObject private var themeManager = ThemeManager.shared
     // @StateObject private var viewModel = DirectAIHomeworkViewModel()  // TODO: Complete MVVM refactoring
     @EnvironmentObject private var appState: AppState
     @State private var showingResults = false
@@ -301,12 +302,14 @@ struct DirectAIHomeworkView: View {
     
     var body: some View {
         VStack {
-            // Header title - Centered
+            // Header title - Centered with extra top padding to avoid Dynamic Island
             Text(NSLocalizedString("aiHomework.title", comment: ""))
                 .font(.largeTitle)
                 .fontWeight(.bold)
                 .frame(maxWidth: .infinity)
-                .padding()
+                .padding(.horizontal)
+                .padding(.top, 60)  // Extra top padding to clear Dynamic Island
+                .padding(.bottom, 30)  // Increased bottom padding to prevent content overlap
 
             // Rate limit badge - show when approaching or at limit
             if let info = rateLimitManager.getLimit(for: .homeworkImage), info.isApproachingLimit {
@@ -338,6 +341,8 @@ struct DirectAIHomeworkView: View {
                 imageSourceSelectionView
             }
         }
+        .background(themeManager.backgroundColor) // Apply cute mode background color
+        .ignoresSafeArea(.all, edges: .top) // Extend background to top edge
         .navigationBarHidden(true) // Hide iOS back button
         .sheet(isPresented: $showingResults) {
             // Check for Essay results first
@@ -363,7 +368,7 @@ struct DirectAIHomeworkView: View {
             // Progressive grading view - prepare image and base64 encoding
             // Pro Mode: Pass pre-parsed questions to skip Phase 1 parsing
             if let firstImage = stateManager.capturedImages.first {
-                NavigationView {
+                NavigationStack {
                     ProgressiveHomeworkView(
                         originalImage: firstImage,
                         base64Image: prepareBase64Image(firstImage),
@@ -605,7 +610,7 @@ struct DirectAIHomeworkView: View {
     // MARK: - Image Source Selection View
     private var imageSourceSelectionView: some View {
         VStack(spacing: 0) {
-            // Lottie Animation
+            // Lottie Animation - positioned below title with extra spacing
             LottieView(
                 animationName: "Education edit",
                 loopMode: .loop,
@@ -613,8 +618,8 @@ struct DirectAIHomeworkView: View {
             )
             .frame(width: 80, height: 80)
             .scaleEffect(0.55)
-            .padding(.top, 55)
-            .padding(.bottom, 140)  // 👈 EDIT THIS VALUE to adjust gap between animation and title (increase = larger gap)
+            .padding(.top, 40)  // Extra top padding to prevent overlap with title
+            .padding(.bottom, 140)
 
             // Header
             VStack(spacing: 8) {
@@ -788,7 +793,7 @@ struct DirectAIHomeworkView: View {
                 .foregroundColor(.orange)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(Color.orange.opacity(0.08))
+                .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.peach.opacity(0.15) : Color.orange.opacity(0.08))
                 .cornerRadius(12)
             }
 
@@ -825,7 +830,7 @@ struct DirectAIHomeworkView: View {
             ZStack(alignment: .leading) {
                 // Background track
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(UIColor.secondarySystemGroupedBackground))
+                    .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundCream : Color(UIColor.secondarySystemGroupedBackground))
                     .frame(height: 40)
 
                 // Animated liquid glass indicator
@@ -834,9 +839,9 @@ struct DirectAIHomeworkView: View {
                     let segmentWidth = geometry.size.width / CGFloat(AIModel.allCases.count)
 
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(UIColor.systemBackground))
+                        .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(UIColor.systemBackground))
                         .frame(width: segmentWidth - 8, height: 32)
-                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        .shadow(color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.2) : Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
                         .offset(x: CGFloat(selectedIndex) * segmentWidth + 4, y: 4)
                         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selectedAIModel)
                         .matchedGeometryEffect(id: "aiModelSelector", in: animationNamespace)
@@ -854,9 +859,9 @@ struct DirectAIHomeworkView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color(UIColor.systemGroupedBackground))
+        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink.opacity(0.5) : Color(UIColor.systemGroupedBackground))
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .shadow(color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.15) : Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         .padding(.horizontal)
     }
 
@@ -891,6 +896,11 @@ struct DirectAIHomeworkView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 40)
             .contentShape(Rectangle())
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.blue, lineWidth: 2)
+                    .opacity(isSelected ? 1 : 0)
+            )
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -920,7 +930,7 @@ struct DirectAIHomeworkView: View {
                 ZStack(alignment: .leading) {
                     // Background track
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(UIColor.secondarySystemGroupedBackground))
+                        .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundCream : Color(UIColor.secondarySystemGroupedBackground))
                         .frame(height: 40)
 
                     // Animated liquid glass indicator
@@ -929,9 +939,9 @@ struct DirectAIHomeworkView: View {
                         let segmentWidth = geometry.size.width / CGFloat(ParsingMode.allCases.count)
 
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(Color(UIColor.systemBackground))
+                            .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(UIColor.systemBackground))
                             .frame(width: segmentWidth - 8, height: 32)
-                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                            .shadow(color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.2) : Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
                             .offset(x: CGFloat(selectedIndex) * segmentWidth + 4, y: 4)
                             .animation(.spring(response: 0.35, dampingFraction: 0.75), value: parsingMode)
                             .matchedGeometryEffect(id: "parsingModeSelector", in: animationNamespace)
@@ -956,9 +966,9 @@ struct DirectAIHomeworkView: View {
                     .padding(.bottom, 12)
             }
         }
-        .background(Color(UIColor.systemGroupedBackground))
+        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink.opacity(0.5) : Color(UIColor.systemGroupedBackground))
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .shadow(color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.15) : Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         .padding(.horizontal)
     }
 
@@ -985,6 +995,11 @@ struct DirectAIHomeworkView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 40)
             .contentShape(Rectangle())
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.blue, lineWidth: 2)
+                    .opacity(isSelected ? 1 : 0)
+            )
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -1020,20 +1035,29 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Analyze Button
     private var analyzeButton: some View {
-        // Determine button title based on parsing mode and image count
+        // Determine button title and color based on parsing mode and image count
         let buttonTitle: String
+        let buttonColor: Color
+
         if parsingMode == .progressive {
-            // Pro Mode: "AI Digital Homework"
+            // Pro Mode: "AI Digital Homework" with BLUE color (matching greeting button)
             buttonTitle = NSLocalizedString("aiHomework.digitalHomework", comment: "")
+            buttonColor = themeManager.currentTheme == .cute ?
+                DesignTokens.Colors.Cute.blue :  // Solid blue in cute mode
+                Color(red: 0.4, green: 0.6, blue: 1.0)  // Light blue in day/night mode
         } else {
-            // Detail/Fast Mode: "Ask AI for analysis" or "Analyze N images"
+            // Detail/Fast Mode: "Ask AI for analysis" with PINK color (matching Homework Grader button)
             buttonTitle = stateManager.selectedImageIndices.count > 1 ?
                 String(format: NSLocalizedString("aiHomework.analyzeMultipleImages", comment: ""), stateManager.selectedImageIndices.count) :
                 NSLocalizedString("aiHomework.analyzeWithAI", comment: "")
+            buttonColor = themeManager.currentTheme == .cute ?
+                DesignTokens.Colors.Cute.pink.opacity(0.7) :  // Pink at 70% opacity in cute mode
+                Color(red: 0.96, green: 0.51, blue: 0.59)  // Coral pink in day/night mode
         }
 
         return AnimatedGradientButton(
             title: buttonTitle,
+            buttonColor: buttonColor,
             isProcessing: isProcessing
         ) {
             // Process selected images
@@ -2522,12 +2546,14 @@ struct ImageSourceOption: View {
     let isProminent: Bool
     let action: () -> Void
 
+    @StateObject private var themeManager = ThemeManager.shared
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.title3)
-                    .foregroundColor(isProminent ? .white : color)
+                    .foregroundColor(isProminent ? .white : (themeManager.currentTheme == .cute ? cuteIconColor : color))
                     .frame(width: 32)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -2551,10 +2577,10 @@ struct ImageSourceOption: View {
             .background(
                 Group {
                     if isProminent {
-                        // Blue prominent style with shadow
+                        // Prominent style with shadow
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(red: 0, green: 0.478, blue: 1.0)) // #007AFF
-                            .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
+                            .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : Color(red: 0, green: 0.478, blue: 1.0)) // Lavender in cute mode, blue otherwise
+                            .shadow(color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
@@ -2562,12 +2588,43 @@ struct ImageSourceOption: View {
                     } else {
                         // Standard style
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(color.opacity(0.1))
+                            .fill(themeManager.currentTheme == .cute ? cuteBackgroundColor : color.opacity(0.1))
                     }
                 }
             )
         }
         .buttonStyle(PlainButtonStyle())
+    }
+
+    // Cute mode color mapping based on original button color
+    private var cuteIconColor: Color {
+        switch color {
+        case .blue:
+            return DesignTokens.Colors.Cute.blue
+        case .green:
+            return DesignTokens.Colors.Cute.mint
+        case .orange:
+            return DesignTokens.Colors.Cute.peach
+        case .purple:
+            return DesignTokens.Colors.Cute.lavender
+        default:
+            return DesignTokens.Colors.Cute.lavender
+        }
+    }
+
+    private var cuteBackgroundColor: Color {
+        switch color {
+        case .blue:
+            return DesignTokens.Colors.Cute.blue.opacity(0.15)
+        case .green:
+            return DesignTokens.Colors.Cute.mint.opacity(0.15)
+        case .orange:
+            return DesignTokens.Colors.Cute.peach.opacity(0.15)
+        case .purple:
+            return DesignTokens.Colors.Cute.lavender.opacity(0.15)
+        default:
+            return DesignTokens.Colors.Cute.backgroundSoftPink
+        }
     }
 }
 
@@ -2792,6 +2849,7 @@ struct RandomLottieAnimation: View {
     let detailMessage: String?
 
     @State private var selectedAnimation: String = ""
+    @StateObject private var themeManager = ThemeManager.shared // Add theme manager
 
     // Available Lottie animations for homework processing
     private let animations = [
@@ -2806,8 +2864,8 @@ struct RandomLottieAnimation: View {
 
     var body: some View {
         ZStack {
-            // Background
-            Color.black.opacity(0.02)
+            // Background - use theme background for consistency
+            themeManager.backgroundColor
                 .ignoresSafeArea()
 
             GeometryReader { geometry in
@@ -3165,6 +3223,7 @@ struct ConfidenceBadge: View {
 // MARK: - Animated Gradient Button Component
 struct AnimatedGradientButton: View {
     let title: String
+    let buttonColor: Color
     let isProcessing: Bool
     let action: () -> Void
 
@@ -3198,18 +3257,9 @@ struct AnimatedGradientButton: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 18)
         }
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(red: 0.4, green: 0.6, blue: 1.0),  // Light blue
-                    Color(red: 0.5, green: 0.4, blue: 1.0)   // Light purple
-                ],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
+        .background(buttonColor)  // Use passed color instead of gradient
         .cornerRadius(16)
-        .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+        .shadow(color: buttonColor.opacity(0.3), radius: 8, x: 0, y: 4)
         .scaleEffect(buttonScale)
         .disabled(isProcessing)
         .opacity(isProcessing ? 0.5 : 1.0)

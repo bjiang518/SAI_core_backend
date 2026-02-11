@@ -53,6 +53,12 @@ class InteractiveTTSService: NSObject, ObservableObject {
     private var firstAudioChunkTime: Date?
     private var firstPlaybackStartTime: Date?
 
+    // ✅ NEW: Callback for when audio playback actually completes
+    var onPlaybackComplete: (() -> Void)?
+
+    // ✅ NEW: Track if streaming is complete (no more audio coming from backend)
+    private var isStreamingComplete = false
+
     // MARK: - Initialization
 
     override init() {
@@ -504,18 +510,24 @@ class InteractiveTTSService: NSObject, ObservableObject {
         let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
 
         if Self.debugMode {
-        logger.info("[\(timestampStr)] 🔄 scheduleNextBuffer - queue size: \(audioQueue.count)")
+        logger.info("[\(timestampStr)] 🔄 scheduleNextBuffer - queue size: \(audioQueue.count), streaming complete: \(isStreamingComplete)")
         }
 
         guard !audioQueue.isEmpty else {
             isSchedulingBuffers = false
-            if isPlaying {
-                if Self.debugMode {
-                logger.info("[\(timestampStr)] ⏸️ Audio queue EMPTY - playback continuing until last buffer finishes")
-                }
+
+            // ✅ Check if we're truly done (streaming complete AND queue empty)
+            if isStreamingComplete {
+                logger.info("[\(timestampStr)] 🏁 Queue empty + streaming complete = Audio playback finished!")
+                isPlaying = false
+
+                // Notify text renderer to complete
+                onPlaybackComplete?()
             } else {
-                logger.info("[\(timestampStr)] ⏹️ Audio queue EMPTY and not playing - audio complete")
+                // Queue empty but more audio may be coming
+                logger.info("[\(timestampStr)] ⏸️ Queue empty but streaming NOT complete - waiting for more audio...")
             }
+
             return
         }
 
@@ -599,6 +611,20 @@ class InteractiveTTSService: NSObject, ObservableObject {
 
     // MARK: - Playback Control
 
+    /// Notify that streaming is complete (no more audio chunks coming from backend)
+    /// This allows the service to trigger completion when the last buffer finishes
+    func notifyStreamingComplete() {
+        isStreamingComplete = true
+        logger.info("🏁 [Streaming] Backend signaled streaming complete")
+
+        // If queue is already empty, trigger completion immediately
+        if audioQueue.isEmpty && !isSchedulingBuffers {
+            logger.info("🏁 [Streaming] Queue already empty - triggering completion now")
+            isPlaying = false
+            onPlaybackComplete?()
+        }
+    }
+
     /// Stop playback and clear queue
     func stopPlayback() {
         playerNode.stop()
@@ -644,6 +670,12 @@ class InteractiveTTSService: NSObject, ObservableObject {
         // ✅ Reset timing metrics
         firstAudioChunkTime = nil
         firstPlaybackStartTime = nil
+
+        // ✅ Reset streaming complete flag
+        isStreamingComplete = false
+
+        // ❌ DON'T clear callback - it's persistent across sessions
+        // onPlaybackComplete should remain set for all interactive sessions
 
         if Self.debugMode {
         logger.debug("🔄 Interactive TTS service reset")

@@ -137,7 +137,7 @@ struct HomeworkSummaryView: View {
             // Hierarchical structure badge (if applicable)
             if hasHierarchicalStructure {
                 HStack(spacing: 6) {
-                    Image(systemName: "chart.tree")
+                    Image(systemName: "list.bullet.indent")
                         .font(.caption)
                     Text(NSLocalizedString("homeworkSummary.hierarchicalQuestions", comment: "Hierarchical"))
                         .font(.caption)
@@ -285,7 +285,7 @@ struct QuestionPreviewRow: View {
 
                     if let subquestions = question.subquestions {
                         HStack(spacing: 4) {
-                            Image(systemName: "chart.tree")
+                            Image(systemName: "list.bullet.indent")
                                 .font(.caption2)
                             Text(String(format: NSLocalizedString("homeworkSummary.subquestionCount", comment: "X subquestions"), subquestions.count))
                                 .font(.caption)
@@ -341,7 +341,7 @@ struct QuestionPreviewRow: View {
                 totalQuestions: 5,
                 questions: [
                     ProgressiveQuestion(
-                        id: 1,
+                        id: "1",  // Changed from Int to String
                         questionNumber: "1",
                         pageNumber: nil,  // No page number for preview
                         isParent: true,
@@ -362,7 +362,7 @@ struct QuestionPreviewRow: View {
                         questionType: "parent"
                     ),
                     ProgressiveQuestion(
-                        id: 2,
+                        id: "2",  // Changed from Int to String
                         questionNumber: "2",
                         pageNumber: nil,  // No page number for preview
                         isParent: false,

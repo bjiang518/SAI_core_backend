@@ -263,14 +263,14 @@ struct HomeView: View {
                     // Center: Greeting text - wider central area
                     VStack(spacing: 2) {
                         Text(greetingText)
-                            .font(.callout)
-                            .foregroundColor(.white.opacity(0.9))
+                            .font(.body)  // Slightly larger than callout
+                            .foregroundColor(.yellow)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
 
                         Text(userName)
-                            .font(.title2)
-                            .foregroundColor(.white)
+                            .font(.title)  // Slightly larger than title2
+                            .foregroundColor(.yellow)
                             .fontWeight(.bold)
                             .lineLimit(1)
                             .minimumScaleFactor(0.5)
@@ -641,7 +641,7 @@ struct QuickActionCard_New: View {
                             .font(.system(size: 22))
                             .foregroundColor(
                                 themeManager.currentTheme == .cute ?
-                                    Color(hex: "4A4A4A") :  // Dark grey icon in Cute mode
+                                    DesignTokens.Colors.Cute.textPrimary :  // Soft black icon in Cute mode
                                     (isPressed ? color.opacity(0.7) : color)
                             )
                             .rotationEffect(.degrees(rotationAngle))
@@ -674,7 +674,7 @@ struct QuickActionCard_New: View {
                         .font(DesignTokens.Typography.title3)
                         .foregroundColor(
                             themeManager.currentTheme == .cute ?
-                                Color(hex: "4A4A4A") :  // Dark grey in Cute mode
+                                DesignTokens.Colors.Cute.textPrimary :  // Soft black in Cute mode
                                 .primary
                         )
                         .fontWeight(.medium)
@@ -684,7 +684,7 @@ struct QuickActionCard_New: View {
                         .font(DesignTokens.Typography.caption1)
                         .foregroundColor(
                             themeManager.currentTheme == .cute ?
-                                Color(hex: "6B6B6B") :  // Medium grey in Cute mode
+                                DesignTokens.Colors.Cute.textSecondary :  // Grey in Cute mode
                                 .secondary
                         )
                         .lineLimit(1)
@@ -694,10 +694,10 @@ struct QuickActionCard_New: View {
             .frame(height: 120)
             .background(
                 Group {
-                    // Cute Mode: SOLID color background
+                    // Cute Mode: Lighter solid color (70% opacity)
                     // Day/Night Mode: Gradient overlay
                     if themeManager.currentTheme == .cute {
-                        color  // Solid vivid color
+                        color.opacity(0.7)  // Slightly lighter (70% opacity)
                     } else {
                         ZStack {
                             // Brighter card background for light mode
@@ -763,6 +763,7 @@ struct HorizontalActionButton: View {
     @State private var iconScale: CGFloat = 1.0
     @State private var iconRotation: Double = 0
     @Environment(\.colorScheme) var colorScheme  // ✅ Detect dark mode
+    @StateObject private var themeManager = ThemeManager.shared  // ✅ Cute Mode: Lighter colors
 
     var body: some View {
         Button(action: {
@@ -786,13 +787,21 @@ struct HorizontalActionButton: View {
                 // Icon
                 ZStack {
                     Circle()
-                        .fill(color.opacity(isPressed ? 0.3 : 0.15))
+                        .fill(
+                            themeManager.currentTheme == .cute ?
+                                Color.white.opacity(0.5) :  // White circle in Cute mode
+                                color.opacity(isPressed ? 0.3 : 0.15)
+                        )
                         .frame(width: 50, height: 50)
                         .scaleEffect(isPressed ? 0.9 : 1.0)
 
                     Image(systemName: icon)
                         .font(.system(size: 22))
-                        .foregroundColor(isPressed ? color.opacity(0.7) : color)
+                        .foregroundColor(
+                            themeManager.currentTheme == .cute ?
+                                DesignTokens.Colors.Cute.textPrimary :  // Soft black in Cute mode
+                                (isPressed ? color.opacity(0.7) : color)
+                        )
                         .scaleEffect(iconScale)
                         .rotationEffect(.degrees(iconRotation))
                 }
@@ -818,12 +827,20 @@ struct HorizontalActionButton: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(DesignTokens.Typography.title3)
-                        .foregroundColor(.primary)
+                        .foregroundColor(
+                            themeManager.currentTheme == .cute ?
+                                DesignTokens.Colors.Cute.textPrimary :  // Soft black in Cute mode
+                                .primary
+                        )
                         .fontWeight(.medium)
 
                     Text(subtitle)
                         .font(DesignTokens.Typography.caption1)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(
+                            themeManager.currentTheme == .cute ?
+                                DesignTokens.Colors.Cute.textSecondary :  // Grey in Cute mode
+                                .secondary
+                        )
                 }
 
                 Spacer()
@@ -831,22 +848,33 @@ struct HorizontalActionButton: View {
                 // Chevron
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(
+                        themeManager.currentTheme == .cute ?
+                            DesignTokens.Colors.Cute.textSecondary :  // Grey in Cute mode
+                            .secondary
+                    )
                     .offset(x: isPressed ? 3 : 0)
             }
             .padding(16)
             .background(
-                isPressed ?
-                    color.opacity(colorScheme == .dark ? 0.05 : 0.1) :
-                    (colorScheme == .dark ? DesignTokens.Colors.cardBackground : Color.white)
+                // Cute Mode: LIGHTER solid color (much lighter than Quick Actions)
+                // Day/Night Mode: White/card background with border
+                themeManager.currentTheme == .cute ?
+                    color.opacity(0.25) :  // Lighter version (25% opacity) in Cute mode
+                    (isPressed ?
+                        color.opacity(colorScheme == .dark ? 0.05 : 0.1) :
+                        (colorScheme == .dark ? DesignTokens.Colors.cardBackground : Color.white))
             )
             .cornerRadius(16)
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        isPressed ? color.opacity(colorScheme == .dark ? 0.6 : 0.7) : color.opacity(colorScheme == .dark ? 0.3 : 0.4),
-                        lineWidth: isPressed ? 2.0 : 1.5
-                    )
+                // Only show border in Day/Night mode, not in Cute mode
+                themeManager.currentTheme == .cute ?
+                    nil :
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            isPressed ? color.opacity(colorScheme == .dark ? 0.6 : 0.7) : color.opacity(colorScheme == .dark ? 0.3 : 0.4),
+                            lineWidth: isPressed ? 2.0 : 1.5
+                        )
             )
             .shadow(
                 color: colorScheme == .dark ?

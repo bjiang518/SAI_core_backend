@@ -68,7 +68,7 @@ class MistakeDetectionHelper {
     /// Returns question IDs that are:
     /// 1. Incorrect (grade.isCorrect == false)
     /// 2. NOT already archived in local storage
-    func getUnarchivedMistakeIds(from questionsWithGrades: [ProgressiveQuestionWithGrade]) -> [Int] {
+    func getUnarchivedMistakeIds(from questionsWithGrades: [ProgressiveQuestionWithGrade]) -> [String] {  // Changed from [Int] to [String]
         logger.debug("═══════════════════════════════════════════")
         logger.debug("MISTAKE DETECTION (ProgressiveQuestionWithGrade)")
         logger.debug("═══════════════════════════════════════════")
@@ -78,14 +78,14 @@ class MistakeDetectionHelper {
         let archivedQuestionIds = Set(localStorage.getAllArchivedQuestionIds())
         logger.debug("Found \(archivedQuestionIds.count) archived question IDs in local storage")
 
-        var mistakeIds: [Int] = []
+        var mistakeIds: [String] = []  // Changed from [Int] to [String]
 
         for questionWithGrade in questionsWithGrades {
             let questionId = questionWithGrade.id
             let questionNumber = questionWithGrade.question.questionNumber ?? "\(questionId)"
 
             // Check if already archived
-            let questionIdString = String(questionId)
+            let questionIdString = String(questionId)  // No longer needed to convert, but keeping for clarity
             if archivedQuestionIds.contains(questionIdString) {
                 logger.debug("  Question #\(questionNumber): Already archived - SKIP")
                 continue

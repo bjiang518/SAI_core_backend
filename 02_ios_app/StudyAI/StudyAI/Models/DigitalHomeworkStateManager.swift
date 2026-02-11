@@ -27,7 +27,7 @@ struct DigitalHomeworkData: Codable {
     let originalImageDataArray: [Data]  // ✅ UPDATED: Store multiple images as Data array
     var questions: [ProgressiveQuestionWithGrade]
     var annotations: [QuestionAnnotation]
-    var croppedImages: [Int: Data]  // questionId -> image data (for in-memory storage)
+    var croppedImages: [String: Data]  // Changed from Int to String - questionId -> image data (for in-memory storage)
 
     // Metadata
     let createdAt: Date
@@ -43,7 +43,7 @@ struct DigitalHomeworkData: Codable {
         originalImageDataArray: [Data],
         questions: [ProgressiveQuestionWithGrade],
         annotations: [QuestionAnnotation],
-        croppedImages: [Int: Data],
+        croppedImages: [String: Data],  // Changed from Int to String
         createdAt: Date,
         lastModified: Date,
         hasMarkedProgress: Bool = false
@@ -70,12 +70,12 @@ struct DigitalHomeworkData: Codable {
         return originalImageDataArray.compactMap { UIImage(data: $0) }
     }
 
-    func getCroppedImage(for questionId: Int) -> UIImage? {
+    func getCroppedImage(for questionId: String) -> UIImage? {  // Changed from Int to String
         guard let imageData = croppedImages[questionId] else { return nil }
         return UIImage(data: imageData)
     }
 
-    mutating func setCroppedImage(_ image: UIImage, for questionId: Int) {
+    mutating func setCroppedImage(_ image: UIImage, for questionId: String) {  // Changed from Int to String
         if let imageData = image.jpegData(compressionQuality: 0.85) {
             croppedImages[questionId] = imageData
         }
@@ -123,7 +123,7 @@ struct DigitalHomeworkData: Codable {
         parseResults = try container.decode(ParseHomeworkQuestionsResponse.self, forKey: .parseResults)
         questions = try container.decode([ProgressiveQuestionWithGrade].self, forKey: .questions)
         annotations = try container.decode([QuestionAnnotation].self, forKey: .annotations)
-        croppedImages = try container.decode([Int: Data].self, forKey: .croppedImages)
+        croppedImages = try container.decode([String: Data].self, forKey: .croppedImages)  // Changed from Int to String
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         lastModified = try container.decode(Date.self, forKey: .lastModified)
         hasMarkedProgress = try container.decodeIfPresent(Bool.self, forKey: .hasMarkedProgress) ?? false
@@ -257,7 +257,7 @@ class DigitalHomeworkStateManager: ObservableObject {
     /// Update homework data (during grading, annotation, etc.)
     func updateHomework(questions: [ProgressiveQuestionWithGrade]? = nil,
                        annotations: [QuestionAnnotation]? = nil,
-                       croppedImages: [Int: UIImage]? = nil) {
+                       croppedImages: [String: UIImage]? = nil) {  // Changed from Int to String
         guard var homework = currentHomework else {
             return
         }
