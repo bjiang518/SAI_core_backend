@@ -54,6 +54,7 @@ enum PracticeGenerationError: LocalizedError {
 // MARK: - Main View
 struct MistakeReviewView: View {
     @StateObject private var mistakeService = MistakeReviewService()
+    @StateObject private var themeManager = ThemeManager.shared
     @State private var selectedSubject: String?
 
     // NEW: Dual slider filters
@@ -79,11 +80,11 @@ struct MistakeReviewView: View {
                         VStack(spacing: 12) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 48))
-                                .foregroundColor(.green)
+                                .foregroundColor(DesignTokens.Colors.success)
 
                             Text(NSLocalizedString("mistakeReview.noMistakesFound", comment: ""))
                                 .font(.headline)
-                                .foregroundColor(.green)
+                                .foregroundColor(DesignTokens.Colors.success)
 
                             Text(NSLocalizedString("mistakeReview.noMistakesMessage", comment: ""))
                                 .font(.subheadline)
@@ -145,7 +146,7 @@ struct MistakeReviewView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 56)
-                            .background(mistakeCount > 0 ? Color.blue : Color.gray)
+                            .background(mistakeCount > 0 ? themeManager.accentColor : Color.gray)
                             .cornerRadius(12)
                         }
                         .disabled(mistakeCount == 0)
@@ -185,6 +186,11 @@ struct MistakeReviewView: View {
                 printShortTermStatusDebugInfo()
 
                 await mistakeService.fetchSubjectsWithMistakes(timeRange: selectedTimeRange.mistakeTimeRange)
+
+                // ✅ Auto-select first subject if available and none selected
+                if selectedSubject == nil, let firstSubject = mistakeService.subjectsWithMistakes.first {
+                    selectedSubject = firstSubject.subject
+                }
             }
             .onChange(of: selectedTimeRange) { _, newRange in
                 Task {
@@ -324,6 +330,7 @@ struct MistakeQuestionListView: View {
     @StateObject private var mistakeService = MistakeReviewService()
     @StateObject private var questionGenerationService = QuestionGenerationService.shared
     @StateObject private var profileService = ProfileService.shared
+    @StateObject private var themeManager = ThemeManager.shared
     @State private var selectedQuestions: Set<String> = []
     @State private var isSelectionMode = false
     @State private var showingPDFGenerator = false
@@ -380,7 +387,7 @@ struct MistakeQuestionListView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 56)
-                            .background(Color.green)
+                            .background(DesignTokens.Colors.success)
                             .cornerRadius(12)
                         }
                         .buttonStyle(PlainButtonStyle())
@@ -403,7 +410,7 @@ struct MistakeQuestionListView: View {
                                  NSLocalizedString("common.deselectAll", comment: "") :
                                  NSLocalizedString("common.selectAll", comment: ""))
                                 .font(.subheadline)
-                                .foregroundColor(.blue)
+                                .foregroundColor(themeManager.accentColor)
                         }
 
                         Spacer()
@@ -420,7 +427,7 @@ struct MistakeQuestionListView: View {
                         }) {
                             Text(NSLocalizedString("common.cancel", comment: ""))
                                 .font(.subheadline)
-                                .foregroundColor(.red)
+                                .foregroundColor(DesignTokens.Colors.error)
                         }
                     }
                     .padding(.horizontal)
@@ -435,7 +442,7 @@ struct MistakeQuestionListView: View {
                         VStack(spacing: 16) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 64))
-                                .foregroundColor(.green)
+                                .foregroundColor(DesignTokens.Colors.success)
 
                             Text(NSLocalizedString("mistakeReview.noMistakesFound", comment: ""))
                                 .font(.title2)
@@ -487,7 +494,7 @@ struct MistakeQuestionListView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
-                        .background(isGeneratingPractice ? Color.gray : Color.blue)
+                        .background(isGeneratingPractice ? Color.gray : themeManager.accentColor)
                         .cornerRadius(12)
                     }
                     .disabled(isGeneratingPractice)
@@ -728,6 +735,7 @@ struct MistakeQuestionCard: View {
     let isSelected: Bool
     let onToggleSelection: () -> Void
 
+    @StateObject private var themeManager = ThemeManager.shared
     @State private var isExpanded = false  // ✅ Changed: Card starts folded
     @State private var imageExpanded = false  // ✅ New: Image expansion state
 
@@ -739,14 +747,14 @@ struct MistakeQuestionCard: View {
                     Button(action: onToggleSelection) {
                         HStack(spacing: 8) {
                             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                .foregroundColor(isSelected ? .blue : .gray)
+                                .foregroundColor(isSelected ? themeManager.accentColor : .gray)
                                 .font(.title3)
 
                             Text(isSelected ?
                                  NSLocalizedString("mistakeReview.selected", comment: "") :
                                  NSLocalizedString("mistakeReview.select", comment: ""))
                                 .font(.subheadline)
-                                .foregroundColor(isSelected ? .blue : .gray)
+                                .foregroundColor(isSelected ? themeManager.accentColor : .gray)
                         }
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -803,7 +811,7 @@ struct MistakeQuestionCard: View {
                         .fontWeight(.medium)
                 }
                 .font(.subheadline)
-                .foregroundColor(.blue)
+                .foregroundColor(themeManager.accentColor)
             }
             .buttonStyle(PlainButtonStyle())
 
@@ -848,12 +856,12 @@ struct MistakeQuestionCard: View {
                         )
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Color.red.opacity(0.1))
-                        .foregroundColor(.red)
+                        .background(DesignTokens.Colors.error.opacity(0.1))
+                        .foregroundColor(DesignTokens.Colors.error)
                         .cornerRadius(8)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                                .stroke(DesignTokens.Colors.error.opacity(0.3), lineWidth: 1)
                         )
                     }
 
@@ -868,12 +876,12 @@ struct MistakeQuestionCard: View {
                         EnhancedMathText(question.correctAnswer, fontSize: 16)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(Color.green.opacity(0.1))
-                            .foregroundColor(.green)
+                            .background(DesignTokens.Colors.success.opacity(0.1))
+                            .foregroundColor(DesignTokens.Colors.success)
                             .cornerRadius(8)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                                    .stroke(DesignTokens.Colors.success.opacity(0.3), lineWidth: 1)
                             )
                     }
 
@@ -889,7 +897,7 @@ struct MistakeQuestionCard: View {
                             EnhancedMathText(question.explanation, fontSize: 14)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color.blue.opacity(0.05))
+                                .background(themeManager.accentColor.opacity(0.05))
                                 .foregroundColor(.primary)
                                 .cornerRadius(8)
                         }
@@ -899,13 +907,13 @@ struct MistakeQuestionCard: View {
             }
         }
         .padding()
-        .background(isSelectionMode && isSelected ? Color.blue.opacity(0.1) : Color(.systemBackground))
+        .background(isSelectionMode && isSelected ? themeManager.accentColor.opacity(0.1) : Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    isSelectionMode && isSelected ? Color.blue : Color.gray.opacity(0.2),  // ✅ Lighter border
+                    isSelectionMode && isSelected ? themeManager.accentColor : Color.gray.opacity(0.2),  // ✅ Lighter border
                     lineWidth: isSelectionMode && isSelected ? 2 : 1  // ✅ Thinner when not selected
                 )
         )
@@ -982,7 +990,7 @@ struct MistakeQuestionCard: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
+                            .foregroundColor(DesignTokens.Colors.warning)
                             .font(.caption)
                         Text("What Went Wrong")
                             .font(.caption)
@@ -994,7 +1002,7 @@ struct MistakeQuestionCard: View {
                         .foregroundColor(.primary)
                 }
                 .padding(10)
-                .background(Color.orange.opacity(0.05))
+                .background(DesignTokens.Colors.warning.opacity(0.05))
                 .cornerRadius(8)
             }
 
@@ -1003,7 +1011,7 @@ struct MistakeQuestionCard: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Image(systemName: "magnifyingglass")
-                            .foregroundColor(.blue)
+                            .foregroundColor(themeManager.accentColor)
                             .font(.caption)
                         Text("Evidence")
                             .font(.caption)
@@ -1015,7 +1023,7 @@ struct MistakeQuestionCard: View {
                         .foregroundColor(.primary)
                 }
                 .padding(10)
-                .background(Color.blue.opacity(0.05))
+                .background(themeManager.accentColor.opacity(0.05))
                 .cornerRadius(8)
             }
 
@@ -1024,7 +1032,7 @@ struct MistakeQuestionCard: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Image(systemName: "lightbulb.fill")
-                            .foregroundColor(.yellow)
+                            .foregroundColor(DesignTokens.Colors.warning)
                             .font(.caption)
                         Text("How to Improve")
                             .font(.caption)
@@ -1036,7 +1044,7 @@ struct MistakeQuestionCard: View {
                         .foregroundColor(.primary)
                 }
                 .padding(10)
-                .background(Color.yellow.opacity(0.05))
+                .background(DesignTokens.Colors.warning.opacity(0.05))
                 .cornerRadius(8)
             }
         }
@@ -1201,7 +1209,7 @@ struct PracticeQuestionsView: View {
                 Text("\(correctCount)/\(gradedQuestions.count) correct")
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundColor(correctCount == gradedQuestions.count ? .green : .orange)
+                    .foregroundColor(correctCount == gradedQuestions.count ? DesignTokens.Colors.success : DesignTokens.Colors.warning)
             }
             .padding(.horizontal)
         }
@@ -1492,7 +1500,7 @@ struct PracticeQuestionsView: View {
                 // Big accuracy percentage
                 Text(String(format: "%.0f%%", accuracy))
                     .font(.system(size: 56, weight: .bold))
-                    .foregroundColor(.green)
+                    .foregroundColor(DesignTokens.Colors.success)
 
                 Text("Accuracy")
                     .font(.headline)
@@ -1507,7 +1515,7 @@ struct PracticeQuestionsView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.title2)
-                                .foregroundColor(.green)
+                                .foregroundColor(DesignTokens.Colors.success)
                             Text("\(correctCount)")
                                 .font(.title2)
                                 .fontWeight(.bold)
@@ -1521,7 +1529,7 @@ struct PracticeQuestionsView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.title2)
-                                .foregroundColor(.red)
+                                .foregroundColor(DesignTokens.Colors.error)
                             Text("\(incorrectCount)")
                                 .font(.title2)
                                 .fontWeight(.bold)
@@ -1543,14 +1551,14 @@ struct PracticeQuestionsView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title2)
-                        .foregroundColor(.green)
+                        .foregroundColor(DesignTokens.Colors.success)
                     Text("Progress Already Marked")
                         .font(.headline)
-                        .foregroundColor(.green)
+                        .foregroundColor(DesignTokens.Colors.success)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(Color.green.opacity(0.1))
+                .background(DesignTokens.Colors.success.opacity(0.1))
                 .cornerRadius(12)
                 .padding(.bottom, 20)
             }
@@ -1775,7 +1783,7 @@ struct PracticeQuestionsView: View {
                     Text(weakness)
                         .font(.title3)
                         .fontWeight(.semibold)
-                        .foregroundColor(.green)
+                        .foregroundColor(DesignTokens.Colors.success)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
@@ -1795,7 +1803,7 @@ struct PracticeQuestionsView: View {
                         .padding(.vertical, 16)
                         .background(
                             LinearGradient(
-                                colors: [Color.green, Color.green.opacity(0.8)],
+                                colors: [DesignTokens.Colors.success, DesignTokens.Colors.success.opacity(0.8)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -1860,7 +1868,7 @@ struct PracticeQuestionCard: View {
                     // Question number badge
                     ZStack {
                         Circle()
-                            .fill(isGraded ? (isCorrect ? Color.green : Color.red) : Color.blue)
+                            .fill(isGraded ? (isCorrect ? DesignTokens.Colors.success : DesignTokens.Colors.error) : Color.blue)
                             .frame(width: 36, height: 36)
 
                         if isGraded {
@@ -2026,14 +2034,14 @@ struct PracticeQuestionCard: View {
                             }
                         }
                         .padding(12)
-                        .background(isCorrect ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                        .background(isCorrect ? DesignTokens.Colors.success.opacity(0.1) : DesignTokens.Colors.error.opacity(0.1))
                         .cornerRadius(8)
 
                         // Correct answer (if incorrect)
                         if !isCorrect, let result = gradeResult {
                             HStack(alignment: .top, spacing: 8) {
                                 Image(systemName: "lightbulb.fill")
-                                    .foregroundColor(.orange)
+                                    .foregroundColor(DesignTokens.Colors.warning)
                                     .font(.system(size: 16))
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Correct Answer")
@@ -2045,7 +2053,7 @@ struct PracticeQuestionCard: View {
                                 }
                             }
                             .padding(12)
-                            .background(Color.orange.opacity(0.1))
+                            .background(DesignTokens.Colors.warning.opacity(0.1))
                             .cornerRadius(8)
                         }
 
@@ -2217,7 +2225,7 @@ struct PracticeTFInput: View {
                 .padding()
                 .frame(maxWidth: .infinity)
                 .background(selectedOption == "True" ?
-                            Color.green.opacity(0.2) : Color(.systemGray6))
+                            DesignTokens.Colors.success.opacity(0.2) : Color(.systemGray6))
                 .cornerRadius(8)
             }
             .buttonStyle(PlainButtonStyle())
@@ -2239,7 +2247,7 @@ struct PracticeTFInput: View {
                 .padding()
                 .frame(maxWidth: .infinity)
                 .background(selectedOption == "False" ?
-                            Color.red.opacity(0.2) : Color(.systemGray6))
+                            DesignTokens.Colors.error.opacity(0.2) : Color(.systemGray6))
                 .cornerRadius(8)
             }
             .buttonStyle(PlainButtonStyle())
@@ -2296,7 +2304,7 @@ struct SubquestionAwareTextView: View {
                             HStack(alignment: .top, spacing: 6) {
                                 Image(systemName: "arrow.turn.down.right")
                                     .font(.system(size: 12))
-                                    .foregroundColor(.orange)
+                                    .foregroundColor(DesignTokens.Colors.warning)
                                     .padding(.top, 4)
                                 EnhancedMathText(part, fontSize: fontSize)
                                     .fontWeight(.semibold)
