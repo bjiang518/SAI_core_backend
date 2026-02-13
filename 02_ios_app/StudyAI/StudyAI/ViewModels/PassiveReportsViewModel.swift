@@ -196,6 +196,9 @@ class PassiveReportsViewModel: ObservableObject {
             return
         }
 
+        print("🔄 [PassiveReports] loadAllBatches() called - fetching weekly and monthly batches")
+        print("   Current state: weeklyBatches=\(weeklyBatches.count), monthlyBatches=\(monthlyBatches.count)")
+
         isLoadingBatches = true
         errorMessage = nil
 
@@ -206,10 +209,22 @@ class PassiveReportsViewModel: ObservableObject {
 
             let (weeklyResult, monthlyResult) = try await (weekly, monthly)
 
+            print("✅ [PassiveReports] Fetch complete:")
+            print("   Weekly batches fetched: \(weeklyResult.count)")
+            if !weeklyResult.isEmpty {
+                print("   Most recent weekly: \(weeklyResult[0].startDate) to \(weeklyResult[0].endDate)")
+            }
+            print("   Monthly batches fetched: \(monthlyResult.count)")
+            if !monthlyResult.isEmpty {
+                print("   Most recent monthly: \(monthlyResult[0].startDate) to \(monthlyResult[0].endDate)")
+            }
+
             weeklyBatches = weeklyResult
             monthlyBatches = monthlyResult
 
             isLoadingBatches = false
+
+            print("✅ [PassiveReports] State updated: weeklyBatches=\(weeklyBatches.count), monthlyBatches=\(monthlyBatches.count)")
 
         } catch {
             // Ignore cancellation errors from pull-to-refresh
@@ -415,6 +430,13 @@ class PassiveReportsViewModel: ObservableObject {
     /// Delete a report batch
     func deleteBatch(_ batch: PassiveReportBatch) async {
         do {
+            print("🗑️ [PassiveReports] ===== DELETE BATCH START =====")
+            print("   Batch ID: \(batch.id)")
+            print("   Period: \(batch.period)")
+            print("   Date Range: \(batch.startDate) to \(batch.endDate)")
+            print("   Current weekly batches: \(weeklyBatches.count)")
+            print("   Current monthly batches: \(monthlyBatches.count)")
+
             let endpoint = "/api/reports/passive/batches/\(batch.id)"
 
             guard let url = URL(string: "\(networkService.apiBaseURL)\(endpoint)") else {
@@ -424,7 +446,6 @@ class PassiveReportsViewModel: ObservableObject {
 
             print("🗑️ [PassiveReports] DELETE request:")
             print("   URL: \(url.absoluteString)")
-            print("   Batch ID: \(batch.id)")
 
             var request = URLRequest(url: url)
             request.httpMethod = "DELETE"
@@ -434,11 +455,12 @@ class PassiveReportsViewModel: ObservableObject {
             let token = AuthenticationService.shared.getAuthToken()
             if let authToken = token {
                 request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
-                print("   Auth: ✅ Token present")
+                print("   Auth: ✅ Token present (length: \(authToken.count))")
             } else {
-                print("   Auth: ❌ No token")
+                print("   Auth: ❌ No token - request will fail")
             }
 
+            print("🗑️ [PassiveReports] Sending DELETE request...")
             let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
@@ -455,20 +477,30 @@ class PassiveReportsViewModel: ObservableObject {
             }
 
             guard httpResponse.statusCode == 200 else {
+                print("❌ [PassiveReports] DELETE failed with status \(httpResponse.statusCode)")
                 throw NSError(domain: "PassiveReportsViewModel", code: httpResponse.statusCode,
                              userInfo: [NSLocalizedDescriptionKey: "Failed to delete report"])
             }
 
             // Remove from local arrays
+            let beforeWeekly = weeklyBatches.count
+            let beforeMonthly = monthlyBatches.count
+
             if batch.period.lowercased() == "weekly" {
                 weeklyBatches.removeAll { $0.id == batch.id }
+                print("🗑️ [PassiveReports] Removed from weeklyBatches: \(beforeWeekly) → \(weeklyBatches.count)")
             } else {
                 monthlyBatches.removeAll { $0.id == batch.id }
+                print("🗑️ [PassiveReports] Removed from monthlyBatches: \(beforeMonthly) → \(monthlyBatches.count)")
             }
 
-            print("✅ [PassiveReports] Successfully deleted batch \(batch.id)")
+            print("✅ [PassiveReports] Successfully deleted batch \(batch.id) from server and local cache")
+            print("🗑️ [PassiveReports] ===== DELETE BATCH END =====")
 
         } catch {
+            print("❌ [PassiveReports] ===== DELETE BATCH FAILED =====")
+            print("   Error: \(error)")
+            print("   Localized: \(error.localizedDescription)")
             errorMessage = "Failed to delete report: \(error.localizedDescription)"
             showError = true
             print("❌ [PassiveReports] Failed to delete batch: \(error)")
