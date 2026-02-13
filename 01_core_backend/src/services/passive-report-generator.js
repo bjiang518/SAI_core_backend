@@ -313,7 +313,9 @@ class PassiveReportGenerator {
                     conversations,
                     studentName,
                     studentAge,
-                    period  // ✅ Pass period
+                    userId,  // ✅ Pass userId for AI context
+                    period,  // ✅ Pass period
+                    dateRange.startDate  // ✅ Pass startDate for AI context
                 );
 
                 if (summaryHTML) {
@@ -452,9 +454,9 @@ class PassiveReportGenerator {
 
     /**
      * Generate summary report by synthesizing data
-     * ✅ UPDATED: Now period-aware
+     * ✅ UPDATED: Now period-aware and with AI insights
      */
-    async generateSummaryReport(questions, conversations, studentName, studentAge, period = 'weekly') {
+    async generateSummaryReport(questions, conversations, studentName, studentAge, userId, period = 'weekly', startDate = new Date()) {
         // Basic data structure for summary
         const activityData = {
             totalQuestions: questions.length,
@@ -487,14 +489,17 @@ class PassiveReportGenerator {
             }
         };
 
-        // Use the summary generator (✅ Now period-aware)
+        // Use the summary generator (✅ Now period-aware with AI insights)
         const summaryGenerator = new SummaryReportGenerator();
-        return summaryGenerator.generateSummaryReport(
+        return await summaryGenerator.generateSummaryReport(
             activityData,
             improvementData,
             mentalHealthData,
             studentName,
-            period  // ✅ Pass period for context-aware language
+            studentAge,
+            userId,
+            period,  // ✅ Pass period for context-aware language
+            startDate  // ✅ Pass startDate for AI context
         );
     }
 
