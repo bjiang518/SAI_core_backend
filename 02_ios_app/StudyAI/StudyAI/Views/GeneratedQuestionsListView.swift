@@ -108,7 +108,7 @@ struct GeneratedQuestionsListView: View {
                     closeButton
                 }
             }
-            .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background
+            // .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background - DISABLED: modifier not found
             // ✅ CHANGED: Use fullScreenCover instead of sheet for fixed view
             .fullScreenCover(isPresented: $showingQuestionDetail) {
                 if let selectedQuestion = selectedQuestion,
@@ -124,6 +124,20 @@ struct GeneratedQuestionsListView: View {
                         allQuestions: questions,
                         currentIndex: questionIndex
                     )
+                    .onAppear {
+                        print("🔵 [Debug] GeneratedQuestionDetailView appeared for question at index \(questionIndex)")
+                    }
+                } else {
+                    VStack {
+                        Text("Error: Question not found")
+                            .font(.headline)
+                            .foregroundColor(.red)
+                    }
+                    .onAppear {
+                        print("❌ [Debug] ERROR: selectedQuestion or questionIndex is nil!")
+                        print("   selectedQuestion: \(selectedQuestion?.question.prefix(50) ?? "nil")")
+                        print("   questions count: \(questions.count)")
+                    }
                 }
             }
             .sheet(isPresented: $showingPDFGenerator) {
@@ -343,8 +357,11 @@ struct GeneratedQuestionsListView: View {
                         // Use QuestionTypeRenderer based on question type
                         Button(action: {
                             if !isSelectionMode {
+                                print("🔵 [Debug] Question tapped: \(question.question.prefix(50))...")
+                                print("🔵 [Debug] Setting selectedQuestion and showingQuestionDetail = true")
                                 selectedQuestion = question
                                 showingQuestionDetail = true
+                                print("🔵 [Debug] showingQuestionDetail is now: \(showingQuestionDetail)")
                             } else {
                                 if selectedQuestions.contains(question.id) {
                                     selectedQuestions.remove(question.id)

@@ -56,12 +56,12 @@ class ThemeManager: ObservableObject {
     }
 
     private init() {
-        // Load saved theme or default to day mode
+        // Load saved theme or default to cute mode
         if let savedTheme = UserDefaults.standard.string(forKey: "selectedTheme"),
            let theme = ThemeMode(rawValue: savedTheme) {
             self.currentTheme = theme
         } else {
-            self.currentTheme = .day
+            self.currentTheme = .cute
         }
     }
 
