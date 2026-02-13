@@ -12,6 +12,7 @@
 
 const { db } = require('../utils/railway-database');
 const logger = require('../utils/logger');
+const { getInsightsService } = require('./openai-insights-service');
 
 class MentalHealthReportGenerator {
     /**
@@ -68,8 +69,54 @@ class MentalHealthReportGenerator {
                 analysis.redFlags = [];
             }
 
+            // Step 4.5: Generate AI-powered insights
+            let aiInsights = null;
+            try {
+                logger.info(`🤖 Generating AI insights for Mental Health Report...`);
+                const insightsService = getInsightsService();
+
+                // Prepare signals for AI
+                const signals = this.prepareSignalsForAI(analysis, questions, conversations, behaviorSignals);
+                const context = {
+                    userId,
+                    studentName,
+                    studentAge,
+                    period,
+                    startDate
+                };
+
+                // Generate 3 insights for mental health report
+                const insightRequests = [
+                    {
+                        reportType: 'mental_health',
+                        insightType: 'behavioral_signals',
+                        signals: signals.behavioralSignals,
+                        context
+                    },
+                    {
+                        reportType: 'mental_health',
+                        insightType: 'wellbeing_assessment',
+                        signals: signals.wellbeingAssessment,
+                        context
+                    },
+                    {
+                        reportType: 'mental_health',
+                        insightType: 'communication_strategies',
+                        signals: signals.communicationStrategies,
+                        context
+                    }
+                ];
+
+                aiInsights = await insightsService.generateMultipleInsights(insightRequests);
+                logger.info(`✅ Generated ${aiInsights.length} AI insights for Mental Health Report`);
+
+            } catch (error) {
+                logger.warn(`⚠️ AI insights generation failed: ${error.message}`);
+                aiInsights = null; // Report will render without AI insights
+            }
+
             // Step 5: Generate HTML
-            const html = this.generateMentalHealthHTML(analysis, studentName, period);
+            const html = this.generateMentalHealthHTML(analysis, studentName, period, aiInsights);
 
             logger.info(`✅ Mental Health Report generated: ${(analysis.redFlags || []).length} flags detected`);
 
@@ -590,10 +637,63 @@ class MentalHealthReportGenerator {
     }
 
     /**
+     * Prepare signals for AI insight generation
+     */
+    prepareSignalsForAI(analysis, questions, conversations, behaviorSignals) {
+        // Count active days
+        const activeDays = new Set(questions.map(q => q.archived_at.toISOString().split('T')[0])).size;
+
+        // Aggregate behavior signals
+        const behaviorSummary = this.aggregateBehaviorSignals(behaviorSignals);
+
+        // Get attitude indicators as array
+        const attitudeIndicators = analysis.learningAttitude?.indicators || [];
+
+        // Red flag analysis
+        const redFlagCount = analysis.emotionalWellbeing?.redFlags?.length || 0;
+        const redFlags = (analysis.emotionalWellbeing?.redFlags || []).map(f => f.title);
+        const redFlagTypes = [...new Set((analysis.emotionalWellbeing?.redFlags || []).map(f => f.level))];
+
+        return {
+            // Behavioral Signals
+            behavioralSignals: {
+                activeDays,
+                helpChats: conversations.length,
+                redFlagCount,
+                redFlags,
+                attitudeIndicators: attitudeIndicators.map(ind => ({
+                    text: ind.text,
+                    value: ind.value
+                })),
+                frustrationSignals: behaviorSummary.frustrationCount || 0,
+                curiositySignals: behaviorSummary.curiosityCount || 0,
+                effortSignals: behaviorSummary.effortCount || 0
+            },
+
+            // Wellbeing Assessment
+            wellbeingAssessment: {
+                redFlagCount,
+                redFlagTypes,
+                engagementLevel: analysis.learningAttitude?.status || 'unknown',
+                timePressure: analysis.focusCapability?.status === 'needs_attention',
+                subjectStress: [] // Placeholder - could aggregate per-subject stress indicators
+            },
+
+            // Communication Strategies
+            communicationStrategies: {
+                wellbeingStatus: analysis.emotionalWellbeing?.status || 'unknown',
+                mainConcerns: redFlags,
+                strengths: analysis.emotionalWellbeing?.positiveIndicators || []
+            }
+        };
+    }
+
+    /**
      * Generate HTML for mental health report
      * @param {String} period - 'weekly' or 'monthly'
+     * @param {Array} aiInsights - AI-generated insights (optional)
      */
-    generateMentalHealthHTML(analysis, studentName, period = 'weekly') {
+    generateMentalHealthHTML(analysis, studentName, period = 'weekly', aiInsights = null) {
         const periodLabel = period === 'monthly' ? 'Monthly' : 'Weekly';
         const redFlagLevelColors = {
             urgent: '#DC3545',
@@ -841,6 +941,74 @@ class MentalHealthReportGenerator {
             margin-bottom: 6px;
             font-size: 13px;
         }
+
+        /* AI Insights Styling */
+        .ai-insight {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .ai-insight-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .ai-insight-icon {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+
+        .ai-insight h3 {
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .ai-insight-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 16px;
+            color: #1a1a1a;
+            line-height: 1.7;
+            font-size: 13px;
+        }
+
+        .ai-insight-content ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .ai-insight-content li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+
+        .ai-insight-content p {
+            margin: 8px 0;
+        }
+
+        .ai-insight-content strong {
+            color: #667eea;
+            font-weight: 700;
+        }
+
+        .ai-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -875,6 +1043,19 @@ class MentalHealthReportGenerator {
                     </div>
                 ` : ''}
             </div>
+
+            ${aiInsights && aiInsights[0] ? `
+            <!-- AI Insight 1: Behavioral Signals Interpretation -->
+            <div class="ai-insight">
+                <div class="ai-insight-header">
+                    <span class="ai-insight-icon">🤖</span>
+                    <h3>AI Insights: Behavioral Analysis<span class="ai-badge">GPT-4o</span></h3>
+                </div>
+                <div class="ai-insight-content">
+                    ${aiInsights[0]}
+                </div>
+            </div>
+            ` : ''}
 
             <!-- FOCUS CAPABILITY -->
             <div class="section">
@@ -934,6 +1115,19 @@ class MentalHealthReportGenerator {
                 ` : ''}
             </div>
 
+            ${aiInsights && aiInsights[1] ? `
+            <!-- AI Insight 2: Emotional Wellbeing Assessment -->
+            <div class="ai-insight">
+                <div class="ai-insight-header">
+                    <span class="ai-insight-icon">🤖</span>
+                    <h3>AI Insights: Wellbeing Assessment<span class="ai-badge">GPT-4o</span></h3>
+                </div>
+                <div class="ai-insight-content">
+                    ${aiInsights[1]}
+                </div>
+            </div>
+            ` : ''}
+
             <!-- SUMMARY -->
             <div class="section">
                 <h2 class="section-title">Summary & Recommendations</h2>
@@ -959,6 +1153,19 @@ class MentalHealthReportGenerator {
                     </div>
                 `}
             </div>
+
+            ${aiInsights && aiInsights[2] ? `
+            <!-- AI Insight 3: Parent Communication Strategies -->
+            <div class="ai-insight">
+                <div class="ai-insight-header">
+                    <span class="ai-insight-icon">🤖</span>
+                    <h3>AI Insights: Communication Tips<span class="ai-badge">GPT-4o</span></h3>
+                </div>
+                <div class="ai-insight-content">
+                    ${aiInsights[2]}
+                </div>
+            </div>
+            ` : ''}
         </div>
     </div>
 </body>
