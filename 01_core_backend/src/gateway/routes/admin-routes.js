@@ -213,10 +213,13 @@ module.exports = async function (fastify, opts) {
    */
   fastify.get('/api/admin/users/list', { preHandler: verifyAdmin }, async (request, reply) => {
     try {
+      fastify.log.info('Fetching users list - START');
       const page = parseInt(request.query.page) || 1;
       const limit = Math.min(parseInt(request.query.limit) || 50, 100);
       const search = request.query.search || '';
       const offset = (page - 1) * limit;
+
+      fastify.log.info('Query params:', { page, limit, search, offset });
 
       let query = `
         SELECT
@@ -239,7 +242,11 @@ module.exports = async function (fastify, opts) {
       query += ` ORDER BY u.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
       params.push(limit, offset);
 
+      fastify.log.info('About to execute query:', { query, params });
+
       const result = await db.query(query, params);
+
+      fastify.log.info('Query executed successfully, row count:', result.rows.length);
 
       // Get total count
       let countQuery = 'SELECT COUNT(*) as total FROM users';
@@ -252,6 +259,8 @@ module.exports = async function (fastify, opts) {
 
       const countResult = await db.query(countQuery, countParams);
       const total = parseInt(countResult.rows[0].total);
+
+      fastify.log.info('Total users:', total);
 
       return reply.send({
         success: true,
@@ -268,13 +277,15 @@ module.exports = async function (fastify, opts) {
       });
 
     } catch (error) {
-      fastify.log.error('Error fetching users list:', error);
-      fastify.log.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        code: error.code
+      fastify.log.error('Error fetching users list - CATCH BLOCK');
+      fastify.log.error('Error type:', typeof error);
+      fastify.log.error('Error toString:', String(error));
+      fastify.log.error('Error JSON:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      return reply.code(500).send({
+        success: false,
+        error: 'Failed to fetch users',
+        details: String(error)
       });
-      return reply.code(500).send({ success: false, error: 'Failed to fetch users', details: error.message });
     }
   });
 
