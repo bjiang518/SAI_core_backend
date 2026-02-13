@@ -11,7 +11,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 module.exports = async function (fastify, opts) {
-  const db = require('../../utils/railway-database');
+  const { db } = require('../../utils/railway-database');
 
   // Admin JWT secret (separate from user JWT secret)
   const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || 'admin-jwt-secret-change-in-production';
@@ -225,9 +225,8 @@ module.exports = async function (fastify, opts) {
           u.name,
           u.created_at as join_date,
           u.last_login as last_active,
-          COALESCE(COUNT(DISTINCT s.id), 0) as total_sessions
+          0 as total_sessions
         FROM users u
-        LEFT JOIN active_sessions s ON u.id = s.user_id
       `;
 
       const params = [];
@@ -237,7 +236,7 @@ module.exports = async function (fastify, opts) {
         params.push(`%${search}%`);
       }
 
-      query += ` GROUP BY u.id ORDER BY u.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+      query += ` ORDER BY u.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
       params.push(limit, offset);
 
       const result = await db.query(query, params);
@@ -270,7 +269,12 @@ module.exports = async function (fastify, opts) {
 
     } catch (error) {
       fastify.log.error('Error fetching users list:', error);
-      return reply.code(500).send({ success: false, error: 'Failed to fetch users' });
+      fastify.log.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code
+      });
+      return reply.code(500).send({ success: false, error: 'Failed to fetch users', details: error.message });
     }
   });
 
@@ -453,11 +457,10 @@ module.exports = async function (fastify, opts) {
    * This route is only for initial setup. Disable in production!
    */
   fastify.post('/api/admin/setup/create-admin', async (request, reply) => {
-    // TEMPORARY: Production check disabled for initial admin user creation
-    // TODO: Re-enable this after creating your admin user!
-    // if (process.env.NODE_ENV === 'production') {
-    //   return reply.code(403).send({ success: false, error: 'Not available in production' });
-    // }
+    // Only allow in development
+    if (process.env.NODE_ENV === 'production') {
+      return reply.code(403).send({ success: false, error: 'Not available in production' });
+    }
 
     const { email, password, name } = request.body;
 
@@ -466,6 +469,9 @@ module.exports = async function (fastify, opts) {
     }
 
     try {
+      // Enable UUID extension if not already enabled
+      await db.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
+
       // Create admin_users table if it doesn't exist
       await db.query(`
         CREATE TABLE IF NOT EXISTS admin_users (
@@ -502,7 +508,15 @@ module.exports = async function (fastify, opts) {
 
     } catch (error) {
       fastify.log.error('Error creating admin user:', error);
-      return reply.code(500).send({ success: false, error: 'Failed to create admin user' });
+      fastify.log.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code
+      });
+      return reply.code(500).send({
+        success: false,
+        error: 'Failed to create admin user'
+      });
     }
   });
 
