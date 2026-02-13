@@ -12,6 +12,7 @@
 
 const { db } = require('../utils/railway-database');
 const logger = require('../utils/logger');
+const { getInsightsService } = require('./openai-insights-service');
 
 class AreasOfImprovementGenerator {
     /**
@@ -45,8 +46,54 @@ class AreasOfImprovementGenerator {
             // Step 4: Analyze error patterns
             const analysis = this.analyzeErrorPatterns(mistakesThisPeriod, mistakesLastPeriod, helpConversations);
 
+            // Step 4.5: Generate AI-powered insights
+            let aiInsights = null;
+            try {
+                logger.info(`🤖 Generating AI insights for Areas of Improvement Report...`);
+                const insightsService = getInsightsService();
+
+                // Prepare signals for AI
+                const signals = this.prepareSignalsForAI(analysis, mistakesThisPeriod, mistakesLastPeriod, helpConversations);
+                const context = {
+                    userId,
+                    studentName,
+                    studentAge,
+                    period,
+                    startDate
+                };
+
+                // Generate 3 insights for improvement report
+                const insightRequests = [
+                    {
+                        reportType: 'improvement',
+                        insightType: 'root_cause',
+                        signals: signals.rootCause,
+                        context
+                    },
+                    {
+                        reportType: 'improvement',
+                        insightType: 'progress_trajectory',
+                        signals: signals.progressTrajectory,
+                        context
+                    },
+                    {
+                        reportType: 'improvement',
+                        insightType: 'practice_plan',
+                        signals: signals.practicePlan,
+                        context
+                    }
+                ];
+
+                aiInsights = await insightsService.generateMultipleInsights(insightRequests);
+                logger.info(`✅ Generated ${aiInsights.length} AI insights for Areas of Improvement Report`);
+
+            } catch (error) {
+                logger.warn(`⚠️ AI insights generation failed: ${error.message}`);
+                aiInsights = null;
+            }
+
             // Step 5: Generate HTML
-            const html = this.generateImprovementHTML(analysis, studentName, period);
+            const html = this.generateImprovementHTML(analysis, studentName, period, aiInsights);
 
             logger.info(`✅ Areas of Improvement Report generated: ${Object.keys(analysis.bySubject).length} subjects analyzed`);
 
@@ -315,10 +362,73 @@ class AreasOfImprovementGenerator {
     }
 
     /**
+     * Prepare signals for AI insight generation
+     */
+    prepareSignalsForAI(analysis, mistakesThisPeriod, mistakesLastPeriod, helpConversations) {
+        // Subject mistakes array
+        const subjectMistakes = Object.values(analysis.bySubject).map(s => ({
+            subject: s.subject,
+            mistakes: s.totalMistakes,
+            accuracy: s.accuracy
+        }));
+
+        // Error types counts
+        const errorTypes = analysis.errorTypes || {};
+
+        // Progress areas
+        const improvingAreas = Object.values(analysis.bySubject)
+            .filter(s => s.trend === 'improving')
+            .map(s => ({ subject: s.subject, improvement: s.trendPercent }));
+
+        const strugglingAreas = Object.values(analysis.bySubject)
+            .filter(s => s.trend === 'increasing')
+            .map(s => ({ subject: s.subject, decline: Math.abs(s.trendPercent) }));
+
+        // Top weaknesses
+        const topWeaknesses = Object.values(analysis.bySubject)
+            .sort((a, b) => b.totalMistakes - a.totalMistakes)
+            .slice(0, 3)
+            .map(s => ({ area: s.subject, mistakeCount: s.totalMistakes }));
+
+        return {
+            // Root Cause signals
+            rootCause: {
+                totalMistakes: mistakesThisPeriod.length,
+                subjectMistakes,
+                errorTypes,
+                helpChats: helpConversations.length,
+                helpRatio: mistakesThisPeriod.length > 0 ? helpConversations.length / mistakesThisPeriod.length : 0,
+                mistakeTrend: analysis.overallTrend,
+                trendPercent: analysis.overallTrendPercent || 0
+            },
+
+            // Progress Trajectory signals
+            progressTrajectory: {
+                currentMistakes: mistakesThisPeriod.length,
+                previousMistakes: mistakesLastPeriod.length,
+                changePercent: mistakesLastPeriod.length > 0
+                    ? Math.round(((mistakesThisPeriod.length - mistakesLastPeriod.length) / mistakesLastPeriod.length) * 100)
+                    : 0,
+                improvingAreas,
+                strugglingAreas
+            },
+
+            // Practice Plan signals
+            practicePlan: {
+                topWeaknesses,
+                skillsNeeded: Object.values(analysis.bySubject)
+                    .flatMap(s => s.issues || [])
+                    .slice(0, 5)
+            }
+        };
+    }
+
+    /**
      * Generate HTML for areas of improvement report
      * @param {String} period - 'weekly' or 'monthly'
+     * @param {Array} aiInsights - AI-generated insights (optional)
      */
-    generateImprovementHTML(analysis, studentName, period = 'weekly') {
+    generateImprovementHTML(analysis, studentName, period = 'weekly', aiInsights = null) {
         const periodLabel = period === 'monthly' ? 'this month' : 'this week';
         const comparisonLabel = period === 'monthly' ? 'last month' : 'last week';
         const subjects = Object.values(analysis.bySubject)

@@ -12,6 +12,7 @@
 
 const { db } = require('../utils/railway-database');
 const logger = require('../utils/logger');
+const { getInsightsService } = require('./openai-insights-service');
 
 class ActivityReportGenerator {
     /**
@@ -56,8 +57,59 @@ class ActivityReportGenerator {
                 logger.info(`✅ Monthly insights calculated: ${metrics.weeklyBreakdown.length} weeks, ${metrics.studySessionPatterns.sessionCount} sessions`);
             }
 
+            // Step 5.5: Generate AI-powered insights
+            let aiInsights = null;
+            try {
+                logger.info(`🤖 Generating AI insights for Activity Report...`);
+                const insightsService = getInsightsService();
+
+                // Prepare signals for AI
+                const signals = this.prepareSignalsForAI(metrics, questionsData, conversationsData);
+                const context = {
+                    userId,
+                    studentName,
+                    studentAge,
+                    period,
+                    startDate,
+                    periodDays: this.calculatePeriodDays(startDate, endDate)
+                };
+
+                // Generate insights (1-3 depending on period)
+                const insightRequests = [
+                    {
+                        reportType: 'activity',
+                        insightType: 'learning_pattern',
+                        signals: signals.learningPattern,
+                        context
+                    },
+                    {
+                        reportType: 'activity',
+                        insightType: 'engagement_quality',
+                        signals: signals.engagementQuality,
+                        context
+                    }
+                ];
+
+                // Add study optimization for monthly reports
+                if (period === 'monthly' && metrics.weeklyBreakdown) {
+                    insightRequests.push({
+                        reportType: 'activity',
+                        insightType: 'study_optimization',
+                        signals: signals.studyOptimization,
+                        context
+                    });
+                }
+
+                aiInsights = await insightsService.generateMultipleInsights(insightRequests);
+                logger.info(`✅ Generated ${aiInsights.length} AI insights for Activity Report`);
+
+            } catch (error) {
+                logger.warn(`⚠️ AI insights generation failed: ${error.message}`);
+                aiInsights = null; // Report will render without AI insights
+            }
+
             // Step 6: Generate HTML
-            const html = this.generateActivityHTML(metrics, studentName, period, startDate, endDate);
+            const html = this.generateActivityHTML(metrics, studentName, period, startDate, endDate, aiInsights);
 
             logger.info(`✅ Activity Report generated: ${metrics.totalQuestions} questions, ${metrics.totalChats} chats`);
 
@@ -532,12 +584,69 @@ class ActivityReportGenerator {
     }
 
     /**
+     * Prepare signals for AI insight generation
+     */
+    prepareSignalsForAI(metrics, questionsData, conversationsData) {
+        // Calculate some derived metrics
+        const questionsPerChat = metrics.totalChats > 0 ? metrics.totalQuestions / metrics.totalChats : metrics.totalQuestions;
+        const questionsPerDay = metrics.activeDays > 0 ? metrics.totalQuestions / metrics.activeDays : 0;
+
+        // Subject array for AI
+        const subjects = Object.entries(metrics.subjectBreakdown).map(([subject, data]) => ({
+            subject,
+            count: data.count,
+            accuracy: metrics.subjectAccuracy[subject]?.accuracyPercent || 0
+        }));
+
+        return {
+            // Learning Pattern signals
+            learningPattern: {
+                totalQuestions: metrics.totalQuestions,
+                totalChats: metrics.totalChats,
+                activeDays: metrics.activeDays,
+                totalMinutes: metrics.totalTime || 0,
+                subjects,
+                weekOverWeekChange: metrics.comparison?.percentChange || 0,
+                periodDays: this.calculatePeriodDays(new Date(), new Date())
+            },
+
+            // Engagement Quality signals
+            engagementQuality: {
+                questionsPerChat: questionsPerChat.toFixed(1),
+                avgSessionMinutes: metrics.studySessionPatterns?.averageLength || 30,
+                questionsPerDay: questionsPerDay.toFixed(1),
+                handwritingQuality: metrics.handwritingQuality?.overall || null,
+                sessionCount: metrics.studySessionPatterns?.sessionCount || 0,
+                longestSession: metrics.studySessionPatterns?.longestSession || 0
+            },
+
+            // Study Optimization signals (monthly only)
+            studyOptimization: {
+                weeklyData: metrics.weeklyBreakdown || [],
+                dayHeatmap: metrics.dayOfWeekHeatmap || {},
+                peakHours: metrics.timeOfDayOptimization?.peakHours || [],
+                weekendActivity: metrics.weekendActivity || 0
+            }
+        };
+    }
+
+    /**
+     * Calculate number of days in period
+     */
+    calculatePeriodDays(startDate, endDate) {
+        const diffTime = Math.abs(endDate - startDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays;
+    }
+
+    /**
      * Generate HTML for activity report
      * @param {String} period - 'weekly' or 'monthly'
      * @param {Date} startDate - Period start date (for monthly insights)
      * @param {Date} endDate - Period end date (for monthly insights)
+     * @param {Array} aiInsights - AI-generated insights (optional)
      */
-    generateActivityHTML(metrics, studentName, period = 'weekly', startDate = null, endDate = null) {
+    generateActivityHTML(metrics, studentName, period = 'weekly', startDate = null, endDate = null, aiInsights = null) {
         const periodLabel = period === 'monthly' ? 'Monthly' : 'Weekly';
         const timePhrase = period === 'monthly' ? 'this month' : 'this week';
         const comparisonLabel = period === 'monthly' ? 'Month-over-Month' : 'Week-over-Week';
@@ -833,6 +942,74 @@ class ActivityReportGenerator {
             font-size: 13px;
         }
 
+        /* AI Insights Styling */
+        .ai-insight {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .ai-insight-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .ai-insight-icon {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+
+        .ai-insight h3 {
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .ai-insight-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 16px;
+            color: #1a1a1a;
+            line-height: 1.7;
+            font-size: 13px;
+        }
+
+        .ai-insight-content ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .ai-insight-content li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+
+        .ai-insight-content p {
+            margin: 8px 0;
+        }
+
+        .ai-insight-content strong {
+            color: #667eea;
+            font-weight: 700;
+        }
+
+        .ai-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 8px;
+        }
+
         footer {
             background: #f3f4f6;
             padding: 16px;
@@ -901,6 +1078,19 @@ class ActivityReportGenerator {
                 </div>
             </div>
 
+            ${aiInsights && aiInsights[0] ? `
+            <!-- AI Insight 1: Learning Pattern Analysis -->
+            <div class="ai-insight">
+                <div class="ai-insight-header">
+                    <span class="ai-insight-icon">🤖</span>
+                    <h3>AI Insights: Learning Patterns<span class="ai-badge">GPT-4o</span></h3>
+                </div>
+                <div class="ai-insight-content">
+                    ${aiInsights[0]}
+                </div>
+            </div>
+            ` : ''}
+
             <!-- Period-over-Period Comparison -->
             <div class="section">
                 <h2 class="section-title">${comparisonLabel} Comparison</h2>
@@ -934,6 +1124,19 @@ class ActivityReportGenerator {
                 </div>
             </div>
 
+            ${aiInsights && aiInsights[1] ? `
+            <!-- AI Insight 2: Engagement Quality Assessment -->
+            <div class="ai-insight">
+                <div class="ai-insight-header">
+                    <span class="ai-insight-icon">🤖</span>
+                    <h3>AI Insights: Engagement Quality<span class="ai-badge">GPT-4o</span></h3>
+                </div>
+                <div class="ai-insight-content">
+                    ${aiInsights[1]}
+                </div>
+            </div>
+            ` : ''}
+
             <!-- Summary -->
             <div class="section">
                 <h2 class="section-title">Summary</h2>
@@ -943,6 +1146,19 @@ class ActivityReportGenerator {
                     ${metrics.estimatedMinutes} minutes studying. ${metrics.totalChats > 0 ? `They also had ${metrics.totalChats} chat sessions seeking additional help.` : ''}
                 </div>
             </div>
+
+            ${aiInsights && aiInsights[2] && period === 'monthly' ? `
+            <!-- AI Insight 3: Study Optimization (Monthly Only) -->
+            <div class="ai-insight">
+                <div class="ai-insight-header">
+                    <span class="ai-insight-icon">🤖</span>
+                    <h3>AI Insights: Study Optimization<span class="ai-badge">GPT-4o</span></h3>
+                </div>
+                <div class="ai-insight-content">
+                    ${aiInsights[2]}
+                </div>
+            </div>
+            ` : ''}
 
             ${period === 'monthly' && metrics.weeklyBreakdown ? `
             <!-- ✅ MONTHLY ONLY: Week-by-Week Progression -->
