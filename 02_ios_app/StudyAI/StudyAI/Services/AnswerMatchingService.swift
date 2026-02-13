@@ -112,8 +112,32 @@ class AnswerMatchingService {
         #endif
 
         // Exact match on option letter
-        if userOption == correctOption && !userOption.isEmpty {
+        if userOption == correctOption && !userOption.isEmpty && !correctOption.isEmpty {
             return (1.0, true)
+        }
+
+        // ✅ FIX: If correct answer has no letter prefix, strip the letter from user answer and compare text
+        // This handles: User="A. The answer" vs Correct="The answer"
+        if correctOption.isEmpty && !userOption.isEmpty {
+            let userTextOnly = stripOptionPrefix(userAnswer)
+            let normalizedUserText = normalizeAnswer(userTextOnly)
+            let normalizedCorrect = normalizeAnswer(correctAnswer)
+
+            #if DEBUG
+            print("   MC: Comparing text content only")
+            print("      User text: '\(userTextOnly)' → '\(normalizedUserText)'")
+            print("      Correct: '\(correctAnswer)' → '\(normalizedCorrect)'")
+            #endif
+
+            if normalizedUserText == normalizedCorrect {
+                return (1.0, true)
+            }
+
+            // Also check with fuzzy matching for minor typos
+            let similarity = calculateStringSimilarity(normalizedUserText, normalizedCorrect)
+            if similarity >= 0.95 {
+                return (1.0, false)
+            }
         }
 
         // Try matching against option text if available
@@ -259,6 +283,30 @@ class AnswerMatchingService {
         }
 
         return ""
+    }
+
+    /// ✅ FIX: Strip the "A. ", "B. ", "C. ", "D. " prefix from multiple choice answers
+    /// Handles various formats: "A. Text", "A) Text", "(A) Text", "A - Text", "A: Text"
+    private func stripOptionPrefix(_ answer: String) -> String {
+        // Remove common multiple choice prefixes
+        let patterns = [
+            #"^[(\[]?[A-Da-d][)\].]?\s*-?\s*"#,  // Matches: "A. ", "A) ", "(A) ", "A - ", etc.
+            #"^[A-Da-d]:\s*"#,                    // Matches: "A: "
+            #"^Option\s+[A-Da-d][:\-.]?\s*"#      // Matches: "Option A: ", "Option A - "
+        ]
+
+        var stripped = answer
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+                stripped = regex.stringByReplacingMatches(
+                    in: stripped,
+                    range: NSRange(stripped.startIndex..., in: stripped),
+                    withTemplate: ""
+                )
+            }
+        }
+
+        return stripped.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Parse boolean answer from various formats

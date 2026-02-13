@@ -63,7 +63,16 @@ class QuestionGenerationDataAdapter {
             NSLocalizedString("subject.physics", comment: ""),
             NSLocalizedString("subject.chemistry", comment: ""),
             NSLocalizedString("subject.biology", comment: ""),
-            NSLocalizedString("subject.english", comment: "")
+            NSLocalizedString("subject.english", comment: ""),
+            NSLocalizedString("subject.history", comment: ""),
+            NSLocalizedString("subject.geography", comment: ""),
+            NSLocalizedString("subject.computerScience", comment: ""),
+            NSLocalizedString("subject.literature", comment: ""),
+            NSLocalizedString("subject.socialStudies", comment: ""),
+            NSLocalizedString("subject.economics", comment: ""),
+            NSLocalizedString("subject.art", comment: ""),
+            NSLocalizedString("subject.music", comment: ""),
+            NSLocalizedString("subject.other", comment: "")
         ]
     }
 

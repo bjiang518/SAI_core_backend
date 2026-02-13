@@ -16,16 +16,17 @@ struct QuestionGenerationView: View {
     @StateObject private var profileService = ProfileService.shared
     @StateObject private var archiveService = QuestionArchiveService.shared
     @StateObject private var libraryService = LibraryDataService.shared
-    @StateObject private var mistakeService = MistakeReviewService()  // ✅ ADDED: Missing property
+    @StateObject private var mistakeService = MistakeReviewService()
+    @StateObject private var sessionManager = PracticeSessionManager.shared  // ✅ FIX 2: Session persistence
     @State private var inputSubject = ""
     @State private var selectedTemplate: TemplateType = .randomPractice
     @State private var showingQuestionsList = false
     @State private var generatedQuestions: [QuestionGenerationService.GeneratedQuestion] = []
     @State private var showingErrorAlert = false
     @State private var errorMessage = ""
-    @State private var availableConversations: [[String: Any]] = []  // Use actual conversation objects
+    @State private var availableConversations: [[String: Any]] = []
     @State private var availableQuestions: [QuestionSummary] = []
-    @State private var availableMistakes: [MistakeQuestion] = []  // ✅ ADDED: Missing property
+    @State private var availableMistakes: [MistakeQuestion] = []
     @State private var selectedConversations: Set<String> = []
     @State private var selectedQuestions: Set<String> = []
     @State private var selectedDifficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty = .intermediate
@@ -34,8 +35,8 @@ struct QuestionGenerationView: View {
     @State private var selectedArchiveSession = ""
     @State private var isLoadingData = false
     @State private var selectedSubject = ""
-    @State private var showingArchiveSelection = false // Add archive selection sheet state
-    @State private var showingInfoAlert = false // Add info alert state
+    @State private var showingArchiveSelection = false
+    @State private var showingInfoAlert = false
     @Environment(\.dismiss) private var dismiss
 
     private let logger = Logger(subsystem: "com.studyai", category: "QuestionGeneration")
@@ -78,6 +79,25 @@ struct QuestionGenerationView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 32) {
+                    // ✅ FIX 2: Resume Session Banner
+                    if sessionManager.hasIncompleteSessions,
+                       let latestSession = sessionManager.incompleteSessions.first {
+                        ResumeSessionBanner(
+                            session: latestSession,
+                            onResume: {
+                                // Load the session questions
+                                generatedQuestions = latestSession.questions
+                                showingQuestionsList = true
+                            },
+                            onDismiss: {
+                                // Delete the session
+                                sessionManager.deleteSession(id: latestSession.id)
+                            }
+                        )
+                        .padding(.horizontal)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
                     // Generation Type Selection
                     generationTypeSelection
 
@@ -605,15 +625,18 @@ struct QuestionGenerationView: View {
                 // ✅ Extract only student questions (remove archive headers, metadata, and AI responses)
                 let studentQuestions = extractStudentQuestions(from: content, title: title)
 
+                // ✅ FIX 3: Analyze conversation to get real metadata (not hardcoded)
+                let analysis = analyzeConversation(content: content, title: title)
+
                 return QuestionGenerationService.ConversationData(
                     date: ISO8601DateFormatter().string(from: Date()),
                     topics: [subject],
                     studentQuestions: studentQuestions,
-                    difficultyLevel: NSLocalizedString("questionGeneration.difficulty.intermediate", comment: ""),
-                    strengths: [NSLocalizedString("questionGeneration.strengths.activeParticipation", comment: "")],
-                    weaknesses: [NSLocalizedString("questionGeneration.weaknesses.morePractice", comment: "")],
+                    difficultyLevel: analysis.difficultyLevel,
+                    strengths: analysis.strengths,
+                    weaknesses: analysis.weaknesses,
                     keyConcepts: title,
-                    engagement: NSLocalizedString("questionGeneration.engagement.high", comment: "")
+                    engagement: analysis.engagement
                 )
             }
 
@@ -645,6 +668,82 @@ struct QuestionGenerationView: View {
                 throw error
             }
         }
+    }
+
+    // MARK: - Helper Functions
+
+    /// ✅ FIX 3: Analyze conversation content to extract real metadata (not hardcoded)
+    private func analyzeConversation(content: String, title: String) -> (difficultyLevel: String, strengths: [String], weaknesses: [String], engagement: String) {
+        // Count student questions (indicated by "Student:" prefix in archived conversations)
+        let studentTurnCount = content.components(separatedBy: "Student:").count - 1
+
+        // Calculate average question length
+        let studentQuestions = content.components(separatedBy: "Student:")
+            .dropFirst()  // Remove first empty element
+            .map { $0.components(separatedBy: "AI:").first ?? "" }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        let avgQuestionLength = studentQuestions.isEmpty ? 0 : studentQuestions.reduce(0) { $0 + $1.count } / studentQuestions.count
+
+        // Determine difficulty level based on conversation depth
+        let difficultyLevel: String
+        if studentTurnCount >= 8 {
+            difficultyLevel = "advanced"  // Many follow-up questions = deeper understanding needed
+        } else if studentTurnCount >= 4 {
+            difficultyLevel = "intermediate"
+        } else {
+            difficultyLevel = "beginner"
+        }
+
+        // Determine strengths based on question quality
+        var strengths: [String] = []
+        if avgQuestionLength > 100 {
+            strengths.append("Asks detailed, well-formulated questions")
+        } else if avgQuestionLength > 50 {
+            strengths.append("Shows curiosity through questions")
+        }
+
+        if studentTurnCount >= 5 {
+            strengths.append("Persistent in exploring topics")
+        }
+
+        if strengths.isEmpty {
+            strengths.append("Engaged in conversation")
+        }
+
+        // Determine weaknesses based on conversation patterns
+        var weaknesses: [String] = []
+        if studentTurnCount < 3 {
+            weaknesses.append("Could ask more follow-up questions")
+        }
+
+        if avgQuestionLength < 30 {
+            weaknesses.append("Could provide more context in questions")
+        }
+
+        // Look for question marks - if few questions relative to content, may need practice
+        let questionMarks = content.components(separatedBy: "?").count - 1
+        if questionMarks < studentTurnCount / 2 {
+            weaknesses.append("Practice formulating clear questions")
+        }
+
+        if weaknesses.isEmpty {
+            weaknesses.append("Continue exploring challenging topics")
+        }
+
+        // Determine engagement level
+        let engagement: String
+        if studentTurnCount >= 8 && avgQuestionLength > 80 {
+            engagement = "very_high"
+        } else if studentTurnCount >= 5 || avgQuestionLength > 60 {
+            engagement = "high"
+        } else if studentTurnCount >= 3 {
+            engagement = "medium"
+        } else {
+            engagement = "low"
+        }
+
+        return (difficultyLevel, strengths, weaknesses, engagement)
     }
 }
 

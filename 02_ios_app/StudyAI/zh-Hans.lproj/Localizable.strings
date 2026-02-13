@@ -1446,11 +1446,19 @@
 
 // Subject Names
 "subject.mathematics" = "數學";
+"subject.science" = "科學";
 "subject.physics" = "物理";
 "subject.chemistry" = "化學";
 "subject.biology" = "生物";
 "subject.english" = "英語";
 "subject.history" = "歷史";
+"subject.geography" = "地理";
+"subject.computerScience" = "計算機科學";
+"subject.literature" = "文學";
+"subject.socialStudies" = "社會科學";
+"subject.economics" = "經濟學";
+"subject.art" = "美術";
+"subject.music" = "音樂";
 "subject.other" = "其他";
 
 // Pomodoro Focus Mode

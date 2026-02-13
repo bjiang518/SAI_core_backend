@@ -225,9 +225,14 @@ class PassiveReportGenerator {
                     );
                     generatedReports.push(report);
                     reportDetails.push('✅ Activity Report');
+                    logger.info(`     ✅ Activity Report generated (${activityHTML.length} chars)`);
+                } else {
+                    logger.warn(`     ⚠️ Activity Report returned NULL - no HTML generated`);
+                    reportDetails.push('⚠️ Activity Report: NULL response');
                 }
             } catch (error) {
                 logger.error(`   ❌ Activity Report failed: ${error.message}`);
+                logger.error(`      Stack: ${error.stack}`);
                 reportDetails.push(`❌ Activity Report: ${error.message}`);
             }
 
@@ -252,9 +257,14 @@ class PassiveReportGenerator {
                     );
                     generatedReports.push(report);
                     reportDetails.push('✅ Areas of Improvement Report');
+                    logger.info(`     ✅ Areas of Improvement Report generated (${improvementHTML.length} chars)`);
+                } else {
+                    logger.warn(`     ⚠️ Areas of Improvement Report returned NULL`);
+                    reportDetails.push('⚠️ Areas of Improvement: NULL response');
                 }
             } catch (error) {
                 logger.error(`   ❌ Areas of Improvement Report failed: ${error.message}`);
+                logger.error(`      Stack: ${error.stack}`);
                 reportDetails.push(`❌ Areas of Improvement: ${error.message}`);
             }
 
@@ -279,9 +289,14 @@ class PassiveReportGenerator {
                     );
                     generatedReports.push(report);
                     reportDetails.push('✅ Mental Health Report');
+                    logger.info(`     ✅ Mental Health Report generated (${mentalHealthHTML.length} chars)`);
+                } else {
+                    logger.warn(`     ⚠️ Mental Health Report returned NULL`);
+                    reportDetails.push('⚠️ Mental Health Report: NULL response');
                 }
             } catch (error) {
                 logger.error(`   ❌ Mental Health Report failed: ${error.message}`);
+                logger.error(`      Stack: ${error.stack}`);
                 reportDetails.push(`❌ Mental Health Report: ${error.message}`);
             }
 
@@ -310,9 +325,14 @@ class PassiveReportGenerator {
                     );
                     generatedReports.push(report);
                     reportDetails.push('✅ Summary Report');
+                    logger.info(`     ✅ Summary Report generated (${summaryHTML.length} chars)`);
+                } else {
+                    logger.warn(`     ⚠️ Summary Report returned NULL`);
+                    reportDetails.push('⚠️ Summary Report: NULL response');
                 }
             } catch (error) {
                 logger.error(`   ❌ Summary Report failed: ${error.message}`);
+                logger.error(`      Stack: ${error.stack}`);
                 reportDetails.push(`❌ Summary Report: ${error.message}`);
             }
 
