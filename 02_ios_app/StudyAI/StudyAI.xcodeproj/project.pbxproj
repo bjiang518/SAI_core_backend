@@ -376,6 +376,9 @@
 		7BDE56F02EC31AD7004A8629 /* EssayResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE56EF2EC31AD7004A8629 /* EssayResultsView.swift */; };
 		7BDE56F12EC31AD7004A8629 /* EssayResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE56EF2EC31AD7004A8629 /* EssayResultsView.swift */; };
 		7BDE56F22EC31AD7004A8629 /* EssayResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE56EF2EC31AD7004A8629 /* EssayResultsView.swift */; };
+		7BEC07602F3EE55200B6E573 /* PracticeSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC075F2F3EE55200B6E573 /* PracticeSessionManager.swift */; };
+		7BEC07612F3EE55200B6E573 /* PracticeSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC075F2F3EE55200B6E573 /* PracticeSessionManager.swift */; };
+		7BEC07622F3EE55200B6E573 /* PracticeSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC075F2F3EE55200B6E573 /* PracticeSessionManager.swift */; };
 		7BEDA6272E80B8C500D57B15 /* QuestionGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */; };
 		7BEDA6282E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */; };
 		7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */; };
@@ -660,6 +663,7 @@
 		7BDE56E72EC31AC7004A8629 /* GrammarCorrectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GrammarCorrectionView.swift; path = StudyAI/Views/Components/GrammarCorrectionView.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56E82EC31AC7004A8629 /* HTMLRendererView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HTMLRendererView.swift; path = StudyAI/Views/Components/HTMLRendererView.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56EF2EC31AD7004A8629 /* EssayResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EssayResultsView.swift; path = StudyAI/Views/EssayResultsView.swift; sourceTree = SOURCE_ROOT; };
+		7BEC075F2F3EE55200B6E573 /* PracticeSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PracticeSessionManager.swift; path = StudyAI/Services/PracticeSessionManager.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationDataAdapter.swift; path = StudyAI/Services/QuestionGenerationDataAdapter.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationService.swift; path = StudyAI/Services/QuestionGenerationService.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeneratedQuestionsListView.swift; path = StudyAI/Views/GeneratedQuestionsListView.swift; sourceTree = SOURCE_ROOT; };
@@ -910,6 +914,7 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7BEC075F2F3EE55200B6E573 /* PracticeSessionManager.swift */,
 				7B2249242F39BEF2006ADD93 /* ReportAvailabilityChecker.swift */,
 				144BF1CD8B2345EFBFB9415E /* SynchronizedTextRenderer.swift */,
 				7B2248B82F331644006ADD93 /* InteractiveTTSService.swift */,
@@ -1465,6 +1470,7 @@
 				7B2248982F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */,
 				52C62E0B488A4000B350549B /* MyGardenView.swift in Sources */,
 				7BDE56842EC1C718004A8629 /* PomodoroCalendarEvent.swift in Sources */,
+				7BEC07612F3EE55200B6E573 /* PracticeSessionManager.swift in Sources */,
 				0F87356DF3C14F9A8C93C7FE /* MusicSelectionSheet.swift in Sources */,
 				76DFA1C853F74631 /* PlaylistEditorView.swift in Sources */,
 				7B2248EE2F37448F006ADD93 /* ParentReportsOnboardingView.swift in Sources */,
@@ -1638,6 +1644,7 @@
 				7B1961B02E949DD10024317A /* NotificationService.swift in Sources */,
 				7BEEB6202E8E419600957748 /* LottieView.swift in Sources */,
 				7BD664DC2ECAB9D200E09E55 /* ProgressiveSubquestionModel.swift in Sources */,
+				7BEC07602F3EE55200B6E573 /* PracticeSessionManager.swift in Sources */,
 				7B8E9E942EAB50F400E83DA8 /* HomeworkAlbumView.swift in Sources */,
 				7BD668C62EE2E88700E09E55 /* ProModePDFExporter.swift in Sources */,
 				7BDE56602EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */,
@@ -1663,6 +1670,7 @@
 				7B2248542F20212C006ADD93 /* PassiveReportsView.swift in Sources */,
 				7B2248552F20212C006ADD93 /* ParentReportsContainerView.swift in Sources */,
 				7B2248562F20212C006ADD93 /* PassiveReportDetailView.swift in Sources */,
+				7BEC07622F3EE55200B6E573 /* PracticeSessionManager.swift in Sources */,
 				7BDE56F12EC31AD7004A8629 /* EssayResultsView.swift in Sources */,
 				7BDE56912EC1CA4D004A8629 /* UIComponents.swift in Sources */,
 				7BDE56922EC1CA4D004A8629 /* MessageBubbles.swift in Sources */,

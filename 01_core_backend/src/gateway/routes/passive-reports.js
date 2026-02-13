@@ -139,8 +139,30 @@ module.exports = async function (fastify, opts) {
 
       logger.info(`   Date range: ${dateRange.startDate.toISOString().split('T')[0]} - ${dateRange.endDate.toISOString().split('T')[0]}`);
 
-      // DEBUG: Check if questions exist for user
+      // DEBUG: Check if batch exists for this period BEFORE generation
       const { db } = require('../../utils/railway-database');
+      const existingBatchQuery = `
+        SELECT id, period, start_date, end_date, status
+        FROM parent_report_batches
+        WHERE user_id = $1 AND period = $2 AND start_date = $3
+        ORDER BY generated_at DESC
+        LIMIT 1
+      `;
+      const existingCheck = await db.query(existingBatchQuery, [userId, period, dateRange.startDate]);
+
+      if (existingCheck.rows.length > 0) {
+        const existing = existingCheck.rows[0];
+        logger.warn(`⚠️ [GENERATE] Found EXISTING batch in database:`);
+        logger.warn(`   Batch ID: ${existing.id}`);
+        logger.warn(`   Period: ${existing.period}`);
+        logger.warn(`   Dates: ${existing.start_date} to ${existing.end_date}`);
+        logger.warn(`   Status: ${existing.status}`);
+        logger.warn(`   This batch will be REUSED (reports deleted and regenerated)`);
+      } else {
+        logger.info(`✅ [GENERATE] No existing batch found - will create NEW batch`);
+      }
+
+      // DEBUG: Check if questions exist for user
       const countQuery = `
         SELECT
           COUNT(*) as question_count,
@@ -175,6 +197,23 @@ module.exports = async function (fastify, opts) {
         logger.info(`   Batch ID: ${result.id}`);
         logger.info(`   Reports: ${result.report_count}`);
         logger.info(`   Time: ${result.generation_time_ms}ms`);
+
+        // DEBUG: Verify reports were actually stored
+        if (result.report_count === 0) {
+          logger.error(`❌ [GENERATE] CRITICAL: 0 reports generated!`);
+          logger.error(`   This indicates all 4 report generators failed or returned null`);
+          logger.error(`   Check PassiveReportGenerator logs for individual report failures`);
+
+          // Check database to see if any reports exist for this batch
+          const reportCheckQuery = `
+            SELECT report_type, word_count FROM passive_reports WHERE batch_id = $1
+          `;
+          const reportCheck = await db.query(reportCheckQuery, [result.id]);
+          logger.error(`   Database check: ${reportCheck.rows.length} reports in passive_reports table`);
+          if (reportCheck.rows.length > 0) {
+            logger.error(`   Found reports: ${JSON.stringify(reportCheck.rows)}`);
+          }
+        }
 
         // TODO: Send push notification to user's device
         // This is where you'd integrate with APNs or Firebase Cloud Messaging
@@ -531,19 +570,22 @@ module.exports = async function (fastify, opts) {
       const userId = await requireAuth(request, reply);
       if (!userId) return;
 
-      logger.info(`🗑️ Deleting report batch: ${batchId}`);
+      logger.info(`🗑️ [DELETE] ===== BATCH DELETION START =====`);
+      logger.info(`   Batch ID: ${batchId}`);
+      logger.info(`   User ID: ${userId.substring(0, 8)}...`);
 
       const { db } = require('../../utils/railway-database');
 
-      // Delete batch (CASCADE will delete all reports)
-      const deleteQuery = `
-        DELETE FROM parent_report_batches
+      // DEBUG: Check if batch exists BEFORE deletion
+      const preCheckQuery = `
+        SELECT id, period, start_date, end_date, status
+        FROM parent_report_batches
         WHERE id = $1 AND user_id = $2
-        RETURNING id
       `;
-      const result = await db.query(deleteQuery, [batchId, userId]);
+      const preCheck = await db.query(preCheckQuery, [batchId, userId]);
 
-      if (result.rows.length === 0) {
+      if (preCheck.rows.length === 0) {
+        logger.warn(`⚠️ [DELETE] Batch ${batchId} not found in database before deletion`);
         return reply.status(404).send({
           success: false,
           error: 'Report batch not found or access denied',
@@ -551,7 +593,46 @@ module.exports = async function (fastify, opts) {
         });
       }
 
-      logger.info(`✅ Batch deleted: ${batchId}`);
+      const batchInfo = preCheck.rows[0];
+      logger.info(`✅ [DELETE] Found batch before deletion:`);
+      logger.info(`   Period: ${batchInfo.period}`);
+      logger.info(`   Dates: ${batchInfo.start_date} to ${batchInfo.end_date}`);
+      logger.info(`   Status: ${batchInfo.status}`);
+
+      // Delete batch (CASCADE will delete all reports)
+      const deleteQuery = `
+        DELETE FROM parent_report_batches
+        WHERE id = $1 AND user_id = $2
+        RETURNING id, period, start_date, end_date
+      `;
+      const result = await db.query(deleteQuery, [batchId, userId]);
+
+      if (result.rows.length === 0) {
+        logger.error(`❌ [DELETE] Delete query returned 0 rows (unexpected)`);
+        return reply.status(404).send({
+          success: false,
+          error: 'Report batch not found or access denied',
+          code: 'BATCH_NOT_FOUND'
+        });
+      }
+
+      logger.info(`✅ [DELETE] Database DELETE executed successfully`);
+      logger.info(`   Deleted: ${JSON.stringify(result.rows[0])}`);
+
+      // DEBUG: Verify batch is gone AFTER deletion
+      const postCheckQuery = `
+        SELECT id FROM parent_report_batches WHERE id = $1
+      `;
+      const postCheck = await db.query(postCheckQuery, [batchId]);
+
+      if (postCheck.rows.length > 0) {
+        logger.error(`❌ [DELETE] CRITICAL: Batch ${batchId} STILL EXISTS after deletion!`);
+        logger.error(`   This indicates a database transaction or CASCADE issue`);
+      } else {
+        logger.info(`✅ [DELETE] Verified: Batch ${batchId} successfully removed from database`);
+      }
+
+      logger.info(`🗑️ [DELETE] ===== BATCH DELETION COMPLETE =====`);
 
       return reply.send({
         success: true,

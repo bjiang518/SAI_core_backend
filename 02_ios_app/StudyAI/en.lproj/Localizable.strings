@@ -1496,11 +1496,19 @@
 
 // Subject Names
 "subject.mathematics" = "Mathematics";
+"subject.science" = "Science";
 "subject.physics" = "Physics";
 "subject.chemistry" = "Chemistry";
 "subject.biology" = "Biology";
 "subject.english" = "English";
 "subject.history" = "History";
+"subject.geography" = "Geography";
+"subject.computerScience" = "Computer Science";
+"subject.literature" = "Literature";
+"subject.socialStudies" = "Social Studies";
+"subject.economics" = "Economics";
+"subject.art" = "Art";
+"subject.music" = "Music";
 "subject.other" = "Other";
 
 // Pro Mode - Digital Homework

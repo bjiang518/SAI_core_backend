@@ -115,6 +115,7 @@ struct GeneratedQuestionsListView: View {
                    let questionIndex = questions.firstIndex(where: { $0.id == selectedQuestion.id }) {
                     GeneratedQuestionDetailView(
                         question: selectedQuestion,
+                        sessionId: QuestionGenerationService.shared.currentSessionId,  // ✅ FIX: Pass session ID
                         onAnswerSubmitted: { isCorrect, points in
                             // Track the answer result
                             answeredQuestions[selectedQuestion.id] = QuestionResult(isCorrect: isCorrect, points: points)

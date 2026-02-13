@@ -44,8 +44,8 @@ class ProModePDFExporter: ObservableObject {
 
         // Create PDF metadata
         let pdfMetadata: [String: Any] = [
-            kCGPDFContextTitle as String: "StudyAI - \(subject) Homework",
-            kCGPDFContextCreator as String: "StudyAI Pro Mode",
+            kCGPDFContextTitle as String: "StudyMates - \(subject) Homework",
+            kCGPDFContextCreator as String: "StudyMates Pro Mode",
             kCGPDFContextSubject as String: subject
         ]
 

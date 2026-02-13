@@ -580,6 +580,57 @@ struct WeaknessPracticeAnswerInput: View {
         logger.info("Submitting answer for practice question")
 
         do {
+            // ✅ FIX: Try client-side matching first to avoid unnecessary API calls
+            if question.questionType.lowercased() == "multiple_choice" ||
+               question.questionType.lowercased() == "true_false" {
+
+                let matchResult = AnswerMatchingService.shared.matchAnswer(
+                    userAnswer: currentAnswer,
+                    correctAnswer: question.correctAnswer,
+                    questionType: question.questionType,
+                    options: nil  // Options dict not needed with our fix
+                )
+
+                logger.info("✅ Client-side match: score=\(matchResult.matchScore), shouldSkip=\(matchResult.shouldSkipAIGrading)")
+
+                if matchResult.shouldSkipAIGrading {
+                    // Instant grading - no API call needed!
+                    let instantGrade = ProgressiveGradeResult(
+                        score: matchResult.isCorrect ? 1.0 : 0.0,
+                        isCorrect: matchResult.isCorrect,
+                        feedback: matchResult.isCorrect ?
+                            "Correct! Well done." :
+                            "Incorrect. The correct answer is: \(question.correctAnswer)",
+                        confidence: Float(matchResult.matchScore),
+                        correctAnswer: question.correctAnswer
+                    )
+
+                    gradeResult = instantGrade
+
+                    // Update weakness tracking
+                    if matchResult.isCorrect {
+                        ShortTermStatusService.shared.recordCorrectAttempt(
+                            key: weaknessKey,
+                            retryType: .explicitPractice,
+                            questionId: question.id.uuidString
+                        )
+                        logger.info("✅ Correct answer (instant graded) - weakness value decreased")
+                    } else {
+                        ShortTermStatusService.shared.recordMistake(
+                            key: weaknessKey,
+                            errorType: "practice_error",
+                            questionId: question.id.uuidString
+                        )
+                        logger.info("❌ Incorrect answer (instant graded) - weakness value increased")
+                    }
+
+                    onAnswerSubmitted()
+                    isSubmitting = false
+                    return
+                }
+            }
+
+            // If not a multiple choice or match failed, use AI grading
             let response = try await networkService.gradeSingleQuestion(
                 questionText: question.questionText,
                 studentAnswer: currentAnswer,

@@ -29,6 +29,9 @@ class QuestionGenerationService: ObservableObject {
     @Published var lastError: String?
     @Published var generationProgress: String?
 
+    // ✅ FIX: Track current session for progress updates
+    @Published var currentSessionId: String?
+
     // MARK: - Cache Management
     private var questionCache: [String: CachedQuestionSet] = [:]
     private let cacheValidityInterval: TimeInterval = 300 // 5 minutes
@@ -395,7 +398,7 @@ class QuestionGenerationService: ObservableObject {
         }
 
         // NEW: Simplified request format for Assistants API
-        let requestBody: [String: Any] = [
+        var requestBody: [String: Any] = [
             "subject": subject,
             "topic": config.topics.joined(separator: ", "), // Combine topics
             "count": config.questionCount,
@@ -403,6 +406,12 @@ class QuestionGenerationService: ObservableObject {
             "question_type": config.questionType.rawValue, // Send question type filter
             "language": "en"
         ]
+
+        // ✅ FIX 1: Include personalized focus notes if available
+        if let focusNotes = config.focusNotes, !focusNotes.isEmpty {
+            requestBody["focus_notes"] = focusNotes
+            print("📝 [QuestionGen] Sending personalized focus notes to backend (\(focusNotes.count) chars)")
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -444,6 +453,19 @@ class QuestionGenerationService: ObservableObject {
                             self.lastGeneratedQuestions = responseResult.questions
                             self.lastGenerationDate = Date()
                             self.lastGenerationType = "Random Practice"
+                        }
+
+                        // ✅ FIX 2: Save session for persistence and capture session ID
+                        let sessionId = PracticeSessionManager.shared.saveSession(
+                            questions: responseResult.questions,
+                            generationType: "Random Practice",
+                            subject: subject,
+                            config: config
+                        )
+
+                        // ✅ Store session ID for progress tracking
+                        await MainActor.run {
+                            self.currentSessionId = sessionId
                         }
 
                         print("🎉 Generated \(responseResult.questions.count) random questions successfully")
@@ -696,6 +718,19 @@ class QuestionGenerationService: ObservableObject {
                             self.lastGeneratedQuestions = responseResult.questions
                             self.lastGenerationDate = Date()
                             self.lastGenerationType = "Conversation-Based Practice"
+                        }
+
+                        // ✅ FIX 2: Save session for persistence and capture session ID
+                        let sessionId = PracticeSessionManager.shared.saveSession(
+                            questions: responseResult.questions,
+                            generationType: "Conversation-Based Practice",
+                            subject: subject,
+                            config: config
+                        )
+
+                        // ✅ Store session ID for progress tracking
+                        await MainActor.run {
+                            self.currentSessionId = sessionId
                         }
 
                         print("🎉 Generated \(responseResult.questions.count) conversation-based questions successfully (Status: \(httpResponse.statusCode))")

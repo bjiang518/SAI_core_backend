@@ -10,6 +10,7 @@ import os.log
 
 struct GeneratedQuestionDetailView: View {
     let question: QuestionGenerationService.GeneratedQuestion
+    let sessionId: String?  // ✅ FIX P0: Track session for progress updates
     let onAnswerSubmitted: ((Bool, Int) -> Void)? // Callback with isCorrect and points
 
     // Navigation support
@@ -66,10 +67,12 @@ struct GeneratedQuestionDetailView: View {
 
     // Default initializer without callback (for backwards compatibility)
     init(question: QuestionGenerationService.GeneratedQuestion,
+         sessionId: String? = nil,  // ✅ FIX P0: Accept session ID
          onAnswerSubmitted: ((Bool, Int) -> Void)? = nil,
          allQuestions: [QuestionGenerationService.GeneratedQuestion]? = nil,
          currentIndex: Int? = nil) {
         self.question = question
+        self.sessionId = sessionId
         self.onAnswerSubmitted = onAnswerSubmitted
         self.allQuestions = allQuestions
         self.currentIndex = currentIndex
@@ -658,6 +661,7 @@ struct GeneratedQuestionDetailView: View {
                let currentIndex = currentIndex {
                 GeneratedQuestionDetailView(
                     question: nextQuestion,
+                    sessionId: sessionId,  // ✅ FIX P0: Pass session ID to next question
                     onAnswerSubmitted: onAnswerSubmitted,
                     allQuestions: allQuestions,
                     currentIndex: currentIndex + 1
@@ -1182,6 +1186,17 @@ Question: \(question.question)
         if let data = try? JSONSerialization.data(withJSONObject: answerData) {
             UserDefaults.standard.set(data, forKey: answerPersistenceKey)
             logger.info("💾 Saved answer for question: \(question.id)")
+        }
+
+        // ✅ FIX P0: Update session progress if session ID is available
+        if let sessionId = sessionId {
+            PracticeSessionManager.shared.updateProgress(
+                sessionId: sessionId,
+                completedQuestionId: question.id.uuidString,
+                answer: getCurrentAnswer(),
+                isCorrect: isCorrect
+            )
+            logger.info("✅ Updated session progress: \(sessionId) - Question \(question.id.uuidString.prefix(8))")
         }
     }
 

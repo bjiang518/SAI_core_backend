@@ -149,24 +149,17 @@ struct ModernLoginView: View {
     
     private var headerSection: some View {
         ZStack {
-            // Background gradient
-            LinearGradient(
-                colors: [.blue, .yellow],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            // Background - Cute mode blue
+            DesignTokens.Colors.Cute.blue
             
             VStack(spacing: 16) {
                 Spacer()
                 
                 // App icon and title
                 VStack(spacing: 12) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 60))
-                        .foregroundColor(.white)
-
-                    Text(NSLocalizedString("app.name", comment: "App name"))
+                    Text("StudyMates")
                         .font(.largeTitle)
+                        .fontWeight(.bold)
                         .foregroundColor(.white)
 
                     Text(NSLocalizedString("app.tagline", comment: "App tagline"))
