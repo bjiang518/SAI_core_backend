@@ -10,6 +10,7 @@
  */
 
 const logger = require('../utils/logger');
+const { getInsightsService } = require('./openai-insights-service');
 
 class SummaryReportGenerator {
     /**
@@ -18,15 +19,59 @@ class SummaryReportGenerator {
      * @param {Object} improvementData - Improvement report data
      * @param {Object} mentalHealthData - Mental health report data
      * @param {String} studentName - Student's name
+     * @param {Number} studentAge - Student's age
+     * @param {String} userId - User ID
      * @param {String} period - Report period ('weekly' or 'monthly')
+     * @param {Date} startDate - Period start date
      * @returns {String} HTML report
      */
-    generateSummaryReport(activityData, improvementData, mentalHealthData, studentName = '[Student]', period = 'weekly') {
+    async generateSummaryReport(activityData, improvementData, mentalHealthData, studentName = '[Student]', studentAge = 7, userId = null, period = 'weekly', startDate = new Date()) {
         logger.info(`📋 Generating ${period} Summary Report...`);
 
         try {
             const analysis = this.synthesizeReports(activityData, improvementData, mentalHealthData, studentName, period);
-            const html = this.generateSummaryHTML(analysis, period);
+
+            // Generate AI-powered insights
+            let aiInsights = null;
+            try {
+                logger.info(`🤖 Generating AI insights for Summary Report...`);
+                const insightsService = getInsightsService();
+
+                // Prepare signals for AI
+                const signals = this.prepareSignalsForAI(analysis, activityData, improvementData, mentalHealthData);
+                const context = {
+                    userId,
+                    studentName,
+                    studentAge,
+                    period,
+                    startDate
+                };
+
+                // Generate 2 insights for summary report
+                const insightRequests = [
+                    {
+                        reportType: 'summary',
+                        insightType: 'holistic_profile',
+                        signals: signals.holisticProfile,
+                        context
+                    },
+                    {
+                        reportType: 'summary',
+                        insightType: 'priority_action',
+                        signals: signals.priorityAction,
+                        context
+                    }
+                ];
+
+                aiInsights = await insightsService.generateMultipleInsights(insightRequests);
+                logger.info(`✅ Generated ${aiInsights.length} AI insights for Summary Report`);
+
+            } catch (error) {
+                logger.warn(`⚠️ AI insights generation failed: ${error.message}`);
+                aiInsights = null; // Report will render without AI insights
+            }
+
+            const html = this.generateSummaryHTML(analysis, period, aiInsights);
 
             logger.info(`✅ Summary Report generated`);
 
@@ -169,10 +214,57 @@ class SummaryReportGenerator {
     }
 
     /**
+     * Prepare signals for AI insight generation
+     */
+    prepareSignalsForAI(analysis, activityData, improvementData, mentalHealthData) {
+        // Aggregate key metrics across all reports
+        const subjects = Object.keys(activityData.subjectBreakdown || {});
+
+        // Mental health concerns
+        const mentalHealthConcerns = mentalHealthData.emotionalWellbeing.redFlags.map(f => f.title);
+
+        // Improvement areas
+        const topAreas = Object.entries(improvementData.bySubject || {})
+            .sort((a, b) => b[1].totalMistakes - a[1].totalMistakes)
+            .slice(0, 3)
+            .map(([ subject, data]) => ({
+                area: subject,
+                description: `${data.totalMistakes} mistakes (${data.trend})`
+            }));
+
+        return {
+            // Holistic Profile signals
+            holisticProfile: {
+                totalQuestions: activityData.totalQuestions,
+                totalChats: activityData.totalChats,
+                activeDays: activityData.activeDays,
+                subjects,
+                overallAccuracy: improvementData.totalMistakes > 0
+                    ? Math.round((1 - (improvementData.totalMistakes / activityData.totalQuestions)) * 100)
+                    : 100,
+                totalMistakes: improvementData.totalMistakes,
+                progressTrend: analysis.overallTone,
+                mentalHealthStatus: mentalHealthData.emotionalWellbeing.status,
+                engagementLevel: analysis.engagement,
+                redFlagCount: mentalHealthData.emotionalWellbeing.redFlags.length
+            },
+
+            // Priority Action signals
+            priorityAction: {
+                topAreas,
+                mentalHealthConcerns,
+                optimizationOpportunities: analysis.actionItems.map(item => item.text),
+                trajectory: analysis.overallTone
+            }
+        };
+    }
+
+    /**
      * Generate HTML for summary report
      * @param {String} period - 'weekly' or 'monthly'
+     * @param {Array} aiInsights - AI-generated insights (optional)
      */
-    generateSummaryHTML(analysis, period = 'weekly') {
+    generateSummaryHTML(analysis, period = 'weekly', aiInsights = null) {
         const periodLabel = period === 'monthly' ? 'Monthly' : 'Weekly';
         const timePhrase = period === 'monthly' ? 'Month' : 'Week';
         const toneColors = {
@@ -413,6 +505,74 @@ class SummaryReportGenerator {
         .parent-note strong {
             color: #1e40af;
         }
+
+        /* AI Insights Styling */
+        .ai-insight {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .ai-insight-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .ai-insight-icon {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+
+        .ai-insight h3 {
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .ai-insight-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 16px;
+            color: #1a1a1a;
+            line-height: 1.7;
+            font-size: 13px;
+        }
+
+        .ai-insight-content ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .ai-insight-content li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+
+        .ai-insight-content p {
+            margin: 8px 0;
+        }
+
+        .ai-insight-content strong {
+            color: #667eea;
+            font-weight: 700;
+        }
+
+        .ai-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -453,11 +613,37 @@ class SummaryReportGenerator {
                 </div>
             </div>
 
+            ${aiInsights && aiInsights[0] ? `
+            <!-- AI Insight 1: Holistic Student Profile -->
+            <div class="ai-insight">
+                <div class="ai-insight-header">
+                    <span class="ai-insight-icon">🤖</span>
+                    <h3>AI Insights: Student Profile<span class="ai-badge">GPT-4o</span></h3>
+                </div>
+                <div class="ai-insight-content">
+                    ${aiInsights[0]}
+                </div>
+            </div>
+            ` : ''}
+
             <!-- Win Celebration -->
             <div class="win-section">
                 <div class="win-title">🎉 This ${timePhrase}'s Win</div>
                 <div class="win-text">${analysis.biggestWin}</div>
             </div>
+
+            ${aiInsights && aiInsights[1] ? `
+            <!-- AI Insight 2: Priority Action Plan -->
+            <div class="ai-insight">
+                <div class="ai-insight-header">
+                    <span class="ai-insight-icon">🤖</span>
+                    <h3>AI Insights: Priority Actions<span class="ai-badge">GPT-4o</span></h3>
+                </div>
+                <div class="ai-insight-content">
+                    ${aiInsights[1]}
+                </div>
+            </div>
+            ` : ''}
 
             <!-- Action Items -->
             <div class="action-items">
