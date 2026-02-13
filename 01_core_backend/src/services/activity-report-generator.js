@@ -40,8 +40,24 @@ class ActivityReportGenerator {
             // Step 4: Calculate metrics
             const metrics = this.calculateActivityMetrics(questionsData, conversationsData, previousPeriodData, period);
 
-            // Step 5: Generate HTML
-            const html = this.generateActivityHTML(metrics, studentName, period);
+            // ✅ NEW: Step 5: Calculate monthly-specific insights (only if period === 'monthly')
+            if (period === 'monthly' && questionsData.length > 0) {
+                metrics.weeklyBreakdown = this.calculateWeeklyBreakdown(questionsData, startDate, endDate);
+                metrics.dayOfWeekHeatmap = this.calculateDayOfWeekHeatmap(questionsData);
+                metrics.timeOfDayOptimization = this.calculateTimeOfDayOptimization(questionsData);
+                metrics.studySessionPatterns = this.calculateStudySessionPatterns(questionsData);
+
+                // ✅ NEW: Get handwriting quality data for monthly reports
+                metrics.handwritingQuality = await this.getHandwritingData(userId);
+
+                // ✅ NEW: Get concept mastery tracking for monthly reports
+                metrics.conceptWeaknesses = await this.getConceptWeaknesses(userId);
+
+                logger.info(`✅ Monthly insights calculated: ${metrics.weeklyBreakdown.length} weeks, ${metrics.studySessionPatterns.sessionCount} sessions`);
+            }
+
+            // Step 6: Generate HTML
+            const html = this.generateActivityHTML(metrics, studentName, period, startDate, endDate);
 
             logger.info(`✅ Activity Report generated: ${metrics.totalQuestions} questions, ${metrics.totalChats} chats`);
 
@@ -135,6 +151,98 @@ class ActivityReportGenerator {
 
         const result = await db.query(query, [userId, previousStart, previousEnd]);
         return result.rows;
+    }
+
+    /**
+     * ✅ NEW: Get handwriting quality data from short_term_status
+     * Returns most recent handwriting score and feedback for Pro Mode homework
+     * @param {String} userId - User ID
+     */
+    async getHandwritingData(userId) {
+        const query = `
+            SELECT
+                recent_handwriting_score,
+                recent_handwriting_feedback,
+                recent_handwriting_date
+            FROM short_term_status
+            WHERE user_id = $1
+        `;
+
+        try {
+            const result = await db.query(query, [userId]);
+            if (result.rows.length > 0 && result.rows[0].recent_handwriting_score !== null) {
+                const data = result.rows[0];
+                return {
+                    score: data.recent_handwriting_score,
+                    feedback: data.recent_handwriting_feedback,
+                    date: data.recent_handwriting_date,
+                    // Convert 0-1 score to quality level
+                    qualityLevel: data.recent_handwriting_score >= 0.8 ? 'Excellent' :
+                                  data.recent_handwriting_score >= 0.6 ? 'Good' :
+                                  data.recent_handwriting_score >= 0.4 ? 'Fair' : 'Needs Improvement',
+                    scorePercent: Math.round(data.recent_handwriting_score * 100)
+                };
+            }
+            return null; // No handwriting data available
+        } catch (error) {
+            logger.error(`❌ Failed to fetch handwriting data: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * ✅ NEW: Get concept weaknesses from short_term_status
+     * Returns active weaknesses organized by subject/topic/concept
+     * @param {String} userId - User ID
+     */
+    async getConceptWeaknesses(userId) {
+        const query = `
+            SELECT active_weaknesses
+            FROM short_term_status
+            WHERE user_id = $1
+        `;
+
+        try {
+            const result = await db.query(query, [userId]);
+            if (result.rows.length > 0 && result.rows[0].active_weaknesses) {
+                const weaknesses = result.rows[0].active_weaknesses;
+
+                // Parse weaknesses JSONB into structured format
+                // Format: { "Math/Algebra/Equations": {...}, "Science/Physics/Motion": {...} }
+                const weaknessesBySubject = {};
+                let totalWeaknesses = 0;
+
+                for (const [path, weaknessData] of Object.entries(weaknesses)) {
+                    const parts = path.split('/');
+                    const subject = parts[0] || 'General';
+                    const topic = parts[1] || 'General';
+                    const concept = parts[2] || path;
+
+                    if (!weaknessesBySubject[subject]) {
+                        weaknessesBySubject[subject] = [];
+                    }
+
+                    weaknessesBySubject[subject].push({
+                        topic,
+                        concept,
+                        fullPath: path,
+                        data: weaknessData
+                    });
+
+                    totalWeaknesses++;
+                }
+
+                return {
+                    bySubject: weaknessesBySubject,
+                    totalCount: totalWeaknesses,
+                    hasWeaknesses: totalWeaknesses > 0
+                };
+            }
+            return { bySubject: {}, totalCount: 0, hasWeaknesses: false };
+        } catch (error) {
+            logger.error(`❌ Failed to fetch concept weaknesses: ${error.message}`);
+            return { bySubject: {}, totalCount: 0, hasWeaknesses: false };
+        }
     }
 
     /**
@@ -233,10 +341,203 @@ class ActivityReportGenerator {
     }
 
     /**
+     * ✅ NEW: Calculate week-by-week progression for monthly reports
+     * Split 30-day period into 4 weeks and track accuracy/activity trends
+     */
+    calculateWeeklyBreakdown(questions, startDate, endDate) {
+        const weeks = [];
+        const dayMs = 24 * 60 * 60 * 1000;
+
+        // Calculate 4 week periods
+        for (let weekNum = 0; weekNum < 4; weekNum++) {
+            const weekStart = new Date(startDate.getTime() + (weekNum * 7 * dayMs));
+            const weekEnd = new Date(Math.min(weekStart.getTime() + (7 * dayMs), endDate.getTime()));
+
+            const weekQuestions = questions.filter(q => {
+                const qDate = new Date(q.archived_at);
+                return qDate >= weekStart && qDate < weekEnd;
+            });
+
+            const correct = weekQuestions.filter(q => q.grade === 'CORRECT').length;
+            const total = weekQuestions.length;
+            const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+            weeks.push({
+                weekNumber: weekNum + 1,
+                label: `Week ${weekNum + 1}`,
+                questionCount: total,
+                accuracy: accuracy,
+                activeDays: new Set(weekQuestions.map(q => q.archived_at.toISOString().split('T')[0])).size
+            });
+        }
+
+        return weeks;
+    }
+
+    /**
+     * ✅ NEW: Calculate day-of-week heatmap for monthly reports
+     * Shows which days of week student is most/least active and accurate
+     */
+    calculateDayOfWeekHeatmap(questions) {
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const dayData = dayNames.map((name, index) => ({
+            day: name,
+            dayIndex: index,
+            shortName: name.substring(0, 3),
+            questionCount: 0,
+            correct: 0,
+            accuracy: 0
+        }));
+
+        questions.forEach(q => {
+            const dayIndex = new Date(q.archived_at).getDay();
+            dayData[dayIndex].questionCount++;
+            if (q.grade === 'CORRECT') {
+                dayData[dayIndex].correct++;
+            }
+        });
+
+        // Calculate accuracy percentages
+        dayData.forEach(day => {
+            day.accuracy = day.questionCount > 0
+                ? Math.round((day.correct / day.questionCount) * 100)
+                : 0;
+        });
+
+        // Find best and worst days
+        const activeDays = dayData.filter(d => d.questionCount > 0);
+        const bestDay = activeDays.length > 0
+            ? activeDays.reduce((a, b) => a.accuracy > b.accuracy ? a : b)
+            : null;
+        const worstDay = activeDays.length > 0
+            ? activeDays.reduce((a, b) => a.accuracy < b.accuracy ? a : b)
+            : null;
+
+        return { dayData, bestDay, worstDay };
+    }
+
+    /**
+     * ✅ NEW: Calculate time-of-day optimization for monthly reports
+     * Shows peak performance windows (morning/afternoon/evening)
+     */
+    calculateTimeOfDayOptimization(questions) {
+        const timeSlots = {
+            morning: { label: 'Morning (6am-12pm)', questionCount: 0, correct: 0, accuracy: 0, hours: [6, 7, 8, 9, 10, 11] },
+            afternoon: { label: 'Afternoon (12pm-6pm)', questionCount: 0, correct: 0, accuracy: 0, hours: [12, 13, 14, 15, 16, 17] },
+            evening: { label: 'Evening (6pm-10pm)', questionCount: 0, correct: 0, accuracy: 0, hours: [18, 19, 20, 21] },
+            night: { label: 'Night (10pm-6am)', questionCount: 0, correct: 0, accuracy: 0, hours: [22, 23, 0, 1, 2, 3, 4, 5] }
+        };
+
+        questions.forEach(q => {
+            const hour = new Date(q.archived_at).getHours();
+
+            for (const [key, slot] of Object.entries(timeSlots)) {
+                if (slot.hours.includes(hour)) {
+                    slot.questionCount++;
+                    if (q.grade === 'CORRECT') {
+                        slot.correct++;
+                    }
+                    break;
+                }
+            }
+        });
+
+        // Calculate accuracy percentages
+        Object.values(timeSlots).forEach(slot => {
+            slot.accuracy = slot.questionCount > 0
+                ? Math.round((slot.correct / slot.questionCount) * 100)
+                : 0;
+        });
+
+        // Find peak performance time
+        const activeSlots = Object.entries(timeSlots).filter(([_, slot]) => slot.questionCount > 0);
+        const peakTime = activeSlots.length > 0
+            ? activeSlots.reduce((a, b) => a[1].accuracy > b[1].accuracy ? a : b)[0]
+            : null;
+
+        return { timeSlots, peakTime };
+    }
+
+    /**
+     * ✅ NEW: Calculate study session patterns for monthly reports
+     * Groups questions by time gaps to identify sessions, calculate lengths
+     */
+    calculateStudySessionPatterns(questions) {
+        if (questions.length === 0) {
+            return { sessionCount: 0, averageLength: 0, averageBreak: 0, longestSession: 0 };
+        }
+
+        // Sort by timestamp
+        const sorted = [...questions].sort((a, b) =>
+            new Date(a.archived_at) - new Date(b.archived_at)
+        );
+
+        const sessions = [];
+        let currentSession = {
+            startTime: new Date(sorted[0].archived_at),
+            endTime: new Date(sorted[0].archived_at),
+            questionCount: 1
+        };
+
+        // Group questions into sessions (gap > 20 minutes = new session)
+        const SESSION_GAP_MS = 20 * 60 * 1000; // 20 minutes
+
+        for (let i = 1; i < sorted.length; i++) {
+            const currentTime = new Date(sorted[i].archived_at);
+            const timeSinceLastQuestion = currentTime - new Date(sorted[i - 1].archived_at);
+
+            if (timeSinceLastQuestion > SESSION_GAP_MS) {
+                // New session
+                sessions.push(currentSession);
+                currentSession = {
+                    startTime: currentTime,
+                    endTime: currentTime,
+                    questionCount: 1
+                };
+            } else {
+                // Same session
+                currentSession.endTime = currentTime;
+                currentSession.questionCount++;
+            }
+        }
+        sessions.push(currentSession); // Add last session
+
+        // Calculate metrics
+        const sessionLengths = sessions.map(s => (s.endTime - s.startTime) / (1000 * 60)); // minutes
+        const averageLength = sessionLengths.reduce((a, b) => a + b, 0) / sessions.length;
+        const longestSession = Math.max(...sessionLengths);
+
+        // Calculate breaks between sessions
+        const breaks = [];
+        for (let i = 1; i < sessions.length; i++) {
+            const breakTime = (sessions[i].startTime - sessions[i - 1].endTime) / (1000 * 60); // minutes
+            breaks.push(breakTime);
+        }
+        const averageBreak = breaks.length > 0
+            ? breaks.reduce((a, b) => a + b, 0) / breaks.length
+            : 0;
+
+        return {
+            sessionCount: sessions.length,
+            averageLength: Math.round(averageLength),
+            averageBreak: Math.round(averageBreak),
+            longestSession: Math.round(longestSession),
+            sessions: sessions.map(s => ({
+                startTime: s.startTime,
+                endTime: s.endTime,
+                lengthMinutes: Math.round((s.endTime - s.startTime) / (1000 * 60)),
+                questionCount: s.questionCount
+            }))
+        };
+    }
+
+    /**
      * Generate HTML for activity report
      * @param {String} period - 'weekly' or 'monthly'
+     * @param {Date} startDate - Period start date (for monthly insights)
+     * @param {Date} endDate - Period end date (for monthly insights)
      */
-    generateActivityHTML(metrics, studentName, period = 'weekly') {
+    generateActivityHTML(metrics, studentName, period = 'weekly', startDate = null, endDate = null) {
         const periodLabel = period === 'monthly' ? 'Monthly' : 'Weekly';
         const timePhrase = period === 'monthly' ? 'this month' : 'this week';
         const comparisonLabel = period === 'monthly' ? 'Month-over-Month' : 'Week-over-Week';
@@ -642,6 +943,198 @@ class ActivityReportGenerator {
                     ${metrics.estimatedMinutes} minutes studying. ${metrics.totalChats > 0 ? `They also had ${metrics.totalChats} chat sessions seeking additional help.` : ''}
                 </div>
             </div>
+
+            ${period === 'monthly' && metrics.weeklyBreakdown ? `
+            <!-- ✅ MONTHLY ONLY: Week-by-Week Progression -->
+            <div class="section">
+                <h2 class="section-title">📈 Week-by-Week Progression</h2>
+                <div class="chart-container">
+                    <canvas id="weeklyProgressionChart" style="max-height: 300px;"></canvas>
+                </div>
+                <div class="summary-text" style="margin-top: 12px;">
+                    ${metrics.weeklyBreakdown.map((week, idx) => `
+                        <strong>${week.label}:</strong> ${week.questionCount} questions (${week.accuracy}% accuracy)${idx < metrics.weeklyBreakdown.length - 1 ? ' • ' : ''}
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- ✅ MONTHLY ONLY: Day-of-Week Heatmap -->
+            <div class="section">
+                <h2 class="section-title">📅 Study Pattern by Day of Week</h2>
+                <div class="chart-container">
+                    <canvas id="dayOfWeekChart" style="max-height: 280px;"></canvas>
+                </div>
+                ${metrics.dayOfWeekHeatmap.bestDay && metrics.dayOfWeekHeatmap.worstDay ? `
+                <div class="summary-text" style="margin-top: 12px;">
+                    <strong>Best Day:</strong> ${metrics.dayOfWeekHeatmap.bestDay.day} (${metrics.dayOfWeekHeatmap.bestDay.accuracy}% accuracy) •
+                    <strong>Most Active:</strong> ${metrics.dayOfWeekHeatmap.dayData.reduce((a, b) => a.questionCount > b.questionCount ? a : b).day}
+                    (${metrics.dayOfWeekHeatmap.dayData.reduce((a, b) => a.questionCount > b.questionCount ? a : b).questionCount} questions)
+                </div>
+                ` : ''}
+            </div>
+
+            <!-- ✅ MONTHLY ONLY: Time-of-Day Optimization -->
+            <div class="section">
+                <h2 class="section-title">⏰ Peak Performance Windows</h2>
+                <div class="chart-container">
+                    <canvas id="timeOfDayChart" style="max-height: 260px;"></canvas>
+                </div>
+                ${metrics.timeOfDayOptimization.peakTime ? `
+                <div class="summary-text" style="margin-top: 12px;">
+                    <strong>Peak Performance:</strong> ${metrics.timeOfDayOptimization.timeSlots[metrics.timeOfDayOptimization.peakTime].label}
+                    (${metrics.timeOfDayOptimization.timeSlots[metrics.timeOfDayOptimization.peakTime].accuracy}% accuracy)
+                    <br><em>💡 Tip: Schedule challenging subjects during peak hours for best results.</em>
+                </div>
+                ` : ''}
+            </div>
+
+            <!-- ✅ MONTHLY ONLY: Study Session Patterns -->
+            <div class="section">
+                <h2 class="section-title">🎯 Study Session Insights</h2>
+                <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+                    <div class="metric-card" style="background: #f0f9ff;">
+                        <div class="metric-value" style="color: #0369a1;">${metrics.studySessionPatterns.sessionCount}</div>
+                        <div class="metric-label">Total Sessions</div>
+                    </div>
+                    <div class="metric-card" style="background: #f0fdf4;">
+                        <div class="metric-value" style="color: #15803d;">${metrics.studySessionPatterns.averageLength}m</div>
+                        <div class="metric-label">Avg Session</div>
+                    </div>
+                    <div class="metric-card" style="background: #fef3c7;">
+                        <div class="metric-value" style="color: #b45309;">${metrics.studySessionPatterns.longestSession}m</div>
+                        <div class="metric-label">Longest Session</div>
+                    </div>
+                    <div class="metric-card" style="background: #fce7f3;">
+                        <div class="metric-value" style="color: #be185d;">${metrics.studySessionPatterns.averageBreak}m</div>
+                        <div class="metric-label">Avg Break</div>
+                    </div>
+                </div>
+                <div class="summary-text" style="margin-top: 12px;">
+                    ${metrics.studySessionPatterns.averageLength < 15
+                        ? '⚠️ Sessions are quite short. Consider encouraging longer focused study periods (20-30 minutes).'
+                        : metrics.studySessionPatterns.averageLength > 45
+                        ? '💡 Sessions are long! Make sure to take breaks every 30-40 minutes to maintain focus.'
+                        : '✅ Session length is optimal for sustained focus and learning.'}
+                </div>
+            </div>
+
+            <!-- ✅ MONTHLY ONLY: Handwriting Quality (Pro Mode) -->
+            ${metrics.handwritingQuality ? `
+            <div class="section">
+                <h2 class="section-title">✍️ Handwriting Quality (Pro Mode)</h2>
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-bottom: 12px;">
+                    <!-- Quality Score Circle -->
+                    <div style="display: flex; align-items: center; justify-content: center;">
+                        <div style="position: relative; width: 120px; height: 120px;">
+                            <svg viewBox="0 0 120 120" style="transform: rotate(-90deg);">
+                                <!-- Background circle -->
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" stroke-width="10" />
+                                <!-- Progress circle -->
+                                <circle
+                                    cx="60" cy="60" r="50"
+                                    fill="none"
+                                    stroke="${metrics.handwritingQuality.score >= 0.8 ? '#10b981' :
+                                            metrics.handwritingQuality.score >= 0.6 ? '#3b82f6' :
+                                            metrics.handwritingQuality.score >= 0.4 ? '#f59e0b' : '#ef4444'}"
+                                    stroke-width="10"
+                                    stroke-dasharray="${2 * Math.PI * 50}"
+                                    stroke-dashoffset="${2 * Math.PI * 50 * (1 - metrics.handwritingQuality.score)}"
+                                    stroke-linecap="round"
+                                />
+                            </svg>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                <div style="font-size: 24px; font-weight: bold; color: #1a1a1a;">
+                                    ${metrics.handwritingQuality.scorePercent}%
+                                </div>
+                                <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">
+                                    ${metrics.handwritingQuality.qualityLevel}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Feedback Text -->
+                    <div style="display: flex; flex-direction: column; justify-content: center;">
+                        <div style="background: #f9fafb; padding: 12px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                            <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
+                                <strong>AI Feedback:</strong>
+                            </div>
+                            <div style="font-size: 13px; color: #374151; line-height: 1.5;">
+                                ${metrics.handwritingQuality.feedback || 'No specific feedback available.'}
+                            </div>
+                            ${metrics.handwritingQuality.date ? `
+                            <div style="font-size: 11px; color: #9ca3af; margin-top: 8px;">
+                                Last analyzed: ${new Date(metrics.handwritingQuality.date).toLocaleDateString()}
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="summary-text" style="margin-top: 12px;">
+                    ${metrics.handwritingQuality.score >= 0.8
+                        ? '🌟 <strong>Excellent handwriting!</strong> Clear, legible writing makes it easier for teachers and AI to understand your work.'
+                        : metrics.handwritingQuality.score >= 0.6
+                        ? '✅ <strong>Good handwriting.</strong> Your writing is generally clear. Keep practicing for even better results.'
+                        : metrics.handwritingQuality.score >= 0.4
+                        ? '⚠️ <strong>Fair handwriting.</strong> Try slowing down and focusing on letter formation for improved clarity.'
+                        : '❗ <strong>Handwriting needs attention.</strong> Practice writing slowly and carefully. Consider using Pro Mode more often for feedback.'}
+                    <br><em>💡 Tip: Good handwriting helps AI better understand and grade your homework in Pro Mode.</em>
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- ✅ MONTHLY ONLY: Concept Mastery Tracking -->
+            ${metrics.conceptWeaknesses?.hasWeaknesses ? `
+            <div class="section">
+                <h2 class="section-title">🎯 Concepts Needing Practice</h2>
+                <div style="background: #fef3c7; padding: 12px; border-radius: 8px; border: 1px solid #fbbf24; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 24px;">📚</span>
+                        <div>
+                            <div style="font-weight: 600; color: #78350f;">
+                                ${metrics.conceptWeaknesses.totalCount} concept${metrics.conceptWeaknesses.totalCount !== 1 ? 's' : ''} to review
+                            </div>
+                            <div style="font-size: 12px; color: #92400e;">
+                                These topics have shown difficulty recently and need extra practice
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                ${Object.entries(metrics.conceptWeaknesses.bySubject).map(([subject, concepts]) => `
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 8px; font-size: 14px;">
+                            📘 ${subject} (${concepts.length} concept${concepts.length !== 1 ? 's' : ''})
+                        </div>
+                        <div style="display: grid; gap: 8px;">
+                            ${concepts.map(weakness => `
+                                <div style="background: #f9fafb; padding: 10px 12px; border-radius: 6px; border-left: 3px solid #ef4444;">
+                                    <div style="font-weight: 500; color: #374151; font-size: 13px;">
+                                        ${weakness.concept}
+                                    </div>
+                                    ${weakness.topic !== 'General' && weakness.topic !== weakness.concept ? `
+                                        <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">
+                                            Topic: ${weakness.topic}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+
+                <div class="summary-text" style="margin-top: 12px;">
+                    ${metrics.conceptWeaknesses.totalCount >= 5
+                        ? '⚠️ <strong>Multiple concepts need attention.</strong> Focus on one subject at a time and practice the basics before moving to advanced topics.'
+                        : metrics.conceptWeaknesses.totalCount >= 3
+                        ? '💡 <strong>A few concepts to review.</strong> Dedicate extra study time to these areas for improvement.'
+                        : '✅ <strong>Just a couple concepts to work on.</strong> Regular practice will help strengthen understanding.'}
+                    <br><em>💡 Tip: Ask for help with these specific topics during study sessions to get targeted practice.</em>
+                </div>
+            </div>
+            ` : ''}
+            ` : ''}
         </div>
     </div>
 
@@ -709,6 +1202,215 @@ class ActivityReportGenerator {
                     plugins: {
                         legend: {
                             display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // ✅ NEW: Weekly Progression Chart (Monthly Only)
+        const weeklyProgressionCtx = document.getElementById('weeklyProgressionChart');
+        if (weeklyProgressionCtx && ${period === 'monthly'}) {
+            const weeklyData = ${JSON.stringify(metrics.weeklyBreakdown || [])};
+            new Chart(weeklyProgressionCtx, {
+                type: 'line',
+                data: {
+                    labels: weeklyData.map(w => w.label),
+                    datasets: [
+                        {
+                            label: 'Question Count',
+                            data: weeklyData.map(w => w.questionCount),
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            yAxisID: 'y',
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Accuracy %',
+                            data: weeklyData.map(w => w.accuracy),
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            yAxisID: 'y1',
+                            tension: 0.3,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Questions'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            min: 0,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Accuracy %'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: { size: 13 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ✅ NEW: Day of Week Chart (Monthly Only)
+        const dayOfWeekCtx = document.getElementById('dayOfWeekChart');
+        if (dayOfWeekCtx && ${period === 'monthly'}) {
+            const dayData = ${JSON.stringify(metrics.dayOfWeekHeatmap?.dayData || [])};
+            new Chart(dayOfWeekCtx, {
+                type: 'bar',
+                data: {
+                    labels: dayData.map(d => d.shortName),
+                    datasets: [
+                        {
+                            label: 'Questions',
+                            data: dayData.map(d => d.questionCount),
+                            backgroundColor: '#3b82f6',
+                            borderRadius: 8,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Accuracy %',
+                            data: dayData.map(d => d.accuracy),
+                            backgroundColor: '#10b981',
+                            borderRadius: 8,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Questions'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            min: 0,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Accuracy %'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: { size: 13 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ✅ NEW: Time of Day Chart (Monthly Only)
+        const timeOfDayCtx = document.getElementById('timeOfDayChart');
+        if (timeOfDayCtx && ${period === 'monthly'}) {
+            const timeData = ${JSON.stringify(metrics.timeOfDayOptimization?.timeSlots || {})};
+            const slots = Object.values(timeData);
+            const slotLabels = slots.map(s => s.label.split(' ')[0]); // Extract "Morning", "Afternoon", etc.
+
+            new Chart(timeOfDayCtx, {
+                type: 'bar',
+                data: {
+                    labels: slotLabels,
+                    datasets: [
+                        {
+                            label: 'Questions',
+                            data: slots.map(s => s.questionCount),
+                            backgroundColor: '#f59e0b',
+                            borderRadius: 8,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Accuracy %',
+                            data: slots.map(s => s.accuracy),
+                            backgroundColor: '#8b5cf6',
+                            borderRadius: 8,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Questions'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            min: 0,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Accuracy %'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: { size: 13 }
+                            }
                         }
                     }
                 }
