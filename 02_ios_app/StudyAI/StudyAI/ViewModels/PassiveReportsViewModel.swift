@@ -80,56 +80,40 @@ struct PassiveReport: Identifiable, Codable {
         case generatedAt = "generated_at"
     }
 
-    // Computed property for display name
+    // Computed property for display name (4 report types)
     var displayName: String {
         switch reportType {
-        case "executive_summary":
-            return NSLocalizedString("reports.passive.executive_summary", value: "Executive Summary", comment: "")
-        case "academic_performance":
-            return NSLocalizedString("reports.passive.academic_performance", value: "Academic Performance", comment: "")
-        case "learning_behavior":
-            return NSLocalizedString("reports.passive.learning_behavior", value: "Learning Behavior", comment: "")
-        case "motivation_emotional":
-            return NSLocalizedString("reports.passive.motivation_emotional", value: "Motivation & Engagement", comment: "")
-        case "progress_trajectory":
-            return NSLocalizedString("reports.passive.progress_trajectory", value: "Progress Trajectory", comment: "")
-        case "social_learning":
-            return NSLocalizedString("reports.passive.social_learning", value: "Social Learning", comment: "")
-        case "risk_opportunity":
-            return NSLocalizedString("reports.passive.risk_opportunity", value: "Risk & Opportunity", comment: "")
-        case "action_plan":
-            return NSLocalizedString("reports.passive.action_plan", value: "Action Plan", comment: "")
+        case "activity":
+            return NSLocalizedString("reports.passive.activity", value: "Activity Report", comment: "")
+        case "areas_of_improvement":
+            return NSLocalizedString("reports.passive.areas_of_improvement", value: "Areas for Improvement", comment: "")
+        case "mental_health":
+            return NSLocalizedString("reports.passive.mental_health", value: "Mental Health & Wellbeing", comment: "")
+        case "summary":
+            return NSLocalizedString("reports.passive.summary", value: "Weekly/Monthly Summary", comment: "")
         default:
             return reportType.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }
 
-    // Icon for report type
+    // Icon for report type (4 report types)
     var icon: String {
         switch reportType {
-        case "executive_summary": return "doc.text.fill"
-        case "academic_performance": return "graduationcap.fill"
-        case "learning_behavior": return "chart.bar.fill"
-        case "motivation_emotional": return "heart.fill"
-        case "progress_trajectory": return "arrow.up.right"
-        case "social_learning": return "person.3.fill"
-        case "risk_opportunity": return "exclamationmark.triangle.fill"
-        case "action_plan": return "list.bullet.clipboard.fill"
+        case "activity": return "chart.bar.fill"
+        case "areas_of_improvement": return "exclamationmark.triangle.fill"
+        case "mental_health": return "heart.fill"
+        case "summary": return "doc.text.fill"
         default: return "doc.fill"
         }
     }
 
-    // Color for report type
+    // Color for report type (4 report types)
     var color: Color {
         switch reportType {
-        case "executive_summary": return .blue
-        case "academic_performance": return .purple
-        case "learning_behavior": return .green
-        case "motivation_emotional": return .pink
-        case "progress_trajectory": return .orange
-        case "social_learning": return .cyan
-        case "risk_opportunity": return .red
-        case "action_plan": return .indigo
+        case "activity": return .blue
+        case "areas_of_improvement": return .orange
+        case "mental_health": return .pink
+        case "summary": return .green
         default: return .gray
         }
     }

@@ -2,8 +2,8 @@
 //  PassiveReportDetailView.swift
 //  StudyAI
 //
-//  Detailed view of all 8 reports within a batch
-//  Shows full narratives with Markdown rendering
+//  Detailed view of all 4 reports within a batch
+//  Shows full narratives with HTML rendering
 //
 
 import SwiftUI
@@ -15,7 +15,7 @@ struct PassiveReportDetailView: View {
 
     @StateObject private var viewModel = PassiveReportsViewModel()
     @State private var selectedReport: PassiveReport?
-    @State private var executiveSummaryHeight: CGFloat = 200
+    @State private var summaryHeight: CGFloat = 200
 
     var body: some View {
         ScrollView {
@@ -26,20 +26,20 @@ struct PassiveReportDetailView: View {
                         .scaleEffect(1.5)
                         .padding(.top, 40)
                 } else {
-                    // Executive Summary (Primary - shown first)
-                    if let executiveSummary = viewModel.detailedReports.first(where: { $0.reportType == "executive_summary" }) {
+                    // Summary Report (Primary - shown first)
+                    if let summaryReport = viewModel.detailedReports.first(where: { $0.reportType == "summary" }) {
                         VStack(spacing: 16) {
                             ExecutiveSummaryCard(batch: batch)
 
-                            // Executive Summary Narrative
+                            // Summary Narrative
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("PROFESSIONAL ASSESSMENT")
+                                Text("OVERALL SUMMARY")
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.secondary)
 
-                                HTMLView(htmlContent: executiveSummary.narrativeContent, contentHeight: $executiveSummaryHeight)
-                                    .frame(height: max(executiveSummaryHeight, 200))
+                                HTMLView(htmlContent: summaryReport.narrativeContent, contentHeight: $summaryHeight)
+                                    .frame(height: max(summaryHeight, 200))
                             }
                             .padding()
                             .background(Color(.secondarySystemBackground))
@@ -50,7 +50,7 @@ struct PassiveReportDetailView: View {
                         }
                     }
 
-                    // Other Report Cards (Secondary)
+                    // Other Report Cards (Activity, Areas of Improvement, Mental Health)
                     if viewModel.detailedReports.count > 1 {
                         VStack(spacing: 8) {
                             Text("DETAILED REPORTS")
@@ -59,7 +59,7 @@ struct PassiveReportDetailView: View {
                                 .foregroundColor(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                            ForEach(viewModel.detailedReports.filter { $0.reportType != "executive_summary" }) { report in
+                            ForEach(viewModel.detailedReports.filter { $0.reportType != "summary" }) { report in
                                 ProfessionalReportCard(report: report)
                                     .onTapGesture {
                                         selectedReport = report

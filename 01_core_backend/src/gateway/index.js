@@ -27,8 +27,6 @@ const AIModularRoutes = require('./routes/ai'); // NEW: Modular AI routes with A
 const ArchiveRoutes = require('./routes/archive-routes');
 const AuthRoutes = require('./routes/auth-routes');
 const ProgressRoutes = require('./routes/progress-routes');
-// DISABLED: Traditional parent reports (replaced by passive reports system)
-// const ParentReportsRoutes = require('./routes/parent-reports');
 const HealthRoutes = require('./routes/health');
 const MusicRoutes = require('./routes/music-routes'); // NEW: Focus music library management
 const { serviceAuth } = require('./middleware/service-auth');
@@ -424,24 +422,19 @@ if (features.useGateway) {
   new ProgressRoutes(fastify);
 
   // ========================================================================
-  // PARENT REPORTS: Traditional routes DISABLED in favor of Passive Reports
+  // PASSIVE REPORTS: Weekly/Monthly automated parent reports
   // ========================================================================
-  // The traditional parent reports system (parent-reports.js) has been
-  // disabled in favor of the new passive reports system (passive-reports.js).
+  // The passive reports system generates 4 specialized report types:
+  // - activity: Learning activity and engagement metrics
+  // - areas_of_improvement: Identified knowledge gaps and improvement areas
+  // - mental_health: Emotional wellbeing and learning mindset assessment
+  // - summary: Executive summary combining all insights
   //
-  // Passive reports provide:
+  // Features:
   // - Automated weekly/monthly generation
-  // - 8 specialized report types (executive summary, academic performance, etc.)
-  // - Better UI experience with batch management
-  // - More efficient data aggregation
-  //
-  // Traditional routes commented out but preserved for reference:
-  // new ParentReportsRoutes(fastify);
-  //
-  // If you need to re-enable traditional reports:
-  // 1. Uncomment the line above
-  // 2. Uncomment the import at the top of this file (line 31)
-  // 3. Test thoroughly as some endpoints may conflict
+  // - Batch-based management for easy retrieval
+  // - HTML narrative content with data visualizations
+  // - Parent-friendly language and actionable recommendations
   // ========================================================================
 
   // Passive Reports routes - ACTIVE: Scheduled weekly/monthly reports
