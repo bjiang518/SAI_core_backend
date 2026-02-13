@@ -451,8 +451,8 @@ struct SubjectBreakdownChart: View {
 
             let sampleReport = PassiveReport(
                 id: "test",
-                reportType: "academic_performance",
-                narrativeContent: "Academic Performance Analysis\n\nThis week shows strong performance across mathematics and science.",
+                reportType: "activity",
+                narrativeContent: "Activity Report Analysis\n\nThis week shows strong performance across mathematics and science.",
                 keyInsights: nil,
                 recommendations: nil,
                 visualData: nil,

@@ -70,7 +70,7 @@ module.exports = async function (fastify, opts) {
         status: batch.status,
         report_count: parseInt(batch.report_count),
         generation_time_ms: batch.generation_time_ms,
-        is_complete: batch.status === 'completed' && parseInt(batch.report_count) === 8
+        is_complete: batch.status === 'completed' && parseInt(batch.report_count) === 4
       });
 
     } catch (error) {
@@ -388,7 +388,7 @@ module.exports = async function (fastify, opts) {
 
   /**
    * Get detailed reports within a specific batch
-   * Returns all 8 report types with full content
+   * Returns all 4 report types with full content
    *
    * GET /api/reports/passive/batches/:batchId
    */
@@ -450,14 +450,10 @@ module.exports = async function (fastify, opts) {
         WHERE batch_id = $1
         ORDER BY
           CASE report_type
-            WHEN 'executive_summary' THEN 1
-            WHEN 'academic_performance' THEN 2
-            WHEN 'learning_behavior' THEN 3
-            WHEN 'motivation_emotional' THEN 4
-            WHEN 'progress_trajectory' THEN 5
-            WHEN 'social_learning' THEN 6
-            WHEN 'risk_opportunity' THEN 7
-            WHEN 'action_plan' THEN 8
+            WHEN 'summary' THEN 1
+            WHEN 'activity' THEN 2
+            WHEN 'areas_of_improvement' THEN 3
+            WHEN 'mental_health' THEN 4
             ELSE 9
           END
       `;
