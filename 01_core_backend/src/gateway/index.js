@@ -106,6 +106,8 @@ fastify.log.info('✅ Static file serving registered (privacy policy at /legal/)
 fastify.register(require('@fastify/cors'), {
   origin: [
     'https://sai-backend-production.up.railway.app',
+    // Admin Dashboard
+    'https://studyai-admin-dashboard-production.up.railway.app',
     // Add localhost for development
     'http://localhost:3000',
     'http://localhost:3001',
