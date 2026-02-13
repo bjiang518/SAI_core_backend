@@ -1,21 +1,93 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import { Users, MessageSquare, Zap, AlertCircle, Database, TrendingUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 
+interface OverviewStats {
+  totalUsers: number
+  usersGrowth7d: number
+  sessionsToday: number
+  aiRequestsPerHour: number
+  avgResponseTime: number
+  errorRate: number
+  databaseStatus: 'healthy' | 'degraded' | 'down'
+  cacheHitRate: number
+}
+
 export default function DashboardPage() {
-  // TODO: Replace with real data from API
-  const stats = {
-    totalUsers: 1247,
-    usersGrowth7d: 8.5,
-    sessionsToday: 342,
-    aiRequestsPerHour: 89,
-    avgResponseTime: 234,
-    errorRate: 0.3,
-    databaseStatus: 'healthy' as const,
-    cacheHitRate: 87.2,
+  const [stats, setStats] = useState<OverviewStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchStats()
+    // Refresh stats every 30 seconds
+    const interval = setInterval(fetchStats, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const fetchStats = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://sai-backend-production.up.railway.app'
+      const token = localStorage.getItem('admin_token')
+
+      const response = await fetch(`${apiUrl}/api/admin/stats/overview`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch stats')
+      }
+
+      const data = await response.json()
+      if (data.success) {
+        setStats(data.data)
+        setError(null)
+      } else {
+        setError(data.error || 'Failed to load stats')
+      }
+    } catch (err) {
+      console.error('Error fetching stats:', err)
+      setError('Failed to connect to backend')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
+          <p className="text-muted-foreground mt-2">
+            Monitor your StudyAI platform performance and key metrics
+          </p>
+        </div>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            <p className="text-sm text-red-800">
+              <strong>Error:</strong> {error || 'Failed to load dashboard data'}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -34,7 +106,7 @@ export default function DashboardPage() {
           title="Total Users"
           value={stats.totalUsers.toLocaleString()}
           change={stats.usersGrowth7d}
-          trend="up"
+          trend={stats.usersGrowth7d > 0 ? "up" : stats.usersGrowth7d < 0 ? "down" : "stable"}
           icon={Users}
         />
         <MetricCard
@@ -53,8 +125,8 @@ export default function DashboardPage() {
           title="Avg Response Time"
           value={`${stats.avgResponseTime}ms`}
           badge={{
-            text: 'Healthy',
-            variant: 'success',
+            text: stats.avgResponseTime < 500 ? 'Healthy' : 'Slow',
+            variant: stats.avgResponseTime < 500 ? 'success' : 'warning',
           }}
           icon={TrendingUp}
         />
@@ -75,8 +147,8 @@ export default function DashboardPage() {
           title="Database"
           value="Connected"
           badge={{
-            text: stats.databaseStatus === 'healthy' ? 'Healthy' : 'Down',
-            variant: stats.databaseStatus === 'healthy' ? 'success' : 'error',
+            text: stats.databaseStatus === 'healthy' ? 'Healthy' : stats.databaseStatus === 'degraded' ? 'Degraded' : 'Down',
+            variant: stats.databaseStatus === 'healthy' ? 'success' : stats.databaseStatus === 'degraded' ? 'warning' : 'error',
           }}
           icon={Database}
         />
@@ -113,17 +185,6 @@ export default function DashboardPage() {
               View Reports →
             </a>
           </div>
-        </div>
-      </div>
-
-      {/* Coming Soon Notice */}
-      <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-        <div className="flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-yellow-600" />
-          <p className="text-sm text-yellow-800">
-            <strong>Note:</strong> This dashboard is displaying mock data. Backend API endpoints are not yet implemented.
-            Once backend routes are added, real-time data will be displayed here.
-          </p>
         </div>
       </div>
     </div>
