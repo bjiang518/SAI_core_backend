@@ -219,7 +219,7 @@ module.exports = async function (fastify, opts) {
       const search = request.query.search || '';
       const offset = (page - 1) * limit;
 
-      fastify.log.info('Query params:', { page, limit, search, offset });
+      fastify.log.info({ page, limit, search, offset }, 'Query params');
 
       let query = `
         SELECT
@@ -242,11 +242,11 @@ module.exports = async function (fastify, opts) {
       query += ` ORDER BY u.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
       params.push(limit, offset);
 
-      fastify.log.info('About to execute query:', { query, params });
+      fastify.log.info({ queryLength: query.length, paramsCount: params.length }, 'About to execute query');
 
       const result = await db.query(query, params);
 
-      fastify.log.info('Query executed successfully, row count:', result.rows.length);
+      fastify.log.info({ rowCount: result.rows.length }, 'Query executed successfully');
 
       // Get total count
       let countQuery = 'SELECT COUNT(*) as total FROM users';
@@ -260,7 +260,7 @@ module.exports = async function (fastify, opts) {
       const countResult = await db.query(countQuery, countParams);
       const total = parseInt(countResult.rows[0].total);
 
-      fastify.log.info('Total users:', total);
+      fastify.log.info({ total }, 'Total users');
 
       return reply.send({
         success: true,
@@ -277,14 +277,14 @@ module.exports = async function (fastify, opts) {
       });
 
     } catch (error) {
-      fastify.log.error('Error fetching users list - CATCH BLOCK');
-      fastify.log.error('Error type:', typeof error);
-      fastify.log.error('Error toString:', String(error));
-      fastify.log.error('Error JSON:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      fastify.log.error({ err: error }, 'Error fetching users list - CATCH BLOCK');
+      fastify.log.error('Error name: ' + (error?.name || 'none'));
+      fastify.log.error('Error message: ' + (error?.message || 'none'));
+      fastify.log.error('Error code: ' + (error?.code || 'none'));
       return reply.code(500).send({
         success: false,
         error: 'Failed to fetch users',
-        details: String(error)
+        details: error?.message || String(error)
       });
     }
   });
