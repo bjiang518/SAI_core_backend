@@ -198,6 +198,23 @@ module.exports = async function (fastify, opts) {
         logger.info(`   Reports: ${result.report_count}`);
         logger.info(`   Time: ${result.generation_time_ms}ms`);
 
+        // DEBUG: Check database state AFTER generation
+        const postGenCheckQuery = `
+          SELECT id, period, start_date, end_date, generated_at
+          FROM parent_report_batches
+          WHERE user_id = $1 AND period = $2
+          ORDER BY generated_at DESC
+        `;
+        const postGenCheck = await db.query(postGenCheckQuery, [userId, period]);
+        logger.info(`📊 [POST-GEN] Database state after generation (${period}):`);
+        logger.info(`   Found ${postGenCheck.rows.length} ${period} batches for this user`);
+        postGenCheck.rows.forEach((batch, idx) => {
+          logger.info(`   [${idx + 1}] ID: ${batch.id}`);
+          logger.info(`       Dates: ${batch.start_date} to ${batch.end_date}`);
+          logger.info(`       Generated: ${batch.generated_at}`);
+          logger.info(`       Is new batch: ${batch.id === result.id ? 'YES ✅' : 'NO ⚠️'}`);
+        });
+
         // DEBUG: Verify reports were actually stored
         if (result.report_count === 0) {
           logger.error(`❌ [GENERATE] CRITICAL: 0 reports generated!`);
@@ -506,9 +523,35 @@ module.exports = async function (fastify, opts) {
       const userId = await requireAuth(request, reply);
       if (!userId) return;
 
-      logger.info(`📖 Fetching reports for batch: ${batchId}`);
+      logger.info(`📖 [BATCH-DETAIL] ===== FETCHING BATCH DETAILS =====`);
+      logger.info(`   Batch ID: ${batchId}`);
+      logger.info(`   User ID: ${userId.substring(0, 8)}...`);
 
       const { db } = require('../../utils/railway-database');
+
+      // DEBUG: First check ALL batches for this user to see if requested batch exists
+      const allBatchesQuery = `
+        SELECT id, period, start_date, status
+        FROM parent_report_batches
+        WHERE user_id = $1
+        ORDER BY generated_at DESC
+      `;
+      const allBatchesResult = await db.query(allBatchesQuery, [userId]);
+      logger.info(`📊 [BATCH-DETAIL] User has ${allBatchesResult.rows.length} total batches`);
+
+      const requestedBatchExists = allBatchesResult.rows.find(b => b.id === batchId);
+      if (requestedBatchExists) {
+        logger.info(`   ✅ Requested batch EXISTS in database`);
+        logger.info(`      Period: ${requestedBatchExists.period}`);
+        logger.info(`      Dates: ${requestedBatchExists.start_date}`);
+        logger.info(`      Status: ${requestedBatchExists.status}`);
+      } else {
+        logger.warn(`   ⚠️ Requested batch NOT FOUND in user's batches`);
+        logger.warn(`   Available batch IDs:`);
+        allBatchesResult.rows.forEach((batch, idx) => {
+          logger.warn(`      [${idx + 1}] ${batch.id.substring(0, 13)}... (${batch.period})`);
+        });
+      }
 
       // Get batch info (verify ownership)
       const batchQuery = `
