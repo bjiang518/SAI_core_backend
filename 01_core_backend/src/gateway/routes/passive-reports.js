@@ -307,6 +307,41 @@ module.exports = async function (fastify, opts) {
       const totalBatches = totalBatchResult.rows[0]?.total || 0;
       logger.debug(`📊 [DEBUG] Total batches in DB for user: ${totalBatches}`);
 
+      // DEBUG: Check monthly batches specifically
+      const monthlyCheckQuery = `
+        SELECT id, period, start_date, end_date, status, generated_at
+        FROM parent_report_batches
+        WHERE user_id = $1 AND period = $2
+        ORDER BY generated_at DESC
+        LIMIT 5
+      `;
+      const monthlyCheck = await db.query(monthlyCheckQuery, [userId, 'monthly']);
+      const monthlyBatchCount = monthlyCheck.rows.length;
+      logger.info(`📊 [DEBUG] Monthly batches for user (case-sensitive check):`);
+      logger.info(`   Found ${monthlyBatchCount} monthly batches`);
+      if (monthlyCheck.rows.length > 0) {
+        monthlyCheck.rows.forEach((batch, idx) => {
+          logger.info(`   [${idx + 1}] ID: ${batch.id}`);
+          logger.info(`       Period: "${batch.period}" (length: ${batch.period.length})`);
+          logger.info(`       Dates: ${batch.start_date} to ${batch.end_date}`);
+          logger.info(`       Status: ${batch.status}`);
+          logger.info(`       Generated: ${batch.generated_at}`);
+        });
+      }
+
+      // DEBUG: Check ALL batches regardless of period (to see what periods exist)
+      const allPeriodsQuery = `
+        SELECT DISTINCT period, COUNT(*) as count
+        FROM parent_report_batches
+        WHERE user_id = $1
+        GROUP BY period
+      `;
+      const allPeriods = await db.query(allPeriodsQuery, [userId]);
+      logger.info(`📊 [DEBUG] All periods in database for user:`);
+      allPeriods.rows.forEach(row => {
+        logger.info(`   Period: "${row.period}" (count: ${row.count})`);
+      });
+
       if (totalBatches === 0) {
         logger.debug(`⚠️ [DEBUG] No batches found for user ${userId.substring(0, 8)}...`);
         logger.debug(`   This likely means report generation hasn't been called or failed`);
@@ -361,6 +396,26 @@ module.exports = async function (fastify, opts) {
 
       // Execute query
       const result = await db.query(query, queryParams);
+
+      logger.info(`✅ [DEBUG] Query executed successfully`);
+      logger.info(`   Result rows: ${result.rows.length}`);
+      logger.info(`   Period filter was: ${period}`);
+      if (result.rows.length > 0) {
+        logger.info(`   Returned batches:`);
+        result.rows.forEach((batch, idx) => {
+          logger.info(`   [${idx + 1}] ID: ${batch.id.substring(0, 13)}...`);
+          logger.info(`       Period: ${batch.period}`);
+          logger.info(`       Dates: ${batch.start_date} to ${batch.end_date}`);
+          logger.info(`       Report count: ${batch.report_count}`);
+        });
+      } else {
+        logger.warn(`   ⚠️ Query returned 0 rows!`);
+        logger.warn(`   But monthly check above showed ${monthlyBatchCount} monthly batches exist`);
+        if (monthlyBatchCount > 0 && period === 'monthly') {
+          logger.error(`   ❌ CRITICAL: Batches exist but query didn't return them!`);
+          logger.error(`   This suggests a query construction bug or parameter binding issue`);
+        }
+      }
 
       logger.debug(`✅ [DEBUG] Query returned ${result.rows.length} batches`);
 
