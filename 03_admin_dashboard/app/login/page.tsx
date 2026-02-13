@@ -19,17 +19,31 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // TODO: Replace with actual API call
-      // For now, just simulate a login
-      if (email && password) {
-        // Store a mock token
-        localStorage.setItem('admin_token', 'mock-admin-token')
-        router.push('/dashboard')
-      } else {
-        setError('Please enter both email and password')
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://sai-backend-production.up.railway.app'
+
+      const response = await fetch(`${apiUrl}/api/admin/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        setError(data.error || 'Login failed. Please check your credentials.')
+        return
       }
+
+      // Store the JWT token
+      localStorage.setItem('admin_token', data.data.token)
+
+      // Redirect to dashboard
+      router.push('/dashboard')
     } catch (err) {
-      setError('Login failed. Please try again.')
+      console.error('Login error:', err)
+      setError('Login failed. Please check your network connection.')
     } finally {
       setLoading(false)
     }
@@ -85,10 +99,6 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
             </Button>
-
-            <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-800">
-              <strong>Demo Mode:</strong> Use any email and password to login (mock authentication)
-            </div>
           </form>
         </CardContent>
       </Card>
