@@ -684,6 +684,74 @@ class AreasOfImprovementGenerator {
                 margin-top: 8px;
             }
         }
+
+        /* AI Insights Styling */
+        .ai-insight {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .ai-insight-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .ai-insight-icon {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+
+        .ai-insight h3 {
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .ai-insight-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 16px;
+            color: #1a1a1a;
+            line-height: 1.7;
+            font-size: 13px;
+        }
+
+        .ai-insight-content ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .ai-insight-content li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+
+        .ai-insight-content p {
+            margin: 8px 0;
+        }
+
+        .ai-insight-content strong {
+            color: #667eea;
+            font-weight: 700;
+        }
+
+        .ai-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -708,6 +776,19 @@ class AreasOfImprovementGenerator {
                         ''}
                 </p>
             </div>
+
+            ${aiInsights && aiInsights[0] ? `
+            <!-- AI Insight 1: Root Cause Analysis -->
+            <div class="ai-insight">
+                <div class="ai-insight-header">
+                    <span class="ai-insight-icon">🤖</span>
+                    <h3>AI Insights: Root Cause Analysis<span class="ai-badge">GPT-4o</span></h3>
+                </div>
+                <div class="ai-insight-content">
+                    ${aiInsights[0]}
+                </div>
+            </div>
+            ` : ''}
 
             <!-- Subjects with Issues -->
             ${subjects.length > 0 ? subjects.map(subject => `
@@ -776,6 +857,32 @@ class AreasOfImprovementGenerator {
                     <p style="margin-top: 10px; font-size: 14px;">Your child is showing strong understanding across all subjects. Keep up the great learning!</p>
                 </div>
             `}
+
+            ${aiInsights && aiInsights[1] ? `
+            <!-- AI Insight 2: Progress Trajectory -->
+            <div class="ai-insight">
+                <div class="ai-insight-header">
+                    <span class="ai-insight-icon">🤖</span>
+                    <h3>AI Insights: Progress Trajectory<span class="ai-badge">GPT-4o</span></h3>
+                </div>
+                <div class="ai-insight-content">
+                    ${aiInsights[1]}
+                </div>
+            </div>
+            ` : ''}
+
+            ${aiInsights && aiInsights[2] ? `
+            <!-- AI Insight 3: Personalized Practice Plan -->
+            <div class="ai-insight">
+                <div class="ai-insight-header">
+                    <span class="ai-insight-icon">🤖</span>
+                    <h3>AI Insights: Practice Plan<span class="ai-badge">GPT-4o</span></h3>
+                </div>
+                <div class="ai-insight-content">
+                    ${aiInsights[2]}
+                </div>
+            </div>
+            ` : ''}
         </div>
     </div>
 </body>
