@@ -734,7 +734,7 @@ struct QuestionAnswerCard: View {
                         }
 
                         // Subquestion count
-                        Text("\(question.subquestions?.count ?? 0) subquestions")
+                        Text(String(format: NSLocalizedString("homeworkResults.subquestions", comment: ""), question.subquestions?.count ?? 0))
                             .font(.caption2)
                             .foregroundColor(.gray)
 
@@ -772,7 +772,7 @@ struct QuestionAnswerCard: View {
                                 .foregroundColor(.orange)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Overall Feedback")
+                                Text(NSLocalizedString("homeworkResults.overallFeedback", comment: ""))
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.gray)
@@ -1175,7 +1175,7 @@ struct SubquestionCard: View {
                                 .foregroundColor(.blue)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Student Answer")
+                                Text(NSLocalizedString("homeworkResults.studentAnswer", comment: ""))
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.gray)
@@ -1198,12 +1198,12 @@ struct SubquestionCard: View {
                                 .foregroundColor(.gray)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Student Answer")
+                                Text(NSLocalizedString("homeworkResults.studentAnswer", comment: ""))
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.gray)
 
-                                Text("No answer provided")
+                                Text(NSLocalizedString("homeworkResults.noAnswerProvided", comment: ""))
                                     .font(.subheadline)
                                     .italic()
                                     .foregroundColor(.gray)
@@ -1224,7 +1224,7 @@ struct SubquestionCard: View {
                                 .foregroundColor(.orange)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Correct Answer")
+                                Text(NSLocalizedString("homeworkResults.correctAnswer", comment: ""))
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.gray)
@@ -1250,7 +1250,7 @@ struct SubquestionCard: View {
                                 .foregroundColor(.purple)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Feedback")
+                                Text(NSLocalizedString("homeworkResults.feedback", comment: ""))
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.gray)
