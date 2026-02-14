@@ -31,9 +31,9 @@ enum ContentTypeFilter: CaseIterable {
 
     var color: Color {
         switch self {
-        case .all: return .purple
-        case .questions: return .blue
-        case .conversations: return .green
+        case .all: return DesignTokens.Colors.analyticsPlum
+        case .questions: return DesignTokens.Colors.primary
+        case .conversations: return DesignTokens.Colors.success
         }
     }
 }
@@ -243,7 +243,7 @@ struct UnifiedLibraryView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingLibraryInfo = true }) {
                         Image(systemName: "info.circle")
-                            .foregroundColor(.blue)
+                            .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
                     }
                 }
 
@@ -626,7 +626,7 @@ struct QuickStatsHeader: View {
                     icon: "questionmark.circle.fill",
                     title: NSLocalizedString("library.stats.questions", comment: ""),
                     count: questionCount,
-                    color: .blue,
+                    color: DesignTokens.Colors.primary,
                     isSelected: selectedContentType == .questions,
                     action: { onContentTypeSelected(.questions) }
                 )
@@ -635,7 +635,7 @@ struct QuickStatsHeader: View {
                     icon: "bubble.left.and.bubble.right.fill",
                     title: NSLocalizedString("library.stats.conversations", comment: ""),
                     count: conversationCount,
-                    color: .green,
+                    color: DesignTokens.Colors.success,
                     isSelected: selectedContentType == .conversations,
                     action: { onContentTypeSelected(.conversations) }
                 )
@@ -644,7 +644,7 @@ struct QuickStatsHeader: View {
                     icon: "books.vertical.fill",
                     title: NSLocalizedString("library.stats.totalSessions", comment: ""),
                     count: totalCount,
-                    color: .purple,
+                    color: DesignTokens.Colors.analyticsPlum,
                     isSelected: selectedContentType == .all,
                     action: { onContentTypeSelected(.all) }
                 )
@@ -666,7 +666,7 @@ struct QuickStatsHeader: View {
                             onContentTypeSelected(.all)
                         }
                         .font(.caption)
-                        .foregroundColor(.blue)
+                        .foregroundColor(DesignTokens.Colors.primary)
                     }
                     .padding(.horizontal)
                 }
@@ -729,6 +729,8 @@ struct InteractiveStatPill: View {
 
 struct LibraryItemRow: View {
     let item: LibraryItem
+    @StateObject private var themeManager = ThemeManager.shared
+    @Environment(\.colorScheme) var colorScheme
     @State private var proModeImage: UIImage?
 
     var body: some View {
@@ -736,9 +738,10 @@ struct LibraryItemRow: View {
             // Header with type indicator
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    // Display title with subject prefix
-                    Text("\(item.subject) • \(item.title)")
+                    // Display subject only (removed redundant title)
+                    Text(item.subject)
                         .font(.headline)
+                        .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
                         .lineLimit(2)
 
                     HStack {
@@ -746,8 +749,8 @@ struct LibraryItemRow: View {
                             .font(.caption)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color.accentColor.opacity(0.1))
-                            .foregroundColor(.accentColor)
+                            .background((themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.1))
+                            .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
                             .clipShape(Capsule())
 
                         // Pro Mode badge
@@ -759,10 +762,10 @@ struct LibraryItemRow: View {
                                     .font(.caption2)
                                     .fontWeight(.semibold)
                             }
-                            .foregroundColor(.purple)
+                            .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : DesignTokens.Colors.analyticsPlum)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color.purple.opacity(0.15))
+                            .background((themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : DesignTokens.Colors.analyticsPlum).opacity(0.15))
                             .clipShape(Capsule())
                         }
 
@@ -827,13 +830,13 @@ struct LibraryItemRow: View {
             }
         }
         .padding(12)
-        .background(Color(.systemBackground))
+        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(colorForItem(item), lineWidth: 2)
         )
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : Color.black).opacity(0.1), radius: 3, x: 0, y: 2)
         .padding(.horizontal)
         .padding(.vertical, 4)
         .onAppear {
@@ -898,11 +901,11 @@ struct LibraryItemRow: View {
         switch item.itemType {
         case .question:
             if item is ConversationLibraryItem {
-                return .purple // Homework sessions in purple
+                return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : DesignTokens.Colors.analyticsPlum
             }
-            return .blue // Individual questions in blue
+            return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary
         case .conversation:
-            return .green // Conversations in green
+            return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : DesignTokens.Colors.success
         }
     }
     
