@@ -1605,3 +1605,82 @@
 "theme.description.day" = "Classic light theme for daytime use";
 "theme.description.night" = "Dark theme for low-light environments";
 "theme.description.cute" = "Soft pastel colors for a playful experience";
+
+// MARK: - Library View
+"library.proBadge" = "Pro";
+"library.needsAttention" = "Needs attention";
+
+// MARK: - Home View
+"home.startLearningPrompt" = "Start learning to track progress";
+
+// MARK: - Direct AI Homework View
+"directAIHomework.performanceSummary" = "Performance Summary";
+
+// MARK: - Session Chat View
+"sessionChat.archiveSuccess" = "'%@' saved successfully\!\n\nYou can view it anytime in the Library tab.\n\nA new chat session is ready for you\!";
+"sessionChat.archiveSuccessDefault" = "Your conversation";
+"sessionChat.homeworkHelpMode" = "Homework Help Mode";
+"sessionChat.questionNumber" = "Question #%d";
+"sessionChat.currentGrade" = "Current: %@";
+"sessionChat.deepBadge" = "DEEP";
+"sessionChat.sessionDetails" = "Session Details";
+"sessionChat.sessionIdLabel" = "Session ID:";
+"sessionChat.subjectLabel" = "Subject:";
+"sessionChat.messagesLabel" = "Messages:";
+"sessionChat.createdLabel" = "Created:";
+"sessionChat.lastActivityLabel" = "Last Activity:";
+"sessionChat.noSessionInfo" = "No Session Information";
+"sessionChat.noSessionInfoDescription" = "Session details will appear here when available.";
+"sessionChat.slideUp" = "Slide up";
+"sessionChat.deepThinkingMode" = "Deep Thinking Mode";
+"sessionChat.releaseToSend" = "Release to Send";
+
+// MARK: - Homework Results View
+"homeworkResults.subquestions" = "%d subquestions";
+"homeworkResults.overallFeedback" = "Overall Feedback";
+"homeworkResults.studentAnswer" = "Student Answer";
+"homeworkResults.noAnswerProvided" = "No answer provided";
+"homeworkResults.correctAnswer" = "Correct Answer";
+"homeworkResults.feedback" = "Feedback";
+
+// MARK: - Digital Homework View (Pro Mode)
+"proMode.analyzeMistakesPrompt" = "Do you want me to analyze them? (Results will be ready soon in the mistake review)";
+"proMode.deleteConfirmation" = "This will permanently remove the selected question%@ from this homework session. This action cannot be undone.";
+"proMode.deleteQuestions" = "Delete %d Question%@";
+"proMode.exportingProgress" = "Exporting... %d%%";
+"proMode.exportToPDF" = "Export to PDF";
+"proMode.archivedBadge" = "(Archived)";
+"proMode.feedbackLabel" = "Feedback";
+"proMode.archivePrompt" = "Choose what to archive:";
+"proMode.analyzeButton" = "Analyze Them";
+"proMode.deleteButton" = "Delete";
+"proMode.archiveWholeQuestion" = "Archive Whole Question";
+"proMode.archiveSubquestionOnly" = "Archive This Subquestion Only";
+
+// MARK: - Progressive Homework View
+"progressiveHomework.loadingMessage" = "This may take a moment...";
+"progressiveHomework.selectAIModelTitle" = "Select AI Model";
+"progressiveHomework.selectAIModelDescription" = "Choose the AI model for grading";
+"progressiveHomework.aiModelLabel" = "AI Model";
+"progressiveHomework.startGrading" = "Start Grading";
+"progressiveHomework.gradingProgress" = "Grading Progress";
+"progressiveHomework.saveToMistakeBook" = "Save to Wrong Answer Book";
+"progressiveHomework.errorTitle" = "Error";
+"progressiveHomework.questionLabel" = "Question %@";
+"progressiveHomework.overallScore" = "Overall Score:";
+"progressiveHomework.viewSubquestions" = "View Subquestions (%d)";
+"progressiveHomework.subquestionGradeProgress" = "%d/%d";
+"progressiveHomework.someSubquestionsFailed" = "Some subquestions failed to grade";
+"progressiveHomework.yourAnswer" = "Your Answer:";
+"progressiveHomework.gradingError" = "Grading error: %@";
+"progressiveHomework.scoreLabel" = "Score:";
+"progressiveHomework.aiFeedback" = "AI Feedback";
+"progressiveHomework.askAIForHelp" = "Ask AI for Help";
+"progressiveHomework.answerLabel" = "Answer:";
+"progressiveHomework.askAI" = "Ask AI";
+"progressiveHomework.accuracyLabel" = "Accuracy";
+
+// MARK: - Common Buttons
+"common.cancel" = "Cancel";
+"common.done" = "Done";
+"common.ok" = "OK";
