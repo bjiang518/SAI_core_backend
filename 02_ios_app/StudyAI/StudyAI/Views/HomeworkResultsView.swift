@@ -452,10 +452,18 @@ struct HomeworkResultsView: View {
     }
     
     // MARK: - Mark Progress Button
-    
+
     private var markProgressButton: some View {
         VStack(spacing: 16) {
-            Button(action: {
+            SlideToConfirmButton(
+                text: NSLocalizedString("homeworkResults.slideToMarkProgress", comment: ""),
+                confirmedText: NSLocalizedString("homeworkResults.progressMarked", comment: ""),
+                icon: "arrow.right",
+                confirmedIcon: "checkmark",
+                color: .blue,
+                confirmedColor: .green,
+                isConfirmed: hasMarkedProgress
+            ) {
                 // Only track if not already marked
                 if !hasMarkedProgress {
                     trackHomeworkUsage()
@@ -465,37 +473,7 @@ struct HomeworkResultsView: View {
                     // ✅ NEW: Save to album when marking progress
                     saveHomeworkImageToStorage()
                 }
-
-                // Show success feedback
-                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                impactFeedback.impactOccurred()
-            }) {
-                HStack {
-                    Image(systemName: hasMarkedProgress ? "checkmark.circle.fill" : "chart.line.uptrend.xyaxis")
-                        .font(.title3)
-                    Text(hasMarkedProgress ? NSLocalizedString("homeworkResults.progressMarked", comment: "") : NSLocalizedString("homeworkResults.markProgress", comment: ""))
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    LinearGradient(
-                        colors: hasMarkedProgress ? [Color.green, Color.green.opacity(0.8)] : [Color.blue, Color.blue.opacity(0.8)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(16)
-                .shadow(
-                    color: (hasMarkedProgress ? Color.green : Color.blue).opacity(colorScheme == .dark ? 0.5 : 0.3),
-                    radius: 8,
-                    x: 0,
-                    y: 4
-                )
             }
-            .disabled(hasMarkedProgress)
 
             if hasMarkedProgress {
                 Text(NSLocalizedString("homeworkResults.progressUpdated", comment: ""))
@@ -503,7 +481,7 @@ struct HomeworkResultsView: View {
                     .foregroundColor(.green)
                     .multilineTextAlignment(.center)
             } else {
-                Text("Tap here to manually add \(parsingResult.allQuestions.count) questions to your progress")
+                Text(String(format: NSLocalizedString("homeworkResults.tapToAddQuestions", comment: ""), parsingResult.allQuestions.count))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
