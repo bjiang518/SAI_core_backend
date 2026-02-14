@@ -241,10 +241,14 @@
 "homeworkResults.debugInfo" = "除錯資訊";
 "homeworkResults.selectQuestionsToArchive" = "選擇要歸檔的題目";
 "homeworkResults.questionsSelected" = "題已選";
+"homeworkResults.noQuestionsSelected" = "未選擇題目";
+"homeworkResults.selectQuestionsToArchiveMessage" = "請至少選擇一道題目進行歸檔。";
 "homeworkResults.markProgress" = "標記進度";
+"homeworkResults.slideToMarkProgress" = "滑動以標記進度";
 "homeworkResults.progressMarked" = "進度已標記！";
 "homeworkResults.progressUpdated" = "✅ 您的學習進度已更新！";
 "homeworkResults.progressTip" = "💡 提示：歸檔題目時會自動追蹤進度！";
+"homeworkResults.tapToAddQuestions" = "點擊此處手動新增 %d 題到您的進度";
 "homeworkResults.manuallyAddPrefix" = "或點擊此處手動新增這";
 "homeworkResults.manuallyAddSuffix" = "題到您的每日學習目標";
 "homeworkResults.hasVisual" = "有圖片";

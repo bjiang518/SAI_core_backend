@@ -241,10 +241,14 @@
 "homeworkResults.debugInfo" = "Debug Info";
 "homeworkResults.selectQuestionsToArchive" = "Select Questions to Archive";
 "homeworkResults.questionsSelected" = "questions selected";
+"homeworkResults.noQuestionsSelected" = "No Questions Selected";
+"homeworkResults.selectQuestionsToArchiveMessage" = "Please select at least one question to archive.";
 "homeworkResults.markProgress" = "Mark Progress";
+"homeworkResults.slideToMarkProgress" = "Slide to Mark Progress";
 "homeworkResults.progressMarked" = "Progress Marked!";
 "homeworkResults.progressUpdated" = "✅ Your study progress has been updated!";
 "homeworkResults.progressTip" = "💡 Tip: Progress is automatically tracked when you archive questions!";
+"homeworkResults.tapToAddQuestions" = "Tap here to manually add %d questions to your progress";
 "homeworkResults.manuallyAddPrefix" = "Or tap here to manually add these ";
 "homeworkResults.manuallyAddSuffix" = " questions to your daily learning goals";
 "homeworkResults.hasVisual" = "Has Visual";
