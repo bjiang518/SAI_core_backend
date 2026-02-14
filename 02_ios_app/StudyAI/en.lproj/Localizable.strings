@@ -151,8 +151,6 @@
 "parentReport.recommendations" = "Recommendations";
 
 // Common
-"common.done" = "Done";
-"common.ok" = "OK";
 "common.error" = "Error";
 
 // AI Homework
@@ -610,57 +608,14 @@
 "generatedQuestions.emailGeneratedBy" = "This PDF was generated using Study Mates, an AI-powered learning companion.";
 "generatedQuestions.emailClosing" = "Happy studying!";
 
-"settings.textSize" = "Text Size";
-"settings.language" = "Language";
-"settings.voiceAudio" = "Study Mates";
-"settings.voiceSettings" = "Select your study mate";
-"settings.learning" = "Learning";
-"settings.learningGoals" = "Learning Goals & Progress";
-"settings.support" = "Support";
-"settings.help" = "Help & FAQ";
-"settings.contact" = "Contact Support";
-"settings.rateApp" = "Rate App";
-"settings.shareApp" = "Share App";
 
 // Profile
-"profile.complete" = "Profile %d%% complete";
-"profile.biometricLogin" = "%@ Login";
 
 // Study Reminders
-"studyReminders.title" = "Study Reminders";
-"studyReminders.permissions" = "Permissions";
-"studyReminders.notificationPermission" = "Notification Permission";
-"studyReminders.enabled" = "Notifications enabled";
-"studyReminders.denied" = "Notifications denied";
-"studyReminders.notConfigured" = "Not configured";
-"studyReminders.enable" = "Enable Notifications";
-"studyReminders.description" = "Enable notifications to receive study reminders and stay on track with your learning goals.";
-"studyReminders.daily" = "Daily Study Reminders";
-"studyReminders.dailyDescription" = "Get reminded to study at your scheduled time each day.";
-"studyReminders.schedule" = "Schedule";
-"studyReminders.studyTime" = "Study Time";
-"studyReminders.timeDescription" = "You'll be reminded to study at %@";
-"studyReminders.studyDays" = "Study Days";
-"studyReminders.daysDescription" = "Reminders will be sent on %@";
-"studyReminders.weekdays" = "Weekdays";
-"studyReminders.everyDay" = "Every Day";
-"studyReminders.clear" = "Clear";
-"studyReminders.save" = "Save";
-"studyReminders.cancel" = "Cancel";
 
 // Days of Week
-"day.monday" = "Monday";
-"day.tuesday" = "Tuesday";
-"day.wednesday" = "Wednesday";
-"day.thursday" = "Thursday";
-"day.friday" = "Friday";
-"day.saturday" = "Saturday";
-"day.sunday" = "Sunday";
 
 // Common
-"common.done" = "Done";
-"common.cancel" = "Cancel";
-"common.save" = "Save";
 "progress.title" = "Progress";
 "progress.loadingProgress" = "Loading your progress...";
 "progress.unableToLoadData" = "Unable to Load Data";
@@ -1578,9 +1533,7 @@
 
 "proMode.slideToMarkProgress" = "Slide to Mark Progress";
 "proMode.progressMarked" = "Progress Already Marked";
-"proMode.correct" = "Correct";
 "proMode.partial" = "Partial";
-"proMode.incorrect" = "Incorrect";
 
 // Pro Mode - Grading Status Messages
 "proMode.grading.deepAnalyzing" = "Deep analyzing questions...";
@@ -1638,10 +1591,6 @@
 // MARK: - Homework Results View
 "homeworkResults.subquestions" = "%d subquestions";
 "homeworkResults.overallFeedback" = "Overall Feedback";
-"homeworkResults.studentAnswer" = "Student Answer";
-"homeworkResults.noAnswerProvided" = "No answer provided";
-"homeworkResults.correctAnswer" = "Correct Answer";
-"homeworkResults.feedback" = "Feedback";
 
 // MARK: - Digital Homework View (Pro Mode)
 "proMode.analyzeMistakesPrompt" = "Do you want me to analyze them? (Results will be ready soon in the mistake review)";
@@ -1681,6 +1630,3 @@
 "progressiveHomework.accuracyLabel" = "Accuracy";
 
 // MARK: - Common Buttons
-"common.cancel" = "Cancel";
-"common.done" = "Done";
-"common.ok" = "OK";
