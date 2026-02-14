@@ -1596,10 +1596,12 @@
 "proMode.analyzeMistakesPrompt" = "Do you want me to analyze them? (Results will be ready soon in the mistake review)";
 "proMode.deleteConfirmation" = "This will permanently remove the selected question%@ from this homework session. This action cannot be undone.";
 "proMode.deleteQuestions" = "Delete %d Question%@";
+"proMode.deleteQuestionsTitle" = "Delete %d Question%@?";
 "proMode.exportingProgress" = "Exporting... %d%%";
 "proMode.exportToPDF" = "Export to PDF";
-"proMode.archivedBadge" = "(Archived)";
+"proMode.archivedBadge" = "Archived";
 "proMode.feedbackLabel" = "Feedback";
+"proMode.archiveOptionsTitle" = "Archive Options";
 "proMode.archivePrompt" = "Choose what to archive:";
 "proMode.analyzeButton" = "Analyze Them";
 "proMode.deleteButton" = "Delete";

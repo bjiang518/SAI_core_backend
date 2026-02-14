@@ -1590,10 +1590,12 @@
 "proMode.analyzeMistakesPrompt" = "您想讓我分析它們嗎？（結果將很快在錯題複習中準備好）";
 "proMode.deleteConfirmation" = "這將從此作業會話中永久刪除所選的問題%@。此操作無法撤銷。";
 "proMode.deleteQuestions" = "刪除%d個問題%@";
+"proMode.deleteQuestionsTitle" = "刪除%d個問題%@？";
 "proMode.exportingProgress" = "匯出中... %d%%";
 "proMode.exportToPDF" = "匯出為PDF";
-"proMode.archivedBadge" = "（已歸檔）";
+"proMode.archivedBadge" = "已歸檔";
 "proMode.feedbackLabel" = "回饋";
+"proMode.archiveOptionsTitle" = "歸檔選項";
 "proMode.archivePrompt" = "選擇要歸檔的內容：";
 "proMode.analyzeButton" = "分析它們";
 "proMode.deleteButton" = "刪除";

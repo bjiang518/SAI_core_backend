@@ -1590,10 +1590,12 @@
 "proMode.analyzeMistakesPrompt" = "您想让我分析它们吗？（结果将很快在错题复习中准备好）";
 "proMode.deleteConfirmation" = "这将从此作业会话中永久删除所选的问题%@。此操作无法撤销。";
 "proMode.deleteQuestions" = "删除%d个问题%@";
+"proMode.deleteQuestionsTitle" = "删除%d个问题%@？";
 "proMode.exportingProgress" = "导出中... %d%%";
 "proMode.exportToPDF" = "导出为PDF";
-"proMode.archivedBadge" = "（已归档）";
+"proMode.archivedBadge" = "已归档";
 "proMode.feedbackLabel" = "反馈";
+"proMode.archiveOptionsTitle" = "归档选项";
 "proMode.archivePrompt" = "选择要归档的内容：";
 "proMode.analyzeButton" = "分析它们";
 "proMode.deleteButton" = "删除";
