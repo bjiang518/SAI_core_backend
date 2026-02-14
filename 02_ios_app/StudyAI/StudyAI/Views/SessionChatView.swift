@@ -976,7 +976,7 @@ struct SessionChatView: View {
                                     VStack(spacing: 2) {
                                         Image(systemName: "brain")
                                             .font(.system(size: 20, weight: .semibold))
-                                        Text("DEEP")
+                                        Text(NSLocalizedString("sessionChat.deepBadge", comment: ""))
                                             .font(.system(size: 10, weight: .bold))
                                     }
                                     .foregroundColor(.white)
@@ -1515,7 +1515,7 @@ struct SessionChatView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         showingSubjectPicker = false
                     }
                 }
@@ -1531,11 +1531,11 @@ struct SessionChatView: View {
                         // Session ID
                         if let sessionId = networkService.currentSessionId {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("Session Details")
+                                Text(NSLocalizedString("sessionChat.sessionDetails", comment: ""))
                                     .font(.headline)
-                                
+
                                 HStack {
-                                    Text("Session ID:")
+                                    Text(NSLocalizedString("sessionChat.sessionIdLabel", comment: ""))
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                     Spacer()
