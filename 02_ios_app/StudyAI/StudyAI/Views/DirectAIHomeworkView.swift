@@ -304,7 +304,7 @@ struct DirectAIHomeworkView: View {
         VStack {
             // Header title - Centered with extra top padding to avoid Dynamic Island
             Text(NSLocalizedString("aiHomework.title", comment: ""))
-                .font(.largeTitle)
+                .font(.title2)
                 .fontWeight(.bold)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal)
