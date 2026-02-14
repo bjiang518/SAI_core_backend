@@ -1545,7 +1545,7 @@ struct SessionChatView: View {
                                 }
                                 
                                 HStack {
-                                    Text("Subject:")
+                                    Text(NSLocalizedString("sessionChat.subjectLabel", comment: ""))
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                     Spacer()
@@ -1553,9 +1553,9 @@ struct SessionChatView: View {
                                         .font(.subheadline)
                                         .foregroundColor(.blue)
                                 }
-                                
+
                                 HStack {
-                                    Text("Messages:")
+                                    Text(NSLocalizedString("sessionChat.messagesLabel", comment: ""))
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                     Spacer()
@@ -1566,7 +1566,7 @@ struct SessionChatView: View {
                                 
                                 if let created = info["created_at"] as? String {
                                     HStack {
-                                        Text("Created:")
+                                        Text(NSLocalizedString("sessionChat.createdLabel", comment: ""))
                                             .font(.subheadline)
                                             .foregroundColor(.secondary)
                                         Spacer()
@@ -1575,10 +1575,10 @@ struct SessionChatView: View {
                                             .foregroundColor(.primary)
                                     }
                                 }
-                                
+
                                 if let lastActivity = info["last_activity"] as? String {
                                     HStack {
-                                        Text("Last Activity:")
+                                        Text(NSLocalizedString("sessionChat.lastActivityLabel", comment: ""))
                                             .font(.subheadline)
                                             .foregroundColor(.secondary)
                                         Spacer()
@@ -1598,12 +1598,12 @@ struct SessionChatView: View {
                         Image(systemName: "info.circle")
                             .font(.system(size: 50))
                             .foregroundColor(.secondary)
-                        
-                        Text("No Session Information")
+
+                        Text(NSLocalizedString("sessionChat.noSessionInfo", comment: ""))
                             .font(.headline)
                             .foregroundColor(.secondary)
-                        
-                        Text("Session details will appear here when available.")
+
+                        Text(NSLocalizedString("sessionChat.noSessionInfoDescription", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -1617,7 +1617,7 @@ struct SessionChatView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         showingSessionInfo = false
                     }
                 }
@@ -2233,7 +2233,7 @@ struct WeChatStyleVoiceInput: View {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 30))
                             .foregroundColor(.white.opacity(0.5))
-                        Text("Slide up")
+                        Text(NSLocalizedString("sessionChat.slideUp", comment: ""))
                             .font(.system(size: 12))
                             .foregroundColor(.white.opacity(0.5))
                     }
@@ -2247,7 +2247,7 @@ struct WeChatStyleVoiceInput: View {
                     .foregroundColor(.white)
                     .scaleEffect(1.1)
             } else if isDeepModeActivated {
-                Text("Deep Thinking Mode")
+                Text(NSLocalizedString("sessionChat.deepThinkingMode", comment: ""))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.white)
                     .scaleEffect(1.05)
@@ -2291,8 +2291,8 @@ struct WeChatStyleVoiceInput: View {
                         HStack(spacing: 8) {
                             // Recording animation
                             recordingVisualization
-                            
-                            Text("Release to Send")
+
+                            Text(NSLocalizedString("sessionChat.releaseToSend", comment: ""))
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(.white)
                         }
