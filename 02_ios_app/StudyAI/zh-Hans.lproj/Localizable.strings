@@ -151,8 +151,6 @@
 "parentReport.recommendations" = "建議";
 
 // Common
-"common.done" = "完成";
-"common.ok" = "確定";
 "common.error" = "錯誤";
 
 // AI Homework
@@ -261,8 +259,6 @@
 "homeworkResults.archiveSuccess" = "成功歸檔";
 "homeworkResults.archiveSuccessSuffix" = "題到您的錯題本！";
 "homeworkResults.archiveFailure" = "歸檔題目失敗：";
-"homeworkResults.noQuestionsSelected" = "未選擇題目";
-"homeworkResults.selectQuestionsToArchiveMessage" = "請至少選擇一道題目進行歸檔。";
 
 // Authentication
 "auth.error.title" = "認證錯誤";
@@ -540,7 +536,6 @@
 "questionGeneration.discussionAbout" = "關於 %@ 的討論";
 "questionGeneration.questionType" = "題目類型";
 
-"settings.textSize" = "文字大小";
 "progress.title" = "進度";
 "progress.loadingProgress" = "正在載入您的進度...";
 "progress.unableToLoadData" = "無法載入數據";
@@ -1228,17 +1223,6 @@
 "voice.releaseToCancel" = "放開取消";
 
 // Learning Goals
-"goals.dailyQuestions" = "每日答題";
-"goals.dailyStreak" = "每日連續";
-"goals.weeklyStreak" = "每週連續";
-"goals.accuracyGoal" = "正確率目標";
-"goals.studyTime" = "學習時長";
-"goals.subjectMastery" = "科目掌握";
-"goals.dailyQuestionsDescription" = "每天回答問題以養成持續學習的習慣";
-"goals.accuracyGoalDescription" = "在答題中保持高正確率以獲得最高分數";
-"goals.target" = "目標：";
-"goals.weeklyStreakDescription" = "保持 7 天的學習連續以獲得豐厚的獎勵積分";
-"goals.dailyStreakDescription" = "通過每日活動保持學習動力";
 
 // Subjects
 "subject.mathematics" = "數學";
@@ -1449,12 +1433,6 @@
 "archive.visual" = "圖形";
 
 // Subject Names
-"subject.mathematics" = "數學";
-"subject.science" = "科學";
-"subject.physics" = "物理";
-"subject.chemistry" = "化學";
-"subject.biology" = "生物";
-"subject.english" = "英語";
 "subject.history" = "歷史";
 "subject.geography" = "地理";
 "subject.computerScience" = "計算機科學";
@@ -1549,9 +1527,7 @@
 
 "proMode.slideToMarkProgress" = "滑動以標記進度";
 "proMode.progressMarked" = "進度已標記";
-"proMode.correct" = "正確";
 "proMode.partial" = "部分正確";
-"proMode.incorrect" = "錯誤";
 
 // Pro Mode - 批改狀態訊息
 "proMode.grading.deepAnalyzing" = "🧠 深度分析題目中...";
@@ -1609,10 +1585,6 @@
 // MARK: - Homework Results View
 "homeworkResults.subquestions" = "%d个小问题";
 "homeworkResults.overallFeedback" = "整体反馈";
-"homeworkResults.studentAnswer" = "学生答案";
-"homeworkResults.noAnswerProvided" = "未提供答案";
-"homeworkResults.correctAnswer" = "正确答案";
-"homeworkResults.feedback" = "反馈";
 
 // MARK: - Digital Homework View (Pro Mode)
 "proMode.analyzeMistakesPrompt" = "您想让我分析它们吗？（结果将很快在错题复习中准备好）";
@@ -1652,6 +1624,3 @@
 "progressiveHomework.accuracyLabel" = "准确率";
 
 // MARK: - Common Buttons
-"common.cancel" = "取消";
-"common.done" = "完成";
-"common.ok" = "确定";
