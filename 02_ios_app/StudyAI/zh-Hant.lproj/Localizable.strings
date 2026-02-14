@@ -1576,3 +1576,82 @@
 "theme.description.day" = "經典淺色主題，適合白天使用";
 "theme.description.night" = "深色主題，適合弱光環境";
 "theme.description.cute" = "柔和的粉彩色，帶來俏皮體驗";
+
+// MARK: - Library View
+"library.proBadge" = "Pro";
+"library.needsAttention" = "需要注意";
+
+// MARK: - Home View
+"home.startLearningPrompt" = "開始學習以追蹤進度";
+
+// MARK: - Direct AI Homework View
+"directAIHomework.performanceSummary" = "表現總結";
+
+// MARK: - Session Chat View
+"sessionChat.archiveSuccess" = ""%@"已成功儲存！\n\n您可以隨時在資料庫標籤中查看。\n\n新的聊天會話已為您準備好！";
+"sessionChat.archiveSuccessDefault" = "您的對話";
+"sessionChat.homeworkHelpMode" = "作業幫助模式";
+"sessionChat.questionNumber" = "問題 #%d";
+"sessionChat.currentGrade" = "目前：%@";
+"sessionChat.deepBadge" = "深度";
+"sessionChat.sessionDetails" = "會話詳情";
+"sessionChat.sessionIdLabel" = "會話ID：";
+"sessionChat.subjectLabel" = "科目：";
+"sessionChat.messagesLabel" = "訊息：";
+"sessionChat.createdLabel" = "建立時間：";
+"sessionChat.lastActivityLabel" = "最後活動：";
+"sessionChat.noSessionInfo" = "無會話資訊";
+"sessionChat.noSessionInfoDescription" = "會話詳情將在可用時顯示於此處。";
+"sessionChat.slideUp" = "向上滑動";
+"sessionChat.deepThinkingMode" = "深度思考模式";
+"sessionChat.releaseToSend" = "鬆開發送";
+
+// MARK: - Homework Results View
+"homeworkResults.subquestions" = "%d個小問題";
+"homeworkResults.overallFeedback" = "整體回饋";
+"homeworkResults.studentAnswer" = "學生答案";
+"homeworkResults.noAnswerProvided" = "未提供答案";
+"homeworkResults.correctAnswer" = "正確答案";
+"homeworkResults.feedback" = "回饋";
+
+// MARK: - Digital Homework View (Pro Mode)
+"proMode.analyzeMistakesPrompt" = "您想讓我分析它們嗎？（結果將很快在錯題複習中準備好）";
+"proMode.deleteConfirmation" = "這將從此作業會話中永久刪除所選的問題%@。此操作無法撤銷。";
+"proMode.deleteQuestions" = "刪除%d個問題%@";
+"proMode.exportingProgress" = "匯出中... %d%%";
+"proMode.exportToPDF" = "匯出為PDF";
+"proMode.archivedBadge" = "（已歸檔）";
+"proMode.feedbackLabel" = "回饋";
+"proMode.archivePrompt" = "選擇要歸檔的內容：";
+"proMode.analyzeButton" = "分析它們";
+"proMode.deleteButton" = "刪除";
+"proMode.archiveWholeQuestion" = "歸檔整個問題";
+"proMode.archiveSubquestionOnly" = "僅歸檔此小問題";
+
+// MARK: - Progressive Homework View
+"progressiveHomework.loadingMessage" = "這可能需要一點時間...";
+"progressiveHomework.selectAIModelTitle" = "選擇AI模型";
+"progressiveHomework.selectAIModelDescription" = "選擇用於評分的AI模型";
+"progressiveHomework.aiModelLabel" = "AI模型";
+"progressiveHomework.startGrading" = "開始評分";
+"progressiveHomework.gradingProgress" = "評分進度";
+"progressiveHomework.saveToMistakeBook" = "儲存到錯題本";
+"progressiveHomework.errorTitle" = "錯誤";
+"progressiveHomework.questionLabel" = "問題%@";
+"progressiveHomework.overallScore" = "總分：";
+"progressiveHomework.viewSubquestions" = "查看小問題（%d個）";
+"progressiveHomework.subquestionGradeProgress" = "%d/%d";
+"progressiveHomework.someSubquestionsFailed" = "部分小問題評分失敗";
+"progressiveHomework.yourAnswer" = "您的答案：";
+"progressiveHomework.gradingError" = "評分錯誤：%@";
+"progressiveHomework.scoreLabel" = "分數：";
+"progressiveHomework.aiFeedback" = "AI回饋";
+"progressiveHomework.askAIForHelp" = "向AI尋求幫助";
+"progressiveHomework.answerLabel" = "答案：";
+"progressiveHomework.askAI" = "問AI";
+"progressiveHomework.accuracyLabel" = "準確率";
+
+// MARK: - Common Buttons
+"common.cancel" = "取消";
+"common.done" = "完成";
+"common.ok" = "確定";

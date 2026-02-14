@@ -1380,7 +1380,7 @@ struct DirectAIHomeworkView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header with accuracy badge
             HStack {
-                Text("Performance Summary")
+                Text(NSLocalizedString("directAIHomework.performanceSummary", comment: ""))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)

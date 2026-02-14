@@ -758,7 +758,7 @@ struct LibraryItemRow: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "wand.and.stars")
                                     .font(.caption2)
-                                Text("Pro")
+                                Text(NSLocalizedString("library.proBadge", comment: ""))
                                     .font(.caption2)
                                     .fontWeight(.semibold)
                             }
@@ -802,7 +802,7 @@ struct LibraryItemRow: View {
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.caption)
-                    Text("Needs attention")
+                    Text(NSLocalizedString("library.needsAttention", comment: ""))
                         .font(.caption)
                         .fontWeight(.medium)
                 }

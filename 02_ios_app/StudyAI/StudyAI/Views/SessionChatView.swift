@@ -296,7 +296,10 @@ struct SessionChatView: View {
                     appState.selectedTab = .library
                 }
             } message: {
-                Text("'\(viewModel.archivedSessionTitle.isEmpty ? "Your conversation" : viewModel.archivedSessionTitle.capitalized)' saved successfully!\n\nYou can view it anytime in the Library tab.\n\nA new chat session is ready for you!")
+                let title = viewModel.archivedSessionTitle.isEmpty ?
+                    NSLocalizedString("sessionChat.archiveSuccessDefault", comment: "") :
+                    viewModel.archivedSessionTitle.capitalized
+                Text(String(format: NSLocalizedString("sessionChat.archiveSuccess", comment: ""), title))
             }
     }
 
@@ -569,7 +572,7 @@ struct SessionChatView: View {
                             HStack {
                                 Image(systemName: "book.fill")
                                     .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : .blue)
-                                Text("Homework Help Mode")
+                                Text(NSLocalizedString("sessionChat.homeworkHelpMode", comment: ""))
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(.primary)
                                 Spacer()
@@ -591,7 +594,7 @@ struct SessionChatView: View {
 
                             VStack(alignment: .leading, spacing: 4) {
                                 if let questionNum = homeworkContext.questionNumber {
-                                    Text("Question #\(questionNum)")
+                                    Text(String(format: NSLocalizedString("sessionChat.questionNumber", comment: ""), questionNum))
                                         .font(.system(size: 12))
                                         .foregroundColor(.secondary)
                                 }
@@ -601,7 +604,7 @@ struct SessionChatView: View {
                                         HStack(spacing: 4) {
                                             Image(systemName: "checkmark.seal.fill")
                                                 .font(.caption2)
-                                            Text("Current: \(grade)")
+                                            Text(String(format: NSLocalizedString("sessionChat.currentGrade", comment: ""), grade))
                                         }
                                         .font(.system(size: 11))
                                         .foregroundColor(grade == "CORRECT" ? .green : .orange)

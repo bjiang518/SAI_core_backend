@@ -324,7 +324,7 @@ struct HomeView: View {
                             color: DesignTokens.Colors.reviewOrange
                         )
                     } else {
-                        Text("Start learning to track progress")
+                        Text(NSLocalizedString("home.startLearningPrompt", comment: ""))
                             .font(.body)
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity)
