@@ -1489,7 +1489,7 @@ struct DirectAIHomeworkView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
                     .frame(minWidth: 24, minHeight: 24)
-                    .background(Color.blue)
+                    .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
                     .clipShape(Circle())
             }
             .padding(.horizontal)
@@ -1569,7 +1569,7 @@ struct DirectAIHomeworkView: View {
                         icon: "book.fill",
                         value: enhanced.detectedSubject,
                         label: NSLocalizedString("aiHomework.results.subject", comment: ""),
-                        color: .blue,
+                        color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary,
                         hasCheckmark: false,
                         confidence: nil
                     )
@@ -1580,7 +1580,7 @@ struct DirectAIHomeworkView: View {
                     icon: "questionmark.circle.fill",
                     value: "\(result.questionCount)",
                     label: NSLocalizedString("aiHomework.results.questions", comment: ""),
-                    color: .green
+                    color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : DesignTokens.Colors.success
                 )
 
                 // Accuracy Badge
@@ -1613,7 +1613,7 @@ struct DirectAIHomeworkView: View {
                 .background(
                     LinearGradient(
                         colors: result.questionCount > 0 ?
-                            [Color.blue, Color.blue.opacity(0.8)] :
+                            (themeManager.currentTheme == .cute ? [DesignTokens.Colors.Cute.blue, DesignTokens.Colors.Cute.blue.opacity(0.8)] : [DesignTokens.Colors.primary, DesignTokens.Colors.primary.opacity(0.8)]) :
                             [Color.gray, Color.gray.opacity(0.8)],
                         startPoint: .leading,
                         endPoint: .trailing
@@ -1621,7 +1621,7 @@ struct DirectAIHomeworkView: View {
                 )
                 .cornerRadius(16)
                 .shadow(
-                    color: (result.questionCount > 0 ? Color.blue : Color.gray).opacity(0.3),
+                    color: (result.questionCount > 0 ? (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary) : Color.gray).opacity(0.3),
                     radius: 8,
                     x: 0,
                     y: 4
@@ -1632,16 +1632,19 @@ struct DirectAIHomeworkView: View {
         .padding(20)
         .background(
             LinearGradient(
-                colors: [
-                    Color.blue.opacity(0.05),
-                    Color.purple.opacity(0.05)
+                colors: themeManager.currentTheme == .cute ? [
+                    DesignTokens.Colors.Cute.backgroundSoftPink,
+                    DesignTokens.Colors.Cute.backgroundCream
+                ] : [
+                    DesignTokens.Colors.primary.opacity(0.05),
+                    DesignTokens.Colors.analyticsPlum.opacity(0.05)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         )
         .cornerRadius(20)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .shadow(color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.1) : Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
     
     // MARK: - Controls Section
@@ -1667,13 +1670,13 @@ struct DirectAIHomeworkView: View {
                 .padding()
                 .background(
                     LinearGradient(
-                        colors: [Color.purple, Color.purple.opacity(0.8)],
+                        colors: themeManager.currentTheme == .cute ? [DesignTokens.Colors.Cute.lavender, DesignTokens.Colors.Cute.lavender.opacity(0.8)] : [DesignTokens.Colors.analyticsPlum, DesignTokens.Colors.analyticsPlum.opacity(0.8)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
                 .cornerRadius(16)
-                .shadow(color: Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
+                .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : DesignTokens.Colors.analyticsPlum).opacity(0.3), radius: 8, x: 0, y: 4)
                 .opacity(0.8)  // Added opacity to New button
             }
 
@@ -1697,13 +1700,13 @@ struct DirectAIHomeworkView: View {
                 .padding()
                 .background(
                     LinearGradient(
-                        colors: [Color.red, Color.red.opacity(0.8)],
+                        colors: themeManager.currentTheme == .cute ? [DesignTokens.Colors.Cute.peach, DesignTokens.Colors.Cute.peach.opacity(0.8)] : [DesignTokens.Colors.error, DesignTokens.Colors.error.opacity(0.8)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
                 .cornerRadius(16)
-                .shadow(color: Color.red.opacity(0.3), radius: 8, x: 0, y: 4)
+                .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.peach : DesignTokens.Colors.error).opacity(0.3), radius: 8, x: 0, y: 4)
                 .opacity(0.8)  // Added opacity to Clear button
             }
         }
@@ -1726,11 +1729,11 @@ struct DirectAIHomeworkView: View {
 
     private func accuracyColor(_ accuracy: Float) -> Color {
         if accuracy >= 0.9 {
-            return .green
+            return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : DesignTokens.Colors.success
         } else if accuracy >= 0.7 {
-            return .orange
+            return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.yellow : DesignTokens.Colors.warning
         } else {
-            return .red
+            return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.peach : DesignTokens.Colors.error
         }
     }
 
