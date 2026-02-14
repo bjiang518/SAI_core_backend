@@ -25,6 +25,11 @@ struct HomeworkResultsView: View {
     @State private var showingResultsInfo = false
     @StateObject private var questionArchiveService = QuestionArchiveService.shared
 
+    // Slide button states (matching pro mode implementation)
+    @State private var slideOffset: CGFloat = 0
+    @State private var isSliding = false
+    @State private var hasTriggeredMarkProgress = false
+
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @StateObject private var homeworkImageStorage = HomeworkImageStorageService.shared  // NEW: Storage service
     @Environment(\.dismiss) private var dismiss
@@ -451,42 +456,128 @@ struct HomeworkResultsView: View {
         .cornerRadius(12)
     }
     
-    // MARK: - Mark Progress Button
+    // MARK: - Mark Progress Button (Slide to Confirm - Pro Mode Style)
 
     private var markProgressButton: some View {
-        VStack(spacing: 16) {
-            SlideToConfirmButton(
-                text: NSLocalizedString("homeworkResults.slideToMarkProgress", comment: ""),
-                confirmedText: NSLocalizedString("homeworkResults.progressMarked", comment: ""),
-                icon: "arrow.right",
-                confirmedIcon: "checkmark",
-                color: .blue,
-                confirmedColor: .green,
-                isConfirmed: hasMarkedProgress
-            ) {
-                // Only track if not already marked
-                if !hasMarkedProgress {
-                    trackHomeworkUsage()
-                    hasMarkedProgress = true
-                    saveProgressState() // Persist the state
+        GeometryReader { geometry in
+            let sliderWidth: CGFloat = 50
+            let maxOffset = geometry.size.width - sliderWidth - 8
 
-                    // ✅ NEW: Save to album when marking progress
-                    saveHomeworkImageToStorage()
+            VStack(spacing: 16) {
+                // Slide button container
+                ZStack(alignment: .leading) {
+                    // Background track - Glass morphism style
+                    RoundedRectangle(cornerRadius: 30)
+                        .fill(Color.blue.opacity(hasMarkedProgress ? 0.2 : 0.05))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 30)
+                                .stroke(Color.blue.opacity(hasMarkedProgress ? 0.4 : 0.2), lineWidth: 2)
+                        )
+                        .frame(height: 60)
+
+                    // Progress fill (grows as user slides)
+                    RoundedRectangle(cornerRadius: 30)
+                        .fill(Color.blue.opacity(0.1))
+                        .frame(width: slideOffset + sliderWidth + 4, height: 60)
+                        .opacity(slideOffset > 0 ? 1.0 : 0.0)
+
+                    // Instruction text (fades as slider moves)
+                    HStack {
+                        Spacer()
+                        Text(hasMarkedProgress ?
+                             NSLocalizedString("homeworkResults.progressMarked", comment: "") :
+                             NSLocalizedString("homeworkResults.slideToMarkProgress", comment: ""))
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(hasMarkedProgress ? .green : .primary.opacity(0.6))
+                            .opacity(hasMarkedProgress ? 1.0 : (1.0 - (slideOffset / maxOffset)))
+                        Spacer()
+                    }
+                    .frame(height: 60)
+
+                    // Sliding button
+                    if !hasMarkedProgress {
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: sliderWidth, height: sliderWidth)
+                                .shadow(color: Color.blue.opacity(0.4), radius: 8, x: 0, y: 4)
+
+                            Image(systemName: "chevron.right")
+                                .font(.title3)
+                                .foregroundColor(.white)
+                        }
+                        .offset(x: slideOffset + 4, y: 0)
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    let newOffset = max(0, min(value.translation.width, maxOffset))
+                                    withAnimation(.interactiveSpring()) {
+                                        slideOffset = newOffset
+                                        isSliding = true
+                                    }
+
+                                    // Trigger at 95% completion
+                                    if newOffset >= maxOffset * 0.95 && !hasTriggeredMarkProgress {
+                                        hasTriggeredMarkProgress = true
+
+                                        // Track homework usage
+                                        trackHomeworkUsage()
+                                        hasMarkedProgress = true
+                                        saveProgressState()
+                                        saveHomeworkImageToStorage()
+
+                                        // Success haptic
+                                        let generator = UINotificationFeedbackGenerator()
+                                        generator.notificationOccurred(.success)
+
+                                        // Reset slider
+                                        withAnimation(.spring()) {
+                                            slideOffset = 0
+                                            isSliding = false
+                                        }
+                                    }
+                                }
+                                .onEnded { _ in
+                                    // Spring back if not completed
+                                    withAnimation(.spring()) {
+                                        slideOffset = 0
+                                        isSliding = false
+                                    }
+                                    hasTriggeredMarkProgress = false
+                                }
+                        )
+                    } else {
+                        // Checkmark when completed
+                        ZStack {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: sliderWidth, height: sliderWidth)
+
+                            Image(systemName: "checkmark")
+                                .font(.title3)
+                                .foregroundColor(.white)
+                        }
+                        .offset(x: 4, y: 0)
+                    }
+                }
+                .frame(height: 60)
+
+                // Helper text
+                if hasMarkedProgress {
+                    Text(NSLocalizedString("homeworkResults.progressUpdated", comment: ""))
+                        .font(.subheadline)
+                        .foregroundColor(.green)
+                        .multilineTextAlignment(.center)
+                } else {
+                    Text(String(format: NSLocalizedString("homeworkResults.tapToAddQuestions", comment: ""), parsingResult.allQuestions.count))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
                 }
             }
-
-            if hasMarkedProgress {
-                Text(NSLocalizedString("homeworkResults.progressUpdated", comment: ""))
-                    .font(.subheadline)
-                    .foregroundColor(.green)
-                    .multilineTextAlignment(.center)
-            } else {
-                Text(String(format: NSLocalizedString("homeworkResults.tapToAddQuestions", comment: ""), parsingResult.allQuestions.count))
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
         }
+        .frame(height: 140)
         .padding()
         .background(Color(.systemGray6))
         .cornerRadius(16)
