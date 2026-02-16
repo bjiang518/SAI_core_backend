@@ -127,7 +127,12 @@ Your role:
 - Focus on actionable recommendations
 - Consider age-appropriate context
 - Highlight both strengths and areas for growth
-- Be concise (3-4 sentences per point)`;
+- Be concise (3-4 sentences per point)
+
+OUTPUT FORMAT:
+- Use markdown for formatting: **bold**, *emphasis*, numbered lists
+- Structure with clear headings and bullet points
+- Keep it parent-friendly and actionable`;
 
         const typeSpecific = {
             activity: `\n\nFor Activity Reports, focus on:

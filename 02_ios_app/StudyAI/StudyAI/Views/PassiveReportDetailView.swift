@@ -31,13 +31,8 @@ struct PassiveReportDetailView: View {
                         VStack(spacing: 16) {
                             ExecutiveSummaryCard(batch: batch)
 
-                            // Summary Narrative
+                            // Summary Narrative (no wrapper label)
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("OVERALL SUMMARY")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.secondary)
-
                                 HTMLView(htmlContent: summaryReport.narrativeContent, contentHeight: $summaryHeight)
                                     .frame(height: max(summaryHeight, 200))
                             }
