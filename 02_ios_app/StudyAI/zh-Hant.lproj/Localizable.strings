@@ -151,6 +151,8 @@
 "parentReport.recommendations" = "建議";
 
 // Common
+"common.done" = "完成";
+"common.ok" = "確定";
 "common.error" = "錯誤";
 
 // AI Homework
@@ -200,9 +202,11 @@
 "aiHomework.parsingMode.progressive" = "專業";
 "aiHomework.parsingMode.hierarchical" = "詳細";
 "aiHomework.parsingMode.baseline" = "快速";
+"aiHomework.parsingMode.fast" = "快速";  // ✅ Production: Fast Mode
 "aiHomework.parsingMode.progressive.description" = "智慧數位作業本，按需評分。靈活且互動。";
 "aiHomework.parsingMode.hierarchical.description" = "準確解析題目及子題關係。最適合結構化作業。";
 "aiHomework.parsingMode.baseline.description" = "快速解析，平面題目結構。適合簡單作業。";
+"aiHomework.parsingMode.fast.description" = "使用 GPT-4o-mini 快速 AI 分析。快速結果，高準確度。";  // ✅ Production: Fast Mode description
 "aiHomework.subject" = "科目";
 "aiHomework.model" = "模型";
 "aiHomework.mode" = "模式";
@@ -259,6 +263,8 @@
 "homeworkResults.archiveSuccess" = "成功歸檔";
 "homeworkResults.archiveSuccessSuffix" = "題到您的錯題本！";
 "homeworkResults.archiveFailure" = "歸檔題目失敗：";
+"homeworkResults.noQuestionsSelected" = "未選擇題目";
+"homeworkResults.selectQuestionsToArchiveMessage" = "請至少選擇一道題目進行歸檔。";
 
 // Authentication
 "auth.error.title" = "認證錯誤";
@@ -536,6 +542,7 @@
 "questionGeneration.discussionAbout" = "關於 %@ 的討論";
 "questionGeneration.questionType" = "題目類型";
 
+"settings.textSize" = "文字大小";
 "progress.title" = "進度";
 "progress.loadingProgress" = "正在載入您的進度...";
 "progress.unableToLoadData" = "無法載入數據";
@@ -782,6 +789,10 @@
 "chat.archive.buttonTitle" = "封存會話";
 "chat.archive.infoTitle" = "封存資訊";
 "chat.archive.infoMessage" = "儲存此對話以供日後參考。您可以新增自訂標題和備註，協助您記住所學內容。";
+"chat.archive.analyzingWithAI" = "正在使用AI分析...";
+"chat.archive.generatingSummary" = "正在生成摘要和關鍵主題";
+"chat.archive.complete" = "歸檔完成！";
+"chat.archive.summaryGenerated" = "摘要生成成功";
 
 // Diagram
 "chat.diagram.regenerate" = "重新生成圖片";
@@ -1223,6 +1234,17 @@
 "voice.releaseToCancel" = "放開取消";
 
 // Learning Goals
+"goals.dailyQuestions" = "每日答題";
+"goals.dailyStreak" = "每日連續";
+"goals.weeklyStreak" = "每週連續";
+"goals.accuracyGoal" = "正確率目標";
+"goals.studyTime" = "學習時長";
+"goals.subjectMastery" = "科目掌握";
+"goals.dailyQuestionsDescription" = "每天回答問題以養成持續學習的習慣";
+"goals.accuracyGoalDescription" = "在答題中保持高正確率以獲得最高分數";
+"goals.target" = "目標：";
+"goals.weeklyStreakDescription" = "保持 7 天的學習連續以獲得豐厚的獎勵積分";
+"goals.dailyStreakDescription" = "通過每日活動保持學習動力";
 
 // Subjects
 "subject.mathematics" = "數學";
@@ -1433,6 +1455,12 @@
 "archive.visual" = "圖形";
 
 // Subject Names
+"subject.mathematics" = "數學";
+"subject.science" = "科學";
+"subject.physics" = "物理";
+"subject.chemistry" = "化學";
+"subject.biology" = "生物";
+"subject.english" = "英語";
 "subject.history" = "歷史";
 "subject.geography" = "地理";
 "subject.computerScience" = "計算機科學";
@@ -1489,7 +1517,12 @@
 "proMode.grading" = "正在批改 %d/%d";
 "proMode.deepGradingMode" = "深度批改模式";
 "proMode.deepMode" = "深度模式";
+"proMode.fastMode" = "快速模式";  // ✅ Production: Fast Mode (GPT Deep)
 "proMode.deepGradingDescription" = "AI將深度推理分析 (較慢但更準確)";
+"proMode.deepModeDescription" = "深度分析與高級推理";  // ✅ Production: Deep Mode description
+"proMode.fastModeDescription" = "快速批改與邏輯檢查";  // ✅ Production: Fast Mode description
+"proMode.quickGrade" = "快速批改";  // ✅ Production: Fast Mode button text
+"proMode.deepGrade" = "深度批改";  // ✅ Production: Deep Mode button text
 "proMode.standardGradingDescription" = "標準批改速度 (快速但可能不夠深入)";
 "proMode.gradeHomework" = "AI 批改作業";
 "proMode.deepGradeHomework" = "深度批改作業";
@@ -1527,7 +1560,9 @@
 
 "proMode.slideToMarkProgress" = "滑動以標記進度";
 "proMode.progressMarked" = "進度已標記";
+"proMode.correct" = "正確";
 "proMode.partial" = "部分正確";
+"proMode.incorrect" = "錯誤";
 
 // Pro Mode - 批改狀態訊息
 "proMode.grading.deepAnalyzing" = "🧠 深度分析題目中...";
@@ -1552,77 +1587,3 @@
 "theme.description.day" = "經典淺色主題，適合白天使用";
 "theme.description.night" = "深色主題，適合弱光環境";
 "theme.description.cute" = "柔和的粉彩色，帶來俏皮體驗";
-
-// MARK: - Library View
-"library.proBadge" = "Pro";
-"library.needsAttention" = "需要注意";
-
-// MARK: - Home View
-"home.startLearningPrompt" = "開始學習以追蹤進度";
-
-// MARK: - Direct AI Homework View
-"directAIHomework.performanceSummary" = "表現總結";
-
-// MARK: - Session Chat View
-"sessionChat.archiveSuccess" = ""%@"已成功儲存！\n\n您可以隨時在資料庫標籤中查看。\n\n新的聊天會話已為您準備好！";
-"sessionChat.archiveSuccessDefault" = "您的對話";
-"sessionChat.homeworkHelpMode" = "作業幫助模式";
-"sessionChat.questionNumber" = "問題 #%d";
-"sessionChat.currentGrade" = "目前：%@";
-"sessionChat.deepBadge" = "深度";
-"sessionChat.sessionDetails" = "會話詳情";
-"sessionChat.sessionIdLabel" = "會話ID：";
-"sessionChat.subjectLabel" = "科目：";
-"sessionChat.messagesLabel" = "訊息：";
-"sessionChat.createdLabel" = "建立時間：";
-"sessionChat.lastActivityLabel" = "最後活動：";
-"sessionChat.noSessionInfo" = "無會話資訊";
-"sessionChat.noSessionInfoDescription" = "會話詳情將在可用時顯示於此處。";
-"sessionChat.slideUp" = "向上滑動";
-"sessionChat.deepThinkingMode" = "深度思考模式";
-"sessionChat.releaseToSend" = "鬆開發送";
-
-// MARK: - Homework Results View
-"homeworkResults.subquestions" = "%d個小問題";
-"homeworkResults.overallFeedback" = "整體回饋";
-
-// MARK: - Digital Homework View (Pro Mode)
-"proMode.analyzeMistakesPrompt" = "您想讓我分析它們嗎？（結果將很快在錯題複習中準備好）";
-"proMode.deleteConfirmation" = "這將從此作業會話中永久刪除所選的問題%@。此操作無法撤銷。";
-"proMode.deleteQuestions" = "刪除%d個問題%@";
-"proMode.deleteQuestionsTitle" = "刪除%d個問題%@？";
-"proMode.exportingProgress" = "匯出中... %d%%";
-"proMode.exportToPDF" = "匯出為PDF";
-"proMode.archivedBadge" = "已歸檔";
-"proMode.feedbackLabel" = "回饋";
-"proMode.archiveOptionsTitle" = "歸檔選項";
-"proMode.archivePrompt" = "選擇要歸檔的內容：";
-"proMode.analyzeButton" = "分析它們";
-"proMode.deleteButton" = "刪除";
-"proMode.archiveWholeQuestion" = "歸檔整個問題";
-"proMode.archiveSubquestionOnly" = "僅歸檔此小問題";
-
-// MARK: - Progressive Homework View
-"progressiveHomework.loadingMessage" = "這可能需要一點時間...";
-"progressiveHomework.selectAIModelTitle" = "選擇AI模型";
-"progressiveHomework.selectAIModelDescription" = "選擇用於評分的AI模型";
-"progressiveHomework.aiModelLabel" = "AI模型";
-"progressiveHomework.startGrading" = "開始評分";
-"progressiveHomework.gradingProgress" = "評分進度";
-"progressiveHomework.saveToMistakeBook" = "儲存到錯題本";
-"progressiveHomework.errorTitle" = "錯誤";
-"progressiveHomework.questionLabel" = "問題%@";
-"progressiveHomework.overallScore" = "總分：";
-"progressiveHomework.viewSubquestions" = "查看小問題（%d個）";
-"progressiveHomework.subquestionGradeProgress" = "%d/%d";
-"progressiveHomework.someSubquestionsFailed" = "部分小問題評分失敗";
-"progressiveHomework.yourAnswer" = "您的答案：";
-"progressiveHomework.gradingError" = "評分錯誤：%@";
-"progressiveHomework.scoreLabel" = "分數：";
-"progressiveHomework.aiFeedback" = "AI回饋";
-"progressiveHomework.askAIForHelp" = "向AI尋求幫助";
-"progressiveHomework.answerLabel" = "答案：";
-"progressiveHomework.askAI" = "問AI";
-"progressiveHomework.accuracyLabel" = "準確率";
-
-// MARK: - Common Buttons

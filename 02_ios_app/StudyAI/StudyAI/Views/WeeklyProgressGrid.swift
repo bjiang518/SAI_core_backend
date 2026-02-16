@@ -23,28 +23,24 @@ struct WeeklyProgressGrid: View {
 
         let now = Date()
 
-        // Get the start of the current week (Monday)
-        let weekday = calendar.component(.weekday, from: now)
-        let daysFromMonday = (weekday == 1) ? -6 : (2 - weekday) // If Sunday, go back 6 days; otherwise go to Monday
-        guard let mondayThisWeek = calendar.date(byAdding: .day, value: daysFromMonday, to: now) else {
+        // Get the start of the current week (Sunday) - matching PointsEarningManager
+        guard let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start else {
             return []
         }
-        let startOfWeek = calendar.startOfDay(for: mondayThisWeek)
 
         // Create a dictionary for quick lookup of existing progress data
         let progressByDate = Dictionary(uniqueKeysWithValues: pointsManager.thisWeekProgress.map { ($0.date, $0) })
 
-        // Generate all 7 days of the week (Monday to Sunday)
+        // Generate all 7 days of the week (Sunday to Saturday)
         var activities: [DailyQuestionActivity] = []
 
         for dayOffset in 0..<7 {
-            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: startOfWeek) else { continue }
+            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: weekStart) else { continue }
             let dateString = dateFormatter.string(from: date)
 
-            // Get weekday (1 = Sunday, 2 = Monday, ...)
+            // Get weekday (1 = Sunday, 2 = Monday, ..., 7 = Saturday)
             let weekday = calendar.component(.weekday, from: date)
-            // Convert to Monday-first (1 = Mon, 7 = Sun)
-            let dayOfWeek = weekday == 1 ? 7 : weekday - 1
+            let dayOfWeek = weekday // Use standard Calendar weekday (1=Sun, 2=Mon, ..., 7=Sat)
 
             // Check if we have data for this day
             let questionCount = progressByDate[dateString]?.totalQuestions ?? 0
@@ -68,7 +64,7 @@ struct WeeklyProgressGrid: View {
                 // Week header with total
                 weekHeader(weeklyActivities)
 
-                // 7-day grid (Mon-Sun)
+                // 7-day grid (Sun-Sat)
                 weeklyGrid(weeklyActivities)
 
                 // Legend

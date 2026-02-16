@@ -58,6 +58,51 @@ struct GeneratedQuestionsListView: View {
         }
     }
 
+    @ViewBuilder
+    private var questionDetailView: some View {
+        let _ = print("🟢 [FULLSCREEN DEBUG] fullScreenCover PRESENTING")
+        let _ = print("🟢 [FULLSCREEN DEBUG] selectedQuestion: \(selectedQuestion?.question.prefix(50) ?? "nil")")
+        let _ = print("🟢 [FULLSCREEN DEBUG] questions.count: \(questions.count)")
+
+        if let selectedQuestion = selectedQuestion,
+           let questionIndex = questions.firstIndex(where: { $0.id == selectedQuestion.id }) {
+            let _ = print("🟢 [FULLSCREEN DEBUG] ✅ Found question at index \(questionIndex)")
+            GeneratedQuestionDetailView(
+                question: selectedQuestion,
+                sessionId: QuestionGenerationService.shared.currentSessionId,
+                onAnswerSubmitted: { isCorrect, points in
+                    answeredQuestions[selectedQuestion.id] = QuestionResult(isCorrect: isCorrect, points: points)
+                    logger.info("📝 Question answered: \(selectedQuestion.id), correct: \(isCorrect)")
+                },
+                allQuestions: questions,
+                currentIndex: questionIndex
+            )
+            .onAppear {
+                print("🟢 [FULLSCREEN DEBUG] GeneratedQuestionDetailView APPEARED for question at index \(questionIndex)")
+            }
+        } else {
+            let _ = print("🔴 [FULLSCREEN DEBUG] ❌ ERROR: Could not find question!")
+            let _ = print("🔴 [FULLSCREEN DEBUG] selectedQuestion exists: \(selectedQuestion != nil)")
+            let _ = {
+                if let sel = selectedQuestion {
+                    print("🔴 [FULLSCREEN DEBUG] selectedQuestion.id: \(sel.id)")
+                    print("🔴 [FULLSCREEN DEBUG] Looking for match in \(questions.count) questions...")
+                    let foundIndex = questions.firstIndex(where: { $0.id == sel.id })
+                    print("🔴 [FULLSCREEN DEBUG] Found index: \(foundIndex?.description ?? "nil")")
+                }
+            }()
+
+            VStack {
+                Text("Error: Question not found")
+                    .font(.headline)
+                    .foregroundColor(.red)
+            }
+            .onAppear {
+                print("🔴 [FULLSCREEN DEBUG] ERROR VIEW appeared - showing error state")
+            }
+        }
+    }
+
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -111,34 +156,7 @@ struct GeneratedQuestionsListView: View {
             // .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background - DISABLED: modifier not found
             // ✅ CHANGED: Use fullScreenCover instead of sheet for fixed view
             .fullScreenCover(isPresented: $showingQuestionDetail) {
-                if let selectedQuestion = selectedQuestion,
-                   let questionIndex = questions.firstIndex(where: { $0.id == selectedQuestion.id }) {
-                    GeneratedQuestionDetailView(
-                        question: selectedQuestion,
-                        sessionId: QuestionGenerationService.shared.currentSessionId,  // ✅ FIX: Pass session ID
-                        onAnswerSubmitted: { isCorrect, points in
-                            // Track the answer result
-                            answeredQuestions[selectedQuestion.id] = QuestionResult(isCorrect: isCorrect, points: points)
-                            logger.info("📝 Question answered: \(selectedQuestion.id), correct: \(isCorrect)")
-                        },
-                        allQuestions: questions,
-                        currentIndex: questionIndex
-                    )
-                    .onAppear {
-                        print("🔵 [Debug] GeneratedQuestionDetailView appeared for question at index \(questionIndex)")
-                    }
-                } else {
-                    VStack {
-                        Text("Error: Question not found")
-                            .font(.headline)
-                            .foregroundColor(.red)
-                    }
-                    .onAppear {
-                        print("❌ [Debug] ERROR: selectedQuestion or questionIndex is nil!")
-                        print("   selectedQuestion: \(selectedQuestion?.question.prefix(50) ?? "nil")")
-                        print("   questions count: \(questions.count)")
-                    }
-                }
+                questionDetailView
             }
             .sheet(isPresented: $showingPDFGenerator) {
                 if !selectedQuestions.isEmpty {
@@ -180,6 +198,9 @@ struct GeneratedQuestionsListView: View {
                 // ✅ DEBUG: Log question list details
                 // TODO: Add DebugSettings.swift to Xcode project to enable debug logging
                 print("📝 [Generation] Displaying \(questions.count) generated questions")
+                print("📝 [Generation] Initial showingQuestionDetail: \(showingQuestionDetail)")
+                print("📝 [Generation] Initial selectedQuestion: \(selectedQuestion?.id.uuidString ?? "nil")")
+                print("📝 [Generation] Initial isSelectionMode: \(isSelectionMode)")
 
                 // ✅ DEBUG: Count questions with error keys
                 let questionsWithErrorKeys = questions.filter { $0.errorType != nil }
@@ -199,6 +220,20 @@ struct GeneratedQuestionsListView: View {
                     //     )
                     // }
                 }
+            }
+            .onChange(of: showingQuestionDetail) { oldValue, newValue in
+                print("🔄 [STATE CHANGE] showingQuestionDetail changed: \(oldValue) → \(newValue)")
+                if newValue {
+                    print("🔄 [STATE CHANGE] Detail should be showing now")
+                    print("🔄 [STATE CHANGE] selectedQuestion at change: \(selectedQuestion?.id.uuidString ?? "nil")")
+                } else {
+                    print("🔄 [STATE CHANGE] Detail should be hidden now")
+                }
+            }
+            .onChange(of: selectedQuestion?.id) { oldValue, newValue in
+                print("🔄 [STATE CHANGE] selectedQuestion ID changed")
+                print("🔄 [STATE CHANGE]   Old: \(oldValue?.uuidString ?? "nil")")
+                print("🔄 [STATE CHANGE]   New: \(newValue?.uuidString ?? "nil")")
             }
         }
     }
@@ -356,24 +391,68 @@ struct GeneratedQuestionsListView: View {
 
                         // Use QuestionTypeRenderer based on question type
                         Button(action: {
+                            print("🎯 [GESTURE DEBUG] ==========================================")
+                            print("🎯 [GESTURE DEBUG] Button tapped at \(Date())")
+                            print("🎯 [GESTURE DEBUG] Question index: \(questionIndex)")
+                            print("🎯 [GESTURE DEBUG] Question ID: \(question.id)")
+                            print("🎯 [GESTURE DEBUG] Question preview: \(question.question.prefix(80))...")
+                            print("🎯 [GESTURE DEBUG] Question type: \(question.type.rawValue)")
+                            print("🎯 [GESTURE DEBUG] isSelectionMode: \(isSelectionMode)")
+                            print("🎯 [GESTURE DEBUG] Current showingQuestionDetail: \(showingQuestionDetail)")
+                            print("🎯 [GESTURE DEBUG] Current selectedQuestion: \(selectedQuestion?.id.uuidString ?? "nil")")
+
                             if !isSelectionMode {
-                                print("🔵 [Debug] Question tapped: \(question.question.prefix(50))...")
-                                print("🔵 [Debug] Setting selectedQuestion and showingQuestionDetail = true")
+                                print("🎯 [GESTURE DEBUG] ✅ Entering normal mode - should open detail")
+                                print("🎯 [GESTURE DEBUG] Setting selectedQuestion...")
                                 selectedQuestion = question
+                                print("🎯 [GESTURE DEBUG] selectedQuestion SET to: \(question.id)")
+
+                                print("🎯 [GESTURE DEBUG] Setting showingQuestionDetail = true...")
                                 showingQuestionDetail = true
-                                print("🔵 [Debug] showingQuestionDetail is now: \(showingQuestionDetail)")
+                                print("🎯 [GESTURE DEBUG] showingQuestionDetail NOW: \(showingQuestionDetail)")
+
+                                // Add a slight delay to check if the value persists
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    print("🎯 [GESTURE DEBUG] After 0.1s - showingQuestionDetail: \(showingQuestionDetail)")
+                                    print("🎯 [GESTURE DEBUG] After 0.1s - selectedQuestion: \(selectedQuestion?.id.uuidString ?? "nil")")
+                                }
+
+                                print("🎯 [GESTURE DEBUG] ✅ Normal mode tap complete - detail should open")
                             } else {
+                                print("🎯 [GESTURE DEBUG] ⚠️ In selection mode - toggling selection")
                                 if selectedQuestions.contains(question.id) {
                                     selectedQuestions.remove(question.id)
+                                    print("🎯 [GESTURE DEBUG] Deselected question")
                                 } else {
                                     selectedQuestions.insert(question.id)
+                                    print("🎯 [GESTURE DEBUG] Selected question")
                                 }
                             }
+                            print("🎯 [GESTURE DEBUG] ==========================================")
                         }) {
-                            renderQuestion(question, at: questionIndex)
-                                .padding()
+                            HStack(spacing: 0) {
+                                // Question content - disable hit testing so taps pass through to button
+                                renderQuestion(question, at: questionIndex)
+                                    .allowsHitTesting(false)
+                                    .padding()
+
+                                // Chevron indicator - makes it clear this is tappable
+                                if !isSelectionMode {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.secondary.opacity(0.5))
+                                        .padding(.trailing, 16)
+                                }
+                            }
                         }
                         .buttonStyle(PlainButtonStyle())
+                        .contentShape(Rectangle())  // ✅ Make entire card area tappable
+                        .simultaneousGesture(
+                            TapGesture()
+                                .onEnded { _ in
+                                    print("🟡 [GESTURE DEBUG] TapGesture detected (simultaneous)")
+                                }
+                        )
                     }
                     .background(DesignTokens.AdaptiveColors.cardBackground)
                     .cornerRadius(12)
@@ -655,8 +734,8 @@ struct QuestionListCard: View {
                         .cornerRadius(6)
                 }
 
-                // Question text - ✅ Use EnhancedMathText for LaTeX/math rendering
-                EnhancedMathText(question.question, fontSize: 14)
+                // Question text - ✅ Use SmartLaTeXView for proper LaTeX/MathJax rendering
+                SmartLaTeXView(question.question, fontSize: 14, colorScheme: colorScheme)
                     .multilineTextAlignment(.leading)
                     .lineLimit(3)
 
@@ -681,16 +760,17 @@ struct QuestionListCard: View {
                     }
                 }
 
-                // Preview of answer/explanation - ✅ Use EnhancedMathText for LaTeX support
+                // Preview of answer/explanation - ✅ Use SmartLaTeXView for proper LaTeX support
                 if !question.explanation.isEmpty {
                     HStack(spacing: 8) {
                         Image(systemName: "lightbulb.fill")
                             .font(.caption)
                             .foregroundColor(.yellow)
 
-                        EnhancedMathText(
+                        SmartLaTeXView(
                             String(question.explanation.prefix(80)) + (question.explanation.count > 80 ? "..." : ""),
-                            fontSize: 12
+                            fontSize: 12,
+                            colorScheme: colorScheme
                         )
                         .foregroundColor(.secondary)
                         .lineLimit(2)

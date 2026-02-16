@@ -6,6 +6,7 @@
 const { db, initializeDatabase } = require('../../utils/railway-database');
 const { authPreHandler } = require('../middleware/railway-auth');
 const PIIMasking = require('../../utils/pii-masking');
+const SessionHelper = require('./ai/utils/session-helper');
 
 // Initialize database once when module loads
 let dbInitialized = false;
@@ -25,6 +26,7 @@ async function ensureDbInitialized() {
 class ArchiveRoutes {
   constructor(fastify) {
     this.fastify = fastify;
+    this.sessionHelper = new SessionHelper(fastify);
     this.setupRoutes();
     this.initializeDB();
   }
@@ -607,7 +609,8 @@ class ArchiveRoutes {
       }
 
       const query = `
-        SELECT id, user_id, subject, topic, conversation_content, archived_date, created_at
+        SELECT id, user_id, subject, topic, conversation_content, archived_date, created_at,
+               title, summary, key_topics, learning_outcomes, message_count, duration_minutes
         FROM archived_conversations_new
         WHERE user_id = $1
         ORDER BY created_at DESC
@@ -626,7 +629,13 @@ class ArchiveRoutes {
           topic: row.topic,
           conversationContent: row.conversation_content,
           archivedDate: row.archived_date,
-          createdAt: row.created_at
+          createdAt: row.created_at,
+          title: row.title,
+          summary: row.summary,
+          keyTopics: row.key_topics,
+          learningOutcomes: row.learning_outcomes,
+          messageCount: row.message_count,
+          durationMinutes: row.duration_minutes
         }))
       });
 
@@ -691,12 +700,69 @@ class ArchiveRoutes {
         });
       }
 
-      // Insert conversation into database
+      // Parse conversation content into structured history
+      // iOS sends conversation as text, we need to parse it into message array
+      let conversationHistory = [];
+      try {
+        // Try to parse if it's JSON
+        const parsed = JSON.parse(conversationContent);
+        if (Array.isArray(parsed)) {
+          conversationHistory = parsed.map(msg => ({
+            message_type: msg.role || msg.message_type || (msg.sender === 'user' ? 'user' : 'assistant'),
+            message_text: msg.content || msg.message_text || msg.text || '',
+            tokens_used: msg.tokens_used || 0
+          }));
+        } else {
+          // If it's not an array, treat as single text block
+          conversationHistory = [{ message_type: 'assistant', message_text: conversationContent, tokens_used: 0 }];
+        }
+      } catch (parseError) {
+        // If not JSON, split by lines and try to parse as conversation
+        const lines = conversationContent.split('\n').filter(line => line.trim());
+        conversationHistory = lines.map(line => {
+          // Try to detect "Student:" or "AI:" prefixes
+          if (line.match(/^(Student|User):/i)) {
+            return { message_type: 'user', message_text: line.replace(/^(Student|User):\s*/i, ''), tokens_used: 0 };
+          } else if (line.match(/^(AI|Assistant|StudyAI):/i)) {
+            return { message_type: 'assistant', message_text: line.replace(/^(AI|Assistant|StudyAI):\s*/i, ''), tokens_used: 0 };
+          } else {
+            return { message_type: 'assistant', message_text: line, tokens_used: 0 };
+          }
+        });
+      }
+
+      this.fastify.log.info(`💬 Parsed ${conversationHistory.length} messages from conversation content`);
+
+      // Generate AI analysis using SessionHelper
+      let analysis;
+      try {
+        analysis = await this.sessionHelper.analyzeConversationForArchiving(
+          conversationHistory,
+          { subject: subject || 'general' }
+        );
+        this.fastify.log.info(`✨ Generated summary: "${analysis.summary}"`);
+      } catch (analysisError) {
+        this.fastify.log.error('💬 Analysis error, using basic summary:', analysisError);
+        // Fallback to basic analysis
+        analysis = {
+          summary: `${subject || 'General'} - interactive learning session`,
+          keyTopics: [subject || 'General Discussion'],
+          learningOutcomes: ['Interactive learning session completed'],
+          estimatedDuration: Math.ceil(conversationHistory.length * 0.5),
+          totalTokens: 0
+        };
+      }
+
+      // Generate title from summary or use default
+      const title = analysis.summary || `${subject || 'General'} Session`;
+
+      // Insert conversation into database with analysis
       const insertQuery = `
         INSERT INTO archived_conversations_new (
-          user_id, subject, topic, conversation_content, archived_date, created_at
-        ) VALUES ($1, $2, $3, $4, $5, NOW())
-        RETURNING id, user_id, subject, topic, archived_date, created_at
+          user_id, subject, topic, conversation_content, archived_date, created_at,
+          title, summary, key_topics, learning_outcomes, message_count, duration_minutes
+        ) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9, $10, $11)
+        RETURNING id, user_id, subject, topic, archived_date, created_at, title, summary, key_topics, learning_outcomes, message_count, duration_minutes
       `;
 
       const result = await db.query(insertQuery, [
@@ -704,7 +770,13 @@ class ArchiveRoutes {
         subject,
         topic,
         conversationContent,
-        archivedDate
+        archivedDate,
+        title,
+        analysis.summary,
+        JSON.stringify(analysis.keyTopics || []),
+        JSON.stringify(analysis.learningOutcomes || []),
+        conversationHistory.length,
+        analysis.estimatedDuration || Math.ceil(conversationHistory.length * 0.5)
       ]);
 
       const conversation = result.rows[0];
@@ -719,6 +791,12 @@ class ArchiveRoutes {
           userId: conversation.user_id,
           subject: conversation.subject,
           topic: conversation.topic,
+          title: conversation.title,
+          summary: conversation.summary,
+          keyTopics: conversation.key_topics,
+          learningOutcomes: conversation.learning_outcomes,
+          messageCount: conversation.message_count,
+          durationMinutes: conversation.duration_minutes,
           archivedDate: conversation.archived_date,
           createdAt: conversation.created_at
         }
