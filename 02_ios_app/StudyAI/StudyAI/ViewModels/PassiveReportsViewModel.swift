@@ -514,6 +514,30 @@ class PassiveReportsViewModel: ObservableObject {
         }
         print("✅ [PassiveReports] Token validation passed")
 
+        // CRITICAL: Sync local data to server BEFORE generating report
+        // This ensures all locally-stored questions and conversations are uploaded
+        // User has agreed to this sync requirement during onboarding
+        print("🔄 [PassiveReports] ===== SYNCING LOCAL DATA TO SERVER =====")
+        print("   Syncing questions, conversations, and progress data...")
+        do {
+            let syncResult = try await StorageSyncService.shared.syncAllToServer()
+            print("✅ [PassiveReports] Sync completed successfully")
+            print("   Questions: \(syncResult.questionsSynced) synced, \(syncResult.questionsDuplicates) duplicates")
+            print("   Conversations: \(syncResult.conversationsSynced) synced, \(syncResult.conversationsDuplicates) duplicates")
+            print("   Progress: \(syncResult.progressSynced ? "synced" : "skipped")")
+            print("   Total synced: \(syncResult.totalSynced) items")
+
+            if !syncResult.isSuccess {
+                print("⚠️ [PassiveReports] Sync completed with errors:")
+                syncResult.errors.forEach { print("   - \($0)") }
+            }
+        } catch {
+            print("❌ [PassiveReports] Sync failed: \(error.localizedDescription)")
+            print("   Proceeding with report generation using existing server data")
+            // Don't block report generation - user might have already synced manually
+        }
+        print("🔄 [PassiveReports] ===== SYNC COMPLETE ======")
+
         // IMPORTANT: Ensure token is fresh before long operation (can take 100+ seconds)
         await AuthenticationService.shared.ensureTokenFreshForLongOperation(
             operationName: "report generation (\(period))",
