@@ -107,8 +107,16 @@ class SessionHelper {
    * @returns {Promise<Object>} - Analysis results with summary, topics, etc.
    */
   async analyzeConversationForArchiving(conversationHistory, sessionInfo) {
+    this.fastify.log.info(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    this.fastify.log.info(`🤖 [AI ANALYSIS] Starting conversation analysis for archiving`);
+    this.fastify.log.info(`   • Subject: ${sessionInfo.subject || 'general'}`);
+    this.fastify.log.info(`   • Message count: ${conversationHistory.length}`);
+    this.fastify.log.info(`   • OpenAI API Key present: ${!!process.env.OPENAI_API_KEY}`);
+    this.fastify.log.info(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+
     try {
       if (!process.env.OPENAI_API_KEY) {
+        this.fastify.log.warn(`⚠️ [AI ANALYSIS] OpenAI API key not configured - using basic analysis`);
         const basicAnalysis = this.generateBasicAnalysis(conversationHistory, sessionInfo);
         return { ...basicAnalysis, embedding: null };
       }
@@ -125,7 +133,13 @@ class SessionHelper {
         totalTokens += msg.tokens_used || 0;
       });
 
+      this.fastify.log.info(`📝 [AI ANALYSIS] Built conversation text:`);
+      this.fastify.log.info(`   • Length: ${conversationText.length} characters`);
+      this.fastify.log.info(`   • Total tokens: ${totalTokens}`);
+      this.fastify.log.info(`   • Preview: ${conversationText.substring(0, 200)}...`);
+
       // Generate both analysis and embedding in parallel
+      this.fastify.log.info(`🔄 [AI ANALYSIS] Calling OpenAI API...`);
       const [analysisCompletion, embeddingResponse] = await Promise.all([
         client.chat.completions.create({
           model: 'gpt-4o-mini',
@@ -163,9 +177,23 @@ Summary guidelines:
         })
       ]);
 
+      this.fastify.log.info(`✅ [AI ANALYSIS] OpenAI API call successful`);
+      this.fastify.log.info(`   • Analysis response received: ${!!analysisCompletion.choices[0]?.message?.content}`);
+      this.fastify.log.info(`   • Embedding received: ${!!embeddingResponse.data[0]?.embedding}`);
+
       try {
-        const analysis = JSON.parse(analysisCompletion.choices[0]?.message?.content || '{}');
+        const rawContent = analysisCompletion.choices[0]?.message?.content || '{}';
+        this.fastify.log.info(`📄 [AI ANALYSIS] Parsing response: ${rawContent.substring(0, 300)}...`);
+
+        const analysis = JSON.parse(rawContent);
         const embedding = embeddingResponse.data[0]?.embedding;
+
+        this.fastify.log.info(`✨ [AI ANALYSIS] Successfully parsed analysis:`);
+        this.fastify.log.info(`   • Summary: "${analysis.summary}"`);
+        this.fastify.log.info(`   • Key Topics: ${JSON.stringify(analysis.keyTopics)}`);
+        this.fastify.log.info(`   • Learning Outcomes: ${JSON.stringify(analysis.learningOutcomes)}`);
+        this.fastify.log.info(`   • Duration: ${analysis.estimatedDuration} minutes`);
+        this.fastify.log.info(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
         return {
           summary: analysis.summary || 'Conversation analysis unavailable',
@@ -177,13 +205,24 @@ Summary guidelines:
         };
       } catch (parseError) {
         // Fallback if JSON parsing fails but keep embedding
+        this.fastify.log.error(`❌ [AI ANALYSIS] JSON parsing failed:`, parseError);
+        this.fastify.log.info(`   • Raw content: ${analysisCompletion.choices[0]?.message?.content}`);
         const embedding = embeddingResponse.data[0]?.embedding;
         const basicAnalysis = this.generateBasicAnalysis(conversationHistory, sessionInfo, totalTokens);
+        this.fastify.log.warn(`⚠️ [AI ANALYSIS] Using basic analysis due to parse error`);
         return { ...basicAnalysis, embedding: embedding || null };
       }
     } catch (error) {
-      this.fastify.log.error('Conversation analysis error:', error);
+      this.fastify.log.error('❌ [AI ANALYSIS] Conversation analysis error:', error);
+      this.fastify.log.error(`   • Error type: ${error.constructor.name}`);
+      this.fastify.log.error(`   • Error message: ${error.message}`);
+      if (error.response) {
+        this.fastify.log.error(`   • API response status: ${error.response.status}`);
+        this.fastify.log.error(`   • API response data: ${JSON.stringify(error.response.data)}`);
+      }
       const basicAnalysis = this.generateBasicAnalysis(conversationHistory, sessionInfo);
+      this.fastify.log.warn(`⚠️ [AI ANALYSIS] Using basic analysis due to API error`);
+      this.fastify.log.info(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
       return { ...basicAnalysis, embedding: null };
     }
   }
