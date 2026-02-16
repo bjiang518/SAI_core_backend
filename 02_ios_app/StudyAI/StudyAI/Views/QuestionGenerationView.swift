@@ -1098,22 +1098,25 @@ struct ArchiveBasedConfig: View {
                         Spacer()
 
                         Button(action: onShowSelection) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "list.bullet")
-                                    .font(.caption)
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.title3)
                                 Text(NSLocalizedString("common.select", comment: ""))
-                                    .font(.caption)
-                                    .fontWeight(.medium)
+                                    .font(.body)
+                                    .fontWeight(.semibold)
                             }
-                            .foregroundColor(.green)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.green.opacity(0.1))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.blue, Color.blue.opacity(0.8)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
                             )
+                            .cornerRadius(12)
+                            .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
@@ -1338,6 +1341,23 @@ struct ArchiveSelectionView: View {
     @Binding var selectedQuestions: Set<String>
     @Environment(\.dismiss) private var dismiss
 
+    // ✅ NEW: Filter state for switching between conversations and questions
+    enum ArchiveFilter: String, CaseIterable {
+        case all = "All"
+        case conversations = "Conversations"
+        case questions = "Questions"
+
+        var localizedName: String {
+            switch self {
+            case .all: return NSLocalizedString("questionGeneration.filter.all", value: "All", comment: "")
+            case .conversations: return NSLocalizedString("questionGeneration.filter.conversations", value: "Conversations", comment: "")
+            case .questions: return NSLocalizedString("questionGeneration.filter.questions", value: "Questions", comment: "")
+            }
+        }
+    }
+
+    @State private var selectedFilter: ArchiveFilter = .all
+
     var body: some View {
         NavigationView {
             VStack {
@@ -1358,6 +1378,16 @@ struct ArchiveSelectionView: View {
                     }
                     .padding()
                 } else {
+                    // ✅ NEW: Filter picker
+                    Picker("Archive Type", selection: $selectedFilter) {
+                        ForEach(ArchiveFilter.allCases, id: \.self) { filter in
+                            Text(filter.localizedName).tag(filter)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
                     // Selection Controls
                     HStack {
                         Button(action: {
@@ -1393,7 +1423,8 @@ struct ArchiveSelectionView: View {
 
                     // Archive List
                     List {
-                        if !conversations.isEmpty {
+                        // ✅ NEW: Show conversations only if filter allows
+                        if (selectedFilter == .all || selectedFilter == .conversations) && !conversations.isEmpty {
                             Section(NSLocalizedString("questionGeneration.conversations", comment: "")) {
                                 ForEach(conversations.indices, id: \.self) { index in
                                     let conversation = conversations[index]
@@ -1415,7 +1446,8 @@ struct ArchiveSelectionView: View {
                             }
                         }
 
-                        if !questions.isEmpty {
+                        // ✅ NEW: Show questions only if filter allows
+                        if (selectedFilter == .all || selectedFilter == .questions) && !questions.isEmpty {
                             Section(NSLocalizedString("questionGeneration.questions", comment: "")) {
                                 ForEach(questions) { question in
                                     ArchiveQuestionSelectionCard(
@@ -1437,7 +1469,7 @@ struct ArchiveSelectionView: View {
                 }
             }
             .navigationTitle(NSLocalizedString("questionGeneration.selectArchives", comment: ""))
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(NSLocalizedString("common.cancel", comment: "")) {
@@ -1458,9 +1490,19 @@ struct ArchiveSelectionView: View {
 
     // MARK: - Helper Functions
 
-    /// Extract conversation preview (first user message) similar to library view
+    /// Extract conversation preview using AI-generated summary (like LibraryView)
     private func extractConversationPreview(from conversation: [String: Any]) -> String {
-        // Try to extract from messages array first
+        // ✅ Priority 1: Use AI-generated summary (like LibraryView does)
+        if let summary = conversation["summary"] as? String, !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return summary
+        }
+
+        // ✅ Priority 2: Use title if available
+        if let title = conversation["title"] as? String, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return title
+        }
+
+        // Priority 3: Try to extract from messages array
         if let messages = conversation["messages"] as? [[String: Any]], !messages.isEmpty {
             for message in messages {
                 let role = message["role"] as? String ?? ""
