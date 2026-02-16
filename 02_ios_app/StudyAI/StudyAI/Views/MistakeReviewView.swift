@@ -1676,9 +1676,18 @@ struct PracticeQuestionsView: View {
 
         print("📊 [MarkProgress] Marking progress for \(questions.count) practice questions")
 
+        // Count correct/incorrect for daily progress
+        var correctCount = 0
+        var totalCount = 0
+
         // Update ShortTermStatusService based on correctness
         for question in questions {
             guard let gradeResult = gradedQuestions[question.id] else { continue }
+
+            totalCount += 1
+            if gradeResult.isCorrect {
+                correctCount += 1
+            }
 
             // Get error keys from the question (if available)
             if let baseBranch = question.baseBranch,
@@ -1709,7 +1718,50 @@ struct PracticeQuestionsView: View {
             }
         }
 
+        // ✅ NEW: Update daily progress counters (like random practice should do)
+        if totalCount > 0 {
+            print("📊 [MarkProgress] Updating daily progress: \(correctCount)/\(totalCount) questions for \(subject)")
+
+            // Update local progress counters
+            PointsEarningSystem.shared.markHomeworkProgress(
+                subject: subject,
+                numberOfQuestions: totalCount,
+                numberOfCorrectQuestions: correctCount
+            )
+
+            // Sync with backend
+            Task {
+                await syncDailyProgressWithBackend()
+            }
+        }
+
         print("✅ [MarkProgress] Progress marked successfully")
+    }
+
+    /// Sync daily progress with backend
+    private func syncDailyProgressWithBackend() async {
+        print("🔄 [MarkProgress] Syncing daily progress with backend...")
+
+        guard let userId = await MainActor.run({ AuthenticationService.shared.currentUser?.id }) else {
+            print("❌ [MarkProgress] User not authenticated, skipping sync")
+            return
+        }
+
+        guard let todayProgress = await MainActor.run({ PointsEarningSystem.shared.todayProgress }) else {
+            print("❌ [MarkProgress] No progress data to sync")
+            return
+        }
+
+        let result = await NetworkService.shared.syncDailyProgress(
+            userId: userId,
+            dailyProgress: todayProgress
+        )
+
+        if result.success {
+            print("✅ [MarkProgress] Daily progress synced successfully")
+        } else {
+            print("❌ [MarkProgress] Failed to sync daily progress: \(result.message ?? "Unknown error")")
+        }
     }
 
     // MARK: - PDF Export
