@@ -563,9 +563,35 @@ class PassiveReportsViewModel: ObservableObject {
             print("🧪 [PassiveReports] Auth token: \(token != nil ? "✅ Present (refreshed if needed)" : "❌ Missing")")
             print("🧪 [PassiveReports] Timeout: 180 seconds")
 
+            // CRITICAL: Ensure refresh happens even if there are errors
+            var shouldRefresh = false
+            defer {
+                if shouldRefresh {
+                    print("🔄 [PassiveReports] DEFER: Triggering refresh after generation attempt")
+                    Task {
+                        print("🔄 [PassiveReports] DEFER: Forcing refresh coordinator to bypass debounce...")
+                        refreshCoordinator.forceRefresh()
+                        print("🔄 [PassiveReports] DEFER: Loading all batches...")
+                        await loadAllBatches()
+                        print("✅ [PassiveReports] DEFER: Post-generation refresh complete")
+                        print("   Weekly batches: \(weeklyBatches.count)")
+                        print("   Monthly batches: \(monthlyBatches.count)")
+                    }
+                }
+            }
+
             let (data, response) = try await URLSession.shared.data(for: request)
 
+            print("📥 [PassiveReports] Response received from server")
+            print("   Response time: ~\((Date().timeIntervalSince1970 * 1000).rounded())ms since request")
+
+            // CRITICAL: Set flag to trigger refresh in defer block
+            // This ensures refresh happens even if JSON parsing fails
+            shouldRefresh = true
+            print("✅ [PassiveReports] Refresh flag set - defer block will execute refresh")
+
             guard let httpResponse = response as? HTTPURLResponse else {
+                print("❌ [PassiveReports] Invalid response type")
                 throw NSError(domain: "PassiveReportsViewModel", code: -1,
                              userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
             }
@@ -586,13 +612,21 @@ class PassiveReportsViewModel: ObservableObject {
                              userInfo: [NSLocalizedDescriptionKey: "Server returned status \(httpResponse.statusCode)"])
             }
 
+            print("🔍 [PassiveReports] Parsing JSON response...")
             let result = try JSONDecoder().decode(GenerationResponse.self, from: data)
+            print("✅ [PassiveReports] JSON decoded successfully")
+            print("   Batch ID: \(result.batchId)")
+            print("   Report count: \(result.reportCount)")
+            print("   Generation time: \(result.generationTimeMs)ms")
 
             isGenerating = false
 
             print("✅ [PassiveReports] Manual generation complete: \(result.reportCount) reports in \(result.generationTimeMs)ms")
             print("✅ [PassiveReports] Batch ID: \(result.batchId)")
-            print("🔄 [PassiveReports] FORCE reloading batches to show new report...")
+            print("🔄 [PassiveReports] EXPLICIT refresh (defer will be skipped)...")
+
+            // Disable defer refresh since we're doing explicit refresh
+            shouldRefresh = false
 
             // CRITICAL FIX: Force refresh BEFORE sending notification
             // The notification will trigger another loadAllBatches() call from the View
@@ -611,7 +645,7 @@ class PassiveReportsViewModel: ObservableObject {
             print("🔄 [PassiveReports] Loading all batches...")
             await loadAllBatches()
 
-            print("✅ [PassiveReports] Post-generation refresh complete")
+            print("✅ [PassiveReports] Explicit refresh complete")
             print("   Weekly batches: \(weeklyBatches.count)")
             print("   Monthly batches: \(monthlyBatches.count)")
 
