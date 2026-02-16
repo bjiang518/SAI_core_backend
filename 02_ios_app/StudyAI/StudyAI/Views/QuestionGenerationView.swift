@@ -1110,13 +1110,13 @@ struct ArchiveBasedConfig: View {
                             .padding(.vertical, 12)
                             .background(
                                 LinearGradient(
-                                    colors: [Color.blue, Color.blue.opacity(0.8)],
+                                    colors: [Color(red: 0.0, green: 0.5, blue: 0.0), Color(red: 0.0, green: 0.4, blue: 0.0)],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
                             )
                             .cornerRadius(12)
-                            .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
+                            .shadow(color: Color(red: 0.0, green: 0.5, blue: 0.0).opacity(0.3), radius: 4, x: 0, y: 2)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
