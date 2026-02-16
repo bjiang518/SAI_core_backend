@@ -249,8 +249,39 @@ Focus on the student's question or the main concept being taught.`
    * @returns {Object} - Basic analysis
    */
   generateBasicAnalysis(conversationHistory, sessionInfo, totalTokens = 0) {
+    this.fastify.log.warn(`⚠️ [FALLBACK] Generating basic analysis without OpenAI`);
+    this.fastify.log.info(`   • Message count: ${conversationHistory.length}`);
+
+    // ✅ TRY TO EXTRACT MEANINGFUL SUMMARY FROM CONVERSATION
+    let summary = `${sessionInfo.subject || 'General'} - interactive learning session`;
+
+    try {
+      // Get first user message (student's initial question)
+      const firstUserMessage = conversationHistory.find(msg => msg.message_type === 'user');
+
+      if (firstUserMessage && firstUserMessage.message_text) {
+        const questionText = firstUserMessage.message_text.trim();
+
+        // Extract first 10 words from user's question
+        const words = questionText.split(/\s+/).slice(0, 10);
+        const shortQuestion = words.join(' ');
+
+        // Create summary from actual question
+        if (shortQuestion.length > 10) {
+          summary = shortQuestion + (words.length >= 10 ? '...' : '');
+          this.fastify.log.info(`   ✅ Created summary from user question: "${summary}"`);
+        } else {
+          this.fastify.log.warn(`   ⚠️ User question too short, using generic summary`);
+        }
+      } else {
+        this.fastify.log.warn(`   ⚠️ No user messages found, using generic summary`);
+      }
+    } catch (error) {
+      this.fastify.log.error(`   ❌ Error extracting summary: ${error.message}`);
+    }
+
     return {
-      summary: `${sessionInfo.subject || 'General'} - interactive learning session`,
+      summary: summary,
       keyTopics: [sessionInfo.subject || 'General Discussion'],
       learningOutcomes: ['Interactive learning session completed'],
       estimatedDuration: Math.ceil(conversationHistory.length * 0.5), // Estimate 30 seconds per message
