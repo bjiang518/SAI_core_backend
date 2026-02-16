@@ -776,9 +776,8 @@ struct LibraryItemRow: View {
                     .cornerRadius(8)
             }
 
-            // Enhanced preview content (more solid text color)
-            Text(item.preview)
-                .font(.subheadline)
+            // Enhanced preview content (more solid text color) with LaTeX support
+            SmartMathRenderer(item.preview, fontSize: 15)
                 .foregroundColor(.primary)  // ✅ Changed to primary for better readability
                 .lineLimit(3)
 
