@@ -147,7 +147,7 @@ class SessionHelper {
             {
               role: 'system',
               content: `You are an AI assistant that analyzes educational conversations. Extract:
-1. A concise summary (max 15 words) that captures the SPECIFIC conversation content
+1. A concise summary (max 10 words) that captures the SPECIFIC conversation content
 2. Key topics discussed (as array)
 3. Learning outcomes achieved (as array)
 4. Estimated conversation duration in minutes
@@ -155,24 +155,26 @@ class SessionHelper {
 Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes": [...], "estimatedDuration": number}
 
 Summary guidelines:
-- Max 15 words
-- Extract the ACTUAL user question/topic from the conversation, not generic descriptions
-- Be specific about what was discussed/asked
-- AVOID generic phrases like "interactive learning session", "Q&A session", "discussion"
+- Max 10 words, be direct and concise
+- Start immediately with the topic/concept - NO introductory phrases
+- REMOVE words like "Student asked", "Explaining", "Solving", "Understanding", "Help with"
+- Just state the CORE TOPIC directly
 
-Good examples:
-- "Student asked for math joke about equal signs"
-- "Explaining photosynthesis process and ATP production"
-- "Solving quadratic equations using factoring method"
-- "Understanding grammar: difference between their/there/they're"
-- "Help with Python for loop syntax errors"
+Good examples (direct and concise):
+- "Math joke about equal signs"
+- "Photosynthesis process and ATP production"
+- "Quadratic equations using factoring method"
+- "Grammar: difference between their/there/they're"
+- "Python for loop syntax errors"
+- "Chemical question about gas law"
 
-Bad examples (too generic):
-- "Math - interactive learning session" ❌
-- "General - Q&A session" ❌
-- "Discussion about science" ❌
+Bad examples (too wordy or generic):
+- "Student asked for math joke about equal signs" ❌ (remove "Student asked")
+- "Explaining photosynthesis process" ❌ (remove "Explaining")
+- "Math - interactive learning session" ❌ (too generic)
+- "General - Q&A session" ❌ (too generic)
 
-Focus on the student's question or the main concept being taught.`
+Be direct: state the topic, not the action.`
             },
             {
               role: 'user',
