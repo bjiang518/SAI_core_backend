@@ -1874,6 +1874,14 @@ struct PracticeQuestionCard: View {
     @State private var selectedOption: String = ""
     @State private var isSubmitting: Bool = false
 
+    // ✅ NEW: Archive and follow-up state
+    @State private var isArchiving: Bool = false
+    @State private var isArchived: Bool = false
+    @State private var showingArchiveSuccess: Bool = false
+
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+
     private var isGraded: Bool {
         gradeResult != nil
     }
@@ -2133,6 +2141,70 @@ struct PracticeQuestionCard: View {
                             .background(result.wasInstantGraded ? Color.yellow.opacity(0.05) : Color.purple.opacity(0.05))
                             .cornerRadius(8)
                         }
+
+                        // ✅ NEW: Action buttons (Archive + Follow-up)
+                        VStack(spacing: 12) {
+                            // Archive button
+                            Button(action: archiveQuestion) {
+                                HStack(spacing: 8) {
+                                    if isArchiving {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                            .scaleEffect(0.8)
+                                    } else if isArchived {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.body)
+                                        Text("Archived")
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                    } else {
+                                        Image(systemName: "books.vertical.fill")
+                                            .font(.body)
+                                        Text("Archive Question")
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(
+                                    LinearGradient(
+                                        colors: isArchived ?
+                                            [Color.green, Color.green.opacity(0.8)] :
+                                            [Color.purple, Color.purple.opacity(0.8)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .cornerRadius(12)
+                            }
+                            .disabled(isArchiving || isArchived)
+
+                            // Follow-up button
+                            Button(action: askAIForHelp) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                                        .font(.body)
+                                    Text("Follow up")
+                                        .font(.body)
+                                        .fontWeight(.semibold)
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color.orange, Color.orange.opacity(0.8)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .cornerRadius(12)
+                                .shadow(color: Color.orange.opacity(0.3), radius: 8, x: 0, y: 4)
+                            }
+                        }
+                        .padding(.top, 8)
                     }
                     .onAppear {
                         #if DEBUG
@@ -2163,6 +2235,11 @@ struct PracticeQuestionCard: View {
             // Reset submitting state when grade result arrives
             isSubmitting = false
         }
+        .alert("Question Archived", isPresented: $showingArchiveSuccess) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("This practice question has been saved to your archive for future review.")
+        }
     }
 
     private var isSubmitDisabled: Bool {
@@ -2176,6 +2253,79 @@ struct PracticeQuestionCard: View {
         default:
             return answerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
+    }
+
+    // MARK: - Archive and Follow-up Actions
+
+    /// Archive the answered question to local storage
+    private func archiveQuestion() {
+        guard gradeResult != nil else { return }
+
+        isArchiving = true
+
+        print("📚 [Archive] Starting archive for mistake practice question: \(question.question.prefix(50))...")
+
+        Task {
+            // Build question data for archiving
+            let questionData: [String: Any] = [
+                "id": UUID().uuidString,
+                "subject": subject,
+                "questionText": question.question,
+                "rawQuestionText": question.question,
+                "answerText": question.correctAnswer,
+                "confidence": 1.0,
+                "hasVisualElements": false,
+                "archivedAt": ISO8601DateFormatter().string(from: Date()),
+                "reviewCount": 0,
+                "tags": question.tags ?? [],
+                "notes": "",
+                "studentAnswer": currentAnswer,
+                "grade": isCorrect ? "CORRECT" : "INCORRECT",
+                "points": isCorrect ? (question.points ?? 1) : 0,
+                "maxPoints": question.points ?? 1,
+                "feedback": gradeResult?.feedback ?? "",
+                "isGraded": true,
+                "isCorrect": isCorrect,
+                // ✅ Include error keys for short-term status tracking
+                "errorType": question.errorType as Any,
+                "baseBranch": question.baseBranch as Any,
+                "detailedBranch": question.detailedBranch as Any,
+                "weaknessKey": question.weaknessKey as Any
+            ]
+
+            print("📚 [Archive] Archive data - Subject: \(subject), Correct: \(isCorrect)")
+
+            // Save to local storage
+            _ = QuestionLocalStorage.shared.saveQuestions([questionData])
+
+            await MainActor.run {
+                isArchiving = false
+                isArchived = true
+                showingArchiveSuccess = true
+                print("📚 [Archive] ✅ Mistake practice question archived successfully")
+            }
+        }
+    }
+
+    /// Open AI chat with question context
+    private func askAIForHelp() {
+        // Construct user message for AI
+        let userMessage = """
+I need help understanding this question from my mistake practice:
+
+Question: \(question.question)
+
+My answer was: \(currentAnswer)
+
+Can you help me understand this better and explain the solution?
+"""
+
+        // Navigate to chat with question context and deep mode for first message
+        appState.navigateToChatWithMessage(userMessage, subject: subject, useDeepMode: true)
+
+        // Haptic feedback
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
     }
 }
 
