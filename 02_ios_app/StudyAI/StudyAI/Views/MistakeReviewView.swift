@@ -1724,7 +1724,7 @@ struct PracticeQuestionsView: View {
 
             // Update local progress counters only
             // Backend sync happens manually via Settings or automatic schedule
-            PointsEarningSystem.shared.markHomeworkProgress(
+            PointsEarningManager.shared.markHomeworkProgress(
                 subject: subject,
                 numberOfQuestions: totalCount,
                 numberOfCorrectQuestions: correctCount
