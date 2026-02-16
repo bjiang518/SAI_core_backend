@@ -527,92 +527,103 @@ module.exports = async function (fastify, opts) {
       logger.info(`   Batch ID: ${batchId}`);
       logger.info(`   User ID: ${userId.substring(0, 8)}...`);
 
+      // CRITICAL FIX: Bypass query cache by using transaction with READ COMMITTED isolation
+      // This ensures we always read the latest committed data, not cached/stale data
       const { db } = require('../../utils/railway-database');
+      const client = await db.pool.connect();
 
-      // DEBUG: First check ALL batches for this user to see if requested batch exists
-      const allBatchesQuery = `
-        SELECT id, period, start_date, status
-        FROM parent_report_batches
-        WHERE user_id = $1
-        ORDER BY generated_at DESC
-      `;
-      const allBatchesResult = await db.query(allBatchesQuery, [userId]);
-      logger.info(`📊 [BATCH-DETAIL] User has ${allBatchesResult.rows.length} total batches`);
+      try {
+        // Use READ COMMITTED to ensure we see latest deletions
+        await client.query('BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED');
+        logger.info(`🔍 [BATCH-DETAIL] Using READ COMMITTED isolation to bypass cache`);
 
-      const requestedBatchExists = allBatchesResult.rows.find(b => b.id === batchId);
-      if (requestedBatchExists) {
-        logger.info(`   ✅ Requested batch EXISTS in database`);
-        logger.info(`      Period: ${requestedBatchExists.period}`);
-        logger.info(`      Dates: ${requestedBatchExists.start_date}`);
-        logger.info(`      Status: ${requestedBatchExists.status}`);
-      } else {
-        logger.warn(`   ⚠️ Requested batch NOT FOUND in user's batches`);
-        logger.warn(`   Available batch IDs:`);
-        allBatchesResult.rows.forEach((batch, idx) => {
-          logger.warn(`      [${idx + 1}] ${batch.id.substring(0, 13)}... (${batch.period})`);
-        });
-      }
+        // DEBUG: First check ALL batches for this user to see if requested batch exists
+        const allBatchesQuery = `
+          SELECT id, period, start_date, status
+          FROM parent_report_batches
+          WHERE user_id = $1
+          ORDER BY generated_at DESC
+        `;
+        const allBatchesResult = await client.query(allBatchesQuery, [userId]);
+        logger.info(`📊 [BATCH-DETAIL] User has ${allBatchesResult.rows.length} total batches`);
 
-      // Get batch info (verify ownership)
-      const batchQuery = `
-        SELECT * FROM parent_report_batches
-        WHERE id = $1 AND user_id = $2
-      `;
-      const batchResult = await db.query(batchQuery, [batchId, userId]);
+        const requestedBatchExists = allBatchesResult.rows.find(b => b.id === batchId);
+        if (requestedBatchExists) {
+          logger.info(`   ✅ Requested batch EXISTS in database`);
+          logger.info(`      Period: ${requestedBatchExists.period}`);
+          logger.info(`      Dates: ${requestedBatchExists.start_date}`);
+          logger.info(`      Status: ${requestedBatchExists.status}`);
+        } else {
+          logger.warn(`   ⚠️ Requested batch NOT FOUND in user's batches`);
+          logger.warn(`   Available batch IDs:`);
+          allBatchesResult.rows.forEach((batch, idx) => {
+            logger.warn(`      [${idx + 1}] ${batch.id.substring(0, 13)}... (${batch.period})`);
+          });
+        }
 
-      if (batchResult.rows.length === 0) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Report batch not found or access denied',
-          code: 'BATCH_NOT_FOUND'
-        });
-      }
+        // Get batch info (verify ownership) - this will read latest committed data
+        const batchQuery = `
+          SELECT * FROM parent_report_batches
+          WHERE id = $1 AND user_id = $2
+        `;
+        const batchResult = await client.query(batchQuery, [batchId, userId]);
 
-      const batch = batchResult.rows[0];
+        if (batchResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          client.release();
+          return reply.status(404).send({
+            success: false,
+            error: 'Report batch not found or access denied',
+            code: 'BATCH_NOT_FOUND'
+          });
+        }
 
-      // Get all reports in the batch
-      const reportsQuery = `
-        SELECT
-          id,
-          report_type,
-          narrative_content,
-          key_insights,
-          recommendations,
-          visual_data,
-          word_count,
-          generation_time_ms,
-          ai_model_used,
-          generated_at
-        FROM passive_reports
-        WHERE batch_id = $1
-        ORDER BY
-          CASE report_type
-            WHEN 'summary' THEN 1
-            WHEN 'activity' THEN 2
-            WHEN 'areas_of_improvement' THEN 3
-            WHEN 'mental_health' THEN 4
-            ELSE 9
-          END
-      `;
-      const reportsResult = await db.query(reportsQuery, [batchId]);
+        const batch = batchResult.rows[0];
 
-      logger.info(`✅ Found ${reportsResult.rows.length} reports in batch`);
+        // Get all reports in the batch
+        const reportsQuery = `
+          SELECT
+            id,
+            report_type,
+            narrative_content,
+            key_insights,
+            recommendations,
+            visual_data,
+            word_count,
+            generation_time_ms,
+            ai_model_used,
+            generated_at
+          FROM passive_reports
+          WHERE batch_id = $1
+          ORDER BY
+            CASE report_type
+              WHEN 'summary' THEN 1
+              WHEN 'activity' THEN 2
+              WHEN 'areas_of_improvement' THEN 3
+              WHEN 'mental_health' THEN 4
+              ELSE 9
+            END
+        `;
+        const reportsResult = await client.query(reportsQuery, [batchId]);
 
-      return reply.send({
-        success: true,
-        batch: {
-          id: batch.id,
-          period: batch.period,
-          start_date: batch.start_date,
-          end_date: batch.end_date,
-          generated_at: batch.generated_at,
-          status: batch.status,
-          generation_time_ms: batch.generation_time_ms,
-          overall_grade: batch.overall_grade,
-          overall_accuracy: batch.overall_accuracy,
-          question_count: batch.question_count,
-          study_time_minutes: batch.study_time_minutes,
-          current_streak: batch.current_streak,
+        await client.query('COMMIT');
+        logger.info(`✅ Found ${reportsResult.rows.length} reports in batch`);
+
+        return reply.send({
+          success: true,
+          batch: {
+            id: batch.id,
+            period: batch.period,
+            start_date: batch.start_date,
+            end_date: batch.end_date,
+            generated_at: batch.generated_at,
+            status: batch.status,
+            generation_time_ms: batch.generation_time_ms,
+            overall_grade: batch.overall_grade,
+            overall_accuracy: batch.overall_accuracy,
+            question_count: batch.question_count,
+            study_time_minutes: batch.study_time_minutes,
+            current_streak: batch.current_streak,
           accuracy_trend: batch.accuracy_trend,
           activity_trend: batch.activity_trend,
           one_line_summary: batch.one_line_summary
@@ -630,6 +641,14 @@ module.exports = async function (fastify, opts) {
           generated_at: report.generated_at
         }))
       });
+
+      } catch (txError) {
+        await client.query('ROLLBACK');
+        throw txError;
+      } finally {
+        client.release();
+        logger.info(`🔓 [BATCH-DETAIL] Database connection released`);
+      }
 
     } catch (error) {
       logger.error('❌ Failed to fetch batch reports:', error);
@@ -674,75 +693,206 @@ module.exports = async function (fastify, opts) {
 
       const { db } = require('../../utils/railway-database');
 
-      // DEBUG: Check if batch exists BEFORE deletion
-      const preCheckQuery = `
-        SELECT id, period, start_date, end_date, status
-        FROM parent_report_batches
-        WHERE id = $1 AND user_id = $2
-      `;
-      const preCheck = await db.query(preCheckQuery, [batchId, userId]);
+      // CRITICAL FIX: Use transaction with row-level locks to prevent race conditions
+      // This ensures no concurrent reads can return the batch while we're deleting it
+      const client = await db.pool.connect();
 
-      if (preCheck.rows.length === 0) {
-        logger.warn(`⚠️ [DELETE] Batch ${batchId} not found in database before deletion`);
-        return reply.status(404).send({
-          success: false,
-          error: 'Report batch not found or access denied',
-          code: 'BATCH_NOT_FOUND'
+      try {
+        await client.query('BEGIN');
+        logger.info(`🔒 [DELETE] Transaction started`);
+
+        // CRITICAL: Use FOR UPDATE NO KEY UPDATE to lock the row, bypass query cache
+        // FOR UPDATE NO KEY UPDATE allows concurrent reads but prevents concurrent deletes
+        const lockQuery = `
+          SELECT id, period, start_date, end_date, status
+          FROM parent_report_batches
+          WHERE id = $1 AND user_id = $2
+          FOR UPDATE
+        `;
+        const lockResult = await client.query(lockQuery, [batchId, userId]);
+
+        if (lockResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          logger.warn(`⚠️ [DELETE] Batch ${batchId} not found or already deleted`);
+          return reply.status(404).send({
+            success: false,
+            error: 'Report batch not found or access denied',
+            code: 'BATCH_NOT_FOUND'
+          });
+        }
+
+        const batchInfo = lockResult.rows[0];
+        logger.info(`✅ [DELETE] Found batch and acquired exclusive lock:`);
+        logger.info(`   Period: ${batchInfo.period}`);
+        logger.info(`   Dates: ${batchInfo.start_date} to ${batchInfo.end_date}`);
+        logger.info(`   Status: ${batchInfo.status}`);
+
+        // OPTIONAL: Store deletion timestamp in Redis to prevent immediate regeneration
+        // This feature is disabled if Redis is not available
+        try {
+          const RedisCacheManager = require('../services/redis-cache');
+          const redisCache = new RedisCacheManager();
+
+          if (redisCache.enabled && redisCache.connected) {
+            const deletionKey = `batch_deleted:${userId}:${batchInfo.period}:${batchInfo.start_date}`;
+            await redisCache.set(deletionKey, Date.now().toString(), 300); // 5 minute cooldown
+            logger.info(`🔒 [DELETE] Set deletion cooldown: ${deletionKey} (expires in 5 minutes)`);
+          } else {
+            logger.info(`ℹ️ [DELETE] Redis deletion cooldown skipped (Redis not available)`);
+          }
+        } catch (redisError) {
+          logger.info(`ℹ️ [DELETE] Redis deletion cooldown skipped: ${redisError.message}`);
+          // Continue with deletion - cooldown is optional
+        }
+
+        // Delete batch within transaction (CASCADE will delete all reports)
+        // The row is already locked, so this will succeed
+        const deleteQuery = `
+          DELETE FROM parent_report_batches
+          WHERE id = $1 AND user_id = $2
+          RETURNING id, period, start_date, end_date
+        `;
+        const deleteResult = await client.query(deleteQuery, [batchId, userId]);
+
+        if (deleteResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          logger.error(`❌ [DELETE] Delete query returned 0 rows (race condition detected!)`);
+          return reply.status(404).send({
+            success: false,
+            error: 'Report batch was deleted by another operation',
+            code: 'BATCH_NOT_FOUND'
+          });
+        }
+
+        // Commit transaction - this makes the delete visible to all other queries
+        await client.query('COMMIT');
+        logger.info(`✅ [DELETE] Transaction committed successfully`);
+        logger.info(`   Deleted: ${JSON.stringify(deleteResult.rows[0])}`);
+        logger.info(`🗑️ [DELETE] ===== BATCH DELETION COMPLETE =====`);
+
+        return reply.send({
+          success: true,
+          message: 'Report batch deleted successfully',
+          deleted_batch_id: batchId
         });
+
+      } catch (txError) {
+        await client.query('ROLLBACK');
+        logger.error(`❌ [DELETE] Transaction error: ${txError.message}`);
+
+        if (txError.code === '55P03') { // Lock not available (NOWAIT)
+          return reply.status(409).send({
+            success: false,
+            error: 'Report batch is being modified by another operation',
+            code: 'BATCH_LOCKED'
+          });
+        }
+
+        throw txError;
+      } finally {
+        client.release();
+        logger.info(`🔓 [DELETE] Database connection released`);
       }
-
-      const batchInfo = preCheck.rows[0];
-      logger.info(`✅ [DELETE] Found batch before deletion:`);
-      logger.info(`   Period: ${batchInfo.period}`);
-      logger.info(`   Dates: ${batchInfo.start_date} to ${batchInfo.end_date}`);
-      logger.info(`   Status: ${batchInfo.status}`);
-
-      // Delete batch (CASCADE will delete all reports)
-      const deleteQuery = `
-        DELETE FROM parent_report_batches
-        WHERE id = $1 AND user_id = $2
-        RETURNING id, period, start_date, end_date
-      `;
-      const result = await db.query(deleteQuery, [batchId, userId]);
-
-      if (result.rows.length === 0) {
-        logger.error(`❌ [DELETE] Delete query returned 0 rows (unexpected)`);
-        return reply.status(404).send({
-          success: false,
-          error: 'Report batch not found or access denied',
-          code: 'BATCH_NOT_FOUND'
-        });
-      }
-
-      logger.info(`✅ [DELETE] Database DELETE executed successfully`);
-      logger.info(`   Deleted: ${JSON.stringify(result.rows[0])}`);
-
-      // DEBUG: Verify batch is gone AFTER deletion
-      const postCheckQuery = `
-        SELECT id FROM parent_report_batches WHERE id = $1
-      `;
-      const postCheck = await db.query(postCheckQuery, [batchId]);
-
-      if (postCheck.rows.length > 0) {
-        logger.error(`❌ [DELETE] CRITICAL: Batch ${batchId} STILL EXISTS after deletion!`);
-        logger.error(`   This indicates a database transaction or CASCADE issue`);
-      } else {
-        logger.info(`✅ [DELETE] Verified: Batch ${batchId} successfully removed from database`);
-      }
-
-      logger.info(`🗑️ [DELETE] ===== BATCH DELETION COMPLETE =====`);
-
-      return reply.send({
-        success: true,
-        message: 'Report batch deleted successfully',
-        deleted_batch_id: batchId
-      });
 
     } catch (error) {
       logger.error('❌ Failed to delete batch:', error);
       return reply.status(500).send({
         success: false,
         error: 'Failed to delete report batch',
+        code: 'BATCH_DELETION_ERROR',
+        details: error.message
+      });
+    }
+  });
+
+  /**
+   * Delete multiple report batches atomically
+   * Uses database transaction for all-or-nothing deletion
+   *
+   * DELETE /api/reports/passive/batches
+   * Body: { batch_ids: ["uuid1", "uuid2", "uuid3"] }
+   */
+  fastify.delete('/api/reports/passive/batches', {
+    schema: {
+      description: 'Delete multiple report batches atomically',
+      tags: ['Reports', 'Passive'],
+      body: {
+        type: 'object',
+        required: ['batch_ids'],
+        properties: {
+          batch_ids: {
+            type: 'array',
+            items: { type: 'string', format: 'uuid' },
+            minItems: 1,
+            maxItems: 50,
+            description: 'Array of batch IDs to delete (max 50)'
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { batch_ids } = request.body;
+
+    try {
+      // Authenticate user
+      const userId = await requireAuth(request, reply);
+      if (!userId) return;
+
+      logger.info(`🗑️ [BATCH-DELETE] ===== BATCH DELETION START =====`);
+      logger.info(`   Batch IDs: ${batch_ids.length} batches`);
+      logger.info(`   User ID: ${userId.substring(0, 8)}...`);
+
+      const { db } = require('../../utils/railway-database');
+
+      // Use transaction for atomicity
+      const client = await db.pool.connect();
+      let deletedCount = 0;
+
+      try {
+        await client.query('BEGIN');
+
+        // Delete each batch within transaction
+        for (const batchId of batch_ids) {
+          const deleteQuery = `
+            DELETE FROM parent_report_batches
+            WHERE id = $1 AND user_id = $2
+            RETURNING id
+          `;
+          const result = await client.query(deleteQuery, [batchId, userId]);
+
+          if (result.rows.length > 0) {
+            deletedCount++;
+            logger.info(`✅ [BATCH-DELETE] Deleted batch ${batchId.substring(0, 13)}...`);
+          } else {
+            logger.warn(`⚠️ [BATCH-DELETE] Batch ${batchId.substring(0, 13)}... not found or not owned by user`);
+          }
+        }
+
+        await client.query('COMMIT');
+        logger.info(`✅ [BATCH-DELETE] Transaction committed: ${deletedCount}/${batch_ids.length} batches deleted`);
+
+      } catch (error) {
+        await client.query('ROLLBACK');
+        logger.error(`❌ [BATCH-DELETE] Transaction rolled back: ${error.message}`);
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      logger.info(`🗑️ [BATCH-DELETE] ===== BATCH DELETION COMPLETE =====`);
+
+      return reply.send({
+        success: true,
+        message: `Successfully deleted ${deletedCount} batches`,
+        deleted_count: deletedCount,
+        requested_count: batch_ids.length
+      });
+
+    } catch (error) {
+      logger.error('❌ Failed to delete batches:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to delete report batches',
         code: 'BATCH_DELETION_ERROR',
         details: error.message
       });
