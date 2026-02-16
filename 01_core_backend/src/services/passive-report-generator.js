@@ -142,6 +142,39 @@ class PassiveReportGenerator {
         logger.info(`   Period: ${period}`);
         logger.info(`   Date range: ${dateRange.startDate.toISOString().split('T')[0]} - ${dateRange.endDate.toISOString().split('T')[0]}`);
 
+        // OPTIONAL: Check if this batch was recently deleted (5-minute cooldown)
+        // This feature is disabled if Redis is not available
+        try {
+            // Try to use redis-cache if available, otherwise skip this check
+            const RedisCacheManager = require('../gateway/services/redis-cache');
+            const redisCache = new RedisCacheManager();
+
+            if (redisCache.enabled && redisCache.connected) {
+                const deletionKey = `batch_deleted:${userId}:${period}:${dateRange.startDate.toISOString().split('T')[0]}`;
+                const wasDeleted = await redisCache.get(deletionKey);
+
+                if (wasDeleted) {
+                    const deletedTime = parseInt(wasDeleted);
+                    const timeSinceDeletion = Date.now() - deletedTime;
+                    const minutesSince = Math.floor(timeSinceDeletion / 1000 / 60);
+
+                    logger.warn(`⚠️ REGENERATION BLOCKED: Batch was deleted ${minutesSince} minutes ago`);
+                    logger.warn(`   User: ${userId.substring(0, 8)}...`);
+                    logger.warn(`   Period: ${period}`);
+                    logger.warn(`   Start Date: ${dateRange.startDate.toISOString().split('T')[0]}`);
+                    logger.warn(`   Cooldown expires in: ${5 - minutesSince} minutes`);
+                    logger.warn(`   This prevents accidental regeneration after user deletion`);
+
+                    return null; // Don't generate
+                }
+            } else {
+                logger.info('ℹ️ Redis deletion check skipped (Redis not available)');
+            }
+        } catch (redisError) {
+            logger.info(`ℹ️ Redis deletion check skipped: ${redisError.message}`);
+            // Continue with generation - deletion check is optional
+        }
+
         try {
             // Step 1: Fetch student profile for context
             logger.info('👤 Fetching student profile...');
@@ -338,22 +371,53 @@ class PassiveReportGenerator {
                 reportDetails.push(`❌ Summary Report: ${error.message}`);
             }
 
-            // Step 4: Update batch status
+            // Step 4: Calculate summary metrics for the Learning Progress card
+            logger.info('📊 Calculating summary metrics for batch...');
+            const questions = await this.fetchQuestionsForPeriod(userId, dateRange.startDate, dateRange.endDate);
+            const summaryMetrics = await this.calculateSummaryMetrics(userId, questions, dateRange);
+
+            logger.info(`   Calculated metrics:`);
+            logger.info(`     Overall Grade: ${summaryMetrics.overallGrade || 'N/A'}`);
+            logger.info(`     Overall Accuracy: ${summaryMetrics.overallAccuracy ? (summaryMetrics.overallAccuracy * 100).toFixed(1) + '%' : 'N/A'}`);
+            logger.info(`     Question Count: ${summaryMetrics.questionCount}`);
+            logger.info(`     Study Time: ${summaryMetrics.studyTimeMinutes || 0}m`);
+            logger.info(`     Current Streak: ${summaryMetrics.currentStreak || 0}d`);
+
+            // Step 5: Update batch with summary metrics AND status
             const generationTime = Date.now() - startTime;
             const updateQuery = `
                 UPDATE parent_report_batches
-                SET status = $1, generation_time_ms = $2
-                WHERE id = $3
+                SET
+                    status = $1,
+                    generation_time_ms = $2,
+                    overall_grade = $3,
+                    overall_accuracy = $4,
+                    question_count = $5,
+                    study_time_minutes = $6,
+                    current_streak = $7,
+                    accuracy_trend = $8,
+                    activity_trend = $9,
+                    one_line_summary = $10
+                WHERE id = $11
                 RETURNING *
             `;
 
-            await db.query(updateQuery, [
+            const updateResult = await db.query(updateQuery, [
                 'completed',
                 generationTime,
+                summaryMetrics.overallGrade,
+                summaryMetrics.overallAccuracy,
+                summaryMetrics.questionCount,
+                summaryMetrics.studyTimeMinutes,
+                summaryMetrics.currentStreak,
+                summaryMetrics.accuracyTrend,
+                summaryMetrics.activityTrend,
+                summaryMetrics.oneLineSummary,
                 batchId
             ]);
 
             logger.info(`✅ Batch complete: ${generatedReports.length}/4 reports in ${generationTime}ms`);
+            logger.info(`✅ Summary metrics saved to database`);
             reportDetails.forEach(detail => logger.info(`   ${detail}`));
 
             return {
@@ -362,7 +426,8 @@ class PassiveReportGenerator {
                 generation_time_ms: generationTime,
                 period,
                 user_id: userId,
-                student_name: studentProfile.name || null
+                student_name: studentProfile.name || null,
+                summary_metrics: summaryMetrics  // Include metrics in response
             };
 
         } catch (error) {
@@ -531,6 +596,217 @@ class PassiveReportGenerator {
             issues[subject].totalMistakes++;
         });
         return issues;
+    }
+
+    /**
+     * Calculate summary metrics for the Learning Progress card
+     * This populates the batch record with displayable data
+     */
+    async calculateSummaryMetrics(userId, questions, dateRange) {
+        logger.info('📊 [METRICS] Starting summary metrics calculation...');
+        logger.info(`   Questions in period: ${questions.length}`);
+
+        // Calculate overall accuracy
+        const gradedQuestions = questions.filter(q => q.grade && q.grade !== 'EMPTY');
+        const correctQuestions = gradedQuestions.filter(q => q.grade === 'CORRECT');
+        const overallAccuracy = gradedQuestions.length > 0
+            ? correctQuestions.length / gradedQuestions.length
+            : null;
+
+        logger.info(`   Graded questions: ${gradedQuestions.length}, Correct: ${correctQuestions.length}`);
+
+        // Calculate overall grade based on accuracy
+        let overallGrade = null;
+        if (overallAccuracy !== null) {
+            if (overallAccuracy >= 0.97) overallGrade = 'A+';
+            else if (overallAccuracy >= 0.93) overallGrade = 'A';
+            else if (overallAccuracy >= 0.90) overallGrade = 'A-';
+            else if (overallAccuracy >= 0.87) overallGrade = 'B+';
+            else if (overallAccuracy >= 0.83) overallGrade = 'B';
+            else if (overallAccuracy >= 0.80) overallGrade = 'B-';
+            else if (overallAccuracy >= 0.77) overallGrade = 'C+';
+            else if (overallAccuracy >= 0.73) overallGrade = 'C';
+            else if (overallAccuracy >= 0.70) overallGrade = 'C-';
+            else if (overallAccuracy >= 0.67) overallGrade = 'D+';
+            else if (overallAccuracy >= 0.60) overallGrade = 'D';
+            else overallGrade = 'F';
+        }
+
+        // Calculate study time (estimated: 2 minutes per question average)
+        const studyTimeMinutes = questions.length > 0 ? questions.length * 2 : null;
+
+        // Calculate current streak
+        const currentStreak = await this.calculateStreak(userId, dateRange.endDate);
+
+        // Calculate accuracy trend (compare to previous period)
+        const accuracyTrend = await this.calculateAccuracyTrend(
+            userId,
+            dateRange.startDate,
+            dateRange.endDate,
+            overallAccuracy
+        );
+
+        // Calculate activity trend (compare question count to previous period)
+        const activityTrend = await this.calculateActivityTrend(
+            userId,
+            dateRange.startDate,
+            dateRange.endDate,
+            questions.length
+        );
+
+        // Generate one-line summary
+        const oneLineSummary = this.generateOneLineSummary(
+            questions.length,
+            overallGrade,
+            overallAccuracy,
+            accuracyTrend,
+            activityTrend
+        );
+
+        logger.info('✅ [METRICS] Summary metrics calculated successfully');
+
+        return {
+            overallGrade,
+            overallAccuracy,
+            questionCount: questions.length,
+            studyTimeMinutes,
+            currentStreak,
+            accuracyTrend,
+            activityTrend,
+            oneLineSummary
+        };
+    }
+
+    /**
+     * Calculate learning streak (consecutive days with questions answered)
+     */
+    async calculateStreak(userId, endDate) {
+        try {
+            const query = `
+                SELECT DISTINCT DATE(archived_at) as activity_date
+                FROM questions
+                WHERE user_id = $1 AND archived_at <= $2
+                ORDER BY activity_date DESC
+                LIMIT 90
+            `;
+
+            const result = await db.query(query, [userId, endDate]);
+            const activityDates = result.rows.map(row => new Date(row.activity_date));
+
+            if (activityDates.length === 0) return 0;
+
+            let streak = 0;
+            let checkDate = new Date(endDate);
+            checkDate.setHours(0, 0, 0, 0);
+
+            for (let i = 0; i < activityDates.length; i++) {
+                const activityDate = new Date(activityDates[i]);
+                activityDate.setHours(0, 0, 0, 0);
+
+                if (activityDate.getTime() === checkDate.getTime()) {
+                    streak++;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                } else if (activityDate.getTime() < checkDate.getTime()) {
+                    break;
+                }
+            }
+
+            logger.info(`   Calculated streak: ${streak} days`);
+            return streak;
+        } catch (error) {
+            logger.error(`   Error calculating streak: ${error.message}`);
+            return 0;
+        }
+    }
+
+    /**
+     * Calculate accuracy trend by comparing to previous period
+     */
+    async calculateAccuracyTrend(userId, startDate, endDate, currentAccuracy) {
+        try {
+            if (currentAccuracy === null) return 'stable';
+
+            // Calculate previous period dates
+            const periodLength = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+            const prevEndDate = new Date(startDate);
+            prevEndDate.setDate(prevEndDate.getDate() - 1);
+            const prevStartDate = new Date(prevEndDate);
+            prevStartDate.setDate(prevStartDate.getDate() - periodLength);
+
+            // Fetch previous period questions
+            const prevQuestions = await this.fetchQuestionsForPeriod(userId, prevStartDate, prevEndDate);
+            const prevGradedQuestions = prevQuestions.filter(q => q.grade && q.grade !== 'EMPTY');
+            const prevCorrectQuestions = prevGradedQuestions.filter(q => q.grade === 'CORRECT');
+
+            if (prevGradedQuestions.length === 0) return 'stable';
+
+            const prevAccuracy = prevCorrectQuestions.length / prevGradedQuestions.length;
+            const accuracyDiff = currentAccuracy - prevAccuracy;
+
+            logger.info(`   Accuracy trend: ${(accuracyDiff * 100).toFixed(1)}% change from previous period`);
+
+            if (accuracyDiff >= 0.05) return 'improving';
+            if (accuracyDiff <= -0.05) return 'declining';
+            return 'stable';
+        } catch (error) {
+            logger.error(`   Error calculating accuracy trend: ${error.message}`);
+            return 'stable';
+        }
+    }
+
+    /**
+     * Calculate activity trend by comparing question count to previous period
+     */
+    async calculateActivityTrend(userId, startDate, endDate, currentQuestionCount) {
+        try {
+            if (currentQuestionCount === 0) return 'stable';
+
+            // Calculate previous period dates
+            const periodLength = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+            const prevEndDate = new Date(startDate);
+            prevEndDate.setDate(prevEndDate.getDate() - 1);
+            const prevStartDate = new Date(prevEndDate);
+            prevStartDate.setDate(prevStartDate.getDate() - periodLength);
+
+            // Fetch previous period questions
+            const prevQuestions = await this.fetchQuestionsForPeriod(userId, prevStartDate, prevEndDate);
+            const prevQuestionCount = prevQuestions.length;
+
+            if (prevQuestionCount === 0) return 'increasing';
+
+            const countDiff = currentQuestionCount - prevQuestionCount;
+            const percentChange = countDiff / prevQuestionCount;
+
+            logger.info(`   Activity trend: ${(percentChange * 100).toFixed(1)}% change from previous period`);
+
+            if (percentChange >= 0.20) return 'increasing';
+            if (percentChange <= -0.20) return 'decreasing';
+            return 'stable';
+        } catch (error) {
+            logger.error(`   Error calculating activity trend: ${error.message}`);
+            return 'stable';
+        }
+    }
+
+    /**
+     * Generate a one-line summary of the learning period
+     */
+    generateOneLineSummary(questionCount, overallGrade, overallAccuracy, accuracyTrend, activityTrend) {
+        if (questionCount === 0) {
+            return 'No learning activity recorded in this period.';
+        }
+
+        const gradeText = overallGrade ? `earning ${overallGrade}` : 'showing progress';
+        const accuracyText = overallAccuracy ? `${(overallAccuracy * 100).toFixed(0)}% accuracy` : 'working through questions';
+
+        let trendText = '';
+        if (accuracyTrend === 'improving') {
+            trendText = ' with improving performance';
+        } else if (accuracyTrend === 'declining') {
+            trendText = ', needs more practice';
+        }
+
+        return `Answered ${questionCount} questions, ${gradeText} with ${accuracyText}${trendText}.`;
     }
 }
 
