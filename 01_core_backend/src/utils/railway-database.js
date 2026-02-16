@@ -154,6 +154,9 @@ const batchProcessor = new BatchProcessor();
 
 // Enhanced database utility functions with caching and optimization
 const db = {
+  // Expose pool for transaction support
+  pool,
+
   /**
    * Execute a cached query with performance monitoring, retry logic, and connection safety
    */

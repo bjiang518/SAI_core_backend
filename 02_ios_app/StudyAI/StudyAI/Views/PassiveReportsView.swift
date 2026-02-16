@@ -306,14 +306,21 @@ struct PassiveReportsView: View {
             // Get batches to delete
             let batchesToDelete = batches.filter { selectedBatches.contains($0.id) }
 
-            // Delete each batch
-            for batch in batchesToDelete {
-                await viewModel.deleteBatch(batch)
-            }
+            print("🗑️ [PassiveReportsView] Deleting \(batchesToDelete.count) selected batches")
+
+            // Delete all batches atomically
+            let (succeeded, failed) = await viewModel.deleteBatches(batchesToDelete)
 
             // Exit edit mode and clear selection
             isEditMode = false
             selectedBatches.removeAll()
+
+            // Show result if there were failures
+            if failed > 0 {
+                print("⚠️ [PassiveReportsView] Batch delete partial success: \(succeeded) succeeded, \(failed) failed")
+            } else {
+                print("✅ [PassiveReportsView] All \(succeeded) batches deleted successfully")
+            }
         }
     }
 }

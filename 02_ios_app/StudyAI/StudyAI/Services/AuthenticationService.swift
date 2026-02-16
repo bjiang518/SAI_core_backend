@@ -769,73 +769,30 @@ final class AuthenticationService: ObservableObject {
     // MARK: - Token Refresh (Phase 2.5)
 
     /// Parse JWT token expiration time
+    /// NOTE: Not used for session tokens - backend handles expiration
     private func parseTokenExpiration(_ token: String) -> Date? {
-        // JWT format: header.payload.signature
-        let parts = token.components(separatedBy: ".")
-        guard parts.count == 3 else {
-            authLogger.error("❌ Invalid JWT format - expected 3 parts, got \(parts.count)")
-            return nil
-        }
-
-        // Decode Base64URL payload (index 1)
-        var base64 = parts[1]
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-
-        // Add padding if needed
-        let remainder = base64.count % 4
-        if remainder > 0 {
-            base64 += String(repeating: "=", count: 4 - remainder)
-        }
-
-        guard let payloadData = Data(base64Encoded: base64),
-              let payload = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any],
-              let exp = payload["exp"] as? TimeInterval else {
-            authLogger.error("❌ Failed to decode JWT payload or missing 'exp' claim")
-            return nil
-        }
-
-        return Date(timeIntervalSince1970: exp)
+        // Session tokens don't have embedded expiration
+        // Backend tracks expiration in user_sessions table
+        authLogger.debug("ℹ️ Session tokens don't have embedded expiration - backend handles this")
+        return nil
     }
 
     /// Start monitoring token expiration and schedule proactive refresh
+    /// NOTE: Not used for session tokens - backend handles expiration
     func startTokenMonitoring() {
         // Cancel existing timer
         tokenRefreshTimer?.invalidate()
         tokenRefreshTimer = nil
 
-        guard let token = getAuthToken(),
-              let expiration = parseTokenExpiration(token) else {
-            authLogger.info("⚠️ Cannot start token monitoring - no valid token found")
-            return
-        }
+        authLogger.debug("ℹ️ Token monitoring disabled - session tokens are managed by backend")
+        authLogger.debug("   Backend will return 401 when session expires, triggering re-auth")
 
-        let now = Date()
-        let refreshTime = expiration.addingTimeInterval(-300) // 5 minutes before expiry
-
-        guard refreshTime > now else {
-            authLogger.warning("⚠️ Token expires in less than 5 minutes - triggering immediate refresh")
-            Task {
-                await refreshTokenAsync()
-            }
-            return
-        }
-
-        let timeUntilRefresh = refreshTime.timeIntervalSince(now)
-        authLogger.info("🔄 Token monitoring started - will refresh in \(Int(timeUntilRefresh / 60)) minutes")
-
-        // Schedule refresh timer
-        tokenRefreshTimer = Timer.scheduledTimer(
-            withTimeInterval: timeUntilRefresh,
-            repeats: false
-        ) { [weak self] _ in
-            Task { [weak self] in
-                await self?.refreshTokenAsync()
-            }
-        }
+        // Session tokens (30-day expiration) are validated by backend
+        // Client doesn't need proactive refresh - backend returns 401 on expired tokens
     }
 
     /// Refresh authentication token before expiration
+    /// NOTE: Session tokens are refreshed by backend on 401 response
     private func refreshTokenAsync() async {
         guard let oldToken = getAuthToken() else {
             authLogger.error("❌ Cannot refresh token - no token found")
@@ -852,9 +809,6 @@ final class AuthenticationService: ObservableObject {
             do {
                 try keychainService.saveAuthToken(newToken)
                 authLogger.info("✅ New token saved to keychain")
-
-                // Restart monitoring with new token
-                startTokenMonitoring()
             } catch {
                 authLogger.error("❌ Failed to save new token to keychain: \(error.localizedDescription)")
                 // Token refresh succeeded but save failed - force logout for safety
@@ -870,6 +824,61 @@ final class AuthenticationService: ObservableObject {
                 signOut()
             }
         }
+    }
+
+    /// Check and refresh token if needed before long operations (PUBLIC API)
+    /// Call this before starting operations that may take >60 seconds
+    /// @param operationName: Name of operation for logging (optional)
+    /// @param minimumRemainingTime: Minimum time before expiry to trigger refresh (default: 5 minutes)
+    /// NOTE: Session tokens don't have embedded expiration - backend tracks this
+    public func ensureTokenFreshForLongOperation(
+        operationName: String = "long operation",
+        minimumRemainingTime: TimeInterval = 300 // 5 minutes
+    ) async {
+        guard let token = getAuthToken() else {
+            authLogger.warning("⚠️ No token found for \(operationName)")
+            await MainActor.run {
+                errorMessage = "Authentication required. Please log in again."
+                signOut() // Force logout
+            }
+            return
+        }
+
+        // Validate token exists and has reasonable format
+        guard !token.isEmpty && token.count >= 32 else {
+            authLogger.error("❌ INVALID TOKEN for \(operationName)")
+            authLogger.error("   Token length: \(token.count) characters")
+            authLogger.error("   Operation blocked")
+
+            // Clear invalid token and force re-authentication
+            await MainActor.run {
+                errorMessage = "Your session is invalid. Please log in again."
+                signOut()
+            }
+            return
+        }
+
+        authLogger.debug("✅ Token valid - proceeding with \(operationName)")
+        // Note: Session tokens don't have client-side expiration checking
+        // Backend will return 401 if token is expired, which will trigger re-auth
+    }
+
+    /// Validate token format (PUBLIC API)
+    /// Returns true if token exists and has reasonable format
+    /// NOTE: Session tokens are validated by backend, not client-side
+    public func isTokenValid() -> Bool {
+        guard let token = getAuthToken() else {
+            return false
+        }
+
+        // Basic format validation - token should be reasonable length
+        guard !token.isEmpty && token.count >= 32 && token.count <= 1024 else {
+            authLogger.error("❌ Invalid token length: \(token.count)")
+            return false
+        }
+
+        authLogger.debug("✅ Token format valid (length: \(token.count))")
+        return true
     }
 
     // MARK: - Helper Methods
@@ -1006,45 +1015,139 @@ final class AuthenticationService: ObservableObject {
 
 class KeychainService {
     static let shared = KeychainService()
-    
+
     private let service = "com.studyai.app"
     private let tokenKey = "auth_token"
     private let userKey = "user_data"
-    
+
+    // Thread-safe access to keychain
+    private let keychainQueue = DispatchQueue(label: "com.studyai.keychain", qos: .userInitiated)
+    private let authLogger = Logger(subsystem: "com.studyai", category: "KeychainService")
+
     private init() {}
-    
+
     func saveAuthToken(_ token: String) throws {
-        let data = token.data(using: .utf8)!
-        try saveToKeychain(key: tokenKey, data: data)
+        authLogger.info("💾 [Keychain] Saving auth token (length: \(token.count))")
+
+        // CRITICAL: Validate token format BEFORE saving
+        // Backend uses 64-character hex session tokens (32 bytes)
+        let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedToken.isEmpty else {
+            authLogger.error("❌ [Keychain] TOKEN IS EMPTY")
+            throw AuthError.keychainError
+        }
+
+        // Validate token is reasonable length (hex tokens are 64 chars, JWTs are 200-500+ chars)
+        guard trimmedToken.count >= 32 && trimmedToken.count <= 1024 else {
+            authLogger.error("❌ [Keychain] INVALID TOKEN LENGTH: \(trimmedToken.count) (expected 32-1024)")
+            authLogger.error("   Token preview: \(trimmedToken.prefix(50))...")
+            throw AuthError.keychainError
+        }
+
+        authLogger.info("✅ [Keychain] Token format validated (length: \(trimmedToken.count))")
+
+        // Convert to data with error handling
+        guard let data = trimmedToken.data(using: .utf8) else {
+            authLogger.error("❌ [Keychain] Failed to encode token to UTF-8")
+            throw AuthError.keychainError
+        }
+
+        authLogger.info("   Data size: \(data.count) bytes")
+
+        // Save to keychain (thread-safe)
+        try keychainQueue.sync {
+            try saveToKeychain(key: tokenKey, data: data)
+        }
+
+        // CRITICAL: Verify the token was saved correctly by reading it back
+        guard let retrievedToken = getAuthToken() else {
+            authLogger.error("❌ [Keychain] Verification FAILED: Token not found after save")
+            throw AuthError.keychainError
+        }
+
+        guard retrievedToken == trimmedToken else {
+            authLogger.error("❌ [Keychain] Verification FAILED: Retrieved token doesn't match")
+            authLogger.error("   Original length: \(trimmedToken.count)")
+            authLogger.error("   Retrieved length: \(retrievedToken.count)")
+            throw AuthError.keychainError
+        }
+
+        authLogger.info("✅ [Keychain] Token saved and verified successfully")
     }
-    
+
     func getAuthToken() -> String? {
-        guard let data = getFromKeychain(key: tokenKey) else { return nil }
-        return String(data: data, encoding: .utf8)
+        return keychainQueue.sync {
+            guard let data = getFromKeychain(key: tokenKey) else {
+                authLogger.debug("ℹ️ [Keychain] No auth token found in keychain")
+                return nil
+            }
+
+            authLogger.debug("📖 [Keychain] Retrieved token data (\(data.count) bytes)")
+
+            // Convert data to string
+            guard let token = String(data: data, encoding: .utf8) else {
+                authLogger.error("❌ [Keychain] Failed to decode token from UTF-8")
+                return nil
+            }
+
+            let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+            authLogger.debug("   Token length: \(trimmedToken.count)")
+
+            // CRITICAL: Validate token format BEFORE returning
+            // Backend uses 64-character hex session tokens
+            guard !trimmedToken.isEmpty else {
+                authLogger.error("❌ [Keychain] EMPTY TOKEN on retrieval")
+                deleteFromKeychain(key: tokenKey)
+                return nil
+            }
+
+            // Validate reasonable length
+            guard trimmedToken.count >= 32 && trimmedToken.count <= 1024 else {
+                authLogger.error("❌ [Keychain] INVALID TOKEN LENGTH on retrieval: \(trimmedToken.count)")
+                authLogger.error("   Token preview: \(trimmedToken.prefix(50))...")
+                authLogger.error("   This token is corrupted in keychain - clearing it")
+                deleteFromKeychain(key: tokenKey)
+                return nil
+            }
+
+            authLogger.debug("✅ [Keychain] Token format validated on retrieval (length: \(trimmedToken.count))")
+            return trimmedToken
+        }
     }
     
     func saveUser(_ user: User) throws {
         let encoder = JSONEncoder()
         let data = try encoder.encode(user)
-        try saveToKeychain(key: userKey, data: data)
+        try keychainQueue.sync {
+            try saveToKeychain(key: userKey, data: data)
+        }
+        authLogger.info("✅ [Keychain] User data saved successfully")
     }
-    
+
     func getUser() -> User? {
-        guard let data = getFromKeychain(key: userKey) else { return nil }
-        let decoder = JSONDecoder()
-        return try? decoder.decode(User.self, from: data)
+        return keychainQueue.sync {
+            guard let data = getFromKeychain(key: userKey) else { return nil }
+            let decoder = JSONDecoder()
+            return try? decoder.decode(User.self, from: data)
+        }
     }
-    
+
     func hasStoredCredentials() -> Bool {
         return getAuthToken() != nil && getUser() != nil
     }
-    
+
     func clearAll() {
-        deleteFromKeychain(key: tokenKey)
-        deleteFromKeychain(key: userKey)
+        keychainQueue.sync {
+            authLogger.info("🗑️ [Keychain] Clearing all keychain data")
+            deleteFromKeychain(key: tokenKey)
+            deleteFromKeychain(key: userKey)
+        }
     }
     
     private func saveToKeychain(key: String, data: Data) throws {
+        authLogger.debug("💾 [Keychain] saveToKeychain called for key: \(key), data size: \(data.count) bytes")
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -1052,17 +1155,26 @@ class KeychainService {
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
-        
+
         // Delete existing item first
-        SecItemDelete(query as CFDictionary)
-        
-        let status = SecItemAdd(query as CFDictionary, nil)
-        if status != errSecSuccess {
+        let deleteStatus = SecItemDelete(query as CFDictionary)
+        authLogger.debug("   Delete status: \(deleteStatus) (\(deleteStatus == errSecSuccess ? "success" : deleteStatus == errSecItemNotFound ? "not found" : "error"))")
+
+        // Add new item
+        let addStatus = SecItemAdd(query as CFDictionary, nil)
+        authLogger.debug("   Add status: \(addStatus) (\(addStatus == errSecSuccess ? "success" : "error"))")
+
+        if addStatus != errSecSuccess {
+            authLogger.error("❌ [Keychain] SecItemAdd failed with status: \(addStatus)")
             throw AuthError.keychainError
         }
+
+        authLogger.debug("✅ [Keychain] Item saved successfully")
     }
-    
+
     private func getFromKeychain(key: String) -> Data? {
+        authLogger.debug("📖 [Keychain] getFromKeychain called for key: \(key)")
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -1070,24 +1182,35 @@ class KeychainService {
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
-        
+
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        
+
+        authLogger.debug("   Retrieve status: \(status) (\(status == errSecSuccess ? "success" : status == errSecItemNotFound ? "not found" : "error"))")
+
         if status == errSecSuccess {
-            return result as? Data
+            if let data = result as? Data {
+                authLogger.debug("   Retrieved \(data.count) bytes")
+                return data
+            } else {
+                authLogger.error("❌ [Keychain] Result is not Data type")
+                return nil
+            }
         }
         return nil
     }
     
     private func deleteFromKeychain(key: String) {
+        authLogger.debug("🗑️ [Keychain] deleteFromKeychain called for key: \(key)")
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key
         ]
-        
-        SecItemDelete(query as CFDictionary)
+
+        let status = SecItemDelete(query as CFDictionary)
+        authLogger.debug("   Delete status: \(status) (\(status == errSecSuccess ? "success" : status == errSecItemNotFound ? "not found" : "error"))")
     }
 }
 

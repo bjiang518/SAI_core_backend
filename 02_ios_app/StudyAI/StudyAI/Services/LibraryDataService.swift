@@ -751,26 +751,41 @@ struct ConversationLibraryItem: LibraryItem {
     }
     
     var title: String {
+        let conversationId = data["id"] as? String ?? "unknown"
+        print("\n🏷️ [TITLE DEBUG] Generating title for conversation: \(conversationId)")
+
+        // Log available relevant fields
+        print("   📋 Available fields for title generation:")
+        print("      • title: \(data["title"] as? String ?? "nil")")
+        print("      • summary: \(data["summary"] as? String ?? "nil")")
+        print("      • topic: \(data["topic"] as? String ?? "nil")")
+        print("      • subject: \(data["subject"] as? String ?? "General")")
+
         // Priority 1: Use the actual title field if available and not empty
         if let actualTitle = data["title"] as? String, !actualTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            print("   ✅ [PRIORITY 1] Using actual title field: \(actualTitle)")
             return actualTitle
         }
 
         // Priority 2: Use summary if available (AI-generated)
         if let summaryValue = data["summary"] as? String, !summaryValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            print("   ✅ [PRIORITY 2] Using AI-generated summary: \(summaryValue)")
             return summaryValue
         }
 
         // Priority 3: Fall back to topic if available and not empty
         if let topicValue = data["topic"] as? String, !topicValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let normalizedTopic = QuestionSummary.normalizeSubject(topicValue)
+            print("   ⚠️ [PRIORITY 3] Falling back to topic: \(normalizedTopic)")
             return normalizedTopic
         }
 
         // Priority 4: Default to "Chat on {Subject}"
         let rawSubject = data["subject"] as? String ?? "General"
         let normalized = QuestionSummary.normalizeSubject(rawSubject)
-        return "Chat on \(normalized)"
+        let fallbackTitle = "Chat on \(normalized)"
+        print("   ⚠️ [PRIORITY 4] Using fallback: \(fallbackTitle)")
+        return fallbackTitle
     }
 
     var subject: String {

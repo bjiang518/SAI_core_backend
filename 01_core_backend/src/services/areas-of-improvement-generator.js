@@ -463,78 +463,66 @@ class AreasOfImprovementGenerator {
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f8f9fa;
-            padding: 24px 16px;
-            min-height: 100vh;
+            background: #f8fafc;
+            padding: 12px;
             color: #1a1a1a;
-            line-height: 1.6;
+            line-height: 1.7;
+            font-size: 16px;
         }
 
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
+        /* Flat header section */
         .header {
-            background: white;
-            color: #1a1a1a;
-            padding: 32px 24px;
-            text-align: center;
-            border-bottom: 1px solid #e5e7eb;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
         }
 
         .header h1 {
-            font-size: 26px;
+            font-size: 22px;
             font-weight: 700;
-            margin-bottom: 6px;
-            color: #1a1a1a;
+            margin-bottom: 4px;
         }
 
         .header p {
-            font-size: 14px;
-            color: #6b7280;
-            font-weight: 500;
-        }
-
-        .content {
-            padding: 32px 24px;
+            font-size: 15px;
+            opacity: 0.9;
         }
 
         .overview {
-            background: #f9fafb;
+            background: white;
             padding: 16px;
             border-radius: 8px;
-            margin-bottom: 24px;
-            border-left: 3px solid #dc2626;
+            margin-bottom: 12px;
+            border-left: 4px solid #dc2626;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
         .overview p {
-            font-size: 13px;
-            color: #374151;
-            line-height: 1.7;
+            font-size: 16px;
+            color: #2d3748;
+            line-height: 1.8;
         }
 
         .subject-section {
-            background: #f9fafb;
+            background: white;
             border-radius: 8px;
-            padding: 12px;
+            padding: 16px;
             margin-bottom: 12px;
-            border-left: 3px solid #dc2626;
+            border-left: 4px solid #dc2626;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
         .subject-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .subject-title {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 700;
             color: #1a1a1a;
         }
@@ -542,10 +530,10 @@ class AreasOfImprovementGenerator {
         .mistake-count {
             background: #fef2f2;
             color: #dc2626;
-            padding: 4px 10px;
+            padding: 6px 12px;
             border-radius: 6px;
             font-weight: 600;
-            font-size: 11px;
+            font-size: 13px;
             border: 1px solid #fecaca;
         }
 
@@ -554,7 +542,7 @@ class AreasOfImprovementGenerator {
             padding: 6px 12px;
             border-radius: 6px;
             font-weight: 600;
-            font-size: 12px;
+            font-size: 14px;
             border: 1px solid #e5e7eb;
         }
 
@@ -589,30 +577,30 @@ class AreasOfImprovementGenerator {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 13px;
+            font-size: 15px;
         }
 
         .error-count {
             background: #fef2f2;
             color: #dc2626;
-            padding: 2px 8px;
+            padding: 4px 10px;
             border-radius: 4px;
-            font-size: 11px;
+            font-size: 13px;
             font-weight: 600;
             border: 1px solid #fecaca;
         }
 
         .error-type-body {
-            font-size: 12px;
+            font-size: 14px;
             color: #6b7280;
         }
 
         .example {
             background: #f3f4f6;
-            padding: 8px;
+            padding: 10px;
             border-radius: 4px;
             margin: 8px 0;
-            font-size: 12px;
+            font-size: 14px;
             font-family: 'Courier New', monospace;
             color: #374151;
             border: 1px solid #e5e7eb;
@@ -620,21 +608,21 @@ class AreasOfImprovementGenerator {
 
         .suggestion {
             background: #eff6ff;
-            padding: 10px;
+            padding: 12px;
             border-radius: 6px;
             margin-top: 8px;
-            border-left: 3px solid #2563eb;
-            font-size: 12px;
+            border-left: 4px solid #2563eb;
+            font-size: 14px;
             color: #1e40af;
             border: 1px solid #bfdbfe;
         }
 
         .parent-action {
             background: #fffbf0;
-            padding: 12px;
+            padding: 14px;
             border-radius: 6px;
             margin-top: 12px;
-            border-left: 3px solid #ea580c;
+            border-left: 4px solid #ea580c;
             border: 1px solid #fed7aa;
         }
 
@@ -642,13 +630,13 @@ class AreasOfImprovementGenerator {
             font-weight: 600;
             color: #92400e;
             margin-bottom: 6px;
-            font-size: 13px;
+            font-size: 15px;
         }
 
         .parent-action-content {
             color: #92400e;
-            font-size: 12px;
-            line-height: 1.6;
+            font-size: 14px;
+            line-height: 1.7;
         }
 
         .no-issues {
@@ -661,8 +649,8 @@ class AreasOfImprovementGenerator {
         }
 
         .no-issues p {
-            font-size: 13px;
-            line-height: 1.6;
+            font-size: 15px;
+            line-height: 1.7;
         }
 
         footer {
@@ -755,15 +743,14 @@ class AreasOfImprovementGenerator {
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>${studentName}'s Areas for Improvement</h1>
-            <p>Subject-Specific Weakness Analysis</p>
-        </div>
+    <!-- Flat header -->
+    <div class="header">
+        <h1>🎯 ${studentName}'s Areas for Improvement</h1>
+        <p>Subject-Specific Weakness Analysis</p>
+    </div>
 
-        <div class="content">
-            <!-- Overview -->
-            <div class="overview">
+    <!-- Overview --!>
+    <div class="overview">
                 <p>
                     This report analyzes your child's learning challenges ${periodLabel}.
                     We identified <strong>${analysis.totalMistakes} mistakes</strong> across
@@ -883,8 +870,7 @@ class AreasOfImprovementGenerator {
                 </div>
             </div>
             ` : ''}
-        </div>
-    </div>
+
 </body>
 </html>
         `;

@@ -698,113 +698,99 @@ class ActivityReportGenerator {
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f8f9fa;
-            padding: 24px 16px;
-            min-height: 100vh;
+            background: #f8fafc;
+            padding: 12px;
             color: #1a1a1a;
-            line-height: 1.6;
+            line-height: 1.7;
+            font-size: 16px;
         }
 
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
+        /* Flat header section */
         .header {
-            background: white;
-            color: #1a1a1a;
-            padding: 32px 24px;
-            text-align: center;
-            border-bottom: 1px solid #e5e7eb;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
         }
 
         .header h1 {
-            font-size: 26px;
+            font-size: 22px;
             font-weight: 700;
-            margin-bottom: 6px;
-            color: #1a1a1a;
+            margin-bottom: 4px;
         }
 
         .header p {
-            font-size: 14px;
-            color: #6b7280;
-            font-weight: 500;
-        }
-
-        .content {
-            padding: 32px 24px;
+            font-size: 15px;
+            opacity: 0.9;
         }
 
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 8px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
         }
 
         .metric-card {
-            background: #f9fafb;
-            padding: 10px 8px;
-            border-radius: 6px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            padding: 14px;
+            border-radius: 8px;
             text-align: center;
-            border: 1px solid #e5e7eb;
         }
 
         .metric-card.questions {
-            border-left: 3px solid #dc2626;
-            background: #fef2f2;
+            border-left: 4px solid #dc2626;
         }
 
         .metric-card.chats {
-            border-left: 3px solid #0d9488;
-            background: #f0fdf9;
+            border-left: 4px solid #0d9488;
         }
 
         .metric-card.days {
-            border-left: 3px solid #2563eb;
-            background: #eff6ff;
+            border-left: 4px solid #2563eb;
         }
 
         .metric-card.time {
-            border-left: 3px solid #ea580c;
-            background: #fffbf0;
+            border-left: 4px solid #ea580c;
         }
 
         .metric-value {
-            font-size: 18px;
+            font-size: 24px;
             font-weight: 700;
-            color: #1a1a1a;
-            margin-bottom: 2px;
+            color: #667eea;
+            margin-bottom: 4px;
         }
 
         .metric-label {
-            font-size: 11px;
-            color: #6b7280;
-            font-weight: 600;
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
         }
 
+        /* Passage-style sections */
         .section {
-            margin-bottom: 20px;
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
         .section-title {
-            font-size: 14px;
+            font-size: 18px;
             font-weight: 700;
             color: #1a1a1a;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #f3f4f6;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #e2e8f0;
         }
 
         .charts-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .chart-container {
@@ -815,7 +801,7 @@ class ActivityReportGenerator {
         }
 
         .chart-title {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 600;
             color: #1a1a1a;
             margin-bottom: 12px;
@@ -848,11 +834,11 @@ class ActivityReportGenerator {
         .subject-name {
             font-weight: 600;
             color: #1a1a1a;
-            font-size: 13px;
+            font-size: 15px;
         }
 
         .subject-stats {
-            font-size: 12px;
+            font-size: 14px;
             color: #6b7280;
             margin-top: 2px;
         }
@@ -865,17 +851,17 @@ class ActivityReportGenerator {
             display: inline-block;
             background: #f3f4f6;
             color: #1a1a1a;
-            padding: 4px 10px;
+            padding: 6px 12px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 700;
         }
 
         .trend-indicator {
             display: inline-block;
             margin-left: 6px;
-            font-size: 11px;
-            padding: 2px 6px;
+            font-size: 13px;
+            padding: 4px 8px;
             border-radius: 4px;
             font-weight: 600;
         }
@@ -900,21 +886,20 @@ class ActivityReportGenerator {
             padding: 16px;
             border-radius: 8px;
             border: 1px solid #e5e7eb;
-            margin-top: 16px;
         }
 
         .week-comparison-title {
             font-weight: 600;
             color: #1a1a1a;
             margin-bottom: 12px;
-            font-size: 13px;
+            font-size: 15px;
         }
 
         .week-comparison-item {
             display: flex;
             justify-content: space-between;
-            padding: 6px 0;
-            font-size: 13px;
+            padding: 8px 0;
+            font-size: 15px;
             border-bottom: 1px solid #e5e7eb;
         }
 
@@ -937,18 +922,17 @@ class ActivityReportGenerator {
             padding: 16px;
             border-radius: 8px;
             border: 1px solid #e5e7eb;
-            line-height: 1.7;
-            color: #374151;
-            font-size: 13px;
+            line-height: 1.8;
+            color: #2d3748;
+            font-size: 16px;
         }
 
-        /* AI Insights Styling */
+        /* AI Insights - flat style */
         .ai-insight {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 12px;
-            padding: 20px;
-            margin: 24px 0;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
         }
 
         .ai-insight-header {
@@ -971,11 +955,11 @@ class ActivityReportGenerator {
 
         .ai-insight-content {
             background: rgba(255, 255, 255, 0.95);
-            border-radius: 8px;
-            padding: 16px;
+            border-radius: 6px;
+            padding: 14px;
             color: #1a1a1a;
             line-height: 1.7;
-            font-size: 13px;
+            font-size: 15px;
         }
 
         .ai-insight-content ul {
@@ -1021,15 +1005,14 @@ class ActivityReportGenerator {
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📊 ${studentName}'s Activity Report</h1>
-            <p>${periodLabel} Learning Summary</p>
-        </div>
+    <!-- Flat header -->
+    <div class="header">
+        <h1>📊 ${studentName}'s Activity Report</h1>
+        <p>${periodLabel} Learning Summary</p>
+    </div>
 
-        <div class="content">
-            <!-- Key Metrics -->
-            <div class="metrics-grid">
+    <!-- Key Metrics -->
+    <div class="metrics-grid">
                 <div class="metric-card questions">
                     <div class="metric-value">${metrics.totalQuestions}</div>
                     <div class="metric-label">Questions Completed</div>
@@ -1351,8 +1334,6 @@ class ActivityReportGenerator {
             </div>
             ` : ''}
             ` : ''}
-        </div>
-    </div>
 
     <script>
         // Pie Chart Data
