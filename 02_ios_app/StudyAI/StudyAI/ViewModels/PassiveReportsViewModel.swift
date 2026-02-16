@@ -852,13 +852,49 @@ class PassiveReportsViewModel: ObservableObject {
                          userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
         }
 
-        guard httpResponse.statusCode == 200 else {
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("❌ Server error: \(responseString)")
-            }
-            throw NSError(domain: "PassiveReportsViewModel", code: httpResponse.statusCode,
-                         userInfo: [NSLocalizedDescriptionKey: "Server returned status \(httpResponse.statusCode)"])
+        // Success case
+        if httpResponse.statusCode == 200 {
+            return
         }
+
+        // Error case - parse error response for better messages
+        var errorMessage = "Server returned status \(httpResponse.statusCode)"
+        var errorCode = "UNKNOWN_ERROR"
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("❌ [DELETE] Server error response: \(responseString)")
+
+            // Try to parse JSON error response
+            if let jsonData = responseString.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                errorCode = json["code"] as? String ?? "UNKNOWN_ERROR"
+                let serverMessage = json["error"] as? String ?? errorMessage
+
+                // Provide user-friendly messages based on error code
+                switch errorCode {
+                case "BATCH_NOT_FOUND":
+                    errorMessage = "This report was already deleted or doesn't exist."
+                case "ACCESS_DENIED":
+                    errorMessage = "You don't have permission to delete this report. It may belong to a different account."
+                case "LOCK_CONFLICT":
+                    errorMessage = "This report is being modified. Please try again in a moment."
+                default:
+                    errorMessage = serverMessage
+                }
+
+                print("❌ [DELETE] Error code: \(errorCode)")
+                print("❌ [DELETE] User-friendly message: \(errorMessage)")
+            }
+        }
+
+        throw NSError(
+            domain: "PassiveReportsViewModel",
+            code: httpResponse.statusCode,
+            userInfo: [
+                NSLocalizedDescriptionKey: errorMessage,
+                "errorCode": errorCode
+            ]
+        )
     }
 }
 
