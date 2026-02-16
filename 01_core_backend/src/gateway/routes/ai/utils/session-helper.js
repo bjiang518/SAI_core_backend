@@ -199,7 +199,18 @@ Focus on the student's question or the main concept being taught.`
         const rawContent = analysisCompletion.choices[0]?.message?.content || '{}';
         this.fastify.log.info(`📄 [AI ANALYSIS] Parsing response: ${rawContent.substring(0, 300)}...`);
 
-        const analysis = JSON.parse(rawContent);
+        // ✅ FIX: Strip markdown code fences before parsing
+        // OpenAI often returns JSON wrapped in ```json ... ```
+        let cleanedContent = rawContent.trim();
+        if (cleanedContent.startsWith('```')) {
+          // Remove leading ```json or ``` and trailing ```
+          cleanedContent = cleanedContent
+            .replace(/^```(?:json)?\s*\n?/, '')  // Remove opening fence
+            .replace(/\n?```\s*$/, '');          // Remove closing fence
+          this.fastify.log.info(`🧹 [AI ANALYSIS] Stripped markdown code fences`);
+        }
+
+        const analysis = JSON.parse(cleanedContent);
         const embedding = embeddingResponse.data[0]?.embedding;
 
         this.fastify.log.info(`✨ [AI ANALYSIS] Successfully parsed analysis:`);
