@@ -1283,13 +1283,23 @@ Generate now:"""
         # Extract user profile
         grade_level = user_profile.get('grade', 'High School')
 
-        # Simplified conversation format
+        # ✅ FIX: Include actual conversation content, not just metadata
         conv_summary = []
         for i, c in enumerate(conversation_data, 1):
+            # Primary content (what was actually discussed)
+            student_questions = c.get('student_questions', 'N/A')
+            key_concepts = c.get('key_concepts', 'N/A')
+
+            # Metadata (topics, strengths, weaknesses)
             topics = ', '.join(c.get('topics', [])) if c.get('topics') else 'N/A'
             strengths = ', '.join(c.get('strengths', [])) if c.get('strengths') else 'N/A'
             weaknesses = ', '.join(c.get('weaknesses', [])) if c.get('weaknesses') else 'N/A'
-            conv_summary.append(f"#{i} ({c.get('date', 'N/A')}): Topics: {topics[:50]}, Strengths: {strengths[:40]}, Gaps: {weaknesses[:40]}")
+
+            # ✅ CRITICAL: Include student_questions and key_concepts so AI knows what was discussed!
+            conv_summary.append(f"""#{i} ({c.get('date', 'N/A')}):
+  - Student Asked: {student_questions[:200]}
+  - Key Concepts: {key_concepts[:200]}
+  - Topics: {topics[:50]}, Strengths: {strengths[:40]}, Gaps: {weaknesses[:40]}""")
 
         # ALWAYS include LaTeX formatting instructions for ALL question types
         # True/false, multiple choice, etc. can all contain mathematical notation
