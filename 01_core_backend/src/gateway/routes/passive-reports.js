@@ -689,7 +689,8 @@ module.exports = async function (fastify, opts) {
 
       logger.info(`🗑️ [DELETE] ===== BATCH DELETION START =====`);
       logger.info(`   Batch ID: ${batchId}`);
-      logger.info(`   User ID: ${userId.substring(0, 8)}...`);
+      logger.info(`   User ID (full): ${userId}`);
+      logger.info(`   User ID (truncated): ${userId.substring(0, 8)}...`);
 
       const { db } = require('../../utils/railway-database');
 
@@ -701,8 +702,46 @@ module.exports = async function (fastify, opts) {
         await client.query('BEGIN');
         logger.info(`🔒 [DELETE] Transaction started`);
 
-        // CRITICAL: Use FOR UPDATE NO KEY UPDATE to lock the row, bypass query cache
-        // FOR UPDATE NO KEY UPDATE allows concurrent reads but prevents concurrent deletes
+        // DIAGNOSTIC: First check if batch exists at all (without user_id filter)
+        const diagnosticQuery = `
+          SELECT id, user_id, period, start_date, end_date, status
+          FROM parent_report_batches
+          WHERE id = $1
+        `;
+        const diagnosticResult = await client.query(diagnosticQuery, [batchId]);
+
+        if (diagnosticResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          logger.error(`❌ [DELETE] DIAGNOSTIC: Batch ${batchId} does NOT exist in database at all`);
+          return reply.status(404).send({
+            success: false,
+            error: 'Report batch not found',
+            code: 'BATCH_NOT_FOUND'
+          });
+        }
+
+        const batchData = diagnosticResult.rows[0];
+        logger.info(`🔍 [DELETE] DIAGNOSTIC: Batch exists in database:`);
+        logger.info(`   Batch user_id (full): ${batchData.user_id}`);
+        logger.info(`   Batch user_id (truncated): ${batchData.user_id.substring(0, 8)}...`);
+        logger.info(`   Auth user_id (full): ${userId}`);
+        logger.info(`   User IDs match: ${batchData.user_id === userId}`);
+        logger.info(`   Period: ${batchData.period}`);
+        logger.info(`   Status: ${batchData.status}`);
+
+        if (batchData.user_id !== userId) {
+          await client.query('ROLLBACK');
+          logger.error(`❌ [DELETE] OWNERSHIP FAILURE: Batch belongs to different user`);
+          logger.error(`   Batch owner: ${batchData.user_id}`);
+          logger.error(`   Requesting user: ${userId}`);
+          return reply.status(403).send({
+            success: false,
+            error: 'You do not have permission to delete this batch',
+            code: 'ACCESS_DENIED'
+          });
+        }
+
+        // Now acquire row lock (we know the batch exists and belongs to this user)
         const lockQuery = `
           SELECT id, period, start_date, end_date, status
           FROM parent_report_batches
@@ -713,11 +752,11 @@ module.exports = async function (fastify, opts) {
 
         if (lockResult.rows.length === 0) {
           await client.query('ROLLBACK');
-          logger.warn(`⚠️ [DELETE] Batch ${batchId} not found or already deleted`);
-          return reply.status(404).send({
+          logger.error(`❌ [DELETE] LOCK FAILURE: Could not acquire row lock (race condition?)`);
+          return reply.status(409).send({
             success: false,
-            error: 'Report batch not found or access denied',
-            code: 'BATCH_NOT_FOUND'
+            error: 'Batch is being modified by another operation',
+            code: 'LOCK_CONFLICT'
           });
         }
 
