@@ -411,8 +411,44 @@ module.exports = async function (fastify, opts) {
       logger.debug(`📊 [DEBUG] Query: ${query.substring(0, 100)}...`);
       logger.debug(`📊 [DEBUG] Query params: [${queryParams[0].substring(0, 8)}..., ${queryParams.slice(1).join(', ')}]`);
 
-      // Execute query
-      const result = await db.query(query, queryParams);
+      // CRITICAL FIX: Use transaction with READ COMMITTED isolation to bypass query cache
+      // This ensures we always read the latest data, not cached results
+      // Same fix as batch detail endpoint
+      const client = await db.pool.connect();
+      let result;
+      let countResult;
+
+      try {
+        await client.query('BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED');
+        logger.info(`🔍 [GET-BATCHES] Using READ COMMITTED isolation to bypass cache`);
+
+        // Execute main query within transaction
+        result = await client.query(query, queryParams);
+
+        // Also execute count query within same transaction to ensure consistency
+        let countQuery = `
+          SELECT COUNT(*) as total
+          FROM parent_report_batches
+          WHERE user_id = $1
+        `;
+        const countParams = [userId];
+
+        if (period !== 'all') {
+          countQuery += ` AND period = $2`;
+          countParams.push(period);
+        }
+
+        countResult = await client.query(countQuery, countParams);
+
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      const totalCount = parseInt(countResult.rows[0]?.total || 0);
 
       logger.info(`✅ [DEBUG] Query executed successfully`);
       logger.info(`   Result rows: ${result.rows.length}`);
@@ -435,22 +471,6 @@ module.exports = async function (fastify, opts) {
       }
 
       logger.debug(`✅ [DEBUG] Query returned ${result.rows.length} batches`);
-
-      // Get total count for pagination
-      let countQuery = `
-        SELECT COUNT(*) as total
-        FROM parent_report_batches
-        WHERE user_id = $1
-      `;
-      const countParams = [userId];
-
-      if (period !== 'all') {
-        countQuery += ` AND period = $2`;
-        countParams.push(period);
-      }
-
-      const countResult = await db.query(countQuery, countParams);
-      const totalCount = parseInt(countResult.rows[0]?.total || 0);
 
       logger.info(`✅ Found ${result.rows.length} batches (${totalCount} total)`);
 
