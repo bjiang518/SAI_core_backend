@@ -451,6 +451,43 @@ class SessionChatViewModel: ObservableObject {
         }
     }
 
+    /// Archive the current session (async version for progress overlay)
+    @MainActor
+    func archiveCurrentSessionAsync() async {
+        guard let sessionId = networkService.currentSessionId else { return }
+
+        isArchiving = true
+        errorMessage = ""
+
+        // ✅ SYNC FIRST: Ensure conversationHistory matches SwiftData
+        syncConversationHistoryFromSwiftData()
+
+        let result = await networkService.archiveSession(
+            sessionId: sessionId,
+            title: archiveTitle.isEmpty ? nil : archiveTitle,
+            topic: archiveTopic.isEmpty ? nil : archiveTopic,
+            subject: selectedSubject,
+            notes: archiveNotes.isEmpty ? nil : archiveNotes,
+            diagrams: generatedDiagrams
+        )
+
+        isArchiving = false
+
+        if result.success {
+            archivedSessionTitle = archiveTitle.isEmpty ? "your conversation" : archiveTitle
+            archiveTitle = ""
+            archiveTopic = ""
+            archiveNotes = ""
+
+            // Clear current session
+            networkService.currentSessionId = nil
+            networkService.conversationHistory.removeAll()
+            generatedDiagrams.removeAll()
+        } else {
+            errorMessage = NSLocalizedString("error.session.archive", comment: "")
+        }
+    }
+
     /// Archive the current session
     func archiveCurrentSession() {
         guard let sessionId = networkService.currentSessionId else { return }

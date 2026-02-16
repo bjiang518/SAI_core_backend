@@ -13,6 +13,7 @@ struct ArchiveProgressView: View {
     @State private var isComplete = false
     @Binding var isPresented: Bool
 
+    let archiveTask: () async -> Void  // ✅ Changed: Run async task during animation
     let onComplete: () -> Void
 
     var body: some View {
@@ -99,6 +100,10 @@ struct ArchiveProgressView: View {
         .padding(.horizontal, 40)
         .onAppear {
             startProgress()
+            // ✅ NEW: Start archive task immediately when animation appears
+            Task {
+                await archiveTask()
+            }
         }
     }
 
@@ -129,7 +134,7 @@ struct ArchiveProgressView: View {
                         isComplete = true
                     }
 
-                    // Dismiss and call completion after showing success
+                    // Dismiss after showing success (archive already completed)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                         onComplete()
                         isPresented = false
@@ -143,6 +148,7 @@ struct ArchiveProgressView: View {
 // Overlay wrapper for easy presentation
 struct ArchiveProgressOverlay: ViewModifier {
     @Binding var isPresented: Bool
+    let archiveTask: () async -> Void  // ✅ Changed: Accept async task
     let onComplete: () -> Void
 
     func body(content: Content) -> some View {
@@ -154,8 +160,12 @@ struct ArchiveProgressOverlay: ViewModifier {
                     .ignoresSafeArea()
                     .transition(.opacity)
 
-                ArchiveProgressView(isPresented: $isPresented, onComplete: onComplete)
-                    .transition(.scale.combined(with: .opacity))
+                ArchiveProgressView(
+                    isPresented: $isPresented,
+                    archiveTask: archiveTask,  // ✅ Pass archive task
+                    onComplete: onComplete
+                )
+                .transition(.scale.combined(with: .opacity))
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isPresented)
@@ -163,8 +173,16 @@ struct ArchiveProgressOverlay: ViewModifier {
 }
 
 extension View {
-    func archiveProgressOverlay(isPresented: Binding<Bool>, onComplete: @escaping () -> Void) -> some View {
-        modifier(ArchiveProgressOverlay(isPresented: isPresented, onComplete: onComplete))
+    func archiveProgressOverlay(
+        isPresented: Binding<Bool>,
+        archiveTask: @escaping () async -> Void,  // ✅ Accept async task
+        onComplete: @escaping () -> Void
+    ) -> some View {
+        modifier(ArchiveProgressOverlay(
+            isPresented: isPresented,
+            archiveTask: archiveTask,
+            onComplete: onComplete
+        ))
     }
 }
 
@@ -172,7 +190,11 @@ extension View {
     VStack {
         Text("Background Content")
     }
-    .archiveProgressOverlay(isPresented: .constant(true)) {
+    .archiveProgressOverlay(isPresented: .constant(true), archiveTask: {
+        // Simulate async archive
+        try? await Task.sleep(nanoseconds: 3_000_000_000)
         print("Archive complete!")
+    }) {
+        print("Overlay dismissed!")
     }
 }

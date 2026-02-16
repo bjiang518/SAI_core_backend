@@ -231,9 +231,11 @@ struct SessionChatView: View {
                 }
             }
             // ✅ NEW: Archive progress animation overlay
-            .archiveProgressOverlay(isPresented: $showingArchiveProgress) {
-                // When progress completes, actually perform the archive
-                viewModel.archiveCurrentSession()
+            .archiveProgressOverlay(isPresented: $showingArchiveProgress, archiveTask: {
+                // ✅ FIXED: Archive runs DURING the animation, not after
+                await viewModel.archiveCurrentSessionAsync()
+            }) {
+                // Called after overlay dismisses
                 showingArchiveSuccess = true
             }
     }
